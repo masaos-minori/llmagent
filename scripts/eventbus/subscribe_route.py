@@ -31,6 +31,10 @@ from eventbus.route_helpers import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_SSE_IDLE_TIMEOUT = 60  # seconds — default idle timeout for SSE subscribers
+# Seconds between the idle-timeout and heartbeat checks of an SSE stream. The idle
+# timeout can only fire on one of these checks, so it bounds how soon a quiet
+# stream closes; tests shorten it.
+SSE_POLL_INTERVAL_SEC = 1.0
 
 router = APIRouter()
 
@@ -202,7 +206,7 @@ async def subscribe(
                 disc_task = asyncio.ensure_future(sub.disconnect.wait())
                 done, pending = await asyncio.wait(
                     {get_task, disc_task},
-                    timeout=1.0,
+                    timeout=SSE_POLL_INTERVAL_SEC,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 for p in pending:
