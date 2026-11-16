@@ -32,7 +32,11 @@ from agent.services.models import ProcessInfoSnapshot
 
 from .http_lifecycle_command_validator import CommandValidator
 from .http_lifecycle_errors import HttpStartupError, StartupFailure, TerminationOutcome
-from .http_lifecycle_health_checker import HEALTH_RECHECK_INTERVAL_SEC, HealthChecker
+from .http_lifecycle_health_checker import (
+    HEALTH_RECHECK_INTERVAL_SEC,
+    HealthChecker,
+    _terminate_for_startup_failure,
+)
 from .http_lifecycle_process_terminator import ProcessTerminator
 from .http_lifecycle_shutdown_coordinator import ShutdownCoordinator
 from .http_lifecycle_stderr_log_manager import StderrLogManager
@@ -81,6 +85,7 @@ class HttpServerLifecycleManager:
         self._http_pgids: dict[str, int] = {}
         self._stderr_files: dict[str, IO[bytes]] = {}
         self._last_health_check: dict[str, float] = {}
+        self._failed_start_procs: dict[str, subprocess.Popen[bytes]] = {}
         self._subprocess_launcher = subprocess_launcher or SubprocessLauncher(
             command_validator=self._command_validator,
             stderr_log_manager=self._stderr_log_manager,
@@ -153,6 +158,7 @@ class HttpServerLifecycleManager:
         """
         self._http_procs.pop(server_key, None)
         self._http_pgids.pop(server_key, None)
+        self._failed_start_procs.pop(server_key, None)
         self._clear_server_tracking_data(server_key)
 
     def remove_process_entry(self, server_key: str) -> None:
@@ -163,6 +169,7 @@ class HttpServerLifecycleManager:
         up after termination via cleanup_server_key().
         """
         self._http_procs.pop(server_key, None)
+        self._failed_start_procs.pop(server_key, None)
 
     def clear_all_health_checks(self) -> None:
         """Clear all health check timestamps.
@@ -234,6 +241,7 @@ class HttpServerLifecycleManager:
         """
         self._http_procs.pop(server_key, None)
         self._http_pgids.pop(server_key, None)
+        self._failed_start_procs.pop(server_key, None)
         raise HttpStartupError(
             StartupFailure(
                 server_key=server_key, reason=reason, stderr_full=stderr_full
@@ -250,6 +258,8 @@ class HttpServerLifecycleManager:
         shutdown_all() still names the server for manual cleanup.
         """
         proc = self._http_procs.get(server_key)
+        if proc is not None:
+            self._failed_start_procs[server_key] = proc
         pid = getattr(proc, "pid", None)
         pgid = self._http_pgids.get(server_key)
         logger.error(
@@ -318,11 +328,14 @@ class HttpServerLifecycleManager:
         """
         existing = self._http_procs.get(server_key)
         if existing is not None and existing.poll() is None:
-            logger.info(
-                "Lifecycle: HTTP subprocess %r already running (reusing)",
-                server_key,
-            )
-            return
+            if self._failed_start_procs.get(server_key) is existing:
+                await self._reterminate_recorded_failed_start(server_key, existing)
+            else:
+                logger.info(
+                    "Lifecycle: HTTP subprocess %r already running (reusing)",
+                    server_key,
+                )
+                return
 
         logger.info(
             "Lifecycle: starting HTTP subprocess %r: %s",
@@ -344,10 +357,44 @@ class HttpServerLifecycleManager:
                 server_key,
             )
 
+    async def _reterminate_recorded_failed_start(
+        self, server_key: str, proc: subprocess.Popen[bytes]
+    ) -> None:
+        """Re-terminate a tracked process left by an unconfirmed failed start.
+
+        Called from start()'s reuse branch when the live process is the one
+        recorded by _raise_startup_failure_unconfirmed. On a confirmed exit the
+        tracking (process, pgid, record, stderr and health-check data) is released
+        and start() falls through to a fresh launch; on an unconfirmed exit the
+        tracking and the record are kept and the startup failure is raised again.
+        A process that is alive but has no matching record is never re-terminated.
+        """
+        logger.info(
+            "Lifecycle: %r failed start with exit not confirmed; "
+            "re-terminating before restart",
+            server_key,
+        )
+        outcome = await _terminate_for_startup_failure(
+            self, server_key, proc, TERMINATE_TIMEOUT_SEC
+        )
+        if outcome.confirmed:
+            stderr_full = self._cleanup_server_resources(server_key)
+            self._http_procs.pop(server_key, None)
+            self._http_pgids.pop(server_key, None)
+            self._failed_start_procs.pop(server_key, None)
+        else:
+            stderr_full = self._stderr_log_manager.read_tail(server_key).decode(
+                errors="replace"
+            )
+            self._raise_startup_failure_unconfirmed(
+                server_key, "startup failure: prior exit not confirmed", stderr_full
+            )
+
     async def restart(self, server_key: str, cfg: McpServerConfig) -> None:
         """Terminate and restart an HTTP subprocess server."""
         self._clear_server_tracking_data(server_key)
         proc = self._http_procs.pop(server_key, None)
+        self._failed_start_procs.pop(server_key, None)
         if proc is not None and proc.poll() is None:
             logger.info("Lifecycle: terminating %r for restart", server_key)
             outcome = await self._process_terminator.terminate_with_timeout(

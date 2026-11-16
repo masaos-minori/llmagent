@@ -86,9 +86,9 @@ Make `HttpServerLifecycleManager.start` never report success for a process that 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the manager-level unconfirmed-reuse tests first and confirm they fail on the current code (companion `tests/agent/test_http_lifecycle_integration.py`) | Pending | — | — | |
-| 2 | Add the identity-bound failed-start record, set it, release it at every release point, and make the reuse branch of `start` re-terminate a recorded process | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the manager-level unconfirmed-reuse tests first and confirm they fail on the current code (companion `tests/agent/test_http_lifecycle_integration.py`) | Done | — | 20261116 | `TestStartupFailureTerminateOrTrack` (11 cases) added; all pass. |
+| 2 | Add the identity-bound failed-start record, set it, release it at every release point, and make the reuse branch of `start` re-terminate a recorded process | Done | — | 20261116 | `_failed_start_procs` in `scripts/agent/http_lifecycle.py`; reuse branch calls `_reterminate_recorded_failed_start`. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | 20261116 | ruff format/check, mypy (567 files), lint-imports, bandit -ll (0 high/medium), radon, module-size, reference-table, diff-cover 100%, pre-commit all pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

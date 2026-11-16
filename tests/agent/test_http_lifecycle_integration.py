@@ -1358,3 +1358,264 @@ class TestStartupFailureTerminateOrTrack:
         assert mgr._http_procs.get("test") is proc_mock
         assert mgr._http_pgids.get("test") == 7777
         assert "treating the exit as unconfirmed" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_start_reterminates_recorded_failed_start_before_restart(
+        self,
+        mgr: HttpServerLifecycleManager,
+    ) -> None:
+        """(a) a second start after an unconfirmed failed start re-terminates the
+        recorded process, raises, does not launch, and keeps process, pgid and record."""
+        cfg = _make_cfg()
+        stale_proc = Mock(pid=7777, poll=Mock(return_value=None))
+        mgr._http_procs["test"] = stale_proc
+        mgr._http_pgids["test"] = 7777
+        mgr._failed_start_procs["test"] = stale_proc
+        terminator_mock = AsyncMock(return_value=TerminationOutcome.EXIT_UNCONFIRMED)
+        launcher_mock = AsyncMock()
+        with (
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                new=terminator_mock,
+            ),
+            patch.object(
+                mgr._subprocess_launcher,
+                "create_and_validate_proc",
+                new=launcher_mock,
+            ),
+            patch.object(httpx, "AsyncClient"),
+            patch.object(
+                mgr._stderr_log_manager,
+                "read_tail",
+                new=MagicMock(return_value=b"unconfirmed tail"),
+            ),
+        ):
+            with pytest.raises(HttpStartupError) as exc_info:
+                await mgr.start("test", cfg)
+
+        terminator_mock.assert_awaited_once()
+        launcher_mock.assert_not_awaited()
+        assert mgr._http_procs.get("test") is stale_proc
+        assert mgr._http_pgids.get("test") == 7777
+        assert mgr._failed_start_procs.get("test") is stale_proc
+        assert (
+            exc_info.value.failure.reason == "startup failure: prior exit not confirmed"
+        )
+        assert "unconfirmed tail" in exc_info.value.failure.stderr_full
+
+    @pytest.mark.asyncio
+    async def test_start_launches_fresh_after_confirmed_retermination(
+        self,
+        mgr: HttpServerLifecycleManager,
+    ) -> None:
+        """(b) a second start whose re-termination confirms the exit launches a fresh
+        process and releases the record (terminator returns unconfirmed then exited)."""
+        cfg = _make_cfg(startup_timeout_sec=0)
+        stale_proc = Mock(pid=7777, poll=Mock(return_value=None))
+        fresh_proc = Mock(pid=8888, poll=Mock(return_value=None))
+        terminator_mock = AsyncMock(
+            side_effect=[
+                TerminationOutcome.EXIT_UNCONFIRMED,
+                TerminationOutcome.EXITED,
+            ]
+        )
+        launcher_mock = AsyncMock()
+
+        async def launch(server_key: str, cfg: object) -> tuple[object, io.BytesIO]:
+            # Mirror SubprocessLauncher registration so the fresh process is tracked.
+            mgr._http_pgids[server_key] = fresh_proc.pid
+            mgr._http_procs[server_key] = fresh_proc
+            return fresh_proc, io.BytesIO()
+
+        launcher_mock.side_effect = launch
+        mgr._http_procs["test"] = stale_proc
+        mgr._http_pgids["test"] = 7777
+        mgr._failed_start_procs["test"] = stale_proc
+        with (
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                new=terminator_mock,
+            ),
+            patch.object(
+                mgr._subprocess_launcher,
+                "create_and_validate_proc",
+                new=launcher_mock,
+            ),
+            patch.object(httpx, "AsyncClient"),
+            patch.object(
+                mgr._stderr_log_manager,
+                "read_tail",
+                new=MagicMock(return_value=b""),
+            ),
+        ):
+            shutdown_event = asyncio.Event()
+            shutdown_event.set()
+            with pytest.raises(HttpStartupError):
+                await mgr.start("test", cfg, shutdown_event=shutdown_event)
+            assert mgr._failed_start_procs.get("test") is stale_proc
+            await mgr.start("test", cfg)
+
+        assert terminator_mock.await_count == 2
+        launcher_mock.assert_awaited_once()
+        assert mgr._http_procs.get("test") is fresh_proc
+        assert mgr._failed_start_procs.get("test") is None
+
+    @pytest.mark.asyncio
+    async def test_start_reuses_live_process_without_record(
+        self,
+        mgr: HttpServerLifecycleManager,
+    ) -> None:
+        """(c) a tracked live process with no matching record is reused on repeated
+        start with no terminator call."""
+        cfg = _make_cfg()
+        live_proc = Mock(pid=7777, poll=Mock(return_value=None))
+        mgr._http_procs["test"] = live_proc
+        mgr._http_pgids["test"] = 7777
+        terminator_mock = AsyncMock(return_value=TerminationOutcome.EXITED)
+        launcher_mock = AsyncMock()
+        with (
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                new=terminator_mock,
+            ),
+            patch.object(
+                mgr._subprocess_launcher,
+                "create_and_validate_proc",
+                new=launcher_mock,
+            ),
+            patch.object(httpx, "AsyncClient"),
+        ):
+            await mgr.start("test", cfg)
+            await mgr.start("test", cfg)
+
+        terminator_mock.assert_not_awaited()
+        launcher_mock.assert_not_awaited()
+        assert mgr._http_procs.get("test") is live_proc
+
+    @pytest.mark.asyncio
+    async def test_start_ignores_stale_record_for_older_process(
+        self,
+        mgr: HttpServerLifecycleManager,
+    ) -> None:
+        """(d) a record naming an older process object than the tracked one is ignored:
+        the live process is reused and no terminator is called."""
+        cfg = _make_cfg()
+        old_proc = Mock(pid=1, poll=Mock(return_value=None))
+        live_proc = Mock(pid=7777, poll=Mock(return_value=None))
+        mgr._http_procs["test"] = live_proc
+        mgr._http_pgids["test"] = 7777
+        mgr._failed_start_procs["test"] = old_proc
+        terminator_mock = AsyncMock(return_value=TerminationOutcome.EXITED)
+        launcher_mock = AsyncMock()
+        with (
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                new=terminator_mock,
+            ),
+            patch.object(
+                mgr._subprocess_launcher,
+                "create_and_validate_proc",
+                new=launcher_mock,
+            ),
+            patch.object(httpx, "AsyncClient"),
+        ):
+            await mgr.start("test", cfg)
+
+        terminator_mock.assert_not_awaited()
+        launcher_mock.assert_not_awaited()
+        assert mgr._http_procs.get("test") is live_proc
+        assert mgr._failed_start_procs.get("test") is old_proc
+
+    @pytest.mark.asyncio
+    async def test_shutdown_all_after_unconfirmed_retermination_names_server(
+        self,
+        mgr: HttpServerLifecycleManager,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """(e) shutdown_all after an unconfirmed failure and an unconfirmed
+        re-termination still returns the server and logs its pid and pgid."""
+        cfg = _make_cfg()
+        stale_proc = Mock(pid=7777, poll=Mock(return_value=None))
+        mgr._http_procs["test"] = stale_proc
+        mgr._http_pgids["test"] = 7777
+        mgr._failed_start_procs["test"] = stale_proc
+        terminator_mock = AsyncMock(return_value=TerminationOutcome.EXIT_UNCONFIRMED)
+        launcher_mock = AsyncMock()
+        with (
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                new=terminator_mock,
+            ),
+            patch.object(
+                mgr._subprocess_launcher,
+                "create_and_validate_proc",
+                new=launcher_mock,
+            ),
+            patch.object(httpx, "AsyncClient"),
+            patch.object(
+                mgr._stderr_log_manager,
+                "read_tail",
+                new=MagicMock(return_value=b""),
+            ),
+        ):
+            with caplog.at_level(logging.ERROR, logger="agent.http_lifecycle"):
+                with pytest.raises(HttpStartupError):
+                    await mgr.start("test", cfg)
+            outcomes = await mgr.shutdown_all()
+
+        assert ("test", TerminationOutcome.EXIT_UNCONFIRMED) in outcomes
+        assert "pid=7777 pgid=7777" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_record_released_by_confirmed_paths(
+        self,
+        mgr: HttpServerLifecycleManager,
+    ) -> None:
+        """(f) the record is released by a confirmed shutdown, a confirmed failed
+        start, restart and remove_process_entry."""
+        cfg = _make_cfg(startup_timeout_sec=0)
+        stale_proc = Mock(pid=7777, poll=Mock(return_value=None))
+        mgr._http_procs["test"] = stale_proc
+        mgr._http_pgids["test"] = 7777
+        mgr._failed_start_procs["test"] = stale_proc
+
+        # confirmed failed-start path clears the record (NoReturn: clears then raises)
+        with pytest.raises(HttpStartupError):
+            mgr._raise_startup_failure("test", "boom", "")
+        assert mgr._failed_start_procs.get("test") is None
+
+        mgr._failed_start_procs["test"] = stale_proc
+        mgr.cleanup_server_key("test")
+        assert mgr._failed_start_procs.get("test") is None
+
+        mgr._failed_start_procs["test"] = stale_proc
+        mgr.remove_process_entry("test")
+        assert mgr._failed_start_procs.get("test") is None
+
+        mgr._failed_start_procs["test"] = stale_proc
+        launcher_mock = AsyncMock()
+
+        async def launch(server_key: str, cfg: object) -> tuple[object, io.BytesIO]:
+            return Mock(pid=9999), io.BytesIO()
+
+        launcher_mock.side_effect = launch
+        with (
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                new=AsyncMock(return_value=TerminationOutcome.EXITED),
+            ),
+            patch.object(
+                mgr._subprocess_launcher,
+                "create_and_validate_proc",
+                new=launcher_mock,
+            ),
+        ):
+            await mgr.restart("test", cfg)
+
+        assert mgr._failed_start_procs.get("test") is None
