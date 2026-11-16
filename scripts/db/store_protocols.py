@@ -143,9 +143,15 @@ class DocumentStore(Protocol):
 
 @dataclass(frozen=True)
 class MemoryDeleteResult:
-    """Result of an atomic cross-table memory deletion operation."""
+    """Result of an atomic cross-table memory deletion operation.
+
+    `deleted_ids` is the authoritative record of the rows removed by the
+    delete transaction; a store that does not populate it reports an empty
+    tuple.
+    """
 
     deleted: int
+    deleted_ids: tuple[str, ...] = ()
 
 
 @runtime_checkable
@@ -156,5 +162,9 @@ class MemoryDeleteStore(Protocol):
     """
 
     def delete_memories_before(self, older_than_days: int) -> MemoryDeleteResult:
-        """Delete memories older than older_than_days; return deletion summary."""
+        """Delete memories older than older_than_days; return deletion summary.
+
+        `MemoryDeleteResult.deleted_ids` is the authoritative record of the ids
+        removed by the delete transaction.
+        """
         ...

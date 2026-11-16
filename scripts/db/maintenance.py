@@ -76,7 +76,7 @@ def _handle_maintenance_error(
     """
     logger.error("%s failed: %s", action, exc)
     if mode == MaintenanceMode.STRICT:
-        raise
+        raise exc
     return MaintenanceResult(
         success=False,
         action=f"{action}_failed",
@@ -155,12 +155,15 @@ def vacuum_db(
 
     In STRICT mode (default), raises on failure.
     In BEST_EFFORT mode, returns MaintenanceResult(success=False, detail=str(exc)).
+    Catches any sqlite3.Error (not only OperationalError) plus RuntimeError.
+    This function performs no config loading; elsewhere in this module
+    config-load failures propagate in both modes.
     Cannot run inside a transaction; requires ~2× DB size in free disk space.
     """
     try:
         db.vacuum()
         return MaintenanceResult(success=True, action="vacuum", mode=mode)
-    except (sqlite3.OperationalError, RuntimeError) as e:
+    except (sqlite3.Error, RuntimeError) as e:
         return _handle_maintenance_error(e, "vacuum", mode)
 
 
@@ -248,8 +251,14 @@ def purge_old_sessions(
 ) -> MaintenanceResult:
     """Delete sessions exceeding the retention policy (age-based then count-based).
 
+    Both delete rules run inside one BEGIN IMMEDIATE transaction: on any DB error
+    the whole purge is rolled back and no partial deletions survive.
+
     CASCADE removes messages. In STRICT mode (default), raises on DB errors.
-    In BEST_EFFORT mode, returns MaintenanceResult with partial counts on error.
+    In BEST_EFFORT mode, returns MaintenanceResult with zeroed counts
+    (the transaction was rolled back; attempted counts are not reported).
+
+    Config-load failures (`RetentionConfig.from_config`) propagate in both modes.
 
     When `keep_session_id` is given and that session was a delete candidate under at
     least one rule, it is exempted and surfaced as `data["kept_active_session"]`
@@ -258,21 +267,18 @@ def purge_old_sessions(
     if cfg is None:
         cfg = RetentionConfig.from_config()
 
-    age_deleted = 0
-    count_deleted = 0
-
     try:
-        age_deleted, age_exempted = _delete_sessions_by_age(
-            db, cfg.max_age_days, keep_session_id
-        )
-        count_deleted, count_exempted = _delete_sessions_beyond_limit(
-            db, cfg.max_sessions, keep_session_id
-        )
+        with db.begin_immediate():
+            age_deleted, age_exempted = _delete_sessions_by_age(
+                db, cfg.max_age_days, keep_session_id
+            )
+            count_deleted, count_exempted = _delete_sessions_beyond_limit(
+                db, cfg.max_sessions, keep_session_id
+            )
         kept = keep_session_id if (age_exempted or count_exempted) else None
         if kept is not None:
             logger.info("Retention: kept active session %s beyond retention", kept)
 
-        db.commit()
         return MaintenanceResult(
             success=True,
             action="purge",
@@ -289,9 +295,9 @@ def purge_old_sessions(
             "purge",
             mode,
             extra_data={
-                "age_deleted": age_deleted,
-                "count_deleted": count_deleted,
-                "kept_active_session": keep_session_id,
+                "age_deleted": 0,
+                "count_deleted": 0,
+                "kept_active_session": None,
             },
         )
 
@@ -350,6 +356,8 @@ def purge_corrupt_archives(
 
     In STRICT mode (default), raises on filesystem errors.
     In BEST_EFFORT mode, returns MaintenanceResult with partial counts on error.
+    Config-load failures (`CorruptArchiveRetentionConfig.from_config`,
+    `build_db_config`) propagate in both modes.
     """
     if cfg is None:
         cfg = CorruptArchiveRetentionConfig.from_config()
@@ -394,10 +402,11 @@ def prune_old_memories(
 
     In STRICT mode (default), raises on DB errors.
     In BEST_EFFORT mode, returns MaintenanceResult(success=False, detail=str(exc)).
+    This function performs no config loading; elsewhere in this module
+    config-load failures propagate in both modes.
     """
     try:
         store = SQLiteMemoryDeleteStore(db)
-        pruned_ids = store.collect_prunable_ids(older_than_days)
         delete_result = store.delete_memories_before(older_than_days)
         logger.info(
             "prune_old_memories: removed %s entries older than %s days",
@@ -408,7 +417,10 @@ def prune_old_memories(
             success=True,
             action="prune",
             mode=mode,
-            data={"deleted": delete_result.deleted, "pruned_ids": pruned_ids},
+            data={
+                "deleted": delete_result.deleted,
+                "pruned_ids": list(delete_result.deleted_ids),
+            },
         )
     except sqlite3.Error as e:
         return _handle_maintenance_error(e, "prune", mode)

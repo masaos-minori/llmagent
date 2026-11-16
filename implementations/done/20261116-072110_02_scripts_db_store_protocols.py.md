@@ -63,9 +63,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `deleted_ids` field + docstring statement (plan Phase 2) | Pending | — | — | REQ-005 |
+| 1 | Add `deleted_ids` field + docstring statement (plan Phase 2) | Completed | 2026-11-16 | 2026-11-16 | REQ-005 REQ-005 field landed |
 | 2 | Add or update tests per Validation plan | N/A | — | — | tests land via `20261116-072110_04` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-16 | 2026-11-16 | ruff/mypy/lint-imports clean; test_db_store_impl 35 passed; full-suite run waived per user instruction (targeted tests only) |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | no doc in this row's scope |
 
 ### Blocker Log

@@ -5,10 +5,10 @@
 **Release unit**: N/A: not part of a release unit (verify-only row; maps to no plan phase step — plan Phase 3 runs this file as the UNK-01 regression confirmation).
 
 - In scope: regression run of this file after `_01`/`_03` land; conditional adjustment of patch targets.
-- Out of scope: everything else in `tests/agent/commands/`; the production `memory_data_ops.py` itself (no change planned — its own `collect_prunable_ids` call at `memory_data_ops.py:371-373` is the dry-run/confirm count and stays).
+- Out of scope: everything else in `tests/agent/commands/`; the production `memory_data_ops.py` itself (no change planned — its own `collect_prunable_ids` call at `memory_data_ops.py:372-374` is the dry-run/confirm count and stays).
 
 ## Assumptions
-- UNK-01 resolved statically (2026-11-16, HEAD `8fc337615`): the prune-event tests at `:380-420` patch `SQLiteMemoryDeleteStore.collect_prunable_ids` (`:386-387`, `:418-419`), which the agent `memory_prune` path itself calls (`memory_data_ops.py:373`) — independent of the removed `maintenance.py:400` call. Expected outcome: green as-is, no edit.
+- UNK-01 resolved statically (re-verified 2026-11-16 against HEAD `206e36a3f`; originally `8fc337615`): the prune-event tests — `TestMemoryPruneEvents`, `:369-424` — patch `db.store_impl.SQLiteMemoryDeleteStore.collect_prunable_ids` (`:386-389`, `:418-421`), which the agent `memory_prune` path itself calls (`memory_data_ops.py:374`, passing `days`) — independent of the removed `maintenance.py:400` call. Expected outcome: green as-is, no edit.
 - The `data["pruned_ids"]` shape consumed at `memory_data_ops.py:402-403` stays `list[str]` (procedure `20261116-072110_01` step 5), so the event-emission assertions are unaffected.
 
 ## Design decisions
@@ -23,7 +23,7 @@
 
 ### Procedure
 1. After `_01` (step 5) and `_03` land, run `uv run pytest tests/agent/commands -v`.
-2. Expected: green with no edits (UNK-01 static resolution). Only if a prune-event test fails due to `maintenance` no longer calling `collect_prunable_ids`, adjust the patch targets at `:386-387`/`:418-419` to match the landed call graph — no other edit is authorized by this row.
+2. Expected: green with no edits (UNK-01 static resolution). Only if a prune-event test fails due to `maintenance` no longer calling `collect_prunable_ids`, adjust the patch targets at `:386-389`/`:418-421` to match the landed call graph — no other edit is authorized by this row.
 
 ### Method
 - No edit anticipated; the "procedure" is a gated regression run recorded against this row.
@@ -56,7 +56,7 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regression run after `_01` step 5 and `_03` land; edit only on failure (plan Phase 3 UNK-01 check) | Pending | — | — | UNK-01 resolved statically; no edit expected |
+| 1 | Regression run after `_01` step 5 and `_03` land; edit only on failure (plan Phase 3 UNK-01 check) | Completed | 2026-11-16 | 2026-11-16 | UNK-01 resolved statically; no edit expected regression green with zero edits; 5 prune-event tests passed incl. TestMemoryPruneRealLoader; UNK-01 confirmed dynamically; full-suite waived per user instruction, covered by scoped tests/db+tests/agent/commands run (878 passed) |
 | 2 | Run the validation sequence (`rules/toolchain.md`) | N/A | — | — | no edit expected; covered by full-suite run |
 
 ### Blocker Log

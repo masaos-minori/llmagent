@@ -8,7 +8,7 @@
 - Out of scope: the `deleted_ids` field itself (procedure `20261116-072110_02`); consuming it in `maintenance.py` (procedure `20261116-072110_01` step 5); the tests (procedure `20261116-072110_04`).
 
 ## Assumptions
-- Verification finding (2026-11-16, HEAD `8fc337615`): `delete_memories_before` already collects `deleted_ids` from the `RETURNING` statement inside its `begin_immediate` transaction (`:196-205`) but discards them into a count-only `MemoryDeleteResult(deleted=len(deleted_ids))` at `:205` (plan row cites `store_impl.py:196-205`; the function spans `:189-205`).
+- Verification finding (2026-11-16, HEAD `8fc337615`): `delete_memories_before` already collects `deleted_ids` from the `RETURNING` statement inside its `begin_immediate` transaction (`:196-205`) but discards them into a count-only `MemoryDeleteResult(deleted=len(deleted_ids))` at `:205` (plan row cites `store_impl.py:196-205`; the function spans `:177-205`, the transaction block `:189-205`).
 - The fast path at `:186` returns `MemoryDeleteResult(deleted=0)` with no rows; with the field default `()` it needs no edit (Plan Assumptions).
 - The internal fast-path SELECT + cross-table delete structure stays as-is; the store's own `BEGIN IMMEDIATE` is what keeps the delete atomic (Plan Design).
 
@@ -64,9 +64,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Populate `deleted_ids` in the result construction (plan Phase 2) | Pending | — | — | REQ-005; after `_02` lands |
+| 1 | Populate `deleted_ids` in the result construction (plan Phase 2) | Completed | 2026-11-16 | 2026-11-16 | REQ-005; after `_02` lands REQ-005 population landed |
 | 2 | Add or update tests per Validation plan | N/A | — | — | tests land via `20261116-072110_04` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-16 | 2026-11-16 | ruff/mypy clean; test_db_store_impl 35 passed; maintenance 12 known _FakeDB reds unchanged; full-suite waived per user instruction |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | no doc in this row's scope |
 
 ### Blocker Log

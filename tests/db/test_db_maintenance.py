@@ -5,8 +5,9 @@ Unit tests for db_maintenance: purge_old_sessions, rotate_*_db, checkpoint_wal, 
 import os
 import sqlite3
 import time
+from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from db.config import DbConfig
@@ -16,6 +17,7 @@ from db.maintenance import (
     MaintenanceMode,
     MaintenanceResult,
     RetentionConfig,
+    _handle_maintenance_error,
     checkpoint_wal,
     prune_old_memories,
     purge_corrupt_archives,
@@ -30,6 +32,7 @@ from db.rotation import (
     rotate_session_db,
     rotate_workflow_db,
 )
+from db.store_impl import SQLiteMemoryDeleteStore
 
 _TEST_EMBED_URL = "http://127.0.0.1:8081/embedding"
 
@@ -88,6 +91,22 @@ class _FakeDB:
     def commit(self) -> None:
         assert self.conn is not None
         self.conn.commit()
+
+    @contextmanager
+    def begin_immediate(self):
+        """Mirror helper._begin_transaction (db/helper.py): BEGIN IMMEDIATE...COMMIT,
+        rollback on any normal exception, re-raise."""
+        assert self.conn is not None
+        self.conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+            self.conn.execute("COMMIT")
+        except Exception:
+            try:
+                self.conn.execute("ROLLBACK")
+            except sqlite3.OperationalError:
+                pass
+            raise
 
 
 def _make_session_db(sessions: list[tuple[str, str]]) -> _FakeDB:
@@ -970,7 +989,7 @@ class TestMaintenanceMode:
         assert result.action == "vacuum"
         assert result.mode == MaintenanceMode.BEST_EFFORT
 
-    def test_purge_best_effort_returns_partial_result_on_error(self) -> None:
+    def test_purge_best_effort_returns_failure_result_on_error(self) -> None:
         mock_db = MagicMock(spec=SQLiteHelper)
         mock_db.execute.side_effect = sqlite3.OperationalError("lock timeout")
         # max_age_days=1 triggers the age-based DELETE (execute), which raises
@@ -1252,3 +1271,161 @@ def test_verify_archive_leaves_archive_unchanged(tmp_path: Path) -> None:
     assert hashlib.sha256(archive.read_bytes()).hexdigest() == before_sha
     assert sorted(os.listdir(tmp_path)) == before_listing
     assert archive.stat().st_mode == before_mode
+
+
+# ── Maintenance error semantics (dbreview006, REQ-006) ────────────────────────
+
+
+class TestPurgeTransactionAtomicity:
+    """AC-1: both purge delete rules run in one BEGIN IMMEDIATE transaction;
+    a count-rule failure rolls back the age-rule deletions (REQ-001)."""
+
+    def test_count_rule_failure_rolls_back_age_deletions(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import db.maintenance as db_maintenance
+
+        def _boom(*args: object, **kwargs: object) -> None:
+            raise sqlite3.OperationalError("count rule boom")
+
+        monkeypatch.setattr(db_maintenance, "_delete_sessions_beyond_limit", _boom)
+
+        helper = SQLiteHelper("session", db_path=str(tmp_path / "session.sqlite"))
+        with helper.open(write_mode=True) as db:
+            db.executescript(_SESSION_SCHEMA)
+            for i in range(5):
+                db.execute(
+                    "INSERT INTO sessions (title, created_at)"
+                    " VALUES (?, datetime('now', '-10 days'))",
+                    (f"s{i}",),
+                )
+            db.commit()
+
+            result = purge_old_sessions(
+                db,
+                RetentionConfig(max_sessions=1, max_age_days=1),
+                mode=MaintenanceMode.BEST_EFFORT,
+            )
+
+            assert result.success is False
+            assert result.action == "purge_failed"
+            assert result.data == {
+                "age_deleted": 0,
+                "count_deleted": 0,
+                "kept_active_session": None,
+            }
+            assert db.fetchall("SELECT COUNT(*) FROM sessions")[0][0] == 5
+            assert helper._require_conn().in_transaction is False
+
+
+class TestVacuumDatabaseError:
+    """AC-2: vacuum_db captures any sqlite3.Error, not only OperationalError (REQ-002)."""
+
+    def _malformed(self) -> MagicMock:
+        mock_db = MagicMock(spec=SQLiteHelper)
+        mock_db.vacuum.side_effect = sqlite3.DatabaseError(
+            "database disk image is malformed"
+        )
+        return mock_db
+
+    def test_vacuum_best_effort_catches_database_error(self) -> None:
+        result = vacuum_db(self._malformed(), mode=MaintenanceMode.BEST_EFFORT)
+        assert isinstance(result, MaintenanceResult)
+        assert result.success is False
+        assert result.action == "vacuum_failed"
+        assert result.detail is not None
+        assert "malformed" in result.detail
+        assert result.mode == MaintenanceMode.BEST_EFFORT
+
+    def test_vacuum_strict_raises_database_error(self) -> None:
+        with pytest.raises(sqlite3.DatabaseError, match="malformed"):
+            vacuum_db(self._malformed(), mode=MaintenanceMode.STRICT)
+
+
+class TestConfigErrorPropagation:
+    """AC-3: config-load failures propagate in both modes (REQ-003)."""
+
+    def test_purge_config_oserror_raises_in_both_modes(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import db.maintenance as db_maintenance
+
+        def _boom(self: object, key: str) -> dict:
+            raise OSError("agent.toml unreadable")
+
+        monkeypatch.setattr(db_maintenance.ConfigLoader, "load", _boom)
+        mock_db = MagicMock(spec=SQLiteHelper)
+        for mode in (MaintenanceMode.STRICT, MaintenanceMode.BEST_EFFORT):
+            with pytest.raises(OSError, match="agent.toml unreadable"):
+                # cfg=None triggers RetentionConfig.from_config (config load)
+                purge_old_sessions(mock_db, mode=mode)  # type: ignore[arg-type]
+
+    def test_archive_config_valueerror_raises_best_effort(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import db.maintenance as db_maintenance
+
+        def _boom() -> object:
+            raise ValueError("db config invalid")
+
+        monkeypatch.setattr(db_maintenance, "build_db_config", _boom)
+        with pytest.raises(ValueError, match="db config invalid"):
+            purge_corrupt_archives(
+                CorruptArchiveRetentionConfig(), mode=MaintenanceMode.BEST_EFFORT
+            )
+
+
+class TestHandleMaintenanceErrorReraise:
+    """AC-4: _handle_maintenance_error re-raises the passed exception even
+    when called outside any except block (REQ-004)."""
+
+    def test_direct_call_outside_except_reraises_same_exception(self) -> None:
+        exc = ValueError("x")
+        with pytest.raises(ValueError) as caught:
+            _handle_maintenance_error(exc, "op", MaintenanceMode.STRICT)
+        assert caught.value is exc
+
+
+class TestPruneIdsSource:
+    """AC-5: data["pruned_ids"] is exactly the ids removed by the delete
+    transaction; maintenance no longer pre-selects via collect_prunable_ids (REQ-005)."""
+
+    def test_pruned_ids_equal_deleted_ids_and_no_preselect(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(
+            """
+            CREATE TABLE memories (memory_id TEXT PRIMARY KEY, updated_at TEXT,
+                pinned INTEGER DEFAULT 0);
+            CREATE TABLE memories_fts (memory_id TEXT);
+            CREATE TABLE memories_vec (memory_id TEXT);
+            CREATE TABLE memory_links (src_id TEXT, dst_id TEXT);
+            """
+        )
+        conn.executemany(
+            "INSERT INTO memories VALUES (?, datetime('now', ?), ?)",
+            [("m1", "-90 days", 0), ("m2", "-90 days", 1), ("m3", "-1 days", 0)],
+        )
+        conn.executemany("INSERT INTO memories_fts VALUES (?)", [("m1",)])
+        conn.executemany("INSERT INTO memories_vec VALUES (?)", [("m1",)])
+        conn.executemany(
+            "INSERT INTO memory_links VALUES (?, ?)", [("m1", "x"), ("y", "m1")]
+        )
+        conn.commit()
+
+        db = _FakeDB(conn)
+        with patch.object(
+            SQLiteMemoryDeleteStore, "collect_prunable_ids", autospec=True
+        ) as spy:
+            result = prune_old_memories(db, older_than_days=30)  # type: ignore[arg-type]
+
+        assert result.success is True
+        assert result.data is not None
+        pruned_ids = result.data["pruned_ids"]
+        assert pruned_ids == ["m1"]
+        assert result.data["deleted"] == len(pruned_ids)
+        remaining = {row[0] for row in conn.execute("SELECT memory_id FROM memories")}
+        assert remaining == {"m2", "m3"}
+        assert conn.execute("SELECT COUNT(*) FROM memories_fts").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM memories_vec").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM memory_links").fetchone()[0] == 0
+        spy.assert_not_called()

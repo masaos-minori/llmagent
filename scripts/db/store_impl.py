@@ -202,7 +202,9 @@ class SQLiteMemoryDeleteStore:
                 self._db.execute("DELETE FROM memory_links WHERE src_id=?", (mid,))
             for mid in deleted_ids:
                 self._db.execute("DELETE FROM memory_links WHERE dst_id=?", (mid,))
-        return MemoryDeleteResult(deleted=len(deleted_ids))
+        return MemoryDeleteResult(
+            deleted=len(deleted_ids), deleted_ids=tuple(deleted_ids)
+        )
 
     def collect_prunable_ids(self, older_than_days: int) -> list[str]:
         """Return memory_ids not updated for older_than_days days that are not pinned."""

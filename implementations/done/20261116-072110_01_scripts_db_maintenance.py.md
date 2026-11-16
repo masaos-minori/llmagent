@@ -9,8 +9,8 @@
 
 ## Assumptions
 - Verification finding (2026-11-16, HEAD `8fc337615`): all five plan claims re-confirmed; corrected anchors are `purge_old_sessions` `:242-298` (single `db.commit()` at `:275`, failure `extra_data` at `:291-295`), `vacuum_db` handler `:163`, `from_config` calls at `:259`/`:355`, `purge_corrupt_archives` handler `except OSError` at `:379`, bare `raise` at `:79`, `collect_prunable_ids` call at `:400`.
-- `SQLiteHelper.begin_immediate` (`scripts/db/helper.py:382`, rollback via `_begin_transaction` `:362-389`) is reused as-is; `helper.py` needs no edit in Plan 006 (reference-only row).
-- `MagicMock(spec=SQLiteHelper)` tests accept `db.begin_immediate()` as a no-op context manager because the method exists on the real class (Plan Assumptions); existing mock-based mode tests stay valid after the wrap.
+- `SQLiteHelper.begin_immediate` (`scripts/db/helper.py:418-422`, rollback via `_begin_transaction` `:398-416`) is reused as-is; `helper.py` needs no edit in Plan 006 (reference-only row). Anchors re-verified 20261116 against HEAD `206e36a3f` (drift from the `:382`/`:362-389` cited at generation time caused by the helper-open-leak refactor).
+- `MagicMock(spec=SQLiteHelper)` tests accept `db.begin_immediate()` as a no-op context manager because the method exists on the real class (Plan Assumptions); the mock-based mode tests at `tests/db/test_db_maintenance.py:963-990` stay valid after the wrap. Adversarial re-verification 20261116 finding: the `_FakeDB`-backed purge tests at `:140-300` use a bare-`sqlite3` drop-in (`_FakeDB`, `tests/db/test_db_maintenance.py:74-91`) with no `begin_immediate` method — they go red (AttributeError) when this procedure lands and stay red until procedure `_04` extends `_FakeDB` with a `begin_immediate` context manager (allowed red state under the release unit's batch mode; recorded in the unit Failure Log).
 - Success-path `data` (computed `kept`, `:271-273`) is unchanged; only failure-path counts change to zeros (Plan Design, honest failure data).
 
 ## Design decisions
@@ -33,7 +33,7 @@
 2. `vacuum_db` (`:151-165`): widen the handler at `:163` from `(sqlite3.OperationalError, RuntimeError)` to `(sqlite3.Error, RuntimeError)` — STRICT still re-raises via `_handle_maintenance_error`; BEST_EFFORT returns `action="vacuum_failed"` for `sqlite3.DatabaseError` (REQ-002).
 3. Docstrings of the four mode-taking entry points (`vacuum_db`, `purge_old_sessions`, `purge_corrupt_archives`, `prune_old_memories`): state that config-load failures (`from_config`, `build_db_config`) propagate in both modes; control flow at `:259`, `:355`, `:379` stays unchanged (REQ-003).
 4. `_handle_maintenance_error` (`:65-85`): replace the bare `raise` at `:79` with `raise exc` (REQ-004).
-5. `prune_old_memories` (`:388-414`): remove the `store.collect_prunable_ids` call at `:400`; build `data["pruned_ids"]` as `list(delete_result.deleted_ids)` from the `MemoryDeleteResult` returned by `delete_memories_before` (REQ-005; depends on `20261116-072110_02` and `_03` landing in the same batch). Keep the consumer shape `list[str]` (`memory_data_ops.py:403`, `test_db_maintenance.py:416`).
+5. `prune_old_memories` (`:388-414`): remove the `store.collect_prunable_ids` call at `:400`; build `data["pruned_ids"]` as `list(delete_result.deleted_ids)` from the `MemoryDeleteResult` returned by `delete_memories_before` (REQ-005; depends on `20261116-072110_02` and `_03` landing in the same batch). Keep the consumer shape `list[str]` (`memory_data_ops.py:402`, `test_db_maintenance.py:416`).
 
 ### Method
 - Direct edit in the existing module; no new imports (`maintenance.py` already imports `db.store_impl` and `db.helper`; arch-linter contracts stay 6, Plan Architecture check).
@@ -45,7 +45,7 @@
 
 ## Compatibility considerations
 - Failure-path `data` changes (attempted counts → zeros): existing tests assert no counts on failure (`test_purge_best_effort_returns_partial_result_on_error` `:973-987`, checked this cycle); docstrings and the docs update state the semantics (Plan Risks).
-- `data["pruned_ids"]` stays `list[str]`; consumers (`agent.services.db_maintenance_service`, `rag_maintenance_service`, `scripts/agent/commands/memory_data_ops.py:402-403`) keep their shape (AC-5).
+- `data["pruned_ids"]` stays `list[str]`; consumers (`agent.services.db_maintenance_service`, `rag_maintenance_service`, `scripts/agent/commands/memory_data_ops.py:401-402`) keep their shape (AC-5).
 - STRICT behavior is unchanged everywhere; only BEST_EFFORT handling widens in `vacuum_db`.
 
 ## Security considerations
@@ -73,9 +73,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement purge transaction, vacuum handler, docstrings, `raise exc` (plan Phase 1) | Pending | — | — | REQ-001..REQ-004 |
-| 2 | Switch `pruned_ids` to `delete_result.deleted_ids` (plan Phase 2, maintenance part) | Pending | — | — | REQ-005; after `_02`/`_03` land |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | tests land via `20261116-072110_04` |
+| 1 | Implement purge transaction, vacuum handler, docstrings, `raise exc` (plan Phase 1) | Completed | 2026-11-16 | 2026-11-16 | REQ-001..REQ-004 Phase 1 landed; 12 _FakeDB purge tests red (AttributeError: begin_immediate) - expected batch red until _04 lands; consumers green |
+| 2 | Switch `pruned_ids` to `delete_result.deleted_ids` (plan Phase 2, maintenance part) | Completed | 2026-11-16 | 2026-11-16 | REQ-005; after `_02`/`_03` land pruned_ids now from delete_result.deleted_ids; collect_prunable_ids call removed; prune mock tests stay green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-16 | 2026-11-16 | tests land via `20261116-072110_04` ruff/mypy/lint-imports/gates clean; targeted tests only (full-suite waived per user instruction): 12 known _FakeDB reds unchanged, no new failures; radon top B(7) unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

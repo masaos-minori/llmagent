@@ -19,15 +19,15 @@ related:
 All functions accept a `SQLiteHelper` instance and delegate low-level operations to it. 
 
 - `checkpoint_wal` flushes the WAL. The default mode comes from `agent.toml::sqlite_wal_checkpoint_mode` (a code-level default applies when the key is absent); an invalid mode raises `ValueError`.
-- `vacuum_db` delegates to `db.vacuum()` and must be called outside an active transaction.
-- `purge_old_sessions` performs age-based and count-based session purging and commits internally. When an active-session guard is supplied, the guarded session is exempt from both retention rules and the exemption is reported in the result data.
-- `prune_old_memories` deletes old memories via `SQLiteMemoryDeleteStore`.
+- `vacuum_db` delegates to `db.vacuum()` and must be called outside an active transaction. In BEST_EFFORT mode it catches any `sqlite3.Error` (not only `OperationalError`) plus `RuntimeError`.
+- `purge_old_sessions` performs age-based and count-based session purging as one `BEGIN IMMEDIATE` transaction: both delete rules commit together, and a failure in either rule rolls back the whole purge — a failed BEST_EFFORT purge reports zero counts and leaves the sessions table unchanged. When an active-session guard is supplied, the guarded session is exempt from both retention rules and the exemption is reported in the result data.
+- `prune_old_memories` deletes old memories via `SQLiteMemoryDeleteStore`. The `pruned_ids` in the result data are exactly the ids removed by that delete transaction (`MemoryDeleteResult.deleted_ids`), not a separately selected list.
 
 Each of `vacuum_db`, `purge_old_sessions` and `prune_old_memories` takes a `MaintenanceMode` and returns a `MaintenanceResult` (`success`, `action`, `mode`, optional failure `detail` and `data`).
 
 **Mode Semantics:**
 - **STRICT (Default):** Behaves as before mode introduction—exceptions propagate directly. A successful operation returns `MaintenanceResult(success=True)`.
-- **BEST_EFFORT:** Exceptions are caught and logged as `ERROR`, then returned as `MaintenanceResult(success=False, detail=str(exc))`. Callers **MUST** check `result.success`.
+- **BEST_EFFORT:** Database and filesystem errors are caught and logged as `ERROR`, then returned as `MaintenanceResult(success=False, detail=str(exc))`. Callers **MUST** check `result.success`. Config-load failures (`RetentionConfig.from_config`, `CorruptArchiveRetentionConfig.from_config`, `build_db_config`) are the deliberate exception: they propagate in **both** modes, because a persistent misconfiguration must not hide behind per-run logs.
 
 `RetentionConfig` defines the session retention limits (`max_sessions` and `max_age_days`; 0 disables the age limit). `RetentionConfig.from_config()` reads them from `agent.toml::sqlite_retention_max_sessions` and `sqlite_retention_max_age_days`; defaults are in the dataclass. When the purge comes from the agent command path, the session currently active in the agent is guarded and therefore exempt from both rules; when the exemption fires, the kept session count may exceed `max_sessions` by one.
 

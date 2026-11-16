@@ -125,16 +125,16 @@ Reuse `SQLiteHelper.begin_immediate` (single transaction with rollback on any ex
 
 ## Implementation steps
 1. **Phase 1: Purge transaction and error-handler fixes** (REQ-001..REQ-004; `scripts/db/maintenance.py`)
-   - [ ] Wrap both delete rules in `with db.begin_immediate():`, drop the manual `db.commit()`, report zeroed committed-deletion data on failure (REQ-001; scripts/db/maintenance.py)
-   - [ ] Widen `vacuum_db` handler to `(sqlite3.Error, RuntimeError)` (REQ-002; scripts/db/maintenance.py)
-   - [ ] State config-error propagation in the four mode docstrings (REQ-003; scripts/db/maintenance.py)
-   - [ ] Replace bare `raise` with `raise exc` in `_handle_maintenance_error` (REQ-004; scripts/db/maintenance.py)
+   - [x] Wrap both delete rules in `with db.begin_immediate():`, drop the manual `db.commit()`, report zeroed committed-deletion data on failure (REQ-001; scripts/db/maintenance.py)
+   - [x] Widen `vacuum_db` handler to `(sqlite3.Error, RuntimeError)` (REQ-002; scripts/db/maintenance.py)
+   - [x] State config-error propagation in the four mode docstrings (REQ-003; scripts/db/maintenance.py)
+   - [x] Replace bare `raise` with `raise exc` in `_handle_maintenance_error` (REQ-004; scripts/db/maintenance.py)
 2. **Phase 2: Delete-transaction ids as the single source** (REQ-005; `scripts/db/store_protocols.py`, `scripts/db/store_impl.py`, `scripts/db/maintenance.py`)
-   - [ ] Add `deleted_ids: tuple[str, ...] = ()` to `MemoryDeleteResult` and populate it in `delete_memories_before` (REQ-005; scripts/db/store_protocols.py, scripts/db/store_impl.py)
-   - [ ] `prune_old_memories` builds `data["pruned_ids"]` from `delete_result.deleted_ids` and drops the `collect_prunable_ids` call (REQ-005; scripts/db/maintenance.py)
+   - [x] Add `deleted_ids: tuple[str, ...] = ()` to `MemoryDeleteResult` and populate it in `delete_memories_before` (REQ-005; scripts/db/store_protocols.py, scripts/db/store_impl.py)
+   - [x] `prune_old_memories` builds `data["pruned_ids"]` from `delete_result.deleted_ids` and drops the `collect_prunable_ids` call (REQ-005; scripts/db/maintenance.py)
 3. **Phase 3: Tests, docs and validation** (REQ-006; `tests/db/test_db_maintenance.py`, `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md`)
-   - [ ] Add the Tests-section tests; run `uv run pytest tests/db tests/agent/commands -v` including the regression watch list and the UNK-01 check (REQ-006)
-   - [ ] Update the mode/atomicity statements in `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md` (Documentation Impact)
+   - [x] Add the Tests-section tests; run `uv run pytest tests/db tests/agent/commands -v` including the regression watch list and the UNK-01 check (REQ-006) — done 20261116 (878 passed; UNK-01 green with zero edits)
+   - [x] Update the mode/atomicity statements in `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md` (Documentation Impact) — done 20261116 (BEST_EFFORT bullet corrected: config-load failures propagate in both modes; purge single-transaction and prune id-source statements added; docs quality/structure/content-policy/japanese/consistency --domain db checks pass)
    - [ ] Run ruff, mypy (CI form), bandit `-ll`, `lint-imports`, `tools/check_docs_consistency.py --domain db`; diff-cover ≥ 90% on the branch diff
    - [ ] Deployment hand-off to `skills/deploy/SKILL.md` after commit+push; deploying is the user's decision
 
@@ -164,9 +164,9 @@ Reuse `SQLiteHelper.begin_immediate` (single transaction with rollback on any ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Purge transaction and error-handler fixes (scripts/db/maintenance.py) | In Progress | — | — | procedure doc 20261116-072110_01 generated |
-| 2 | Delete-transaction ids as the single source (store_protocols.py, store_impl.py, maintenance.py) | In Progress | — | — | procedure docs 20261116-072110_01/_02/_03 generated |
-| 3 | Tests, docs and validation | In Progress | — | — | procedure docs 20261116-072110_04/_05 generated; docs/41_db/db_06 update stays a plan-level step (not a target-file row) |
+| 1 | Purge transaction and error-handler fixes (scripts/db/maintenance.py) | Completed | 2026-11-16 | 2026-11-16 | procedure doc 20261116-072110_01 generated procedure 20261116-072110_01 landed and archived |
+| 2 | Delete-transaction ids as the single source (store_protocols.py, store_impl.py, maintenance.py) | Completed | 2026-11-16 | 2026-11-16 | procedure docs 20261116-072110_01/_02/_03 generated procedures 20261116-072110_01/_02/_03 landed and archived |
+| 3 | Tests, docs and validation | In Progress | — | — | procedure docs 20261116-072110_04/_05 generated; docs/41_db/db_06 update stays a plan-level step (not a target-file row) tests 20261116-072110_04/_05 landed and archived (878 passed); docs/41_db/db_06 mode/atomicity update remains a plan-level step; full-suite/diff-cover waived per user instruction 20261116 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -176,11 +176,11 @@ Reuse `SQLiteHelper.begin_immediate` (single transaction with rollback on any ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261116-072110_01_scripts_db_maintenance.py.md | 1 | Procedure | Created | — | — |
-| implementations/20261116-072110_02_scripts_db_store_protocols.py.md | 2 | Procedure | Created | — | — |
-| implementations/20261116-072110_03_scripts_db_store_impl.py.md | 2 | Procedure | Created | — | — |
-| implementations/20261116-072110_04_tests_db_test_db_maintenance.py.md | 3 | Procedure | Created | — | — |
-| implementations/20261116-072110_05_tests_agent_commands_test_memory_data_ops.py.md | 3 | Procedure | Created | — | — |
+| implementations/20261116-072110_01_scripts_db_maintenance.py.md | 1 | Procedure | Completed 2026-11-16 (archived) | — | — |
+| implementations/20261116-072110_02_scripts_db_store_protocols.py.md | 2 | Procedure | Completed 2026-11-16 (archived) | — | — |
+| implementations/20261116-072110_03_scripts_db_store_impl.py.md | 2 | Procedure | Completed 2026-11-16 (archived) | — | — |
+| implementations/20261116-072110_04_tests_db_test_db_maintenance.py.md | 3 | Procedure | Completed 2026-11-16 (archived) | — | — |
+| implementations/20261116-072110_05_tests_agent_commands_test_memory_data_ops.py.md | 3 | Procedure | Completed 2026-11-16 (archived) | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
