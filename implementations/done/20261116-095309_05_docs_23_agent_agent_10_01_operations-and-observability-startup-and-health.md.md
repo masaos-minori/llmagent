@@ -69,8 +69,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the once-per-startup observation to the `readiness` bullet | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Add the once-per-startup observation to the `readiness` bullet | Done | 20261116 | 20261116 | Appended the one-observation rule sentence to the end of the bullet, ADR-004 link intact. |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Done | 20261116 | 20261116 | quality, structure, content_policy, consistency (--domain agent), japanese all report no finding. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
