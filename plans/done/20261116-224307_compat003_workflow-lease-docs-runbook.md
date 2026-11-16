@@ -198,9 +198,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Safe-now doc alignment: `agent_03_03`, `db_02`, `db_07`, `adr_02_02_001` | Pending | — | — | Matches current committed source; runs now |
-| 2 | `retry_on` required documentation in `agent_03_03` | Pending | — | — | Gated on `compat001` implementing |
-| 3 | Schema-level lease-column documentation in `db_02`/`db_07` | Pending | — | — | Gated on `compat002` implementing |
+| 1 | Safe-now doc alignment: `agent_03_03`, `db_02`, `db_07`, `adr_02_02_001` | In Progress | 20261117-020145 | 20261117-020145 | Matches current committed source; runs now Phase 1 docs generated this cycle (seq 01-04); REQ-001/002/003/004/005/006 documented; not yet executed by code-implementation. |
+| 2 | `retry_on` required documentation in `agent_03_03` | Blocked | — | — | Gated on `compat001` implementing Gated: REQ-007 (Phase 2) deferred until compat001 implements; loader still treats retry_on optional. |
+| 3 | Schema-level lease-column documentation in `db_02`/`db_07` | Blocked | — | — | Gated on `compat002` implementing Gated: REQ-008 (Phase 3) deferred until compat002 implements; lease columns still nullable in DDL. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -210,7 +210,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261117-020145_01_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine_md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261117-020145_02_docs_41_db_db_02_architecture_and_schema-schema-reference_md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261117-020145_03_docs_41_db_db_07_api_and_operations-recovery-and-reference_md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261117-020145_04_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory_md.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
