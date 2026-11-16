@@ -105,6 +105,8 @@ uv run coverage xml
   uv run diff-cover coverage.xml --compare-branch=master --fail-under=90
 ```
 
+`uv run tox -e cov` runs the first two commands; pytest paths and options go after `--` (without a path it runs `tests/`). The `tests` environment stays a plain serial `uv run pytest`.
+
 The coverage run is parallel through `pytest-cov`, which measures and combines worker processes (measured on a 2-core, 4-thread host: 340 s serial, 165 s with `-n logical`, 139 s with `repo_scan` also deselected; the line coverage and the diff-cover result were the same). Do not use `coverage run -m pytest -n ...`: `coverage run` does not measure worker processes. The filter only removes tests, so it can miss coverage but never add it: a pass here also passes in CI, while a miss here may pass in CI (CI runs `uv run pytest -v -n logical --cov=scripts --cov-report= tests/` over all tests, then `coverage xml` and `diff-cover`; measured on a 4-CPU runner: the test job took 3 min 6 s in parallel against 7 min 51 s serial).
 
 ### 8. Pre-commit (final gate)
