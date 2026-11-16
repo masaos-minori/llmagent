@@ -21,6 +21,7 @@ async def retry_once_with_delay[T](
     shutdown_event: asyncio.Event | None,
     interrupt_msg: str,
     *,
+    skip_first_attempt: bool = False,
     fatal_prefix: str,
 ) -> T:
     """Execute *fn* once; if it raises, wait *delay* seconds and retry once.
@@ -32,15 +33,20 @@ async def retry_once_with_delay[T](
 
     Always races against *shutdown_event*; raises StartupInterrupted if shutdown
     fires during the retry delay.
+
+    With *skip_first_attempt* set, skip the leading immediate call and make
+    exactly one attempt after the delay. StartupInterrupted is raised without
+    calling *fn* when shutdown is already set or fires during the delay.
     """
     from shared.logger import Logger
 
     logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
-    try:
-        return await fn()
-    except Exception:  # noqa: BLE001 — first attempt failure triggers retry logic below
-        pass
+    if not skip_first_attempt:
+        try:
+            return await fn()
+        except Exception:  # noqa: BLE001 — first attempt failure triggers retry logic below
+            pass
 
     # Interruptible sleep before retry
     if shutdown_event is not None and shutdown_event.is_set():

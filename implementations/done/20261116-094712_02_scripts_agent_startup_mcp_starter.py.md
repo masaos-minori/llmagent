@@ -80,9 +80,9 @@ Make `McpServerStarter.start_servers` and `McpServerStarter.verify_health` attem
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the start-path and health-path attempt-count and gap tests and confirm they fail on the current code (companion `tests/agent/test_startup_mcp_lifecycle.py`) | Pending | — | — | |
-| 2 | Pass `skip_first_attempt=True` at the `start_servers` and `verify_health` retry calls | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the start-path and health-path attempt-count and gap tests and confirm they fail on the current code (companion `tests/agent/test_startup_mcp_lifecycle.py`) | Completed | 20261116-142221 | 20261116-142221 | — |
+| 2 | Pass `skip_first_attempt=True` at the `start_servers` and `verify_health` retry calls | Completed | 20261116-142221 | 20261116-142221 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-142221 | 20261116-142221 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

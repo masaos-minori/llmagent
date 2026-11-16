@@ -271,6 +271,31 @@ class TestStartupOrchestratorStartServers:
         assert retry_calls["n"] == 1
         assert result == [retried_proc]
 
+    @pytest.mark.asyncio
+    async def test_failing_start_calls_twice_with_retry_gap(self) -> None:
+        """REQ-004/T-003: a start that always fails calls start_http_subprocess
+        exactly twice, the second no earlier than the patched RETRY_DELAY_SEC after
+        the first. Fails on the pre-change code, which makes three attempts."""
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup({"web": cfg})
+
+        calls: list[float] = []
+
+        async def _fail(*_args: object, **_kwargs: object) -> None:
+            calls.append(time.monotonic())
+            raise RuntimeError("port busy")
+
+        startup._ctx.services_required.lifecycle.start_http_subprocess = AsyncMock(
+            side_effect=_fail
+        )
+
+        with patch("agent.startup_mcp_starter.RETRY_DELAY_SEC", 0.05):
+            with pytest.raises(RuntimeError, match=r"\[fatal\]"):
+                await startup._start_servers()
+
+        assert len(calls) == 2
+        assert calls[1] - calls[0] >= 0.05
+
 
 # ── StartupOrchestrator._verify_mcp_health ────────────────────────────────────
 
@@ -401,3 +426,31 @@ class TestStartupVerifyMcpHealth:
         await fire_task
 
         assert elapsed < RETRY_DELAY_SEC / 2
+
+    @pytest.mark.asyncio
+    async def test_failing_health_calls_twice_with_retry_gap(self) -> None:
+        """REQ-004/T-004: a health probe that always fails runs its GET exactly
+        twice, the second no earlier than the patched RETRY_DELAY_SEC after the
+        first. Fails on the pre-change code, which makes three attempts."""
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup({"web": cfg})
+
+        mock_fail = _make_http_mock(503)
+        calls: list[float] = []
+
+        def _client_factory(*_args: object, **_kwargs: object) -> _AsyncClientMock:
+            calls.append(time.monotonic())
+            return _AsyncClientMock(get_return=mock_fail)
+
+        with (
+            patch("agent.startup_mcp_starter.RETRY_DELAY_SEC", 0.05),
+            patch(
+                "agent.startup_mcp_starter.httpx.AsyncClient",
+                side_effect=_client_factory,
+            ),
+        ):
+            with pytest.raises(RuntimeError, match=r"\[fatal\]"):
+                await startup._verify_mcp_health()
+
+        assert len(calls) == 2
+        assert calls[1] - calls[0] >= 0.05

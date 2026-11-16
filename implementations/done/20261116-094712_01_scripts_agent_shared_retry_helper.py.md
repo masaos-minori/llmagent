@@ -82,9 +82,9 @@ Give `retry_once_with_delay` a keyword-only `skip_first_attempt` (new) option so
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the helper tests first and confirm the option tests fail on the current code (companion `tests/agent/test_retry_helper.py`) | Pending | — | — | |
-| 2 | Add `skip_first_attempt` (new) to `retry_once_with_delay` and update its docstring | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the helper tests first and confirm the option tests fail on the current code (companion `tests/agent/test_retry_helper.py`) | Completed | 20261116-131551 | 20261116-131551 | STEP:1: skip_first_attempt added to retry_once_with_delay plus docstring update; guarded leading attempt; files scripts/agent/shared/retry_helper.py and tests/agent/test_retry_helper.py |
+| 2 | Add `skip_first_attempt` (new) to `retry_once_with_delay` and update its docstring | Completed | 20261116-131551 | 20261116-131551 | STEP:2: five option tests added (call once after delay, masked fatal preserve, shutdown before/during delay, default regression); failed on pre-change code, pass after change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-131551 | 20261116-131730 | STEP:3: ruff clean; mypy 444 files ok; lint-imports 6 kept 0 broken; bandit no high/medium; ast-grep no bare except; check_module_size OK; generate_reference_table no drift; helper test 10 passed; full suite 12325 passed 7 skipped; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -107,6 +107,7 @@ class McpServerStarter:
                     result = await retry_once_with_delay(
                         lambda: self._start_http_subprocess_once(key, cfg),
                         delay=RETRY_DELAY_SEC,
+                        skip_first_attempt=True,
                         shutdown_event=self._shutdown_event,
                         interrupt_msg=f"shutdown requested during startup retry delay for {key!r}",
                         fatal_prefix=f"{OutputTag.FATAL} MCP subprocess {key!r} failed to start after retry:",
@@ -162,6 +163,7 @@ class McpServerStarter:
                 await retry_once_with_delay(
                     lambda: self._verify_single_health(server_key, cfg),
                     delay=RETRY_DELAY_SEC,
+                    skip_first_attempt=True,
                     shutdown_event=self._shutdown_event,
                     interrupt_msg=f"shutdown requested during post-startup health check retry delay for {server_key!r}",
                     fatal_prefix=f"{OutputTag.FATAL} MCP subprocess {server_key!r} failed post-startup health check:",

@@ -271,8 +271,9 @@ async def test_verify_health_non_object_503_body_retries_then_fails(
         route = router.get("http://localhost:9999/health").mock(return_value=response)
         with pytest.raises(RuntimeError, match=r"\[fatal\]"):
             await starter.verify_health()
-    # main probe + the retry helper's two _verify_single_health probes
-    assert route.call_count == 3
+    # main probe + the retry helper's single post-startup _verify_single_health
+    # probe (startrev002: skip_first_attempt, so a failing server is probed twice)
+    assert route.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -292,7 +293,9 @@ async def test_verify_health_non_boolean_liveness_retries(
         )
         with pytest.raises(RuntimeError, match=r"\[fatal\]"):
             await starter.verify_health()
-    assert route.call_count == 3
+    # main probe + the retry helper's single post-startup _verify_single_health
+    # probe (startrev002: skip_first_attempt, so a failing server is probed twice)
+    assert route.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -392,14 +395,14 @@ class TestStartupRetryWithRealRouter:
         from agent.http_lifecycle_errors import HttpStartupError, StartupFailure
         from agent.startup_mcp_starter import McpServerStarter
 
-        # Three failures: the start entry makes three subprocess-layer calls
-        # (initial attempt + retry helper's execute-and-retry); the retry helper
-        # swallows its first attempt and only aborts on its second.
+        # Two failures: the start entry makes two subprocess-layer calls
+        # (inline initial attempt + the retry helper's single skip-first
+        # attempt); the helper aborts on that second call. This is the
+        # startrev002 contract: a failing server is attempted exactly twice.
         ctx, router, fake_http_mgr, _proc = _real_router_ctx(
             [
                 HttpStartupError(StartupFailure("srv", "first reason", "")),
                 HttpStartupError(StartupFailure("srv", "second reason", "")),
-                HttpStartupError(StartupFailure("srv", "third reason", "")),
             ]
         )
         with (
@@ -411,8 +414,8 @@ class TestStartupRetryWithRealRouter:
 
         text = str(excinfo.value)
         assert "srv" in text
-        assert "third reason" in text
-        assert fake_http_mgr.start.await_count == 3
+        assert "second reason" in text
+        assert fake_http_mgr.start.await_count == 2
         assert isinstance(excinfo.value.__cause__, HttpStartupError)
         warning_calls = [c for c in patched_logger.warning.call_args_list if c.args]
         assert warning_calls, "first failure must be logged at WARNING"

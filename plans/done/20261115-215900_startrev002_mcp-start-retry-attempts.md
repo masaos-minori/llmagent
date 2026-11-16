@@ -146,8 +146,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Retry helper option and its tests (scripts/agent/shared/retry_helper.py, tests/agent/test_retry_helper.py) | In Progress | — | — |  |
-| 2 | Starter call sites and their tests (scripts/agent/startup_mcp_starter.py, tests/agent/test_startup_mcp_lifecycle.py) | In Progress | — | — |  |
+| 1 | Retry helper option and its tests (scripts/agent/shared/retry_helper.py, tests/agent/test_retry_helper.py) | Completed | 20261116-131551 | 20261116-131945 |  |
+| 2 | Starter call sites and their tests (scripts/agent/startup_mcp_starter.py, tests/agent/test_startup_mcp_lifecycle.py) | Completed | 20261116-142246 | 20261116-142246 |  |
 | 3 | Deployment and verification (scripts/agent/shared/retry_helper.py, scripts/agent/startup_mcp_starter.py) | Pending | — | — |  |
 
 ### Blocker Log
