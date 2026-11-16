@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import time
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -520,6 +520,99 @@ class TestCheckReadinessPosture:
         http = _http({HEALTH_URL: _response(_body(_security_block()))})
         result = await check_readiness(_ctx({SERVER_KEY: _server()}, http))
         assert not result.has_issues
+
+
+class TestOptionalGatesArgument:
+    """check_service_health and check_readiness accept pre-collected gates so a
+    caller that already probed does not cause a second probe (startrev005)."""
+
+    async def test_passed_gates_are_used_without_a_second_probe(self) -> None:
+        """REQ-001/AC-1: passing gates skips the probe and yields the same
+        warnings and errors as a probed run for the same gates."""
+        probe_http = _http({HEALTH_URL: _response(_body())})
+        gates = await collect_server_postures(_ctx({SERVER_KEY: _server()}, probe_http))
+        probed = await check_service_health(
+            _ctx({SERVER_KEY: _server()}, _http({HEALTH_URL: _response(_body())}))
+        )
+
+        with patch(
+            "agent.services.mcp_health.collect_server_postures",
+            AsyncMock(return_value=gates),
+        ) as collect:
+            passed = await check_service_health(
+                _ctx({SERVER_KEY: _server()}, _http({})), gates=gates
+            )
+
+        assert collect.call_count == 0
+        assert passed == probed
+
+    async def test_empty_gates_dict_does_not_probe(self) -> None:
+        """REQ-001/AC-1: an empty dict is a valid pre-collected result and must
+        not trigger a probe; `gates is None`, not truthiness, decides to probe."""
+        with patch(
+            "agent.services.mcp_health.collect_server_postures",
+            AsyncMock(return_value={}),
+        ) as collect:
+            result = await check_service_health(
+                _ctx({SERVER_KEY: _server()}, _http({})), gates={}
+            )
+        assert collect.call_count == 0
+        assert result.warnings == []
+        assert result.errors == []
+
+    async def test_without_gates_probes_once(self) -> None:
+        """REQ-001/AC-1: omitting gates still probes exactly once."""
+        with patch(
+            "agent.services.mcp_health.collect_server_postures",
+            AsyncMock(return_value={SERVER_KEY: _gate()}),
+        ) as collect:
+            await check_service_health(
+                _ctx(
+                    {SERVER_KEY: _server()},
+                    _http({HEALTH_URL: _response(_body(_security_block()))}),
+                )
+            )
+        assert collect.call_count == 1
+
+    async def test_passed_gates_raise_same_readiness_error_without_probing(
+        self,
+    ) -> None:
+        """REQ-001/AC-3: check_readiness(ctx, gates=gates) raises the same
+        RuntimeError text as a probed run for a Safety failure, without probing."""
+        probe_http = _http(
+            {
+                HEALTH_URL: _response(
+                    _body(_security_block(validated=False, ready=False))
+                )
+            }
+        )
+        gates = await collect_server_postures(_ctx({SERVER_KEY: _server()}, probe_http))
+        with pytest.raises(RuntimeError) as probed_exc:
+            await check_readiness(
+                _ctx(
+                    {SERVER_KEY: _server()},
+                    _http(
+                        {
+                            HEALTH_URL: _response(
+                                _body(_security_block(validated=False, ready=False))
+                            )
+                        }
+                    ),
+                )
+            )
+        probed_message = str(probed_exc.value)
+
+        with patch(
+            "agent.services.mcp_health.collect_server_postures",
+            AsyncMock(return_value=gates),
+        ) as collect:
+            with pytest.raises(RuntimeError) as passed_exc:
+                await check_readiness(
+                    _ctx({SERVER_KEY: _server()}, _http({})), gates=gates
+                )
+
+        assert collect.call_count == 0
+        assert str(passed_exc.value) == probed_message
 
 
 class TestStaticVsDynamicDisplay:

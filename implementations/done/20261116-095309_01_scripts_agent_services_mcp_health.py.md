@@ -81,9 +81,9 @@ Let `check_service_health` and `check_readiness` accept pre-collected posture ga
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the optional-argument tests first and confirm they fail (companion `tests/agent/test_mcp_health_posture.py`) | Pending | — | — | |
-| 2 | Add the optional keyword `gates` to `check_service_health` and `check_readiness` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the optional-argument tests first and confirm they fail (companion `tests/agent/test_mcp_health_posture.py`) | Done | 20261116 | 20261116 | 4 cases in `TestOptionalGatesArgument`; 3 discriminated the missing `gates` kwarg on pre-change code. |
+| 2 | Add the optional keyword `gates` to `check_service_health` and `check_readiness` | Done | 20261116 | 20261116 | Keyword-only param, `if gates is None` guard, `check_readiness` passthrough, both docstrings updated. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261116 | 20261116 | 107 targeted tests pass; ruff format/check, mypy, lint-imports, module size, reference table all clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

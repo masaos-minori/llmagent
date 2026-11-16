@@ -282,7 +282,9 @@ def _remediation(errors: list[ServiceWarning]) -> str:
     return " | remediation: " + " ".join(parts)
 
 
-async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
+async def check_service_health(
+    ctx: AgentContext, *, gates: dict[str, PostureGate] | None = None
+) -> HealthCheckResult:
     """Probe LLM and Embed service health, then every MCP server posture, at startup.
 
     The LLM is a required service: its failure is reported as a fatal error. The
@@ -291,6 +293,10 @@ async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
     from the endpoint URL. An MCP posture entry degrades to a warning only when the
     failure is an Availability failure of a server configured required=false; a
     Safety or Integrity posture failure lands in errors whatever that flag says.
+
+    Pass the gates this startup run already collected (from the same
+    collect_server_postures() call) to avoid probing twice; omit gates to probe
+    by yourself, which is what every caller did before this argument existed.
     """
     if ctx.services_required.http is None:
         raise RuntimeError("http service not initialized")
@@ -321,7 +327,8 @@ async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
             else:
                 logger.warning("%s", failure)
                 warnings.append(entry)
-    gates = await collect_server_postures(ctx)
+    if gates is None:
+        gates = await collect_server_postures(ctx)
     for server_key in sorted(gates):
         gate = gates[server_key]
         if gate.failure_class is None:
@@ -335,15 +342,21 @@ async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
     return HealthCheckResult(warnings=warnings, errors=errors)
 
 
-async def check_readiness(ctx: AgentContext) -> HealthCheckResult:
+async def check_readiness(
+    ctx: AgentContext, *, gates: dict[str, PostureGate] | None = None
+) -> HealthCheckResult:
     """Probe required services at startup; raise RuntimeError on required-service failure.
 
     Required services block startup, and so does any MCP server whose posture gate reports a
     Safety or Integrity failure. Optional services degrade only on an availability failure: the
     embed-llm and an MCP server configured required=false whose gate failure is Availability
     surface as non-fatal warnings instead of raising.
+
+    Pass the gates this startup run already collected (from the same
+    collect_server_postures() call) to avoid probing twice; omit gates to probe
+    by yourself.
     """
-    result = await check_service_health(ctx)
+    result = await check_service_health(ctx, gates=gates)
     if result.errors:
         error_msgs = [f"{w.label}: {w.message}" for w in result.errors]
         msg = (
