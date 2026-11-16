@@ -59,8 +59,9 @@ Each `open()` call loads the `sqlite-vec` extension when enabled (then `enable_l
 
 `open()` accepts these options in addition to `write_mode` / `row_factory`:
 
-- `load_vec` — `None` follows the instance default described above; an explicit `True` or `False` overrides it. The extension is loaded only when the resolved flag is `True` and `sqlite_vec_so` is non-empty. When `sqlite_vec_so` is empty the extension is not loaded even if the resolved flag is `True`, so a later access to a vec0 table fails with `sqlite3.OperationalError` instead of being skipped; a load error raises at open time. This applies to both `rag` and `session`.
-- `reuse_connection` — when `True` and a connection already exists, reconnection is skipped and `__exit__` does not close it.
+- `load_vec` — `None` follows the instance default described above; an explicit `True` or `False` overrides it. The extension is loaded only when the resolved flag is `True` and `sqlite_vec_so` is non-empty. When `sqlite_vec_so` is empty the extension is not loaded even if the resolved flag is `True`, so a later access to a vec0 table fails with `sqlite3.OperationalError` instead of being skipped; a load error raises at open time. This applies to both `rag` and `session`. An explicit `load_vec=True` with an empty `sqlite_vec_so` is a contradiction and raises `ValueError` naming `sqlite_vec_so` before any connection is created; only the instance-default path keeps the skip behavior above.
+- `reuse_connection` — when `True` and a connection already exists, reconnection is skipped and `__exit__` does not close it. Without it, `open()` closes a connection that is still open before connecting, so one helper never holds more than one connection; the replaced connection raises `sqlite3.ProgrammingError` when used afterwards.
+- Failure handling — a failure after the connect step (extension load or PRAGMA failure, of any exception type) closes the connection before the exception propagates, `conn` stays `None`, and a failed `read_only` open also removes the sidecars that open created.
 
 ### 4c. Transaction helpers
 

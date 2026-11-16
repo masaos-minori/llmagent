@@ -94,7 +94,7 @@ def create_session_schema() -> None:
     """Create session.sqlite tables for conversations and memory."""
     dims = get_embedding_dims()
     ddl = build_session_schema_sql(dims)
-    with SQLiteHelper("session").open(write_mode=True, load_vec=True) as db:
+    with SQLiteHelper("session").open(write_mode=True) as db:
         _refuse_existing_drift(db, "session", ddl, "session.sqlite")
         _execute_schema_ddl(db, ddl, "session")
     logger.info("Session schema created successfully.")

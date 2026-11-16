@@ -57,9 +57,9 @@ Close the `adr_02_03_012` Plan row at HEAD: the row's condensation work was supe
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm size 25253 equals the recorded ceiling with the dated `a66077b4f` comment | Pending | — | — | REQ-003; superseded row, verification-only |
-| 2 | Confirm `bca9ec63f` touched no section of the document | Pending | — | — | REQ-003 |
-| 3 | Run the preservation and docs checkers | Pending | — | — | AC-01, AC-04, AC-05 |
+| 1 | Confirm size 25253 equals the recorded ceiling with the dated `a66077b4f` comment | Completed | 20261116-094917 | 20261116-094917 | REQ-003; superseded row, verification-only Verified: wc -c 25253 == recorded ceiling 25253 (SIZE_EXCEPTIONS); provenance comment names a66077b4f. stale_detector: not stale |
+| 2 | Confirm `bca9ec63f` touched no section of the document | Completed | 20261116-094917 | 20261116-094917 | REQ-003 Verified: git show --name-only bca9ec63f touched only tools/check_docs_structure.py |
+| 3 | Run the preservation and docs checkers | Completed | 20261116-094917 | 20261116-094917 | AC-01, AC-04, AC-05 Verified: check_adr_preservation.py, check_docs_structure.py, check_docs_content_policy.py, check_docs_japanese.py all exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

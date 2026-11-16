@@ -255,7 +255,8 @@ class SQLiteHelper:
             conn.load_extension(self._vec_so)
             conn.enable_load_extension(False)
         except sqlite3.OperationalError as e:
-            conn.close()
+            # No close here: `open` owns the single teardown path (REQ-002), so the
+            # connection is closed once by `_prepare_connection` on this failure.
             logger.error("Failed to load sqlite-vec '%s': %s", self._vec_so, e)
             raise
 
@@ -277,6 +278,36 @@ class SQLiteHelper:
             read_only=read_only,
         )
 
+    def _prepare_connection(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        write_mode: bool,
+        read_only: bool,
+        row_factory: bool,
+        use_vec: bool,
+    ) -> None:
+        """Configure a fresh connection, closing it if any step fails.
+
+        Single teardown owner for every post-connect failure path (REQ-001): the
+        handler catches `BaseException`, so a failed open never leaves an unclosed
+        connection holding file locks. The read-only branch also drops any sidecar
+        the probe open created (REQ-006). The original exception type is re-raised
+        unchanged, including `KeyboardInterrupt`/`SystemExit`.
+        """
+        try:
+            self._configure_connection(
+                conn, use_vec=use_vec, write_mode=write_mode, read_only=read_only
+            )
+            if row_factory:
+                conn.row_factory = sqlite3.Row
+        except BaseException:
+            conn.close()
+            if read_only:
+                # A failed probe must leave no residue behind (REQ-006).
+                self._cleanup_read_only_residue()
+            raise
+
     def open(
         self,
         *,
@@ -290,7 +321,8 @@ class SQLiteHelper:
         """Open a connection with optional vec extension and WAL pragmas.
 
         load_vec: None = use instance default (True for rag and session, False for
-            workflow).
+            workflow). An explicit True must load the extension or raise ValueError
+            before any connection is created (sqlite_vec_so must be configured).
         write_mode: enforce FK constraints.
         read_only: open via a mode=ro URI and apply only busy_timeout; a missing
             file raises sqlite3.OperationalError and is never created (REQ-001).
@@ -298,6 +330,8 @@ class SQLiteHelper:
             (REQ-006); pre-existing or hot sidecars are left untouched.
         row_factory: enable column-name access on result rows.
         reuse_connection: skip reconnect if already connected; skip close in __exit__.
+            Without reuse_connection, open() closes any connection still open before
+            connecting, so the helper holds at most one connection.
             A reused connection keeps the mode it was opened with: read_only cannot
             re-configure an existing connection (mirrors the check_same_thread caveat).
         check_same_thread: None = use instance default (True); an explicit value
@@ -309,23 +343,26 @@ class SQLiteHelper:
         self._reuse_connection = reuse_connection
         if reuse_connection and self.conn is not None:
             return self
+        if load_vec is True and not self._vec_so:
+            # Fail closed before creating a connection that could not be configured
+            # (REQ-004): the explicit intent is only known at this boundary.
+            raise ValueError(
+                "load_vec=True requested but sqlite_vec_so is not configured"
+            )
+        if self.conn is not None:
+            logger.debug("closing previous connection on re-open: %s", self._db_path)
+            self.close()
         if check_same_thread is not None:
             self._check_same_thread = check_same_thread
         use_vec = self._default_load_vec if load_vec is None else load_vec
         conn = self._connect_read_only() if read_only else self._connect()
-        try:
-            self._configure_connection(
-                conn, use_vec=use_vec, write_mode=write_mode, read_only=read_only
-            )
-        except Exception:
-            if read_only:
-                # A failed probe must leave no residue behind (REQ-006): drop the
-                # connection and any sidecar its open created before re-raising.
-                conn.close()
-                self._cleanup_read_only_residue()
-            raise
-        if row_factory:
-            conn.row_factory = sqlite3.Row
+        self._prepare_connection(
+            conn,
+            write_mode=write_mode,
+            read_only=read_only,
+            row_factory=row_factory,
+            use_vec=use_vec,
+        )
         self.conn = conn
         logger.debug(
             "SQLite connection opened: %s (write=%s)", self._db_path, write_mode

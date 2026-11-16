@@ -54,8 +54,8 @@ Close the `tools/check_module_size_tools_baseline.txt` Plan row at HEAD: the `ch
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Measure the checker and compare with its baseline row | Pending | — | — | REQ-004; superseded row, verification-only |
-| 2 | Run `check_module_size.py` against the tools baseline | Pending | — | — | AC-06 |
+| 1 | Measure the checker and compare with its baseline row | Completed | 20261116-094917 | 20261116-094917 | REQ-004; superseded row, verification-only Verified: baseline row 8 = 32352 == os.stat size 32352; MAX_SIZE 24576 and 12 entries unchanged. stale_detector: not stale |
+| 2 | Run `check_module_size.py` against the tools baseline | Completed | 20261116-094917 | 20261116-094917 | AC-06 Verified: check_module_size.py --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt exit 0 (15 baselined modules) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

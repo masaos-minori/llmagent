@@ -56,9 +56,9 @@ Close the `tools/check_docs_structure.py` Plan row at HEAD: the `adr_02_04_006` 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the 30069 entry and its dated comment naming `23ca93846` | Pending | — | — | REQ-002; superseded row, verification-only |
-| 2 | Confirm `MAX_SIZE` and all other entries are untouched | Pending | — | — | REQ-002 |
-| 3 | Run `check_docs_structure.py` and confirm exit 0 | Pending | — | — | REQ-001 / AC-01 |
+| 1 | Confirm the 30069 entry and its dated comment naming `23ca93846` | Completed | 20261116-094917 | 20261116-094917 | REQ-002; superseded row, verification-only Verified: entry adr_02_04_006 = 30069; comment 'Re-accepted 30069 (2026-11-15)' names 23ca93846. stale_detector: not stale |
+| 2 | Confirm `MAX_SIZE` and all other entries are untouched | Completed | 20261116-094917 | 20261116-094917 | REQ-002 Verified: MAX_SIZE = 24576 (:39); dict at :83-262 with 12 entries, last change bca9ec63f. Note: plan prose said ':83-211, 35 entries' - prose drift, no action |
+| 3 | Run `check_docs_structure.py` and confirm exit 0 | Completed | 20261116-094917 | 20261116-094917 | REQ-001 / AC-01 Verified: uv run python tools/check_docs_structure.py exit 0 (All checks passed); baseline row 32352 == checker size |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

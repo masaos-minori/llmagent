@@ -140,14 +140,15 @@ No. The Issue states documentation is not required beyond the `open` docstring, 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Single-owner teardown and re-open close (scripts/db/helper.py) | In Progress | — | — | procedure doc 20261115-232225_01 generated |
-| 2 | Explicit-`load_vec` guard and tests (scripts/db/helper.py, tests/db/test_sqlite_helper.py) | In Progress | — | — | procedure docs 20261115-232225_01/_02 generated |
-| 3 | Validation & deployment hand-off | Pending | — | — |  |
+| 1 | Single-owner teardown and re-open close (scripts/db/helper.py) | Completed | 20261116-095500 | 20261116-095900 | procedure doc 20261115-232225_01 generated landed 20261116: scripts/db/helper.py (_prepare_connection, except BaseException teardown, re-open self.close(), _load_vec_extension close removal) |
+| 2 | Explicit-`load_vec` guard and tests (scripts/db/helper.py, tests/db/test_sqlite_helper.py) | Completed | 20261116-095900 | 20261116-101300 | procedure docs 20261115-232225_01/_02 generated landed 20261116: explicit load_vec guard + docstring (procedure 20261115-232225_01) and TestOpenLeakSafety 4 tests (20261115-232225_02); tests/db 427 passed |
+| 3 | Validation & deployment hand-off | Pending | — | — | not executed in the 20261116 cycle: validation was targeted only (tests/db 427 passed, testmon-selected 2028 tests passed; full suite skipped per user instruction in memo3.md); deployment hand-off not performed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 2 | REQ-004 guard collided with an out-of-plan call site: `scripts/db/create_schema.py:97` passed `load_vec=True` explicitly while `tests/db/test_create_schema.py` and `tests/db/test_schema_validation_per_database.py` build `DbConfig` with an empty `sqlite_vec_so` (9 failed + 8 errors). `amend_plan.py` refuses an archived Plan, so the user approved a direct fallout edit: the redundant `load_vec=True` was removed there (`helper.py:119` already defaults it to `True` for `session`/`rag`), behavior-identical in every environment. | Yes | 20261116 |
+| 2 | Documentation update beyond the Plan's "Documentation Impact: No" statement: `docs/41_db/db_01_architecture_and_schema-overview-and-config.md` (§4b) and `docs/41_db/db_04_api_and_operations-module-boundaries-and-helper.md` (§2) now state the explicit-`load_vec` `ValueError`, the re-open close, and the single-owner teardown, because the previous text described the pre-guard behavior. | Yes | 20261116 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

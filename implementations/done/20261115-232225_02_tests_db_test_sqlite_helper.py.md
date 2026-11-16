@@ -12,6 +12,9 @@
 - `sqlite3.Connection` is a C-extension type; `mock.patch.object(sqlite3.Connection, "enable_load_extension", ...)` cannot set an attribute on it. The `AttributeError` scenario is therefore built with a `sqlite3.Connection` subclass (see Procedure 3), not by patching the class method.
 - `sqlite3.Connection.closed` (Python 3.13) is the primary leak assertion; the exclusive-lock technique is used once (Procedure 2) to confirm behaviorally that no residual lock survives a failed open (Plan Assumption).
 - The config-patch pattern `TestSQLiteHelperVecExtensionLoading._config` (`:327`) (patch `db.helper.build_db_config`) is the established way to reach an empty `sqlite_vec_so` in tests (production path is rejected by `scripts/db/config.py:66-69`).
+- Verification finding (2026-11-16, executed against the repo runtime): `sqlite3.Connection.closed` does not exist on the interpreter the tests run on (`uv` resolves Python 3.14.10, not the 3.13 the document assumes), so the primary leak assertion is implemented as `_assert_closed` — the `sqlite3.ProgrammingError` a closed connection raises on use — instead of the `.closed` attribute. The lock-based integration assertion is unchanged.
+- Verification finding (2026-11-16): the file has 34 pre-existing tests, not 30 (Plan 004 added `TestReadOnlyOpen` cases after this document was generated); the quoted frozen ranges are otherwise accurate.
+- Verification finding (2026-11-16): the REQ-004 guard collides with `scripts/db/create_schema.py:97`, which passed `load_vec=True` explicitly; resolved as a fallout edit there (see `20261115-232225_01` Blocker Log).
 
 ## Design decisions
 - One new class `TestOpenLeakSafety` (new) appended to the file: the four tests share one helper setup (captured `_connect`) and must not entangle with the frozen vec/reuse classes.
@@ -66,8 +69,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestOpenLeakSafety` (new) class with the four tests per Procedure | Pending | — | — | REQ-005 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | land after `20261115-232225_01` Step 1-2 |
+| 1 | Add `TestOpenLeakSafety` (new) class with the four tests per Procedure | Completed | 20261116-101523 | 20261116-101523 | REQ-005 TestOpenLeakSafety added with the four tests. Verification finding: sqlite3.Connection.closed is absent on the repo test runtime (Python 3.14.10 via uv), so closedness is asserted with a _assert_closed helper that expects sqlite3.ProgrammingError on use-after-close. Stale count in this document: the file had 34 pre-existing tests, not 30. stale_detector: not stale |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-101523 | 20261116-101523 | land after `20261115-232225_01` Step 1-2 Anti-tautology run against the pre-change helper (git checkout scripts/db/helper.py): all four tests fail (three DID NOT RAISE ProgrammingError, one DID NOT RAISE ValueError); restored helper -> 38 passed in this file, 427 passed in tests/db. ruff check and ruff format --check clean. Testmon-selected 2028 tests passed. Full suite NOT run: user instruction (memo3.md). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

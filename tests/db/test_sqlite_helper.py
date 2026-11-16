@@ -543,3 +543,153 @@ class TestReadOnlyOpen:
         assert sorted(p.name for p in tmp_path.iterdir()) == before_listing
         other.close()
         conn.close()
+
+
+class TestOpenLeakSafety:
+    """REQ-001..REQ-004: `open` leaves no unclosed connection on any failure path.
+
+    The connection `open` operates on is captured by wrapping `SQLiteHelper._connect`,
+    and closedness is asserted by the `ProgrammingError` a closed connection raises, so
+    the check is direct instead of a proxy for the helper's reference
+    (`helper.conn is None` alone only proves the reference was dropped).
+    """
+
+    @staticmethod
+    def _config(tmp_path: Path, vec_so: str) -> object:
+        from db.config import DbConfig
+
+        return DbConfig(
+            rag_db_path=str(tmp_path / "rag.sqlite"),
+            session_db_path=str(tmp_path / "session.sqlite"),
+            workflow_db_path=str(tmp_path / "workflow.sqlite"),
+            sqlite_vec_so=vec_so,
+        )
+
+    @staticmethod
+    def _assert_closed(conn: sqlite3.Connection) -> None:
+        """Assert the connection is closed by the closed-database it refuses to use.
+
+        `sqlite3.Connection.closed` is not available on this runtime, so the
+        ProgrammingError a closed connection raises is the leak assertion.
+        """
+        with pytest.raises(sqlite3.ProgrammingError):
+            conn.execute("SELECT 1")
+
+    def test_post_connect_failure_closes_connection(self, tmp_path: Path) -> None:
+        """AC-1: a pragma failure closes the connection and releases its locks."""
+        from unittest.mock import patch
+
+        db_file = tmp_path / "session.sqlite"
+        cfg = self._config(tmp_path, "")
+        captured: list[sqlite3.Connection] = []
+        real_connect = SQLiteHelper._connect
+
+        def _capture(helper: SQLiteHelper) -> sqlite3.Connection:
+            conn = real_connect(helper)
+            captured.append(conn)
+            return conn
+
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch.object(SQLiteHelper, "_connect", _capture),
+            patch.object(
+                SQLiteHelper,
+                "_apply_connection_pragmas",
+                side_effect=RuntimeError("boom"),
+            ),
+        ):
+            helper = SQLiteHelper("session")
+            with pytest.raises(RuntimeError, match="boom"):
+                helper.open(write_mode=True)
+
+        assert helper.conn is None
+        assert captured
+        for conn in captured:
+            self._assert_closed(conn)
+        # Integration proof: the failed open left no lock on the file, so a fresh
+        # connection acquires an exclusive one immediately (no busy timeout hit).
+        probe = sqlite3.connect(db_file)
+        try:
+            probe.execute("BEGIN EXCLUSIVE")
+            probe.execute("ROLLBACK")
+        finally:
+            probe.close()
+
+    def test_attribute_error_vec_failure_closes_connection(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-1/AC-2: an `AttributeError` from `enable_load_extension` also tears down.
+
+        `sqlite3.Connection` is a C-extension type, so the failure is built with a
+        subclass rather than by patching the class method.
+        """
+        from unittest.mock import patch
+
+        class _NoLoadExtension(sqlite3.Connection):
+            def enable_load_extension(self, _enable: bool) -> None:
+                raise AttributeError("enable_load_extension is unavailable")
+
+        cfg = self._config(tmp_path, str(tmp_path / "missing" / "vec0.so"))
+        captured: list[sqlite3.Connection] = []
+
+        def _connect_with_factory(helper: SQLiteHelper) -> sqlite3.Connection:
+            conn = sqlite3.connect(
+                helper._db_path,
+                timeout=helper._sqlite_timeout,
+                check_same_thread=helper._check_same_thread,
+                factory=_NoLoadExtension,
+            )
+            captured.append(conn)
+            return conn
+
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch.object(SQLiteHelper, "_connect", _connect_with_factory),
+        ):
+            helper = SQLiteHelper("session")
+            with pytest.raises(AttributeError):
+                helper.open()
+
+        assert helper.conn is None
+        assert captured
+        for conn in captured:
+            self._assert_closed(conn)
+
+    def test_reopen_closes_previous_connection(self, tmp_path: Path) -> None:
+        """AC-3: a non-reuse `open()` closes the connection it replaces."""
+        from unittest.mock import patch
+
+        cfg = self._config(tmp_path, "")
+        with patch("db.helper.build_db_config", return_value=cfg):
+            helper = SQLiteHelper("session")
+            helper.open(write_mode=True)
+            conn_a = helper.conn
+            assert conn_a is not None
+            helper.open(write_mode=True)
+            try:
+                assert helper.conn is not conn_a
+                with pytest.raises(sqlite3.ProgrammingError):
+                    conn_a.execute("SELECT 1")
+            finally:
+                helper.close()
+
+    def test_explicit_load_vec_without_vec_so_raises_value_error(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-4: explicit `load_vec=True` fails before any connection is created."""
+        from unittest.mock import patch
+
+        db_file = tmp_path / "session.sqlite"
+        cfg = self._config(tmp_path, "")
+        with patch("db.helper.build_db_config", return_value=cfg):
+            helper = SQLiteHelper("session")
+            with pytest.raises(ValueError, match="sqlite_vec_so"):
+                helper.open(load_vec=True)
+            assert helper.conn is None
+            assert not db_file.exists()
+            # The instance-default path is unchanged: it opens without the extension.
+            with helper.open(write_mode=True) as db:
+                loaded = db.conn.execute(
+                    "SELECT count(*) FROM pragma_module_list WHERE name = 'vec0'"
+                ).fetchone()[0]
+                assert loaded == 0
