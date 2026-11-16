@@ -652,3 +652,56 @@ class TestRagConsistencyStopHook:
         assert fake.called
         assert fake.event is not None
         assert not fake.event.is_set()
+
+
+class _CancelObservingFakeRag(_FakeRagService):
+    """`_FakeRagService` plus a `returned` flag so the test can observe the
+    worker thread exiting once the stop event is set."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.returned = False
+
+    def consistency(self, stop: threading.Event | None = None) -> object:
+        try:
+            return super().consistency(stop)
+        finally:
+            self.returned = True
+
+
+class TestRagConsistencyCancellation:
+    """REQ-003 (Plan startrev004): cancelling the services stage while the RAG
+    check runs must set the stop event so the worker thread stops, and the
+    cancellation must still propagate."""
+
+    @pytest.mark.asyncio
+    async def test_cancelling_check_services_sets_stop_event_and_returns(
+        self,
+    ) -> None:
+        """Cancelling `check_services` mid-RAG sets the stop event passed to the
+        fake, the fake returns (worker released), and CancelledError propagates."""
+        fake = _CancelObservingFakeRag(block=True, block_seconds=5.0)
+
+        async def _run() -> StartupValidationResult:
+            return await _run_check_services(fake)
+
+        task = asyncio.ensure_future(_run())
+        for _ in range(200):
+            if fake.called:
+                break
+            await asyncio.sleep(0.01)
+        assert fake.called, "fake consistency check never started"
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert fake.event is not None
+        assert fake.event.is_set()
+        # The handler must release the worker; bound the wait so a pre-change
+        # run fails fast instead of hanging for the fake's full block time.
+        for _ in range(300):
+            if fake.returned:
+                break
+            await asyncio.sleep(0.01)
+        assert fake.returned, "worker thread was not released by the stop event"

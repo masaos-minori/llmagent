@@ -11,7 +11,7 @@ Correct the interruption description in the startup and health document so it st
 ## Assumptions
 
 - Execute after documents `01` and `02` of this Plan so the text describes landed behavior.
-- The current text says a `StartupInterrupted` is raised on a signal during startup and names only the HTTP subprocess health polling, while the code observed the event only in the MCP start and verify waits (re-read in Step 3a).
+- Verified Step 3a (after documents `01` and `02` landed): `run()` races the event against `_check_services` and `_setup_prompt` via `_run_stage`, checks event boundaries before every stage in the `try` and after the last stage, and the MCP starter raises `StartupInterrupted` at its per-server boundaries while racing the event in stagger, retry and health-poll delays; cancelling the services stage now also sets the RAG stop event (document `02`'s handler). The document text to replace (line 39 and the section at lines 91-93) still describes only the delayed-timer race.
 - Plan overlap judgment: this document is also a target of Plans `startrev005` and `startrev006`; each edits a different passage and no sentence is shared, so the edits are compatible; this Plan goes last.
 
 ## Design decisions
@@ -70,8 +70,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the startup interruption passages to match the code | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Correct the startup interruption passages to match the code | Completed | 20261116-214500 | 20261116-214800 | line 39 sentence and SIGINT/SIGTERM section rewritten to describe landed behavior from docs 01/02 |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261116-214800 | 20261116-215000 | check_docs_quality/structure/content_policy/consistency --domain agent/japanese all exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

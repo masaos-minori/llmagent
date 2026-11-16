@@ -11,7 +11,9 @@ Make `StartupOrchestrator.run` honor a shutdown request at every awaited stage a
 ## Assumptions
 
 - Plan overlap judgment: this file is a target of this Plan only. The Plan's REQ-003 consumes the RAG stop event that Plan `startrev006` adds; that dependency affects document `02` only, so this document has no ordering constraint against Plan `startrev006`.
-- `shutdown_event` is held as `self._shutdown_event` and is passed today only to `McpServerStarter`; the other collaborators are built without it (read in Step 3a).
+- `shutdown_event` is `asyncio.Event | None`, defaulting to `None`, held as `self._shutdown_event` and passed today only to `McpServerStarter`; the other collaborators are built without it (verified Step 3a). With `None`, both new helpers treat the state as "no request".
+- `AgentREPL.run` passes its own owned event (`repl.py:107-109`), catches `StartupInterrupted`, writes a warning and re-raises (`repl.py:121-126`); `main` still exits quietly (verified Step 3a).
+- `McpServerStarter` already raises `StartupInterrupted` at its per-server start and health-verify boundaries and races the event during stagger and retry delays (`startup_mcp_starter.py:62-81, 140-145, _interruptible_sleep`); this is why `_start_servers` and `_verify_mcp_health` stay as direct calls.
 - `StartupInterrupted` derives from `BaseException`, so the generic `except Exception` in `run` does not catch it and the dedicated `except StartupInterrupted` branch performs the rollback and re-raises.
 - A boundary check placed before `_start_servers` runs inside the `try`, so a request seen there calls `lifecycle.shutdown_all()` although nothing was started; that call is idempotent and reports nothing when no server is tracked.
 - `scripts/agent/startup.py` is 6993 bytes against a 24576 byte module size limit, so the additions fit without a split.
@@ -20,7 +22,7 @@ Make `StartupOrchestrator.run` honor a shutdown request at every awaited stage a
 ## Design decisions
 
 - Add a private async helper `_run_stage` (new) that wraps the stage coroutine in a task, waits on the task and a task for `self._shutdown_event.wait()` with `asyncio.wait(..., return_when=FIRST_COMPLETED)`, and returns the stage result when the stage wins. When the event wins it cancels the stage task, awaits it so its cleanup runs, swallows its `CancelledError`, and raises `StartupInterrupted` naming the stage. With no event configured it simply awaits the stage.
-- Add a private helper `_raise_if_shutdown_requested` (new) that raises `StartupInterrupted` naming the boundary when the event is set; call it before `_start_servers`, between each pair of stages, and after the last stage inside the same `try`, so the existing rollback branch handles every case.
+- Add a private helper `_raise_if_shutdown_requested` (new) that raises `StartupInterrupted` naming the boundary when the event is set (no-op when no event is configured); call it as a separate statement before each stage call — before `_start_servers`, between each pair of stages, and after the last stage inside the same `try` — so the existing rollback branch handles every case and a stage coroutine is never created after an interrupt is seen (no un-awaited coroutine warning). Boundary names: "startup", "after MCP subprocess start", "after MCP health verification", "after service validation", "after prompt setup".
 
 ## Alternatives considered
 
@@ -33,8 +35,8 @@ Make `StartupOrchestrator.run` honor a shutdown request at every awaited stage a
 
 ### Procedure
 1. Add the two private helpers `_run_stage` (new) and `_raise_if_shutdown_requested` (new) to `StartupOrchestrator`.
-2. In `run`, call the boundary check `_raise_if_shutdown_requested` (new) with the boundary name "startup" first inside the `try`, then keep `_start_servers` and `_verify_mcp_health` as they are (the starter already observes the event).
-3. Replace `await self._check_services()` and `await self._setup_prompt()` with `await self._run_stage("service validation", self._check_services())` and `await self._run_stage("prompt setup", self._setup_prompt())`, with `_raise_if_shutdown_requested` (new) calls between them and after the last stage, all inside the `try`.
+2. In `run`, call the boundary check `_raise_if_shutdown_requested` (new) with the boundary name "startup" first inside the `try`, then keep `_start_servers` and `_verify_mcp_health` as they are (the starter already observes the event), each followed by its boundary check statement.
+3. Replace `await self._check_services()` and `await self._setup_prompt()` with `await self._run_stage("service validation", self._check_services())` and `await self._run_stage("prompt setup", self._setup_prompt())`, with `_raise_if_shutdown_requested` (new) statements between the stages and after the last stage, all inside the `try`.
 
 ### Method
 - If the coroutine running `run` is itself cancelled while waiting inside `_run_stage`, cancel the stage task and the event-wait task before re-raising, so nothing is left running; cancel the event-wait task whenever it is not the winner.
@@ -48,7 +50,7 @@ Make `StartupOrchestrator.run` honor a shutdown request at every awaited stage a
 
 ### Companion test files
 - `tests/agent/test_startup_rollback.py`
-  - Procedure: write these first and confirm they fail on the current code, using `_make_rollback_startup` and the file's component-init stub fixture, with a real `asyncio.Event` passed as the orchestrator's shutdown event: (a) an event set while `_check_services` blocks (a coroutine awaiting a never-set future) ends `run` with `StartupInterrupted` within a short bound, the blocked stage sees `CancelledError`, and `shutdown_all` is awaited once; (b) the same for `_setup_prompt`; (c) an event set during `_start_servers` or `_verify_mcp_health` (replaced by coroutines that set it) stops before `_check_services` starts; (d) an event set by the last stage ends `run` with `StartupInterrupted` instead of returning `(cmds, orchestrator)`; (e) with no event set the stage order and results are unchanged and a stage exception still triggers the generic rollback; (f) a stage that completes normally returns its result unchanged. Keep the existing tests untouched.
+  - Procedure: write these first and confirm they fail on the current code, using `_make_rollback_startup` and the file's component-init stub fixture, with a real `asyncio.Event` passed as the orchestrator's shutdown event. Note: `_make_rollback_startup` builds the orchestrator with no shutdown event (all 14 existing tests are unaffected); the new tests construct `StartupOrchestrator(ctx, view, shutdown_event=event)` with a real `asyncio.Event`: (a) an event set while `_check_services` blocks (a coroutine awaiting a never-set future) ends `run` with `StartupInterrupted` within a short bound, the blocked stage sees `CancelledError`, and `shutdown_all` is awaited once; (b) the same for `_setup_prompt`; (c) an event set by a replaced `_start_servers` or `_verify_mcp_health` coroutine (sets the event, returns normally) ends `run` with `StartupInterrupted` before the next stage starts; (d) an event set by the last stage ends `run` with `StartupInterrupted` instead of returning `(cmds, orchestrator)`; (e) with no event set the stage order and results are unchanged and a stage exception still triggers the generic rollback; (f) a stage that completes normally returns its result unchanged. Keep the existing tests untouched.
   - Validation: `uv run pytest tests/agent/test_startup_rollback.py tests/agent/test_startup.py tests/agent/test_repl.py -q`.
 
 ## Compatibility considerations
@@ -85,9 +87,9 @@ Make `StartupOrchestrator.run` honor a shutdown request at every awaited stage a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the stage-interruption and boundary tests first and confirm they fail (companion `tests/agent/test_startup_rollback.py`) | Pending | — | — | |
-| 2 | Add the stage helper and the boundary checks, and apply them in `run` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the stage-interruption and boundary tests first and confirm they fail (companion `tests/agent/test_startup_rollback.py`) | Completed | 20261116-205000 | 20261116-210000 | 8 new tests in tests/agent/test_startup_rollback.py; 6 interruption tests failed pre-change (TimeoutError/DID NOT RAISE), 2 no-request guards passed |
+| 2 | Add the stage helper and the boundary checks, and apply them in `run` | Completed | 20261116-210000 | 20261116-210500 | scripts/agent/startup.py: _run_stage + _raise_if_shutdown_requested added and applied in run; tests/agent/test_startup_rollback.py extended |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-210500 | 20261116-211658 | targeted 148 passed; ruff/mypy/lint-imports/module-size/reference-table pass; full suite 12445 passed; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

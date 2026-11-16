@@ -13,6 +13,8 @@ Set the RAG consistency stop event when the services stage is cancelled while th
 - Hard ordering: execute after the Plan `startrev006` procedures for `scripts/agent/startup_validation.py` (the stop event and the shortened bound constant exist in the RAG step), `scripts/agent/services/rag_maintenance_service.py` and `scripts/db/helper.py`. The Plan records this as a `Depends on` line for that Plan's phase 2; the dependency tool reports no gate because the Plan is archived, but its procedures may still be unexecuted, so check the code before starting.
 - Also execute after the Plan `startrev005` procedures, which edit the head of `check_services`; this change edits only the RAG step.
 - `asyncio.wait_for` cancels the awaited executor future on cancellation of the awaiting coroutine, but the worker thread keeps running; the cancellation handler is what stops it (read in Step 3a).
+- Verified Step 3a: `stop = threading.Event()` is created before the `try` (line 226), so it is in scope in the new handler without moving it; `except TimeoutError` at line 249 already sets it; `except Exception` (line 261) cannot catch `CancelledError`.
+- Verified Step 3a: the companion file already has Plan `startrev006`'s `_FakeRagService` (blocks on the passed `stop` event, records it in `.event`) and the `_run_check_services` helper; the new test reuses them.
 - Test file `tests/agent/test_startup_validation.py` is a companion: it is a Plan row under `tests/`, only the `startup_validation.py` row names it in `Related Tests` (besides itself) in this Plan, and its case is fully specified by the Plan. Plan `startrev006` also adds tests to this file through its own document; the cases are additive.
 
 ## Design decisions
@@ -42,7 +44,7 @@ N/A: the Plan fixes the approach (set the existing stop event on cancellation).
 
 ### Companion test files
 - `tests/agent/test_startup_validation.py`
-  - Procedure: write this first and confirm it fails before the change: run `check_services` as a task with a fake consistency service whose check blocks on the stop event passed to it (a `threading.Event`), wait until the fake has started, cancel the task, and assert `CancelledError` propagates, the stop event is set, and the fake returned. Follow the file's pipeline-building helper and patch the service class as the existing tests do.
+  - Procedure: write this first and confirm it fails before the change: run `check_services` as a task with a fake consistency service whose check blocks on the stop event passed to it (a `threading.Event`), wait until the fake has started, cancel the task, and assert `CancelledError` propagates, the stop event is set, and the fake returned. Reuse `_FakeRagService` and `_run_check_services`; subclass the fake with a `returned` flag (set in a `finally`) to observe the worker exiting, and pass `block_seconds=5.0` so the pre-change run leaks at most a bounded thread instead of 30s. Follow the file's pipeline-building helper and patch the service class as the existing tests do.
   - Validation: `uv run pytest tests/agent/test_startup_validation.py tests/agent/shared/test_startup_validation_pipeline.py -q`.
 
 ## Compatibility considerations
@@ -77,9 +79,9 @@ N/A: the Plan fixes the approach (set the existing stop event on cancellation).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the cancellation test with a blocking fake and confirm it fails before the change (companion `tests/agent/test_startup_validation.py`) | Pending | — | — | |
-| 2 | Add the cancellation handler that sets the stop event and re-raises | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the cancellation test with a blocking fake and confirm it fails before the change (companion `tests/agent/test_startup_validation.py`) | Completed | 20261116-212500 | 20261116-213200 | TestRagConsistencyCancellation added to tests/agent/test_startup_validation.py; failed pre-change (stop event unset after cancel), passes post-change |
+| 2 | Add the cancellation handler that sets the stop event and re-raises | Completed | 20261116-213200 | 20261116-213400 | scripts/agent/startup_validation.py: except asyncio.CancelledError (stop.set(); raise) added before except TimeoutError; radon C(17)->C(18), grade unchanged |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-213400 | 20261116-213700 | targeted 84 passed; ruff/mypy/lint-imports/module-size/reference-table pass; full suite 12446 passed; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

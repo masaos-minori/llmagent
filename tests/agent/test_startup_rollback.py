@@ -1,10 +1,13 @@
 """Behavior-lock tests for StartupOrchestrator.run() rollback behavior.
 
-Tests that lifecycle.shutdown_all() is called when _start_servers() succeeds before failure.
+Tests that lifecycle.shutdown_all() is called when _start_servers() succeeds before failure,
+and that a shutdown request interrupts every awaited stage and stage boundary (REQ-001,
+REQ-002, REQ-005).
 """
 
 from __future__ import annotations
 
+import asyncio
 import subprocess
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -327,3 +330,287 @@ class TestConfigStageOrdering:
 
         orch._start_servers.assert_not_called()
         mock_lifecycle.shutdown_all.assert_not_awaited()
+
+
+# ── Stage-interruption helpers ────────────────────────────────────────────────
+
+
+def _make_interrupt_startup() -> tuple[StartupOrchestrator, AsyncMock, asyncio.Event]:
+    """Return (orchestrator, mock_lifecycle, shutdown_event) with a real shutdown event.
+
+    Mirrors `_make_rollback_startup`, but wires a real `asyncio.Event` so the
+    stage-race and boundary checks in `run()` are exercised end to end.
+    """
+    ctx = MagicMock()
+    ctx.cfg.obs.audit_log_file = "/opt/llm/logs/audit.log"
+    ctx.cfg.rag.embed_url = "http://localhost:6000/embedding"
+    mock_lifecycle = AsyncMock()
+    mock_lifecycle.shutdown_all.return_value = []  # every server confirmed stopped
+    ctx.services_required.lifecycle = mock_lifecycle
+    view = MagicMock()
+    shutdown_event = asyncio.Event()
+    orch = StartupOrchestrator(ctx, view, shutdown_event=shutdown_event)
+    return orch, mock_lifecycle, shutdown_event
+
+
+class TestStageInterruption:
+    """REQ-001/REQ-002: run() aborts at every awaited stage and stage boundary.
+
+    REQ-004: with no shutdown request the stage order, results and rollback
+    behavior are unchanged.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _stub_component_init(self) -> Iterator[None]:
+        """Stub the component-wiring step and the config-only validation step (same
+        seams as TestStartupRollback) so only the interruptible stages run."""
+        with (
+            patch.object(
+                ComponentInitializer,
+                "initialize",
+                new=AsyncMock(return_value=(MagicMock(), MagicMock())),
+            ),
+            patch.object(
+                StartupOrchestrator, "_check_config", new=MagicMock(), create=True
+            ),
+        ):
+            yield
+
+    @pytest.mark.asyncio
+    async def test_shutdown_during_check_services_cancels_stage_and_rolls_back(
+        self,
+    ) -> None:
+        """An event set while the service-validation stage blocks cancels the stage
+        (the stage sees CancelledError), aborts run with StartupInterrupted within a
+        short bound, and rolls back via shutdown_all() once (REQ-001, AC-1)."""
+        orch, mock_lifecycle, shutdown_event = _make_interrupt_startup()
+        stage_cancelled = asyncio.Event()
+
+        async def _blocked_services() -> None:
+            try:
+                await asyncio.Event().wait()  # never completes on its own
+            except asyncio.CancelledError:
+                stage_cancelled.set()
+                raise
+
+        orch._start_servers = AsyncMock()
+        orch._verify_mcp_health = AsyncMock()
+        orch._check_services = _blocked_services
+        orch._setup_prompt = AsyncMock()
+
+        async def _set_after_delay() -> None:
+            await asyncio.sleep(0.05)
+            shutdown_event.set()
+
+        setter = asyncio.ensure_future(_set_after_delay())
+        try:
+            with pytest.raises(StartupInterrupted, match="service validation"):
+                await asyncio.wait_for(orch.run(), timeout=2.0)
+        finally:
+            setter.cancel()
+
+        assert stage_cancelled.is_set()
+        mock_lifecycle.shutdown_all.assert_awaited_once()
+        orch._setup_prompt.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_during_setup_prompt_cancels_stage_and_rolls_back(
+        self,
+    ) -> None:
+        """The prompt-setup stage is cancelled the same way when the event fires while
+        it blocks (REQ-001, AC-1)."""
+        orch, mock_lifecycle, shutdown_event = _make_interrupt_startup()
+        stage_cancelled = asyncio.Event()
+
+        async def _blocked_prompt() -> None:
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                stage_cancelled.set()
+                raise
+
+        orch._start_servers = AsyncMock()
+        orch._verify_mcp_health = AsyncMock()
+        orch._check_services = AsyncMock()
+        orch._setup_prompt = _blocked_prompt
+
+        async def _set_after_delay() -> None:
+            await asyncio.sleep(0.05)
+            shutdown_event.set()
+
+        setter = asyncio.ensure_future(_set_after_delay())
+        try:
+            with pytest.raises(StartupInterrupted, match="prompt setup"):
+                await asyncio.wait_for(orch.run(), timeout=2.0)
+        finally:
+            setter.cancel()
+
+        assert stage_cancelled.is_set()
+        mock_lifecycle.shutdown_all.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_event_set_during_start_servers_stops_before_next_stage(
+        self,
+    ) -> None:
+        """A request made during _start_servers (a stage that returns normally after
+        setting the event) aborts at the next boundary before _verify_mcp_health or
+        _check_services runs (REQ-002, AC-2)."""
+        orch, mock_lifecycle, shutdown_event = _make_interrupt_startup()
+        ran: list[str] = []
+
+        async def _setting_start() -> None:
+            ran.append("start")
+            shutdown_event.set()
+
+        async def _verify() -> None:
+            ran.append("verify")
+
+        orch._start_servers = _setting_start
+        orch._verify_mcp_health = _verify
+        orch._check_services = AsyncMock()
+
+        with pytest.raises(StartupInterrupted, match="after MCP subprocess start"):
+            await orch.run()
+
+        assert ran == ["start"]
+        orch._check_services.assert_not_called()
+        mock_lifecycle.shutdown_all.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_event_set_during_health_check_stops_before_services(
+        self,
+    ) -> None:
+        """A request made during _verify_mcp_health aborts before _check_services
+        starts (REQ-002, AC-2)."""
+        orch, mock_lifecycle, shutdown_event = _make_interrupt_startup()
+        ran: list[str] = []
+
+        async def _setting_verify() -> None:
+            ran.append("verify")
+            shutdown_event.set()
+
+        orch._start_servers = AsyncMock()
+        orch._verify_mcp_health = _setting_verify
+        orch._check_services = AsyncMock()
+
+        with pytest.raises(StartupInterrupted, match="after MCP health validation"):
+            await orch.run()
+
+        assert ran == ["verify"]
+        orch._check_services.assert_not_called()
+        mock_lifecycle.shutdown_all.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_event_set_by_last_stage_prevents_run_return(self) -> None:
+        """An event set by the last stage ends run with StartupInterrupted instead of
+        returning (cmds, orchestrator) (REQ-002, AC-2)."""
+        orch, mock_lifecycle, shutdown_event = _make_interrupt_startup()
+
+        async def _setting_prompt() -> None:
+            shutdown_event.set()
+
+        orch._start_servers = AsyncMock()
+        orch._verify_mcp_health = AsyncMock()
+        orch._check_services = AsyncMock()
+        orch._setup_prompt = _setting_prompt
+
+        with pytest.raises(StartupInterrupted, match="after prompt setup"):
+            await orch.run()
+
+        mock_lifecycle.shutdown_all.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_set_before_first_stage_aborts_before_any_stage(
+        self,
+    ) -> None:
+        """A request already set when run()'s try begins aborts at the "at startup"
+        boundary before any stage call (REQ-002, AC-2)."""
+        orch, mock_lifecycle, shutdown_event = _make_interrupt_startup()
+        shutdown_event.set()
+        orch._start_servers = AsyncMock()
+        orch._verify_mcp_health = AsyncMock()
+        orch._check_services = AsyncMock()
+        orch._setup_prompt = AsyncMock()
+
+        with pytest.raises(StartupInterrupted, match="at startup"):
+            await orch.run()
+
+        orch._start_servers.assert_not_called()
+        mock_lifecycle.shutdown_all.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_no_request_keeps_stage_order_and_generic_rollback(self) -> None:
+        """With a wired event that is never set, the stage order is unchanged and a
+        stage exception still triggers the generic rollback (REQ-004, AC-4)."""
+        orch, mock_lifecycle, _ = _make_interrupt_startup()
+        order: list[str] = []
+
+        async def _start() -> None:
+            order.append("start")
+
+        async def _verify() -> None:
+            order.append("verify")
+
+        async def _services() -> None:
+            order.append("services")
+            raise RuntimeError("health check failed")
+
+        async def _prompt() -> None:
+            order.append("prompt")
+
+        orch._start_servers = _start
+        orch._verify_mcp_health = _verify
+        orch._check_services = _services
+        orch._setup_prompt = _prompt
+
+        with pytest.raises(RuntimeError, match="health check failed"):
+            await orch.run()
+
+        assert order == ["start", "verify", "services"]
+        mock_lifecycle.shutdown_all.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_completed_stages_return_results_unchanged(self) -> None:
+        """With a wired event that is never set, a successful run() returns
+        (cmds, orchestrator) exactly as before (REQ-004, AC-4)."""
+        orch, mock_lifecycle, _ = _make_interrupt_startup()
+        orch._start_servers = AsyncMock()
+        orch._verify_mcp_health = AsyncMock()
+        orch._check_services = AsyncMock()
+        orch._setup_prompt = AsyncMock()
+
+        cmds, orchestrator = await orch.run()
+
+        assert cmds is not None
+        assert orchestrator is not None
+        mock_lifecycle.shutdown_all.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_outer_cancellation_cancels_running_stage_and_propagates(
+        self,
+    ) -> None:
+        """Cancelling the task that runs run() while a stage is in progress cancels
+        both the stage task and the event-wait task and re-raises CancelledError, so
+        nothing is left running (no orphan tasks)."""
+        orch, _, _ = _make_interrupt_startup()
+        stage_cancelled = asyncio.Event()
+
+        async def _blocked_services() -> None:
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                stage_cancelled.set()
+                raise
+
+        orch._start_servers = AsyncMock()
+        orch._verify_mcp_health = AsyncMock()
+        orch._check_services = _blocked_services
+        orch._setup_prompt = AsyncMock()
+
+        run_task = asyncio.ensure_future(orch.run())
+        await asyncio.sleep(0.05)  # let run() reach the blocked stage
+        run_task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await run_task
+
+        assert stage_cancelled.is_set()

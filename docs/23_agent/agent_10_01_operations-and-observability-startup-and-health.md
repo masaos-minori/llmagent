@@ -36,7 +36,7 @@ Startup validates configuration before it spawns anything, then starts the serve
 
 `StartupOrchestrator` centrally manages the entire startup sequence. If startup fails, it closes all resources via `shutdown_all()` and re-raises the original exception. Even if the rollback itself fails, the original exception is preserved (only a log is recorded).
 
-SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asyncio.wait(FIRST_COMPLETED)`, these signals compete with delayed timers; if a shutdown event fires first, the delay is interrupted immediately.
+SIGTERM/SIGINT signals can be fired even during the startup sequence. The MCP stages observe the shutdown event at their per-server boundaries and in stagger and retry delays; service validation and prompt setup race it with `asyncio.wait(FIRST_COMPLETED)`, and a stage that loses the race is cancelled and ended cleanly. Event boundary checks run before every stage in `run()` and after the last one, so a request seen between stages aborts before the next stage starts.
 
 ## Responsibility Boundary
 
@@ -90,7 +90,7 @@ Each step is independently guarded so that if one fails, others still execute. W
 
 ### SIGINT/SIGTERM Interruption During Startup
 
-If SIGINT/SIGTERM is received during the startup sequence, a `StartupInterrupted` exception is raised, triggering a rollback. The HTTP subprocess health polling loop is also immediately interrupted by the shutdown event. After the rollback the process exits with status 0 and prints no traceback, because the entry function treats a requested shutdown during startup as a normal end; a genuine startup failure still ends with a non-zero status and a visible fatal message.
+If SIGINT/SIGTERM is received during the startup sequence, the shutdown event is observed at the MCP stages' per-server boundaries and delay waits, and raced against the service validation and prompt setup stages. The stage in progress is cancelled and ended cleanly — cancelling the service validation stage also stops the RAG consistency check through its stop event — a `StartupInterrupted` exception is raised, and the servers started so far are rolled back through `shutdown_all()`. After the rollback the process exits with status 0 and prints no traceback, because the entry function treats a requested shutdown during startup as a normal end; a genuine startup failure still ends with a non-zero status and a visible fatal message.
 
 ### Secret Masking in MCP Subprocess Failure Reports
 

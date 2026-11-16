@@ -246,6 +246,12 @@ class StartupValidationPipeline:
                         pipeline.add_fatal("rag_consistency", message)
                     else:
                         pipeline.add_warning("rag_consistency", message)
+        except asyncio.CancelledError:
+            # The awaiting stage was cancelled (shutdown request): the executor
+            # future is cancelled but the worker thread keeps running, so set the
+            # run's stop event before propagating the cancellation.
+            stop.set()
+            raise
         except TimeoutError:
             stop.set()
             logger.warning(

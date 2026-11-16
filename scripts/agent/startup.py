@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import subprocess
-from typing import TYPE_CHECKING
+from collections.abc import Awaitable
+from typing import TYPE_CHECKING, TypeVar
 
 from shared.logger import Logger
 
@@ -22,6 +23,8 @@ from agent.startup_mcp_starter import McpServerStarter
 from agent.startup_prompt_setup import PromptSetup
 from agent.startup_reporter import ReadinessReporter
 from agent.startup_validation import StartupValidationPipeline
+
+T = TypeVar("T")
 
 
 class StartupInterrupted(BaseException):
@@ -67,10 +70,15 @@ class StartupOrchestrator:
         ).initialize()
         self._check_config()
         try:
+            self._raise_if_shutdown_requested("at startup")
             await self._start_servers()
+            self._raise_if_shutdown_requested("after MCP subprocess start")
             await self._verify_mcp_health()
-            await self._check_services()
-            await self._setup_prompt()
+            self._raise_if_shutdown_requested("after MCP health validation")
+            await self._run_stage("service validation", self._check_services())
+            self._raise_if_shutdown_requested("after service validation")
+            await self._run_stage("prompt setup", self._setup_prompt())
+            self._raise_if_shutdown_requested("after prompt setup")
         except StartupInterrupted:
             await self._rollback_servers("startup interrupted")
             raise
@@ -82,6 +90,44 @@ class StartupOrchestrator:
                 "StartupOrchestrator.run() failed to initialize cmds/orchestrator"
             )
         return self._cmds, self._orchestrator
+
+    def _raise_if_shutdown_requested(self, boundary: str) -> None:
+        """Abort the startup sequence at a stage boundary when a shutdown was requested."""
+        if self._shutdown_event is not None and self._shutdown_event.is_set():
+            raise StartupInterrupted(f"shutdown requested {boundary}")
+
+    async def _run_stage(self, name: str, coro: Awaitable[T]) -> T:
+        """Await a startup stage, cancelling it if the shutdown event fires first.
+
+        When the event wins, the stage task is cancelled and awaited so its cleanup
+        runs, and StartupInterrupted names the stage. Stage exceptions are propagated
+        as raised; a shutdown seen at the same moment is honored at the next boundary
+        check. With no event configured the stage is simply awaited.
+        """
+        if self._shutdown_event is None:
+            return await coro
+        stage_task = asyncio.ensure_future(coro)
+        wait_task = asyncio.ensure_future(self._shutdown_event.wait())
+        try:
+            done, _ = await asyncio.wait(
+                {stage_task, wait_task}, return_when=asyncio.FIRST_COMPLETED
+            )
+        except asyncio.CancelledError:
+            # run() itself was cancelled: stop both tasks before propagating.
+            stage_task.cancel()
+            wait_task.cancel()
+            await asyncio.gather(stage_task, wait_task, return_exceptions=True)
+            raise
+        if not wait_task.done():
+            wait_task.cancel()
+        if stage_task in done:
+            return stage_task.result()
+        stage_task.cancel()
+        try:
+            await stage_task
+        except asyncio.CancelledError:
+            pass
+        raise StartupInterrupted(f"shutdown requested during {name}")
 
     async def _rollback_servers(self, cause: str) -> None:
         """Stop the servers started so far; report anything that could not be stopped.

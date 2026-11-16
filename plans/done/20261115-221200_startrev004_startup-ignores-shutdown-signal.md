@@ -161,9 +161,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Orchestrator stage race and its tests (scripts/agent/startup.py, tests/agent/test_startup_rollback.py) | In Progress | — | — |  |
-| 2 | RAG cancellation and its test (scripts/agent/startup_validation.py, tests/agent/test_startup_validation.py) | In Progress | — | — |  |
-| 3 | Documentation (docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | In Progress | — | — |  |
+| 1 | Orchestrator stage race and its tests (scripts/agent/startup.py, tests/agent/test_startup_rollback.py) | Completed | — | 20261116-211658 | procedure archived 20261116-211658; startup.py + test_startup_rollback.py landed; diff-cover 100% |
+| 2 | RAG cancellation and its test (scripts/agent/startup_validation.py, tests/agent/test_startup_validation.py) | Completed | — | 20261116-213700 | procedure archived 20261116-213700; startup_validation.py + test_startup_validation.py landed; diff-cover 100% |
+| 3 | Documentation (docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | Completed | — | 20261116-215000 | procedure archived 20261116-215000; startup-and-health doc corrected; all 5 doc checkers pass |
 | 4 | Deployment and verification (scripts/agent/startup.py, scripts/agent/startup_validation.py) | Pending | — | — |  |
 
 ### Blocker Log
@@ -174,9 +174,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261116-095731_01_scripts_agent_startup.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261116-095731_02_scripts_agent_startup_validation.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261116-095731_05_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261116-095731_01_scripts_agent_startup.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261116-095731_02_scripts_agent_startup_validation.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261116-095731_05_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
