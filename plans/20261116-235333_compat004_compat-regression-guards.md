@@ -205,8 +205,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Verify signals and prepare net-size-neutral wiring | Pending | — | — | Source still pre-migration; prepare now |
-| 2 | Add the four rules to `_compat_leftover_phrases.py` and wire into `check_all` | Pending | — | — | Gated on `compat001`/`compat002` implementing |
-| 3 | Tests, size/lint/type/security gates, tool-description sync | Pending | — | — | After rules land |
+| 2 | Add the four rules to `_compat_leftover_phrases.py` and wire into `check_all` | Blocked | — | — | Gated: REQ-001/002/003/004 implementation deferred until compat001/002 implement; exact AST predicates pinned at execution (UNK-01); keep check_compat_shims.py <= 36235 B (UNK-04). |
+| 3 | Tests, size/lint/type/security gates, tool-description sync | Blocked | — | — | Gated: tests gated until rules land; fixture shape pinned to the implemented contract at execution (UNK-01). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

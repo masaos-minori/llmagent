@@ -171,10 +171,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Glossary rows for Replay and Idempotency in `governance_02` | Pending | — | — | Additive |
-| 2 | Classification-before-removal rule in `governance_04` | Pending | — | — | Additive guidance |
-| 3 | EventBus/agent/DB wording review (conditional reword) | Pending | — | — | Likely empty; reword only if ambiguity confirmed |
-| 4 | Documentation checks | Pending | — | — | After edits |
+| 1 | Glossary rows for Replay and Idempotency in `governance_02` | Completed | 20261117-074751 | 20261117-074751 | Additive |
+| 2 | Classification-before-removal rule in `governance_04` | Completed | 20261117-074751 | 20261117-074751 | Additive guidance |
+| 3 | EventBus/agent/DB wording review (conditional reword) | Completed | 20261117-074751 | 20261117-074751 | Likely empty; reword only if ambiguity confirmed |
+| 4 | Documentation checks | Completed | 20261117-074751 | 20261117-074751 | After edits |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

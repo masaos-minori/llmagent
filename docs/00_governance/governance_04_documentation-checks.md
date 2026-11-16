@@ -23,7 +23,7 @@ This document defines the automated and manual checks that validate the quality,
 
 ## Automated Checks
 
-The full, current list of documentation checkers and when to run each one is the Tools table in `routing.md` ("When to run which tool"); that table is the single source of truth for invocation. The sections below describe what each governance-relevant check verifies and where it is enforced (pre-commit or CI).
+The full list of checkers and when to run each is in `routing.md`; that table is authoritative. The sections below describe what each governance-relevant check verifies and where it is enforced (pre-commit or CI).
 
 ### 1. Document Quality Check (`check_docs_quality.py`)
 
@@ -62,13 +62,8 @@ The `eventbus`, `shared`, and `db` domains run only the generic checks and have 
 **Checks performed per domain:**
 - Schema drift (DB schema vs documented schema)
 - Config key presence (documented config keys exist in actual config)
-- Port drift (documented ports match actual configuration). Decision under
-  the docs content policy (`skills/DESIGN.md` Docs content policy —
-  remove, "literal port number" category): `check_port_drift()` and
-  `check_port_range_claim()` remain active pending a documented, explicit
-  exemption list, because deprecating or narrowing either function would silently stop
-  catching real port-configuration drift in files that still legitimately state a port
-  number.
+- Port drift (documented ports match actual configuration); `check_port_drift()` and
+  `check_port_range_claim()` stay active pending a documented exemption list.
 - Tool name drift (documented tool names match actual implementations)
 - Crawler config drift (documented crawler configs match actual configs)
 - Debug output existence (documented debug outputs exist)
@@ -120,6 +115,8 @@ context. Two cases require different detection strategies:
 from this removed-name check only (`_HISTORICAL_CONTEXT_MARKERS` /
 `_is_historical_context()`). It does not exempt a line from the change-history
 rules of `check_docs_quality.py` (section 1).
+
+**Classification before removal**: before filing a compatibility removal issue, classify every `fallback`, `legacy`, or `compatibility` hit as backward compatibility, operational fallback, replay, idempotency, or other per `governance_02`, recording evidence. Operational fallback, replay, and idempotency describe runtime resilience, not backward compatibility, so they must not be removed.
 
 ### 5. Suppression Justification Check (`check_suppression_justification.py`)
 
@@ -239,7 +236,7 @@ The heading list, heading order, template-instruction residue and global `INV-NN
 Canonical source: the dependency-graph taxonomy (Software Runtime Dependency Graph,
 Deployment Management Graph, Documentation Reference Graph, Governance Applicability
 Matrix) is defined in `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` — see that
-document's sections by these names. This document does not duplicate the edge list.
+document's sections by these names; this document does not duplicate its edge list.
 
 **Automated** (Software Runtime Dependency Graph only): `tools/check_dependency_graph_cycles.py`
 parses the Software Runtime Dependency Graph's edge list from
