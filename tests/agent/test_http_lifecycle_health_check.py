@@ -413,3 +413,106 @@ class TestHealthPollDegradedTolerance:
             json={"liveness": True},
         )
         assert HealthChecker.is_degraded_but_live(live) is True
+
+    @pytest.mark.parametrize("body", [[1, 2], "unavailable", 42])
+    def test_is_degraded_but_live_non_object_bodies(self, body: object) -> None:
+        """REQ-001: a non-object 503 body returns false without raising."""
+        import httpx
+
+        resp = httpx.Response(
+            503,
+            headers={"content-type": "application/json"},
+            json=body,
+        )
+        assert HealthChecker.is_degraded_but_live(resp) is False
+
+    def test_is_degraded_but_live_null_and_empty_bodies(self) -> None:
+        """REQ-001: `null` and empty 503 bodies return false without raising."""
+        import httpx
+
+        null_body = httpx.Response(
+            503, headers={"content-type": "application/json"}, content=b"null"
+        )
+        assert HealthChecker.is_degraded_but_live(null_body) is False
+
+        empty = httpx.Response(503, headers={"content-type": "application/json"})
+        assert HealthChecker.is_degraded_but_live(empty) is False
+
+    @pytest.mark.parametrize("liveness", ["false", "0", 0, None])
+    def test_is_degraded_but_live_non_boolean_liveness(self, liveness: object) -> None:
+        """REQ-001: only the boolean true counts as live; other shapes are false."""
+        import httpx
+
+        resp = httpx.Response(
+            503,
+            headers={"content-type": "application/json"},
+            json={"status": "degraded", "liveness": liveness},
+        )
+        assert HealthChecker.is_degraded_but_live(resp) is False
+
+    @pytest.mark.asyncio
+    async def test_non_object_503_then_200_ends_ready(self, mgr) -> None:
+        """REQ-003: a non-object 503 keeps the poll alive; a later 200 ends ready."""
+        import time
+
+        import httpx
+        import respx
+
+        cfg = _make_cfg()
+        proc = Mock(pid=1234, poll=Mock(return_value=None))
+        with (
+            respx.mock as router,
+            patch.object(hl_module, "HEALTH_POLL_INTERVAL_SEC", 0.01),
+            patch.object(mgr, "_cleanup_server_resources", return_value=""),
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                AsyncMock(return_value=TerminationOutcome.EXITED),
+            ),
+        ):
+            router.get("http://localhost:8080/health").mock(
+                side_effect=[
+                    httpx.Response(
+                        503,
+                        headers={"content-type": "application/json"},
+                        json=["degraded"],
+                    ),
+                    httpx.Response(200, json={"status": "ok"}),
+                ]
+            )
+            await mgr._health_poll_until_ready(
+                "srv", cfg, proc, deadline=time.monotonic() + 5, shutdown_event=None
+            )
+            mgr._process_terminator.terminate_with_timeout.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_permanent_non_object_503_ends_in_timeout(self, mgr) -> None:
+        """REQ-003: a permanent non-object 503 ends in HttpStartupError, not AttributeError."""
+        import time
+
+        import httpx
+        import respx
+
+        cfg = _make_cfg()
+        proc = Mock(pid=1234, poll=Mock(return_value=None))
+        with (
+            respx.mock as router,
+            patch.object(hl_module, "HEALTH_POLL_INTERVAL_SEC", 0.01),
+            patch.object(mgr, "_cleanup_server_resources", return_value=""),
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                AsyncMock(return_value=TerminationOutcome.EXITED),
+            ),
+            pytest.raises(HttpStartupError),
+        ):
+            router.get("http://localhost:8080/health").mock(
+                return_value=httpx.Response(
+                    503,
+                    headers={"content-type": "application/json"},
+                    json=["degraded"],
+                )
+            )
+            await mgr._health_poll_until_ready(
+                "srv", cfg, proc, deadline=time.monotonic() + 0.05, shutdown_event=None
+            )

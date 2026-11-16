@@ -149,21 +149,12 @@ class McpServerStarter:
                 ) as client:
                     resp = await client.get(url)
                     if resp.status_code != httpx.codes.OK:
-                        # Parse 503 body for degraded-but-live detection
-                        if resp.status_code == 503:
-                            content_type = resp.headers.get("content-type", "")
-                            if "application/json" in content_type:
-                                try:
-                                    body = resp.json()
-                                    liveness = body.get("liveness", False)
-                                    if liveness:
-                                        logger.info(
-                                            "Post-startup health check: %r is degraded but live",
-                                            server_key,
-                                        )
-                                        continue
-                                except httpx.DecodingError:
-                                    pass  # Not valid JSON — treat as down
+                        if HealthChecker.is_degraded_but_live(resp):
+                            logger.info(
+                                "Post-startup health check: %r is degraded but live",
+                                server_key,
+                            )
+                            continue
                         raise RuntimeError(f"HTTP {resp.status_code}")
                     logger.info("Post-startup health check passed for %r", server_key)
             except Exception:  # noqa: BLE001 — any health-check failure triggers retry rather than aborting startup

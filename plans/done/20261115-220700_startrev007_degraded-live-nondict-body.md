@@ -144,8 +144,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Shared predicate and its tests (scripts/agent/http_lifecycle_health_checker.py, tests/agent/test_http_lifecycle_health_check.py) | In Progress | — | — |  |
-| 2 | Remove the inline copy and add `verify_health` tests (scripts/agent/startup_mcp_starter.py, tests/agent/test_startup_mcp_starter.py) | In Progress | — | — |  |
+| 1 | Shared predicate and its tests (scripts/agent/http_lifecycle_health_checker.py, tests/agent/test_http_lifecycle_health_check.py) | Completed | — | 20261116-134510 |  |
+| 2 | Remove the inline copy and add `verify_health` tests (scripts/agent/startup_mcp_starter.py, tests/agent/test_startup_mcp_starter.py) | Completed | — | 20261116-140914 |  |
 | 3 | Deployment and verification (scripts/agent/http_lifecycle_health_checker.py, scripts/agent/startup_mcp_starter.py) | Pending | — | — |  |
 
 ### Blocker Log
@@ -156,8 +156,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261116-095125_01_scripts_agent_http_lifecycle_health_checker.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261116-095125_02_scripts_agent_startup_mcp_starter.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261116-095125_01_scripts_agent_http_lifecycle_health_checker.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261116-095125_02_scripts_agent_startup_mcp_starter.py.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

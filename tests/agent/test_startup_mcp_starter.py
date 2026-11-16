@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 from agent.services.routing_drift import check_routing_drift
 from shared.tool_registry import (
@@ -193,6 +194,127 @@ async def test_verify_single_health_non_503_non_200_raises():
         )
         with pytest.raises(RuntimeError, match="HTTP 401"):
             await starter._verify_single_health("srv", cfg)
+
+
+# --- verify_health degraded-but-live detection (httpx-level, REQ-005) ---
+
+
+def _verify_ctx():
+    """Build the ctx/cfg pair used by the verify_health httpx-level tests."""
+    from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+
+    cfg = McpServerConfig(
+        transport=TransportType.HTTP,
+        url="http://localhost:9999",
+        startup_mode=StartupMode.SUBPROCESS,
+        cmd=["python", "server.py"],
+        auth_token="s3cret",
+    )
+    ctx = MagicMock()
+    ctx.cfg.mcp.mcp_servers = {"srv": cfg}
+    ctx.services_required.tools = MagicMock()
+    ctx.services_required.lifecycle = MagicMock()
+    return ctx, cfg
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"liveness": True},
+        {"liveness": True, "readiness": False},
+    ],
+)
+async def test_verify_health_degraded_live_503_object_not_retried(
+    monkeypatch: pytest.MonkeyPatch, body: dict
+) -> None:
+    """A 503 object body with strict boolean liveness true is accepted with one probe."""
+    import respx
+    from agent.startup_mcp_starter import McpServerStarter
+
+    monkeypatch.setattr("agent.startup_mcp_starter.RETRY_DELAY_SEC", 0.01)
+    ctx, _ = _verify_ctx()
+    starter = McpServerStarter(ctx, MagicMock())
+    with respx.mock as router:
+        route = router.get("http://localhost:9999/health").mock(
+            return_value=httpx.Response(503, json=body)
+        )
+        # Must not raise or retry: degraded-but-live is treated as ready.
+        await starter.verify_health()
+    assert route.call_count == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(503, json=[1, 2]),
+        httpx.Response(503, json="unavailable"),
+        httpx.Response(
+            503,
+            content=b"degraded but not json",
+            headers={"content-type": "application/json"},
+        ),
+    ],
+)
+async def test_verify_health_non_object_503_body_retries_then_fails(
+    monkeypatch: pytest.MonkeyPatch, response: httpx.Response
+) -> None:
+    """A non-object or malformed 503 body enters the retry path and ends in the [fatal] error."""
+    import respx
+    from agent.startup_mcp_starter import McpServerStarter
+
+    monkeypatch.setattr("agent.startup_mcp_starter.RETRY_DELAY_SEC", 0.01)
+    ctx, _ = _verify_ctx()
+    starter = McpServerStarter(ctx, MagicMock())
+    with respx.mock as router:
+        route = router.get("http://localhost:9999/health").mock(return_value=response)
+        with pytest.raises(RuntimeError, match=r"\[fatal\]"):
+            await starter.verify_health()
+    # main probe + the retry helper's two _verify_single_health probes
+    assert route.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_verify_health_non_boolean_liveness_retries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 503 object body with liveness "false" (string) must retry, not be accepted."""
+    import respx
+    from agent.startup_mcp_starter import McpServerStarter
+
+    monkeypatch.setattr("agent.startup_mcp_starter.RETRY_DELAY_SEC", 0.01)
+    ctx, _ = _verify_ctx()
+    starter = McpServerStarter(ctx, MagicMock())
+    with respx.mock as router:
+        route = router.get("http://localhost:9999/health").mock(
+            return_value=httpx.Response(503, json={"liveness": "false"})
+        )
+        with pytest.raises(RuntimeError, match=r"\[fatal\]"):
+            await starter.verify_health()
+    assert route.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_verify_health_degraded_decision_delegates_to_predicate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The accept decision must be the shared predicate's: patching it true accepts an
+    array body the inline copy rejected, directly in verify_health with a single probe."""
+    import respx
+    from agent.http_lifecycle_health_checker import HealthChecker
+    from agent.startup_mcp_starter import McpServerStarter
+
+    monkeypatch.setattr("agent.startup_mcp_starter.RETRY_DELAY_SEC", 0.01)
+    ctx, _ = _verify_ctx()
+    starter = McpServerStarter(ctx, MagicMock())
+    with respx.mock as router:
+        route = router.get("http://localhost:9999/health").mock(
+            return_value=httpx.Response(503, json=[1, 2])
+        )
+        with patch.object(HealthChecker, "is_degraded_but_live", return_value=True):
+            await starter.verify_health()
+    assert route.call_count == 1
 
 
 # --- startup retry reaches the subprocess layer a second time (real router) ---

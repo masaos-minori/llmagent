@@ -16,7 +16,6 @@ given, mirroring how ShutdownCoordinator delegates cleanup.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import subprocess
 import time
@@ -103,13 +102,18 @@ class HealthChecker:
 
     @staticmethod
     def is_degraded_but_live(resp: httpx.Response) -> bool:
-        """Return True iff a non-200 /health response is degraded-but-live.
+        """Return True iff a 503 /health response is a JSON object with a
+        strict-boolean `liveness` of true.
 
-        Mirrors McpServerStartupStarter.verify_health: a 503 with a JSON body
-        whose `liveness` flag is true means the server started but an optional
-        dependency (e.g. GITHUB_TOKEN) is unavailable. Such a server is alive
-        and must count as ready at startup rather than abort it. The spawn and
-        post-startup phases must agree on what "live" means.
+        The single implementation of the degraded-but-live rule, used by both
+        the spawn-phase poll (`poll_until_ready`) and the post-startup retry
+        (`McpServerStarter.verify_health` via `_verify_single_health`): a 503
+        whose object body carries the boolean `true` means the server started
+        but an optional dependency (e.g. GITHUB_TOKEN) is unavailable. Such a
+        server is alive and must count as ready at startup rather than abort
+        it. Any other body shape (non-object, malformed, non-boolean
+        `liveness`) returns false without raising, so a broken or hostile
+        body keeps the poll running instead of crashing startup.
         """
         if resp.status_code != HTTPStatus(503):
             return False
@@ -117,9 +121,9 @@ class HealthChecker:
             return False
         try:
             body = resp.json()
-        except (json.JSONDecodeError, httpx.DecodingError):
+        except (ValueError, httpx.DecodingError):
             return False
-        return bool(body.get("liveness", False))
+        return isinstance(body, dict) and body.get("liveness") is True
 
     @staticmethod
     async def poll_until_ready(
