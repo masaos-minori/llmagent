@@ -103,4 +103,4 @@
 - **Source plan**: plans/20261115-051359_dbreview009_drill-harness-fidelity.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261116-075258
-- **Related target files**: scripts/db/recovery_drill.py, tests/db/test_recovery_drill.py
+- **Related target files**: `scripts/db/recovery_drill.py`, `tests/db/test_recovery_drill.py`

@@ -91,4 +91,4 @@
 - **Source plan**: plans/20261115-050559_dbreview007_retention-input-validation.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261116-073054
-- **Related target files**: scripts/db/store_impl.py, tests/db/test_db_store_impl.py
+- **Related target files**: `scripts/db/store_impl.py`, `tests/db/test_db_store_impl.py`

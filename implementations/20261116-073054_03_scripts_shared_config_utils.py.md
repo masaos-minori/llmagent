@@ -89,4 +89,4 @@
 - **Source plan**: plans/20261115-050559_dbreview007_retention-input-validation.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261116-073054
-- **Related target files**: scripts/shared/config_utils.py, tests/shared/test_config_utils.py
+- **Related target files**: `scripts/shared/config_utils.py`, `tests/shared/test_config_utils.py`
