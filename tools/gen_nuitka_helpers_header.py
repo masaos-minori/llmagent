@@ -11,7 +11,11 @@ This tool writes one header that declares every helper for arities
 superset of any real ``__helpers.h`` (an unused ``extern`` is harmless), so
 ``deploy/nuitka_ccache_wrapper.sh`` can substitute it for each build's header. A module
 that calls a helper above ``--max-arity`` then fails to compile (undeclared function)
-instead of misbehaving.
+instead of misbehaving. Nuitka itself emits quick-call helpers with no arity cap
+(``CALL_FUNCTION_WITH_POS_ARGS<n>`` for any n), so the default carries margin over
+the largest arity observed in the compiled dependency corpus: 150, from
+``pygments.lexers.graphics`` GnuplotLexer ``_shortened_many`` calls (measured 20261116
+by AST-scanning site-packages; the same scan bounds future reviews of this default).
 
 Nuitka must be importable: run it with ``uv run --group build python``.
 
@@ -41,7 +45,7 @@ EXIT_OK = 0
 EXIT_FAIL = 1
 EXIT_USAGE = 2
 
-DEFAULT_MAX_ARITY = 40
+DEFAULT_MAX_ARITY = 255
 CALL_CODES_MODULE = "nuitka.code_generation.CallCodes"
 
 
