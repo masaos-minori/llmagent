@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
-from db.config import build_db_config, format_timestamp
+from db.config import build_db_config
 from db.helper import SQLiteHelper
 from db.models import RecoveryResult
 from db.recovery_restore import (
@@ -23,6 +23,7 @@ from db.recovery_restore import (
     _restore_quarantine_sidecars,
     _retain_quarantine_archive,
     _stage_restore,
+    build_restore_paths,
 )
 from db.recovery_verification import _run_logical_verification
 
@@ -420,10 +421,7 @@ def _restore_from_backup(
     if action is not None:
         return _failure(action, detail, dry_run, active_db_state="preserved_original")
 
-    ts = format_timestamp()
-    corrupt_archive = db_path.with_name(f"{db_path.stem}_corrupt_{ts}{db_path.suffix}")
-    temp_restore = db_path.with_name(f"{db_path.stem}.tmp_{ts}{db_path.suffix}")
-    quarantine_dir = db_path.parent / f"{db_path.stem}_sidecar_quarantine_{ts}"
+    corrupt_archive, temp_restore, quarantine_dir = build_restore_paths(db_path)
 
     staged: dict[str, Path] = {}
     # Bound before the try: a failure inside _stage_restore leaves the unpacking

@@ -17,7 +17,31 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
+from db.config import format_timestamp, resolve_unique_path
+
 logger = logging.getLogger(__name__)
+
+
+def build_restore_paths(db_path: Path) -> tuple[Path, Path, Path]:
+    """Build the collision-safe names for one recovery's working files.
+
+    Returns ``(corrupt_archive, temp_restore, sidecar_quarantine_dir)`` built
+    from a single ``format_timestamp()`` call: ``{stem}_corrupt_{ts}{suffix}``
+    and ``{stem}.tmp_{ts}{suffix}`` in the database's directory, and
+    ``{stem}_sidecar_quarantine_{ts}`` beside it. Each candidate goes through
+    ``resolve_unique_path``, so a same-second second recovery cannot overwrite
+    the first one's forensic copies. Directory creation stays with the caller.
+    """
+    ts = format_timestamp()
+    return (
+        resolve_unique_path(
+            db_path.with_name(f"{db_path.stem}_corrupt_{ts}{db_path.suffix}")
+        ),
+        resolve_unique_path(
+            db_path.with_name(f"{db_path.stem}.tmp_{ts}{db_path.suffix}")
+        ),
+        resolve_unique_path(db_path.parent / f"{db_path.stem}_sidecar_quarantine_{ts}"),
+    )
 
 
 def _quarantine_sidecar_files(
@@ -43,7 +67,7 @@ def _quarantine_sidecar_files(
             sidecar = Path(str(db_path) + suffix)
             if sidecar.exists():
                 quarantine_dir.mkdir(parents=True, exist_ok=True)
-                quarantine_path = (
+                quarantine_path = resolve_unique_path(
                     quarantine_dir / f"{db_path.name}{suffix}_corrupt_{ts}"
                 )
                 shutil.copy2(sidecar, quarantine_path)

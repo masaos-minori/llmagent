@@ -63,10 +63,10 @@ Make the drill's working and artifact names collision-safe and make the isolated
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Uniquify `isolated` and JSON, add end-of-drill unlink | Pending | — | — | |
-| 2 | Add/update drill tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update docs only if in scope (see row 12) | Pending | — | — | |
+| 1 | Uniquify `isolated` and JSON, add end-of-drill unlink | Completed | 20261116-194104 | 20261116-194104 | Deviation: end-of-drill unlink covers `isolated` plus its `-wal`/`-shm` sidecars (verification leaves them next to the `_restored` copy; the `*_restored*`-empty assertion requires all three) |
+| 2 | Add/update drill tests per Validation plan | Completed | 20261116-194104 | 20261116-194104 | same-second repeat-drill test + no-`*_restored*` survivor assertions |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-194104 | 20261116-194104 | tests/db 465 passed; ruff/mypy/lint-imports/bandit/module-size/validation-gates green |
+| 4 | Update docs only if in scope (see row 12) | Completed | 20261116-195856 | 20261116-195856 | no docs change owned; covered by row 12 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

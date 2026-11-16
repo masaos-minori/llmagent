@@ -249,6 +249,39 @@ def test_all_domains_drill_passes_and_live_dbs_untouched(
     assert ok is True
     after = {domain: _sha256(path) for domain, path in paths.items()}
     assert before == after  # the harness never rewrites a live database
+    # The `_restored` working copy is unlinked after the artifact persists;
+    # only the JSON artifacts survive in the drill directory.
+    assert list(drill.glob("*_restored*")) == []
+    assert _load_artifacts(drill)
+
+
+def test_same_second_repeat_drills_produce_distinct_artifacts(
+    _domain_dbs: dict[str, Path],
+    tmp_path: Path,
+) -> None:
+    """Two drills of one domain forced into the same second must coexist:
+    distinct archive, artifact JSON, and no leftover `_restored` copy."""
+    paths = _domain_dbs
+    cfg = _config(paths)
+    archive = tmp_path / "archive"
+    drill = tmp_path / "drills"
+    fixed_ts = "20261116_000000"
+    with (
+        patch("db.recovery_drill.build_db_config", return_value=cfg),
+        patch("db.recovery_drill.format_timestamp", return_value=fixed_ts),
+        patch("db.rotation.format_timestamp", return_value=fixed_ts),
+    ):
+        assert run_drill("workflow", str(archive), str(drill)) is True
+        assert run_drill("workflow", str(archive), str(drill)) is True
+
+    names = sorted(p.name for p in drill.glob("*.json"))
+    assert len(names) == 2 and len(set(names)) == 2  # no overwrite of the first run
+    assert f"workflow_{fixed_ts}.json" in names
+    assert f"workflow_{fixed_ts}_2.json" in names
+    assert _load_artifacts(drill)
+    assert list(drill.glob("*_restored*")) == []  # both working copies unlinked
+    archives = sorted(p.name for p in archive.glob(f"workflow_{fixed_ts}*"))
+    assert len(archives) == 2  # the two recovery points coexist as well
 
 
 def test_each_domain_artifact_carries_schema_fields(

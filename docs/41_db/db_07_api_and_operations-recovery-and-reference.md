@@ -155,9 +155,9 @@ A database that does not match is recreated (section 11), not migrated. The Even
 
 ## 12. Recovery Drills
 
-A recovery drill exercises the restore path for each persistence domain without touching the live database. The harness (`scripts/db/recovery_drill.py`) takes a recovery point through the rotation code path, restores it into an isolated copy, runs per-domain verification against that copy only, and writes one JSON audit artifact per domain. The live database file is never rewritten: the backup is a WAL-consistent read-only copy produced by the SQLite online backup API.
+A recovery drill exercises the restore path for each persistence domain without touching the live database. The harness (`scripts/db/recovery_drill.py`) takes a recovery point through the rotation code path, restores it into an isolated copy, runs per-domain verification against that copy only, and writes one JSON audit artifact per domain. The live database file is never rewritten: the backup is a WAL-consistent read-only copy produced by the SQLite online backup API. The isolated `{name}_restored{suffix}` working copy (plus its `-wal`/`-shm` sidecars) is deleted immediately after the artifact JSON persists and is never left in the drill directory; an orphan left by a crashed run is removed by the stale-work sweep of `purge_archive_artifacts()` (db_06 section 7, one-day rule).
 
-Run the full sweep across all four domains:
+Run the full sweep across the three Agent-side domains:
 
 ```bash
 scripts/db/recovery_drill.py --domain all
@@ -167,14 +167,15 @@ Drill a single domain:
 
 ```bash
 scripts/db/recovery_drill.py --domain workflow
-scripts/db/recovery_drill.py --domain eventbus
 scripts/db/recovery_drill.py --domain rag
 scripts/db/recovery_drill.py --domain session
 ```
 
+`eventbus.sqlite` is not drilled here: it is owned by the EventBus service and verified by `python -m eventbus.db_tools verify`.
+
 Exit code is `0` when every drilled domain passes and `1` when any domain fails. Deploy/init can invoke this as an opt-in hook after restore (deploy row 13) so a failing drill surfaces at deploy time.
 
-**Artifact location and fields.** Each domain writes `{drill_dir}/{domain}_{timestamp}.json`, where `drill_dir` defaults to `<archive-dir>/drills` and `archive_dir` resolves from the `agent.toml` `sqlite_archive_dir` key (`rotation.py` falls back to a hardcoded default when the key is unset; the directory may not exist until the first rotation). Fields:
+**Artifact location and fields.** Each domain writes `{drill_dir}/{domain}_{timestamp}.json`, where `drill_dir` defaults to `<archive-dir>/drills` and `archive_dir` resolves from the `agent.toml` `sqlite_archive_dir` key (`rotation.py` falls back to a hardcoded default when the key is unset; the directory may not exist until the first rotation). Generated names — the artifact JSON and the isolated restore copy — are made collision-safe by `resolve_unique_path`: a same-second repeat writes `{domain}_{ts}.json` and `{domain}_{ts}_2.json` rather than overwriting the earlier run. Fields:
 
 | Field | Meaning for RPO / RTO reading |
 |-------|-------------------------------|
@@ -188,7 +189,7 @@ Exit code is `0` when every drilled domain passes and `1` when any domain fails.
 | `verification` | Per-domain checks (`integrity`, `required_table_<domain>`, plus per-domain fields). |
 | `error` | Populated when the drill could not complete; the artifact is still written. Archive-stage failures (`FileNotFoundError`, integrity/identity `RuntimeError`, sqlite3 errors) are recorded in that domain's artifact with a non-passing `verification`, and the remaining domains are still drilled; the exit code stays `1` when any domain fails. |
 
-Frequency and artifact retention are owner decisions tracked under UNK-01; this section states the procedure only. {defer the drill cadence and the artifact retention window until UNK-01}
+Drill JSON artifacts are bounded by `sqlite_drill_artifact_max_files` / `sqlite_drill_artifact_max_age_days` and the quarantine directories of section 9 (`<db-stem>_sidecar_quarantine_<ts>`) by `sqlite_quarantine_max_files` / `sqlite_quarantine_max_age_days`, both swept by `purge_archive_artifacts()` (db_06 section 7). The drill cadence remains an owner decision tracked under UNK-01; this section states the procedure only. {defer the drill cadence until UNK-01}
 
 ---
 

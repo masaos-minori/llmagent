@@ -55,10 +55,10 @@ Route the rotation archive destination name through `resolve_unique_path` so a s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import `resolve_unique_path` and wrap `dest` | Pending | — | — | |
-| 2 | Add collision test per Validation plan (see row 09) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update docs only if in scope (see row 11) | Pending | — | — | |
+| 1 | Import `resolve_unique_path` and wrap `dest` | Completed | 20261116-183515 | 20261116-184426 | import extended; dest wrapped at :48 import extended; dest wrapped; same-second collision test owned by row 09 |
+| 2 | Add collision test per Validation plan (see row 09) | Completed | 20261116-195856 | 20261116-195856 | collision test delivered in row 09 (TestRotationSameSecondCollision) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-195856 | 20261116-195856 | full suite green; diff-cover 97% >= 90 (rotation.py 100%) |
+| 4 | Update docs only if in scope (see row 11) | Completed | 20261116-195856 | 20261116-195856 | no docs change owned; covered by row 11 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

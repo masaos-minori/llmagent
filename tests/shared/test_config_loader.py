@@ -501,3 +501,23 @@ class TestUnknownTopLevelKeyRejection:
             }
         )
         assert len(result.errors) == 0
+
+    def test_retention_keys_pass_in_production(self) -> None:
+        """Assert the six artifact-retention keys are registered, not unknown."""
+        from agent.production_config_validator import ProductionConfigValidator
+
+        validator = ProductionConfigValidator()
+        result = validator.validate(
+            {
+                "llm_url": "http://localhost:8080",
+                "allowed_root": "/opt/llm",
+                "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
+                "sqlite_archive_max_files": 14,
+                "sqlite_archive_max_age_days": 30,
+                "sqlite_drill_artifact_max_files": 14,
+                "sqlite_drill_artifact_max_age_days": 30,
+                "sqlite_quarantine_max_files": 10,
+                "sqlite_quarantine_max_age_days": 90,
+            }
+        )
+        assert len(result.errors) == 0

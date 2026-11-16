@@ -8,9 +8,14 @@ Public API (import from db.* submodules directly for clarity):
   - db.store_protocols: Protocol definitions + embedding helpers
   - db.store_impl:  SQLite-backed implementations
   - db.maintenance: WAL checkpoint, vacuum, purge, rotation, recovery
+  - db.artifact_retention: bounded retention sweeps for non-corrupt artifacts
   - db.schema_sql:  DDL templates for schema creation
 """
 
+from db.artifact_retention import (
+    ArtifactRetentionConfig,
+    purge_archive_artifacts,
+)
 from db.config import DbConfig, build_db_config
 from db.helper import SQLiteHelper
 from db.maintenance import (
@@ -60,6 +65,7 @@ from db.store_protocols import (
 )
 
 __all__ = [
+    "ArtifactRetentionConfig",
     "CorruptArchiveRetentionConfig",
     "DbConfig",
     "DbHealthMetrics",
@@ -86,6 +92,7 @@ __all__ = [
     "get_embedding_dims",
     "is_consistent",
     "prune_old_memories",
+    "purge_archive_artifacts",
     "purge_corrupt_archives",
     "purge_old_sessions",
     "recover_corruption",

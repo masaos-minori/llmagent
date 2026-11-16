@@ -54,10 +54,10 @@ Register the six new artifact-retention keys in `ProductionConfigValidator`'s va
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the six keys to the valid-keys set | Pending | — | — | |
-| 2 | Add/update validator tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update docs only if in scope (see row 11) | Pending | — | — | |
+| 1 | Add the six keys to the valid-keys set | Completed | 20261116-194502 | — |  |
+| 2 | Add/update validator tests per Validation plan | Completed | 20261116-194502 | — |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-194502 | — |  |
+| 4 | Update docs only if in scope (see row 11) | Completed | 20261116-195856 | 20261116-195856 | no docs change owned; keys documented in row 11 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

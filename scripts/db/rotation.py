@@ -7,7 +7,7 @@ from pathlib import Path
 
 from shared.config_loader import ConfigLoader
 
-from db.config import build_db_config, format_timestamp
+from db.config import build_db_config, format_timestamp, resolve_unique_path
 from db.recovery import DbCondition, run_integrity_check, verify_domain_identity
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ def _archive_db_file(
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     ts = format_timestamp()
-    dest = dest_dir / f"{db_path.stem}_{ts}{db_path.suffix}"
+    dest = resolve_unique_path(dest_dir / f"{db_path.stem}_{ts}{db_path.suffix}")
 
     src = sqlite3.connect(str(db_path))
     dst = sqlite3.connect(str(dest))

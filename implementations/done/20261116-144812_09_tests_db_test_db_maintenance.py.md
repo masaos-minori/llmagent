@@ -62,8 +62,8 @@ Add the tests that lock the new retention behavior: `ArtifactRetentionConfig` va
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add config-boundary, uniquifier, four-sweep, and rotation-collision tests | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) incl. diff-cover | Pending | — | — | |
+| 1 | Add config-boundary, uniquifier, four-sweep, and rotation-collision tests | Completed | 20261116-195234 | — |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) incl. diff-cover | Completed | 20261116-195856 | 20261116-195856 | tests/db + tests/agent + full suite green; diff-cover 97% >= 90 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

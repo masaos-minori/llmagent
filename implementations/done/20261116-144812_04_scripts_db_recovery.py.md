@@ -58,10 +58,10 @@ Replace the three recovery working-file name constructions (`corrupt_archive`, `
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the name block with the `build_restore_paths` call and adjust the two import edges | Pending | — | — | |
-| 2 | Run collision tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update docs only if in scope (see row 12) | Pending | — | — | |
+| 1 | Replace the name block with the `build_restore_paths` call and adjust the two import edges | Completed | 20261116-183623 | 20261116-184426 | format_timestamp dropped from :18; build_restore_paths import added; :423-426 replaced by one call; recovery.py under size gate |
+| 2 | Run collision tests per Validation plan | Completed | — | 20261116-184426 | naming re-run green via tests/db 464 passed; 7 tests with global Path.exists=True mocks needed identity patch of db.recovery_restore.resolve_unique_path (documented deviation) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-195856 | 20261116-195856 | full suite green; diff-cover 97% >= 90 (recovery.py 100%) |
+| 4 | Update docs only if in scope (see row 12) | Completed | 20261116-195856 | 20261116-195856 | no docs change owned; covered by row 12 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

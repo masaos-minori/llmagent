@@ -58,8 +58,8 @@ Update `docs/41_db/db_07` section 12 (Recovery Drills): the `_restored` working 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update section 12 lifecycle, naming, and retention text | Pending | — | — | |
-| 2 | Run the documentation checkers (`check_docs_consistency.py --domain db`, `generate_reference_table.py --check`) | Pending | — | — | |
+| 1 | Update section 12 lifecycle, naming, and retention text | Completed | 20261116-195515 | — |  |
+| 2 | Run the documentation checkers (`check_docs_consistency.py --domain db`, `generate_reference_table.py --check`) | Completed | 20261116-195515 | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

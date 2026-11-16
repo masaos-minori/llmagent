@@ -56,10 +56,10 @@ Route the quarantined sidecar file name through `resolve_unique_path` so two sam
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `db.config` import, wrap `quarantine_path`, add `build_restore_paths` | Pending | — | — | |
-| 2 | Run collision tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update docs only if in scope (see row 12) | Pending | — | — | |
+| 1 | Add `db.config` import, wrap `quarantine_path`, add `build_restore_paths` | Completed | 20261116-183531 | 20261116-184426 | db.config import added; candidate wrapped; build_restore_paths added db.config import; sidecar candidate wrapped; build_restore_paths added |
+| 2 | Run collision tests per Validation plan | Completed | — | 20261116-184426 | tests/db/test_db_recovery.py re-run green via tests/db 464 passed; 7 mock-exists tests needed an identity patch of db.recovery_restore.resolve_unique_path (documented deviation) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-195856 | 20261116-195856 | full suite green; diff-cover 97% >= 90 (recovery_restore.py 100%) |
+| 4 | Update docs only if in scope (see row 12) | Completed | 20261116-195856 | 20261116-195856 | no docs change owned; covered by row 12 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

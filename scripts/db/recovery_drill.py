@@ -29,7 +29,7 @@ from typing import Any
 
 from shared.schema_fingerprint import assert_matches
 
-from db.config import build_db_config, format_timestamp
+from db.config import build_db_config, format_timestamp, resolve_unique_path
 from db.helper import SQLiteHelper
 from db.rag_consistency import check_rag_consistency
 from db.rag_consistency import is_consistent as rag_is_consistent
@@ -209,7 +209,9 @@ def _drill_one_domain(
     # Restore into an isolated copy and verify against that copy only.
     drill_dir_path = Path(drill_dir)
     drill_dir_path.mkdir(parents=True, exist_ok=True)
-    isolated = drill_dir_path / f"{recovery_point.name}_restored{live_path.suffix}"
+    isolated = resolve_unique_path(
+        drill_dir_path / f"{recovery_point.name}_restored{live_path.suffix}"
+    )
     # RTO clock starts before the copy: rto_seconds covers copy + verification.
     started = time.time()
     shutil.copy2(recovery_point, isolated)
@@ -252,6 +254,14 @@ def _drill_one_domain(
     artifact["integrity"] = bool(verification.get("integrity", False))
 
     _persist_artifact(drill_dir, artifact)
+    # The artifact persists; the isolated working copy and the sidecars
+    # verification left behind no longer serve any purpose.
+    for candidate in (
+        isolated,
+        isolated.with_suffix(isolated.suffix + "-wal"),
+        isolated.with_suffix(isolated.suffix + "-shm"),
+    ):
+        candidate.unlink(missing_ok=True)
     return artifact
 
 
@@ -259,7 +269,9 @@ def _persist_artifact(drill_dir: str, artifact: dict) -> None:
     """Write the artifact JSON to the drill directory (even on failure)."""
     drill_dir_path = Path(drill_dir)
     drill_dir_path.mkdir(parents=True, exist_ok=True)
-    artifact_path = drill_dir_path / f"{artifact['domain']}_{format_timestamp()}.json"
+    artifact_path = resolve_unique_path(
+        drill_dir_path / f"{artifact['domain']}_{format_timestamp()}.json"
+    )
     artifact_path.write_text(json.dumps(artifact, indent=2), encoding="utf-8")
     logger.info("drill %s artifact written: %s", artifact["domain"], artifact_path)
 

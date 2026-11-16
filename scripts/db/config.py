@@ -61,6 +61,27 @@ def format_timestamp() -> str:
     return datetime.now(UTC).strftime(_TIMESTAMP_FMT)
 
 
+def resolve_unique_path(path: Path) -> Path:
+    """Return a collision-free variant of a generated file or directory path.
+
+    Second-granularity generated names can collide when two runs land in the
+    same second. A free path is returned unchanged (existing name ordering is
+    untouched); an occupied one gets a counter suffix on the stem
+    (``{stem}_2{suffix}``, ``{stem}_3{suffix}``, ...). The search is capped at
+    10000 candidates; pathological contention raises ``RuntimeError``.
+    Directory creation stays with the caller.
+    """
+    if not path.exists():
+        return path
+    for n in range(2, 10002):
+        candidate = path.with_name(f"{path.stem}_{n}{path.suffix}")
+        if not candidate.exists():
+            return candidate
+    raise RuntimeError(
+        f"resolve_unique_path: no free name for {path} within 10000 candidates"
+    )
+
+
 def build_db_config() -> DbConfig:
     """Construct DbConfig from agent.toml; raises ValueError if agent.toml is missing or malformed."""
     cfg = ConfigLoader().load("agent.toml")

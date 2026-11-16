@@ -67,6 +67,7 @@ def test_recover_corrupt_rag_restores(mock_db_cfg, mock_sqlite_helper):
 
         with (
             patch("pathlib.Path.exists", return_value=True),
+            patch("db.recovery_restore.resolve_unique_path", side_effect=lambda p: p),
             patch("shutil.copy2"),
             patch("shutil.move"),
             patch("pathlib.Path.unlink"),
@@ -314,6 +315,7 @@ def test_recover_restore_verify_failed(mock_db_cfg, mock_sqlite_helper):
 
         with (
             patch("pathlib.Path.exists", return_value=True),
+            patch("db.recovery_restore.resolve_unique_path", side_effect=lambda p: p),
             patch("shutil.copy2"),
             patch("shutil.move"),
             patch("pathlib.Path.unlink"),
@@ -388,6 +390,7 @@ def test_recover_rag_fts_gap(mock_db_cfg, mock_sqlite_helper):
 
         with (
             patch("pathlib.Path.exists", return_value=True),
+            patch("db.recovery_restore.resolve_unique_path", side_effect=lambda p: p),
             patch("shutil.copy2"),
             patch("shutil.move"),
             patch("pathlib.Path.unlink"),
@@ -424,6 +427,7 @@ def test_recover_rag_missing_table(mock_db_cfg, mock_sqlite_helper):
 
         with (
             patch("pathlib.Path.exists", return_value=True),
+            patch("db.recovery_restore.resolve_unique_path", side_effect=lambda p: p),
             patch("shutil.copy2"),
             patch("shutil.move"),
             patch("pathlib.Path.unlink"),
@@ -460,6 +464,7 @@ def test_recover_rag_fts_orphan(mock_db_cfg, mock_sqlite_helper):
 
         with (
             patch("pathlib.Path.exists", return_value=True),
+            patch("db.recovery_restore.resolve_unique_path", side_effect=lambda p: p),
             patch("shutil.copy2"),
             patch("shutil.move"),
             patch("pathlib.Path.unlink"),
@@ -496,6 +501,7 @@ def test_recover_rag_vector_orphan(mock_db_cfg, mock_sqlite_helper):
 
         with (
             patch("pathlib.Path.exists", return_value=True),
+            patch("db.recovery_restore.resolve_unique_path", side_effect=lambda p: p),
             patch("shutil.copy2"),
             patch("shutil.move"),
             patch("pathlib.Path.unlink"),
@@ -533,6 +539,7 @@ def test_recover_rag_read_smoke_test_failed(mock_db_cfg, mock_sqlite_helper):
 
         with (
             patch("pathlib.Path.exists", return_value=True),
+            patch("db.recovery_restore.resolve_unique_path", side_effect=lambda p: p),
             patch("shutil.copy2"),
             patch("shutil.move"),
             patch("pathlib.Path.unlink"),

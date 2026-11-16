@@ -16,6 +16,14 @@ sqlite_retention_max_age_days = 30
 sqlite_archive_dir = "/opt/llm/db/archive"
 sqlite_corrupt_archive_max_files = 10
 sqlite_corrupt_archive_max_age_days = 30
+# Artifact retention (db.artifact_retention): count/age caps per artifact class.
+# 0 disables that rule; negative or bool values are rejected at config load.
+sqlite_archive_max_files = 14  # rotated archive copies kept; 0 disables count rule
+sqlite_archive_max_age_days = 30  # archive age cap; 0 disables age rule
+sqlite_drill_artifact_max_files = 14  # drill artifact JSONs kept; 0 disables count rule
+sqlite_drill_artifact_max_age_days = 30  # drill artifact age cap; 0 disables age rule
+sqlite_quarantine_max_files = 10  # failed-recovery quarantine dirs kept; 0 disables count rule
+sqlite_quarantine_max_age_days = 90  # quarantine age cap; 0 disables age rule
 # Moved from config/mcp_dedup.toml [dedup].pending_timeout_minutes (adrrev008,
 # per-process config isolation). Agent-side stale-pending timeout window;
 # read by workflow_engine.py via AgentConfig.pending_timeout_minutes.
@@ -23,7 +31,7 @@ pending_timeout_minutes = 10
 
 # ── LLM endpoints ─────────────────────────────────────────────────────────────
 
-  llm_url = "http://192.168.11.197:8080"
+llm_url = "http://192.168.11.220:8080"
 llm_retry_base_delay = 1.0
 
 # ── HTTP ──────────────────────────────────────────────────────────────────────

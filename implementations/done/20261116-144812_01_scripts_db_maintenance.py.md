@@ -24,7 +24,10 @@ Add an ArtifactRetentionConfig dataclass and a purge_archive_artifacts() four-sw
 
 ## Implementation
 ### Target file
-`scripts/db/maintenance.py`
+`scripts/db/maintenance.py` + `scripts/db/artifact_retention.py` (new module; see Deviation)
+
+### Deviation (2026-11-16 execution)
+- Adding the section in-place put `maintenance.py` at 29380 B, over the 24576 B module-size gate (`check_module_size` prescribes "split the module"). The full retention section (ArtifactRetentionConfig, _STALE_WORK_FILE_MAX_AGE_SECONDS, sweep helpers, purge_archive_artifacts) was moved to a new module `scripts/db/artifact_retention.py` (11 KB), mirroring the maintainer-approved `recovery_restore` precedent in this plan; `maintenance.py` keeps only the cadence-table line (19385 B). Public API: re-exported in `scripts/db/__init__.py` (`ArtifactRetentionConfig`, `purge_archive_artifacts` added to imports and `__all__`). Sweep helpers import the shared guards (`_non_negative_int`, `_retention_guard`, `_handle_maintenance_error`) from `db.maintenance`; the corrupt-archive contract stays untouched in `maintenance.py`.
 
 ### Procedure
 1. Add `ArtifactRetentionConfig` (new) as a frozen dataclass beside `CorruptArchiveRetentionConfig` (`:144-170`), fields `archive_max_files=14`, `archive_max_age_days=30`, `drill_artifact_max_files=14`, `drill_artifact_max_age_days=30`, `quarantine_max_files=10`, `quarantine_max_age_days=90`; `from_config()` reads the six `agent.toml` keys through `_non_negative_int` (007 semantics).
@@ -69,10 +72,10 @@ Add an ArtifactRetentionConfig dataclass and a purge_archive_artifacts() four-sw
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add config class, constant, sweeps, cadence line | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (see row 09) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update `db_06` cadence/keys docs (see row 11) | Pending | — | — | |
+| 1 | Add config class, constant, sweeps, cadence line | Completed | 20261116-184440 | 20261116-193000 | config+constant+2 shared primitives+4 sweeps+entry point; split to artifact_retention.py per module-size gate (see Deviation); __init__ re-export added; smoke-verified age-then-count, min_keep=1, corrupt/non-matching exclusion, 1-day stale rule, ValueError/bool semantics; ruff/mypy/lint-imports/bandit/module-size/tests-db green |
+| 2 | Add or update tests per Validation plan (see row 09) | Completed | 20261116-195856 | 20261116-195856 | tests delivered in row 09 (TestArtifactRetentionConfig, TestPurgeArchiveArtifacts) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-195856 | 20261116-195856 | full suite 12428 passed; diff-cover 97% >= 90 on batch diff |
+| 4 | Update `db_06` cadence/keys docs (see row 11) | Completed | 20261116-195856 | 20261116-195856 | docs delivered in row 11 (db_06 retention paragraph) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -92,4 +95,4 @@ Add an ArtifactRetentionConfig dataclass and a purge_archive_artifacts() four-sw
 - **Source plan**: plans/20261115-054021_dbreview008_artifact-retention-gaps.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261116-144812
-- **Related target files**: `scripts/db/maintenance.py`
+- **Related target files**: `scripts/db/maintenance.py`, `scripts/db/artifact_retention.py`, `scripts/db/__init__.py`

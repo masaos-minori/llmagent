@@ -11,7 +11,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from db.config import DbConfig
+from db.artifact_retention import (
+    _STALE_WORK_FILE_MAX_AGE_SECONDS,
+    ArtifactRetentionConfig,
+    purge_archive_artifacts,
+)
+from db.config import DbConfig, resolve_unique_path
 from db.helper import SQLiteHelper
 from db.maintenance import (
     CorruptArchiveRetentionConfig,
@@ -1594,3 +1599,323 @@ class TestRetentionTieOrder:
                 row[0] for row in db.conn.execute("SELECT session_id FROM sessions")
             }
             assert kept == {4, 5}
+
+
+# ── Artifact retention (plan 008: purge_archive_artifacts) ────────────────────
+
+
+class TestArtifactRetentionConfig:
+    """ArtifactRetentionConfig.from_config boundary semantics (AC-1)."""
+
+    def _load(self, monkeypatch: pytest.MonkeyPatch, cfg: dict[str, object]):
+        monkeypatch.setattr("db.artifact_retention._load_agent_config", lambda: cfg)
+        return ArtifactRetentionConfig.from_config()
+
+    def test_defaults_when_keys_absent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        cfg = self._load(monkeypatch, {})
+        assert cfg == ArtifactRetentionConfig(
+            archive_max_files=14,
+            archive_max_age_days=30,
+            drill_artifact_max_files=14,
+            drill_artifact_max_age_days=30,
+            quarantine_max_files=10,
+            quarantine_max_age_days=90,
+        )
+
+    def test_custom_values(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        cfg = self._load(
+            monkeypatch,
+            {
+                "sqlite_archive_max_files": 5,
+                "sqlite_archive_max_age_days": 7,
+                "sqlite_drill_artifact_max_files": 6,
+                "sqlite_drill_artifact_max_age_days": 8,
+                "sqlite_quarantine_max_files": 3,
+                "sqlite_quarantine_max_age_days": 9,
+            },
+        )
+        assert cfg == ArtifactRetentionConfig(5, 7, 6, 8, 3, 9)
+
+    def test_zero_disables_only_the_matching_rule(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        cfg = self._load(monkeypatch, {"sqlite_archive_max_files": 0})
+        assert cfg.archive_max_files == 0
+        assert cfg.archive_max_age_days == 30
+        assert cfg.quarantine_max_files == 10
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "sqlite_archive_max_files",
+            "sqlite_archive_max_age_days",
+            "sqlite_drill_artifact_max_files",
+            "sqlite_drill_artifact_max_age_days",
+            "sqlite_quarantine_max_files",
+            "sqlite_quarantine_max_age_days",
+        ],
+    )
+    def test_negative_raises_key_naming_value_error(
+        self, monkeypatch: pytest.MonkeyPatch, key: str
+    ) -> None:
+        with pytest.raises(ValueError, match=key):
+            self._load(monkeypatch, {key: -1})
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "sqlite_archive_max_files",
+            "sqlite_quarantine_max_age_days",
+        ],
+    )
+    def test_bool_rejected(self, monkeypatch: pytest.MonkeyPatch, key: str) -> None:
+        with pytest.raises(ValueError, match=key):
+            self._load(monkeypatch, {key: True})
+
+
+class TestResolveUniquePath:
+    """resolve_unique_path unit contract (AC-6)."""
+
+    def test_free_path_returned_unchanged(self, tmp_path: Path) -> None:
+        target = tmp_path / "workflow_20261116_000000.sqlite"
+        assert resolve_unique_path(target) == target
+
+    def test_collision_gets_counter_suffix(self, tmp_path: Path) -> None:
+        target = tmp_path / "workflow_20261116_000000.json"
+        target.write_text("1")
+        second = resolve_unique_path(target)
+        assert second == tmp_path / "workflow_20261116_000000_2.json"
+        second.write_text("2")
+        third = resolve_unique_path(target)
+        assert third == tmp_path / "workflow_20261116_000000_3.json"
+
+    def test_directory_path_handled_the_same(self, tmp_path: Path) -> None:
+        target = tmp_path / "rag_sidecar_quarantine_20260101_000000"
+        target.mkdir()
+        resolved = resolve_unique_path(target)
+        assert resolved == tmp_path / "rag_sidecar_quarantine_20260101_000000_2"
+        assert not resolved.exists()  # creation stays with the caller
+
+    def test_cap_raises_runtime_error(self, tmp_path: Path) -> None:
+        with patch("db.config.Path.exists", return_value=True):
+            with pytest.raises(RuntimeError, match="resolve_unique_path"):
+                resolve_unique_path(tmp_path / "workflow_x.sqlite")
+
+
+class TestPurgeArchiveArtifacts:
+    """Four-sweep matrix for purge_archive_artifacts (AC-2..AC-5)."""
+
+    @pytest.fixture(autouse=True)
+    def _patch_paths(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Point the sweeps at tmp dirs instead of production paths."""
+        self.db_dir = tmp_path  # DbConfig paths live here (see _make_db_cfg)
+        self.archive_dir = tmp_path / "archive"
+        self.drill_dir = self.archive_dir / "drills"
+        self.archive_dir.mkdir()
+        self.drill_dir.mkdir()
+        monkeypatch.setattr(
+            "db.artifact_retention.build_db_config", lambda: _make_db_cfg(tmp_path)
+        )
+        monkeypatch.setattr(
+            "db.artifact_retention._resolve_archive_dir", lambda: str(self.archive_dir)
+        )
+
+    def _seed(self, directory: Path, name: str, age_days: float = 0) -> Path:
+        path = directory / name
+        path.write_text("seeded artifact")
+        if age_days:
+            mtime = time.time() - age_days * 86400
+            os.utime(path, (mtime, mtime))
+        return path
+
+    def _seed_dir(self, directory: Path, name: str, age_days: float = 0) -> Path:
+        path = directory / name
+        path.mkdir()
+        (path / "sidecar.sqlite").write_text("sidecar")
+        if age_days:
+            mtime = time.time() - age_days * 86400
+            os.utime(path, (mtime, mtime))
+        return path
+
+    # ── archives ─────────────────────────────────────────────────────────────
+
+    def test_archives_count_rule_keeps_newest(self) -> None:
+        seeded = [
+            self._seed(self.archive_dir, f"rag_{i}_20260101_000000.sqlite", age_days=i)
+            for i in range(1, 16)
+        ]
+        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["archives"] == {"age_deleted": 0, "count_deleted": 1}
+        survivors = list(self.archive_dir.glob("rag_*.sqlite"))
+        assert len(survivors) == 14
+        assert seeded[0] in survivors  # newest (age 1 day) never deleted
+
+    def test_archives_age_rule_then_count_rule(self) -> None:
+        old = self._seed(self.archive_dir, "rag_old1.sqlite", age_days=40)
+        mid = self._seed(self.archive_dir, "rag_mid.sqlite", age_days=10)
+        new = self._seed(self.archive_dir, "rag_new.sqlite", age_days=1)
+        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        assert result.data is not None
+        assert result.data["archives"] == {"age_deleted": 1, "count_deleted": 0}
+        assert not old.exists() and mid.exists() and new.exists()
+
+    def test_archives_age_rule_protects_newest_of_all_old(self) -> None:
+        oldest = self._seed(self.archive_dir, "rag_oldest.sqlite", age_days=40)
+        newest_old = self._seed(self.archive_dir, "rag_newest_old.sqlite", age_days=35)
+        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        assert result.data is not None
+        assert result.data["archives"] == {"age_deleted": 1, "count_deleted": 0}
+        assert not oldest.exists()
+        assert newest_old.exists()  # min_keep=1: newest survives even when stale
+
+    def test_archives_exclude_corrupt_and_non_matching_names(self) -> None:
+        for i in range(1, 16):
+            self._seed(self.archive_dir, f"rag_{i}_20260101_000000.sqlite", age_days=i)
+        corrupt = self._seed(self.archive_dir, "rag_corrupt_20260101_000000.sqlite")
+        unrelated = self._seed(self.archive_dir, "not_an_archive.txt")
+        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        assert result.data is not None
+        assert result.data["archives"]["count_deleted"] == 1
+        assert corrupt.exists()  # corrupt names belong to purge_corrupt_archives
+        assert unrelated.exists()
+
+    # ── drill JSON artifacts ─────────────────────────────────────────────────
+
+    def test_drill_artifacts_age_then_count(self) -> None:
+        old = self._seed(self.drill_dir, "workflow_old.json", age_days=40)
+        for i in range(1, 15):
+            self._seed(self.drill_dir, f"workflow_{i}_20260101_000000.json", age_days=i)
+        young = self._seed(self.drill_dir, "workflow_young.json", age_days=1)
+        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        assert result.data is not None
+        assert result.data["drill_artifacts"] == {"age_deleted": 1, "count_deleted": 1}
+        assert not old.exists() and young.exists()
+        survivors = list(self.drill_dir.glob("workflow_*.json"))
+        assert len(survivors) == 14  # age-then-count, each rule globs fresh
+
+    def test_drill_artifacts_age_rule_has_no_min_keep(self) -> None:
+        old_a = self._seed(self.drill_dir, "workflow_old_a.json", age_days=100)
+        old_b = self._seed(self.drill_dir, "workflow_old_b.json", age_days=95)
+        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        assert result.data is not None
+        assert result.data["drill_artifacts"]["age_deleted"] == 2
+        assert not old_a.exists() and not old_b.exists()
+
+    # ── quarantine directories ───────────────────────────────────────────────
+
+    def test_quarantine_age_then_count(self) -> None:
+        old = self._seed_dir(self.db_dir, "rag_sidecar_quarantine_1", age_days=100)
+        for i in range(2, 13):
+            self._seed_dir(
+                self.db_dir, f"rag_sidecar_quarantine_202601{i:02d}_000000", age_days=i
+            )
+        non_matching_dir = self.db_dir / "rag_sidecar_quarantineX"
+        non_matching_dir.mkdir()
+        stray_file = self.db_dir / "rag_sidecar_quarantine_not_a_dir"
+        stray_file.write_text("keep me")
+        live_db = self.db_dir / "rag.sqlite"
+        live_db.write_text("live")
+        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        assert result.data is not None
+        assert result.data["quarantine"] == {"age_deleted": 1, "count_deleted": 1}
+        assert not old.exists()  # age 100d > 90d cap, not the newest
+        assert non_matching_dir.exists() and stray_file.exists() and live_db.exists()
+        survivors = [
+            p
+            for p in self.db_dir.iterdir()
+            if p.is_dir() and p.name.startswith("rag_sidecar_quarantine_")
+        ]
+        assert len(survivors) == 10  # 11 seeded, 1 age-deleted, then 1 count-deleted
+
+    def test_quarantine_age_rule_protects_newest_of_all_old(self) -> None:
+        oldest = self._seed_dir(self.db_dir, "rag_sidecar_quarantine_120", age_days=120)
+        newest_old = self._seed_dir(
+            self.db_dir, "rag_sidecar_quarantine_95", age_days=95
+        )
+        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        assert result.data is not None
+        assert result.data["quarantine"] == {"age_deleted": 1, "count_deleted": 0}
+        assert not oldest.exists()
+        assert newest_old.exists()  # min_keep=1 for quarantine dirs
+
+    # ── stale working files ──────────────────────────────────────────────────
+
+    def test_stale_work_files_older_than_one_day_removed(self) -> None:
+        stale_tmp = self._seed(
+            self.db_dir, "rag.tmp_20260101_000000.sqlite", age_days=2
+        )
+        fresh_tmp = self.db_dir / "rag.tmp_20260102_000000.sqlite"
+        fresh_tmp.write_text("in-flight")
+        stale_restored = self._seed(
+            self.drill_dir, "workflow_20260101.sqlite_restored.sqlite", age_days=2
+        )
+        fresh_restored = self.drill_dir / "workflow_20260102.sqlite_restored.sqlite"
+        fresh_restored.write_text("in-flight")
+        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        assert result.data is not None
+        assert result.data["stale_work"] == {"removed": 2}
+        assert not stale_tmp.exists() and not stale_restored.exists()
+        assert fresh_tmp.exists() and fresh_restored.exists()
+
+    def test_stale_threshold_constant(self) -> None:
+        assert _STALE_WORK_FILE_MAX_AGE_SECONDS == 86400
+
+    # ── mode contract ────────────────────────────────────────────────────────
+
+    def test_negative_retention_raises_in_both_modes(self) -> None:
+        bad = ArtifactRetentionConfig(archive_max_age_days=-1)
+        with pytest.raises(ValueError, match="sqlite_archive_max_age_days"):
+            purge_archive_artifacts(bad, mode=MaintenanceMode.STRICT)
+        with pytest.raises(ValueError, match="sqlite_archive_max_age_days"):
+            purge_archive_artifacts(bad, mode=MaintenanceMode.BEST_EFFORT)
+
+    def test_best_effort_returns_partial_result_on_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._seed(self.archive_dir, "rag_1.sqlite", age_days=100)
+        self._seed(self.archive_dir, "rag_2.sqlite", age_days=99)
+        monkeypatch.setattr(
+            "db.artifact_retention._unlink_candidate",
+            MagicMock(side_effect=OSError("disk full")),
+        )
+        result = purge_archive_artifacts(
+            ArtifactRetentionConfig(), mode=MaintenanceMode.BEST_EFFORT
+        )
+        assert result.success is False
+        assert result.data is not None
+        assert result.data["archives"]["age_deleted"] == 0  # partial counts preserved
+
+    def test_strict_mode_raises_on_os_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._seed(self.archive_dir, "rag_1.sqlite", age_days=100)
+        self._seed(self.archive_dir, "rag_2.sqlite", age_days=99)
+        monkeypatch.setattr(
+            "db.artifact_retention._unlink_candidate",
+            MagicMock(side_effect=OSError("disk full")),
+        )
+        with pytest.raises(OSError, match="disk full"):
+            purge_archive_artifacts(
+                ArtifactRetentionConfig(), mode=MaintenanceMode.STRICT
+            )
+
+
+class TestRotationSameSecondCollision:
+    """Two rotations in one second must not overwrite each other (AC-6)."""
+
+    def test_same_second_archives_get_distinct_names(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "workflow.sqlite"
+        conn = sqlite3.connect(str(db_file))
+        conn.execute("CREATE TABLE t(x)")
+        conn.commit()
+        conn.close()
+        archive_dir = tmp_path / "archive"
+        fixed_ts = "20261116_000000"
+        with patch("db.rotation.format_timestamp", return_value=fixed_ts):
+            first = _archive_db_file(db_file, archive_dir, target="workflow")
+            second = _archive_db_file(db_file, archive_dir, target="workflow")
+        assert first.name == f"workflow_{fixed_ts}.sqlite"
+        assert second.name == f"workflow_{fixed_ts}_2.sqlite"
+        assert first.exists() and second.exists()

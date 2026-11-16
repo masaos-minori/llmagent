@@ -55,8 +55,8 @@ Document the six new artifact-retention keys, the four-sweep `purge_archive_arti
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the retention-keys paragraph and cadence line | Pending | — | — | |
-| 2 | Run the documentation checkers (`check_docs_consistency.py --domain db`, `generate_reference_table.py --check`) | Pending | — | — | |
+| 1 | Add the retention-keys paragraph and cadence line | Completed | 20261116-195515 | — |  |
+| 2 | Run the documentation checkers (`check_docs_consistency.py --domain db`, `generate_reference_table.py --check`) | Completed | 20261116-195515 | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
