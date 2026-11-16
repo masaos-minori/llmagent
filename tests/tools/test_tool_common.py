@@ -132,3 +132,19 @@ def test_missing_git_executable_propagates_file_not_found(
     monkeypatch.setenv("PATH", str(tmp_path))
     with pytest.raises(FileNotFoundError):
         run_git("--version")
+
+
+class TestGitOrMtime:
+    def test_untracked_path_falls_back_to_file_mtime(self, tmp_path: Path) -> None:
+        import os
+        from datetime import datetime
+
+        from tools._tool_common import git_or_mtime
+
+        target = tmp_path / "note.txt"
+        target.write_text("x", encoding="utf-8")
+        os.utime(target, (1_700_000_000, 1_700_000_000))
+
+        assert git_or_mtime(target, cwd=tmp_path) == datetime.fromtimestamp(
+            1_700_000_000
+        )

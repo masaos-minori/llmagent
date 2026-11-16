@@ -197,24 +197,12 @@ def build_reverse_import_index(
     return index
 
 
-def candidate_sut_modules(tree: ast.Module, known_modules: set[str]) -> set[str]:
-    """Modules a test file imports (at any scope) that are known real
-    source modules -- a proxy for "what this test file plausibly exercises".
-    """
-    candidates: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            if node.module in known_modules:
-                candidates.add(node.module)
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name in known_modules:
-                    candidates.add(alias.name)
-    return candidates
-
-
 # `# mock-patch-ok: <reason>` -- the reason (group 1) must be non-empty.
 _SUPPRESSION_RE = re.compile(r"#\s*mock-patch-ok:\s*(\S.*)$")
+
+
+# Text any `patch(...)` call must contain (whitespace may separate the name and `(`).
+_PATCH_CALL_TEXT_RE = re.compile(r"\bpatch\s*\(")
 
 
 def _has_suppression_marker(line: str) -> bool:
@@ -230,21 +218,32 @@ def _is_patch_call(node: ast.Call) -> bool:
     return False
 
 
-def extract_patch_targets(tree: ast.Module) -> list[tuple[int, str]]:
-    """Return (line_number, target_string) for every `patch("a.b.C")`-style
-    call with a literal string first argument, wherever it appears
-    (decorator, `with` context manager, or plain call).
+def scan_test_tree(
+    tree: ast.Module, known_modules: set[str]
+) -> tuple[set[str], list[tuple[int, str]]]:
+    """One pass over a test file's AST, returning what the check needs from it.
+
+    The first item is the set of known source modules the file imports at any
+    scope -- a proxy for "what this test file plausibly exercises". The second is
+    `(line_number, target_string)` for every `patch("a.b.C")`-style call with a
+    literal string first argument, wherever it appears (decorator, `with` context
+    manager, or plain call), in AST-walk order.
     """
+    candidates: set[str] = set()
     targets: list[tuple[int, str]] = []
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or not _is_patch_call(node):
-            continue
-        if not node.args:
-            continue
-        first_arg = node.args[0]
-        if isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str):
-            targets.append((node.lineno, first_arg.value))
-    return targets
+        if isinstance(node, ast.ImportFrom):
+            if node.level == 0 and node.module and node.module in known_modules:
+                candidates.add(node.module)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in known_modules:
+                    candidates.add(alias.name)
+        elif isinstance(node, ast.Call) and node.args and _is_patch_call(node):
+            first_arg = node.args[0]
+            if isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str):
+                targets.append((node.lineno, first_arg.value))
+    return candidates, targets
 
 
 def make_finding(category: str, location: str, detail: str) -> dict[str, str]:
@@ -259,18 +258,22 @@ def find_ineffective_patch_targets(
     findings: list[dict[str, str]] = []
     for py_path in test_files:
         text = py_path.read_text(encoding="utf-8")
+        # A `patch(...)` call cannot exist without this text; skipping the parse and
+        # the AST walk for the files without it is what keeps a full scan fast.
+        if _PATCH_CALL_TEXT_RE.search(text) is None:
+            continue
         try:
             tree = ast.parse(text, filename=str(py_path))
         except SyntaxError:
             continue
 
         rel_path = py_path.relative_to(ROOT_DIR).as_posix()
-        candidates = candidate_sut_modules(tree, known_modules)
+        candidates, patch_targets = scan_test_tree(tree, known_modules)
         if not candidates:
             continue
         lines = text.splitlines()
 
-        for lineno, target in extract_patch_targets(tree):
+        for lineno, target in patch_targets:
             if 1 <= lineno <= len(lines) and _has_suppression_marker(lines[lineno - 1]):
                 continue
             module_path, sep, symbol_name = target.rpartition(".")

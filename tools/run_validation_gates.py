@@ -46,7 +46,8 @@ import os
 import re
 import subprocess
 import sys
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -241,6 +242,25 @@ def _subprocess_runner(argv: list[str], env: dict[str, str] | None) -> Completed
     return subprocess.run(argv, capture_output=True, text=True, check=False, env=env)
 
 
+_UV_RUN_PYTHON = ("uv", "run", "python")
+
+
+def _resolve_argv(cmd: tuple[str, ...]) -> list[str]:
+    """Return the argv to execute for one gate command.
+
+    ``uv run python ...`` becomes the running interpreter when that is the project's
+    ``.venv`` (the runner itself was started through ``uv run``, so the environment is
+    already synced); this skips about 70 ms of ``uv`` start-up per gate. The displayed
+    command stays the documented one.
+    """
+    if (
+        cmd[:3] == _UV_RUN_PYTHON
+        and Path(sys.prefix).resolve() == (REPO_ROOT / ".venv").resolve()
+    ):
+        return [sys.executable, *cmd[3:]]
+    return list(cmd)
+
+
 def run_gate(gate: Gate, *, runner: Runner | None = None) -> GateResult:
     """Run one gate and classify its result.
 
@@ -259,7 +279,7 @@ def run_gate(gate: Gate, *, runner: Runner | None = None) -> GateResult:
     env = _merge_env(gate.env)
     try:
         for cmd in gate.command:
-            proc = effective_runner(list(cmd), env)
+            proc = effective_runner(_resolve_argv(cmd), env)
             if proc.returncode != 0:
                 return GateResult(
                     gate.name,
@@ -282,6 +302,37 @@ def run_gate(gate: Gate, *, runner: Runner | None = None) -> GateResult:
             str(exc),
         )
     return GateResult(gate.name, "Pass", gate.display_command)
+
+
+def run_gates(
+    gates: Sequence[Gate], *, jobs: int | None = None, runner: Runner | None = None
+) -> list[GateResult]:
+    """Run ``gates`` and return their results in the order given.
+
+    Consecutive non-exclusive gates run concurrently on up to ``jobs`` threads (default:
+    the CPU count; 1 runs everything one by one). An exclusive gate runs alone: it starts
+    after every earlier gate has finished and ends before the next one starts.
+    """
+    workers = jobs or os.cpu_count() or 1
+    results: list[GateResult] = []
+    batch: list[Gate] = []
+
+    def flush() -> None:
+        if workers > 1 and len(batch) > 1:
+            with ThreadPoolExecutor(max_workers=min(workers, len(batch))) as pool:
+                results.extend(pool.map(lambda g: run_gate(g, runner=runner), batch))
+        else:
+            results.extend(run_gate(g, runner=runner) for g in batch)
+        batch.clear()
+
+    for gate in gates:
+        if gate.exclusive:
+            flush()
+            results.append(run_gate(gate, runner=runner))
+        else:
+            batch.append(gate)
+    flush()
+    return results
 
 
 def _checker_id_from_cell(run_cell: str) -> str:
@@ -484,10 +535,10 @@ def _print_summary(results: list[GateResult], changed: list[str], mode: str) -> 
             print(f"          ({res.detail})")
 
 
-def _run_gates(base: str, mode: str) -> int:
+def _run_gates(base: str, mode: str, jobs: int | None = None) -> int:
     changed = _changed_files(base)
     gates = select_gates(changed, mode)
-    results = [run_gate(gate) for gate in gates]
+    results = run_gates(gates, jobs=jobs)
     _print_summary(results, changed, mode)
     return 1 if any(res.status == "Fail" for res in results) else 0
 
@@ -512,6 +563,13 @@ def _run_drift() -> int:
     return 0
 
 
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, got {value}")
+    return number
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
@@ -530,6 +588,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Full mode: also run the rules/toolchain.md sequence (full pytest + "
         "diff-cover). Default is fast mode (changed-file gates only).",
     )
+    parser.add_argument(
+        "--jobs",
+        type=_positive_int,
+        default=None,
+        help="Maximum gates run at once (default: CPU count; 1 runs them one by one). "
+        "Gates that rewrite files or use every CPU always run alone.",
+    )
     subparsers = parser.add_subparsers(dest="action")
     subparsers.add_parser(
         "drift",
@@ -545,7 +610,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.action == "drift":
         return _run_drift()
-    return _run_gates(args.base, "full" if args.full else MODE_FAST)
+    return _run_gates(args.base, "full" if args.full else MODE_FAST, args.jobs)
 
 
 _ALL_GATES: tuple[Gate, ...] = (*ROUTING_GATES, *TOOLCHAIN_GATES)

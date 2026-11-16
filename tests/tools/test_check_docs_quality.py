@@ -15,9 +15,9 @@ from pathlib import Path
 import pytest
 
 from tools import check_docs_quality as cdq
+from tools._docs_similarity import jaccard_similarity_above
 from tools.check_docs_quality import (
     _compute_section_similarity,
-    _jaccard_similarity_above,
     check_content_similarity,
     check_duplicate_heading_numbers,
 )
@@ -783,27 +783,27 @@ class TestJaccardSimilarityAbove:
     """The size check must not change which pairs pass the threshold."""
 
     def test_empty_sets_never_overlap(self) -> None:
-        assert _jaccard_similarity_above(set(), {"a"}) is False
-        assert _jaccard_similarity_above({"a"}, set()) is False
-        assert _jaccard_similarity_above(set(), set()) is False
+        assert jaccard_similarity_above(set(), {"a"}) is False
+        assert jaccard_similarity_above({"a"}, set()) is False
+        assert jaccard_similarity_above(set(), set()) is False
 
     def test_identical_sets_pass_at_any_threshold(self) -> None:
         words = {"alpha", "beta", "gamma"}
-        assert _jaccard_similarity_above(words, set(words), threshold=1.0) is True
+        assert jaccard_similarity_above(words, set(words), threshold=1.0) is True
 
     def test_lopsided_pair_fails_even_when_one_set_contains_the_other(self) -> None:
         small = {f"w{i}" for i in range(5)}
         large = {f"w{i}" for i in range(50)}
-        assert _jaccard_similarity_above(small, large) is False
-        assert _jaccard_similarity_above(large, small) is False
+        assert jaccard_similarity_above(small, large) is False
+        assert jaccard_similarity_above(large, small) is False
 
     def test_overlap_exactly_at_the_threshold_passes(self) -> None:
         a = {f"w{i}" for i in range(17)}
         b = {f"w{i}" for i in range(20)}  # 17 shared of 20 in total: 0.85
-        assert _jaccard_similarity_above(a, b, threshold=0.85) is True
-        assert _jaccard_similarity_above(a, b, threshold=0.86) is False
+        assert jaccard_similarity_above(a, b, threshold=0.85) is True
+        assert jaccard_similarity_above(a, b, threshold=0.86) is False
 
     def test_result_does_not_depend_on_argument_order(self) -> None:
         a = {f"w{i}" for i in range(30)}
         b = {f"w{i}" for i in range(2, 33)}
-        assert _jaccard_similarity_above(a, b) == _jaccard_similarity_above(b, a)
+        assert jaccard_similarity_above(a, b) == jaccard_similarity_above(b, a)

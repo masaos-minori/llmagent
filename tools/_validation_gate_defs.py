@@ -19,6 +19,7 @@ class Gate:
     ``ruff format`` then ``ruff check``). ``patterns`` are path globs that select a gate in
     fast mode; a gate with no patterns is a manual/content-based checker that fast mode
     never auto-selects. ``env`` is extra environment as ``(key, value)`` pairs.
+    ``exclusive`` marks a gate that must run alone: it rewrites files or uses every CPU.
     """
 
     name: str
@@ -27,6 +28,7 @@ class Gate:
     mode: str
     patterns: tuple[str, ...] = ()
     env: tuple[tuple[str, str], ...] = ()
+    exclusive: bool = False
 
     @property
     def requires_context(self) -> bool:
@@ -145,6 +147,7 @@ TOOLCHAIN_GATES: tuple[Gate, ...] = (
         ),
         source=SOURCE_TOOLCHAIN,
         mode=MODE_FULL,
+        exclusive=True,
     ),
     Gate(
         name="mypy",
@@ -203,7 +206,18 @@ TOOLCHAIN_GATES: tuple[Gate, ...] = (
     Gate(
         name="pytest",
         command=(
-            ("uv", "run", "pytest", "tests/"),
+            (
+                "uv",
+                "run",
+                "pytest",
+                "tests/",
+                "-n",
+                "logical",
+                "--cov=scripts",
+                "--cov-report=",
+                "-m",
+                "not integration and not production_paths_allowed and not repo_scan",
+            ),
             (
                 "uv",
                 "run",
@@ -213,11 +227,11 @@ TOOLCHAIN_GATES: tuple[Gate, ...] = (
         ),
         source=SOURCE_TOOLCHAIN,
         mode=MODE_FULL,
+        exclusive=True,
     ),
     Gate(
         name="diff-cover",
         command=(
-            ("uv", "run", "coverage", "run", "-m", "pytest", "tests/"),
             ("uv", "run", "coverage", "xml"),
             (
                 "uv",
@@ -232,12 +246,14 @@ TOOLCHAIN_GATES: tuple[Gate, ...] = (
         ),
         source=SOURCE_TOOLCHAIN,
         mode=MODE_FULL,
+        exclusive=True,
     ),
     Gate(
         name="pre-commit",
         command=(("uv", "run", "pre-commit", "run", "--all-files"),),
         source=SOURCE_TOOLCHAIN,
         mode=MODE_FULL,
+        exclusive=True,
     ),
     Gate(
         name="diff-review",
@@ -567,6 +583,7 @@ ROUTING_GATES: tuple[Gate, ...] = (
         ),
         source=SOURCE_ROUTING,
         mode=MODE_FAST,
+        exclusive=True,
     ),
     Gate(
         name="generate_reference_table_rag",
@@ -582,6 +599,7 @@ ROUTING_GATES: tuple[Gate, ...] = (
         ),
         source=SOURCE_ROUTING,
         mode=MODE_FAST,
+        exclusive=True,
     ),
     Gate(
         name="generate_reference_table_deployment",
@@ -597,6 +615,7 @@ ROUTING_GATES: tuple[Gate, ...] = (
         ),
         source=SOURCE_ROUTING,
         mode=MODE_FAST,
+        exclusive=True,
     ),
     Gate(
         name="generate_mcp_inventory",
@@ -685,6 +704,7 @@ ROUTING_GATES: tuple[Gate, ...] = (
         command=(("uv", "run", "python", "tools/generate_adr_authority.py"),),
         source=SOURCE_ROUTING,
         mode=MODE_FAST,
+        exclusive=True,
         patterns=("docs/10_adr/**", "config/adr_authority.toml"),
     ),
     # Hook-parity gates (flowimp005): each mirrors the same-named pre-commit hook's filter

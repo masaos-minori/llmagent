@@ -14,6 +14,7 @@ raw bytes for NUL-delimited output. `cwd=None` keeps the process working directo
 from __future__ import annotations
 
 import subprocess  # nosec B404 — git is a trusted local CLI, argv is a fixed list
+from datetime import datetime
 from pathlib import Path
 from typing import Literal, overload
 
@@ -67,3 +68,18 @@ def run_git(
         check=check,
         timeout=timeout,
     )
+
+
+def git_or_mtime(path: Path, *, cwd: Path) -> datetime:
+    """Last-modified time via `git log`, falling back to file mtime."""
+    try:
+        result = run_git(
+            "log", "-1", "--format=%ct", "--", str(path), cwd=cwd, timeout=10
+        )
+    except OSError:
+        return datetime.fromtimestamp(path.stat().st_mtime)
+
+    output = result.stdout.strip()
+    if result.returncode == 0 and output.isdigit():
+        return datetime.fromtimestamp(int(output))
+    return datetime.fromtimestamp(path.stat().st_mtime)

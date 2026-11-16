@@ -4,9 +4,9 @@ check_canonical_source_registry.py	36416
 check_compat_shims.py	36235
 check_docs_consistency.py	40577
 check_docs_content_policy.py	32102
-check_docs_quality.py	35381
+check_docs_quality.py	34685
 check_docs_structure.py	32352
-check_workitem_traceability.py	36140
+check_workitem_traceability.py	36087
 generate_reference_table.py	42776
 generate_workitem.py	28930
 manage_frontmatter.py	31201

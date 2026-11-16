@@ -358,6 +358,89 @@ class TestActiveOnly:
         assert cwt.main(["--active-only"]) == 0
 
 
+class TestActiveOnlyScoping:
+    """`active_only` keeps archived documents out of the per-document categories."""
+
+    @staticmethod
+    def _tree(tmp_path: Path) -> None:
+        _write(
+            tmp_path / "plans" / "done" / "20260801-110000_old.md",
+            "# Plan\n\n## Traceability\n- **Source issue**: issues/gone.md\n",
+        )
+        _write(
+            tmp_path / "plans" / "20260801-120000_live.md",
+            "# Plan\n\n## Traceability\n- **Source issue**: issues/also-gone.md\n",
+        )
+        _write(tmp_path / "issues" / "done" / "20260801-100000_raw.md", "# Raw\n")
+
+    def test_active_only_drops_exactly_the_archived_findings(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
+        self._tree(tmp_path)
+        documents = cwt.discover_documents()
+
+        everything = cwt.collect_findings(documents, cwt.DEFAULT_AGE_THRESHOLD_DAYS)
+        scoped = cwt.collect_findings(
+            documents, cwt.DEFAULT_AGE_THRESHOLD_DAYS, active_only=True
+        )
+
+        assert any(cwt.is_archived_finding(f) for f in everything)
+        assert scoped == [f for f in everything if not cwt.is_archived_finding(f)]
+
+    def test_active_only_does_not_inspect_archived_issue_targets(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
+        _write(tmp_path / "docs" / "spec.md", "# Spec\n")
+        _write(
+            tmp_path / "issues" / "done" / "20200101-000000_old.md",
+            "# Old\n\nSee docs/spec.md\n",
+        )
+        calls: list[Path] = []
+
+        def _fake(path: Path, *, cwd: Path) -> datetime:
+            calls.append(path)
+            return datetime(2030, 1, 1)
+
+        monkeypatch.setattr(cwt, "git_or_mtime", _fake)
+        documents = cwt.discover_documents()
+
+        cwt.collect_findings(
+            documents, cwt.DEFAULT_AGE_THRESHOLD_DAYS, active_only=True
+        )
+        assert calls == []
+        cwt.collect_findings(documents, cwt.DEFAULT_AGE_THRESHOLD_DAYS)
+        assert len(calls) == 1
+
+
+class TestStaleTargetModifiedTimeMemo:
+    """A target referenced by many issues is looked up once per run."""
+
+    def test_shared_target_is_resolved_once(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
+        _write(tmp_path / "docs" / "spec.md", "# Spec\n")
+        for n in range(3):
+            _write(
+                tmp_path / "issues" / f"2020010{n + 1}-000000_i.md",
+                "# Issue\n\nSee docs/spec.md\n",
+            )
+        calls: list[Path] = []
+
+        def _fake(path: Path, *, cwd: Path) -> datetime:
+            calls.append(path)
+            return datetime(2030, 1, 1)
+
+        monkeypatch.setattr(cwt, "git_or_mtime", _fake)
+
+        findings = cwt.find_stale_targets(cwt.discover_documents())
+
+        assert len(calls) == 1
+        assert [f.code for f in findings] == ["stale-target-heuristic"] * 3
+
+
 class TestBacktickedNotApplicable:
     """A backtick-wrapped `N/A: ...` value (the form `templates/issue.md` uses)
     is not applicable, not a path to a missing file."""

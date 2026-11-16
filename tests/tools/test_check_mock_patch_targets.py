@@ -293,3 +293,72 @@ class TestExitCode:
         )
 
         assert cmpt.main([]) == 0
+
+
+class TestScanTestTree:
+    """`scan_test_tree` replaces two separate AST walks with one pass."""
+
+    def test_collects_candidates_and_patch_targets_in_one_pass(self) -> None:
+        import ast
+
+        source = (
+            "import agent.alpha\n"
+            "from unittest.mock import patch\n"
+            "from agent.beta import Thing\n"
+            "from . import local_only\n"
+            "from agent.unknown import Other\n\n"
+            '@patch("db.helper.SQLiteHelper")\n'
+            "def test_a(m):\n"
+            '    with patch("agent.beta.Thing"):\n'
+            "        pass\n"
+            '    patch.object(agent.alpha, "x")\n'
+            "    patch(some_variable)\n"
+        )
+        known = {"agent.alpha", "agent.beta"}
+
+        candidates, targets = cmpt.scan_test_tree(ast.parse(source), known)
+
+        assert candidates == {"agent.alpha", "agent.beta"}
+        assert targets == [(7, "db.helper.SQLiteHelper"), (9, "agent.beta.Thing")]
+
+    def test_file_without_patch_call_text_is_skipped_without_findings(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _write(
+            tmp_path / "scripts" / "db" / "helper.py",
+            "class SQLiteHelper:\n    pass\n",
+        )
+        _write(
+            tmp_path / "scripts" / "agent" / "diagnostic_store.py",
+            "from db.helper import SQLiteHelper\n",
+        )
+        _write(
+            tmp_path / "tests" / "agent" / "test_monkey.py",
+            "from agent.diagnostic_store import SQLiteHelper\n\n\n"
+            "def test_it(monkeypatch):\n"
+            '    monkeypatch.setattr("db.helper.SQLiteHelper", object)\n',
+        )
+
+        assert _run(tmp_path, monkeypatch) == []
+
+    def test_patch_call_with_space_before_parenthesis_is_still_scanned(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _write(
+            tmp_path / "scripts" / "db" / "helper.py",
+            "class SQLiteHelper:\n    pass\n",
+        )
+        _write(
+            tmp_path / "scripts" / "agent" / "diagnostic_store.py",
+            "from db.helper import SQLiteHelper\n",
+        )
+        _write(
+            tmp_path / "tests" / "agent" / "test_spaced.py",
+            "from unittest.mock import patch\n"
+            "from agent.diagnostic_store import SQLiteHelper\n\n\n"
+            '@patch ("db.helper.SQLiteHelper")\n'
+            "def test_it(m):\n"
+            "    pass\n",
+        )
+
+        assert len(_run(tmp_path, monkeypatch)) == 1

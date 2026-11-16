@@ -11,6 +11,9 @@ so the mock-patch-targets checker never sees a module-level patch target to comp
 from __future__ import annotations
 
 import subprocess
+import sys
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -26,11 +29,14 @@ from tools.run_validation_gates import (
     Gate,
     _checker_id_from_cell,
     _checker_id_from_command,
+    _resolve_argv,
     _split_md_row,
+    build_parser,
     classify,
     drift_report,
     parse_precommit_hooks,
     run_gate,
+    run_gates,
     select_gates,
 )
 
@@ -522,3 +528,203 @@ def test_reexported_gate_definitions_are_the_same_objects() -> None:
     assert entry.ROUTING_GATES is defs.ROUTING_GATES
     assert entry.TOOLCHAIN_GATES is defs.TOOLCHAIN_GATES
     assert entry._checker_id_from_command is defs._checker_id_from_command
+
+
+# --- concurrent execution --------------------------------------------------------
+
+
+def _named_gate(name: str, *, exclusive: bool = False) -> Gate:
+    return Gate(
+        name=name,
+        command=((name,),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        exclusive=exclusive,
+    )
+
+
+def test_run_gates_runs_independent_gates_at_the_same_time() -> None:
+    """Both runners wait for each other; a serial run would time the barrier out."""
+    barrier = threading.Barrier(2)
+
+    def _run(
+        argv: list[str], env: dict[str, str] | None
+    ) -> subprocess.CompletedProcess:
+        barrier.wait(timeout=10)
+        return subprocess.CompletedProcess(args=argv, returncode=0)
+
+    results = run_gates([_named_gate("a"), _named_gate("b")], jobs=2, runner=_run)
+
+    assert [r.name for r in results] == ["a", "b"]
+    assert [r.status for r in results] == ["Pass", "Pass"]
+
+
+def test_run_gates_keeps_input_order_when_a_later_gate_finishes_first() -> None:
+    def _run(
+        argv: list[str], env: dict[str, str] | None
+    ) -> subprocess.CompletedProcess:
+        if argv[0] == "slow":
+            time.sleep(0.2)
+        return subprocess.CompletedProcess(
+            args=argv, returncode=1 if argv[0] == "fast" else 0
+        )
+
+    results = run_gates([_named_gate("slow"), _named_gate("fast")], runner=_run)
+
+    assert [(r.name, r.status) for r in results] == [("slow", "Pass"), ("fast", "Fail")]
+
+
+def test_run_gates_runs_an_exclusive_gate_alone_between_the_batches() -> None:
+    lock = threading.Lock()
+    events: list[tuple[str, str]] = []
+
+    def _run(
+        argv: list[str], env: dict[str, str] | None
+    ) -> subprocess.CompletedProcess:
+        with lock:
+            events.append(("start", argv[0]))
+        time.sleep(0.05)
+        with lock:
+            events.append(("end", argv[0]))
+        return subprocess.CompletedProcess(args=argv, returncode=0)
+
+    gates = [
+        _named_gate("a"),
+        _named_gate("b"),
+        _named_gate("w", exclusive=True),
+        _named_gate("c"),
+        _named_gate("d"),
+    ]
+    results = run_gates(gates, jobs=4, runner=_run)
+
+    assert [r.name for r in results] == ["a", "b", "w", "c", "d"]
+    at = {event: index for index, event in enumerate(events)}
+    assert max(at[("end", name)] for name in "ab") < at[("start", "w")]
+    assert at[("end", "w")] < min(at[("start", name)] for name in "cd")
+
+
+def test_run_gates_with_one_job_never_overlaps() -> None:
+    lock = threading.Lock()
+    running = 0
+    peak = 0
+
+    def _run(
+        argv: list[str], env: dict[str, str] | None
+    ) -> subprocess.CompletedProcess:
+        nonlocal running, peak
+        with lock:
+            running += 1
+            peak = max(peak, running)
+        time.sleep(0.02)
+        with lock:
+            running -= 1
+        return subprocess.CompletedProcess(args=argv, returncode=0)
+
+    run_gates([_named_gate(n) for n in "abcd"], jobs=1, runner=_run)
+
+    assert peak == 1
+
+
+def test_run_gates_of_nothing_is_empty() -> None:
+    assert run_gates([], runner=_runner_for(0)) == []
+
+
+@pytest.mark.parametrize("value", ["0", "-2"])
+def test_jobs_option_rejects_less_than_one(value: str) -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["--jobs", value])
+
+
+def test_jobs_option_defaults_to_cpu_count() -> None:
+    assert build_parser().parse_args([]).jobs is None
+    assert build_parser().parse_args(["--jobs", "3"]).jobs == 3
+
+
+# --- interpreter resolution ------------------------------------------------------
+
+
+def test_resolve_argv_uses_the_running_interpreter_inside_the_project_venv(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "prefix", str(REPO_ROOT / ".venv"))
+
+    argv = _resolve_argv(("uv", "run", "python", "tools/x.py", "--flag"))
+
+    assert argv == [sys.executable, "tools/x.py", "--flag"]
+
+
+def test_resolve_argv_keeps_uv_run_outside_the_project_venv(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "prefix", "/somewhere/else")
+    command = ("uv", "run", "python", "tools/x.py")
+
+    assert _resolve_argv(command) == list(command)
+
+
+def test_resolve_argv_leaves_other_commands_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "prefix", str(REPO_ROOT / ".venv"))
+
+    assert _resolve_argv(("uv", "run", "ruff", "check")) == [
+        "uv",
+        "run",
+        "ruff",
+        "check",
+    ]
+    assert _resolve_argv(("git", "diff")) == ["git", "diff"]
+
+
+def test_run_gate_executes_the_resolved_argv_but_displays_the_documented_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "prefix", str(REPO_ROOT / ".venv"))
+    seen: list[list[str]] = []
+
+    def _run(
+        argv: list[str], env: dict[str, str] | None
+    ) -> subprocess.CompletedProcess:
+        seen.append(argv)
+        return subprocess.CompletedProcess(args=argv, returncode=0)
+
+    gate = Gate(
+        name="tool",
+        command=(("uv", "run", "python", "tools/x.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+    )
+    result = run_gate(gate, runner=_run)
+
+    assert seen == [[sys.executable, "tools/x.py"]]
+    assert result.command == "uv run python tools/x.py"
+
+
+# --- gate definitions ------------------------------------------------------------
+
+
+def test_exclusive_gates_are_the_writers_and_the_cpu_heavy_gates() -> None:
+    exclusive = {g.name for g in (*ROUTING_GATES, *TOOLCHAIN_GATES) if g.exclusive}
+
+    assert exclusive == {
+        "ruff-format-lint",
+        "pytest",
+        "diff-cover",
+        "pre-commit",
+        "generate_adr_authority",
+        "generate_reference_table_mcp",
+        "generate_reference_table_rag",
+        "generate_reference_table_deployment",
+    }
+
+
+def test_full_mode_runs_the_test_suite_once_and_diff_cover_reuses_its_coverage() -> (
+    None
+):
+    by_name = {g.name: g for g in TOOLCHAIN_GATES}
+    suite = by_name["pytest"].command[0]
+    coverage_commands = by_name["diff-cover"].command
+
+    assert {"-n", "logical", "--cov=scripts"} <= set(suite)
+    assert all("pytest" not in command for command in coverage_commands)
+    assert [command[2] for command in coverage_commands] == ["coverage", "diff-cover"]

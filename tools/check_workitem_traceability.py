@@ -81,7 +81,7 @@ from tools._report import (
     render_json,
     render_text,
 )
-from tools._tool_common import REPO_ROOT, run_git
+from tools._tool_common import REPO_ROOT, git_or_mtime
 
 ROOT_DIR = REPO_ROOT
 
@@ -393,21 +393,6 @@ def _effective_filed_time(path: Path) -> datetime:
     return datetime.fromtimestamp(path.stat().st_mtime)
 
 
-def _git_or_mtime(path: Path) -> datetime:
-    """Last-modified time via `git log`, falling back to file mtime."""
-    try:
-        result = run_git(
-            "log", "-1", "--format=%ct", "--", str(path), cwd=ROOT_DIR, timeout=10
-        )
-    except OSError:
-        return datetime.fromtimestamp(path.stat().st_mtime)
-
-    output = result.stdout.strip()
-    if result.returncode == 0 and output.isdigit():
-        return datetime.fromtimestamp(int(output))
-    return datetime.fromtimestamp(path.stat().st_mtime)
-
-
 def _resolve_doc_mention(mention: str) -> Path | None:
     """Resolve an `ADR-\\d+` or `docs/....md` mention to an existing file."""
     if mention.startswith("ADR-"):
@@ -557,6 +542,7 @@ def find_no_procedure_yet(
 
 def find_stale_targets(documents: list[WorkItemDocument]) -> list[ReportFinding]:
     findings: list[ReportFinding] = []
+    modified_at: dict[Path, datetime] = {}
     for doc in documents:
         if doc.kind != "issue":
             continue
@@ -575,7 +561,9 @@ def find_stale_targets(documents: list[WorkItemDocument]) -> list[ReportFinding]
             # per spelling.
             if resolved in reported_targets:
                 continue
-            modified = _git_or_mtime(resolved)
+            if resolved not in modified_at:
+                modified_at[resolved] = git_or_mtime(resolved, cwd=ROOT_DIR)
+            modified = modified_at[resolved]
             if modified > filed:
                 reported_targets.add(resolved)
                 findings.append(
@@ -813,16 +801,24 @@ def find_plan_coverage_findings(
 
 
 def collect_findings(
-    documents: list[WorkItemDocument], age_threshold_days: int
+    documents: list[WorkItemDocument],
+    age_threshold_days: int,
+    *,
+    active_only: bool = False,
 ) -> list[ReportFinding]:
-    """Run all report categories over one shared parsed graph."""
+    """Run all report categories over one shared parsed graph.
+
+    ``active_only`` skips ``done/`` documents in the per-document categories; the two
+    reference-based categories still read the whole graph.
+    """
+    own = [doc for doc in documents if not doc.is_done] if active_only else documents
     findings: list[ReportFinding] = []
-    findings.extend(find_parse_errors(documents))
-    findings.extend(find_missing_source_files(documents))
+    findings.extend(find_parse_errors(own))
+    findings.extend(find_missing_source_files(own))
     findings.extend(find_no_plan_yet(documents, age_threshold_days))
     findings.extend(find_no_procedure_yet(documents, age_threshold_days))
-    findings.extend(find_stale_targets(documents))
-    findings.extend(find_target_file_mismatches(documents))
+    findings.extend(find_stale_targets(own))
+    findings.extend(find_target_file_mismatches(own))
     return findings
 
 
@@ -897,7 +893,9 @@ def main(argv: list[str] | None = None) -> int:
         _print_findings(coverage, args.format)
         return 1 if coverage else 0
 
-    findings = collect_findings(documents, args.age_threshold_days)
+    findings = collect_findings(
+        documents, args.age_threshold_days, active_only=args.active_only
+    )
     if args.active_only:
         findings = [f for f in findings if not is_archived_finding(f)]
 

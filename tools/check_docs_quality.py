@@ -25,6 +25,15 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools._docs_similarity import (
+    jaccard_similarity_above,
+    similar_pair_indexes,
+    tokenize_for_similarity,
+)
+
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DOCS_DIR = ROOT_DIR / "docs"
 CUSTOM_RULES_FILE = ROOT_DIR / "config" / "doc_quality_rules.json"
@@ -226,33 +235,13 @@ def _find_sentences(line: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def _tokenize_for_similarity(text: str) -> set[str]:
-    """Tokenize section body text for Jaccard similarity comparison: strip
-    fenced and inline code, then lowercase alphanumeric words."""
-    text = re.sub(r"```[\s\S]*?```", "", text)
-    text = re.sub(r"`[^`]+`", "", text)
-    words = re.findall(r"[a-z0-9]+", text.lower())
-    return set(words)
-
-
-def _jaccard_similarity_above(
-    set_a: set[str], set_b: set[str], *, threshold: float = 0.85
-) -> bool:
-    """Return True if the two pre-tokenized word sets overlap above threshold."""
-    lo, hi = sorted((len(set_a), len(set_b)))
-    if not lo or lo / hi < threshold:  # Jaccard <= lo / hi
-        return False
-    both = len(set_a & set_b)
-    return both / (lo + hi - both) >= threshold
-
-
 def _compute_section_similarity(
     section_a_text: str, section_b_text: str, *, threshold: float = 0.85
 ) -> bool:
     """Return True if the two section texts overlap above the given threshold."""
-    set_a = _tokenize_for_similarity(section_a_text)
-    set_b = _tokenize_for_similarity(section_b_text)
-    return _jaccard_similarity_above(set_a, set_b, threshold=threshold)
+    set_a = tokenize_for_similarity(section_a_text)
+    set_b = tokenize_for_similarity(section_b_text)
+    return jaccard_similarity_above(set_a, set_b, threshold=threshold)
 
 
 def _extract_sections(content: str) -> list[dict]:
@@ -642,31 +631,29 @@ def check_content_similarity(docs_dir: Path, files: list[DocFile]) -> list[Issue
             continue
         sections = _extract_sections(content)
         is_nav = [_is_navigation_section(s["heading"], s["body"]) for s in sections]
-        token_sets = [_tokenize_for_similarity(s["body"]) for s in sections]
-        for i in range(len(sections)):
-            for j in range(i + 1, len(sections)):
-                body_a = sections[i]["body"]
-                body_b = sections[j]["body"]
-                if not body_a or not body_b:
-                    continue
-                if (
-                    len(token_sets[i]) < _MIN_WITHIN_FILE_TOKEN_COUNT
-                    or len(token_sets[j]) < _MIN_WITHIN_FILE_TOKEN_COUNT
-                ):
-                    continue
-                if is_nav[i] and is_nav[j]:
-                    continue
-                if _is_placeholder_body(body_a) and _is_placeholder_body(body_b):
-                    continue
-                if _jaccard_similarity_above(token_sets[i], token_sets[j]):
-                    issues.append(
-                        Issue(
-                            doc.rel_path,
-                            sections[j]["line"],
-                            "WARNING",
-                            f"Content similarity detected between sections '{sections[i]['heading']}' and '{sections[j]['heading']}'",
-                        )
-                    )
+        token_sets = [tokenize_for_similarity(s["body"]) for s in sections]
+        eligible = [
+            i
+            for i, tokens in enumerate(token_sets)
+            if sections[i]["body"] and len(tokens) >= _MIN_WITHIN_FILE_TOKEN_COUNT
+        ]
+        pairs = similar_pair_indexes([token_sets[i] for i in eligible])
+        for a, b in sorted(pairs):
+            i, j = eligible[a], eligible[b]
+            if is_nav[i] and is_nav[j]:
+                continue
+            if _is_placeholder_body(sections[i]["body"]) and _is_placeholder_body(
+                sections[j]["body"]
+            ):
+                continue
+            issues.append(
+                Issue(
+                    doc.rel_path,
+                    sections[j]["line"],
+                    "WARNING",
+                    f"Content similarity detected between sections '{sections[i]['heading']}' and '{sections[j]['heading']}'",
+                )
+            )
 
     # Pre-tokenize each non-empty section exactly once (instead of inside the
     # O(files^2 * sections^2) comparison loop below) — re-tokenizing on every
@@ -684,39 +671,45 @@ def check_content_similarity(docs_dir: Path, files: list[DocFile]) -> list[Issue
         for sec in sections:
             if not sec["body"]:
                 continue
-            tokens = _tokenize_for_similarity(sec["body"])
+            tokens = tokenize_for_similarity(sec["body"])
             if len(tokens) < _MIN_CROSS_FILE_TOKEN_COUNT:
                 continue
             sec["nav"] = _is_navigation_section(sec["heading"], sec["body"])
             tokenized.append((sec, tokens))
         doc_tokenized_sections.append((doc, tokenized))
 
-    for a in range(len(doc_tokenized_sections)):
-        doc_a, sections_a = doc_tokenized_sections[a]
-        for b in range(a + 1, len(doc_tokenized_sections)):
-            doc_b, sections_b = doc_tokenized_sections[b]
-            for sec_a, tokens_a in sections_a:
-                for sec_b, tokens_b in sections_b:
-                    if _is_template_section_pair(
-                        doc_a.rel_path,
-                        sec_a["heading"],
-                        doc_b.rel_path,
-                        sec_b["heading"],
-                    ):
-                        continue
-                    if sec_a["nav"] and sec_b["nav"]:
-                        continue
-                    if _jaccard_similarity_above(tokens_a, tokens_b):
-                        issues.append(
-                            Issue(
-                                doc_b.rel_path,
-                                sec_b["line"],
-                                "WARNING",
-                                f"Content similarity detected between "
-                                f"{doc_a.rel_path}#'{sec_a['heading']}' and "
-                                f"{doc_b.rel_path}#'{sec_b['heading']}'",
-                            )
-                        )
+    owners = [
+        (a, k)
+        for a, (_, secs) in enumerate(doc_tokenized_sections)
+        for k in range(len(secs))
+    ]
+    token_sets = [tokens for _, secs in doc_tokenized_sections for _, tokens in secs]
+    # Pairs reach the report in the order the former nested loops produced them:
+    # document a, document b, then the section positions within each.
+    matches = sorted(
+        (owners[p][0], owners[q][0], owners[p][1], owners[q][1])
+        for p, q in similar_pair_indexes(token_sets)
+        if owners[p][0] != owners[q][0]
+    )
+    for a, b, ka, kb in matches:
+        doc_a, sec_a = doc_tokenized_sections[a][0], doc_tokenized_sections[a][1][ka][0]
+        doc_b, sec_b = doc_tokenized_sections[b][0], doc_tokenized_sections[b][1][kb][0]
+        if _is_template_section_pair(
+            doc_a.rel_path, sec_a["heading"], doc_b.rel_path, sec_b["heading"]
+        ):
+            continue
+        if sec_a["nav"] and sec_b["nav"]:
+            continue
+        issues.append(
+            Issue(
+                doc_b.rel_path,
+                sec_b["line"],
+                "WARNING",
+                f"Content similarity detected between "
+                f"{doc_a.rel_path}#'{sec_a['heading']}' and "
+                f"{doc_b.rel_path}#'{sec_b['heading']}'",
+            )
+        )
     return issues
 
 
