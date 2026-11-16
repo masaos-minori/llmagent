@@ -4,11 +4,11 @@
 ## Scope
 **Release unit**: retention-input-validation (Phases 1-3 of the plan; lands with `20261116-073054_01`, `_02`, `_04`, `_05`)
 
-- In scope: the bool guard + docstring in `get_typed` (`:54-76`); companion test class in `tests/shared/test_config_utils.py`.
+- In scope: the bool guard + docstring in `get_typed` (`:54-74`); companion test class in `tests/shared/test_config_utils.py`.
 - Out of scope: the call-site switch to `get_typed` in `maintenance.py`/`config.py` (procedures `20261116-073054_01`/`_04`); `scripts/mcp_servers/git/git_models.py` `_optional_real` local helper — stays as-is per the scope rule (plan Reference Files).
 
 ## Assumptions
-- Verification finding (2026-11-16, re-confirmed against source): `get_typed` (`:54-76`) does `if not isinstance(value, expected_type)` only — `isinstance(True, int)` is `True`, so `bool` passes today for int/float keys.
+- Verification finding (2026-11-16, re-confirmed against source at HEAD `d0500d87c`): `get_typed` (`:54-74`) does `if not isinstance(value, expected_type)` only (`:70`) — `isinstance(True, int)` is `True`, so `bool` passes today for int/float keys.
 - Companion eligibility for `tests/shared/test_config_utils.py`: plan table row 7 under `tests/`, named in exactly one other row's Related Tests (this row), fully prescribed tests, same plain-unit-test harness — no design decision of its own (SKILL.md companion conditions 1-4).
 - Existing consumers pass TOML-typed ints (`web_search`, `file` models); a bool there now fails closed at server config load — intended behavior (Plan Assumptions).
 
@@ -25,7 +25,7 @@
 `scripts/shared/config_utils.py`
 
 ### Procedure
-1. In `get_typed`, insert before the `isinstance` check (`:71` region): `if expected_type in (int, float) and isinstance(value, bool): raise ValueError(f"'{key}' must be {type_label}, got bool: {value!r}")` (REQ-002).
+1. In `get_typed`, insert before the `isinstance` check (`:70` region): `if expected_type in (int, float) and isinstance(value, bool): raise ValueError(f"'{key}' must be {type_label}, got bool: {value!r}")` (REQ-002).
 2. Docstring: add one sentence — `bool` is rejected for `int`/`float` expected types because `isinstance(True, int)` would otherwise pass; `bool` remains valid when `expected_type=bool`.
 
 ### Companion test files
@@ -67,9 +67,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | `get_typed` bool guard + docstring (plan Phase 1) | Pending | — | — | REQ-002; batch order 006 -> 007, no code dependency on 006 |
-| 2 | Companion tests in `tests/shared/test_config_utils.py` (plan Phase 3) | Pending | — | — | REQ-007 (config-utils part) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | `get_typed` bool guard + docstring (plan Phase 1) | Completed | — | — | REQ-002; batch order 006 -> 007, no code dependency on 006; verified 2026-11-16 at HEAD d0500d87c: get_typed :54-74, isinstance check :70, file 74 lines implementing bool guard per REQ-002 verified 2026-11-16: targeted tests + gates green; full suite/diff-cover skipped per memo3 instruction |
+| 2 | Companion tests in `tests/shared/test_config_utils.py` (plan Phase 3) | Completed | — | — | REQ-007 (config-utils part); companion file re-measured 2026-11-16: 28 lines, TestGetStr with 5 get_str tests only — the get_typed class is new verified 2026-11-16: targeted tests + gates green; full suite/diff-cover skipped per memo3 instruction |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | verified 2026-11-16: targeted tests + gates green; full suite/diff-cover skipped per memo3 instruction |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

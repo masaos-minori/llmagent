@@ -63,7 +63,7 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update section 12 failure-semantics and `rto_seconds` wording (plan Phase 3) | Pending | — | — | REQ-001, REQ-002 docs wording; gated: plans/done/20261115-041859_dbreview004_integrity-probe-side-effects.md phase all - re-read landed drill section first (004 landed at commit `693f71679`); also lands only after `20261116-075258_01` |
+| 1 | Update section 12 failure-semantics and `rto_seconds` wording (plan Phase 3) | Pending | — | — | REQ-001, REQ-002 docs wording; gated: plans/done/20261115-041859_dbreview004_integrity-probe-side-effects.md phase all - re-read landed drill section first (004 landed at commit `693f71679`); also lands only after `20261116-075258_01` ; verified 2026-11-16 at HEAD d0500d87c: db_07 doc anchors :156/:184/:188/:189/:191 confirmed, rto_seconds sole repo doc hit at db_07:184 - no drift |
 | 2 | Run the docs checkers (Validation plan) | Pending | — | — | |
 
 ### Blocker Log

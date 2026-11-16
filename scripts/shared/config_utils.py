@@ -63,10 +63,16 @@ def get_typed(
     ``type_label`` must already include its article, e.g. ``"a list"`` or ``"an integer"``.
 
     Returns ``default`` when the key is absent or its value is ``None``.
+
+    ``bool`` is rejected for ``int``/``float`` expected types because
+    ``isinstance(True, int)`` would otherwise pass; it remains valid when
+    ``expected_type`` is ``bool``.
     """
     value = d.get(key)
     if value is None:
         return default
+    if expected_type in (int, float) and isinstance(value, bool):
+        raise ValueError(f"'{key}' must be {type_label}, got bool: {value!r}")
     if not isinstance(value, expected_type):
         raise ValueError(
             f"'{key}' must be {type_label}, got {type(value).__name__}: {value!r}"

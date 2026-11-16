@@ -175,9 +175,9 @@ Validate at both boundaries: config load (`from_config`, `build_db_config`) via 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Shared accessor and config validation (config_utils.py, config.py, maintenance.py) | In Progress | — | — | procedure docs 20261116-073054_01/_03/_04 generated |
-| 2 | Purge/prune guards, cutoff rewrite, tie-breaker (maintenance.py, store_impl.py) | In Progress | — | — | procedure docs 20261116-073054_01/_02 generated |
-| 3 | Tests, docs, validation | In Progress | — | — | procedure doc 20261116-073054_05 generated; store/config tests are companions in _02/_03; docs/41_db/db_06 update stays a plan-level step (not a target-file row) |
+| 1 | Shared accessor and config validation (config_utils.py, config.py, maintenance.py) | Completed | 2026-11-16 | 2026-11-16 | procedure docs 20261116-073054_01/_03/_04 generated ; all landed 2026-11-16: get_typed bool guard, _non_negative_int/_retention_guard in from_config, build_db_config get_typed switch |
+| 2 | Purge/prune guards, cutoff rewrite, tie-breaker (maintenance.py, store_impl.py) | Completed | 2026-11-16 | 2026-11-16 | procedure docs 20261116-073054_01/_02 generated ; all landed 2026-11-16: helper guards, T/Z cutoff rewrite, ORDER BY tie-breaker, store older_than_days guard |
+| 3 | Tests, docs, validation | Completed | 2026-11-16 | 2026-11-16 | procedure doc 20261116-073054_05 generated; store/config tests are companions in _02/_03; docs/41_db/db_06 update stays a plan-level step (not a target-file row) ; db_06 retention paragraphs updated 2026-11-16; targeted run tests/db+tests/shared+tests/agent/commands 2166 passed; full suite/diff-cover skipped per memo3 instruction |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -188,11 +188,11 @@ Validate at both boundaries: config load (`from_config`, `build_db_config`) via 
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | WI-007-1 | Phase 3 | Follow-up candidate (issue filing): `scripts/agent/memory/count_ops.py:45` cutoff-format mismatch (UNK-02) | Open (planning record) | Maintainer | After Plan 007 lands |
-| implementations/20261116-073054_01_scripts_db_maintenance.py.md | 1 | Procedure | Created | — | — |
-| implementations/20261116-073054_02_scripts_db_store_impl.py.md | 2 | Procedure | Created | — | — |
-| implementations/20261116-073054_03_scripts_shared_config_utils.py.md | 1 | Procedure | Created | — | — |
-| implementations/20261116-073054_04_scripts_db_config.py.md | 1 | Procedure | Created | — | — |
-| implementations/20261116-073054_05_tests_db_test_db_maintenance.py.md | 3 | Procedure | Created | — | — |
+| implementations/20261116-073054_01_scripts_db_maintenance.py.md | 1 | Procedure | Archived | — | 2026-11-16 |
+| implementations/20261116-073054_02_scripts_db_store_impl.py.md | 2 | Procedure | Archived | — | 2026-11-16 |
+| implementations/20261116-073054_03_scripts_shared_config_utils.py.md | 1 | Procedure | Archived | — | 2026-11-16 |
+| implementations/20261116-073054_04_scripts_db_config.py.md | 1 | Procedure | Archived | — | 2026-11-16 |
+| implementations/20261116-073054_05_tests_db_test_db_maintenance.py.md | 3 | Procedure | Archived | — | 2026-11-16 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

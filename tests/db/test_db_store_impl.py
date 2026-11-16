@@ -8,7 +8,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -442,7 +442,7 @@ class TestSQLiteMemoryDeleteStore:
         result = store.delete_memories_before(30)
         sql, params = mock_db.execute.call_args_list[0][0]
         assert "DELETE FROM memories" in sql
-        assert "updated_at < datetime('now', ?)" in sql
+        assert "updated_at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)" in sql
         assert "pinned = 0" in sql
         assert "RETURNING memory_id" in sql
         assert params == ("-30 days",)
@@ -473,7 +473,7 @@ class TestSQLiteMemoryDeleteStore:
         store = SQLiteMemoryDeleteStore(mock_db)
         store.collect_prunable_ids(30)
         sql, args = mock_db.fetchall.call_args[0]
-        assert "updated_at < datetime('now', ?)" in sql
+        assert "updated_at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)" in sql
         assert "pinned = 0" in sql
         assert "created_at" not in sql
         assert args == ("-30 days",)
@@ -484,7 +484,7 @@ class TestSQLiteMemoryDeleteStore:
         store = SQLiteMemoryDeleteStore(mock_db)
         store.delete_memories_before(30)
         sql, args = mock_db.fetchall.call_args[0]
-        assert "updated_at < datetime('now', ?)" in sql
+        assert "updated_at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)" in sql
         assert "pinned = 0" in sql
         assert "created_at" not in sql
         assert args == ("-30 days",)
@@ -642,3 +642,62 @@ class TestMemoryDeleteStoreRealSqlite:
             ).fetchall()
             != []
         )
+
+
+class TestMemoryDeleteStoreRetentionValidation:
+    """Negative older_than_days guard and the days=0 cutoff-now boundary (REQ-004/REQ-005)."""
+
+    def test_delete_memories_before_negative_raises_before_sql(self) -> None:
+        mock_db = MagicMock()
+        store = SQLiteMemoryDeleteStore(mock_db)
+        with pytest.raises(ValueError, match=r"older_than_days must be >= 0, got -1"):
+            store.delete_memories_before(-1)
+        mock_db.fetchall.assert_not_called()
+        mock_db.execute.assert_not_called()
+        mock_db.begin_immediate.assert_not_called()
+
+    def test_collect_prunable_ids_negative_raises_before_sql(self) -> None:
+        mock_db = MagicMock()
+        store = SQLiteMemoryDeleteStore(mock_db)
+        with pytest.raises(ValueError, match=r"older_than_days must be >= 0, got -1"):
+            store.collect_prunable_ids(-1)
+        mock_db.fetchall.assert_not_called()
+
+    def test_delete_zero_days_deletes_only_row_older_than_now(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(
+            """
+            CREATE TABLE memories (
+                memory_id  TEXT PRIMARY KEY,
+                created_at TEXT,
+                updated_at TEXT,
+                pinned     INTEGER DEFAULT 0
+            );
+            CREATE TABLE memories_fts (memory_id TEXT);
+            CREATE TABLE memories_vec (memory_id TEXT);
+            CREATE TABLE memory_links (src_id TEXT, dst_id TEXT);
+            """
+        )
+        now = datetime.now(UTC)
+
+        def _tz(seconds_offset: int) -> str:
+            return (now + timedelta(seconds=seconds_offset)).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+
+        conn.executemany(
+            "INSERT INTO memories VALUES (?, ?, ?, ?)",
+            [
+                ("old", _tz(-5), _tz(-5), 0),
+                ("new", _tz(5), _tz(5), 0),
+            ],
+        )
+        conn.commit()
+
+        store = SQLiteMemoryDeleteStore(_RealDeleteDB(conn))  # type: ignore[arg-type]
+        result = store.delete_memories_before(0)
+
+        assert result.deleted == 1
+        assert set(result.deleted_ids or ()) == {"old"}
+        remaining = {row[0] for row in conn.execute("SELECT memory_id FROM memories")}
+        assert remaining == {"new"}

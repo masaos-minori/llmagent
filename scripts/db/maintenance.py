@@ -23,8 +23,10 @@ import time
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 from shared.config_loader import ConfigLoader
+from shared.config_utils import get_typed
 
 from db.config import build_db_config
 from db.helper import SQLiteHelper
@@ -94,23 +96,48 @@ def _load_agent_config():
     return ConfigLoader().load("agent.toml")
 
 
+def _retention_guard(value: int, key: str) -> bool:
+    """Retention-limit guard shared by the delete helpers.
+
+    Returns True when the rule is disabled (``value == 0``); a negative value
+    raises a key-naming ValueError.
+    """
+    if value < 0:
+        raise ValueError(f"'{key}' must be >= 0, got {value}")
+    return value == 0
+
+
+def _non_negative_int(cfg: dict[str, Any], key: str, default: int) -> int:
+    """Read an int config key via get_typed; negative values raise a key-naming ValueError."""
+    value: int = get_typed(cfg, key, int, "an integer", default=default)
+    _retention_guard(value, key)
+    return value
+
+
 # ── Policy dataclasses ─────────────────────────────────────────────────────────
 
 
 @dataclass(frozen=True)
 class RetentionConfig:
-    """Session retention policy: max_sessions keeps most-recent N sessions; max_age_days deletes sessions older than N days (0=disabled)."""
+    """Session retention policy: max_sessions keeps most-recent N sessions; max_age_days deletes sessions older than N days.
+
+    Semantics: 0 disables the corresponding rule (deletes nothing); negative
+    values are rejected with ValueError at config load and in the purge helpers.
+    """
 
     max_sessions: int = 100
     max_age_days: int = 90
 
     @classmethod
     def from_config(cls) -> "RetentionConfig":
-        """Construct from agent.toml values; raises on config load failure."""
+        """Construct from agent.toml values; raises on config load failure.
+
+        Wrong-typed or negative values raise a key-naming ValueError.
+        """
         cfg = _load_agent_config()
         return cls(
-            max_sessions=int(cfg.get("sqlite_retention_max_sessions", 100)),
-            max_age_days=int(cfg.get("sqlite_retention_max_age_days", 90)),
+            max_sessions=_non_negative_int(cfg, "sqlite_retention_max_sessions", 100),
+            max_age_days=_non_negative_int(cfg, "sqlite_retention_max_age_days", 90),
         )
 
 
@@ -119,18 +146,27 @@ class CorruptArchiveRetentionConfig:
     """Retention policy for timestamped *_corrupt_* archive files created by
     db.recovery._restore_from_backup() before restoring; max_files keeps the
     most-recent N archives per source database; max_age_days deletes archives
-    older than N days (0=disabled)."""
+    older than N days.
+
+    Semantics: 0 disables the corresponding rule (deletes nothing); negative
+    values are rejected with ValueError at config load and in the purge helpers.
+    """
 
     max_files: int = 10
     max_age_days: int = 30
 
     @classmethod
     def from_config(cls) -> "CorruptArchiveRetentionConfig":
-        """Construct from agent.toml values; raises on config load failure."""
+        """Construct from agent.toml values; raises on config load failure.
+
+        Wrong-typed or negative values raise a key-naming ValueError.
+        """
         cfg = _load_agent_config()
         return cls(
-            max_files=int(cfg.get("sqlite_corrupt_archive_max_files", 10)),
-            max_age_days=int(cfg.get("sqlite_corrupt_archive_max_age_days", 30)),
+            max_files=_non_negative_int(cfg, "sqlite_corrupt_archive_max_files", 10),
+            max_age_days=_non_negative_int(
+                cfg, "sqlite_corrupt_archive_max_age_days", 30
+            ),
         )
 
 
@@ -174,12 +210,14 @@ def _delete_sessions_by_age(
 
     When `keep_session_id` is given and that session is itself an age-rule delete
     candidate, it is exempted from deletion and `exempted` is True (0 if disabled).
+
+    `max_age_days == 0` disables the rule; a negative value raises ValueError.
     """
-    if max_age_days <= 0:
+    if _retention_guard(max_age_days, "sqlite_retention_max_age_days"):
         return 0, False
     if keep_session_id is None:
         cur = db.execute(
-            "DELETE FROM sessions WHERE created_at < datetime('now', ?)",
+            "DELETE FROM sessions WHERE created_at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)",
             (f"-{max_age_days} days",),
         )
         deleted = cur.rowcount
@@ -191,11 +229,11 @@ def _delete_sessions_by_age(
             )
         return deleted, False
     expired = db.fetchall(
-        "SELECT 1 FROM sessions WHERE session_id = ? AND created_at < datetime('now', ?)",
+        "SELECT 1 FROM sessions WHERE session_id = ? AND created_at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)",
         (keep_session_id, f"-{max_age_days} days"),
     )
     cur = db.execute(
-        "DELETE FROM sessions WHERE created_at < datetime('now', ?) AND session_id != ?",
+        "DELETE FROM sessions WHERE created_at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?) AND session_id != ?",
         (f"-{max_age_days} days", keep_session_id),
     )
     deleted = cur.rowcount
@@ -214,9 +252,16 @@ def _delete_sessions_beyond_limit(
     """Delete sessions beyond the max_sessions most-recent limit; returns (rows deleted, exempted).
 
     The exempted `keep_session_id` does not consume a keep slot (kept count may
-    exceed max_sessions by one).
+    exceed max_sessions by one).  Equal `created_at` ties resolve deterministically:
+    the lowest `session_id` is deleted first.
+
+    `max_sessions == 0` disables the rule; a negative value raises ValueError.
     """
-    rows = db.fetchall("SELECT session_id FROM sessions ORDER BY created_at DESC")
+    if _retention_guard(max_sessions, "sqlite_retention_max_sessions"):
+        return 0, False
+    rows = db.fetchall(
+        "SELECT session_id FROM sessions ORDER BY created_at DESC, session_id DESC"
+    )
     if len(rows) <= max_sessions:
         return 0, False
     candidates = [row[0] for row in rows[max_sessions:]]
@@ -258,7 +303,9 @@ def purge_old_sessions(
     In BEST_EFFORT mode, returns MaintenanceResult with zeroed counts
     (the transaction was rolled back; attempted counts are not reported).
 
-    Config-load failures (`RetentionConfig.from_config`) propagate in both modes.
+    Config-load failures (`RetentionConfig.from_config`) propagate in both modes,
+    as do negative-retention `ValueError`s raised by the delete helpers (the
+    transaction rolls back, so no partial deletions survive).
 
     When `keep_session_id` is given and that session was a delete candidate under at
     least one rule, it is exempted and surfaced as `data["kept_active_session"]`
@@ -306,8 +353,11 @@ def _delete_corrupt_archives_by_age(
     archive_dir: Path, pattern: str, max_age_days: int
 ) -> int:
     """Delete archives matching pattern under archive_dir older than max_age_days;
-    returns count deleted (0 if disabled)."""
-    if max_age_days <= 0:
+    returns count deleted (0 if disabled).
+
+    `max_age_days == 0` disables the rule; a negative value raises ValueError.
+    """
+    if _retention_guard(max_age_days, "sqlite_corrupt_archive_max_age_days"):
         return 0
     threshold = time.time() - max_age_days * 86400
     deleted = 0
@@ -328,7 +378,12 @@ def _delete_corrupt_archives_beyond_limit(
     archive_dir: Path, pattern: str, max_files: int
 ) -> int:
     """Delete archives matching pattern under archive_dir beyond the max_files
-    most-recent limit; returns count deleted."""
+    most-recent limit; returns count deleted.
+
+    `max_files == 0` disables the rule; a negative value raises ValueError.
+    """
+    if _retention_guard(max_files, "sqlite_corrupt_archive_max_files"):
+        return 0
     paths = sorted(
         archive_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True
     )
@@ -357,7 +412,8 @@ def purge_corrupt_archives(
     In STRICT mode (default), raises on filesystem errors.
     In BEST_EFFORT mode, returns MaintenanceResult with partial counts on error.
     Config-load failures (`CorruptArchiveRetentionConfig.from_config`,
-    `build_db_config`) propagate in both modes.
+    `build_db_config`) propagate in both modes, as do negative-retention
+    `ValueError`s raised by the delete helpers.
     """
     if cfg is None:
         cfg = CorruptArchiveRetentionConfig.from_config()

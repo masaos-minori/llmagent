@@ -8,9 +8,9 @@
 - Out of scope: `MemoryDeleteResult.deleted_ids` (Plan 006, landed procedure `20261116-072110_03` — 007 edits no region it lands); maintenance-side guards/cutoffs (procedure `20261116-073054_01`); config tests (companion in `_03`); docs update (plan Phase 3).
 
 ## Assumptions
-- Verification finding (2026-11-16, re-confirmed against source): `delete_memories_before` (`:177-205`) has its fast-path SELECT cutoff at `:182` and the `DELETE ... RETURNING` cutoff at `:192`; `collect_prunable_ids` (`:207-214`) cutoff SELECT at `:211`; all three compare `updated_at < datetime('now', ?)`; no guard on `older_than_days` anywhere in `:177-214`.
-- Gated by Plan 006 (phase all, now `plans/done/`): the landed `delete_memories_before` returns `deleted_ids=tuple(...)` (procedure `20261116-072110_03`); the guards land at the top of both methods, outside the landed `begin_immediate` block, and must preserve the `deleted_ids` construction.
-- `memory_prune` already validates `--days >= 1` (`scripts/agent/commands/memory_data_ops.py:134-145`) and its dry-run `collect_prunable_ids` usage (`:360-373`) only passes validated values — the new guard protects direct/API callers without breaking the consumer (plan Reference Files).
+- Verification finding (2026-11-16, re-confirmed against source at HEAD `d0500d87c`): `delete_memories_before` (`:177-207`) has its fast-path SELECT cutoff at `:182` and the `DELETE ... RETURNING` cutoff at `:192`; `collect_prunable_ids` (`:209-216`) cutoff SELECT at `:213`; all three compare `updated_at < datetime('now', ?)`; no guard on `older_than_days` anywhere in `:177-216`. (Line anchors updated 2026-11-16 from the generation-time positions.)
+- Gated by Plan 006 (phase all, now `plans/done/`): the landed `delete_memories_before` returns `deleted_ids=tuple(...)` (procedure `20261116-072110_03`, `store_impl.py:206`); the guards land at the top of both methods, outside the landed `begin_immediate` block (`:189`), and must preserve the `deleted_ids` construction. Marker text kept; Plan 006 code is already landed at HEAD `d0500d87c` (see Execution Status note).
+- `memory_prune` already validates `--days >= 1` (`scripts/agent/commands/memory_data_ops.py:134-155`, `days < 1` check at `:149-150`) and its dry-run `collect_prunable_ids` usage (`:374`) only passes validated values — the new guard protects direct/API callers without breaking the consumer (plan Reference Files).
 - Companion eligibility for `tests/db/test_db_store_impl.py`: plan table row 6 under `tests/`, named in exactly one other row's Related Tests (this row), fully prescribed tests, same real-DB harness as the code row — no design decision of its own (SKILL.md companion conditions 1-4).
 
 ## Design decisions
@@ -26,8 +26,8 @@
 `scripts/db/store_impl.py`
 
 ### Procedure
-1. At the top of `delete_memories_before` (`:177`) and `collect_prunable_ids` (`:207`): `if older_than_days < 0: raise ValueError("older_than_days must be >= 0, got <value>")` — before any SELECT/`begin_immediate` (REQ-005; plan Phase 2, after re-reading Plan 006's landed flow).
-2. Rewrite the three cutoff comparisons `:182`, `:192`, `:211` from `datetime('now', ?)` to `strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)`, keeping the `f"-{older_than_days} days"` parameter unchanged; `0` yields cutoff = now (REQ-004).
+1. At the top of `delete_memories_before` (`:177`) and `collect_prunable_ids` (`:209`): `if older_than_days < 0: raise ValueError("older_than_days must be >= 0, got <value>")` — before any SELECT/`begin_immediate` (`:189`) (REQ-005; plan Phase 2, after re-reading Plan 006's landed flow).
+2. Rewrite the three cutoff comparisons `:182`, `:192`, `:213` from `datetime('now', ?)` to `strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)`, keeping the `f"-{older_than_days} days"` parameter unchanged; `0` yields cutoff = now (REQ-004).
 3. Docstrings of both methods: state the `>= 0` contract and the `0` = cutoff-now meaning (REQ-005 documentation).
 
 ### Companion test files
@@ -69,9 +69,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Store guards + cutoff rewrite + docstrings (plan Phase 2) | Pending | — | — | REQ-004, REQ-005; gated: plans/done/20261115-050112_dbreview006_maintenance-error-semantics.md phase all - re-read landed `deleted_ids` flow |
-| 2 | Companion tests in `tests/db/test_db_store_impl.py` (plan Phase 3) | Pending | — | — | REQ-007 (store part) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Store guards + cutoff rewrite + docstrings (plan Phase 2) | Completed | — | — | REQ-004, REQ-005; gated: plans/done/20261115-050112_dbreview006_maintenance-error-semantics.md phase all - re-read landed `deleted_ids` flow ; gate satisfied 2026-11-16: Plan 006 completed at HEAD d0500d87c (deleted_ids at store_impl.py:206, begin_immediate :189, tests at test_db_maintenance.py:1279+); anchors re-measured: delete_memories_before :177-207 (cutoffs :182/:192), collect_prunable_ids :209-216 (cutoff :213), memory_data_ops.py :134-155/:374 implementing store guards + T/Z cutoff rewrite (Plan 006 landed flow confirmed: deleted_ids :206, begin_immediate :189) verified 2026-11-16: targeted tests + gates green; full suite/diff-cover skipped per memo3 instruction |
+| 2 | Companion tests in `tests/db/test_db_store_impl.py` (plan Phase 3) | Completed | — | — | REQ-007 (store part); companion harness days=30/7 tests confirmed present at :401-627 (2026-11-16) companion class TestMemoryDeleteStoreRetentionValidation (3 tests) landed; doc gap found during execution: 3 pre-existing SQL-format pinning assertions (:445/:476/:487 datetime('now', ?)) had to be re-pinned to the strftime T/Z form - intended REQ-004 contract change, not an assertion relaxation; radon delete_memories_before B(8) vs baseline B(7): guard adds 1 branch to an already-B(7) method, repo gate radon -n C passes; 38/38 green verified 2026-11-16: targeted tests + gates green; full suite/diff-cover skipped per memo3 instruction |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | verified 2026-11-16: targeted tests + gates green; full suite/diff-cover skipped per memo3 instruction |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

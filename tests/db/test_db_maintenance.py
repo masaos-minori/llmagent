@@ -6,6 +6,7 @@ import os
 import sqlite3
 import time
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -40,7 +41,7 @@ _TEST_EMBED_URL = "http://127.0.0.1:8081/embedding"
 _SESSION_SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     title TEXT
 );
 CREATE TABLE IF NOT EXISTS messages (
@@ -48,7 +49,7 @@ CREATE TABLE IF NOT EXISTS messages (
     session_id INTEGER NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
     role TEXT NOT NULL,
     content TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
 """
 
@@ -160,7 +161,7 @@ class TestPurgeOldSessions:
 
     def test_no_deletions_when_within_limits(self) -> None:
         db = _make_session_db(
-            [("s1", "2099-01-01 00:00:00"), ("s2", "2099-01-02 00:00:00")]
+            [("s1", "2099-01-01T00:00:00Z"), ("s2", "2099-01-02T00:00:00Z")]
         )
         cfg = RetentionConfig(max_sessions=10, max_age_days=0)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
@@ -173,8 +174,8 @@ class TestPurgeOldSessions:
         # One very old session, one recent
         db = _make_session_db(
             [
-                ("old", "2000-01-01 00:00:00"),
-                ("new", "2099-01-01 00:00:00"),
+                ("old", "2000-01-01T00:00:00Z"),
+                ("new", "2099-01-01T00:00:00Z"),
             ]
         )
         cfg = RetentionConfig(max_sessions=100, max_age_days=1)
@@ -188,11 +189,11 @@ class TestPurgeOldSessions:
         # 5 sessions, keep only 2 most recent
         db = _make_session_db(
             [
-                ("s1", "2020-01-01 00:00:00"),
-                ("s2", "2020-01-02 00:00:00"),
-                ("s3", "2020-01-03 00:00:00"),
-                ("s4", "2020-01-04 00:00:00"),
-                ("s5", "2020-01-05 00:00:00"),
+                ("s1", "2020-01-01T00:00:00Z"),
+                ("s2", "2020-01-02T00:00:00Z"),
+                ("s3", "2020-01-03T00:00:00Z"),
+                ("s4", "2020-01-04T00:00:00Z"),
+                ("s5", "2020-01-05T00:00:00Z"),
             ]
         )
         cfg = RetentionConfig(max_sessions=2, max_age_days=0)
@@ -206,7 +207,7 @@ class TestPurgeOldSessions:
         assert rows == 2
 
     def test_boundary_below_max_sessions(self) -> None:
-        db = _make_session_db([(f"s{i}", "2099-01-01 00:00:00") for i in range(9)])
+        db = _make_session_db([(f"s{i}", "2099-01-01T00:00:00Z") for i in range(9)])
         cfg = RetentionConfig(max_sessions=10, max_age_days=0)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
         assert result.success is True
@@ -214,7 +215,7 @@ class TestPurgeOldSessions:
         assert result.data["count_deleted"] == 0
 
     def test_boundary_at_max_sessions(self) -> None:
-        db = _make_session_db([(f"s{i}", "2099-01-01 00:00:00") for i in range(10)])
+        db = _make_session_db([(f"s{i}", "2099-01-01T00:00:00Z") for i in range(10)])
         cfg = RetentionConfig(max_sessions=10, max_age_days=0)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
         assert result.success is True
@@ -222,7 +223,7 @@ class TestPurgeOldSessions:
         assert result.data["count_deleted"] == 0
 
     def test_boundary_above_max_sessions(self) -> None:
-        db = _make_session_db([(f"s{i}", "2099-01-01 00:00:00") for i in range(11)])
+        db = _make_session_db([(f"s{i}", "2099-01-01T00:00:00Z") for i in range(11)])
         cfg = RetentionConfig(max_sessions=10, max_age_days=0)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
         assert result.success is True
@@ -230,7 +231,7 @@ class TestPurgeOldSessions:
         assert result.data["count_deleted"] == 1
 
     def test_age_zero_skips_age_check(self) -> None:
-        db = _make_session_db([("old", "2000-01-01 00:00:00")])
+        db = _make_session_db([("old", "2000-01-01T00:00:00Z")])
         cfg = RetentionConfig(max_sessions=100, max_age_days=0)
         result = purge_old_sessions(db, cfg)  # type: ignore[arg-type]
         assert result.success is True
@@ -240,8 +241,8 @@ class TestPurgeOldSessions:
     def test_cascade_deletes_messages(self) -> None:
         db = _make_session_db(
             [
-                ("s1", "2000-01-01 00:00:00"),
-                ("s2", "2099-01-01 00:00:00"),
+                ("s1", "2000-01-01T00:00:00Z"),
+                ("s2", "2099-01-01T00:00:00Z"),
             ]
         )
         assert db.conn is not None
@@ -262,9 +263,9 @@ class TestPurgeOldSessions:
     def test_age_rule_keeps_active_session(self) -> None:
         db = _make_session_db(
             [
-                ("active", "2000-01-01 00:00:00"),  # session_id 1
-                ("old", "2000-01-02 00:00:00"),  # session_id 2
-                ("new", "2099-01-01 00:00:00"),  # session_id 3
+                ("active", "2000-01-01T00:00:00Z"),  # session_id 1
+                ("old", "2000-01-02T00:00:00Z"),  # session_id 2
+                ("new", "2099-01-01T00:00:00Z"),  # session_id 3
             ]
         )
         assert db.conn is not None
@@ -289,10 +290,10 @@ class TestPurgeOldSessions:
     def test_count_rule_keeps_active_session(self) -> None:
         db = _make_session_db(
             [
-                ("s1", "2099-01-01 00:00:00"),  # oldest
-                ("s2", "2099-01-02 00:00:00"),  # active: 3rd by created_at
-                ("s3", "2099-01-03 00:00:00"),
-                ("s4", "2099-01-04 00:00:00"),
+                ("s1", "2099-01-01T00:00:00Z"),  # oldest
+                ("s2", "2099-01-02T00:00:00Z"),  # active: 3rd by created_at
+                ("s3", "2099-01-03T00:00:00Z"),
+                ("s4", "2099-01-04T00:00:00Z"),
             ]
         )
         assert db.conn is not None
@@ -308,9 +309,9 @@ class TestPurgeOldSessions:
     def test_absent_guard_deletes_expired_active_equivalent(self) -> None:
         db = _make_session_db(
             [
-                ("active", "2000-01-01 00:00:00"),
-                ("old", "2000-01-02 00:00:00"),
-                ("new", "2099-01-01 00:00:00"),
+                ("active", "2000-01-01T00:00:00Z"),
+                ("old", "2000-01-02T00:00:00Z"),
+                ("new", "2099-01-01T00:00:00Z"),
             ]
         )
         cfg = RetentionConfig(max_sessions=100, max_age_days=1)
@@ -323,9 +324,9 @@ class TestPurgeOldSessions:
     def test_guard_not_present_in_sessions_is_noop(self) -> None:
         db = _make_session_db(
             [
-                ("active", "2000-01-01 00:00:00"),
-                ("old", "2000-01-02 00:00:00"),
-                ("new", "2099-01-01 00:00:00"),
+                ("active", "2000-01-01T00:00:00Z"),
+                ("old", "2000-01-02T00:00:00Z"),
+                ("new", "2099-01-01T00:00:00Z"),
             ]
         )
         cfg = RetentionConfig(max_sessions=100, max_age_days=1)
@@ -1429,3 +1430,167 @@ class TestPruneIdsSource:
         assert conn.execute("SELECT COUNT(*) FROM memories_vec").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM memory_links").fetchone()[0] == 0
         spy.assert_not_called()
+
+
+class TestRetentionConfigBoundary:
+    """from_config boundary matrix: negative/bool/float/string raise key-naming ValueError; 0 loads (REQ-001/REQ-003)."""
+
+    _RETENTION_KEYS = (
+        "sqlite_retention_max_sessions",
+        "sqlite_retention_max_age_days",
+    )
+    _ARCHIVE_KEYS = (
+        "sqlite_corrupt_archive_max_files",
+        "sqlite_corrupt_archive_max_age_days",
+    )
+
+    @pytest.mark.parametrize("bad", [-1, True, 1.5, "10"])
+    @pytest.mark.parametrize("key", _RETENTION_KEYS + _ARCHIVE_KEYS)
+    def test_invalid_value_raises_key_naming_valueerror(
+        self, monkeypatch: pytest.MonkeyPatch, key: str, bad: object
+    ) -> None:
+        import db.maintenance as db_maintenance
+
+        monkeypatch.setattr(
+            db_maintenance.ConfigLoader, "load", lambda self, k: {key: bad}
+        )
+        from_config = (
+            RetentionConfig.from_config
+            if key in self._RETENTION_KEYS
+            else CorruptArchiveRetentionConfig.from_config
+        )
+        with pytest.raises(ValueError, match=key):
+            from_config()
+
+    def test_zero_values_load_cleanly(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import db.maintenance as db_maintenance
+
+        monkeypatch.setattr(
+            db_maintenance.ConfigLoader,
+            "load",
+            lambda self, k: {
+                "sqlite_retention_max_sessions": 0,
+                "sqlite_retention_max_age_days": 0,
+                "sqlite_corrupt_archive_max_files": 0,
+                "sqlite_corrupt_archive_max_age_days": 0,
+            },
+        )
+        assert RetentionConfig.from_config() == RetentionConfig(
+            max_sessions=0, max_age_days=0
+        )
+        assert (
+            CorruptArchiveRetentionConfig.from_config()
+            == CorruptArchiveRetentionConfig(max_files=0, max_age_days=0)
+        )
+
+    def test_max_sessions_zero_keeps_all(self) -> None:
+        db = _make_session_db([(f"s{i}", "2099-01-01T00:00:00Z") for i in range(11)])
+        result = purge_old_sessions(
+            db, RetentionConfig(max_sessions=0, max_age_days=90)
+        )  # type: ignore[arg-type]
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["count_deleted"] == 0
+        assert result.data["age_deleted"] == 0
+        assert db.conn is not None
+        assert db.conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 11
+
+    def test_max_files_zero_keeps_all_archives(self, tmp_path: Path) -> None:
+        import db.maintenance as db_maintenance
+
+        for i in range(5):
+            (tmp_path / f"rag_corrupt_{i}.sqlite").write_text("archive")
+        cfg = _make_db_cfg(tmp_path)
+        with patch.object(db_maintenance, "build_db_config", return_value=cfg):
+            result = purge_corrupt_archives(
+                CorruptArchiveRetentionConfig(max_files=0, max_age_days=0)
+            )
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["count_deleted"] == 0
+        assert result.data["age_deleted"] == 0
+        assert len(list(tmp_path.glob("rag_corrupt_*"))) == 5
+
+
+class TestRetentionHelperGuards:
+    """Directly constructed negative configs raise ValueError in both modes before any deletion (REQ-001)."""
+
+    def test_negative_session_retention_raises_in_both_modes(self) -> None:
+        db = _make_session_db([("old", "2000-01-01T00:00:00Z")])
+        for mode in (MaintenanceMode.STRICT, MaintenanceMode.BEST_EFFORT):
+            with pytest.raises(ValueError, match="sqlite_retention_max_sessions"):
+                purge_old_sessions(  # type: ignore[arg-type]
+                    db, RetentionConfig(max_sessions=-1, max_age_days=0), mode
+                )
+            with pytest.raises(ValueError, match="sqlite_retention_max_age_days"):
+                purge_old_sessions(  # type: ignore[arg-type]
+                    db, RetentionConfig(max_sessions=100, max_age_days=-1), mode
+                )
+        assert db.conn is not None
+        assert db.conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 1
+
+    def test_negative_archive_retention_raises_in_both_modes(
+        self, tmp_path: Path
+    ) -> None:
+        import db.maintenance as db_maintenance
+
+        cfg = _make_db_cfg(tmp_path)
+        for mode in (MaintenanceMode.STRICT, MaintenanceMode.BEST_EFFORT):
+            with patch.object(db_maintenance, "build_db_config", return_value=cfg):
+                with pytest.raises(
+                    ValueError, match="sqlite_corrupt_archive_max_files"
+                ):
+                    purge_corrupt_archives(
+                        CorruptArchiveRetentionConfig(max_files=-1, max_age_days=0),
+                        mode,
+                    )
+                with pytest.raises(
+                    ValueError, match="sqlite_corrupt_archive_max_age_days"
+                ):
+                    purge_corrupt_archives(
+                        CorruptArchiveRetentionConfig(max_files=10, max_age_days=-1),
+                        mode,
+                    )
+
+
+class TestRetentionCutoffDay:
+    """T/Z cutoff contract: one row 5 s past the cutoff-day boundary is deleted, one 5 s inside survives (REQ-004)."""
+
+    def test_cutoff_day_boundary_deletes_only_the_past_row(self) -> None:
+        now = datetime.now(UTC)
+        past = (now - timedelta(days=1, seconds=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        inside = (now - timedelta(days=1) + timedelta(seconds=5)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        db = _make_session_db([("past", past), ("inside", inside)])
+        result = purge_old_sessions(
+            db, RetentionConfig(max_sessions=100, max_age_days=1)
+        )  # type: ignore[arg-type]
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["age_deleted"] == 1
+        assert result.data["count_deleted"] == 0
+        assert db.conn is not None
+        titles = {row[0] for row in db.conn.execute("SELECT title FROM sessions")}
+        assert titles == {"inside"}
+
+
+class TestRetentionTieOrder:
+    """Equal created_at ties resolve deterministically: lowest session_id is deleted first (REQ-006)."""
+
+    def test_equal_created_at_keeps_highest_session_ids(self) -> None:
+        for _ in range(2):  # repeated for determinism
+            db = _make_session_db(
+                [(f"s{i}", "2099-01-01T00:00:00Z") for i in range(1, 6)]
+            )
+            result = purge_old_sessions(
+                db, RetentionConfig(max_sessions=2, max_age_days=0)
+            )  # type: ignore[arg-type]
+            assert result.success is True
+            assert result.data is not None
+            assert result.data["count_deleted"] == 3
+            assert db.conn is not None
+            kept = {
+                row[0] for row in db.conn.execute("SELECT session_id FROM sessions")
+            }
+            assert kept == {4, 5}

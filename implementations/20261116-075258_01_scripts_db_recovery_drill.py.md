@@ -81,7 +81,7 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Drill failure handling, clock, dead code, logging (plan Phase 1) | Pending | — | — | REQ-001..REQ-004; gated: plans/done/20261115-041859_dbreview004_integrity-probe-side-effects.md phase all - sequencing only, 004 landed at commit `693f71679` |
+| 1 | Drill failure handling, clock, dead code, logging (plan Phase 1) | Pending | — | — | REQ-001..REQ-004; gated: plans/done/20261115-041859_dbreview004_integrity-probe-side-effects.md phase all - sequencing only, 004 landed at commit `693f71679` ; verified 2026-11-16 at HEAD d0500d87c: all line anchors confirmed against recovery_drill.py (338 lines; except :187, copy2 :204, started :206, :220/:222, _last_archive :248-263, print :300, main :305), rotation.py :39/:50-51/:74/:80, create_schema.py:127 - no drift |
 | 2 | Companion tests in `tests/db/test_recovery_drill.py` (plan Phase 2) | Pending | — | — | REQ-005; run `uv run pytest tests/db/test_recovery_drill.py -v`, then the regression watch list |
 | 3 | Run the validation sequence (`rules/toolchain.md`) (plan Phase 3) | Pending | — | — | |
 

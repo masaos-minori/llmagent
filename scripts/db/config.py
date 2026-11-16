@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from shared.config_loader import ConfigLoader
+from shared.config_utils import get_typed
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,8 @@ def build_db_config() -> DbConfig:
         session_db_path=cfg.get("session_db_path", ""),
         workflow_db_path=cfg.get("workflow_db_path", "/opt/llm/db/workflow.sqlite"),
         sqlite_vec_so=vec_so,
-        sqlite_timeout=int(cfg.get("sqlite_timeout", 30)),
-        sqlite_busy_timeout_ms=int(cfg.get("sqlite_busy_timeout_ms", 30000)),
+        sqlite_timeout=get_typed(cfg, "sqlite_timeout", int, "an integer", default=30),
+        sqlite_busy_timeout_ms=get_typed(
+            cfg, "sqlite_busy_timeout_ms", int, "an integer", default=30000
+        ),
     )

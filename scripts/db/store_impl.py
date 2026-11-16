@@ -175,11 +175,17 @@ class SQLiteMemoryDeleteStore:
         self._db = db
 
     def delete_memories_before(self, older_than_days: int) -> MemoryDeleteResult:
-        """Delete memories not updated for N days atomically across all memory tables."""
+        """Delete memories not updated for N days atomically across all memory tables.
+
+        ``older_than_days`` must be >= 0; 0 means the cutoff is now. A negative
+        value raises ValueError before any SQL runs.
+        """
+        if older_than_days < 0:
+            raise ValueError(f"older_than_days must be >= 0, got {older_than_days}")
         # Fast path only; the guards are re-applied by the DELETE below.
         rows = self._db.fetchall(
             "SELECT memory_id FROM memories "
-            "WHERE updated_at < datetime('now', ?) AND pinned = 0",
+            "WHERE updated_at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?) AND pinned = 0",
             (f"-{older_than_days} days",),
         )
         if not rows:
@@ -189,7 +195,7 @@ class SQLiteMemoryDeleteStore:
         with self._db.begin_immediate():
             cur = self._db.execute(
                 "DELETE FROM memories "
-                "WHERE updated_at < datetime('now', ?) AND pinned = 0 "
+                "WHERE updated_at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?) AND pinned = 0 "
                 "RETURNING memory_id",
                 (param,),
             )
@@ -207,10 +213,16 @@ class SQLiteMemoryDeleteStore:
         )
 
     def collect_prunable_ids(self, older_than_days: int) -> list[str]:
-        """Return memory_ids not updated for older_than_days days that are not pinned."""
+        """Return memory_ids not updated for older_than_days days that are not pinned.
+
+        ``older_than_days`` must be >= 0; 0 means the cutoff is now. A negative
+        value raises ValueError before any SQL runs.
+        """
+        if older_than_days < 0:
+            raise ValueError(f"older_than_days must be >= 0, got {older_than_days}")
         rows = self._db.fetchall(
             "SELECT memory_id FROM memories "
-            "WHERE updated_at < datetime('now', ?) AND pinned = 0",
+            "WHERE updated_at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?) AND pinned = 0",
             (f"-{older_than_days} days",),
         )
         return [row[0] for row in rows]
