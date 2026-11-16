@@ -11,6 +11,7 @@ Document the six new artifact-retention keys, the four-sweep `purge_archive_arti
 ## Assumptions
 - Anchors re-verified 2026-11-16. The corrupt-archive retention paragraph is `db_06:42` (the pattern to mirror); the rotation archive-dir/format text is `:40`. The cadence table lives in `maintenance.py:11-17`.
 - `ArtifactRetentionConfig` and `purge_archive_artifacts` are created by the row-01 procedure; `resolve_unique_path` by row 02 — this document references them, it does not introduce them.
+- Pre-existing drift noted during adversarial verification (out of this row's additive scope unless the checkers flag it): `db_06:38-39` still describes `rotate_all_dbs()` as covering "all four databases" including eventbus, while the landed `rotation.py` archives rag/session/workflow only and `rotate_all_dbs` defers eventbus to the EventBus service.
 
 ## Design decisions
 - Mirror the wording and key contract of `:42` (typed integers, fail-closed, `0` disables a rule, validator-known) so the six new keys read like the landed corrupt-retention keys.

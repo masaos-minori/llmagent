@@ -64,7 +64,7 @@ Route the three recovery working-file names (`corrupt_archive`, `temp_restore`, 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | Module-size gate: the three `resolve_unique_path` wraps grow `recovery.py` from 24574 B to 24700 B after `ruff format` (measured 2026-11-16), exceeding the 24576 B gate in `tools/check_module_size.py` (pre-commit + CI). Gate resolution requires a maintainer decision: (a) keep recovery.py under the gate by moving the three name constructions into `recovery_restore.py` (plan-scope change, requires amendment approval), (b) register a new baseline entry (weakens the gate), or (c) split recovery.py (new procedure, larger blast radius). | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

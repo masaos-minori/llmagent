@@ -13,7 +13,7 @@ Route the quarantined sidecar file name through `resolve_unique_path` so two sam
 - `resolve_unique_path` is created by the row-02 procedure.
 
 ## Design decisions
-- Wrap the candidate before `shutil.copy2`; the recorded `(sidecar, quarantine_path)` tuple at `:51` carries the uniquified path, so `_restore_quarantine_sidecars` on the failure path (`:52-57`) moves back the exact name that was written.
+- Wrap the candidate before `shutil.copy2`; the recorded `(sidecar, quarantine_path)` tuple at `:51` carries the uniquified path, so `_restore_quarantine_sidecars` on the failure path (`:52-63`) moves back the exact name that was written.
 
 ## Alternatives considered
 - N/A: single-line wrap; the timestamp basis here stays `int(time.time())` (unchanged by this plan).
@@ -27,7 +27,7 @@ Route the quarantined sidecar file name through `resolve_unique_path` so two sam
 2. Wrap the candidate at `:46-48`: `quarantine_path = resolve_unique_path(quarantine_dir / f"{db_path.name}{suffix}_corrupt_{ts}")`.
 
 ### Method
-- No change to `ts`, the copy/unlink/records sequence, the `mkdir` at `:45`, or the OSError rollback at `:52-57`.
+- No change to `ts`, the copy/unlink/records sequence, the `mkdir` at `:45`, or the OSError rollback at `:52-63`.
 
 ### Details
 - Only the `quarantine_path` name expression changes; `-wal`/`-shm` sidecar resolution and record ordering are untouched.

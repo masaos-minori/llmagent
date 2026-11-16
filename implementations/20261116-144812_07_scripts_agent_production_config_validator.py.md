@@ -5,11 +5,11 @@ Register the six new artifact-retention keys in `ProductionConfigValidator`'s va
 ## Scope
 **Release unit**: retention-sweeps-and-drill-lifecycle
 
-- In scope: extend the `valid_keys.update((...))` tuple in `_get_valid_production_keys`.
+- In scope: extend the `valid_keys.update({...})` set literal in `_get_valid_production_keys`.
 - Out of scope: value-range validation of these keys (the `0`/negative/bool semantics live in `ArtifactRetentionConfig`/`_non_negative_int`, row 1).
 
 ## Assumptions
-- Anchors re-verified 2026-11-16. `_get_valid_production_keys` builds `valid_keys`; the `valid_keys.update((...))` tuple at `production_config_validator.py:186-202` already lists `sqlite_corrupt_archive_max_age_days`, `sqlite_corrupt_archive_max_files`, `sqlite_retention_max_age_days`, `sqlite_retention_max_sessions`, etc. Unknown-key classification against this set is exercised via `startup_validation.py:72-93` (reference).
+- Anchors re-verified 2026-11-16. `_get_valid_production_keys` builds `valid_keys`; the `valid_keys.update({...})` set literal at `production_config_validator.py:186-201` already lists `sqlite_corrupt_archive_max_age_days`, `sqlite_corrupt_archive_max_files`, `sqlite_retention_max_age_days`, `sqlite_retention_max_sessions`, etc. Unknown-key classification against this set is exercised via `startup_validation.py:72-93` (reference).
 - The six key names are fixed in the Plan REQ-001: sqlite_archive_max_files, sqlite_archive_max_age_days, sqlite_drill_artifact_max_files, sqlite_drill_artifact_max_age_days, sqlite_quarantine_max_files, sqlite_quarantine_max_age_days.
 
 ## Design decisions
@@ -23,7 +23,7 @@ Register the six new artifact-retention keys in `ProductionConfigValidator`'s va
 `scripts/agent/production_config_validator.py`
 
 ### Procedure
-1. Add the six key names to the `valid_keys.update((...))` tuple at `:186-202`, kept alphabetically consistent with the existing `sqlite_*` entries.
+1. Add the six key names to the `valid_keys.update({...})` set literal at `:186-201`, kept alphabetically consistent with the existing `sqlite_*` entries.
 
 ### Method
 - No change to `_VALID_PRODUCTION_KEYS` caching, the file-name-derived keys, or any other branch.

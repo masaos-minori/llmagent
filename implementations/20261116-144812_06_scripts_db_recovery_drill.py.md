@@ -10,7 +10,7 @@ Make the drill's working and artifact names collision-safe and make the isolated
 
 ## Assumptions
 - Anchors re-verified 2026-11-16 against the repo's landed drill shape. `_drill_one_domain` at `recovery_drill.py:145`; `isolated = drill_dir_path / f"{recovery_point.name}_restored{live_path.suffix}"` at `:212`, `shutil.copy2` at `:215`; verification try/finally at `:217-228` (no early return between copy and persist); `_persist_artifact(drill_dir, artifact)` at `:254`, `return artifact` at `:255`. `_persist_artifact` at `:258`, JSON name `{artifact['domain']}_{format_timestamp()}.json` at `:262`. `from db.config import build_db_config, format_timestamp` at `:32`.
-- `isolated` exists only on the path where `:212` runs (the early no-recovery-point return at `:200-201` never creates it). `resolve_unique_path` is created by the row-02 procedure.
+- `isolated` exists only on the path where `:212` runs (the two early no-recovery-point returns at `:187-192` and `:193-201` never create it). `resolve_unique_path` is created by the row-02 procedure.
 
 ## Design decisions
 - Delete `isolated` after `_persist_artifact` (not before) so failure forensics (JSON + archive) always survive even when verification fails; the isolated copy is a verification working file, not a recovery point (the archive is). A crash between verification and unlink leaves an orphan `_restored` that the row-1 sweep removes under the 1-day stale rule.
@@ -30,7 +30,7 @@ Make the drill's working and artifact names collision-safe and make the isolated
 4. After `_persist_artifact(drill_dir, artifact)` at `:254` and before `return artifact` at `:255`, add `isolated.unlink(missing_ok=True)`.
 
 ### Method
-- The unlink sits after persist on the single path where `isolated` is defined, so every completed or verification-failed drill removes the working copy; the early no-recovery-point return (`:200-201`) is unaffected because no `isolated` exists there.
+- The unlink sits after persist on the single path where `isolated` is defined, so every completed or verification-failed drill removes the working copy; the early no-recovery-point returns (`:187-201`) are unaffected because no `isolated` exists there.
 
 ### Details
 - Do not change the archive creation, `_verify_*`, `_schema_drift_error`, artifact field population, or `run_drill`. Confirm `lint-imports` stays green (same-layer import).
