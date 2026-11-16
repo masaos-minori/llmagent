@@ -172,6 +172,110 @@ async def test_validation_pipeline_reports_fatal_when_config_missing() -> None:
             await instance._check_services()
 
 
+class TestOneProbePerStartup:
+    """REQ-001/REQ-002/REQ-005: one posture probe per startup, same gates to discovery.
+
+    The gates readiness classifies are the very gates tool discovery runs under.
+    These fail on the pre-change two-probe shape (see implementation doc 02).
+    """
+
+    @staticmethod
+    def _instance(mock_ctx: MagicMock) -> StartupOrchestrator:
+        instance = StartupOrchestrator.__new__(StartupOrchestrator)
+        instance._ctx = mock_ctx
+        instance._view = MagicMock()
+        instance._reporter = MagicMock()
+        instance._validation_pipeline = StartupValidationPipeline(
+            mock_ctx, instance._view
+        )
+        return instance
+
+    @pytest.mark.asyncio
+    async def test_single_probe_on_happy_path(self) -> None:
+        """REQ-005/AC-1: one check_services run probes collect_server_postures exactly once."""
+        instance = self._instance(MagicMock())
+        with (
+            patch(
+                f"{MODULE}.check_readiness",
+                new_callable=AsyncMock,
+                return_value=HealthCheckResult(),
+            ),
+            patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
+            patch(
+                f"{MODULE}.collect_server_postures",
+                new_callable=AsyncMock,
+                return_value={},
+            ) as mock_probe,
+            patch(f"{MODULE}.check_routing_drift", return_value=[]),
+            patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
+            patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
+        ):
+            mock_svc.return_value.discover_all = AsyncMock(
+                return_value=MagicMock(findings=[], unreachable=[])
+            )
+            mock_rag.return_value.consistency.return_value.is_consistent = True
+            await instance._check_services()
+            assert mock_probe.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_discovery_receives_readiness_gates(self) -> None:
+        """REQ-002/AC-2: discovery is built with the identical gate object readiness received."""
+        instance = self._instance(MagicMock())
+        fake_gates = {"web": object()}
+        captured: dict[str, object] = {}
+
+        async def record_gates(ctx, *, gates=None) -> HealthCheckResult:
+            captured["gates"] = gates
+            return HealthCheckResult()
+
+        with (
+            patch(f"{MODULE}.check_readiness", side_effect=record_gates),
+            patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
+            patch(
+                f"{MODULE}.collect_server_postures",
+                new_callable=AsyncMock,
+                return_value=fake_gates,
+            ),
+            patch(f"{MODULE}.check_routing_drift", return_value=[]),
+            patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
+            patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
+        ):
+            mock_svc.return_value.discover_all = AsyncMock(
+                return_value=MagicMock(findings=[], unreachable=[])
+            )
+            mock_rag.return_value.consistency.return_value.is_consistent = True
+            await instance._check_services()
+
+            _, discovery_kwargs = mock_svc.call_args
+            assert discovery_kwargs["posture_gates"] is captured["gates"]
+
+    @pytest.mark.asyncio
+    async def test_readiness_failure_probes_before_returning(self) -> None:
+        """REQ-001/AC-1: a readiness failure still probes once and skips discovery."""
+        instance = self._instance(MagicMock())
+        with (
+            patch(
+                f"{MODULE}.check_readiness",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("readiness check failed"),
+            ),
+            patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
+            patch(
+                f"{MODULE}.collect_server_postures",
+                new_callable=AsyncMock,
+                return_value={},
+            ) as mock_probe,
+            patch(f"{MODULE}.check_routing_drift", return_value=[]),
+            patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
+            patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
+        ):
+            mock_rag.return_value.consistency.return_value.is_consistent = True
+            with pytest.raises(RuntimeError, match="Startup validation failed"):
+                await instance._check_services()
+            assert mock_probe.await_count == 1
+            mock_svc.assert_not_called()
+
+
 def test_build_agent_config_requires_agent_toml() -> None:
     """REQ-002: build_agent_config() raises ConfigLoadError when agent.toml is missing."""
     # Arrange: patch ConfigLoader to return empty config

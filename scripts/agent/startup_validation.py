@@ -168,8 +168,12 @@ class StartupValidationPipeline:
         pipeline = StartupValidationResult()
 
         # 2. Service readiness
+        # One observation rule: probe each server's posture once here, then pass
+        # the same gates to readiness (which classifies them) and to discovery
+        # below, so discovery never applies a gate readiness did not see.
         try:
-            result = await check_readiness(ctx)
+            gates = await collect_server_postures(ctx)
+            result = await check_readiness(ctx, gates=gates)
             for msg in result.warning_messages():
                 pipeline.add_warning("readiness", msg)
             for msg in result.error_messages():
@@ -187,14 +191,12 @@ class StartupValidationPipeline:
         # ADR-004 Decision #14: a FATAL discovery finding always routes through
         # pipeline.add_fatal() unconditionally — this safety/integrity Fail-Fast
         # path is not weakened by any environment/profile distinction.
-        # The Security Posture gate is collected here rather than read from the
-        # readiness step: check_readiness() raises when a posture error exists, and
-        # this step still runs after that except, so the gate must be available on
-        # exactly that failure path.
+        # One observation rule: the gates were probed once for readiness above and
+        # are reused here unchanged. Discovery fails closed — it never falls back
+        # to an unprobed default, so an unavailable gate means no server allowed.
         try:
-            posture_gates = await collect_server_postures(ctx)
             discovery = await McpToolDiscoveryService(
-                ctx, posture_gates=posture_gates
+                ctx, posture_gates=gates
             ).discover_all()
             ctx.services_required.runtime_tools = discovery.registry
             # Wire RuntimeToolRegistry into ToolExecutor routing resolver.

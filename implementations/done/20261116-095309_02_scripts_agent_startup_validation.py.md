@@ -81,9 +81,9 @@ Make `StartupValidationPipeline.check_services` probe each MCP server's posture 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the single-probe and gate-identity tests first and confirm the single-probe test fails (companion `tests/agent/shared/test_startup_validation_pipeline.py`) | Pending | — | — | |
-| 2 | Collect the gates once in the readiness `try`, pass them to readiness and discovery, delete the second probe and replace the stale comment | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the single-probe and gate-identity tests first and confirm the single-probe test fails (companion `tests/agent/shared/test_startup_validation_pipeline.py`) | Done | 20261116 | 20261116 | `TestOneProbePerStartup` (3 cases); identity + readiness-failure tests discriminated the pre-change two-probe shape. |
+| 2 | Collect the gates once in the readiness `try`, pass them to readiness and discovery, delete the second probe and replace the stale comment | Done | 20261116 | 20261116 | Gates collected before `check_readiness(ctx, gates=gates)`; discovery reuses the same object; stale comment replaced with the one-observation rule. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261116 | 20261116 | 155 passed/2 skipped (2 pre-existing MDQ env failures on origin/master, unrelated); ruff/mypy/lint-imports/module-size/ref-table clean; diff-cover 100% on changed lines; all pre-commit hooks pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
