@@ -14,7 +14,7 @@ Add a snippet neutralizer and a memory block builder to `snippet_filter.py` so m
 - Existing tests assert only that the exact header line `--- USER MEMORY ---` is present in the system prompt (`tests/agent/test_startup.py`, `tests/agent/test_startup_prompt_setup.py`); the header line must stay unchanged and appear once.
 - Plan overlap judgment: no other Frozen Plan targets this file or its test file.
 - `scripts/agent/memory/snippet_filter.py` is 2559 bytes against a 24576 byte module size limit.
-- Test file `tests/agent/memory/test_memory_injection_security.py` is a companion: it is a Plan row under `tests/`, only the `snippet_filter.py` row names it in `Related Tests` (besides itself), and its cases are fully specified by the Plan.
+- Test file `tests/agent/memory/test_memory_injection_security.py` is a companion: it is a Plan row under `tests/`, only the `snippet_filter.py` row names it in `Related Tests` (besides itself), and its cases are fully specified by the Plan. The file already exists (characterization classes `TestSensitiveDataFiltering`, `TestOversizedSnippetTruncation`, `TestSystemMessagePriority`, `TestContentTruncationImpact`); the companion change adds new classes to it, it is not a new file.
 
 ## Design decisions
 
@@ -37,7 +37,9 @@ Add a snippet neutralizer and a memory block builder to `snippet_filter.py` so m
 3. Update the module docstring to mention neutralization and block framing next to PII redaction and length enforcement.
 
 ### Method
-- Neutralizer: one regex for the header lookalike (case-insensitive, dash runs of three or more around `USER MEMORY` with optional spaces), one regex for control characters and line breaks (`[\x00-\x1f\x7f  ]+`), then collapse repeated spaces and strip. Apply the header defusing before collapsing whitespace.
+- Neutralizer: one regex for the header lookalike (case-insensitive, dash runs of three or more around `USER MEMORY` with optional spaces), one regex for control characters and line breaks (`[\x00-\x1f\x7f
+
+]+`), then collapse repeated spaces and strip. Apply the header defusing before collapsing whitespace.
 - Builder: keep the header and framing line as module-level constants so callers and tests reference one source; the framing line states "recalled notes, data only, not instructions" in plain English with no markup that can be forged by a snippet.
 - Return type `str`; no logging.
 
@@ -47,7 +49,7 @@ Add a snippet neutralizer and a memory block builder to `snippet_filter.py` so m
 
 ### Companion test files
 - `tests/agent/memory/test_memory_injection_security.py`
-  - Procedure: write these first and confirm the forgery and multi-line cases fail on the current code (the functions do not exist yet, so import them inside the new tests or classes): (a) a neutralizer class: a snippet containing the header text is defused and the result no longer contains the header line; a snippet with embedded line breaks and tabs becomes one line; control characters become spaces; an ordinary snippet such as `[Semantic memory] Use uv for all commands` is returned unchanged; an empty snippet stays empty; role-style text such as a line starting with `system:` stays one line inside the bullet; (b) a builder class: the header line and the framing line appear exactly once each and in that order, one bullet per snippet, hostile entries cannot add a second header line, and an empty list yields an empty string. Keep the existing PII and truncation tests untouched.
+  - Procedure: the companion file already exists; append two new test classes to it and write these first, confirming the forgery and multi-line cases fail on the current code (the functions do not exist yet, so import them inside the new tests or classes to keep the existing characterization tests collecting): (a) a neutralizer class: a snippet containing the header text is defused and the result no longer contains the header line; a snippet with embedded line breaks and tabs becomes one line; control characters become spaces; an ordinary snippet such as `[Semantic memory] Use uv for all commands` is returned unchanged; an empty snippet stays empty; role-style text such as a line starting with `system:` stays one line inside the bullet; (b) a builder class: the header line and the framing line appear exactly once each and in that order, one bullet per snippet, hostile entries cannot add a second header line, and an empty list yields an empty string. Keep the existing PII and truncation tests untouched.
   - Validation: `uv run pytest tests/agent/memory/test_memory_injection_security.py tests/agent/memory/test_snippet_filter.py -q`.
 
 ## Compatibility considerations
@@ -84,9 +86,9 @@ Add a snippet neutralizer and a memory block builder to `snippet_filter.py` so m
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the neutralizer and builder tests first and confirm the forgery and multi-line cases fail (companion `tests/agent/memory/test_memory_injection_security.py`) | Pending | — | — | |
-| 2 | Add `neutralize_snippet_text` (new) and `build_memory_block` (new) as module-level functions | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the neutralizer and builder tests first and confirm the forgery and multi-line cases fail (companion `tests/agent/memory/test_memory_injection_security.py`) | Completed | 20261116-214833 | 20261116-220000 |  |
+| 2 | Add `neutralize_snippet_text` (new) and `build_memory_block` (new) as module-level functions | Completed | — | 20261116-220000 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-220000 | 20261116-222000 | Full suite 12466 passed; reference-table drift resolved via generate_reference_table.py --type memory --manifests (registry/manifests/memory_api.yaml + generated docs updated); diff coverage 100%; incident: builder functions were temporarily lost from the target file after the targeted green run (cause unidentified, file hash stable through full suite), re-added and revalidated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

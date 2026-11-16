@@ -91,6 +91,8 @@ Generated from `scripts/agent/memory/*.py` top-level public classes and function
 |  | `TruncatedSnippet` | `class TruncatedSnippet` | Result of length enforcement on a snippet. |
 |  | `filter_pii` | `def filter_pii(text) -> FilteredSnippet` | Redact PII from *text* using regex-based patterns. |
 |  | `truncate_snippet` | `def truncate_snippet(text, max_length) -> TruncatedSnippet` | Truncate *text* to *max_length* characters with an indicator suffix. |
+|  | `neutralize_snippet_text` | `def neutralize_snippet_text(text) -> str` | Return *text* as a single line that cannot forge the memory block header. |
+|  | `build_memory_block` | `def build_memory_block(snippets) -> str` | Return the memory block for *snippets*, or an empty string for none. |
 | `scripts/agent/memory/store.py` | `MemoryStore` | `class MemoryStore` | CRUD operations for memories, memories_fts, and memories_vec tables. |
 | `scripts/agent/memory/types.py` | `SourceType` | `class SourceType` | Taxonomy of memory source types. |
 |  | `EmbeddingErrorKind` | `class EmbeddingErrorKind` | Enumeration of embedding failure reasons. |

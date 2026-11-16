@@ -6,8 +6,10 @@ Prompt/memory setup: inject semantic memories into the initial system prompt.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from agent.memory.snippet_filter import build_memory_block
 from agent.output_tags import OutputTag
 
 if TYPE_CHECKING:
@@ -45,6 +47,16 @@ class PromptSetup:
             return "PROGRAMMING_ERROR"
         return "UNKNOWN"
 
+    @staticmethod
+    def _append_memory_block(
+        initial_prompt: str, memory_snippets: Sequence[Any]
+    ) -> str:
+        """Append the framed memory block to *initial_prompt*; unchanged if empty."""
+        block = build_memory_block([snippet.text for snippet in memory_snippets])
+        if block:
+            return initial_prompt + "\n\n" + block
+        return initial_prompt
+
     async def setup_prompt(self) -> None:
         """Inject semantic memories into the initial system prompt."""
         from shared.logger import Logger
@@ -71,10 +83,9 @@ class PromptSetup:
                             ctx.session.session_id,
                         )
                         memory_snippets = memory_snippets[:max_snippets]
-                    memory_block = "\n\n--- USER MEMORY ---\n" + "\n".join(
-                        f"- {snippet.text}" for snippet in memory_snippets
+                    initial_prompt = self._append_memory_block(
+                        initial_prompt, memory_snippets
                     )
-                    initial_prompt = initial_prompt + memory_block
             except Exception as exc:  # noqa: BLE001 — the catch stays so startup completes without memory; programming errors are classified separately so they are not mistaken for benign conditions
                 ctx.conv.memory_disabled = True
                 category = self._classify_memory_failure(exc)

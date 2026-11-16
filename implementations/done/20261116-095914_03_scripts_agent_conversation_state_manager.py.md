@@ -77,9 +77,9 @@ N/A: the Plan fixes the approach (one shared builder on both paths).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `handle_memory_injection` hostile-snippet test and confirm it fails on the current code (companion `tests/agent/test_memory_injection_recovery.py`) | Pending | — | — | |
-| 2 | Build the per-turn block through the builder in `handle_memory_injection` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the `handle_memory_injection` hostile-snippet test and confirm it fails on the current code (companion `tests/agent/test_memory_injection_recovery.py`) | Completed | 20261116-225000 | 20261116-225500 |  |
+| 2 | Build the per-turn block through the builder in `handle_memory_injection` | Completed | — | 20261116-225500 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-225500 | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

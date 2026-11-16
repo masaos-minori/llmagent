@@ -78,9 +78,9 @@ N/A: the Plan fixes the approach (one shared builder on both paths).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the hostile-snippet `setup_prompt` test and confirm it fails on the current code (companion `tests/agent/test_startup_prompt_setup.py`) | Pending | — | — | |
-| 2 | Build the session-start block through the builder in `setup_prompt` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the hostile-snippet `setup_prompt` test and confirm it fails on the current code (companion `tests/agent/test_startup_prompt_setup.py`) | Completed | 20261116-222500 | 20261116-223000 |  |
+| 2 | Build the session-start block through the builder in `setup_prompt` | Completed | — | 20261116-223000 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-223000 | 20261116-224500 | setup_prompt rose to radon C(11) after the builder call; appended via private staticmethod _append_memory_block to honor the radon-B constraint (setup_prompt now B(9)); empty-block fallback covered by an extra test; full suite 12469 passed, diff coverage 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

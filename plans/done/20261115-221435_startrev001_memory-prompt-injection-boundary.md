@@ -169,10 +169,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Shared helper and its tests (scripts/agent/memory/snippet_filter.py, tests/agent/memory/test_memory_injection_security.py) | In Progress | — | — |  |
-| 2 | Session-start path (scripts/agent/startup_prompt_setup.py, tests/agent/test_startup_prompt_setup.py) | In Progress | — | — |  |
-| 3 | Per-turn path (scripts/agent/conversation_state_manager.py, tests/agent/test_memory_injection_recovery.py) | In Progress | — | — |  |
-| 4 | Documentation (docs/91_security/security_01_architecture-and-trust-boundaries.md, docs/23_agent/agent_11_01_memory-overview-and-modes.md) | In Progress | — | — |  |
+| 1 | Shared helper and its tests (scripts/agent/memory/snippet_filter.py, tests/agent/memory/test_memory_injection_security.py) | Completed | — | 20261116-222000 |  |
+| 2 | Session-start path (scripts/agent/startup_prompt_setup.py, tests/agent/test_startup_prompt_setup.py) | Completed | — | 20261116-224500 |  |
+| 3 | Per-turn path (scripts/agent/conversation_state_manager.py, tests/agent/test_memory_injection_recovery.py) | Completed | — | — |  |
+| 4 | Documentation (docs/91_security/security_01_architecture-and-trust-boundaries.md, docs/23_agent/agent_11_01_memory-overview-and-modes.md) | Completed | — | — |  |
 | 5 | Deployment and verification (scripts/agent/memory/snippet_filter.py, scripts/agent/startup_prompt_setup.py, scripts/agent/conversation_state_manager.py) | Pending | — | — |  |
 
 ### Blocker Log
@@ -183,10 +183,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261116-095914_01_scripts_agent_memory_snippet_filter.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261116-095914_02_scripts_agent_startup_prompt_setup.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261116-095914_03_scripts_agent_conversation_state_manager.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261116-095914_07_docs_91_security_security_01_architecture-and-trust-boundaries.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261116-095914_01_scripts_agent_memory_snippet_filter.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261116-095914_02_scripts_agent_startup_prompt_setup.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261116-095914_03_scripts_agent_conversation_state_manager.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261116-095914_07_docs_91_security_security_01_architecture-and-trust-boundaries.md.md | 4 | Procedure | Completed | — | — |
 | implementations/20261116-095914_08_docs_23_agent_agent_11_01_memory-overview-and-modes.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability

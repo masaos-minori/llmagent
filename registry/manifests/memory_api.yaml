@@ -270,6 +270,16 @@ entries:
   name: truncate_snippet
   signature: def truncate_snippet(text, max_length) -> TruncatedSnippet
   summary: Truncate *text* to *max_length* characters with an indicator suffix.
+- file: scripts/agent/memory/snippet_filter.py
+  kind: function
+  name: neutralize_snippet_text
+  signature: def neutralize_snippet_text(text) -> str
+  summary: Return *text* as a single line that cannot forge the memory block header.
+- file: scripts/agent/memory/snippet_filter.py
+  kind: function
+  name: build_memory_block
+  signature: def build_memory_block(snippets) -> str
+  summary: Return the memory block for *snippets*, or an empty string for none.
 - file: scripts/agent/memory/store.py
   kind: class
   name: MemoryStore

@@ -68,8 +68,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the "Agent → LLM" row with the untrusted-data rule, framing and residual risk | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Update the "Agent → LLM" row with the untrusted-data rule, framing and residual risk | Completed | — | — |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 from shared.types import LLMMessage
 
+from agent.memory.snippet_filter import build_memory_block
 from agent.message_schema import validate_message
 
 logger = logging.getLogger(__name__)
@@ -127,17 +128,18 @@ class ConversationStateManager:
                     session_id=ctx.session.session_id,
                 )
                 if memory_snippets:
-                    memory_block = "--- USER MEMORY ---\n" + "\n".join(
-                        f"- {snippet.text}" for snippet in memory_snippets
+                    memory_block = build_memory_block(
+                        [snippet.text for snippet in memory_snippets]
                     )
-                    await ctx.conv.append_message(
-                        {
-                            "role": "system",
-                            "content": memory_block,
-                            "_memory_injected": True,
-                        },
-                        source="memory_injection",
-                    )
+                    if memory_block:
+                        await ctx.conv.append_message(
+                            {
+                                "role": "system",
+                                "content": memory_block,
+                                "_memory_injected": True,
+                            },
+                            source="memory_injection",
+                        )
             except Exception as e:  # noqa: BLE001 — catching all exceptions during memory injection to avoid blocking the turn
                 # Warn only on the healthy-to-degraded transition; a persistent
                 # failure retries every turn and logs at debug level.

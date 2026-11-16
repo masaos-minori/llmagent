@@ -45,6 +45,7 @@ The canonical statement of the session/memory boundary is in agent_04_01.
 - If `memory_local_only = true` is set, it forces the embedding endpoint to be a loopback address. Startup fails if `embed_url` is not local.
 - Semantic memory injection at session start requires `importance >= memory_min_importance`. Low-importance entries are not automatically injected.
 - Pinned entries are always injected at every session start (regardless of the importance threshold).
+- Injected memory snippets enter the system role as data, never as instructions: on both the session-start and per-turn paths they are neutralized to single-line text and presented under a fixed framing statement that marks them as recalled notes. The residual risk is stated in the trust-boundary document (security_01).
 
 ### Memory Modes
 
