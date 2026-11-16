@@ -181,8 +181,12 @@ class TestDispatchIdempotencyCache:
         for tool in ("index_paths", "refresh_index"):
             assert _is_side_effecting(tool)
             key = f"mdq-key-{tool}"
-            r1 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key=key)
-            r2 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key=key)
+            r1 = await dispatch_tool(
+                {tool: handler}, tool, {"p": "a"}, idempotency_key=key
+            )
+            r2 = await dispatch_tool(
+                {tool: handler}, tool, {"p": "a"}, idempotency_key=key
+            )
             assert not r1.is_error and not r2.is_error
             assert r1.output == r2.output == "indexed"
         assert len(calls) == 2  # once per tool; both keyed duplicates served
