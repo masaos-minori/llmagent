@@ -81,9 +81,9 @@ Make `HealthChecker.is_degraded_but_live` a single typed predicate that returns 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the predicate and poll-loop tests first and confirm the non-object and `"false"` cases fail (companion `tests/agent/test_http_lifecycle_health_check.py`) | Pending | — | — | |
-| 2 | Rewrite `is_degraded_but_live`, correct its docstring and remove the unused `json` import | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the predicate and poll-loop tests first and confirm the non-object and `"false"` cases fail (companion `tests/agent/test_http_lifecycle_health_check.py`) | Completed | 20261116-133655 | 20261116-133830 | Step 3a adversarial verification: all claims confirmed, no correction needed. Tests written first; 8 new cases fail on pre-change code (AttributeError on non-object bodies; truthy string liveness) |
+| 2 | Rewrite `is_degraded_but_live`, correct its docstring and remove the unused `json` import | Completed | 20261116-133900 | 20261116-133930 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-133940 | 20261116-134330 | ruff/lint-imports/mypy/bandit(no high-med)/check_module_size/generate_reference_table/check_mock_patch_targets pass; ast-grep Not available (not installed locally); targeted 636 + full 12369 tests pass; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

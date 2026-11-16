@@ -43,7 +43,7 @@ N/A: the Plan fixes the design (one predicate, delegation).
 
 ### Companion test files
 - `tests/agent/test_startup_mcp_starter.py`
-  - Procedure: add httpx-level cases with the file's `respx` and `_starter_ctx` helpers, written first and confirmed failing where they exercise non-object bodies: (a) a 503 JSON object with `liveness` true makes `verify_health` finish without retry (route call count 1); (b) a 503 non-object body (array and string) goes through the retry path and ends in the existing `[fatal]` error after two probes; (c) a 503 object with `liveness` `"false"` goes through the retry path; (d) a behavioral check that the degraded decision is the predicate's: patching `HealthChecker.is_degraded_but_live` to return true makes `verify_health` accept a response the old inline copy would reject. Patch `agent.startup_mcp_starter.RETRY_DELAY_SEC` to a small value so the retry does not sleep for the production delay.
+  - Procedure: add httpx-level cases with the file's `respx` and `_starter_ctx` helpers, written first and confirmed failing where they exercise non-object bodies: (a) a 503 JSON object with `liveness` true makes `verify_health` finish without retry (route call count 1); (b) a 503 non-object body (array and string) goes through the retry path and ends in the existing `[fatal]` error after three probes (one main probe plus the two `retry_once_with_delay` calls to `_verify_single_health`; measured 20261116-135632, correcting the earlier "two probes" wording); (c) a 503 object with `liveness` `"false"` goes through the retry path; (d) a behavioral check that the degraded decision is the predicate's: patching `HealthChecker.is_degraded_but_live` to return true makes `verify_health` accept a response the old inline copy would reject. Patch `agent.startup_mcp_starter.RETRY_DELAY_SEC` to a small value so the retry does not sleep for the production delay.
   - Validation: `uv run pytest tests/agent/test_startup_mcp_starter.py tests/agent/test_startup_mcp_lifecycle.py -q`.
 
 ## Compatibility considerations
@@ -80,9 +80,9 @@ N/A: the Plan fixes the design (one predicate, delegation).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `verify_health` httpx-level tests (companion `tests/agent/test_startup_mcp_starter.py`) | Pending | — | — | |
-| 2 | Replace the inline degraded block in `verify_health` with a call to the shared predicate | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the `verify_health` httpx-level tests (companion `tests/agent/test_startup_mcp_starter.py`) | Completed | 20261116-135721 | 20261116-135823 | 4 httpx-level tests added; 2 failed pre-change as designed (non_boolean_liveness accepted truthy string; delegate check showed call_count 2) |
+| 2 | Replace the inline degraded block in `verify_health` with a call to the shared predicate | Completed | 20261116-135839 | 20261116-135907 | inline 503 block replaced by HealthChecker.is_degraded_but_live; radon verify_health C 15->12 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-135907 | 20261116-140914 | ruff/lint-imports(6 kept)/mypy CI(567 files Success)/bandit(-ll High 0)/module-size/reference-table/mock-patch-targets all pass; targeted 58 passed; full suite 12376 passed/7 skipped; diff-cover 100%; ast-grep Not available |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
