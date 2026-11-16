@@ -281,10 +281,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Committed-state signal (`scripts/agent/turn_persistence.py`) | Pending | — | — | REQ-004 |
-| 2 | Compensation on non-`sqlite3.Error` (`scripts/agent/turn_persistence.py`, `scripts/agent/orchestrator.py`) | Pending | — | — | REQ-001, REQ-002, REQ-006 |
-| 3 | Preserve propagation and existing contract (`scripts/agent/orchestrator.py`) | Pending | — | — | REQ-002, REQ-003, REQ-005 |
-| 4 | Tests (`tests/agent/test_turn_persistence.py`, `tests/agent/test_orchestrator.py`) | Pending | — | — | REQ-001, REQ-003, REQ-005 |
+| 1 | Committed-state signal (`scripts/agent/turn_persistence.py`) | In Progress | — | — | REQ-004 |
+| 2 | Compensation on non-`sqlite3.Error` (`scripts/agent/turn_persistence.py`, `scripts/agent/orchestrator.py`) | In Progress | — | — | REQ-001, REQ-002, REQ-006 |
+| 3 | Preserve propagation and existing contract (`scripts/agent/orchestrator.py`) | In Progress | — | — | REQ-002, REQ-003, REQ-005 |
+| 4 | Tests (`tests/agent/test_turn_persistence.py`, `tests/agent/test_orchestrator.py`) | In Progress | — | — | REQ-001, REQ-003, REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -294,7 +294,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261116-093326_01_scripts_agent_turn_persistence.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261116-093326_02_scripts_agent_orchestrator.py.md` | 2, 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -314,3 +315,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Constraints | `scripts/agent/turn_persistence.py` | 1, 2 | AC 5 | `test_turn_persistence.py` | Confirmed by repository evidence |
 | REQ-005 | Acceptance Criteria | `scripts/agent/turn_persistence.py` | 2, 4 | AC 4 | regression test | Confirmed by repository evidence |
 | REQ-006 | Constraints | `scripts/agent/turn_persistence.py` | 2 | AC (worker thread) | `test_turn_persistence.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261116-093326 -->
