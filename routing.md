@@ -129,6 +129,7 @@ descriptions) are invisible from reading the changed file alone.
 | A `plans/*.md` file was added or its `Implementation Target Files` changed | `uv run python tools/check_plan_target_overlaps.py` | Hook `plan-target-overlaps`; report-only overlap candidates, never a verdict (`skills/plan-to-implementation-procedure/workflow.md` Step 2) |
 | A `tests/**/conftest*` file was changed | `uv run python tools/check_conftest_integrity.py` | Hook `conftest-integrity`; verifies the root conftest module exists and keeps its required autouse fixtures |
 | A work item under `issues/`, `plans/`, or `implementations/` was added or changed | `uv run python tools/check_workitem_traceability.py --active-only` | Hook `workitem-traceability`; archived items are excluded; about 6.5 seconds, so `run_validation_gates.py` runs it in full mode only |
+| A `scripts/**/*.py` Python file changed | `uv run ruff format --check <changed files>` && `uv run ruff check <changed files>` | Fast-mode ruff gate (lintgate001): scopes to the changed scripts files via the __CHANGED_FILES__ sentinel in tools/run_validation_gates.py; fails locally on a ruff regression before push. Mirrors the CI lint job's format+check. |
 
 Do not write a new one-off script for something this list already covers — extend the existing tool
 instead (see AGENTS.md Global Rule 7 for when a *new* script is warranted).

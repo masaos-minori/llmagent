@@ -205,8 +205,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Preparation / refactoring (confirm ruff version parity; decide scoping mechanism) | Pending | — | — |  |
-| 2 | Core logic: add the fast-mode ruff routing gate, expand changed-file scoping in the orchestrator, add the `routing.md` drift row | In Progress | — | — |  |
-| 3 | Deployment & verification: tests, `rules/toolchain.md` doc, drift + lint + type + manual gate run | In Progress | — | — |  |
+| 2 | Core logic: add the fast-mode ruff routing gate, expand changed-file scoping in the orchestrator, add the `routing.md` drift row | Completed | — | 20261116-211642 |  |
+| 3 | Deployment & verification: tests, `rules/toolchain.md` doc, drift + lint + type + manual gate run | Completed | — | 20261116-211642 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -216,11 +216,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261116-095520_01_tools__validation_gate_defs_py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261116-095520_02_tools_run_validation_gates_py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261116-095520_03_routing_md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261116-095520_04_tests_tools__test_run_validation_gates_py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261116-095520_05_rules_toolchain_md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261116-095520_01_tools__validation_gate_defs_py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261116-095520_02_tools_run_validation_gates_py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261116-095520_03_routing_md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261116-095520_04_tests_tools__test_run_validation_gates_py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261116-095520_05_rules_toolchain_md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

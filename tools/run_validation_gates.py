@@ -5,38 +5,28 @@ Given a base ref, discover the changed files (staged plus unstaged), map them to
 validation gates each change needs, run those gates in the documented order, and print
 one ``Pass``/``Fail``/``Partial``/``Not available``/``Blocked`` summary.
 
-The gates come from two sources that feed one embedded data structure:
+The gates come from two embedded sources:
 
-- ``rules/toolchain.md`` "Standard validation sequence" — a linear 9-step order used by
-  full mode (and as the canonical run). The embedded commands mirror it verbatim; they are
-  not independently editable anywhere else, so ``rules/toolchain.md`` stays the canonical
-  command list.
-- ``routing.md`` "When to run which tool" — ~29 path-keyed conditional checkers used by
-  fast mode to select only what the changed files trigger.
+- ``rules/toolchain.md`` "Standard validation sequence" — the linear order for full mode;
+  the embedded commands mirror it verbatim, so that file stays the canonical command list.
+- ``routing.md`` "When to run which tool" — path-keyed conditional checkers used by fast
+  mode to select only what the changed files trigger.
 
-Fast mode runs only the routing gates the changed files match. Full mode runs the same
-routing selection plus every toolchain gate (which adds the full ``pytest`` suite and
-``diff-cover``). Fast mode is therefore a subset of full mode.
+Fast mode runs only the matched routing gates; full mode adds every toolchain gate
+(full ``pytest`` + ``diff-cover``). Fast mode is a subset of full mode.
 
-Result classification uses the canonical vocabulary from
-``rules/ai-execution.md`` Repository Tool Usage item 11. A skipped or unavailable gate is
-reported as ``Not available`` (or its real status), never as ``Pass``.
+Result classification uses the canonical vocabulary from ``rules/ai-execution.md`` item 11;
+a skipped or unavailable gate is ``Not available``, never ``Pass``.
 
-Two sub behaviours:
+Sub commands: default runs the selected gates (``--base`` sets the git ref, default
+``master``; ``--full`` selects full mode). ``drift`` verifies every routing.md checker and
+every tool-backed pre-commit hook has a mapping (or reviewed ``COMMIT_ONLY_HOOKS``) entry,
+exiting non-zero on any drift (REQ-006, hook parity).
 
-- default (no subcommand): run the selected gates. ``--base`` selects the git ref to diff
-  against (default ``master``); ``--full`` selects full mode (default is fast mode).
-- ``drift``: verify that every checker named in ``routing.md``'s "When to run which tool"
-  table has a mapping entry, and that every tool-backed ``.pre-commit-config.yaml`` hook has
-  either a mapping entry or a reviewed ``COMMIT_ONLY_HOOKS`` allowlist entry. Exits non-zero
-  on either drift (or an unreadable or malformed config), so ``routing.md`` and the hooks
-  cannot advance ahead of this tool silently (REQ-006, hook parity).
-
-Gates whose command carries a runtime placeholder (any argv token containing ``<``, ``[``,
-``]``, or ``...``) cannot be auto-invoked without a concrete argument and are reported as
-``Not available`` at run time while still keeping their mapping entry (so the drift check
-still passes). External commands are always run as subprocesses with a list argument (no
-shell) so this tool cannot silently disagree with the real checkers.
+Commands with a runtime placeholder (an argv token with ``<``, ``[``, ``]``, or ``...``)
+are ``Not available`` at run time yet keep their mapping entry so drift still passes. All
+external commands run as subprocess lists (no shell) so this tool cannot disagree with the
+real checkers.
 """
 
 from __future__ import annotations
@@ -83,9 +73,8 @@ _PRECOMMIT_CONFIG = ".pre-commit-config.yaml"
 # A `python -m tools.<name>` module token; rewritten to `tools/<name>.py` for id derivation.
 _TOOL_MODULE_RE = re.compile(r"^tools\.([A-Za-z0-9_]+)$")
 
-# Tool-backed pre-commit hooks that intentionally have no gate mapping: (hook id, reason).
-# Reviewed text, not a silent default: the drift check rejects a blank reason and an entry
-# whose hook id is absent from the config, so this list cannot go stale unnoticed.
+# Tool-backed pre-commit hooks with no gate mapping: (hook id, reason). Drift rejects a
+# blank reason or a hook id absent from the config, so this cannot go stale unnoticed.
 COMMIT_ONLY_HOOKS: tuple[tuple[str, str], ...] = (
     (
         "check-compat-shims",
@@ -96,9 +85,12 @@ COMMIT_ONLY_HOOKS: tuple[tuple[str, str], ...] = (
 # The orchestrator has its own row in that table, but it cannot be a gate of itself, so
 # the drift check ignores that row.
 _SELF_CHECKER_ID = Path(__file__).stem
-# A git ref we will hand to `git diff`: alphanumerics plus . _ / -. Anything else is
-# rejected before it reaches the subprocess so it cannot be read as a git option.
+# A git ref handed to `git diff`: reject anything but alphanumerics, . _ / - so it cannot
+# be read as a git option.
 _REF_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
+# Non-placeholder token the ruff routing gate uses for the changed-file list; free of <,
+# [, ], ... so the gate stays auto-runnable (this tool substitutes the real paths).
+CHANGED_FILES_SENTINEL = "__CHANGED_FILES__"
 
 
 @dataclass(frozen=True)
@@ -200,12 +192,31 @@ def _merge_env(env: tuple[tuple[str, str], ...]) -> dict[str, str] | None:
     return new_env
 
 
+def _expand_changed_files(
+    command: tuple[str, ...], matched: list[str]
+) -> tuple[str, ...]:
+    """Replace the __CHANGED_FILES__ token in ``command`` with ``matched`` changed files.
+
+    Returns ``command`` unchanged when it carries no sentinel, so gates without the token
+    are unaffected. The token expands to every matched changed file, keeping ruff scoped
+    to the changed ``scripts/`` Python files.
+    """
+    if CHANGED_FILES_SENTINEL not in command:
+        return command
+    out: list[str] = []
+    for tok in command:
+        if tok == CHANGED_FILES_SENTINEL:
+            out.extend(matched)
+        else:
+            out.append(tok)
+    return tuple(out)
+
+
 def select_gates(changed: Iterable[str], mode: str) -> list[Gate]:
     """Return the gates to run for ``changed`` paths in ``mode``, in documented order.
 
-    Fast mode selects the routing gates whose patterns match a changed path. Full mode adds
-    every toolchain gate on top of that selection. Routing gates with no patterns (manual
-    or content-based checkers) are never auto-selected.
+    Fast mode selects the routing gates whose patterns match a changed path; full mode adds
+    every toolchain gate on top. Routing gates with no patterns are never auto-selected.
     """
     changed_list = list(changed)
     selected: list[Gate] = []
@@ -261,7 +272,9 @@ def _resolve_argv(cmd: tuple[str, ...]) -> list[str]:
     return list(cmd)
 
 
-def run_gate(gate: Gate, *, runner: Runner | None = None) -> GateResult:
+def run_gate(
+    gate: Gate, *, runner: Runner | None = None, changed_files: list[str] | None = None
+) -> GateResult:
     """Run one gate and classify its result.
 
     Runs each of the gate's commands in order, stopping at the first non-zero exit (a
@@ -278,7 +291,15 @@ def run_gate(gate: Gate, *, runner: Runner | None = None) -> GateResult:
         )
     env = _merge_env(gate.env)
     try:
-        for cmd in gate.command:
+        commands = gate.command
+        if changed_files is not None and any(
+            CHANGED_FILES_SENTINEL in cmd for cmd in gate.command
+        ):
+            matched = [p for p in changed_files if _matches([p], gate.patterns)]
+            commands = tuple(
+                _expand_changed_files(cmd, matched) for cmd in gate.command
+            )
+        for cmd in commands:
             proc = effective_runner(_resolve_argv(cmd), env)
             if proc.returncode != 0:
                 return GateResult(
@@ -305,7 +326,11 @@ def run_gate(gate: Gate, *, runner: Runner | None = None) -> GateResult:
 
 
 def run_gates(
-    gates: Sequence[Gate], *, jobs: int | None = None, runner: Runner | None = None
+    gates: Sequence[Gate],
+    *,
+    jobs: int | None = None,
+    runner: Runner | None = None,
+    changed_files: list[str] | None = None,
 ) -> list[GateResult]:
     """Run ``gates`` and return their results in the order given.
 
@@ -320,15 +345,24 @@ def run_gates(
     def flush() -> None:
         if workers > 1 and len(batch) > 1:
             with ThreadPoolExecutor(max_workers=min(workers, len(batch))) as pool:
-                results.extend(pool.map(lambda g: run_gate(g, runner=runner), batch))
+                results.extend(
+                    pool.map(
+                        lambda g: run_gate(
+                            g, runner=runner, changed_files=changed_files
+                        ),
+                        batch,
+                    )
+                )
         else:
-            results.extend(run_gate(g, runner=runner) for g in batch)
+            results.extend(
+                run_gate(g, runner=runner, changed_files=changed_files) for g in batch
+            )
         batch.clear()
 
     for gate in gates:
         if gate.exclusive:
             flush()
-            results.append(run_gate(gate, runner=runner))
+            results.append(run_gate(gate, runner=runner, changed_files=changed_files))
         else:
             batch.append(gate)
     flush()
@@ -344,11 +378,10 @@ def _checker_id_from_cell(run_cell: str) -> str:
 def _split_md_row(row: str) -> list[str]:
     """Split a markdown table row into cells.
 
-    Splits on ``|`` only when it sits outside a backtick-quoted code span and is not escaped
-    (``\\|``). Escaped pipes collapse to a literal ``|`` so downstream id derivation sees the
-    real argument value (e.g. ``--format json|csv``). This is required because the "Trigger"
-    column also contains code spans and escaped pipes, so a naive ``str.split("|")`` fragments
-    those cells and truncates the "Run" cell.
+    Splits on ``|`` only outside a backtick code span and when not escaped (``\\|``), which
+    collapses escaped pipes to a literal ``|`` so id derivation sees the real argument
+    (e.g. ``--format json|csv``). A naive ``str.split("|")`` would fragment the "Trigger"
+    column's code spans and truncate the "Run" cell.
     """
     cells: list[str] = []
     buf: list[str] = []
@@ -413,10 +446,9 @@ def _parse_routing_run_cells(text: str) -> list[str]:
 def _hook_checker_id(entry: str) -> tuple[str | None, str | None]:
     """Derive ``(checker_id, error)`` from a pre-commit hook ``entry`` string.
 
-    ``python -m tools.<name>`` tokens are rewritten to ``tools/<name>.py`` so the id uses the
-    same rule as ``Gate.checker_id``. Returns ``(None, None)`` when the entry is not
-    tool-backed (``bash -c ...``, ``uv run mypy ...``) and ``(None, message)`` when a token
-    looks like a tool reference but matches neither form.
+    ``python -m tools.<name>`` tokens are rewritten to ``tools/<name>.py`` so the id uses
+    the same rule as ``Gate.checker_id``. Returns ``(None, None)`` when the entry is not
+    tool-backed and ``(None, message)`` when a token looks tool-backed but matches neither.
     """
     tokens: list[str] = []
     for tok in entry.split():
@@ -474,9 +506,8 @@ def drift_report(
 
     Returns ``(error_count, messages)``. Every routing.md checker must have a mapping entry
     and every mapping entry must come from routing.md; either drift is an error. The row
-    that names this orchestrator itself is not a checker and is excluded. When
-    ``precommit_text`` is given, every tool-backed hook must also have a mapping entry or a
-    ``COMMIT_ONLY_HOOKS`` entry, and each allowlist entry needs a reason and a live hook.
+    naming this orchestrator itself is excluded. With ``precommit_text``, every tool-backed
+    hook needs a mapping or ``COMMIT_ONLY_HOOKS`` entry, each with a reason and a live hook.
     """
     expected = {
         _checker_id_from_cell(cell) for cell in _parse_routing_run_cells(routing_text)
@@ -538,7 +569,7 @@ def _print_summary(results: list[GateResult], changed: list[str], mode: str) -> 
 def _run_gates(base: str, mode: str, jobs: int | None = None) -> int:
     changed = _changed_files(base)
     gates = select_gates(changed, mode)
-    results = run_gates(gates, jobs=jobs)
+    results = run_gates(gates, jobs=jobs, changed_files=changed)
     _print_summary(results, changed, mode)
     return 1 if any(res.status == "Fail" for res in results) else 0
 

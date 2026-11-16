@@ -728,3 +728,55 @@ def test_full_mode_runs_the_test_suite_once_and_diff_cover_reuses_its_coverage()
     assert {"-n", "logical", "--cov=scripts"} <= set(suite)
     assert all("pytest" not in command for command in coverage_commands)
     assert [command[2] for command in coverage_commands] == ["coverage", "diff-cover"]
+
+
+def _ruff_gate():
+    return next(g for g in ROUTING_GATES if g.name == "ruff_format_check_changed")
+
+
+def test_ruff_gate_passes_on_clean_changed_file() -> None:
+    """A clean changed scripts/ file yields Pass (AC-002)."""
+    gate = _ruff_gate()
+    assert gate.mode == MODE_FAST
+    result = run_gate(gate, runner=_runner_for(0), changed_files=["scripts/clean.py"])
+    assert result.status == "Pass"
+
+
+def test_ruff_gate_fails_on_i001_changed_file() -> None:
+    """A non-zero ruff exit on a changed scripts/ file yields Fail naming the file (AC-001)."""
+    gate = _ruff_gate()
+    result = run_gate(gate, runner=_runner_for(1), changed_files=["scripts/bad.py"])
+    assert result.status == "Fail"
+    assert "bad.py" in result.detail or "exit code 1" in result.detail
+
+
+def test_ruff_gate_scopes_argv_to_changed_paths() -> None:
+    """The ruff argv carries the changed scripts/ paths, not a bare scripts/ directory."""
+    gate = _ruff_gate()
+    captured: dict[str, list[str]] = {}
+
+    def _capture(argv: list[str], env: dict[str, str] | None):
+        captured["argv"] = argv
+        return subprocess.CompletedProcess(args=argv, returncode=0)
+
+    result = run_gate(
+        gate,
+        runner=_capture,
+        changed_files=["scripts/a.py", "scripts/sub/b.py"],
+    )
+    assert result.status == "Pass"
+    argv = captured["argv"]
+    assert "scripts/a.py" in argv
+    assert "scripts/sub/b.py" in argv
+    # Not a bare directory argument.
+    assert "scripts/" not in argv
+    # Runs via the pinned uv ruff, format then check.
+    assert argv[0:3] == ["uv", "run", "ruff"]
+
+
+def test_drift_still_passes_after_ruff_gate_added() -> None:
+    """After the routing.md row is added, every checker is still mapped (AC-005)."""
+    text = ROUTING_MD.read_text(encoding="utf-8")
+    count, errors = drift_report(text)
+    assert count == 0, errors
+    assert any(g.checker_id == "uv" for g in ROUTING_GATES)

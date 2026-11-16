@@ -777,4 +777,14 @@ ROUTING_GATES: tuple[Gate, ...] = (
             "implementations/**/*.md",
         ),
     ),
+    Gate(
+        name="ruff_format_check_changed",
+        command=(
+            ("uv", "run", "ruff", "format", "--check", "__CHANGED_FILES__"),
+            ("uv", "run", "ruff", "check", "__CHANGED_FILES__"),
+        ),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("scripts/*.py", "scripts/**/*.py"),
+    ),
 )

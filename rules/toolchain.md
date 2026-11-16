@@ -39,6 +39,21 @@ uv run ruff check scripts/ --fix
 uv run ruff check scripts/       # confirm clean
 ```
 
+The fast-mode local gate (added by lintgate001) runs the same two checks on the changed
+`scripts/` Python files only, before a commit:
+
+```bash
+uv run ruff format --check <changed scripts/>
+uv run ruff check <changed scripts/>
+```
+
+It is selected automatically by `uv run python tools/run_validation_gates.py` when a
+`scripts/` Python file is in the diff (fast mode, the default `git-commit-and-sync`
+Phase 4 path). The `<changed scripts/>` position is filled with the changed files by
+`tools/run_validation_gates.py` (the `__CHANGED_FILES__` sentinel); the gate never scans
+the whole repository. A finding fails locally before push, mirroring the required CI
+`lint` job (`ruff format --check scripts/` + `ruff check scripts/`).
+
 ### 2. Type check
 
 ```bash

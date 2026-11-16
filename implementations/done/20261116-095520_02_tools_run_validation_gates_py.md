@@ -181,10 +181,10 @@ runtime data shape.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Expand the ruff gate's changed-file sentinel in `run_gate`/`_run_gates` (`tools/run_validation_gates.py`) | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Expand the ruff gate's changed-file sentinel in `run_gate`/`_run_gates` (`tools/run_validation_gates.py`) | Completed | 20261116-211620 | 20261116-211620 | Implemented by threading changed_files through run_gates (preserves --jobs parallelism) rather than the sequential form; _run_gates keeps its jobs param. |
+| 2 | Add or update tests per Validation plan | Completed | 20261116-211620 | 20261116-211620 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116-211620 | 20261116-211620 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261116-211620 | 20261116-211620 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
