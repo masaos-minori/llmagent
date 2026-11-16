@@ -76,6 +76,11 @@ rsync -av --delete \
   --exclude="*.pyo" \
   "${REPO_ROOT}/scripts/" "${DEPLOY_SCRIPTS}/"
 
+# ── レジトリ (機械可読レジトリ; バイナリは LLMAGENT_REGISTRY_DIR で参照) ─────
+echo "--- registry/ → /opt/llm/registry/ ---"
+mkdir -p /opt/llm/registry
+rsync -av --delete "${REPO_ROOT}/registry/" "/opt/llm/registry/"
+
 # ── バイナリ + 辞書配置 (NUITKA onefile) ──────────────────────────────────────
 echo "--- binaries + dict → /opt/llm/ ---"
 DEPLOY_BIN="/opt/llm/bin"

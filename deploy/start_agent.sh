@@ -231,6 +231,7 @@ fi
 # 添えて fail-fast する (AC-01, AC-05)。
 export LLMAGENT_CONFIG_DIR="${DEPLOY_CONFIG}"
 export LLMAGENT_SUDACHI_DICT="/opt/llm/dict/system.dic"
+export LLMAGENT_REGISTRY_DIR="/opt/llm/registry"
 
 # ── AgentREPL 起動 ────────────────────────────────────────────────────────────
 echo ""

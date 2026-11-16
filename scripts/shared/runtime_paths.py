@@ -2,14 +2,15 @@
 """scripts/shared/runtime_paths.py
 
 Standard-library-only resolvers for the shared package that locate (a) the agent
-config directory and (b) the Sudachi dictionary path so both resolve correctly
-inside a Nuitka ``--onefile`` binary while remaining backward compatible with
-``uv run``.
+config directory, (b) the Sudachi dictionary path, and (c) the registry directory
+so all three resolve correctly inside a Nuitka ``--onefile`` binary while remaining
+backward compatible with ``uv run``.
 
-Implements (config-dir resolver) and (Sudachi-dict resolver).
-Callers import both symbols::
+Implements (config-dir resolver), (Sudachi-dict resolver), and (registry-dir
+resolver).
+Callers import the symbols they need::
 
-    from shared.runtime_paths import resolve_config_dir, resolve_sudachi_dict_path
+    from shared.runtime_paths import resolve_config_dir, resolve_registry_dir
 """
 
 from __future__ import annotations
@@ -28,6 +29,12 @@ _COMPILED_CONFIG_ROOT = Path(sys.argv[0]).resolve().parent.parent / "config"
 _COMPILED_SUDACHI_DICT = "/opt/llm/dict/system.dic"
 # Legacy repository-root ``config/`` used outside a compiled binary.
 _REPO_ROOT_CONFIG = Path(__file__).resolve().parent.parent.parent / "config"
+# Registry directory deployed beside the install root (a compiled binary's
+# ``__file__`` lives under a randomized /tmp onefile payload, so it cannot
+# locate the repository-relative ``registry/`` on its own).
+_COMPILED_REGISTRY_ROOT = Path(sys.argv[0]).resolve().parent.parent / "registry"
+# Legacy repository-root ``registry/`` used outside a compiled binary.
+_REPO_ROOT_REGISTRY = Path(__file__).resolve().parent.parent.parent / "registry"
 
 
 def _assert_env_path(env_value: str, *, must_be_dir: bool) -> Path:
@@ -65,6 +72,25 @@ def resolve_config_dir(config_dir: str | Path | None = None) -> Path:
     if "__compiled__" in globals():
         return Path(_COMPILED_CONFIG_ROOT)
     return Path(_REPO_ROOT_CONFIG)
+
+
+def resolve_registry_dir(registry_dir: str | Path | None = None) -> Path:
+    """Resolve the directory holding the machine-readable registries.
+
+    Precedence: explicit ``registry_dir`` argument > ``LLMAGENT_REGISTRY_DIR``
+    (must exist) > compiled-adjacent ``registry/`` (only when ``__compiled__``
+    is present) > legacy repository-root ``registry/``.
+
+    Raises:
+        FileNotFoundError: If ``LLMAGENT_REGISTRY_DIR`` is set to a missing path.
+    """
+    if registry_dir is not None:
+        return Path(registry_dir)
+    if env := os.environ.get("LLMAGENT_REGISTRY_DIR"):
+        return _assert_env_path(env, must_be_dir=True)
+    if "__compiled__" in globals():
+        return Path(_COMPILED_REGISTRY_ROOT)
+    return Path(_REPO_ROOT_REGISTRY)
 
 
 def resolve_sudachi_dict_path(

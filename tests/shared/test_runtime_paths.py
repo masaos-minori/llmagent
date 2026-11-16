@@ -1,9 +1,10 @@
 """Tests for scripts/shared/runtime_paths.py resolvers.
 
-Covers the config-dir resolver (REQ-001) and the Sudachi-dict resolver
-(REQ-003): explicit override wins, env-set paths must exist (fail-fast with a
-message naming the path), the uncompiled repository-root fallback, the
-compiled-adjacent branch, and the Sudachi ``"core"`` literal vs compiled default.
+Covers the config-dir resolver (REQ-001), the Sudachi-dict resolver
+(REQ-003), and the registry-dir resolver: explicit override wins, env-set paths
+must exist (fail-fast with a message naming the path), the uncompiled
+repository-root fallback, the compiled-adjacent branch, and the Sudachi
+``"core"`` literal vs compiled default.
 """
 
 import sys
@@ -11,7 +12,11 @@ from pathlib import Path
 
 import pytest
 import shared.runtime_paths as rp
-from shared.runtime_paths import resolve_config_dir, resolve_sudachi_dict_path
+from shared.runtime_paths import (
+    resolve_config_dir,
+    resolve_registry_dir,
+    resolve_sudachi_dict_path,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -19,6 +24,7 @@ def _isolate_resolver_state(monkeypatch) -> None:
     """Each test starts with no ``__compiled__`` marker and no resolver env var."""
     rp.__dict__.pop("__compiled__", None)
     monkeypatch.delenv("LLMAGENT_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("LLMAGENT_REGISTRY_DIR", raising=False)
     monkeypatch.delenv("LLMAGENT_SUDACHI_DICT", raising=False)
     yield
     rp.__dict__.pop("__compiled__", None)
@@ -65,6 +71,46 @@ class TestResolveConfigDir:
         result = resolve_config_dir()
         assert result == rp._COMPILED_CONFIG_ROOT
         assert result.name == "config"
+
+
+class TestResolveRegistryDir:
+    def test_explicit_arg_wins(self) -> None:
+        target = Path("/tmp/any-registry")
+        assert resolve_registry_dir(target) == target
+
+    def test_env_existing_dir_is_used(self, monkeypatch, tmp_path) -> None:
+        monkeypatch.setenv("LLMAGENT_REGISTRY_DIR", str(tmp_path))
+        result = resolve_registry_dir()
+        assert result == tmp_path
+        assert isinstance(result, Path)
+
+    def test_env_missing_dir_raises_naming_path(self, monkeypatch, tmp_path) -> None:
+        missing = tmp_path / "does-not-exist"
+        monkeypatch.setenv("LLMAGENT_REGISTRY_DIR", str(missing))
+        with pytest.raises(FileNotFoundError) as exc_info:
+            resolve_registry_dir()
+        assert str(missing) in str(exc_info.value)
+
+    def test_uncompiled_falls_back_to_repo_root(self) -> None:
+        result = resolve_registry_dir()
+        assert result == rp._REPO_ROOT_REGISTRY
+
+    def test_compiled_uses_adjacent_registry_root(self, monkeypatch, tmp_path) -> None:
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        bin_path = bin_dir / "agent"
+        monkeypatch.setattr(sys, "argv", [str(bin_path)])
+        # _COMPILED_REGISTRY_ROOT is computed at import from sys.argv[0]; point it
+        # at the synthetic install root so the compiled-adjacent branch resolves to it.
+        monkeypatch.setattr(
+            rp,
+            "_COMPILED_REGISTRY_ROOT",
+            Path(str(bin_path)).resolve().parent.parent / "registry",
+        )
+        rp.__dict__["__compiled__"] = True
+        result = resolve_registry_dir()
+        assert result == rp._COMPILED_REGISTRY_ROOT
+        assert result.name == "registry"
 
 
 class TestResolveSudachiDictPath:

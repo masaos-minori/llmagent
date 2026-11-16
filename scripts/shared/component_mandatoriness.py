@@ -8,9 +8,12 @@ required/non-required classification lives in one machine-readable registry that
 criteria themselves remain solely in ADR-004; this module only reads the derived
 table.
 
-Data source is ``registry/component_mandatoriness.yaml``; consumers import this
-module as ``shared.component_mandatoriness``. Imports stdlib and PyYAML only, so
-``shared`` stays a leaf module (import-linter ``shared-is-leaf`` contract).
+Data source is ``registry/component_mandatoriness.yaml``, resolved through
+``shared.runtime_paths.resolve_registry_dir`` (``LLMAGENT_REGISTRY_DIR`` env
+override first, so a compiled binary reads the deployed ``/opt/llm/registry``);
+consumers import this module as ``shared.component_mandatoriness``. Imports
+stdlib, PyYAML, and the shared resolver only, so ``shared`` stays a leaf module
+(import-linter ``shared-is-leaf`` contract).
 """
 
 from __future__ import annotations
@@ -22,11 +25,21 @@ from types import MappingProxyType
 
 import yaml
 
-# Repo root is two levels above ``scripts/shared``: ``scripts/shared`` ->
-# ``scripts`` -> repository root. Resolving against ``__file__`` keeps the path
-# correct regardless of the caller's working directory (cf. shared.runtime_paths).
-_REGISTRY_ROOT = Path(__file__).resolve().parent.parent.parent
-DEFAULT_REGISTRY_PATH = _REGISTRY_ROOT / "registry" / "component_mandatoriness.yaml"
+from shared.runtime_paths import resolve_registry_dir
+
+# Registry file name inside the resolved registry directory.
+_REGISTRY_FILE_NAME = "component_mandatoriness.yaml"
+
+
+def default_registry_path() -> Path:
+    """Return the registry file path for the resolved registry directory.
+
+    Resolved per call so an ``LLMAGENT_REGISTRY_DIR`` change takes effect
+    without re-importing (a compiled binary cannot locate the repository
+    directory through ``__file__``).
+    """
+    return resolve_registry_dir() / _REGISTRY_FILE_NAME
+
 
 # Field vocabulary mirrors registry/component_mandatoriness.yaml entry keys.
 _ENTRY_FIELDS = (
@@ -144,7 +157,7 @@ def load_component_mandatoriness(
     Returns:
         A read-only (frozen) mapping keyed by ``component_id``.
     """
-    target = Path(path) if path is not None else DEFAULT_REGISTRY_PATH
+    target = Path(path) if path is not None else default_registry_path()
     try:
         raw = yaml.safe_load(target.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -199,7 +212,7 @@ def get_classification(
     if classification is None:
         raise UnknownComponentError(
             f"Component {component_id!r} not found in component-mandatoriness "
-            f"registry at {DEFAULT_REGISTRY_PATH}; classified servers: "
+            f"registry at {default_registry_path()}; classified servers: "
             f"{sorted(registry)}"
         )
     return classification
@@ -227,6 +240,6 @@ def check_required_agreement(
     if approved.classification == "required" and not config_required:
         raise ClassificationConflictError(
             f"Component {component_id!r} is classified {approved.classification} in "
-            f"{DEFAULT_REGISTRY_PATH} but config sets required={config_required}; "
+            f"{default_registry_path()} but config sets required={config_required}; "
             "revert the config or reclassify via agent_08_04 (ADR-004 item 13)"
         )

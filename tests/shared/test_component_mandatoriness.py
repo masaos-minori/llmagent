@@ -18,6 +18,7 @@ from shared.component_mandatoriness import (
     ComponentMandatorinessError,
     UnknownComponentError,
     check_required_agreement,
+    default_registry_path,
     get_classification,
     load_component_mandatoriness,
 )
@@ -209,3 +210,32 @@ def test_check_required_agreement_unknown_component_raises() -> None:
 
     with pytest.raises(UnknownComponentError, match="ghost_server"):
         check_required_agreement(registry, "ghost_server", config_required=True)
+
+
+def test_env_registry_dir_override_resolves_default_file(tmp_path, monkeypatch) -> None:
+    """A deployed registry directory is used instead of the repo-relative path."""
+
+    monkeypatch.setenv("LLMAGENT_REGISTRY_DIR", str(tmp_path))
+    (tmp_path / "component_mandatoriness.yaml").write_text(
+        yaml.safe_dump({"version": 1, "entries": [_valid_entry("shell")]}),
+        encoding="utf-8",
+    )
+
+    registry = load_component_mandatoriness()
+
+    assert set(registry) == {"shell"}
+
+
+def test_default_registry_path_names_file_in_resolved_dir(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setenv("LLMAGENT_REGISTRY_DIR", str(tmp_path))
+
+    assert default_registry_path() == tmp_path / "component_mandatoriness.yaml"
+
+
+def test_env_registry_dir_missing_fails_fast(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("LLMAGENT_REGISTRY_DIR", str(tmp_path / "absent"))
+
+    with pytest.raises(FileNotFoundError, match="absent"):
+        load_component_mandatoriness()
