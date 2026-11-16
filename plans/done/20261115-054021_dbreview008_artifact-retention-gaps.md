@@ -209,10 +209,10 @@ Add one maintenance entry point that applies age-then-count retention to every a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Naming uniqueness (config.py + four call sites) | In Progress | — | — |  |
-| 2 | Retention config and sweeps (maintenance.py, validator, agent.toml, drill copy deletion) | In Progress | — | — |  |
-| 3 | Tests (test_db_maintenance.py, test_recovery_drill.py) | In Progress | — | — |  |
-| 4 | Docs, reference tables, validation | In Progress | — | — |  |
+| 1 | Naming uniqueness (config.py + four call sites) | Completed | 20261116-174000 | 20261116-195856 | procedures seq 02/03/05/04 landed; `resolve_unique_path` in config.py; rotation, recovery_restore sidecar candidate, recovery restore paths wrapped; test_db_recovery.py mocks adjusted (7 sites, identity-side_effect patch) |
+| 2 | Retention config and sweeps (maintenance.py, validator, agent.toml, drill copy deletion) | Completed | 20261116-184440 | 20261116-195856 | procedures seq 01/06/07/08 landed; deviation: sweeps split into new `scripts/db/artifact_retention.py` (module-size gate) re-exported via `db/__init__.py`; drill end-of-run deletion extended to the `_restored` copy's `-wal`/`-shm` sidecars; validator + agent.toml keys added (07 before 08) |
+| 3 | Tests (test_db_maintenance.py, test_recovery_drill.py) | Completed | 20261116-195234 | 20261116-195856 | procedure seq 09: config-boundary, resolve_unique_path, four-sweep matrix, rotation same-second collision tests; drill companion tests in seq 06; full suite 12428 passed; diff-cover 97% >= 90 on the batch diff |
+| 4 | Docs, reference tables, validation | Completed | 20261116-195515 | 20261116-195856 | procedures seq 11/12: db_06 retention paragraph, db_07 drill lifecycle + collision + retention-window edits; check_docs_consistency --domain db and generate_reference_table.py --check clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -223,17 +223,17 @@ Add one maintenance entry point that applies age-then-count retention to every a
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | WI-008-1 | 4 | Operator decision (recorded at plan time) | Completed | maintainer | — | Decided 20261116-155505: add the six keys to the production `/opt/llm/config/agent.toml` at deploy time (keys must first land via procedures seq 02 and seq 08, since no loader reads them before seq 02 runs and `deploy.sh` re-copies `config/agent.toml` each deploy); do NOT schedule `purge_archive_artifacts()` weekly at this stage — no caller wired. UNK-01 measured on the production host 20261116: no user crontab; system cron carries only standard run-parts jobs (logrotate, man-db, mlocate, tmpfiles) and nothing touches `/opt/llm` archive files. |
-| implementations/20261116-144812_01_scripts_db_maintenance.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261116-144812_02_scripts_db_config.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261116-144812_03_scripts_db_rotation.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261116-144812_04_scripts_db_recovery.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261116-144812_05_scripts_db_recovery_restore.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261116-144812_06_scripts_db_recovery_drill.py.md | 1, 2, 3 | Procedure | Pending | — | — |
-| implementations/20261116-144812_07_scripts_agent_production_config_validator.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261116-144812_08_config_agent.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261116-144812_09_tests_db_test_db_maintenance.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261116-144812_11_docs_41_db_db_06_api_and_operations-maintenance-and-rotation.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261116-144812_12_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261116-144812_01_scripts_db_maintenance.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261116-144812_02_scripts_db_config.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261116-144812_03_scripts_db_rotation.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261116-144812_04_scripts_db_recovery.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261116-144812_05_scripts_db_recovery_restore.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261116-144812_06_scripts_db_recovery_drill.py.md | 1, 2, 3 | Procedure | Completed | — | — |
+| implementations/20261116-144812_07_scripts_agent_production_config_validator.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261116-144812_08_config_agent.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261116-144812_09_tests_db_test_db_maintenance.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261116-144812_11_docs_41_db_db_06_api_and_operations-maintenance-and-rotation.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261116-144812_12_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
