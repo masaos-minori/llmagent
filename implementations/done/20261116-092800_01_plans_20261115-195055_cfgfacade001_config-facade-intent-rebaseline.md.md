@@ -111,10 +111,10 @@ N/A: revert the Plan edit (single commit); no deployed artifact affected.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-16 | 2026-11-16 | Evidence-cited classification verified against current tree; no correction needed |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-16 | 2026-11-16 | N/A: Path A, no code changes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-16 | 2026-11-16 | Structure check + evidence review passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-16 | 2026-11-16 | N/A: no doc change in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
