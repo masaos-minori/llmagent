@@ -16,6 +16,7 @@ Resolves: DESIGN-3 missing tests (a per-area known-issues document since consoli
 from __future__ import annotations
 
 import sqlite3
+import threading
 from collections.abc import Generator
 from unittest.mock import patch
 
@@ -496,3 +497,45 @@ def test_rebuild_vec_removes_orphaned_chunks_vec_rows(db: _FakeSQLiteHelper) -> 
         db.fetchall("SELECT chunk_id FROM chunks WHERE embedding IS NOT NULL")
     )
     assert count == expected_count
+
+
+# ── stop-event wiring: consistency forwards the event to interrupt_when ─────────
+
+
+def test_consistency_forwards_stop_event_to_interrupt_when() -> None:
+    """consistency(stop=...) installs a real progress handler on the connection.
+
+    Exercises the production body of ``RagMaintenanceService.consistency`` and
+    ``SQLiteHelper.interrupt_when`` against a real in-memory connection: the
+    handler is proven present by a functional abort once the event is set, not by
+    asserting on a stub. ``check_rag_consistency`` runs on an empty connection,
+    which yields a valid (inconsistent) report without touching production state.
+    """
+    from db.helper import SQLiteHelper
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    helper = SQLiteHelper("rag")
+    helper.conn = conn  # bypass open(): wire a real in-memory connection
+
+    stop = threading.Event()
+
+    with patch(
+        "agent.services.rag_maintenance_service.SQLiteHelper"
+    ) as mock_helper_cls:
+        mock_helper_cls.return_value.open.return_value.__enter__.return_value = helper
+        mock_helper_cls.return_value.open.return_value.__exit__ = lambda *_: None
+        result = RagMaintenanceService().consistency(stop=stop)
+
+    # Empty DB is inconsistent; the real check ran end-to-end.
+    assert result.is_consistent is False
+    # Prove the real progress handler was installed through consistency(): a
+    # running statement aborts once the stop event is set.
+    stop.set()
+    abort_cte = (
+        "WITH RECURSIVE c(x) AS (VALUES(1) "
+        "UNION ALL SELECT x + 1 FROM c WHERE x < 100000) "
+        "SELECT sum(x) FROM c"
+    )
+    with pytest.raises(sqlite3.OperationalError, match="interrupted"):
+        conn.execute(abort_cte)

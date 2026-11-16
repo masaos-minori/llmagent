@@ -75,8 +75,8 @@ In the RAG step of `StartupValidationPipeline.check_services`, create a stop eve
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the named bound constant, create and pass the stop event, set it in the `TimeoutError` handler | Pending | — | — | Gated: plans/20261115-043850_dbreview005_helper-open-leak.md phase all - Plan is gated as a whole (shared `scripts/db/helper.py`); sequencing only |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: plans/20261115-043850_dbreview005_helper-open-leak.md phase all - Plan is gated as a whole (shared `scripts/db/helper.py`); sequencing only |
+| 1 | Add the named bound constant, create and pass the stop event, set it in the `TimeoutError` handler | Completed | 20261116 | 20261116 | `RAG_CONSISTENCY_TIMEOUT_SEC`, per-run stop event, `stop.set()` in `TimeoutError`; mypy/ruff/lint-imports/bandit all clean on changed files |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116 | 20261116 | mypy clean (567 files), diff-cover 100% on changed lines; 2 pre-existing mdq posture failures + 1 flaky turn_persistence failure under `-n logical` (passes in isolation) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

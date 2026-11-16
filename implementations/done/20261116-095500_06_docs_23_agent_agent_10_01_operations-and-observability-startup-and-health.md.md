@@ -70,8 +70,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the bounded-check and stop statement to the startup validation description | Pending | — | — | Gated: plans/20261115-043850_dbreview005_helper-open-leak.md phase all - Plan is gated as a whole (shared `scripts/db/helper.py`); sequencing only |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | Gated: plans/20261115-043850_dbreview005_helper-open-leak.md phase all - Plan is gated as a whole (shared `scripts/db/helper.py`); sequencing only |
+| 1 | Add the bounded-check and stop statement to the startup validation description | Completed | 20261116 | 20261116 | Added policy sentence (bounded check, stop releases the connection, startup continues unverified); verified against `scripts/agent/startup_validation.py` TimeoutError handler |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Completed | 20261116 | 20261116 | check_docs_structure/check_docs_content_policy/check_docs_japanese/check_docs_quality/check_docs_consistency(--domain agent): all report no finding |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

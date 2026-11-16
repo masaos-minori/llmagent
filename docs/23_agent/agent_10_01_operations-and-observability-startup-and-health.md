@@ -57,7 +57,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 
 ### Severity Mapping for Startup Verification
 
-Startup validation runs in two stages. The config-only stage (`mcp_auth`, `component_mandatoriness`, `routing_drift`, `routing_safety_tiers`) reads only configuration and static registries, so it runs before any MCP subprocess is spawned, reports its checks together, and aborts startup without a rollback. The runtime stage (`readiness`, `mcp_tool_discovery`, `rag_consistency`) needs running services and runs after the servers are started and verified; it skips tool discovery and the RAG check when readiness already reported a FATAL. A check that reads only configuration belongs to the config-only stage, and a check that needs a running service belongs to the runtime stage.
+Startup validation runs in two stages. The config-only stage (`mcp_auth`, `component_mandatoriness`, `routing_drift`, `routing_safety_tiers`) reads only configuration and static registries, so it runs before any MCP subprocess is spawned, reports its checks together, and aborts startup without a rollback. The runtime stage (`readiness`, `mcp_tool_discovery`, `rag_consistency`) needs running services and runs after the servers are started and verified; it skips tool discovery and the RAG check when readiness already reported a FATAL. The RAG consistency check runs under a startup bound; when the bound expires the check is stopped and its database connection is released, and startup continues with RAG consistency unverified. A check that reads only configuration belongs to the config-only stage, and a check that needs a running service belongs to the runtime stage.
 
 | Severity | Meaning | Behavior |
 |---|---|---|

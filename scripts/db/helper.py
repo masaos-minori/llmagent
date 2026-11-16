@@ -12,6 +12,7 @@ Config is resolved at construction time; failure raises RuntimeError immediately
 import logging
 import os
 import sqlite3
+import threading
 from collections.abc import Generator
 from contextlib import contextmanager
 from enum import StrEnum
@@ -143,6 +144,34 @@ class SQLiteHelper:
         if self.conn is None:
             raise RuntimeError("DB not open — call open() first")
         return self.conn
+
+    def interrupt_when(
+        self,
+        stop: threading.Event | None,
+        *,
+        check_every: int = 1000,
+    ) -> None:
+        """Abort the running statement once ``stop`` is set via the progress handler.
+
+        Installs the sqlite3 connection progress handler: while ``stop.is_set()``
+        the handler returns non-zero, so SQLite aborts the statement currently
+        executing on this connection and Python raises
+        ``sqlite3.OperationalError`` (message ``interrupted``). Pass ``None`` to
+        remove the hook. Statements shorter than ``check_every`` VM steps may
+        finish before the event is observed. Requires an open connection.
+        """
+        if check_every < 1:
+            raise ValueError("check_every must be >= 1")
+        conn = self._require_conn()
+
+        if stop is None:
+            conn.set_progress_handler(None, 0)
+            return
+
+        def _should_stop() -> int:
+            return 1 if stop.is_set() else 0
+
+        conn.set_progress_handler(_should_stop, check_every)
 
     def _connect(self) -> sqlite3.Connection:
         """Open a raw SQLite connection; raise on DB_PATH misconfiguration.

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
+import threading
 from typing import TYPE_CHECKING
 
 from db.models import FindingSeverity
@@ -31,6 +32,9 @@ from agent.shared.health_models import StartupCheckStatus, StartupValidationResu
 
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
+
+
+RAG_CONSISTENCY_TIMEOUT_SEC: float = 30.0
 
 
 def _classify_rag_failure(exc: Exception) -> str:
@@ -219,14 +223,15 @@ class StartupValidationPipeline:
             )
 
         # 6. RAG consistency
+        stop = threading.Event()
         try:
             loop = asyncio.get_running_loop()
             rag_check = await asyncio.wait_for(
                 loop.run_in_executor(
                     None,
-                    lambda: RagMaintenanceService().consistency(),
+                    lambda: RagMaintenanceService().consistency(stop=stop),
                 ),
-                timeout=30.0,
+                timeout=RAG_CONSISTENCY_TIMEOUT_SEC,
             )
             if rag_check.is_consistent:
                 pipeline.add_ok("rag_consistency")
@@ -242,10 +247,15 @@ class StartupValidationPipeline:
                     else:
                         pipeline.add_warning("rag_consistency", message)
         except TimeoutError:
-            logger.warning("RAG consistency check timed out after 30s")
+            stop.set()
+            logger.warning(
+                "RAG consistency check timed out after %ss",
+                RAG_CONSISTENCY_TIMEOUT_SEC,
+            )
             pipeline.add_warning(
                 "rag_consistency",
-                "RAG consistency check timed out after 30s; startup continues "
+                f"RAG consistency check timed out after "
+                f"{RAG_CONSISTENCY_TIMEOUT_SEC:g}s; startup continues "
                 "with RAG consistency unverified.",
             )
         except Exception as exc:  # noqa: BLE001 — non-critical maintenance check must not abort startup;

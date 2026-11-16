@@ -71,8 +71,8 @@ N/A: the Plan fixes the placement (connection level, used by this service).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the optional `stop` keyword to `consistency` and install the hook | Pending | — | — | Gated: plans/20261115-043850_dbreview005_helper-open-leak.md phase all - Plan is gated as a whole (shared `scripts/db/helper.py`); sequencing only |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: plans/20261115-043850_dbreview005_helper-open-leak.md phase all - Plan is gated as a whole (shared `scripts/db/helper.py`); sequencing only |
+| 1 | Add the optional `stop` keyword to `consistency` and install the hook | Completed | 20261116 | 20261116 | Added `import threading` + keyword-only `stop`; hook installed inside `with` block only when `stop is not None`. Mock smoke check confirms 0 calls without stop, 1 call with stop |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261116 | 20261116 | ruff/mypy/lint-imports/check_module_size/generate_reference_table --check all pass; behavior smoke check passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

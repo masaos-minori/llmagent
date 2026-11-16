@@ -72,8 +72,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the timeout, loop-close and in-time pipeline tests and confirm the stop tests fail on the current code | Pending | — | — | Gated: plans/20261115-043850_dbreview005_helper-open-leak.md phase all - Plan is gated as a whole (shared `scripts/db/helper.py`); sequencing only |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for the test file | Pending | — | — | Gated: plans/20261115-043850_dbreview005_helper-open-leak.md phase all - Plan is gated as a whole (shared `scripts/db/helper.py`); sequencing only |
+| 1 | Add the timeout, loop-close and in-time pipeline tests and confirm the stop tests fail on the current code | Completed | 20261116 | 20261116 | Tests present; ruff check/format clean; all pass after `02`/`03` |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for the test file | Completed | 20261116 | 20261116 | `pytest tests/agent/test_startup_validation.py tests/agent/test_startup.py`: 64 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

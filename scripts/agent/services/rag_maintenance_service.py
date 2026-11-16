@@ -6,6 +6,8 @@ Operates exclusively on rag.sqlite.
 
 from __future__ import annotations
 
+import threading
+
 from db.helper import SQLiteHelper
 from db.rag_consistency import (
     check_rag_consistency,
@@ -43,9 +45,17 @@ class RagMaintenanceService:
             )
             db.commit()
 
-    def consistency(self) -> RagConsistencyResult:
-        """Run RAG consistency check on rag.sqlite; return (is_consistent, issue_strings)."""
+    def consistency(
+        self, *, stop: threading.Event | None = None
+    ) -> RagConsistencyResult:
+        """Run RAG consistency check on rag.sqlite; return (is_consistent, issue_strings).
+
+        stop: when set, aborts the running statements via the connection progress
+            handler; aborted stages are recorded by the check as diagnostics.
+        """
         with SQLiteHelper("rag").open() as db:
+            if stop is not None:
+                db.interrupt_when(stop)
             report = check_rag_consistency(db)
         return RagConsistencyResult(
             is_consistent=is_consistent(report),

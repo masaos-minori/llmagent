@@ -7,7 +7,10 @@ normal pass, by driving the real check_services() body.
 
 from __future__ import annotations
 
+import asyncio
 import sqlite3
+import threading
+import time
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
@@ -24,6 +27,7 @@ from agent.startup_validation import (
     StartupValidationPipeline,
     _check_component_mandatoriness,
 )
+from db.models import FindingSeverity
 from shared.component_mandatoriness import (
     ComponentMandatorinessError,
     load_component_mandatoriness,
@@ -549,3 +553,102 @@ class TestComponentMandatorinessAbort:
 
         assert _mandatoriness_fatals(result) == []
         assert not result.has_fatal
+
+
+class _FakeRagService:
+    """A fake RagMaintenanceService for the stop-hook tests (REQ-003/004/005).
+
+    ``consistency(stop)`` records the event the pipeline passes, then either
+    blocks on it (a check that outlives the startup bound) or returns a fixed
+    result immediately (an in-time check), depending on ``block``. The recorded
+    event lets a test assert whether the pipeline ever set the stop signal.
+    """
+
+    def __init__(
+        self,
+        *,
+        block: bool = True,
+        block_seconds: float = 30.0,
+        result: object | None = None,
+    ) -> None:
+        self.block = block
+        self.block_seconds = block_seconds
+        self.result = (
+            result
+            if result is not None
+            else MagicMock(is_consistent=False, findings=[])
+        )
+        self.event: threading.Event | None = None
+        self.called = False
+
+    def consistency(self, stop: threading.Event | None = None) -> object:
+        self.called = True
+        self.event = stop
+        if self.block and stop is not None:
+            stop.wait(timeout=self.block_seconds)
+        return self.result
+
+
+class TestRagConsistencyStopHook:
+    """REQ-003, REQ-004, REQ-005: the RAG check is stopped by the startup bound.
+
+    These drive the real check_services() with a fake service instead of the
+    MagicMock used elsewhere, so the stop event the pipeline passes is observable.
+    The bound is shortened by patching the module constant; the tests fail on the
+    pre-change code because that constant does not exist yet.
+    """
+
+    @pytest.mark.asyncio
+    async def test_timeout_sets_event_and_warns(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """REQ-003: a check that outlives the bound is stopped; the event is set
+        and the existing rag_consistency warning is reported."""
+        monkeypatch.setattr("agent.startup_validation.RAG_CONSISTENCY_TIMEOUT_SEC", 0.1)
+        fake = _FakeRagService(block=True, block_seconds=30.0)
+
+        result = await _run_check_services(fake)
+
+        assert _rag_outcomes(result) == [StartupCheckStatus.WARNING]
+        warned = [o for o in result.outcomes if o.source == "rag_consistency"]
+        assert "unverified" in warned[0].message
+        assert fake.called
+        assert fake.event is not None
+        assert fake.event.is_set()
+
+    def test_loop_close_releases_worker(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """REQ-004: closing the loop after a timed-out check does not wait for
+        the worker thread's natural duration."""
+        monkeypatch.setattr("agent.startup_validation.RAG_CONSISTENCY_TIMEOUT_SEC", 0.1)
+        fake = _FakeRagService(block=True, block_seconds=3.0)
+
+        async def _run() -> StartupValidationResult:
+            return await _run_check_services(fake)
+
+        start = time.monotonic()
+        asyncio.run(_run())
+        elapsed = time.monotonic() - start
+
+        assert elapsed < 1.5
+
+    async def test_in_time_fatal_still_fatal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """REQ-005: an in-time check that reports a fatal finding still yields a
+        pipeline fatal, and the event it receives is never set."""
+        monkeypatch.setattr(
+            "agent.startup_validation.RAG_CONSISTENCY_TIMEOUT_SEC", 30.0
+        )
+        fatal_finding = MagicMock(
+            severity=FindingSeverity.FATAL, message="boom", repair_action="fix"
+        )
+        result = MagicMock(is_consistent=False, findings=[fatal_finding])
+        fake = _FakeRagService(block=False, result=result)
+
+        outcome = await _run_check_services(fake)
+
+        fatals = [o for o in outcome.outcomes if o.source == "rag_consistency"]
+        assert any(o.status == StartupCheckStatus.FATAL for o in fatals)
+        assert fake.called
+        assert fake.event is not None
+        assert not fake.event.is_set()

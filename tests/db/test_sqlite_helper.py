@@ -5,6 +5,7 @@ Unit tests for db/helper.py: SQLiteHelper connection management and transactions
 from __future__ import annotations
 
 import sqlite3
+import threading
 from pathlib import Path
 
 import pytest
@@ -693,3 +694,52 @@ class TestOpenLeakSafety:
                     "SELECT count(*) FROM pragma_module_list WHERE name = 'vec0'"
                 ).fetchone()[0]
                 assert loaded == 0
+
+
+class TestInterruptWhen:
+    """SQLiteHelper.interrupt_when installs/removes the progress handler that
+    aborts a running statement once the stop event is set.
+
+    Coverage is asserted by real behavior on a real in-memory connection: a
+    pre-set event aborts a long query, and removing the hook lets the same query
+    complete. ``sqlite3.Connection.get_progress_handler`` is unavailable on this
+    runtime, so hook removal is proven functionally rather than by introspection.
+    """
+
+    _ABORT_CTE = (
+        "WITH RECURSIVE c(x) AS (VALUES(1) "
+        "UNION ALL SELECT x + 1 FROM c WHERE x < 100000) "
+        "SELECT sum(x) FROM c"
+    )
+
+    def test_check_every_below_one_raises_value_error(
+        self, helper: SQLiteHelper
+    ) -> None:
+        """check_every < 1 raises ValueError before any handler is installed."""
+        with pytest.raises(ValueError, match="check_every must be >= 1"):
+            helper.interrupt_when(threading.Event(), check_every=0)
+
+    def test_without_open_connection_raises_runtime_error(
+        self, helper: SQLiteHelper
+    ) -> None:
+        """A helper with no open connection raises RuntimeError from _require_conn."""
+        helper.conn = None
+        with pytest.raises(RuntimeError, match="DB not open"):
+            helper.interrupt_when(threading.Event())
+
+    def test_installs_handler_that_aborts_when_set(self, helper: SQLiteHelper) -> None:
+        """A pre-set stop event aborts a running statement via the progress handler."""
+        stop = threading.Event()
+        stop.set()  # pre-set: deterministic abort on the first progress check
+        helper.interrupt_when(stop, check_every=1)
+        with pytest.raises(sqlite3.OperationalError, match="interrupted"):
+            helper._require_conn().execute(self._ABORT_CTE)
+
+    def test_removes_handler_when_stop_is_none(self, helper: SQLiteHelper) -> None:
+        """interrupt_when(None) removes the hook; the aborted query then completes."""
+        stop = threading.Event()
+        stop.set()
+        helper.interrupt_when(stop)  # install
+        helper.interrupt_when(None)  # remove
+        result = helper._require_conn().execute(self._ABORT_CTE).fetchone()
+        assert result[0] == 5000050000
