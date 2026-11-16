@@ -44,7 +44,7 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/agent/http_lifecycle.py | Own the failed-start record and honor it in `start` | Add a per-key record set in `_raise_startup_failure_unconfirmed`, consulted by the reuse branch of `start`, released in `cleanup_server_key`, `_raise_startup_failure` and `restart`; re-terminate a recorded process and proceed or raise | REQ-001, REQ-002, REQ-003; AC-1, AC-2, AC-3 | `start` reuse branch at lines 319-325; `_raise_startup_failure_unconfirmed` at line 243; `cleanup_server_key` at line 147; 15326 bytes, limit 24576 (checked in Step 2 and Step 3) | tests/agent/test_http_lifecycle_integration.py | Verified |
+| scripts/agent/http_lifecycle.py | Own the failed-start record and honor it in `start` | Add a per-key record that maps the key to the leftover process object, set in `_raise_startup_failure_unconfirmed`; the reuse branch of `start` honors it only when the tracked process is that same object; release it in `cleanup_server_key`, `remove_process_entry`, `_raise_startup_failure` and `restart`; re-terminate a recorded process and proceed or raise | REQ-001, REQ-002, REQ-003; AC-1, AC-2, AC-3 | `start` reuse branch at lines 319-325; `_raise_startup_failure_unconfirmed` at line 243; `cleanup_server_key` at line 147; 15326 bytes, limit 24576 (checked in Step 2 and Step 3) | `tests/agent/test_http_lifecycle_integration.py` | Verified |
 | tests/agent/test_http_lifecycle_integration.py | Manager-level tests | Add to `TestStartupFailureTerminateOrTrack`: a second `start` after an unconfirmed failure re-terminates and raises while the exit stays unconfirmed; starts fresh after a confirmed re-termination; a healthy tracked process is still reused; `shutdown_all` still names the unconfirmed server | REQ-001, REQ-002, REQ-003, REQ-004; AC-1, AC-2, AC-3, AC-4 | `TestStartupFailureTerminateOrTrack` at line 1157 holds `test_timeout_with_unconfirmed_exit_keeps_process_tracked` (line 1280) using the `mgr` fixture and a terminator `AsyncMock` (checked in Step 3) | tests/agent/test_http_lifecycle_integration.py | Verified |
 | tests/agent/test_startup_mcp_lifecycle.py | Test through the starter | Add one test in `TestStartupOrchestratorStartServers` that wires a real `HttpServerLifecycleManager` behind the lifecycle stub path so an unconfirmed first failure followed by the retry ends in a startup failure and not in a recorded spawn | REQ-004; AC-4 | `TestStartupOrchestratorStartServers` at line 86 mocks `start_http_subprocess` today; `test_genuine_runtime_error_still_retries` shows the retry shape (checked in Step 3) | tests/agent/test_startup_mcp_lifecycle.py | Verified |
 | docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md | Document the later-start rule | Add to the Implementation Note (Shutdown Termination) paragraph that a process left by a failed start with an unconfirmed exit stays tracked and is not reused by a later start (policy only, no values) | REQ-005; AC-5 | The paragraph at line 97 describes `TerminationOutcome` and retained tracking for an unconfirmed exit, and says nothing about a later start (checked in Step 3) | N/A: documentation | Verified |
@@ -72,7 +72,7 @@ glob patterns, components, file groups, or vague phrases.
 
 ## Tests
 - REQ-001: manager-level tests with a terminator `AsyncMock` returning `EXIT_UNCONFIRMED` then `EXITED`, and a fake process that stays alive; a test with the real child pattern of `test_real_child_terminated_and_reaped_on_shutdown_request` is optional.
-- REQ-002: a tracked process with no record is reused on repeated `start`; no terminator call is made.
+- REQ-002: a tracked process with no record is reused on repeated `start`; no terminator call is made. A record naming a different (older) process object than the tracked one is ignored: the tracked process is reused and no terminator call is made.
 - REQ-003: after an unconfirmed failure and an unconfirmed re-termination, `shutdown_all` returns the server; the log line names pid and pgid.
 - REQ-004: a test through `McpServerStarter.start_servers` showing that the retry after an unconfirmed first failure ends in a startup error; write the unconfirmed-reuse tests first and confirm they fail on the current code.
 - REQ-005: documentation checks listed under AC-5.
@@ -107,7 +107,8 @@ separate scope-of-record.
 
 ## Design
 - **Design decision (failed-start record)**: options weighed. (1) Make `start` always re-terminate a live tracked process: rejected, it would kill healthy servers on every idempotent `ensure_ready`/`start`. (2) Drop the process from tracking on an unconfirmed failure: rejected, `shutdown_all` would stop naming it, which the tracking retention exists to prevent. (3) A per-key record set in `_raise_startup_failure_unconfirmed` and consulted only by the reuse branch: chosen. Compatibility impact: no signature changes; behavior changes only for a key that failed a start with an unconfirmed exit.
-- **Release points of the record**: `cleanup_server_key` (confirmed shutdown), `_raise_startup_failure` (confirmed failure), `restart` (tracking cleared), and a confirmed re-termination in `start`.
+- **Release points of the record**: `cleanup_server_key` (confirmed shutdown), `remove_process_entry` (`shutdown_all` pops the process entry before termination and keeps the pgid when the exit stays unconfirmed, so the next `start` launches fresh), `_raise_startup_failure` (confirmed failure), `restart` (tracking cleared), and a confirmed re-termination in `start`. Corrected in the plan-to-implementation-procedure cycle: the first version of this bullet missed `remove_process_entry` (and the launcher's own failure cleanup that pops `_http_procs`), which would leave a key-only record behind and make a later `start` re-terminate a healthy, freshly launched process.
+- **Identity binding (added in the same correction)**: the record stores the leftover process object, not only the key. The reuse branch re-terminates only when the tracked process `is` the recorded object; a record that outlived its process (any release path missed now or added later) never matches a new process and is ignored, and a fresh launch overwrites the tracked process. The explicit releases above stay, so the mapping does not accumulate stale entries.
 - **Architecture analysis**: `lint-imports` reports 6 contracts kept, 0 broken at this commit; `http_lifecycle.py` already imports the terminator, the health checker and the shutdown coordinator, so no new import is needed (checked in Step 5).
 - **Dependency graph**: `_raise_startup_failure_unconfirmed` has two callers, both in `HealthChecker.poll_until_ready`; `cleanup_server_key` is called by `ShutdownCoordinator`; `start` is called by `_SubprocessLifecycleManager.start_http_subprocess` and `ensure_ready` (checked in Step 3).
 - **Historical analysis**: `http_lifecycle.py` 7 commits and `test_http_lifecycle_integration.py` 4 commits in the last 30 days, one contributor (two spellings of one name) in the last 90 days (checked in Step 5).
@@ -139,7 +140,7 @@ N/A: no release unit
 | Diff coverage | Coverage | `uv run pytest tests/ -n logical --cov=scripts --cov-report= -m "not integration and not production_paths_allowed and not repo_scan"`, then `uv run coverage xml` and `uv run diff-cover coverage.xml --compare-branch=master --fail-under=90` | At or above the threshold in `rules/toolchain.md` |
 
 ## Risks
-- **Risk**: Re-terminating a process in `start` signals a process that is really healthy because the record is stale (likelihood low) → **Mitigation**: the record is set only on an unconfirmed failed start and released at every point where tracking is released; tests cover release on a confirmed exit, a confirmed failure and `restart`.
+- **Risk**: Re-terminating a process in `start` signals a process that is really healthy because the record is stale (likelihood low) → **Mitigation**: the record is set only on an unconfirmed failed start and released at every point where tracking is released; the record is bound to the process object, so a leftover record can never match a different process; tests cover release on a confirmed exit, a confirmed failure, `restart` and `shutdown_all`, and a stale record against a new process.
 - **Risk**: A second unconfirmed outcome raises on every later start for that key until the process dies (likelihood low, and intended) → **Mitigation**: the failure keeps the process tracked and named for `shutdown_all` and the manual `kill` hint.
 - **Risk**: Both this Plan and Plan 002 edit `tests/agent/test_startup_mcp_lifecycle.py` (likelihood medium) → **Mitigation**: different test classes; implement in order 002 then this Plan.
 - **Risk**: `UNK-03` (`restart` with an unconfirmed old process) remains (likelihood unknown) → **Mitigation**: recorded and routed to a separate issue if confirmed.
@@ -152,10 +153,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Manager change and manager-level tests (scripts/agent/http_lifecycle.py, tests/agent/test_http_lifecycle_integration.py) | Pending | — | — | |
-| 2 | Starter-level test (tests/agent/test_startup_mcp_lifecycle.py) | Pending | — | — | |
-| 3 | Documentation (docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md) | Pending | — | — | |
-| 4 | Deployment and verification (scripts/agent/http_lifecycle.py) | Pending | — | — | |
+| 1 | Manager change and manager-level tests (scripts/agent/http_lifecycle.py, tests/agent/test_http_lifecycle_integration.py) | In Progress | — | — |  |
+| 2 | Starter-level test (tests/agent/test_startup_mcp_lifecycle.py) | In Progress | — | — |  |
+| 3 | Documentation (docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md) | In Progress | — | — |  |
+| 4 | Deployment and verification (scripts/agent/http_lifecycle.py) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -165,7 +166,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261116-094943_01_scripts_agent_http_lifecycle.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261116-094943_03_tests_agent_test_startup_mcp_lifecycle.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261116-094943_04_docs_22_mcp_mcp_03_04_tool-call-tracing-and-lifecycle.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -186,3 +189,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Issue Testing Expectations | tests/agent/test_http_lifecycle_integration.py | Phase 1 | AC-4 | new tests fail on the pre-change code | Explicit in issue |
 | REQ-004 | Issue Testing Expectations (one test through `McpServerStarter.start_servers`) | tests/agent/test_startup_mcp_lifecycle.py | Phase 2 | AC-4 | `uv run pytest tests/agent/test_startup_mcp_lifecycle.py -q` | Explicit in issue |
 | REQ-005 | Issue Documentation Impact; paragraph at line 97 of the lifecycle note (the Issue named another document: corrected) | docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md | Phase 3 | AC-5 | `check_docs_quality`, `check_docs_content_policy` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261116-094943 -->

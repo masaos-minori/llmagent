@@ -43,8 +43,8 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/agent/http_lifecycle_health_checker.py | Own the typed predicate | Rewrite `is_degraded_but_live`: catch `ValueError` and `httpx.DecodingError` around `resp.json()`, return false unless the body is a `dict`, return `body.get("liveness") is True`; correct the docstring's class name | REQ-001, REQ-003, REQ-004; AC-1, AC-3, AC-4 | `is_degraded_but_live` at lines 104-122: `except (json.JSONDecodeError, httpx.DecodingError)` and `return bool(body.get("liveness", False))`; docstring names `McpServerStartupStarter`; reproduction raised `AttributeError` on array and string bodies and returned true for `"false"` (checked in Step 2 and Step 3) | tests/agent/test_http_lifecycle_health_check.py | Verified |
-| scripts/agent/startup_mcp_starter.py | Remove the inline copy | In `verify_health`, replace the inline 503 JSON parsing (lines 152-166) with `if resp.status_code == 503 and HealthChecker.is_degraded_but_live(resp)`-style delegation, keeping the "degraded but live" info log and the `continue`; leave the outer retry handler as is | REQ-002, REQ-004; AC-2, AC-4 | The inline block reads `resp.json()`, `body.get("liveness", False)` and catches `httpx.DecodingError`; `HealthChecker` is already imported at line 22 and used by `_verify_single_health` (checked in Step 3) | tests/agent/test_startup_mcp_starter.py | Verified |
+| scripts/agent/http_lifecycle_health_checker.py | Own the typed predicate | Rewrite `is_degraded_but_live`: catch `ValueError` and `httpx.DecodingError` around `resp.json()`, return false unless the body is a `dict`, return `body.get("liveness") is True`; correct the docstring's class name; remove the `import json` that becomes unused (found while generating the procedure) | REQ-001, REQ-003, REQ-004; AC-1, AC-3, AC-4 | `is_degraded_but_live` at lines 104-122: `except (json.JSONDecodeError, httpx.DecodingError)` and `return bool(body.get("liveness", False))`; docstring names `McpServerStartupStarter`; reproduction raised `AttributeError` on array and string bodies and returned true for `"false"` (checked in Step 2 and Step 3) | `tests/agent/test_http_lifecycle_health_check.py` | Verified |
+| scripts/agent/startup_mcp_starter.py | Remove the inline copy | In `verify_health`, replace the inline 503 JSON parsing (lines 152-166) with `if resp.status_code == 503 and HealthChecker.is_degraded_but_live(resp)`-style delegation, keeping the "degraded but live" info log and the `continue`; leave the outer retry handler as is | REQ-002, REQ-004; AC-2, AC-4 | The inline block reads `resp.json()`, `body.get("liveness", False)` and catches `httpx.DecodingError`; `HealthChecker` is already imported at line 22 and used by `_verify_single_health` (checked in Step 3) | `tests/agent/test_startup_mcp_starter.py` | Verified |
 | tests/agent/test_http_lifecycle_health_check.py | Predicate and poll-loop tests | Extend `test_is_degraded_but_live_branches` (line 376) and add cases to `TestHealthPollDegradedTolerance` (line 303): array, string, number, null, malformed and empty bodies; `"false"` and `0` liveness; a poll with a non-object 503 followed by 200 | REQ-001, REQ-003, REQ-005; AC-1, AC-3, AC-5 | `TestHealthPollDegradedTolerance` has `test_tolerates_degraded_but_live` (line 313) and `test_rejects_503_without_liveness_flag` (line 345) using `mgr` and httpx responses (checked in Step 3) | tests/agent/test_http_lifecycle_health_check.py | Verified |
 | tests/agent/test_startup_mcp_starter.py | `verify_health` tests | Add httpx-based cases: a 503 object body with `liveness` true continues without retry; a 503 non-object body goes through the retry path and ends in the existing fatal error; no inline copy remains (behavioral) | REQ-002, REQ-004, REQ-005; AC-2, AC-4, AC-5 | The file holds `test_verify_single_health_degraded_but_live_does_not_raise` (line 143) and a `verify_health` test with `route.call_count == 1` (line 124) built on a respx-style router (checked in Step 3) | tests/agent/test_startup_mcp_starter.py | Verified |
 
@@ -144,9 +144,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Shared predicate and its tests (scripts/agent/http_lifecycle_health_checker.py, tests/agent/test_http_lifecycle_health_check.py) | Pending | — | — | |
-| 2 | Remove the inline copy and add `verify_health` tests (scripts/agent/startup_mcp_starter.py, tests/agent/test_startup_mcp_starter.py) | Pending | — | — | |
-| 3 | Deployment and verification (scripts/agent/http_lifecycle_health_checker.py, scripts/agent/startup_mcp_starter.py) | Pending | — | — | |
+| 1 | Shared predicate and its tests (scripts/agent/http_lifecycle_health_checker.py, tests/agent/test_http_lifecycle_health_check.py) | In Progress | — | — |  |
+| 2 | Remove the inline copy and add `verify_health` tests (scripts/agent/startup_mcp_starter.py, tests/agent/test_startup_mcp_starter.py) | In Progress | — | — |  |
+| 3 | Deployment and verification (scripts/agent/http_lifecycle_health_checker.py, scripts/agent/startup_mcp_starter.py) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -156,7 +156,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261116-095125_01_scripts_agent_http_lifecycle_health_checker.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261116-095125_02_scripts_agent_startup_mcp_starter.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -181,3 +182,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-002 | Issue Testing Expectations (`verify_health` test through the retry path) | tests/agent/test_startup_mcp_starter.py | Phase 2 | AC-2, AC-5 | `uv run pytest tests/agent/test_startup_mcp_starter.py -q` | Explicit in issue |
 | REQ-004 | Issue Testing Expectations | tests/agent/test_startup_mcp_starter.py | Phase 2 | AC-4, AC-5 | `verify_health` retry-path test | Explicit in issue |
 | REQ-005 | Issue Testing Expectations | tests/agent/test_startup_mcp_starter.py | Phase 2 | AC-5 | new tests fail on the pre-change code | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261116-095125 -->

@@ -44,8 +44,8 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/agent/services/mcp_health.py | Accept pre-collected gates | Add an optional keyword `gates` to `check_service_health` and `check_readiness`; use it instead of calling `collect_server_postures` when given | REQ-001, REQ-003; AC-1, AC-3 | `check_service_health` at line 285 calls `collect_server_postures(ctx)` at line 324; `check_readiness` at line 338 calls `check_service_health(ctx)` at line 346; radon C (11) for `check_service_health` (checked in Step 3 and Step 5) | tests/agent/test_mcp_health_posture.py | Verified |
-| scripts/agent/startup_validation.py | Probe once and share the result | In `check_services`, collect the gates once inside the readiness try block, pass them to `check_readiness`, reuse them for `McpToolDiscoveryService(..., posture_gates=...)`, delete the second `collect_server_postures` call and replace the stale comment | REQ-001, REQ-002, REQ-004; AC-1, AC-2, AC-4 | `check_services` at line 161: readiness at line 172, early return at lines 183-184, second `collect_server_postures` at line 195, stale comment at lines 187-193; radon C (17) (checked in Step 3 and Step 5) | tests/agent/shared/test_startup_validation_pipeline.py | Verified |
+| scripts/agent/services/mcp_health.py | Accept pre-collected gates | Add an optional keyword `gates` to `check_service_health` and `check_readiness`; use it instead of calling `collect_server_postures` when given | REQ-001, REQ-003; AC-1, AC-3 | `check_service_health` at line 285 calls `collect_server_postures(ctx)` at line 324; `check_readiness` at line 338 calls `check_service_health(ctx)` at line 346; radon C (11) for `check_service_health` (checked in Step 3 and Step 5) | `tests/agent/test_mcp_health_posture.py` | Verified |
+| scripts/agent/startup_validation.py | Probe once and share the result | In `check_services`, collect the gates once inside the readiness try block, pass them to `check_readiness`, reuse them for `McpToolDiscoveryService(..., posture_gates=...)`, delete the second `collect_server_postures` call and replace the stale comment | REQ-001, REQ-002, REQ-004; AC-1, AC-2, AC-4 | `check_services` at line 161: readiness at line 172, early return at lines 183-184, second `collect_server_postures` at line 195, stale comment at lines 187-193; radon C (17) (checked in Step 3 and Step 5) | `tests/agent/shared/test_startup_validation_pipeline.py` | Verified |
 | tests/agent/shared/test_startup_validation_pipeline.py | Pipeline-level tests | Add tests with a counting fake for `collect_server_postures`: exactly one call per `check_services` run; discovery is constructed with the same gate objects that `check_readiness` received; a readiness failure returns before discovery and without a second probe | REQ-001, REQ-002, REQ-005; AC-1, AC-2, AC-5 | The file patches `f"{MODULE}.check_readiness"` and `McpToolDiscoveryService` in its tests (lines 116, 157, 270, 305, 345, 390, 427) and never patches `collect_server_postures` (checked in Step 3) | tests/agent/shared/test_startup_validation_pipeline.py | Verified |
 | tests/agent/test_mcp_health_posture.py | Optional-argument tests | Add tests: `check_service_health(ctx, gates=...)` and `check_readiness(ctx, gates=...)` do not probe and classify the given gates identically to a probed run; without `gates` they probe once | REQ-003, REQ-005; AC-3, AC-5 | The file imports `check_readiness`, `check_service_health` and `collect_server_postures` and tests their classification (lines 4-27) (checked in Step 3) | tests/agent/test_mcp_health_posture.py | Verified |
 | docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md | State the one-observation rule | In the `readiness` description (line 75), add that each MCP server's posture is observed once per startup and that tool discovery uses that observation | REQ-006; AC-6 | Line 75 says `readiness` covers required-service availability and every MCP server's Security Posture gate and does not say how often posture is observed (checked in Step 3) | N/A: documentation | Verified |
@@ -154,10 +154,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Readiness accepts gates (scripts/agent/services/mcp_health.py, tests/agent/test_mcp_health_posture.py) | Pending | — | — | |
-| 2 | Pipeline probes once (scripts/agent/startup_validation.py, tests/agent/shared/test_startup_validation_pipeline.py) | Pending | — | — | |
-| 3 | Documentation (docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | Pending | — | — | |
-| 4 | Deployment and verification (scripts/agent/services/mcp_health.py, scripts/agent/startup_validation.py) | Pending | — | — | |
+| 1 | Readiness accepts gates (scripts/agent/services/mcp_health.py, tests/agent/test_mcp_health_posture.py) | In Progress | — | — |  |
+| 2 | Pipeline probes once (scripts/agent/startup_validation.py, tests/agent/shared/test_startup_validation_pipeline.py) | In Progress | — | — |  |
+| 3 | Documentation (docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | In Progress | — | — |  |
+| 4 | Deployment and verification (scripts/agent/services/mcp_health.py, scripts/agent/startup_validation.py) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -167,7 +167,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261116-095309_01_scripts_agent_services_mcp_health.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261116-095309_02_scripts_agent_startup_validation.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261116-095309_05_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -192,3 +194,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-003 | Issue Acceptance Criteria (3); Testing Expectations (the Issue named another test path: corrected) | tests/agent/test_mcp_health_posture.py | Phase 1 | AC-3, AC-5 | `uv run pytest tests/agent/test_mcp_health_posture.py -q` | Derived from confirmed evidence |
 | REQ-005 | Issue Testing Expectations | tests/agent/test_mcp_health_posture.py | Phase 1 | AC-5 | new tests fail on pre-change code | Explicit in issue |
 | REQ-006 | Issue Documentation Impact; ADR-003 Decision Detail 16; line 75 of the startup health document | docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md | Phase 3 | AC-6 | `check_docs_quality`, `check_docs_content_policy` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261116-095309 -->

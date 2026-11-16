@@ -42,8 +42,8 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/agent/shared/retry_helper.py | Provide the retry-only mode | Add keyword-only `skip_first_attempt: bool = False` to `retry_once_with_delay`; when true skip the leading `await fn()` and go straight to the shutdown check, the interruptible delay and the second attempt; update the docstring | REQ-003; AC-3 | `retry_once_with_delay` at lines 18-62: `return await fn()` at line 41 is the unconditional first attempt; radon B (6) (checked in Step 3 and Step 5) | tests/agent/test_retry_helper.py | Verified |
-| scripts/agent/startup_mcp_starter.py | Use the retry-only mode at both sites | Pass `skip_first_attempt=True` in the `start_servers` call (line 107) and the `verify_health` call (line 171) | REQ-001, REQ-002; AC-1, AC-2 | Both calls follow an inline first attempt (`_start_http_subprocess_once` at line 87, the inline health GET at lines 147-168); reproduction recorded three attempts (checked in Step 2 and Step 3) | tests/agent/test_startup_mcp_lifecycle.py | Verified |
+| scripts/agent/shared/retry_helper.py | Provide the retry-only mode | Add keyword-only `skip_first_attempt: bool = False` to `retry_once_with_delay`; when true skip the leading `await fn()` and go straight to the shutdown check, the interruptible delay and the second attempt; update the docstring | REQ-003; AC-3 | `retry_once_with_delay` at lines 18-62: `return await fn()` at line 41 is the unconditional first attempt; radon B (6) (checked in Step 3 and Step 5) | `tests/agent/test_retry_helper.py` | Verified |
+| scripts/agent/startup_mcp_starter.py | Use the retry-only mode at both sites | Pass `skip_first_attempt=True` in the `start_servers` call (line 107) and the `verify_health` call (line 171) | REQ-001, REQ-002; AC-1, AC-2 | Both calls follow an inline first attempt (`_start_http_subprocess_once` at line 87, the inline health GET at lines 147-168); reproduction recorded three attempts (checked in Step 2 and Step 3) | `tests/agent/test_startup_mcp_lifecycle.py` | Verified |
 | tests/agent/test_startup_mcp_lifecycle.py | Count attempts and the gap | Add start-path and health-path tests that count real attempts with a small `RETRY_DELAY_SEC` patch and assert the gap; keep `test_genuine_runtime_error_still_retries` and `test_startup_interrupted_propagates_without_retry` passing | REQ-004; AC-4 | `TestStartupOrchestratorStartServers` (starts at line 86) mocks `start_http_subprocess`; `TestStartupVerifyMcpHealth` (starts at line 278) patches `httpx.AsyncClient` (checked in Step 3) | tests/agent/test_startup_mcp_lifecycle.py | Verified |
 | tests/agent/test_retry_helper.py | Cover the new option | Add tests: with `skip_first_attempt=True` `fn` is called exactly once after the delay; its failure raises the fatal-prefixed masked exception; a set shutdown event raises `StartupInterrupted` without calling `fn`; the default mode is unchanged | REQ-003, REQ-004; AC-3, AC-4 | The file holds the exception-type-preservation tests for the default mode (`test_timeout_error_preserved`, `test_connection_refused_error_preserved`, `test_runtime_error_preserved` and others), using a `call_count` closure (checked in Step 3) | tests/agent/test_retry_helper.py | Verified |
 
@@ -146,9 +146,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Retry helper option and its tests (scripts/agent/shared/retry_helper.py, tests/agent/test_retry_helper.py) | Pending | — | — | |
-| 2 | Starter call sites and their tests (scripts/agent/startup_mcp_starter.py, tests/agent/test_startup_mcp_lifecycle.py) | Pending | — | — | |
-| 3 | Deployment and verification (scripts/agent/shared/retry_helper.py, scripts/agent/startup_mcp_starter.py) | Pending | — | — | |
+| 1 | Retry helper option and its tests (scripts/agent/shared/retry_helper.py, tests/agent/test_retry_helper.py) | In Progress | — | — |  |
+| 2 | Starter call sites and their tests (scripts/agent/startup_mcp_starter.py, tests/agent/test_startup_mcp_lifecycle.py) | In Progress | — | — |  |
+| 3 | Deployment and verification (scripts/agent/shared/retry_helper.py, scripts/agent/startup_mcp_starter.py) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -158,7 +158,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261116-094712_01_scripts_agent_shared_retry_helper.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261116-094712_02_scripts_agent_startup_mcp_starter.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -180,3 +181,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-003 | Issue Acceptance Criteria (3); Testing Expectations | tests/agent/test_retry_helper.py | Phase 1 | AC-3, AC-4 | `uv run pytest tests/agent/test_retry_helper.py -q` | Explicit in issue |
 | REQ-004 | Issue Testing Expectations; existing spy test counts helper awaits only | tests/agent/test_startup_mcp_lifecycle.py | Phase 2 | AC-4 | new tests fail on the pre-change code | Confirmed by repository evidence |
 | REQ-004 | Issue Testing Expectations | tests/agent/test_retry_helper.py | Phase 1 | AC-4 | new tests fail on the pre-change code | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261116-094712 -->

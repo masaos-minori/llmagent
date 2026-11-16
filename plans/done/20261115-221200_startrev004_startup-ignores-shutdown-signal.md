@@ -46,8 +46,8 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/agent/startup.py | Race the unguarded stages and check the boundaries | Add a private stage helper that races a stage task against `self._shutdown_event`, cancels and awaits the stage on shutdown and raises `StartupInterrupted`; use it for `_check_services` and `_setup_prompt` in `run`; add event checks before the unraced stages and at the end of `run` | REQ-001, REQ-002, REQ-004; AC-1, AC-2, AC-4 | `run` at line 63 calls `_check_config`, `_start_servers`, `_verify_mcp_health`, `_check_services`, `_setup_prompt` in order inside one `try`; `except StartupInterrupted` at line 74; `shutdown_event` is passed only to `McpServerStarter` in `__init__`; 6993 bytes, radon all A or B (checked in Step 3 and Step 5) | tests/agent/test_startup_rollback.py | Verified |
-| scripts/agent/startup_validation.py | Stop the RAG check on cancellation | In the RAG step of `check_services`, set the RAG stop event (added by Plan 006) when the awaiting coroutine is cancelled, then re-raise the cancellation | REQ-003; AC-3 | The RAG step runs `run_in_executor` under `asyncio.wait_for`; a cancelled await leaves the worker thread running (reproduced for the timeout case in the review; checked in Step 3) | tests/agent/test_startup_validation.py | Verified |
+| scripts/agent/startup.py | Race the unguarded stages and check the boundaries | Add a private stage helper that races a stage task against `self._shutdown_event`, cancels and awaits the stage on shutdown and raises `StartupInterrupted`; use it for `_check_services` and `_setup_prompt` in `run`; add event checks before the unraced stages and at the end of `run` | REQ-001, REQ-002, REQ-004; AC-1, AC-2, AC-4 | `run` at line 63 calls `_check_config`, `_start_servers`, `_verify_mcp_health`, `_check_services`, `_setup_prompt` in order inside one `try`; `except StartupInterrupted` at line 74; `shutdown_event` is passed only to `McpServerStarter` in `__init__`; 6993 bytes, radon all A or B (checked in Step 3 and Step 5) | `tests/agent/test_startup_rollback.py` | Verified |
+| scripts/agent/startup_validation.py | Stop the RAG check on cancellation | In the RAG step of `check_services`, set the RAG stop event (added by Plan 006) when the awaiting coroutine is cancelled, then re-raise the cancellation | REQ-003; AC-3 | The RAG step runs `run_in_executor` under `asyncio.wait_for`; a cancelled await leaves the worker thread running (reproduced for the timeout case in the review; checked in Step 3) | `tests/agent/test_startup_validation.py` | Verified |
 | tests/agent/test_startup_rollback.py | Stage interruption tests | Add tests using `_make_rollback_startup`: an event set while `_check_services` blocks, while `_setup_prompt` blocks, between stages, and after the last stage each raise `StartupInterrupted` with `shutdown_all` awaited once and within a short bound; no event leaves the sequence unchanged | REQ-001, REQ-002, REQ-004, REQ-005; AC-1, AC-2, AC-4, AC-5 | `TestStartupRollback` (line 48) holds `test_startup_interrupted_triggers_rollback_like_any_other_exception` (line 261) which mocks `_start_servers` to raise; `_make_rollback_startup` at line 35 builds the orchestrator with a mocked lifecycle (checked in Step 3) | tests/agent/test_startup_rollback.py | Verified |
 | tests/agent/test_startup_validation.py | RAG cancellation test | Add a test: cancelling `check_services` while a fake consistency check blocks sets the stop event passed to the fake | REQ-003, REQ-005; AC-3, AC-5 | The file patches `RagMaintenanceService` as `MagicMock(return_value=rag_service)` (lines 66, 222, 352) and drives `check_services` (checked in Step 3) | tests/agent/test_startup_validation.py | Verified |
 | docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md | Correct the interruption description | Rewrite the sentence near line 39 and the section "SIGINT/SIGTERM Interruption During Startup" (lines 91-93) to say which startup stages observe a shutdown request, that the stages are cancelled, and that started servers are rolled back before a quiet exit | REQ-006; AC-6 | The section says a `StartupInterrupted` is raised on a signal during startup and names only the HTTP subprocess health polling; the code covered only the MCP start and verify waits (checked in Step 2 and Step 3) | N/A: documentation | Verified |
@@ -161,10 +161,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Orchestrator stage race and its tests (scripts/agent/startup.py, tests/agent/test_startup_rollback.py) | Pending | — | — | |
-| 2 | RAG cancellation and its test (scripts/agent/startup_validation.py, tests/agent/test_startup_validation.py) | Pending | — | — | |
-| 3 | Documentation (docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | Pending | — | — | |
-| 4 | Deployment and verification (scripts/agent/startup.py, scripts/agent/startup_validation.py) | Pending | — | — | |
+| 1 | Orchestrator stage race and its tests (scripts/agent/startup.py, tests/agent/test_startup_rollback.py) | In Progress | — | — |  |
+| 2 | RAG cancellation and its test (scripts/agent/startup_validation.py, tests/agent/test_startup_validation.py) | In Progress | — | — |  |
+| 3 | Documentation (docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | In Progress | — | — |  |
+| 4 | Deployment and verification (scripts/agent/startup.py, scripts/agent/startup_validation.py) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -174,7 +174,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261116-095731_01_scripts_agent_startup.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261116-095731_02_scripts_agent_startup_validation.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261116-095731_05_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -199,3 +201,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-003 | Issue Testing Expectations | tests/agent/test_startup_validation.py | Phase 2 | AC-3, AC-5 | RAG cancellation test | Derived from confirmed evidence |
 | REQ-005 | Issue Testing Expectations | tests/agent/test_startup_validation.py | Phase 2 | AC-5 | RAG cancellation test fails before the change | Explicit in issue |
 | REQ-006 | Issue Documentation Impact; the startup document's claim about interruption (found in Step 2) | docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md | Phase 3 | AC-6 | `check_docs_quality`, `check_docs_content_policy` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261116-095731 -->

@@ -46,7 +46,7 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/db/helper.py | Provide the stop hook | Add a public method (for example `interrupt_when(stop, check_every=...)`) that installs `sqlite3.Connection.set_progress_handler` returning non-zero while `stop` is set; document that the aborted statement raises `sqlite3.OperationalError` | REQ-001; AC-1 | `SQLiteHelper` at line 64 holds the connection (`_require_conn` at line 141) and exposes `execute`, `executemany`, `commit` but no progress-handler or interrupt hook; no `set_progress_handler` or `.interrupt(` anywhere in `scripts/`; 18197 bytes, limit 24576 (checked in Step 3) | tests/db/test_sqlite_helper.py | Verified |
+| scripts/db/helper.py | Provide the stop hook | Add a public method (for example `interrupt_when(stop, check_every=...)`) that installs `sqlite3.Connection.set_progress_handler` returning non-zero while `stop` is set; document that the aborted statement raises `sqlite3.OperationalError` | REQ-001; AC-1 | `SQLiteHelper` at line 64 holds the connection (`_require_conn` at line 141) and exposes `execute`, `executemany`, `commit` but no progress-handler or interrupt hook; no `set_progress_handler` or `.interrupt(` anywhere in `scripts/`; 18197 bytes, limit 24576 (checked in Step 3) | `tests/db/test_sqlite_helper.py` | Verified |
 | scripts/agent/services/rag_maintenance_service.py | Accept the stop event | Give `RagMaintenanceService.consistency` an optional keyword `stop: threading.Event \| None = None`; when given, call the new helper hook right after `open()` | REQ-002; AC-2 | `consistency` at line 46 opens `SQLiteHelper("rag").open()` and calls `check_rag_consistency(db)` with no deadline; callers: `startup_validation.py` and `cmd_session._rag_consistency` (checked in Step 3) | tests/agent/test_startup_validation.py | Verified |
 | scripts/agent/startup_validation.py | Create, pass and set the event; name the bound | In the RAG step of `check_services`, create a `threading.Event` per run, pass it to `consistency`, set it in the `TimeoutError` handler, and replace the literal `30.0` by a module constant | REQ-003, REQ-004, REQ-005; AC-3, AC-4, AC-5 | The RAG step at lines 219-258: `run_in_executor(None, lambda: RagMaintenanceService().consistency())` under `asyncio.wait_for(..., timeout=30.0)`; radon C (17) for `check_services` (checked in Step 3 and Step 5) | tests/agent/test_startup_validation.py | Verified |
 | tests/db/test_sqlite_helper.py | Hook tests | Add tests: with the event set, a long statement aborts with `sqlite3.OperationalError` within a short bound; with the event never set, statements are unaffected; the hook can be installed on a reused connection without error | REQ-001; AC-1, AC-6 | The file holds helper test classes such as `TestReuseConnection` (line 261) using temporary databases (checked in Step 3) | tests/db/test_sqlite_helper.py | Verified |
@@ -162,10 +162,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Stop hook on the helper (scripts/db/helper.py, tests/db/test_sqlite_helper.py) | Pending | — | — | |
-| 2 | Service and pipeline (scripts/agent/services/rag_maintenance_service.py, scripts/agent/startup_validation.py, tests/agent/test_startup_validation.py) | Pending | — | — | |
-| 3 | Documentation (docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | Pending | — | — | |
-| 4 | Deployment and verification (scripts/db/helper.py, scripts/agent/services/rag_maintenance_service.py, scripts/agent/startup_validation.py) | Pending | — | — | |
+| 1 | Stop hook on the helper (scripts/db/helper.py, tests/db/test_sqlite_helper.py) | In Progress | — | — |  |
+| 2 | Service and pipeline (scripts/agent/services/rag_maintenance_service.py, scripts/agent/startup_validation.py, tests/agent/test_startup_validation.py) | In Progress | — | — |  |
+| 3 | Documentation (docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md) | In Progress | — | — |  |
+| 4 | Deployment and verification (scripts/db/helper.py, scripts/agent/services/rag_maintenance_service.py, scripts/agent/startup_validation.py) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -175,7 +175,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261116-095500_01_scripts_db_helper.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261116-095500_02_scripts_agent_services_rag_maintenance_service.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261116-095500_03_scripts_agent_startup_validation.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261116-095500_05_tests_agent_test_startup_validation.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261116-095500_06_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -199,3 +203,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Issue Acceptance Criteria (2) | tests/agent/test_startup_validation.py | Phase 2 | AC-4, AC-6 | loop-close time test | Explicit in issue |
 | REQ-005 | Issue Acceptance Criteria (3) | tests/agent/test_startup_validation.py | Phase 2 | AC-5, AC-6 | in-time fatal-finding test | Explicit in issue |
 | REQ-006 | Issue Documentation Impact; line 60 of the startup health document | docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md | Phase 3 | AC-7 | `check_docs_quality`, `check_docs_content_policy` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261116-095500 -->

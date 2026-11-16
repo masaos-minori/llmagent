@@ -44,9 +44,9 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/agent/memory/snippet_filter.py | Own the neutralizer and the block builder | Add a snippet neutralizer function and a block builder function (functions only, no new class, so the generated reference table is unaffected); keep `filter_pii` and `truncate_snippet` as they are | REQ-001, REQ-002; AC-1, AC-2 | The module holds `PII_PATTERNS`, `FilteredSnippet`, `TruncatedSnippet`, `filter_pii` (line 46) and `truncate_snippet` (line 63); 2559 bytes (checked in Step 3) | tests/agent/memory/test_memory_injection_security.py | Verified |
-| scripts/agent/startup_prompt_setup.py | Use the builder at session start | Replace the inline block construction in `setup_prompt` (the `memory_block` assignment at line 74) with the builder call; keep the snippet cap, the warning and the failure handling | REQ-003; AC-3 | `setup_prompt` builds `"\n\n--- USER MEMORY ---\n" + "\n".join(f"- {snippet.text}" ...)` after the cap; radon B (10) (checked in Step 3 and Step 5) | tests/agent/test_startup_prompt_setup.py | Verified |
-| scripts/agent/conversation_state_manager.py | Use the builder per turn | Replace the inline block construction in `handle_memory_injection` (line 130) with the builder call; keep the `system` role, `_memory_injected`, `source="memory_injection"` and the degraded-state handling | REQ-004; AC-4 | `handle_memory_injection` builds `"--- USER MEMORY ---\n" + "\n".join(f"- {snippet.text}" ...)` and appends it as a `system` message; radon B (9) (checked in Step 3 and Step 5) | tests/agent/test_memory_injection_recovery.py | Verified |
+| scripts/agent/memory/snippet_filter.py | Own the neutralizer and the block builder | Add a snippet neutralizer function and a block builder function (functions only, no new class, so the generated reference table is unaffected); keep `filter_pii` and `truncate_snippet` as they are | REQ-001, REQ-002; AC-1, AC-2 | The module holds `PII_PATTERNS`, `FilteredSnippet`, `TruncatedSnippet`, `filter_pii` (line 46) and `truncate_snippet` (line 63); 2559 bytes (checked in Step 3) | `tests/agent/memory/test_memory_injection_security.py` | Verified |
+| scripts/agent/startup_prompt_setup.py | Use the builder at session start | Replace the inline block construction in `setup_prompt` (the `memory_block` assignment at line 74) with the builder call; keep the snippet cap, the warning, the failure handling and the two leading blank lines that `setup_prompt` places before the block (the builder returns the block without them) | REQ-003; AC-3 | `setup_prompt` builds `"\n\n--- USER MEMORY ---\n" + "\n".join(f"- {snippet.text}" ...)` after the cap; radon B (10) (checked in Step 3 and Step 5) | `tests/agent/test_startup_prompt_setup.py` | Verified |
+| scripts/agent/conversation_state_manager.py | Use the builder per turn | Replace the inline block construction in `handle_memory_injection` (line 130) with the builder call; keep the `system` role, `_memory_injected`, `source="memory_injection"` and the degraded-state handling | REQ-004; AC-4 | `handle_memory_injection` builds `"--- USER MEMORY ---\n" + "\n".join(f"- {snippet.text}" ...)` and appends it as a `system` message; radon B (9) (checked in Step 3 and Step 5) | `tests/agent/test_memory_injection_recovery.py` | Verified |
 | tests/agent/memory/test_memory_injection_security.py | Helper tests | Add classes for the neutralizer and the builder: header lookalike, line breaks and control characters, role-style text, ordinary text unchanged, empty list, header and framing line present once | REQ-001, REQ-002, REQ-005; AC-1, AC-2, AC-5 | The file characterizes PII filtering and truncation only (classes `TestSensitiveDataFiltering` and the truncation tests, lines 18-156) (checked in Step 2 and Step 3) | tests/agent/memory/test_memory_injection_security.py | Verified |
 | tests/agent/test_startup_prompt_setup.py | Session-start path tests | Add tests: the system prompt block uses the framing line and neutralized text for a snippet with line breaks and a header lookalike; the existing header assertions keep passing | REQ-003, REQ-005; AC-3, AC-5 | The file asserts `"--- USER MEMORY ---" in ctx.conv.system_prompt_content` (lines 133, 166) (checked in Step 3) | tests/agent/test_startup_prompt_setup.py | Verified |
 | tests/agent/test_memory_injection_recovery.py | Per-turn path tests | Add tests: the per-turn `system` message block uses the same framing and neutralized text; the role, marker and source are unchanged | REQ-004, REQ-005; AC-4, AC-5 | The file drives `ConversationStateManager.handle_memory_injection("hello")` (lines 58, 62) (checked in Step 3) | tests/agent/test_memory_injection_recovery.py | Verified |
@@ -118,6 +118,7 @@ separate scope-of-record.
 ## Design
 - **Design decision (scope of the boundary)**: options weighed. (1) Sanitize only at session start, as the Issue assumed: rejected, the per-turn path builds the same block with the same header and role, so the same text would be injected unchecked one turn later. (2) Filter at extraction or storage time: rejected, it would change what is remembered and cannot protect entries already stored. (3) One shared builder applied where text enters the system role, on both paths: chosen. Compatibility impact: the block gains one framing line and snippet text is normalized to one line; the header line and every limit are unchanged.
 - **Design decision (what the neutralizer does)**: it removes what lets a snippet change the block's structure (line breaks, control characters, a copy of the header) and does not rewrite ordinary wording; it does not try to detect instructions, because instruction-like language is also the legitimate content of rule memories.
+- **Block prefix and builder input (added in the plan-to-implementation-procedure cycle, Step 3a)**: the two inline builders differ today: `setup_prompt` places two blank lines before the header (it appends the block to the system prompt), `handle_memory_injection` starts the message with the header. The builder therefore returns the block starting at the header line and `setup_prompt` keeps prepending its own separator; the per-turn message content stays byte-identical to the header-first form. The builder takes the snippet texts (a sequence of strings), not `MemorySnippet` objects, so `snippet_filter.py` keeps importing only the standard library.
 - **Residual risk**: the model may still follow an instruction written as plain text inside a bullet; the framing line lowers that likelihood but is not a boundary. Recorded in the documentation and in Risks.
 - **Architecture analysis**: `lint-imports` reports 6 contracts kept, 0 broken at this commit; `snippet_filter.py` imports only the standard library; both callers already live in `agent`; no cross-layer import is added (checked in Step 5).
 - **Dependency graph**: `snippet_filter` is imported by `injection.py` and the tests; the block-building code is duplicated in `startup_prompt_setup.py` and `conversation_state_manager.py` (checked in Step 3).
@@ -168,11 +169,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Shared helper and its tests (scripts/agent/memory/snippet_filter.py, tests/agent/memory/test_memory_injection_security.py) | Pending | — | — | |
-| 2 | Session-start path (scripts/agent/startup_prompt_setup.py, tests/agent/test_startup_prompt_setup.py) | Pending | — | — | |
-| 3 | Per-turn path (scripts/agent/conversation_state_manager.py, tests/agent/test_memory_injection_recovery.py) | Pending | — | — | |
-| 4 | Documentation (docs/91_security/security_01_architecture-and-trust-boundaries.md, docs/23_agent/agent_11_01_memory-overview-and-modes.md) | Pending | — | — | |
-| 5 | Deployment and verification (scripts/agent/memory/snippet_filter.py, scripts/agent/startup_prompt_setup.py, scripts/agent/conversation_state_manager.py) | Pending | — | — | |
+| 1 | Shared helper and its tests (scripts/agent/memory/snippet_filter.py, tests/agent/memory/test_memory_injection_security.py) | In Progress | — | — |  |
+| 2 | Session-start path (scripts/agent/startup_prompt_setup.py, tests/agent/test_startup_prompt_setup.py) | In Progress | — | — |  |
+| 3 | Per-turn path (scripts/agent/conversation_state_manager.py, tests/agent/test_memory_injection_recovery.py) | In Progress | — | — |  |
+| 4 | Documentation (docs/91_security/security_01_architecture-and-trust-boundaries.md, docs/23_agent/agent_11_01_memory-overview-and-modes.md) | In Progress | — | — |  |
+| 5 | Deployment and verification (scripts/agent/memory/snippet_filter.py, scripts/agent/startup_prompt_setup.py, scripts/agent/conversation_state_manager.py) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -182,7 +183,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261116-095914_01_scripts_agent_memory_snippet_filter.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261116-095914_02_scripts_agent_startup_prompt_setup.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261116-095914_03_scripts_agent_conversation_state_manager.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261116-095914_07_docs_91_security_security_01_architecture-and-trust-boundaries.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261116-095914_08_docs_23_agent_agent_11_01_memory-overview-and-modes.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -209,3 +214,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-005 | Issue Testing Expectations | tests/agent/test_memory_injection_recovery.py | Phase 3 | AC-5 | new tests fail on the pre-change code | Explicit in issue |
 | REQ-006 | Issue Documentation Impact; the "Agent → LLM" row of the trust-boundary table (Step 2) | docs/91_security/security_01_architecture-and-trust-boundaries.md | Phase 4 | AC-6 | `check_docs_quality`, `check_docs_content_policy` | Confirmed by repository evidence |
 | REQ-006 | Issue Documentation Impact; injection passage near lines 46-47 | docs/23_agent/agent_11_01_memory-overview-and-modes.md | Phase 4 | AC-6 | `check_docs_quality`, `check_docs_content_policy` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261116-095914 -->
