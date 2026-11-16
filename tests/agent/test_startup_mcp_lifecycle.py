@@ -12,6 +12,12 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.http_lifecycle import HttpServerLifecycleManager
+from agent.http_lifecycle_errors import (
+    HttpStartupError,
+    StartupFailure,
+    TerminationOutcome,
+)
 from agent.shared.retry_helper import retry_once_with_delay
 from agent.startup import (
     StartupInterrupted,
@@ -270,6 +276,82 @@ class TestStartupOrchestratorStartServers:
 
         assert retry_calls["n"] == 1
         assert result == [retried_proc]
+
+    @pytest.mark.asyncio
+    async def test_unconfirmed_first_failure_raises_not_records_spawn(
+        self,
+    ) -> None:
+        """REQ-004/T-005: a start whose first attempt fails with an exit that
+        cannot be confirmed must end in a startup failure, not in a recorded
+        spawn.
+
+        Reproduces the router's two-line shape over a real
+        HttpServerLifecycleManager: the first start spawns a live fake process,
+        its health poll fails, and the terminator reports EXIT_UNCONFIRMED; the
+        retry reuses the still-tracked process. On the pre-fix manager the reuse
+        branch returns the process (a recorded spawn); the fix keeps it tracked
+        and raises HttpStartupError again.
+        """
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup({"web": cfg})
+
+        mgr = HttpServerLifecycleManager()
+        fake_proc = MagicMock(spec=subprocess.Popen)
+        fake_proc.poll.return_value = None
+        fake_proc.pid = 4242
+
+        async def _fake_create(
+            server_key: str, server_cfg: McpServerConfig
+        ) -> tuple[subprocess.Popen[bytes], object]:
+            mgr._http_procs[server_key] = fake_proc
+            mgr._http_pgids[server_key] = 99001
+            return fake_proc, MagicMock()
+
+        async def _fake_health(
+            server_key: str,
+            _server_cfg: object,
+            _proc: object,
+            _deadline: object,
+            _shutdown_event: object,
+        ) -> None:
+            await mgr._raise_startup_failure_unconfirmed(
+                server_key, "health poll timeout", ""
+            )
+
+        async def _start_http_subprocess(
+            server_key: str,
+            server_cfg: McpServerConfig,
+            shutdown_event: asyncio.Event | None = None,
+        ) -> object:
+            await mgr.start(server_key, server_cfg, shutdown_event=shutdown_event)
+            return mgr._http_procs.get(server_key)
+
+        startup._ctx.services_required.lifecycle.start_http_subprocess = (
+            _start_http_subprocess
+        )
+
+        with (
+            patch.object(
+                mgr._subprocess_launcher,
+                "create_and_validate_proc",
+                AsyncMock(side_effect=_fake_create),
+            ),
+            patch.object(mgr, "_health_poll_until_ready", _fake_health),
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                AsyncMock(return_value=TerminationOutcome.EXIT_UNCONFIRMED),
+            ),
+            patch("agent.startup_mcp_starter.RETRY_DELAY_SEC", 0.05),
+        ):
+            with pytest.raises(HttpStartupError) as exc_info:
+                await startup._start_servers()
+
+        assert isinstance(exc_info.value.failure, StartupFailure)
+        assert exc_info.value.failure.server_key == "web"
+        assert startup._mcp_starter._spawned_subprocesses == []
+        assert mgr._http_procs.get("web") is fake_proc
+        assert mgr._failed_start_procs.get("web") is fake_proc
 
     @pytest.mark.asyncio
     async def test_failing_start_calls_twice_with_retry_gap(self) -> None:

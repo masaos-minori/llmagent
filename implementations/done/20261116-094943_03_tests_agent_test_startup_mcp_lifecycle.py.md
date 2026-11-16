@@ -71,8 +71,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the starter-level unconfirmed-failure test and confirm it fails on the pre-fix manager | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for the test file | Pending | — | — | |
+| 1 | Add the starter-level unconfirmed-failure test and confirm it fails on the pre-fix manager | Done | 20261116 | 20261116 | Test added after `test_genuine_runtime_error_still_retries`; confirmed it fails on the pre-fix manager (removed `_failed_start_procs` retention → `DID NOT RAISE`) then restored via `git checkout`. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for the test file | Done | 20261116 | 20261116 | pytest 35 passed (test file + rollback); ruff check/format clean; full `pre-commit run --all-files` passes including mock-patch-targets and check-compat-shims. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
