@@ -221,7 +221,7 @@ Add one maintenance entry point that applies age-then-count retention to every a
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| WI-008-1 | 4 | Operator decision (recorded at plan time) | Open | maintainer | — | Production side: add the six keys to `/opt/llm/config/agent.toml` at deploy time and decide whether to schedule `purge_archive_artifacts()` weekly (mirrors the `purge_corrupt_archives` cadence that today has no in-repo caller). Confirms UNK-01. |
+| WI-008-1 | 4 | Operator decision (recorded at plan time) | Completed | maintainer | — | Decided 20261116-155505: add the six keys to the production `/opt/llm/config/agent.toml` at deploy time (keys must first land via procedures seq 02 and seq 08, since no loader reads them before seq 02 runs and `deploy.sh` re-copies `config/agent.toml` each deploy); do NOT schedule `purge_archive_artifacts()` weekly at this stage — no caller wired. UNK-01 measured on the production host 20261116: no user crontab; system cron carries only standard run-parts jobs (logrotate, man-db, mlocate, tmpfiles) and nothing touches `/opt/llm` archive files. |
 | implementations/20261116-144812_01_scripts_db_maintenance.py.md | 2 | Procedure | Pending | — | — |
 | implementations/20261116-144812_02_scripts_db_config.py.md | 1 | Procedure | Pending | — | — |
 | implementations/20261116-144812_03_scripts_db_rotation.py.md | 1 | Procedure | Pending | — | — |
