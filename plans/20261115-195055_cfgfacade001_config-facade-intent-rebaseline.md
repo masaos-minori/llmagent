@@ -236,7 +236,7 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the classification (`plans/...cfgfacade001...`) | Pending | — | — | REQ-001..REQ-006 |
+| 1 | Record the classification (`plans/...cfgfacade001...`) | In Progress | — | — | REQ-001..REQ-006 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -246,7 +246,7 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|--------|----------|
-| — | — | — | — | — | — |
+| implementations/20261116-092800_01_plans_20261115-195055_cfgfacade001_config-facade-intent-rebaseline.md.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -266,3 +266,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Required Changes (P1-4) | plan | 1 | AC 1 | `config_loader.py` citation | Confirmed by repository evidence |
 | REQ-005 | Required Changes (P2-1) | plan | 1 | AC 1 | `production_config_validator.py` citation | Confirmed by repository evidence |
 | REQ-006 | Required Changes (P2-2) | plan | 1 | AC 1 | `config_loader.py` citation | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261116-092800 -->
