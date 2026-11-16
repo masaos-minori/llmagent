@@ -190,6 +190,15 @@ def _drill_one_domain(
         logger.error("drill %s: %s", domain, exc)
         _persist_artifact(drill_dir, artifact)
         return artifact
+    except (RuntimeError, sqlite3.Error) as exc:
+        # Archive-stage failures from rotation (_verify_archive raises
+        # RuntimeError; connect/backup raise sqlite3.Error). The artifact is
+        # persisted before continuing so the drill never aborts mid-loop.
+        artifact["verification"] = {"archive_failed": False}
+        artifact["error"] = str(exc)
+        logger.error("drill %s: %s", domain, exc)
+        _persist_artifact(drill_dir, artifact)
+        return artifact
 
     artifact["archive_path"] = str(recovery_point)
     artifact["archive_ts"] = format_timestamp()
@@ -201,9 +210,10 @@ def _drill_one_domain(
     drill_dir_path = Path(drill_dir)
     drill_dir_path.mkdir(parents=True, exist_ok=True)
     isolated = drill_dir_path / f"{recovery_point.name}_restored{live_path.suffix}"
+    # RTO clock starts before the copy: rto_seconds covers copy + verification.
+    started = time.time()
     shutil.copy2(recovery_point, isolated)
 
-    started = time.time()
     try:
         if domain in ("rag", "session"):
             verification = _verify_rag_session(domain, isolated, cfg.sqlite_vec_so)
@@ -245,24 +255,6 @@ def _drill_one_domain(
     return artifact
 
 
-def _last_archive(archive_dir: str, stem: str) -> Path:
-    """Return the most recent archived file for ``stem`` in ``archive_dir``.
-
-    ``_archive_db_file`` names each copy ``<stem>_<timestamp>.<ext>``; the newest
-    is the latest recovery point. Returns a non-existent path when none exists so
-    the caller records a missing-source finding instead of crashing.
-    """
-    dest_dir = Path(archive_dir)
-    candidates = [
-        child
-        for child in dest_dir.glob(f"{stem}_*.sqlite*")
-        if child.is_file() and child.name.startswith(f"{stem}_")
-    ]
-    if not candidates:
-        return dest_dir / f"{stem}_none.sqlite"
-    return max(candidates, key=lambda p: p.stat().st_mtime)
-
-
 def _persist_artifact(drill_dir: str, artifact: dict) -> None:
     """Write the artifact JSON to the drill directory (even on failure)."""
     drill_dir_path = Path(drill_dir)
@@ -297,13 +289,14 @@ def run_drill(
             if verdict is not None
         )
         status = "PASS" if ok else "FAIL"
-        print(f"[drill] {target}: {status} {artifact['verification']}")
+        logger.info("[drill] %s: %s %s", target, status, artifact["verification"])
         passed_all = passed_all and ok
     return passed_all
 
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point for the recovery drill."""
+    logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(
         description="Recovery drill harness: rotate a recovery point, restore it "
         "into an isolated copy, and verify per-domain.",

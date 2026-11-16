@@ -134,7 +134,7 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted 37291 (2026-11-15): dbreview004 added the `missing` condition to the
     # Decision Detail #14 and INV-13 enumerations and the MISSING/rollback-journal test
     # citations to the INV-13 and INV-16 rows.
-    "db_07_api_and_operations-recovery-and-reference.md": 25845,
+    "db_07_api_and_operations-recovery-and-reference.md": 26156,
     # Re-accepted 25553 (2026-11-15): dbreview004 added the MISSING enum member, the
     # missing-file diagnosis bullet, the probe-semantics bullet, and the
     # missing_database/active_db_state="missing" result-contract additions.
@@ -142,6 +142,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # probe-semantics bullet (a staged -wal replayed by candidate verification is
     # consumed) and the activation move contract (only staged sidecars that still
     # exist are moved; consumed ones are skipped).
+    # Re-accepted 26156 (2026-11-16): dbreview009 procedure 20261116-075258_03 widened
+    # the `rto_seconds` row (isolated restore copy plus verification) and extended the
+    # `error` row with the archive-stage failure semantics (per-domain artifact kept,
+    # remaining domains still drilled, exit code 1).
     "adr_02_03_012_mcp-git-server-side-write-enforcement.md": 25253,
     # Re-accepted 25253 (2026-11-15), closing gate drift: a66077b4f (the authority-model
     # batch) grew the file 17842 -> 25253 past the default limit without a ceiling entry.

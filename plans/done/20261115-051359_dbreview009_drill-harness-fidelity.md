@@ -154,9 +154,9 @@ Catch the archive stage's full exception set per domain and persist a failed art
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Drill failure handling, clock, dead code, logging (scripts/db/recovery_drill.py) | In Progress | — | — | procedure doc 20261116-075258_01 generated |
-| 2 | Tests (tests/db/test_recovery_drill.py) | In Progress | — | — | covered as companion test file of 20261116-075258_01 |
-| 3 | Docs and validation | In Progress | — | — | procedure doc 20261116-075258_03 generated; validation commands live in the procedure docs' Validation plans |
+| 1 | Drill failure handling, clock, dead code, logging (scripts/db/recovery_drill.py) | Completed | — | 2026-11-16 | procedure doc 20261116-075258_01 generated; re-applied after a parallel-session revert landed in the same cycle |
+| 2 | Tests (tests/db/test_recovery_drill.py) | Completed | — | 2026-11-16 | covered as companion test file of 20261116-075258_01; 17/17 passed, tests/db 464/464 |
+| 3 | Docs and validation | Completed | — | 2026-11-16 | procedure doc 20261116-075258_03 generated; db_07 section 12 updated; docs checkers clean (db_07 ceiling re-accepted 26156); targeted gates green (full suite and diff-cover skipped per operator instruction) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -167,8 +167,8 @@ Catch the archive stage's full exception set per domain and persist a failed art
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | WI-009-1 | — | Follow-up (recorded at plan time) | Open | maintainer | — | RTO values in historical artifacts under `/opt/llm/data/archives/drills` (if any) are verification-only; post-change artifacts are copy+verification. No action unless a dashboard consumes them. |
-| implementations/20261116-075258_01_scripts_db_recovery_drill.py.md | 1, 2 | Procedure | Created | — | — |
-| implementations/20261116-075258_03_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 3 | Procedure | Created | — | — |
+| implementations/20261116-075258_01_scripts_db_recovery_drill.py.md | 1, 2 | Procedure | Archived | — | — |
+| implementations/20261116-075258_03_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 3 | Procedure | Archived | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

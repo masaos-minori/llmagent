@@ -11,11 +11,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -635,3 +638,127 @@ def test_cli_exits_nonzero_on_failure(tmp_path: Path) -> None:
     artifacts = _load_artifacts(drill)
     assert artifacts and artifacts[0]["verification"].get("schema_matches") is False
     assert "workflow_schema_version" in (artifacts[0]["error"] or "")
+
+
+# ── Archive-stage failure continuation (dbreview009 AC-1) ────────────────────
+
+
+def _patched_archiver(failing_domain: str, exc: Exception):
+    """side_effect factory: raise only for *failing_domain*, delegate otherwise."""
+    from db.rotation import _archive_db_file as real_archiver
+
+    def fake(live_path, archive_dir, *, target):
+        if target == failing_domain:
+            raise exc
+        return real_archiver(live_path, archive_dir, target=target)
+
+    return fake
+
+
+@pytest.mark.parametrize(
+    ("failing_domain", "exc"),
+    [
+        (
+            "rag",
+            RuntimeError("archive verification failed for x: integrity check ..."),
+        ),
+        ("session", sqlite3.Error("disk I/O error")),
+    ],
+    ids=["runtime-error", "sqlite-error"],
+)
+def test_archive_stage_failure_persists_artifact_and_continues(
+    _domain_dbs: dict[str, Path],
+    tmp_path: Path,
+    failing_domain: str,
+    exc: Exception,
+) -> None:
+    """AC-1: an archive-stage RuntimeError/sqlite3.Error records the failing
+    domain's artifact, keeps drilling the other domains, and fails the run."""
+    paths = _domain_dbs
+    cfg = _config(paths)
+    archive = tmp_path / "archive"
+    drill = tmp_path / "drills"
+    with (
+        patch("db.recovery_drill.build_db_config", return_value=cfg),
+        patch(
+            "db.recovery_drill._archive_db_file",
+            side_effect=_patched_archiver(failing_domain, exc),
+        ),
+    ):
+        ok = run_drill("all", str(archive), str(drill))
+    assert ok is False
+
+    artifacts = {art["domain"]: art for art in _load_artifacts(drill)}
+    assert set(artifacts) == set(DOMAINS)  # every domain persisted
+
+    failed = artifacts[failing_domain]
+    assert failed["verification"] == {"archive_failed": False}
+    assert failed["error"] == str(exc)
+    assert failed["integrity"] is None  # never reached the restore stage
+    assert failed["archive_path"] is None
+
+    for domain, art in artifacts.items():
+        if domain == failing_domain:
+            continue
+        assert art["integrity"] is True  # the other domains drill normally
+        assert art["verification"].get("schema_matches") is True
+
+
+# ── RTO clock ordering (dbreview009 AC-2) ────────────────────────────────────
+
+
+def test_restore_clock_starts_before_the_copy(
+    _domain_dbs: dict[str, Path], tmp_path: Path
+) -> None:
+    """AC-2: restore_start_ts precedes the copy2 completion, so rto_seconds
+    covers copy + verification. Deterministic: no sleeps, only a recorder."""
+    paths = _domain_dbs
+    cfg = _config(paths)
+    archive = tmp_path / "archive"
+    drill = tmp_path / "drills"
+    real_copy2 = shutil.copy2
+    copy_end: float | None = None
+
+    def recorder(src, dst):
+        nonlocal copy_end
+        real_copy2(src, dst)
+        copy_end = time.time()
+
+    with (
+        patch("db.recovery_drill.build_db_config", return_value=cfg),
+        patch("db.recovery_drill.shutil.copy2", side_effect=recorder),
+    ):
+        assert run_drill("rag", str(archive), str(drill)) is True
+    (art,) = _load_artifacts(drill)
+    assert copy_end is not None
+    assert art["restore_start_ts"] <= copy_end
+    assert art["rto_seconds"] >= 0
+
+
+# ── Status line via logger (dbreview009 AC-4) ────────────────────────────────
+
+
+def test_status_line_is_logged_once_per_domain(
+    _domain_dbs: dict[str, Path],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """AC-4: run_drill emits one INFO status line per drilled domain naming
+    the domain and its PASS verdict (no print())."""
+    paths = _domain_dbs
+    cfg = _config(paths)
+    archive = tmp_path / "archive"
+    drill = tmp_path / "drills"
+    with (
+        patch("db.recovery_drill.build_db_config", return_value=cfg),
+        caplog.at_level(logging.INFO, logger="db.recovery_drill"),
+    ):
+        assert run_drill("all", str(archive), str(drill)) is True
+    status_lines = [
+        rec.getMessage()
+        for rec in caplog.records
+        if "[drill]" in rec.getMessage() and rec.levelno == logging.INFO
+    ]
+    assert len(status_lines) == len(DOMAINS)
+    for domain in DOMAINS:
+        assert any(f"{domain}: PASS" in line for line in status_lines)

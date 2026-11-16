@@ -63,8 +63,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update section 12 failure-semantics and `rto_seconds` wording (plan Phase 3) | Pending | — | — | REQ-001, REQ-002 docs wording; gated: plans/done/20261115-041859_dbreview004_integrity-probe-side-effects.md phase all - re-read landed drill section first (004 landed at commit `693f71679`); also lands only after `20261116-075258_01` ; verified 2026-11-16 at HEAD d0500d87c: db_07 doc anchors :156/:184/:188/:189/:191 confirmed, rto_seconds sole repo doc hit at db_07:184 - no drift |
-| 2 | Run the docs checkers (Validation plan) | Pending | — | — | |
+| 1 | Update section 12 failure-semantics and `rto_seconds` wording (plan Phase 3) | Completed | — | — | REQ-001, REQ-002 docs wording; gated: plans/done/20261115-041859_dbreview004_integrity-probe-side-effects.md phase all - re-read landed drill section first (004 landed at commit `693f71679`); also lands only after `20261116-075258_01` ; verified 2026-11-16 at HEAD d0500d87c: db_07 doc anchors :156/:184/:188/:189/:191 confirmed, rto_seconds sole repo doc hit at db_07:184 - no drift re-applied after parallel-session revert; section 12 error-row failure semantics + rto_seconds widened per procedure; db_07 ceiling re-accepted 26156 in check_docs_structure.py (file was exactly at the old 25845 cap at HEAD) |
+| 2 | Run the docs checkers (Validation plan) | Completed | — | — | re-applied after parallel-session revert; section 12 error-row failure semantics + rto_seconds widened per procedure; db_07 ceiling re-accepted 26156 in check_docs_structure.py (file was exactly at the old 25845 cap at HEAD) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
