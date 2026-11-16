@@ -70,8 +70,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the later-start rule to the shutdown termination note | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Pending | — | — | |
+| 1 | Add the later-start rule to the shutdown termination note | Done | 20261116 | 20261116 | Appended two sentences to the Shutdown Termination note stating a process left by an unconfirmed failed start is never reused by a later start (re-terminated, fresh launch only after a confirmed exit). |
+| 2 | Run the documentation checkers named in `routing.md` Tools "When to run which tool" | Done | 20261116 | 20261116 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_consistency --domain mcp, check_docs_japanese all report no finding. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
