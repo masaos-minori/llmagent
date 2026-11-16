@@ -87,6 +87,7 @@ class TurnPersistence:
         self._snapshot = snapshot
         self._undo_floor_at_turn_start = conv.undo_floor
         self._pre_rewrite_image: tuple | None = None
+        self._write_committed = False
 
     async def save(
         self,
@@ -106,6 +107,7 @@ class TurnPersistence:
             )
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
+        self._write_committed = True
 
     async def save_many(
         self,
@@ -120,6 +122,7 @@ class TurnPersistence:
             await asyncio.to_thread(self.session._message_repo.save_many, messages)
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
+        self._write_committed = True
 
     async def save_phase_grouped(
         self,
@@ -137,6 +140,7 @@ class TurnPersistence:
             )
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
+        self._write_committed = True
 
     async def replace_messages(self, messages: list[LLMMessage]) -> int | None:
         """Persist a compressed snapshot back to DB.
@@ -150,12 +154,14 @@ class TurnPersistence:
         if self.session_id is None:
             return None
         try:
-            return await asyncio.to_thread(
+            result = await asyncio.to_thread(
                 self._rewrite_with_pre_image_capture, messages
             )
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
             return None  # unreachable: _fail_from_error always raises
+        self._write_committed = True
+        return result
 
     def _rewrite_with_pre_image_capture(self, messages: list[LLMMessage]) -> int | None:
         """Capture the pre-rewrite image, then rewrite (sync, worker thread).
@@ -224,3 +230,24 @@ class TurnPersistence:
         raise ConversationPersistenceError(
             "turn not persisted; history rolled back", cause=exc
         ) from exc
+
+    async def rollback_partial_turn(self) -> bool:
+        """Compensate a partial turn after a non-persistence exception escaped.
+
+        Returns True if compensation ran (a write had committed), False otherwise
+        (REQ-004). Mirrors the finally of _fail_from_error: _compensate() then
+        restore_messages + undo_floor reset. Compensation runs on a worker thread
+        like the writes (REQ-006).
+        """
+        if not self._write_committed:
+            return False
+        try:
+            await self._compensate()
+        except sqlite3.Error as comp_exc:
+            logger.error(
+                "Turn compensation failed after unhandled exception: %s", comp_exc
+            )
+        finally:
+            await self.conv.restore_messages(self._snapshot)
+            self.conv.undo_floor = self._undo_floor_at_turn_start
+        return True

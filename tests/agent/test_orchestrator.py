@@ -105,6 +105,10 @@ def _persistence_boundary_mock() -> MagicMock:
     boundary = MagicMock()
     boundary.save = AsyncMock(return_value=None)
     boundary.replace_messages = AsyncMock(return_value=None)
+    # New all-or-nothing compensation entry point (orchestrator001). Defaults to
+    # "nothing committed" so pre-existing escaping-exception cases keep their
+    # original is_partial derivation from partial_text alone.
+    boundary.rollback_partial_turn = AsyncMock(return_value=False)
     return boundary
 
 
@@ -1584,6 +1588,63 @@ class TestTurnEndBracket:
         assert len(events) == 1
         assert events[0]["error_kind"] == "RuntimeError"
         assert ctx.workflow.active is False
+
+    @pytest.mark.asyncio
+    async def test_non_persistence_exception_after_commit_records_is_partial(
+        self,
+    ) -> None:
+        # A non-sqlite3.Error escaping after a committed write is compensated via
+        # rollback_partial_turn(); is_partial reflects the compensation (REQ-002).
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        captured = self._install_audit_capture(ctx)
+
+        boundary = _persistence_boundary_mock()
+        boundary.rollback_partial_turn = AsyncMock(return_value=True)
+        ctx.session.turn_boundary = AsyncMock(return_value=boundary)
+
+        engine = orch._workflow_adapter._workflow_engine
+
+        async def _raise_runtime(task, plan_fn, execute_fn, verify_fn) -> None:
+            raise RuntimeError("boom")
+
+        engine.run = AsyncMock(side_effect=_raise_runtime)
+
+        with pytest.raises(RuntimeError):
+            await orch.handle_turn("hello")
+
+        events = self._turn_end_events(captured)
+        assert len(events) == 1
+        assert events[0]["error_kind"] == "RuntimeError"
+        assert events[0]["partial_completion"] is True
+
+    @pytest.mark.asyncio
+    async def test_non_persistence_exception_without_commit_keeps_is_partial_false(
+        self,
+    ) -> None:
+        # Nothing committed: rollback_partial_turn returns False, so is_partial
+        # stays False even for a plain escaping exception (REQ-004).
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        captured = self._install_audit_capture(ctx)
+
+        boundary = _persistence_boundary_mock()
+        boundary.rollback_partial_turn = AsyncMock(return_value=False)
+        ctx.session.turn_boundary = AsyncMock(return_value=boundary)
+
+        engine = orch._workflow_adapter._workflow_engine
+
+        async def _raise_runtime(task, plan_fn, execute_fn, verify_fn) -> None:
+            raise RuntimeError("boom")
+
+        engine.run = AsyncMock(side_effect=_raise_runtime)
+
+        with pytest.raises(RuntimeError):
+            await orch.handle_turn("hello")
+
+        events = self._turn_end_events(captured)
+        assert len(events) == 1
+        assert events[0]["partial_completion"] is False
 
 
 # ── _handle_llm_turn: optional wait/turn callbacks ───────────────────────────

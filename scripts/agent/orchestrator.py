@@ -191,7 +191,9 @@ class Orchestrator:
             raise
         except BaseException as exc:
             error_kind = exc.__class__.__name__
-            is_partial = bool(getattr(exc, "partial_text", ""))
+            if boundary is not None:
+                compensated = await boundary.rollback_partial_turn()
+                is_partial = bool(getattr(exc, "partial_text", "")) or compensated
             raise
         finally:
             try:

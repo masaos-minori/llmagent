@@ -295,6 +295,58 @@ class TestCompensation:
         assert _message_rows(conn) == []
 
 
+# ── rollback_partial_turn (non-persistence escaping exception) ─────────────────
+
+
+class TestRollbackPartialTurn:
+    async def test_rollback_after_commit_compensates_and_returns_true(
+        self, wired
+    ) -> None:
+        conn, _state = wired
+        conn.executemany(
+            "INSERT INTO messages (session_id, role, content) VALUES (1, ?, ?)",
+            [("user", "prior-1"), ("assistant", "prior-2")],
+        )
+        conn.commit()
+
+        session = AgentSession()
+        session.session_id = 1
+        conv = ConversationState()
+        conv.history = [
+            {"role": "user", "content": "prior-1"},
+            {"role": "assistant", "content": "prior-2"},
+        ]
+        boundary = await _boundary(session, conv, marker=2)
+
+        # A committed write flips the flag; a later non-sqlite3.Error escapes.
+        await boundary.save("user", "turn-3")
+        assert await boundary.rollback_partial_turn() is True
+
+        # REQ-001/REQ-004: partial turn rows gone, prior-turn rows survive.
+        rows = _message_rows(conn)
+        assert [role for _, role, _ in rows] == ["user", "assistant"]
+
+        # Memory restored to the turn-start snapshot element-wise.
+        assert conv.history == [
+            {"role": "user", "content": "prior-1"},
+            {"role": "assistant", "content": "prior-2"},
+        ]
+
+    async def test_rollback_before_commit_is_noop_and_returns_false(
+        self, wired
+    ) -> None:
+        conn, _state = wired
+        session = AgentSession()
+        session.session_id = 1
+        conv = ConversationState()
+        conv.history = [{"role": "user", "content": "start"}]
+        boundary = await _boundary(session, conv, marker=0)
+
+        # No write committed; compensation must not run.
+        assert await boundary.rollback_partial_turn() is False
+        assert _message_rows(conn) == []
+
+
 # ── Snapshot restore ───────────────────────────────────────────────────────────
 
 
