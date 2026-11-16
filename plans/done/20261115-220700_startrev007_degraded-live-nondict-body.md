@@ -146,7 +146,7 @@ Table structure, status/type vocabulary, and general guidance: see
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Shared predicate and its tests (scripts/agent/http_lifecycle_health_checker.py, tests/agent/test_http_lifecycle_health_check.py) | Completed | — | 20261116-134510 |  |
 | 2 | Remove the inline copy and add `verify_health` tests (scripts/agent/startup_mcp_starter.py, tests/agent/test_startup_mcp_starter.py) | Completed | — | 20261116-140914 |  |
-| 3 | Deployment and verification (scripts/agent/http_lifecycle_health_checker.py, scripts/agent/startup_mcp_starter.py) | Pending | — | — |  |
+| 3 | Deployment and verification (scripts/agent/http_lifecycle_health_checker.py, scripts/agent/startup_mcp_starter.py) | Completed | — | 20261116-185552 | Deployed HEAD bddab31ce. All 11 binaries rebuilt (max-arity fix efd6c5cae; agent rebuilt again after REQ-006 merge). Schema-drift audit: rag/eventbus/session/workflow DBs recreated, old files archived as *.pre-deploy-20261116.bak (session kept 6 sessions/500 memories per operator decision), mdq OK untouched. Event Bus restarted healthy (direct documented launch, setup_services.sh gate blocked by remote agent-llm host 192.168.11.197 down, out of repo scope). cicd orphan test process killed, port 8012 free for on-demand binary start. DEPLOYED_REV and agent sha256 verified. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
