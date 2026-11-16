@@ -1,3 +1,5 @@
+> **Superseded**: This plan was the initial draft of Issue `issues/20261115-183024_lintgate001_ruff-check-local-gate.md`. It was superseded by `plans/done/20261115-202908_lintgate001_ruff-check-local-gate.md`, which adopts a different approach (a routing-source gate scoped to changed `scripts/` files instead of a toolchain-source gate over all of `scripts/`) and was frozen and implemented. No implementation procedure was generated for this plan; it is archived here without procedures.
+
 ## Goal
 - Make the pre-commit validation gate (`tools/run_validation_gates.py`, fast mode, the one `git-commit-and-sync` Phase 4 runs) fail on a ruff finding in `scripts/`, with the same two commands the required CI `lint` job runs, so a lint error is caught before the commit and not first on master.
 
