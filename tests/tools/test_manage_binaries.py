@@ -307,7 +307,20 @@ def test_unit_swap_and_rollback_move_the_ten_names_together(tmp_path: Path) -> N
             == 0
         )
     names_arg = " ".join(_MCP_NAMES)
-    assert mod.main(["swap", "--stage-dir", str(stage), "--bin-dir", str(bin_dir), "--names", names_arg]) == 0
+    assert (
+        mod.main(
+            [
+                "swap",
+                "--stage-dir",
+                str(stage),
+                "--bin-dir",
+                str(bin_dir),
+                "--names",
+                names_arg,
+            ]
+        )
+        == 0
+    )
     prev = tmp_path / "bin.prev"
     for name in _MCP_NAMES:
         assert (bin_dir / name).read_bytes().endswith(b"new")
@@ -629,6 +642,10 @@ def _run_build_recording_ccache_env(
         "OUTPUT_DIR": str(tmp_path / "dist"),
         "BUILD_ONLY": "agent",
         "XDG_CACHE_HOME": str(xdg_cache_home),
+        # The ccache setup runs before the script's tmpfs OUTPUT_DIR guard; without this
+        # the script stops at the guard on a host whose /tmp is tmpfs and the recorded
+        # env is the one from before the ccache setup.
+        "ALLOW_TMPFS_OUTPUT": "1",
     }
     if ccache_dir is not None:
         env["CCACHE_DIR"] = str(ccache_dir)

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import subprocess
+import tempfile
 import types
 from pathlib import Path
 
@@ -228,6 +230,10 @@ def _run_build(
         "BIN_DIR": str(tmp_path / "bin"),
         "OUTPUT_DIR": str(tmp_path / "dist"),
         "STUB_LOG": str(logs),
+        # pytest's tmp_path is on tmpfs on some hosts (/tmp is tmpfs under WSL and in
+        # many containers) and the script refuses a tmpfs OUTPUT_DIR; these tests do not
+        # exercise that guard, so they must not depend on where /tmp is mounted.
+        "ALLOW_TMPFS_OUTPUT": "1",
         **extra_env,
     }
     result = subprocess.run(
@@ -359,6 +365,33 @@ def test_canonical_header_is_skipped_when_disabled_or_unavailable(
     assert (wrapper, canon) == ("", "")
     assert "masq" in path
     assert f"HELPERS_CANON: {state}" in result.stdout
+
+
+def _fs_type(path: str) -> str:
+    out = subprocess.run(
+        ["df", "-T", path], capture_output=True, text=True, check=False
+    ).stdout.splitlines()
+    return out[1].split()[1] if len(out) > 1 else ""
+
+
+@pytest.mark.skipif(
+    not Path("/dev/shm").is_dir() or "tmpfs" not in _fs_type("/dev/shm"),
+    reason="needs a tmpfs mount to exercise the guard",
+)
+@pytest.mark.parametrize(("allow", "expected_code"), [("0", 1), ("1", 0)])
+def test_build_binaries_tmpfs_output_guard(
+    tmp_path: Path, allow: str, expected_code: int
+) -> None:
+    out = Path(tempfile.mkdtemp(dir="/dev/shm"))
+    try:
+        result, _ = _run_build(
+            tmp_path,
+            {"OUTPUT_DIR": str(out / "dist"), "ALLOW_TMPFS_OUTPUT": allow},
+        )
+        assert result.returncode == expected_code, result.stderr
+        assert ("is on tmpfs" in result.stderr) is (allow == "0")
+    finally:
+        shutil.rmtree(out, ignore_errors=True)
 
 
 def test_wrapper_script_is_executable_and_parses() -> None:
