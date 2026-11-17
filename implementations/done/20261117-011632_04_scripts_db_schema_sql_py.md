@@ -66,9 +66,9 @@ The writer's stamping (seq 01); the facade (seq 02); the model (seq 03); raw-`IN
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Part of release unit "schema-before-write" (spans Steps 1-2) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by `test_create_schema.py` (seq 10). |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-130127 | 20261117-130127 | Part of release unit "schema-before-write" (spans Steps 1-2) |
+| 2 | Add or update tests per Validation plan | Completed | 20261117-130127 | 20261117-130127 | Covered by `test_create_schema.py` (seq 10). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-130127 | 20261117-130127 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

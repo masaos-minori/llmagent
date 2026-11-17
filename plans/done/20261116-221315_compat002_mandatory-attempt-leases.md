@@ -209,9 +209,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Writer, facade, model, and schema contract: `idempotency_ops.py`, `state_store.py`, `models.py`, `schema_sql.py` | Pending | — | — | Release unit "schema-before-write" spans Steps 1–2 |
-| 2 | Caller and test updates: five test files | Pending | — | — | |
-| 3 | Verification & deployment gate: `check_db_separation.py`, validation sequence, manual `PRAGMA` check | Pending | — | — | |
+| 1 | Writer, facade, model, and schema contract: `idempotency_ops.py`, `state_store.py`, `models.py`, `schema_sql.py` | Completed | 20261117-130225 | 20261117-130225 | Release unit "schema-before-write" spans Steps 1–2 |
+| 2 | Caller and test updates: five test files | Pending | — | — |  |
+| 3 | Verification & deployment gate: `check_db_separation.py`, validation sequence, manual `PRAGMA` check | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

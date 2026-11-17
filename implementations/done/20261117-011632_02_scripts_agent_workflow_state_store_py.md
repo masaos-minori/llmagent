@@ -55,8 +55,8 @@ The writer's validator/stamping (seq 01); the model field addition (seq 03); the
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-130103 | 20261117-130103 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-130103 | 20261117-130103 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

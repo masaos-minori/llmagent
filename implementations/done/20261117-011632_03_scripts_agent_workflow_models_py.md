@@ -60,9 +60,9 @@ The writer's stamping (seq 01); the schema DDL (seq 04); caller/test lease updat
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by `test_workflow_models.py` (seq 09). |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-130117 | 20261117-130117 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261117-130117 | 20261117-130117 | Covered by `test_workflow_models.py` (seq 09). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-130117 | 20261117-130117 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
