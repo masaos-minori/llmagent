@@ -85,11 +85,15 @@ from tools._detect_unexecuted_archive import cmd_detect_unexecuted_archive
 from tools._workitem_stage_parser import build_parser
 from tools._workitem_status_table import (
     EXECUTION_STATUS_HEADING,
+    batch_blocking_rows,
     build_data_row_line,
     build_table_header_line,
     build_table_separator_line,
+    describe_rows,
     parse_execution_status_rows,
     parse_execution_status_table,
+    pending_rows,
+    supersede_procedure,
     update_execution_status,
 )
 
@@ -292,16 +296,6 @@ def move_to_done(
     return MoveResult(success=True, destination=destination)
 
 
-def _pending_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
-    return [row for row in rows if row.get("Status", "").strip() == "Pending"]
-
-
-def _describe_rows(rows: list[dict[str, str]]) -> str:
-    return "; ".join(
-        f"Step {row.get('Step', '?')}: {row.get('Description', '?')}" for row in rows
-    )
-
-
 def _find_implementation_dir(path: Path) -> Path:
     """Return the implementations/ directory containing `path`."""
     resolved = path.resolve()
@@ -397,8 +391,9 @@ def cmd_close_plan(args: argparse.Namespace) -> int:
 def cmd_close_implementation(args: argparse.Namespace) -> int:
     """Move an `implementations/*.md` file to `implementations/done/`.
 
-    Refuses when the file's Execution Status table has any `Pending` row,
-    unless both `--force` and `--reason` are supplied.
+    Refuses when the file's Execution Status table has any `Pending` row, unless both
+    `--force` and `--reason` are supplied. `--superseded --reason` first marks every
+    unfinished row `Superseded` (the procedure will not be implemented), then archives.
     """
     if args.force and not args.reason:
         print("ERROR: --force requires --reason", file=sys.stderr)
@@ -407,6 +402,9 @@ def cmd_close_implementation(args: argparse.Namespace) -> int:
     source = Path(args.implementation_path)
     if not source.is_file():
         print(f"ERROR: source file not found: {source}", file=sys.stderr)
+        return 1
+
+    if args.superseded and not supersede_procedure(source, args.reason):
         return 1
 
     rows = parse_execution_status_rows(source.read_text(encoding="utf-8"))
@@ -418,11 +416,11 @@ def cmd_close_implementation(args: argparse.Namespace) -> int:
         )
         return 1
 
-    pending = _pending_rows(rows)
+    pending = pending_rows(rows)
     overridden = bool(args.force and args.reason)
     if pending and not overridden:
         print(
-            f"ERROR: blocked by Pending Execution Status row(s): {_describe_rows(pending)}",
+            f"ERROR: blocked by Pending Execution Status row(s): {describe_rows(pending)}",
             file=sys.stderr,
         )
         return 1
@@ -596,17 +594,17 @@ def cmd_close_batch(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
             return 1
-        pending = _pending_rows(rows)
+        pending = batch_blocking_rows(rows)
         if pending:
             pending_by_file[proc] = pending
 
     if pending_by_file:
         described = "; ".join(
-            f"{proc}: {_describe_rows(pending_by_file[proc])}"
+            f"{proc}: {describe_rows(pending_by_file[proc])}"
             for proc in pending_by_file
         )
         print(
-            f"ERROR: blocked by Pending Execution Status row(s): {described}",
+            f"ERROR: blocked by Pending or Superseded Execution Status row(s): {described}",
             file=sys.stderr,
         )
         return 1

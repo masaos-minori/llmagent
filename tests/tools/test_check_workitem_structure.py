@@ -258,3 +258,103 @@ def test_release_unit_real_template_skeleton_has_no_finding(
     assert fence is not None
     assert "### Release units" in fence.group(1)
     assert _unit_findings(tmp_path, monkeypatch, fence.group(1)) == []
+
+
+# --- archived-status (procedures archived with an unfinished row) -------------------
+
+
+def _procedure_with(statuses: list[str]) -> str:
+    rows = "\n".join(
+        f"| {i} | Step {i} | {status} | — | — | |"
+        for i, status in enumerate(statuses, start=1)
+    )
+    return (
+        "## Execution Status\n\n### Execution Status\n"
+        "| Step | Description | Status | Started | Completed | Notes |\n"
+        "|------|-------------|--------|---------|-----------|-------|\n"
+        f"{rows}\n"
+    )
+
+
+@pytest.fixture
+def done_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
+    path = tmp_path / "implementations" / "done"
+    path.mkdir(parents=True)
+    return path
+
+
+@pytest.mark.parametrize(
+    "statuses",
+    [
+        ["Completed"],
+        ["Completed", "Superseded"],
+        ["Superseded", "Superseded"],
+    ],
+)
+def test_archived_status_accepts_finished_or_superseded_procedures(
+    done_dir: Path, statuses: list[str]
+) -> None:
+    _write(done_dir, "a.md", _procedure_with(statuses))
+
+    assert cwis.find_archived_status_findings(baseline=set(), done_dir=done_dir) == []
+
+
+@pytest.mark.parametrize("status", ["Pending", "In Progress", "Blocked", "pending"])
+def test_archived_status_reports_an_unfinished_row(done_dir: Path, status: str) -> None:
+    _write(done_dir, "a.md", _procedure_with(["Completed", status]))
+
+    findings = cwis.find_archived_status_findings(baseline=set(), done_dir=done_dir)
+
+    assert [f["category"] for f in findings] == ["archived-status"]
+    assert findings[0]["file"] == "implementations/done/a.md"
+    assert "Step 2" in findings[0]["detail"]
+    assert "--superseded" in findings[0]["detail"]
+
+
+def test_archived_status_skips_baseline_paths_only(done_dir: Path) -> None:
+    _write(done_dir, "old.md", _procedure_with(["Pending"]))
+    _write(done_dir, "new.md", _procedure_with(["Pending"]))
+
+    findings = cwis.find_archived_status_findings(
+        baseline={"implementations/done/old.md"}, done_dir=done_dir
+    )
+
+    assert [f["file"] for f in findings] == ["implementations/done/new.md"]
+
+
+def test_archived_status_ignores_a_document_without_a_status_table(
+    done_dir: Path,
+) -> None:
+    _write(done_dir, "a.md", "# no table here\n")
+
+    assert cwis.find_archived_status_findings(baseline=set(), done_dir=done_dir) == []
+
+
+def test_archived_status_baseline_file_is_loaded_without_comments(
+    tmp_path: Path,
+) -> None:
+    baseline = tmp_path / "baseline.txt"
+    baseline.write_text("# comment\nimplementations/done/a.md\n\n", encoding="utf-8")
+
+    assert cwis.load_archived_status_baseline(baseline) == {"implementations/done/a.md"}
+    assert cwis.load_archived_status_baseline(tmp_path / "missing.txt") == set()
+
+
+def test_archived_status_cli_exit_codes(
+    done_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _write(done_dir, "a.md", _procedure_with(["Pending"]))
+    empty = tmp_path / "empty.txt"
+    empty.write_text("", encoding="utf-8")
+    listed = tmp_path / "listed.txt"
+    listed.write_text("implementations/done/a.md\n", encoding="utf-8")
+
+    assert cwis.main(["--archived-status", "--baseline", str(empty)]) == 1
+    assert "implementations/done/a.md" in capsys.readouterr().out
+    assert cwis.main(["--archived-status", "--baseline", str(listed)]) == 0
+
+
+def test_the_committed_archive_has_no_violation_outside_the_baseline() -> None:
+    """The real archive and the real baseline: a new unfinished archive entry fails here."""
+    assert cwis.main(["--archived-status"]) == 0

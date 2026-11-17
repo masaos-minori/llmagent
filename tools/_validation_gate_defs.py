@@ -792,6 +792,21 @@ ROUTING_GATES: tuple[Gate, ...] = (
         ),
     ),
     Gate(
+        name="check_archived_status",
+        command=(
+            (
+                "uv",
+                "run",
+                "python",
+                "tools/check_workitem_structure.py",
+                "--archived-status",
+            ),
+        ),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("implementations/done/*.md",),
+    ),
+    Gate(
         name="ruff_format_check_changed",
         command=(
             ("uv", "run", "ruff", "format", "--check", "__CHANGED_FILES__"),

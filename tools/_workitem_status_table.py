@@ -295,9 +295,85 @@ def build_data_row_line(header: list[str], cells: list[str]) -> str:
 EXECUTION_STATUS_HEADING = "### Execution Status"
 
 
-_VALID_STATUSES = frozenset({"Pending", "In Progress", "Blocked", "Completed"})
+_VALID_STATUSES = frozenset(
+    {"Pending", "In Progress", "Blocked", "Completed", "Superseded"}
+)
 # Alias mapping: camelCase / snake_case variants → canonical status string
 _STATUS_ALIASES = {
     "inprogress": "In Progress",
     "in_progress": "In Progress",
 }
+
+
+# Statuses of a row that was started or planned but not finished; `Superseded` replaces them
+# when the procedure will not be implemented.
+_UNFINISHED_STATUSES = ("Pending", "In Progress", "Blocked")
+
+
+def pending_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Rows whose Status is exactly `Pending`."""
+    return [row for row in rows if row.get("Status", "").strip() == "Pending"]
+
+
+def batch_blocking_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Rows that stop `close-batch`: `Pending`, and `Superseded` (it would be overwritten)."""
+    return [
+        row
+        for row in rows
+        if row.get("Status", "").strip() in ("Pending", "Superseded")
+    ]
+
+
+def describe_rows(rows: list[dict[str, str]]) -> str:
+    """One-line `Step N: description` rendering of rows for an error message."""
+    return "; ".join(
+        f"Step {row.get('Step', '?')}: {row.get('Description', '?')}" for row in rows
+    )
+
+
+def supersede_procedure(source: Path, reason: str | None) -> bool:
+    """Mark every unfinished row of a procedure `Superseded` and record why.
+
+    `Pending`, `In Progress`, and `Blocked` rows become `Superseded` with the Notes text
+    `Superseded: {reason}`; `Completed` rows are kept. A procedure whose unfinished rows were
+    already marked is accepted unchanged, so an interrupted close can be repeated. Returns
+    ``False`` (after printing why) when the reason is missing, the table is unreadable, or
+    every row is `Completed` (nothing was superseded; archive it with plain close).
+    """
+    if not reason or not reason.strip():
+        print("ERROR: --superseded requires --reason", file=sys.stderr)
+        return False
+    rows = parse_execution_status_rows(source.read_text(encoding="utf-8"))
+    if rows is None:
+        print(
+            f"ERROR: '{EXECUTION_STATUS_HEADING}' table missing or malformed "
+            f"(no 'Status' column) in {source}",
+            file=sys.stderr,
+        )
+        return False
+    steps = [
+        int(row["Step"])
+        for row in rows
+        if row.get("Status", "").strip() in _UNFINISHED_STATUSES
+        and row.get("Step", "").strip().isdigit()
+    ]
+    if not steps:
+        if any(row.get("Status", "").strip() == "Superseded" for row in rows):
+            return True
+        print(
+            f"ERROR: every row of {source} is Completed; nothing to supersede",
+            file=sys.stderr,
+        )
+        return False
+    note = f"Superseded: {reason.strip()}"
+    for step in steps:
+        if not update_execution_status(
+            source,
+            "implementation-procedure",
+            step_number=step,
+            new_status="Superseded",
+            new_notes=note,
+        ):
+            return False
+    print(f"OK: marked {len(steps)} row(s) Superseded in {source}")
+    return True

@@ -282,6 +282,18 @@ Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) — target files 
   Step's Adversarial Verification (Step 3a) specifically finds that Step's output is
   now stale. MUST NOT re-derive or re-verify a `Completed` Step's conclusion merely
   because the cycle is resuming.
+- **Superseded procedure**: when the procedure's design no longer matches live code
+  (another change landed first, or a duplicate procedure covers it) and the user has
+  decided not to implement it, do not execute it. Archive it with `uv run python
+  tools/manage_workitem_stage.py close-implementation implementations/{filename}.md
+  --superseded --reason "{why}"`: every unfinished row becomes `Superseded` with the reason
+  in its Notes, so the archive does not claim the work was done. A procedure whose rows are
+  `Superseded` is never resumed; archive it with the same command. MUST NOT move it with
+  `git mv` (that leaves `Pending` rows in `implementations/done/`, which
+  `tools/check_workitem_structure.py --archived-status` reports) and MUST NOT mark rows
+  `Completed` for work that was not done. Report `Superseded: {filename} - {reason}`, then
+  run `uv run python tools/sync_plan_workitem_status.py {plan_path}` so the Plan row reads
+  `Superseded`.
 - **Gated check**: read the procedure's `Source plan` (the `plans/` or `plans/done/` path) and
   run `uv run python tools/plan_dependency_order.py --plan {plan_path}`. If the Plan is
   `gated`, or a pending row's Notes start with `Gated:`, report `Gated: {file} - {blocking

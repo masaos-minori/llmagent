@@ -65,13 +65,22 @@ def build_parser() -> argparse.ArgumentParser:
     impl_parser.add_argument(
         "implementation_path", help="Path to the implementation procedure file"
     )
-    impl_parser.add_argument(
+    impl_mode = impl_parser.add_mutually_exclusive_group()
+    impl_mode.add_argument(
         "--force",
         action="store_true",
         help="Override a Pending Execution Status block (requires --reason)",
     )
+    impl_mode.add_argument(
+        "--superseded",
+        action="store_true",
+        help="Mark every unfinished row Superseded (the procedure will not be "
+        "implemented), then archive (requires --reason)",
+    )
     impl_parser.add_argument(
-        "--reason", help="Justification for --force (required alongside --force)"
+        "--reason",
+        help="Justification for --force, or why the procedure is superseded "
+        "(required alongside --force or --superseded)",
     )
     _add_commit_mode_args(impl_parser)
 

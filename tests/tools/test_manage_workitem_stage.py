@@ -30,6 +30,7 @@ from tools.manage_workitem_stage import (
     cmd_set_step_status,
     cmd_show,
     move_to_done,
+    parse_execution_status_rows,
     parse_execution_status_table,
 )
 from tools.manage_workitem_stage import _find_remote_conflict as find_remote_conflict
@@ -1816,3 +1817,164 @@ def test_commit_and_stage_only_are_mutually_exclusive(subcommand: str) -> None:
     with pytest.raises(SystemExit) as excinfo:
         build_parser().parse_args([subcommand, "x.md", "--commit", "--stage-only"])
     assert excinfo.value.code == 2
+
+
+# ---------------------------------------------------------------------------
+# close-implementation --superseded: archive a procedure that will not be implemented
+# ---------------------------------------------------------------------------
+
+EXECUTION_STATUS_MIXED = """# Fixture implementation procedure
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Done step | Completed | 20260101-000000 | 20260101-000100 | kept |
+| 2 | Open step | Pending | — | — | |
+| 3 | Started step | In Progress | 20260101-000200 | — | |
+| 4 | Blocked step | Blocked | 20260101-000300 | — | waiting |
+"""
+
+EXECUTION_STATUS_SUPERSEDED = """# Fixture implementation procedure
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Open step | Superseded | — | — | Superseded: replaced |
+"""
+
+SUPERSEDE_ARGS = ["--superseded", "--reason", "replaced by another change"]
+
+
+def _archived_rows(root: Path, name: str) -> list[dict[str, str]]:
+    rows = parse_execution_status_rows(
+        (root / "implementations" / "done" / name).read_text(encoding="utf-8")
+    )
+    assert rows is not None
+    return rows
+
+
+def test_close_implementation_superseded_marks_unfinished_rows_and_archives(
+    temp_git_repo: Path,
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    source = temp_git_repo / "implementations" / "20260110_mixed.md"
+    _commit_file(repo, source, EXECUTION_STATUS_MIXED)
+
+    args = build_parser().parse_args(
+        ["close-implementation", str(source), *SUPERSEDE_ARGS]
+    )
+    exit_code = cmd_close_implementation(args)
+
+    assert exit_code == 0
+    assert not source.exists()
+    rows = _archived_rows(temp_git_repo, "20260110_mixed.md")
+    assert [row["Status"] for row in rows] == [
+        "Completed",
+        "Superseded",
+        "Superseded",
+        "Superseded",
+    ]
+    # The finished row is untouched; every superseded row says why; an existing note stays.
+    assert rows[0]["Notes"] == "kept"
+    assert rows[0]["Completed"] == "20260101-000100"
+    assert all(
+        "Superseded: replaced by another change" in row["Notes"] for row in rows[1:]
+    )
+    assert rows[3]["Notes"].startswith("waiting ")
+
+
+def test_close_implementation_superseded_requires_a_reason(
+    temp_git_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    source = temp_git_repo / "implementations" / "20260111_noreason.md"
+    _commit_file(repo, source, EXECUTION_STATUS_MIXED)
+    content_before = source.read_bytes()
+
+    args = build_parser().parse_args(
+        ["close-implementation", str(source), "--superseded"]
+    )
+    exit_code = cmd_close_implementation(args)
+
+    assert exit_code == 1
+    assert source.read_bytes() == content_before
+    assert "--superseded requires --reason" in capsys.readouterr().err
+
+
+def test_close_implementation_superseded_rejects_an_all_completed_procedure(
+    temp_git_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    source = temp_git_repo / "implementations" / "20260112_done.md"
+    _commit_file(repo, source, EXECUTION_STATUS_COMPLETED)
+
+    args = build_parser().parse_args(
+        ["close-implementation", str(source), *SUPERSEDE_ARGS]
+    )
+    exit_code = cmd_close_implementation(args)
+
+    assert exit_code == 1
+    assert source.exists()
+    assert "nothing to supersede" in capsys.readouterr().err
+
+
+def test_close_implementation_superseded_accepts_an_already_marked_procedure(
+    temp_git_repo: Path,
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    source = temp_git_repo / "implementations" / "20260113_marked.md"
+    _commit_file(repo, source, EXECUTION_STATUS_SUPERSEDED)
+
+    args = build_parser().parse_args(
+        ["close-implementation", str(source), *SUPERSEDE_ARGS]
+    )
+
+    assert cmd_close_implementation(args) == 0
+    assert (temp_git_repo / "implementations" / "done" / "20260113_marked.md").exists()
+
+
+def test_close_implementation_superseded_and_force_are_exclusive() -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        build_parser().parse_args(
+            ["close-implementation", "x.md", "--force", *SUPERSEDE_ARGS]
+        )
+    assert excinfo.value.code == 2
+
+
+def test_close_implementation_without_superseded_still_blocks_pending(
+    temp_git_repo: Path,
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    source = temp_git_repo / "implementations" / "20260114_pending.md"
+    _commit_file(repo, source, EXECUTION_STATUS_MIXED)
+
+    args = build_parser().parse_args(["close-implementation", str(source)])
+
+    assert cmd_close_implementation(args) == 1
+    assert source.exists()
+
+
+def test_close_batch_refuses_a_superseded_row_instead_of_overwriting_it(
+    in_temp_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = git.Repo(in_temp_repo)
+    prefix = "20260115"
+    _commit_procedure(repo, in_temp_repo, prefix, 1, EXECUTION_STATUS_BATCH_CLEAN)
+    marked = _commit_procedure(
+        repo, in_temp_repo, prefix, 2, EXECUTION_STATUS_SUPERSEDED
+    )
+    _commit_file(
+        repo, in_temp_repo / "plans" / f"{prefix}_plan.md", _batch_plan_text(prefix)
+    )
+
+    args = build_parser().parse_args(["close-batch", prefix])
+    exit_code = cmd_close_batch(args)
+
+    assert exit_code == 1
+    assert marked.exists()
+    assert list(_done_dir(in_temp_repo).glob("*")) == []
+    assert "Superseded" in capsys.readouterr().err

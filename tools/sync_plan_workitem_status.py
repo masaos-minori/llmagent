@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""tools/sync_plan_workitem_status.py - Mark Plan Work Items rows Completed for archived procedures.
+"""tools/sync_plan_workitem_status.py - Reconcile Plan Work Items rows with archived procedures.
 
 The batch workflow archives each procedure document to `implementations/done/` after
 its own Execution Status is recorded. The owning Plan's `### Work Items Created`
-table then still shows the procedure row as `Pending`. This tool reconciles the two:
-every Work Items row whose Item ID names a procedure file that already exists under
-`implementations/done/` is set to `Completed`. Rows for files still under
-`implementations/` are left untouched. It writes no other column and never marks a
-row Completed for a file that is not archived.
+table then still shows the procedure row as `Pending`. This tool reconciles the two from
+the archived procedure's own Execution Status, not from where the file is: a `Pending` row
+whose Item ID names a procedure under `implementations/done/` becomes `Completed` when
+every row of that procedure is `Completed`, and `Superseded` when every unfinished row was
+marked `Superseded`. A procedure that still has a `Pending`, `In Progress`, or `Blocked`
+row, or whose table cannot be read, is reported and left `Pending`. Rows for files still
+under `implementations/` are untouched. No other column is written.
 
 Usage:
     python tools/sync_plan_workitem_status.py PLAN.md [--dry-run]
@@ -23,7 +25,25 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 DONE_DIR = REPO / "implementations" / "done"
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(REPO))
+
+from tools._workitem_status_table import parse_execution_status_rows
+
 WORK_ITEMS_HEADING = "### Work Items Created"
+
+
+def procedure_outcome(procedure: Path) -> str | None:
+    """`Completed` or `Superseded` for a finished procedure; None while any row is open."""
+    rows = parse_execution_status_rows(procedure.read_text(encoding="utf-8"))
+    if not rows:
+        return None
+    statuses = {row.get("Status", "").strip() for row in rows}
+    if statuses == {"Completed"}:
+        return "Completed"
+    if statuses <= {"Completed", "Superseded"} and "Superseded" in statuses:
+        return "Superseded"
+    return None
 
 
 def main(argv: list[str]) -> int:
@@ -70,12 +90,16 @@ def main(argv: list[str]) -> int:
         name = Path(item).name
         if not (DONE_DIR / name).is_file():
             continue
-        raw_cells[status_col] = " Completed "
+        outcome = procedure_outcome(DONE_DIR / name)
+        if outcome is None:
+            print(f"Skipped (unfinished row or unreadable table): {name}")
+            continue
+        raw_cells[status_col] = f" {outcome} "
         lines[i] = "|" + "|".join(raw_cells) + "|"
         changed += 1
-        print(f"Completed: {name}")
+        print(f"{outcome}: {name}")
 
-    print(f"{'dry-run: would change' if dry else 'marked Completed'}: {changed} row(s)")
+    print(f"{'dry-run: would change' if dry else 'updated'}: {changed} row(s)")
     if not dry and changed:
         plan.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return 0

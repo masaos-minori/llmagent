@@ -42,6 +42,13 @@ specific document, so a repository-wide scan's legacy-template findings
 way to distinguish from a genuinely incomplete document) never block a
 single-file check.
 
+`--archived-status [--baseline PATH]` checks a different property: no procedure under
+`implementations/done/` keeps an unfinished (`Pending`, `In Progress`, `Blocked`)
+Execution Status row. A procedure that was not implemented is archived with
+`close-implementation --superseded --reason`, which marks its rows `Superseded`. The
+archive predates the rule, so the paths that already violated it are listed in
+`tools/check_archived_status_baseline.txt` and are not reported.
+
 Exit code: 0 when no document is missing a required section; 1 otherwise.
 """
 
@@ -57,6 +64,14 @@ from pathlib import Path
 import orjson
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(ROOT_DIR))
+
+from tools._workitem_status_table import parse_execution_status_rows
+
+ARCHIVED_STATUS_BASELINE = ROOT_DIR / "tools" / "check_archived_status_baseline.txt"
+_UNFINISHED_PREFIXES = ("pending", "in progress", "in_progress", "blocked")
 
 _FENCE_RE = re.compile(r"```markdown\n(.*?)\n```", re.DOTALL)
 _HEADING_RE = re.compile(r"(?mi)^## (.+?)\s*$")
@@ -232,6 +247,51 @@ def find_release_unit_findings(doc_path: Path) -> list[dict[str, str]]:
     return findings
 
 
+def load_archived_status_baseline(path: Path = ARCHIVED_STATUS_BASELINE) -> set[str]:
+    """Repository-relative paths grandfathered by the archived-status rule."""
+    if not path.is_file():
+        return set()
+    return {
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    }
+
+
+def find_archived_status_findings(
+    baseline: set[str] | None = None, done_dir: Path | None = None
+) -> list[dict[str, str]]:
+    """Archived procedures that still hold an unfinished Execution Status row."""
+    directory = (
+        done_dir if done_dir is not None else ROOT_DIR / "implementations" / "done"
+    )
+    allowed = load_archived_status_baseline() if baseline is None else baseline
+    findings: list[dict[str, str]] = []
+    for doc in sorted(directory.glob("*.md")):
+        rel_path = doc.relative_to(ROOT_DIR).as_posix()
+        if rel_path in allowed:
+            continue
+        rows = parse_execution_status_rows(doc.read_text(encoding="utf-8")) or []
+        steps = [
+            row.get("Step", "?")
+            for row in rows
+            if row.get("Status", "").strip().lower().startswith(_UNFINISHED_PREFIXES)
+        ]
+        if steps:
+            findings.append(
+                {
+                    "category": "archived-status",
+                    "file": rel_path,
+                    "detail": (
+                        f"archived with unfinished Execution Status row(s) (Step "
+                        f"{', '.join(steps)}); archive a procedure that was not "
+                        "implemented with `close-implementation --superseded --reason`"
+                    ),
+                }
+            )
+    return findings
+
+
 def infer_kind(doc_path: Path) -> str | None:
     """Infer a document's work-item kind from its top-level directory.
 
@@ -349,6 +409,20 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "documents already archived predate later template revisions)",
     )
     parser.add_argument(
+        "--archived-status",
+        action="store_true",
+        help="Check that no procedure under implementations/done/ has an unfinished "
+        "Execution Status row (paths in the baseline file are skipped); ignores the "
+        "other selection options",
+    )
+    parser.add_argument(
+        "--baseline",
+        type=Path,
+        default=None,
+        help="Baseline file for --archived-status (default: "
+        "tools/check_archived_status_baseline.txt)",
+    )
+    parser.add_argument(
         "--format",
         choices=["json", "csv"],
         default=None,
@@ -361,7 +435,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
 
-    if args.file is not None:
+    if args.archived_status:
+        baseline = (
+            load_archived_status_baseline(args.baseline)
+            if args.baseline is not None
+            else None
+        )
+        findings = find_archived_status_findings(baseline)
+    elif args.file is not None:
         findings = collect_single_file_findings(args.file)
     else:
         kinds = set(args.kinds) if args.kinds else {"issue", "plan", "implementation"}

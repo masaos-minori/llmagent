@@ -117,6 +117,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^(issues|plans|implementations)/.*\.md$
+      - id: archived-procedure-status
+        name: Check archived procedures hold no unfinished Execution Status row
+        entry: uv run python -m tools.check_workitem_structure --archived-status
+        language: system
+        pass_filenames: false
+        files: ^implementations/done/.*\.md$
       - id: gates-hook-parity
         name: Check validation gates and pre-commit hooks stay in parity
         entry: uv run python -m tools.run_validation_gates drift
