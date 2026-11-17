@@ -661,9 +661,9 @@ failure rule.
   - Existing-Plan case (Step 1b): move only when that Plan is in `plans/done/` or reads
     back `Frozen` in `plans/`.
 - Prefer `uv run python tools/manage_workitem_stage.py close-issue
-  issues/{filename}.md`. If the Issue file has uncommitted changes, the tool commits
-  it first (`chore: auto-commit ...`); pass `--stage-only` to stage it instead, so the
-  rename lands in the next real commit. It then performs the same
+  issues/{filename}.md`. If the Issue file has uncommitted changes, the tool stages
+  it (no commit), so the rename lands in the next real commit; pass `--commit` only to
+  commit it first (`chore: auto-commit ...`). It then performs the same
   `git mv issues/{filename}.md issues/done/{filename}.md` move.
 - The tool refuses (non-zero exit, no move) if the source is missing, the destination
   already exists, or a Plan in `plans/` for this Issue is not `Frozen`. MUST NOT work

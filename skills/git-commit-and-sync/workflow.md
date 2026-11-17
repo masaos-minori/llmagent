@@ -41,7 +41,7 @@ Stage only files that implement the current instruction's change. A file `git st
 shows as modified but that this instruction did not touch stays unstaged, unless the user
 has said "all changes".
 
-Archival renames already staged by `tools/manage_workitem_stage.py ... --stage-only`
+Archival renames already staged by `tools/manage_workitem_stage.py close-*`
 (`issues/done/`, `plans/done/`, `implementations/done/`) are part of the work cycle that
 produced them: MUST NOT unstage them, and include them in the commit for that cycle's
 change. `git commit` records the whole index, so check them in Phase 1's status output

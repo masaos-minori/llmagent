@@ -277,7 +277,7 @@ def test_simple_move_existing_destination_refuses(
 
 
 # ---------------------------------------------------------------------------
-# close-issue / close-plan: uncommitted-changes auto-commit
+# close-issue / close-plan: uncommitted-changes handling (stage by default, --commit)
 # ---------------------------------------------------------------------------
 
 
@@ -324,7 +324,7 @@ def test_simple_move_autocommits_uncommitted_source(
     source = temp_git_repo / stage_dir / "20260107_dirty.md"
     make_dirty(repo, source)
 
-    args = build_parser().parse_args([subcommand, str(source)])
+    args = build_parser().parse_args([subcommand, str(source), "--commit"])
     exit_code = cmd_func(args)
 
     destination = temp_git_repo / stage_dir / "done" / "20260107_dirty.md"
@@ -411,7 +411,7 @@ def test_simple_move_ignores_unrelated_uncommitted_file(
 @pytest.mark.parametrize(
     ("subcommand", "stage_dir", "cmd_func"), SIMPLE_MOVE_CASES, ids=SIMPLE_MOVE_IDS
 )
-def test_auto_commit_does_not_sweep_other_staged_changes(
+def test_commit_does_not_sweep_other_staged_changes(
     temp_git_repo: Path,
     subcommand: str,
     stage_dir: str,
@@ -434,7 +434,7 @@ def test_auto_commit_does_not_sweep_other_staged_changes(
     unrelated.write_text("staged unrelated work\n", encoding="utf-8")
     repo.index.add([str(unrelated)])
 
-    args = build_parser().parse_args([subcommand, str(source)])
+    args = build_parser().parse_args([subcommand, str(source), "--commit"])
     exit_code = cmd_func(args)
 
     destination = temp_git_repo / stage_dir / "done" / "20260110_dirty.md"
@@ -1781,3 +1781,38 @@ def test_detect_unexecuted_archive_is_read_only(
     assert repo.head.commit.hexsha == head_before
     assert repo.git.status("--porcelain") == ""
     assert (temp_git_repo / "implementations" / "done" / name).exists()
+
+
+@pytest.mark.parametrize("subcommand", ["close-issue", "close-plan"])
+def test_default_stages_without_creating_a_commit(
+    temp_git_repo: Path, subcommand: str
+) -> None:
+    """Without `--commit`, a dirty source is staged and moved but never committed."""
+    stage_dir = {
+        "close-issue": "issues",
+        "close-plan": "plans",
+    }[subcommand]
+    repo = git.Repo(temp_git_repo)
+    source = temp_git_repo / stage_dir / "20260107_dirty.md"
+    _dirty_untracked(repo, source)
+    head_before = repo.head.commit.hexsha
+
+    args = build_parser().parse_args([subcommand, str(source)])
+    assert args.commit is False
+    exit_code = {
+        "close-issue": cmd_close_issue,
+        "close-plan": cmd_close_plan,
+    }[subcommand](args)
+
+    assert exit_code == 0
+    assert (temp_git_repo / stage_dir / "done" / "20260107_dirty.md").exists()
+    assert repo.head.commit.hexsha == head_before
+
+
+@pytest.mark.parametrize(
+    "subcommand", ["close-issue", "close-plan", "close-implementation"]
+)
+def test_commit_and_stage_only_are_mutually_exclusive(subcommand: str) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        build_parser().parse_args([subcommand, "x.md", "--commit", "--stage-only"])
+    assert excinfo.value.code == 2

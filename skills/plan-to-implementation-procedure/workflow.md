@@ -416,6 +416,15 @@ or reported without a document (`Blocked`, `Plan Gap`, or the terminal `Needs
 confirmation` for an existing path). A row reported without a document leaves the
 cycle unmoved: Step 4's move gate requires every row to be covered by a document.
 
+**Output structure check** (per generated document, before Step 3d): run
+`uv run python tools/check_workitem_structure.py --file implementations/{filename}.md`
+for every document this cycle created. A `missing required section` finding is fixed in
+the document, then the check is re-run: add the heading with a body, or with
+`N/A: {short reason}` where `templates/implementation-procedure.md` "Lightweight fill for
+small rows" applies (the headings stay even when the body shrinks). Each repeat of the
+same finding counts toward `AGENTS.md` Attempt Limit (3). A document that still fails is
+reported in the final report and MUST NOT be presented as complete.
+
 ### Step 3d: Progress recording
 
 **Chat-facing reporting** (frequency-gated): report an interim update only when a
@@ -527,16 +536,15 @@ progress report once, then (per Multi-file processing) begin Step 1 for the next
 target Plan, or end the batch if none remain.
 
 Prefer `uv run python tools/manage_workitem_stage.py close-plan
-plans/{filename}.md` over a direct `git mv` — it auto-commits the Plan file
-first if it has uncommitted changes (commonly this Step's own Execution Status
+plans/{filename}.md` over a direct `git mv` — it stages the Plan file first
+if it has uncommitted changes (commonly this Step's own Execution Status
 update above, or an earlier Step 3a correction), then performs the move; it refuses
 (non-zero exit, no move) only if the source is missing or the destination already
-exists. The auto-commit stages only the Plan file; unrelated uncommitted
-changes are left untouched and do not block the move. Pass
-`--stage-only` to stage the dirty Plan instead of committing it, so the rename lands in
+exists. Only the Plan file is staged; unrelated uncommitted
+changes are left untouched and do not block the move. The rename lands in
 the next real commit with the work it belongs to and no `chore: auto-commit ...` commit is
 created (`skills/git-commit-and-sync/workflow.md` Phase 2 includes such staged renames in
-the cycle's commit). Fall back to the direct `git mv` command only if the tool is
+the cycle's commit). Pass `--commit` only to commit the dirty Plan first. Fall back to the direct `git mv` command only if the tool is
 unavailable.
 
 After a `0` exit, independently verify the same checklist `rules/workflow-lifecycle.md`

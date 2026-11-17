@@ -11,6 +11,27 @@ import argparse
 from tools._workitem_status_table import _normalize_status
 
 
+def _add_commit_mode_args(parser: argparse.ArgumentParser) -> None:
+    """Add the mutually exclusive `--stage-only` / `--commit` pair of a close-* subcommand.
+
+    Staging is the default, so the archival rename lands in the next real commit
+    with its work and no `chore: auto-commit ...` commit is created. `--stage-only`
+    is kept as an accepted no-op for existing callers; `--commit` restores the
+    old behavior of committing an uncommitted source before the move.
+    """
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--stage-only",
+        action="store_true",
+        help="Stage (not commit) an uncommitted source before the move (default)",
+    )
+    group.add_argument(
+        "--commit",
+        action="store_true",
+        help="Commit an uncommitted source (chore: auto-commit ...) before the move",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Archive workflow-stage transitions via git mv",
@@ -29,21 +50,13 @@ def build_parser() -> argparse.ArgumentParser:
     issue_parser.add_argument(
         "--reason", help="Justification for --force (required alongside --force)"
     )
-    issue_parser.add_argument(
-        "--stage-only",
-        action="store_true",
-        help="Stage (not commit) an uncommitted source before the move",
-    )
+    _add_commit_mode_args(issue_parser)
 
     plan_parser = subparsers.add_parser(
         "close-plan", help="Move a plans/*.md file to plans/done/"
     )
     plan_parser.add_argument("plan_path", help="Path to the plan file")
-    plan_parser.add_argument(
-        "--stage-only",
-        action="store_true",
-        help="Stage (not commit) an uncommitted source before the move",
-    )
+    _add_commit_mode_args(plan_parser)
 
     impl_parser = subparsers.add_parser(
         "close-implementation",
@@ -60,11 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     impl_parser.add_argument(
         "--reason", help="Justification for --force (required alongside --force)"
     )
-    impl_parser.add_argument(
-        "--stage-only",
-        action="store_true",
-        help="Stage (not commit) an uncommitted source before the move",
-    )
+    _add_commit_mode_args(impl_parser)
 
     close_batch_parser = subparsers.add_parser(
         "close-batch",

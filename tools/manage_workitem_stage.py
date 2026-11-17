@@ -9,15 +9,14 @@ Every subcommand shares these pre-move safety checks (`move_to_done()`): the sou
 file must exist, the destination must not already exist, and the destination's `done/`
 directory must already exist. If the source file has uncommitted local changes
 (untracked, staged, or modified-since-commit; other files' changes elsewhere are
-ignored), it is staged and committed automatically via the real `git add`/`git commit`
-commands (pre-commit hooks still run) before the move — auto-commit is the only path.
+ignored), it is staged before the move (`git add`); `--commit` also commits it first
+(`chore: auto-commit ...`, pre-commit hooks still run).
 If `origin` is a remote, the move fetches it and refuses when the destination already
 exists on the remote-tracking branch (a concurrent session likely archived it); a
 fetch failure degrades to a no-op. `git status`/`git mv`/auto-commit retry a bounded
-number of times on `.git/index.lock` contention. Every `close-*` subcommand also
-accepts `--stage-only`: stage the dirty source (`git add`) instead of committing, so
-the rename lands in the next real commit with its work and no `chore: auto-commit ...`
-commit is created.
+number of times on `.git/index.lock` contention. Staging is the default for the `close-*`
+subcommands, so the rename lands in the next real commit with its work. `--stage-only` is
+an accepted no-op; `--commit` (exclusive with it) restores commit-before-move.
 
 `close-issue` additionally refuses the move while a Plan in `plans/` (not `plans/done/`)
 names the issue in its `- **Source issue**:` line and that Plan's `Freeze status` is not
@@ -381,7 +380,7 @@ def cmd_close_issue(args: argparse.Namespace) -> int:
         )
         return 1
 
-    result = move_to_done(source, kind="issue", stage_only=args.stage_only)
+    result = move_to_done(source, kind="issue", stage_only=not args.commit)
     extra_note = (
         f"forced past non-Frozen Plan; reason: {args.reason}" if unfrozen else None
     )
@@ -391,7 +390,7 @@ def cmd_close_issue(args: argparse.Namespace) -> int:
 def cmd_close_plan(args: argparse.Namespace) -> int:
     """Move a `plans/*.md` file to `plans/done/`."""
     source = Path(args.plan_path)
-    result = move_to_done(source, kind="plan", stage_only=args.stage_only)
+    result = move_to_done(source, kind="plan", stage_only=not args.commit)
     return _report_move_result(source, result)
 
 
@@ -429,7 +428,7 @@ def cmd_close_implementation(args: argparse.Namespace) -> int:
         return 1
 
     result = move_to_done(
-        source, kind="implementation procedure", stage_only=args.stage_only
+        source, kind="implementation procedure", stage_only=not args.commit
     )
     extra_note = (
         f"forced past Pending row(s); reason: {args.reason}" if pending else None

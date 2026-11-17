@@ -23,7 +23,7 @@ below still requires the full inspection that rule describes):
 | `tools/manage_workitem_stage.py close-implementation` | 1, 7 | `git mv`-based archival move (see below for its refusal condition) |
 | `tools/manage_workitem_stage.py set-step-status` | 3-6 | Update one `### Execution Status` row's Status/Started/Completed/Notes without hand-editing the table |
 | `tools/set_execution_status.py` | 3-6, 7 | Mark selected rows (`--step 1,4`) or every row (`--all`) of one procedure `Completed`, stamp Started/Completed, set Notes from `--note STEP:TEXT`; it overwrites the status of every selected row, so select only rows that were carried out |
-| `tools/close_procedure.sh` | 7 | Mark every row of one procedure `Completed` for a date, then archive it with `close-implementation` (auto-commit, no `--stage-only`); it completes every row, so use it only when every step of the procedure was carried out |
+| `tools/close_procedure.sh` | 7 | Mark every row of one procedure `Completed` for a date, then archive it with `close-implementation` (stages the rename, no commit); it completes every row, so use it only when every step of the procedure was carried out |
 | `tools/close_procedures_batch.py` | 7 | Verified batch close: archive with renames staged, update the Plan's `Work Items Created` rows, mark named Plan steps `Completed` on verified evidence (Step 7 "Plan Execution Status update") |
 | `tools/plan_dependency_order.py` | 1 | Report-only ready or gated state of the procedure's Source plan |
 | `tools/amend_plan.py` | Allowed file operations | Append a file outside the procedure scope to the Frozen Plan and re-run its checks |
@@ -257,6 +257,12 @@ Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) — target files 
   values forward as-is; MUST NOT re-derive or re-guess them.
 - If the implementation procedure is ambiguous or the scope is unclear, stop and ask
   for clarification before proceeding.
+- Before reading, run `uv run python tools/check_workitem_structure.py --file
+  implementations/{filename}.md`. A `missing required section` finding is a stop
+  condition for Step 3: report the missing headings. Where `templates/implementation-procedure.md`
+  "Lightweight fill for small rows" applies, add the heading with `N/A: {short reason}` as
+  a Step 3b correction and re-run the check; otherwise stop and ask. MUST NOT start
+  implementation from a structurally incomplete procedure.
 
 ### Pre-execution stale detection (part of Step 2)
 
@@ -555,25 +561,24 @@ Moving a procedure to `implementations/done/` before its Execution Status rows a
     performed (completed items show Completed status, blocked items have blocker
     descriptions filled in, Work Items Created includes all artifacts produced).
 - Prefer `uv run python tools/manage_workitem_stage.py close-implementation
-  implementations/{filename}.md` — it auto-commits the implementation procedure
+  implementations/{filename}.md` — it stages the implementation procedure
   file first if it has uncommitted changes (e.g. a Step 3b correction earlier in
   this cycle), then performs the same `git mv` move; it refuses (non-zero exit, no
   move) only if the source is missing, the destination already exists, or
   (redundantly, since this Step's own pre-check above already confirmed it) a
   `Pending` row remains. Fall back to the direct command below only if the tool is
   unavailable.
-- In Multi-file processing (a batch of more than one target file), add `--stage-only`
-  (`close-implementation implementations/{filename}.md --stage-only`): the uncommitted
+- Staging is the default (`--stage-only` is still accepted as a no-op): the uncommitted
   procedure file is staged instead of committed, so the archival rename lands in the
-  same commit as the cycle's code/test/doc changes and the batch does not leave one
-  `chore: auto-commit ...` commit per file. The staged rename is part of this batch's
+  same commit as the cycle's code/test/doc changes and no `chore: auto-commit ...`
+  commit is left per file. The staged rename is part of this cycle's
   work — leave it staged and include it when the change is committed
-  (`skills/git-commit-and-sync/workflow.md` Phase 2). A single-file cycle may keep the
-  default auto-commit.
+  (`skills/git-commit-and-sync/workflow.md` Phase 2). Pass `--commit` only when the
+  procedure file must be committed on its own before the move.
 - Do not use `close-batch` in this workflow. After checking only that no row is `Pending`, it sets every row of every
   procedure and of the owning Plan to `Completed` and overwrites their timestamps (`cmd_close_batch`): a `Blocked`
   row would become `Completed`, and Plan rows that no procedure covers would be closed. Close each cycle with
-  `close-implementation` (with `--stage-only` in a batch) and update the Plan as described under Plan Execution
+  `close-implementation` and update the Plan as described under Plan Execution
   Status update below, or close and update the Plan in one verified call with
   `tools/close_procedures_batch.py` (same section).
 - Direct command (fallback): `git mv implementations/{filename}.md
