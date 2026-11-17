@@ -65,6 +65,7 @@ short-circuit or any other check.
 
 ## Implementation Target Files
 **Freeze status**: Frozen
+Amended 2026-11-17 (fallout): added docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md — The operations doc scopes the RAG-check skip to a readiness FATAL; once check_services gains a has_fatal short-circuit after MCP tool discovery, the skip applies to any runtime-stage FATAL. DOC-001/REQ-004 require updating it. A documentation file requiring modification must be its own row per the freeze rules.
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -75,6 +76,7 @@ no other file may be treated as a modification target.
 |---|---|---|---|---|---|---|
 | `scripts/agent/startup_validation.py` | Modify | Add `if pipeline.has_fatal: return pipeline` after the MCP tool discovery block (lines 194-223) and before the RAG consistency step (line 225); mirrors the readiness short-circuit at lines 190-192. No such re-check exists today, so a tool-discovery FATAL currently does not skip the RAG check. (checked in Step 2) | REQ-001, REQ-002 | `StartupValidationPipeline.check_services` readiness short-circuit at lines 190-192; tool discovery block lines 194-223; RAG step lines 225-276 | `tests/agent/test_startup_validation.py` | Verified |
 | `tests/agent/test_startup_validation.py` | Modify | Add a regression test injecting a tool-discovery FATAL and asserting the RAG service is not called and no `rag_consistency` outcome is recorded, plus a warning-only path test. (checked in Step 2) | REQ-003 | Existing `_run_check_services` helper mocks discovery with `findings=[]`; a FATAL finding is injected via `findings=[MagicMock(status=StartupCheckStatus.FATAL, message=...)]`. | `tests/agent/test_startup_validation.py` | Verified |
+| `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md` | Modify | The operations doc scopes the RAG-check skip to a readiness FATAL; once check_services gains a has_fatal short-circuit after MCP tool discovery, the skip applies to any runtime-stage FATAL. DOC-001/REQ-004 require updating it. A documentation file requiring modification must be its own row per the freeze rules. | REQ-004 / N/A: none cites REQ-004 | check_services readiness short-circuit at lines 190-192; RAG consistency step at lines 225-276; doc currently describes readiness-only skip and becomes stale after this change | N/A: documentation change | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) for the full validation procedure):
@@ -142,6 +144,7 @@ separate scope-of-record.
 |---|---|---|---|---|---|
 | `scripts/agent/startup_validation.py` | Modify | Low — one early return in a startup pipeline; callers observe the same result shape | N/A | N/A | not applicable (rsynced) |
 | `tests/agent/test_startup_validation.py` | Modify | Low — additive regression test; existing tests unaffected | N/A | N/A | not applicable (rsynced) |
+| `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md` | Modify | Not assessed (amendment 2026-11-17) | N/A | N/A | Not assessed (amendment 2026-11-17) |
 
 ## Design
 Path A (small task). Classification rationale: affects 2 files (one source, one test), no
@@ -178,6 +181,7 @@ as a unit; `N/A` is only for a Plan whose every phase passes validation alone.
    - [ ] REQ-002/REQ-003: Run `uv run pytest tests/agent/test_startup_validation.py`,
      `uv run ruff check scripts/agent/startup_validation.py`, and
      `uv run mypy --no-namespace-packages scripts/agent/startup_validation.py`.
+   - [ ] Modify (REQ-004; `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`) — amendment 2026-11-17
 
 ### Release units
 N/A: no release unit
@@ -201,9 +205,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Core logic: add `has_fatal` early return after tool discovery | Pending | — | — | |
-| 2 | Tests: regression test for tool-discovery FATAL skip | Pending | — | — | |
-| 3 | Docs & verification: ops doc update and validation | Pending | — | — | |
+| 1 | Core logic: add `has_fatal` early return after tool discovery | In Progress | — | — |  |
+| 2 | Tests: regression test for tool-discovery FATAL skip | In Progress | — | — |  |
+| 3 | Docs & verification: ops doc update and validation | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -213,7 +217,8 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261117-202448_01_scripts_agent_startup_validation.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261117-202448_03_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -222,7 +227,15 @@ N/A: no release unit
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261117-201048
-- **Related target files**: `scripts/agent/startup_validation.py`, `tests/agent/test_startup_validation.py`
+- **Related target files**: `scripts/agent/startup_validation.py`, `tests/agent/test_startup_validation.py`, `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`
 
 ### Requirement Traceability
-See `templates/requirement-traceability.md` for the canonical column format.
+| Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
+|---|---|---|---|---|---|---|
+| REQ-001 | Plan Implementation Target Files; Implementation Intent | scripts/agent/startup_validation.py | Phase 1 | AC-001 | Validation plan: static rows | Confirmed by repository evidence |
+| REQ-002 | Plan Implementation Target Files; Background; Implementation Intent | scripts/agent/startup_validation.py | Phase 1 | AC-002, AC-003 | Validation plan: unit rows | Confirmed by repository evidence |
+| REQ-003 | Plan Implementation Target Files; Tests | tests/agent/test_startup_validation.py | Phase 2 | AC-004 | Validation plan: unit rows | Confirmed by repository evidence |
+| REQ-004 | Plan Documentation Impact (DOC-001) | docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md | Phase 3 | REQ-004 | Docs consistency checker | Confirmed by repository evidence |
+| REQ-004 | Amendment 2026-11-17: The operations doc scopes the RAG-check skip to a readiness FATAL; once check_services gains a has_fatal short-circuit after MCP tool discovery, the skip applies to any runtime-stage FATAL. DOC-001/REQ-004 require updating it. A documentation file requiring modification must be its own row per the freeze rules. | docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md | Phase 3 | N/A: none cites REQ-004 | N/A: documentation change | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261117-202448 -->

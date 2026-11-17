@@ -204,9 +204,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Core logic: add `<= 0` early-return to `check_dedup` | Pending | — | — | |
-| 2 | Tests: regression test for `<= 0` disable and unchanged positive path | Pending | — | — | |
-| 3 | Verification: ruff, mypy, pytest | Pending | — | — | |
+| 1 | Core logic: add `<= 0` early-return to `check_dedup` | In Progress | — | — |  |
+| 2 | Tests: regression test for `<= 0` disable and unchanged positive path | In Progress | — | — |  |
+| 3 | Verification: ruff, mypy, pytest | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -216,7 +216,7 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261117-202448_01_scripts_agent_tool_loop_guard.py.md` | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -229,3 +229,5 @@ N/A: no release unit
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261117-202448 -->
