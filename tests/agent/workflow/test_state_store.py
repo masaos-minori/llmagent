@@ -139,7 +139,13 @@ class TestRecoverStaleAttemptsOptimisticLocking:
     def test_recover_non_stale_attempt_not_changed(
         self, store, workflow_db: Path
     ) -> None:
-        _seed_attempt(workflow_db, "att-1", started_at=_iso(60))
+        _seed_attempt(
+            workflow_db,
+            "att-1",
+            started_at=_iso(60),
+            owner_id="host-a",
+            lease_expires_at=_iso_ahead(300),
+        )
         result = store.recover_stale_attempts()
         assert result == 0
         assert _attempt_row(workflow_db, "att-1")["status"] == "running"
@@ -228,7 +234,13 @@ class TestRecoverStaleAttemptsOptimisticLocking:
             owner_id="host-a",
             lease_expires_at=_iso(60),
         )
-        _seed_attempt(workflow_db, "att-2", started_at=_iso(30))
+        _seed_attempt(
+            workflow_db,
+            "att-2",
+            started_at=_iso(30),
+            owner_id="host-a",
+            lease_expires_at=_iso_ahead(300),
+        )
         result = store.recover_stale_attempts()
         assert result == 1
         assert _attempt_row(workflow_db, "att-2")["status"] == "running"
@@ -244,7 +256,14 @@ class TestRecoverStaleAttemptsOptimisticLocking:
     def test_recover_already_failed_attempt_not_double_recovered(
         self, store, workflow_db: Path
     ) -> None:
-        _seed_attempt(workflow_db, "att-1", started_at=_iso(7200), status="failed")
+        _seed_attempt(
+            workflow_db,
+            "att-1",
+            started_at=_iso(7200),
+            status="failed",
+            owner_id="host-a",
+            lease_expires_at=_iso_ahead(300),
+        )
         result = store.recover_stale_attempts()
         assert result == 0
 
@@ -253,7 +272,13 @@ class TestRecoverStaleAttemptsOptimisticLocking:
     ) -> None:
         # AC-3: the row is neither recovered nor silently skipped — it is
         # logged with the raw value and counted in the report.
-        _seed_attempt(workflow_db, "att-1", started_at="not-a-date")
+        _seed_attempt(
+            workflow_db,
+            "att-1",
+            started_at="not-a-date",
+            owner_id="host-a",
+            lease_expires_at=_iso_ahead(300),
+        )
         with caplog.at_level(logging.WARNING, logger="agent.workflow.state_store"):
             result = store.recover_stale_attempts()
         assert result == 0
@@ -405,7 +430,11 @@ class TestRecoveryPrunesProcessedEvents:
         _seed_event(workflow_db, "task-att-1:s1:1", "task-att-1", "s1")
         assert store.recover_stale_attempts() == 1
         rec = begin_stage_if_new(
-            store.get_connection(), "task-att-1:s1:1", "task-att-1", "s1"
+            store.get_connection(),
+            "task-att-1:s1:1",
+            "task-att-1",
+            "s1",
+            lease_duration_sec=300,
         )
         assert rec is not None
 

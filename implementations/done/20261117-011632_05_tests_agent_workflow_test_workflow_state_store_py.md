@@ -60,6 +60,12 @@ N/A: test-only contract migration.
   ```
   and keep a `test_recover_no_stale_attempts` that seeds a valid, non-expired leased attempt (supply `owner_id` and a `lease_expires_at` in the future) and asserts `recover_stale_attempts() == 0`.
 - **Atomicity test (REQ-001 AC4).** Add a test that monkeypatches `agent.workflow.attempt_ops.get_owner_id` (or `lease_expires_from`) to raise, calls `begin_stage_if_new` with a valid lease, and asserts neither `attempts` nor `processed_events` rows exist afterward. Import the target under test via `from agent.workflow import idempotency_ops` and patch `idempotency_ops.get_owner_id`.
+- **Positive lease-duration validation (REQ-001).** Add a test asserting a valid positive `lease_duration_sec` stamps `lease_expires_at` exactly `duration` seconds after `started_at` and carries a non-empty `owner_id`.
+- **Adversarial-validation finding — recovery-test seeds.** Running the suite against the applied NOT NULL schema surfaced that several `TestRecoverStaleAttempts` methods seed **lease-less** rows through `_insert_task_and_attempt(...)` (defaults `owner_id=None, lease_expires_at=None`), which now raise `sqlite3.IntegrityError: NOT NULL constraint failed: attempts.owner_id`. These are lease-less success/characterization seeds and fall under REQ-006. Remediation applied:
+  - `test_fresh_attempt_not_marked_failed` (age-based; REQ-004 removed the age fallback) removed — its live-lease coverage exists canonically in `tests/agent/workflow/test_stale_recovery_lease.py::TestLiveLeaseIsProtected`.
+  - `test_completed_attempt_not_modified`, `test_unparseable_timestamp_reported_and_row_left_running`, `test_recovery_is_timezone_independent` (att-tz-legacy), `test_recovery_marks_only_old_attempts` (att-2): seeded a valid live lease (`owner_id="host-a", lease_expires_at=_iso_future(600)`) so the row satisfies NOT NULL; comments updated to describe lease-based (not age-based) classification. Assertions unchanged where the lease is live.
+  - `test_recover_no_stale_attempts` (line 667 raw seed): split into a valid-leased "nothing stale → 0" test plus a labeled corruption test `test_null_lease_attempt_insert_rejected` asserting `sqlite3.IntegrityError`.
+- **Adversarial-validation finding — missed call sites.** The `rg` scan in the Procedure omitted the three direct-db calls in `test_get_execute_attempt_count_filters_by_stage`; each was given `lease_duration_sec=300` (REQ-003).
 
 ## Compatibility considerations
 N/A: test-only. The regression suite must stay green (REQ-003, REQ-006).
@@ -80,7 +86,7 @@ N/A: revert the commit.
 - Regression: `uv run pytest tests/agent/workflow tests/db tests/deploy` — no `TypeError` from the required argument; `test_stale_recovery_lease.py` still passes (recovery lease-only).
 
 ## Completion criteria
-- All 14 lease-less calls supply a lease; the leaseless sub-test is an invalid-value matrix; line 667 is a labeled corruption test asserting `sqlite3.IntegrityError`; atomicity and validation unit tests exist.
+- All lease-less `begin_stage_if_new()` calls supply a lease (including the `test_get_execute_attempt_count_filters_by_stage` direct-db calls found during validation); the leaseless sub-test is an invalid-value matrix; line 667 is a labeled corruption test asserting `sqlite3.IntegrityError`; writer atomicity and positive lease-duration validation unit tests exist; recovery-test lease-less seeds replaced with valid leased rows or removed (REQ-006).
 
 ## Out of Scope
 Other test files (each its own row); the writer/facade/model/schema changes (seq 01-04).
@@ -90,9 +96,9 @@ Other test files (each its own row); the writer/facade/model/schema changes (seq
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row adds the tests. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 20261117-110644 | 20261117-110644 | 14+3 lease inserts; sub-test → invalid-value matrix; line 667 → corruption test; two new unit tests. Recovery-test lease-less seeds remediated (adversarial validation). |
+| 2 | Add or update tests per Validation plan | Done | 20261117-110644 | 20261117-110644 | Added `test_begin_stage_if_new_valid_positive_lease_computes_expiry` and `test_begin_stage_if_new_atomic_when_owner_generation_fails`. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261117-110644 | 20261117-110644 | ruff format + ruff check clean; `pytest tests/agent/workflow/test_workflow_state_store.py` 49 passed. Broader `tests/agent/workflow` shows 13 expected lease `TypeError`s in seq 06-10 files (release unit validated as a set). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

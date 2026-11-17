@@ -39,9 +39,13 @@ class TestAttemptRecord:
             stage_id="plan",
             status="running",
             started_at="2026-01-01T00:00:00+00:00",
+            owner_id="host-test",
+            lease_expires_at="2026-01-01T01:00:00+00:00",
         )
         assert r.ended_at is None
         assert r.error_msg is None
+        assert r.owner_id == "host-test"
+        assert r.lease_expires_at == "2026-01-01T01:00:00+00:00"
 
     def test_create_with_error(self) -> None:
         r = AttemptRecord(
@@ -50,10 +54,25 @@ class TestAttemptRecord:
             stage_id="execute",
             status="failed",
             started_at="2026-01-01T00:00:00+00:00",
+            owner_id="host-test",
+            lease_expires_at="2026-01-01T01:00:00+00:00",
             ended_at="2026-01-01T00:01:00+00:00",
             error_msg="timeout",
         )
         assert r.error_msg == "timeout"
+        assert r.owner_id == "host-test"
+        assert r.lease_expires_at == "2026-01-01T01:00:00+00:00"
+
+    def test_requires_owner_and_lease(self) -> None:
+        """REQ-004: owner_id and lease_expires_at are mandatory on AttemptRecord."""
+        with pytest.raises(TypeError):
+            AttemptRecord(
+                attempt_id="a1",
+                task_id="t1",
+                stage_id="plan",
+                status="running",
+                started_at="2026-01-01T00:00:00+00:00",
+            )
 
 
 class TestArtifactRef:

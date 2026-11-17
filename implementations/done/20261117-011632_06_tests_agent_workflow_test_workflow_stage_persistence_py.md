@@ -55,8 +55,8 @@ Other call sites (their own rows).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 20261117-110730 | 20261117-110730 | Added `lease_duration_sec=300` to all six calls. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261117-110730 | 20261117-110730 | ruff format + check clean; `pytest` 7 passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

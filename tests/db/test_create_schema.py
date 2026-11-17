@@ -512,8 +512,18 @@ class TestCreateWorkflowSchema:
             ("t1", "s1", None, 1, "1.0.0", "pending", "s1:1", now, now),
         )
         conn.execute(
-            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, ended_at, error_msg) VALUES (?,?,?,?,?,?,?)",
-            ("a1", "t1", "plan", "running", now, None, None),
+            "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, ended_at, error_msg, owner_id, lease_expires_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (
+                "a1",
+                "t1",
+                "plan",
+                "running",
+                now,
+                None,
+                None,
+                "host-a",
+                "2026-01-01T00:05:00+00:00",
+            ),
         )
         conn.commit()
         conn.execute("DELETE FROM tasks WHERE task_id='t1'")
@@ -523,8 +533,9 @@ class TestCreateWorkflowSchema:
         conn.close()
 
     def test_attempts_carries_the_lease_columns(self, tmp_path: Path) -> None:
-        """Fresh create with the real DDL carries the lease columns, nullable so
-        migrated and pre-existing rows stay null (AC-8, REQ-004)."""
+        """Fresh create with the real DDL carries the lease columns as NOT NULL
+        (REQ-005, AC-7): a running attempt is inseparable from lease ownership,
+        so neither owner nor lease may be null."""
         db_file = tmp_path / "workflow_lease.sqlite"
         cfg = _make_db_config(db_file, "workflow")
         # The real workflow DDL has no vec0 dependency, so it is checked as-is.
@@ -538,8 +549,8 @@ class TestCreateWorkflowSchema:
             assert {"owner_id", "lease_expires_at"} <= set(columns)
             for name in ("owner_id", "lease_expires_at"):
                 assert columns[name][2] == "TEXT"  # type
-                assert columns[name][3] == 0  # nullable, no NOT NULL
-                assert columns[name][4] is None  # no DEFAULT
+                assert columns[name][3] == 1  # NOT NULL (REQ-005, AC-7)
+                assert columns[name][4] is None  # no DEFAULT (client-computed)
         finally:
             conn.close()
 
@@ -642,8 +653,18 @@ class TestWorkflowStatusCheckConstraints:
         self._insert_task(conn, "pending")
         conn.execute(
             "INSERT INTO attempts (attempt_id, task_id, stage_id, status,"
-            " started_at, ended_at, error_msg) VALUES (?,?,?,?,?,?,?)",
-            ("a1", "t1", "plan", status, self._NOW, None, None),
+            " started_at, ended_at, error_msg, owner_id, lease_expires_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (
+                "a1",
+                "t1",
+                "plan",
+                status,
+                self._NOW,
+                None,
+                None,
+                "host-a",
+                "2026-01-01T00:05:00+00:00",
+            ),
         )
 
     def test_tasks_rejects_out_of_vocabulary_insert(self) -> None:
@@ -973,8 +994,14 @@ class TestTimestampDefaults:
                 col_name = row[1]
                 default = row[4]
                 not_null = row[3]
-                # Nullable columns such as attempts.ended_at carry no default.
-                if col_name.endswith("_at") and not_null:
+                # Server-generated timestamps on NOT NULL _at columns carry a
+                # DEFAULT; lease_expires_at is a client-computed deadline with no
+                # server default, so it is excluded here.
+                if (
+                    col_name.endswith("_at")
+                    and not_null
+                    and col_name != "lease_expires_at"
+                ):
                     assert default is not None, f"{table}.{col_name} has no DEFAULT"
                     assert "datetime('now')" not in (default or ""), (
                         f"{table}.{col_name} uses datetime('now')"

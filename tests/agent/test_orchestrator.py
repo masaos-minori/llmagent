@@ -422,8 +422,8 @@ class TestHandleTurnInvokesWorkflowEngine:
         orch = _make_orchestrator(ctx, on_error=on_error)
 
         async def _slow_stream(*_args: object, **_kwargs: object) -> LLMResponse:
-            """Force the execute stage to genuinely exceed its 0.01s timeout below."""
-            await asyncio.sleep(0.05)
+            """Force the execute stage to genuinely exceed its 1s timeout below."""
+            await asyncio.sleep(1.2)
             return LLMResponse(
                 message=LLMMessage(role="assistant", content="ok"),
                 finish_reason="stop",
@@ -434,7 +434,7 @@ class TestHandleTurnInvokesWorkflowEngine:
         # Set a real WorkflowDef (autouse fixture returns a mock with MagicMock values)
         stages = [
             StageDefinition(id="plan", timeout_sec=5, retryable=False),
-            StageDefinition(id="execute", timeout_sec=0.01, retryable=True),
+            StageDefinition(id="execute", timeout_sec=1, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
         policy = RetryPolicy(max_attempts=1, retry_wait_sec=0, retry_on=("exception",))
@@ -520,8 +520,8 @@ class TestHandleTurnInvokesWorkflowEngine:
         orch = _make_orchestrator(ctx)
 
         async def _slow_stream(*_args: object, **_kwargs: object) -> LLMResponse:
-            """Force the execute stage to genuinely exceed its 0.01s timeout below."""
-            await asyncio.sleep(0.05)
+            """Force the execute stage to genuinely exceed its 1s timeout below."""
+            await asyncio.sleep(1.2)
             return LLMResponse(
                 message=LLMMessage(role="assistant", content="ok"),
                 finish_reason="stop",
@@ -532,7 +532,7 @@ class TestHandleTurnInvokesWorkflowEngine:
         # Set a real WorkflowDef (autouse fixture returns a mock with MagicMock values)
         stages = [
             StageDefinition(id="plan", timeout_sec=5, retryable=False),
-            StageDefinition(id="execute", timeout_sec=0.01, retryable=True),
+            StageDefinition(id="execute", timeout_sec=1, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
         policy = RetryPolicy(max_attempts=1, retry_wait_sec=0, retry_on=("exception",))
@@ -981,7 +981,7 @@ class TestEntryWorkOutsideStageTimeout:
 
         stages = [
             StageDefinition(id="plan", timeout_sec=5, retryable=False),
-            StageDefinition(id="execute", timeout_sec=0.1, retryable=True),
+            StageDefinition(id="execute", timeout_sec=1, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
         policy = RetryPolicy(max_attempts=3, retry_wait_sec=0, retry_on=("exception",))
@@ -1063,7 +1063,7 @@ class TestEntryWorkOutsideStageTimeout:
         ctx.turn.current_turn_id = "turn-test"
 
         async def _slow_stream(*_args: object, **_kwargs: object) -> LLMResponse:
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(1.2)
             return LLMResponse(
                 message=LLMMessage(role="assistant", content="ok"),
                 finish_reason="stop",
@@ -1075,7 +1075,7 @@ class TestEntryWorkOutsideStageTimeout:
         orch = _make_orchestrator(ctx, on_error=on_error)
         stages = [
             StageDefinition(id="plan", timeout_sec=5, retryable=False),
-            StageDefinition(id="execute", timeout_sec=0.1, retryable=True),
+            StageDefinition(id="execute", timeout_sec=1, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
         policy = RetryPolicy(max_attempts=3, retry_wait_sec=0, retry_on=("exception",))
@@ -3244,7 +3244,7 @@ def _status_harness(
     execute_stage: Any,
     on_error: Any = None,
     max_attempts: int = 1,
-    execute_timeout_sec: float = 5,
+    execute_timeout_sec: int = 5,
     execute_retryable: bool = True,
     store_cls: type[_ProbeStateStore] = _ProbeStateStore,
 ):
@@ -3408,14 +3408,14 @@ class TestTaskStatusPerTurnOutcome:
         """Case F: an execute stage that exceeds its timeout ends halted with a timeout attempt."""
 
         async def execute_stage(*_a: object, **_k: object) -> object:
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(1.2)
             return ("", None, False)
 
         with _status_harness(
             tmp_path,
             monkeypatch=monkeypatch,
             execute_stage=execute_stage,
-            execute_timeout_sec=0.01,
+            execute_timeout_sec=1,
         ) as (orch, store):
             await orch._workflow_adapter.execute_turn("hello", time.time(), "sess-1")
 

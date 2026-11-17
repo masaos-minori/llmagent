@@ -10,6 +10,23 @@ from agent.workflow.attempt_ops import get_owner_id, lease_expires_from
 from agent.workflow.models import AttemptRecord
 
 
+def _validate_lease_duration(lease_duration_sec: int) -> None:
+    """Reject a non-positive/non-int lease duration before any DB mutation.
+
+    Rejects None, bool, 0, negatives, floats, and strings. bool is excluded
+    explicitly because bool is a subclass of int; a bare isinstance(x, int)
+    check would accept True/False.
+    """
+    if not isinstance(lease_duration_sec, int) or isinstance(lease_duration_sec, bool):
+        raise TypeError(
+            f"lease_duration_sec must be an int, got {type(lease_duration_sec).__name__}"
+        )
+    if lease_duration_sec <= 0:
+        raise ValueError(
+            f"lease_duration_sec must be positive, got {lease_duration_sec!r}"
+        )
+
+
 def is_event_processed(db: SQLiteHelper, event_id: str) -> bool:
     """Check whether an event has already been processed by looking up its ID."""
     rows = db.fetchall("SELECT 1 FROM processed_events WHERE event_id=?", (event_id,))
@@ -21,8 +38,8 @@ def begin_stage_if_new(
     event_id: str,
     task_id: str,
     stage_id: str,
+    lease_duration_sec: int,
     workflow_id: str | None = None,
-    lease_duration_sec: int | None = None,
 ) -> AttemptRecord | None:
     """Atomically check event_id and start attempt if new.
 
@@ -34,10 +51,10 @@ def begin_stage_if_new(
     Returns AttemptRecord if the stage should run, None if already processed.
     No explicit commit() is called — begin_immediate handles the transaction.
 
-    With ``lease_duration_sec`` set, the attempt row is stamped with this
+    With a ``lease_duration_sec``, the attempt row is stamped with this
     process's ``owner_id`` and a ``lease_expires_at`` derived from
-    ``started_at`` inside the same transaction. With ``None``,
-    both lease columns stay NULL for legacy callers.
+    ``started_at`` inside the same transaction. A lease is always required,
+    so the row is always stamped with a non-empty owner and a non-null lease.
     """
     # processed_events semantics:
     # - Contains event IDs for attempts that have been STARTED (not necessarily completed)
@@ -46,13 +63,11 @@ def begin_stage_if_new(
     # - Startup recovery marks stale running attempts as failed and deletes the
     # processed_events rows for their (task_id, stage_id) pair, so a resumed
     # stage runs again
+    _validate_lease_duration(lease_duration_sec)
     attempt_id = str(uuid.uuid4())
     now = _now()
-    owner_id: str | None = None
-    lease_expires_at: str | None = None
-    if lease_duration_sec is not None:
-        owner_id = get_owner_id()
-        lease_expires_at = lease_expires_from(now, lease_duration_sec)
+    owner_id = get_owner_id()
+    lease_expires_at = lease_expires_from(now, lease_duration_sec)
     with db.begin_immediate():
         if is_event_processed(db, event_id):
             return None
@@ -80,4 +95,6 @@ def begin_stage_if_new(
         stage_id=stage_id,
         status="running",
         started_at=now,
+        owner_id=owner_id,
+        lease_expires_at=lease_expires_at,
     )

@@ -57,9 +57,9 @@ The model-layer field addition (seq 03); other call sites (their own rows).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 20261117-111445 | 20261117-111445 | Added `owner_id`/`lease_expires_at` to both `AttemptRecord(...)` constructions. |
+| 2 | Add or update tests per Validation plan | Done | 20261117-111445 | 20261117-111445 | Added `test_requires_owner_and_lease` (TypeError when either omitted); kept explicit assertions on both constructions. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261117-111445 | 20261117-111445 | ruff format + check clean; `pytest` 10 passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

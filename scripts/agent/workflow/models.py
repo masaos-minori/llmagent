@@ -37,13 +37,20 @@ class TaskRecord:
 
 @dataclass
 class AttemptRecord:
-    """Database record for a single stage attempt within a task."""
+    """Database record for a single stage attempt within a task.
+
+    Represents the full attempts row. ``owner_id`` and ``lease_expires_at`` are
+    required and always populated for a running attempt (the lease-less form no
+    longer exists).
+    """
 
     attempt_id: str
     task_id: str
     stage_id: str
     status: str  # running | completed | failed
     started_at: str  # ISO-8601
+    owner_id: str
+    lease_expires_at: str
     ended_at: str | None = None
     error_msg: str | None = None
 

@@ -64,7 +64,7 @@ One new module function, one call-site insertion, branch removal, two field addi
       lease_expires_at = lease_expires_from(now, lease_duration_sec)
   ```
   Generation stays before `db.begin_immediate()`, so a validation/generation failure prevents both inserts (atomicity, AC4).
-- Change the parameter annotation `lease_duration_sec: int | None = None` to `lease_duration_sec: int` (required, no default).
+- Change the parameter annotation `lease_duration_sec: int | None = None` to `lease_duration_sec: int` (required, no default). Reorder so `lease_duration_sec` precedes the defaulted `workflow_id: str | None = None` (Python forbids a non-default parameter after a defaulted one); both are always called by keyword, so the swap is safe.
 - Update the return construction (lines 77-83) to include the lease fields:
   ```python
       return AttemptRecord(

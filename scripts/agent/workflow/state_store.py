@@ -114,8 +114,8 @@ class StateStore:
         event_id: str,
         task_id: str,
         stage_id: str,
+        lease_duration_sec: int,
         workflow_id: str | None = None,
-        lease_duration_sec: int | None = None,
     ) -> AttemptRecord | None:
         """Start an attempt for the event if it has not been processed yet.
 

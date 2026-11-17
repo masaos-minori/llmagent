@@ -39,7 +39,7 @@ def _insert_task(db: SQLiteHelper, workflow_id: str = "wf-test-1") -> str:
 
 def test_finish_attempt_persists_error_kind(db: SQLiteHelper) -> None:
     task_id = _insert_task(db)
-    rec = begin_stage_if_new(db, "evt-ep-1", task_id, "stage1")
+    rec = begin_stage_if_new(db, "evt-ep-1", task_id, "stage1", lease_duration_sec=300)
     assert rec is not None
     finish_attempt(
         db,
@@ -59,7 +59,7 @@ def test_finish_attempt_persists_error_kind(db: SQLiteHelper) -> None:
 
 def test_finish_attempt_null_error_kind_by_default(db: SQLiteHelper) -> None:
     task_id = _insert_task(db)
-    rec = begin_stage_if_new(db, "evt-ep-2", task_id, "stage1")
+    rec = begin_stage_if_new(db, "evt-ep-2", task_id, "stage1", lease_duration_sec=300)
     assert rec is not None
     finish_attempt(db, rec.attempt_id, "completed")
     row = db.execute(
@@ -72,7 +72,7 @@ def test_finish_attempt_null_error_kind_by_default(db: SQLiteHelper) -> None:
 
 def test_finish_attempt_exception_kind(db: SQLiteHelper) -> None:
     task_id = _insert_task(db)
-    rec = begin_stage_if_new(db, "evt-ep-3", task_id, "stage1")
+    rec = begin_stage_if_new(db, "evt-ep-3", task_id, "stage1", lease_duration_sec=300)
     assert rec is not None
     finish_attempt(
         db,
@@ -126,7 +126,12 @@ def test_begin_stage_if_new_persists_workflow_id(db: SQLiteHelper) -> None:
     task_id = _insert_task(db, workflow_id="wf-idp-test")
     event_id = str(uuid.uuid4())
     result = begin_stage_if_new(
-        db, event_id, task_id, "stage1", workflow_id="wf-idp-test"
+        db,
+        event_id,
+        task_id,
+        "stage1",
+        workflow_id="wf-idp-test",
+        lease_duration_sec=300,
     )
     assert result is not None
     row = db.execute(
@@ -138,7 +143,7 @@ def test_begin_stage_if_new_persists_workflow_id(db: SQLiteHelper) -> None:
 def test_begin_stage_if_new_idempotent(db: SQLiteHelper) -> None:
     task_id = _insert_task(db)
     event_id = str(uuid.uuid4())
-    first = begin_stage_if_new(db, event_id, task_id, "stage1")
-    second = begin_stage_if_new(db, event_id, task_id, "stage1")
+    first = begin_stage_if_new(db, event_id, task_id, "stage1", lease_duration_sec=300)
+    second = begin_stage_if_new(db, event_id, task_id, "stage1", lease_duration_sec=300)
     assert first is not None
     assert second is None

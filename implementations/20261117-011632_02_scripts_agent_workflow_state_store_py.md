@@ -19,7 +19,7 @@ Make `lease_duration_sec` a required `int` in `StateStore.begin_stage_if_new()` 
 ### Target file
 `scripts/agent/workflow/state_store.py`
 ### Procedure
-1. Change the parameter annotation from `lease_duration_sec: int | None = None` to `lease_duration_sec: int` (required).
+1. Change the parameter annotation from `lease_duration_sec: int | None = None` to `lease_duration_sec: int` (required). Reorder so `lease_duration_sec` precedes the defaulted `workflow_id: str | None = None` (Python forbids a non-default parameter after a defaulted one); both are always called by keyword, so the swap is safe.
 2. Forward `lease_duration_sec` to `idempotency_ops.begin_stage_if_new()` in the existing delegation.
 ### Method
 Two edits: the annotation line and the delegation call.

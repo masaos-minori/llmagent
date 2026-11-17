@@ -113,7 +113,9 @@ class TestHelperRejection:
 
     def test_finish_attempt_rejects_and_writes_nothing(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
-        attempt = begin_stage_if_new(store._db, "evt-vocab-1", task.task_id, "plan")
+        attempt = begin_stage_if_new(
+            store._db, "evt-vocab-1", task.task_id, "plan", lease_duration_sec=300
+        )
         assert attempt is not None
         finish_attempt(store._db, attempt.attempt_id, "completed")
         with pytest.raises(ValueError, match="invalid attempts.status 'done'"):

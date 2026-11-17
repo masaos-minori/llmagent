@@ -189,8 +189,8 @@ CREATE TABLE IF NOT EXISTS attempts (
     error_msg    TEXT,
     error_kind   TEXT,
     error_detail TEXT,
-    owner_id         TEXT,
-    lease_expires_at TEXT
+    owner_id         TEXT NOT NULL CHECK (length(owner_id) > 0),
+    lease_expires_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS processed_events (

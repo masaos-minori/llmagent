@@ -135,7 +135,9 @@ class TestUpdateTaskStatus:
 class TestAttempts:
     def test_begin_stage_returns_record(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        attempt = begin_stage_if_new(store._db, "evt-ta-1", task.task_id, "plan")
+        attempt = begin_stage_if_new(
+            store._db, "evt-ta-1", task.task_id, "plan", lease_duration_sec=300
+        )
         assert attempt is not None
         assert attempt.task_id == task.task_id
         assert attempt.stage_id == "plan"
@@ -143,8 +145,12 @@ class TestAttempts:
 
     def test_attempt_count_via_inline_query(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        begin_stage_if_new(store._db, "evt-ta-2", task.task_id, "execute")
-        begin_stage_if_new(store._db, "evt-ta-3", task.task_id, "execute")
+        begin_stage_if_new(
+            store._db, "evt-ta-2", task.task_id, "execute", lease_duration_sec=300
+        )
+        begin_stage_if_new(
+            store._db, "evt-ta-3", task.task_id, "execute", lease_duration_sec=300
+        )
         rows = store._db.fetchall(
             "SELECT COUNT(*) as cnt FROM attempts WHERE task_id=? AND stage_id='execute'",
             (task.task_id,),
@@ -153,7 +159,9 @@ class TestAttempts:
 
     def test_finish_attempt_completed(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        attempt = begin_stage_if_new(store._db, "evt-ta-4", task.task_id, "plan")
+        attempt = begin_stage_if_new(
+            store._db, "evt-ta-4", task.task_id, "plan", lease_duration_sec=300
+        )
         assert attempt is not None
         finish_attempt(store._db, attempt.attempt_id, "completed")
         rows = store._db.fetchall(
@@ -170,7 +178,9 @@ class TestAttempts:
 
     def test_finish_attempt_with_error(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        attempt = begin_stage_if_new(store._db, "evt-ta-5", task.task_id, "execute")
+        attempt = begin_stage_if_new(
+            store._db, "evt-ta-5", task.task_id, "execute", lease_duration_sec=300
+        )
         assert attempt is not None
         finish_attempt(store._db, attempt.attempt_id, "failed", "timeout")
         rows = store._db.fetchall(
@@ -198,16 +208,56 @@ class TestAttempts:
             stamped_rows[0][1] > stamped_rows[0][2]
         )  # Z-format string compare: later time
 
-        leaseless = begin_stage_if_new(
-            store._db, "evt-ta-nolease", task.task_id, "execute"
+    @pytest.mark.parametrize("bad", [None, False, True, 0, -1, 1.0, "30"])
+    def test_begin_stage_if_new_rejects_invalid_lease(self, store, bad) -> None:
+        """REQ-001: invalid lease durations raise before any DB mutation."""
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
+        with pytest.raises((TypeError, ValueError)):
+            begin_stage_if_new(
+                store._db, "evt-bad", task.task_id, "execute", lease_duration_sec=bad
+            )
+        # no attempts row was written for any rejected value
+        assert store._db.execute("SELECT COUNT(*) FROM attempts").fetchone()[0] == 0
+
+    def test_begin_stage_if_new_valid_positive_lease_computes_expiry(
+        self, store
+    ) -> None:
+        """REQ-001: a valid positive lease stamps lease_expires_at exactly `duration` after started_at."""
+        from shared.json_utils import parse_iso_utc
+
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
+        attempt = begin_stage_if_new(
+            store._db, "evt-val", task.task_id, "execute", lease_duration_sec=300
         )
-        assert leaseless is not None
-        leaseless_rows = store._db.fetchall(
-            "SELECT owner_id, lease_expires_at FROM attempts WHERE attempt_id=?",
-            (leaseless.attempt_id,),
+        assert attempt is not None
+        started = parse_iso_utc(attempt.started_at)
+        expires = parse_iso_utc(attempt.lease_expires_at)
+        assert (expires - started).total_seconds() == 300
+        assert attempt.owner_id  # non-empty owner stamped on the returned record
+
+    def test_begin_stage_if_new_atomic_when_owner_generation_fails(self, store) -> None:
+        """REQ-001 AC4: if owner/lease generation fails, neither row is written."""
+        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
+
+        def _raise(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("owner generation failed")
+
+        with patch("agent.workflow.idempotency_ops.get_owner_id", side_effect=_raise):
+            with pytest.raises(RuntimeError):
+                begin_stage_if_new(
+                    store._db,
+                    "evt-atom",
+                    task.task_id,
+                    "execute",
+                    lease_duration_sec=300,
+                )
+
+        # Neither the attempts nor the processed_events row exists (atomic backstop).
+        assert store._db.execute("SELECT COUNT(*) FROM attempts").fetchone()[0] == 0
+        assert (
+            store._db.execute("SELECT COUNT(*) FROM processed_events").fetchone()[0]
+            == 0
         )
-        assert leaseless_rows[0][0] is None  # owner_id
-        assert leaseless_rows[0][1] is None  # lease_expires_at
 
 
 class TestIdempotency:
@@ -216,27 +266,39 @@ class TestIdempotency:
 
     def test_begin_stage_if_new_returns_attempt(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        result = begin_stage_if_new(store._db, "evt-1", task.task_id, "plan")
+        result = begin_stage_if_new(
+            store._db, "evt-1", task.task_id, "plan", lease_duration_sec=300
+        )
         assert result is not None
         assert result.stage_id == "plan"
 
     def test_begin_stage_if_new_skips_duplicate(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        begin_stage_if_new(store._db, "evt-1", task.task_id, "plan")
-        result = begin_stage_if_new(store._db, "evt-1", task.task_id, "plan")
+        begin_stage_if_new(
+            store._db, "evt-1", task.task_id, "plan", lease_duration_sec=300
+        )
+        result = begin_stage_if_new(
+            store._db, "evt-1", task.task_id, "plan", lease_duration_sec=300
+        )
         assert result is None
 
     def test_event_processed_after_begin(self, store) -> None:
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        begin_stage_if_new(store._db, "evt-2", task.task_id, "execute")
+        begin_stage_if_new(
+            store._db, "evt-2", task.task_id, "execute", lease_duration_sec=300
+        )
         assert is_event_processed(store._db, "evt-2") is True
 
     def test_store_facade_begin_stage_if_new_delegates(self, store) -> None:
         """StateStore.begin_stage_if_new produces the same rows as the ops function."""
         task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        first = store.begin_stage_if_new("evt-1", task.task_id, "plan")
+        first = store.begin_stage_if_new(
+            "evt-1", task.task_id, "plan", lease_duration_sec=300
+        )
         assert isinstance(first, AttemptRecord)
-        second = store.begin_stage_if_new("evt-1", task.task_id, "plan")
+        second = store.begin_stage_if_new(
+            "evt-1", task.task_id, "plan", lease_duration_sec=300
+        )
         assert second is None
         assert is_event_processed(store._db, "evt-1") is True
 
@@ -288,9 +350,15 @@ class TestDiagnosticQueries:
 
     def test_get_execute_attempt_count_filters_by_stage(self, store) -> None:
         task = create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
-        begin_stage_if_new(store._db, "evt-diag-1", task.task_id, "execute")
-        begin_stage_if_new(store._db, "evt-diag-2", task.task_id, "execute")
-        begin_stage_if_new(store._db, "evt-diag-3", task.task_id, "plan")
+        begin_stage_if_new(
+            store._db, "evt-diag-1", task.task_id, "execute", lease_duration_sec=300
+        )
+        begin_stage_if_new(
+            store._db, "evt-diag-2", task.task_id, "execute", lease_duration_sec=300
+        )
+        begin_stage_if_new(
+            store._db, "evt-diag-3", task.task_id, "plan", lease_duration_sec=300
+        )
 
         assert store.get_execute_attempt_count("sess-diag") == 2
         assert store.get_execute_attempt_count("sess-none") == 0
@@ -356,30 +424,19 @@ class TestRecoverStaleAttempts:
         ):
             return StateStore()
 
-    def test_fresh_attempt_not_marked_failed(self, workflow_db) -> None:
-        """A lease-less attempt stays running (adrrev005 REQ-004: no age fallback)."""
-        s = self._open_store(workflow_db)
-        try:
-            self._insert_task_and_attempt(
-                s, "att-fresh", "task-2", "execute", "running", _iso(5)
-            )
-
-            s.recover_stale_attempts()
-
-            rows = s._db.fetchall(
-                "SELECT status FROM attempts WHERE attempt_id='att-fresh'"
-            )
-            assert rows[0][0] == "running"
-            assert s.last_recovery_report.still_live == 1
-        finally:
-            s.close()
-
     def test_completed_attempt_not_modified(self, workflow_db) -> None:
         """A completed attempt is not modified by recovery."""
         s = self._open_store(workflow_db)
         try:
             self._insert_task_and_attempt(
-                s, "att-done", "task-3", "plan", "completed", "2026-01-01T00:00:00Z"
+                s,
+                "att-done",
+                "task-3",
+                "plan",
+                "completed",
+                "2026-01-01T00:00:00Z",
+                owner_id="host-a",
+                lease_expires_at=_iso_future(600),
             )
 
             s.recover_stale_attempts()
@@ -451,7 +508,14 @@ class TestRecoverStaleAttempts:
         s = self._open_store(workflow_db)
         try:
             self._insert_task_and_attempt(
-                s, "att-bad", "task-7", "execute", "running", "not-a-date"
+                s,
+                "att-bad",
+                "task-7",
+                "execute",
+                "running",
+                "not-a-date",
+                owner_id="host-a",
+                lease_expires_at=_iso_future(600),
             )
             with caplog.at_level(logging.WARNING, logger="agent.workflow.state_store"):
                 count = s.recover_stale_attempts()
@@ -491,7 +555,14 @@ class TestRecoverStaleAttempts:
         s = self._open_store(workflow_db)
         try:
             self._insert_task_and_attempt(
-                s, "att-tz-legacy", "task-tz1", "execute", "running", _iso(7200)
+                s,
+                "att-tz-legacy",
+                "task-tz1",
+                "execute",
+                "running",
+                _iso(7200),
+                owner_id="host-a",
+                lease_expires_at=_iso_future(600),
             )
             self._insert_task_and_attempt(
                 s,
@@ -515,7 +586,9 @@ class TestRecoverStaleAttempts:
             )
 
             count = s.recover_stale_attempts()
-            assert count == 1  # att-tz-legacy is lease-less: live (REQ-004)
+            assert (
+                count == 1
+            )  # only att-tz-lease is expired; att-tz-legacy has a live lease
 
             statuses = {
                 row[0]: row[1]
@@ -526,7 +599,7 @@ class TestRecoverStaleAttempts:
             }
             assert (
                 statuses["att-tz-legacy"] == "running"
-            )  # lease-less stays live (REQ-004)
+            )  # a live lease stays live regardless of host TZ (REQ-004)
             assert statuses["att-tz-lease"] == "failed"
             assert statuses["att-tz-live"] == "running"
             report = s.last_recovery_report
@@ -538,8 +611,8 @@ class TestRecoverStaleAttempts:
     def test_recovery_marks_only_old_attempts(self, workflow_db) -> None:
         """recover_stale_attempts marks only lease-expired attempts as failed.
 
-        adrrev005 REQ-004: the lease-less legacy age rule is gone, so a lease-less
-        row stays running no matter how old it is.
+        adrrev005 REQ-004: recovery is decided solely from lease expiration; a
+        live-leased row stays running no matter how old it is.
         """
         s = self._open_store(workflow_db)
         try:
@@ -554,7 +627,14 @@ class TestRecoverStaleAttempts:
                 lease_expires_at=_iso(30),
             )
             self._insert_task_and_attempt(
-                s, "att-2", "task-2", "execute", "running", _iso(5)
+                s,
+                "att-2",
+                "task-2",
+                "execute",
+                "running",
+                _iso(5),
+                owner_id="host-a",
+                lease_expires_at=_iso_future(600),
             )
 
             count = s.recover_stale_attempts()
@@ -643,7 +723,11 @@ class TestRecoverStaleAttempts:
             s.close()
 
     def test_recover_no_stale_attempts(self, workflow_db) -> None:
-        """Calling recover_stale_attempts when none are stale should return 0."""
+        """Calling recover_stale_attempts when none are stale should return 0.
+
+        Seeds a valid, non-expired leased attempt (owner_id + future lease) and
+        asserts recovery reclaims nothing.
+        """
         s = self._open_store(workflow_db)
         try:
             now_ts = _iso(5)
@@ -664,8 +748,8 @@ class TestRecoverStaleAttempts:
                 ),
             )
             conn.execute(
-                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) VALUES (?, ?, ?, 'running', ?)",
-                ("att-none", task_id, "execute", now_ts),
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at, owner_id, lease_expires_at) VALUES (?, ?, ?, 'running', ?, ?, ?)",
+                ("att-none", task_id, "execute", now_ts, "host-none", _iso_future(600)),
             )
             conn.commit()
             conn.close()
@@ -674,6 +758,37 @@ class TestRecoverStaleAttempts:
             assert count == 0
         finally:
             s.close()
+
+    def test_null_lease_attempt_insert_rejected(self, workflow_db) -> None:
+        """Corruption case: a null-lease attempts row violates the NOT NULL columns.
+
+        The canonical schema makes owner_id and lease_expires_at NOT NULL, so a
+        raw INSERT that omits them is rejected with sqlite3.IntegrityError. This
+        models a corrupted/rejected row rather than a supported state (REQ-005,
+        REQ-006: raw SQL is used only for intentionally-corrupted seeds).
+        """
+        task_id = "task-corrupt"
+        conn = sqlite3.connect(str(workflow_db))
+        conn.execute(
+            "INSERT INTO tasks (task_id, session_id, turn_number, task_nonce, status, workflow_version, workflow_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                task_id,
+                "sess-test",
+                1,
+                f"{task_id}:1",
+                "pending",
+                "1.0.0",
+                "wf-test",
+                _iso(5),
+                _iso(5),
+            ),
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO attempts (attempt_id, task_id, stage_id, status, started_at) "
+                "VALUES (?, ?, ?, 'running', ?)",
+                ("att-corrupt", task_id, "execute", _iso(5)),
+            )
 
 
 class TestStaleRecoveryConcurrency:
