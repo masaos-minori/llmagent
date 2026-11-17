@@ -10,6 +10,7 @@ so the mock-patch-targets checker never sees a module-level patch target to comp
 
 from __future__ import annotations
 
+import shlex
 import subprocess
 import sys
 import threading
@@ -17,6 +18,7 @@ import time
 from pathlib import Path
 
 import pytest
+import yaml
 
 from tools.run_validation_gates import (
     COMMIT_ONLY_HOOKS,
@@ -780,3 +782,81 @@ def test_drift_still_passes_after_ruff_gate_added() -> None:
     count, errors = drift_report(text)
     assert count == 0, errors
     assert any(g.checker_id == "uv" for g in ROUTING_GATES)
+
+
+# --- CI parity -----------------------------------------------------------------------
+
+CI_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+
+# CI `lint` commands with no gate of their own, each with the reason it needs none.
+CI_LINT_EXCEPTIONS: dict[str, str] = {
+    "uv sync --dev": "environment setup, not a check",
+    "git diff --exit-code registry/manifests/": (
+        "the drift check of the manifests CI regenerates; the `reference-drift` gate"
+        " compares them with their sources without writing"
+    ),
+}
+
+
+def _command_key(argv: list[str]) -> str:
+    """Reduce a command to the tool or script it runs, ignoring flags and env prefixes."""
+    tokens = [
+        tok for tok in argv if "=" not in tok.split("/")[0] or tok.startswith("-")
+    ]
+    if tokens[:2] == ["uv", "run"]:
+        tokens = tokens[2:]
+    if tokens[:1] == ["python"] and len(tokens) > 1:
+        return f"python {tokens[1]}"
+    if tokens[:1] == ["ruff"] and len(tokens) > 1:
+        return f"ruff {tokens[1]}"
+    if tokens[:1] == ["git"]:
+        return " ".join(argv)
+    return tokens[0] if tokens else ""
+
+
+def _ci_lint_commands() -> list[str]:
+    workflow = yaml.safe_load(CI_WORKFLOW.read_text(encoding="utf-8"))
+    commands: list[str] = []
+    for step in workflow["jobs"]["lint"]["steps"]:
+        for line in str(step.get("run", "")).splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                commands.append(line)
+    return commands
+
+
+def test_every_ci_lint_command_has_a_gate_or_a_reviewed_exception() -> None:
+    """A check that only CI runs is found after the push; each needs a local gate.
+
+    The `lint` job of CI is the final gate for a push to master. A command that has no
+    counterpart among the gates can fail there with nothing to catch it earlier, as the
+    cited-ADR tests and the manifest drift check did.
+    """
+    gate_keys = {
+        _command_key(list(cmd))
+        for gate in (*ROUTING_GATES, *TOOLCHAIN_GATES)
+        for cmd in gate.command
+    }
+    uncovered = [
+        command
+        for command in _ci_lint_commands()
+        if command not in CI_LINT_EXCEPTIONS
+        and _command_key(shlex.split(command)) not in gate_keys
+    ]
+    assert uncovered == [], (
+        "CI lint commands without a gate (add one to tools/_validation_gate_defs.py and"
+        f" rules/toolchain.md, or a reviewed exception here): {uncovered}"
+    )
+
+
+def test_ci_lint_exceptions_are_still_ci_commands() -> None:
+    assert set(CI_LINT_EXCEPTIONS) <= set(_ci_lint_commands())
+
+
+def test_ci_parity_gates_run_in_full_mode_only() -> None:
+    names = {"reference-drift", "cited-adr-tests"}
+    fast = {g.name for g in select_gates(["scripts/thing.py"], MODE_FAST)}
+    full = {g.name for g in select_gates(["scripts/thing.py"], MODE_FULL)}
+    assert not names & fast
+    assert names <= full
+    assert not any(g.exclusive for g in TOOLCHAIN_GATES if g.name in names)

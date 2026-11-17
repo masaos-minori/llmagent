@@ -128,7 +128,14 @@ The coverage run is parallel through `pytest-cov`, which measures and combines w
 
 ```bash
 uv run pre-commit run --all-files
+uv run python tools/generate_reference_table.py --check   # contract manifest and generated block drift, all domains
+uv run python .github/run_cited_adr_tests.py              # ADR-cited invariant tests (about 2.5 minutes)
 ```
+
+The last two are CI `lint` job steps that the commit-time hooks do not run: a hook sees only the
+changed files, and the cited-test hook checks that a test path exists, not that the test passes.
+`tests/tools/test_run_validation_gates.py` fails when a CI `lint` command has no gate here and no
+reviewed exception.
 
 ### 9. Diff review
 

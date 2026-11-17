@@ -256,6 +256,20 @@ TOOLCHAIN_GATES: tuple[Gate, ...] = (
         exclusive=True,
     ),
     Gate(
+        name="reference-drift",
+        command=(
+            ("uv", "run", "python", "tools/generate_reference_table.py", "--check"),
+        ),
+        source=SOURCE_TOOLCHAIN,
+        mode=MODE_FULL,
+    ),
+    Gate(
+        name="cited-adr-tests",
+        command=(("uv", "run", "python", ".github/run_cited_adr_tests.py"),),
+        source=SOURCE_TOOLCHAIN,
+        mode=MODE_FULL,
+    ),
+    Gate(
         name="diff-review",
         command=(("git", "diff"),),
         source=SOURCE_TOOLCHAIN,
