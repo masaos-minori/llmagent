@@ -121,8 +121,9 @@ against `--base`, default `master`) plus every unstaged tracked change in the wo
 (`_changed_files`). Another session's unstaged edits therefore also select gates and can
 make one fail. Read the summary's file list and compare it with Phase 3's staged set.
 
-Only `Fail` and `Blocked` rows matter; `Not available` rows (a gate whose command needs a
-runtime argument) are not failures.
+Only `Fail` and `Blocked` rows matter: gates whose command needs a runtime argument are
+omitted from the default summary and counted in one line (add `--verbose` to show them),
+`Not available` rows for a missing local tool stay visible, and neither kind is a failure.
 
 An unrelated gate failure is a failure that this change cannot have caused. A `Fail` is
 unrelated only when both hold:

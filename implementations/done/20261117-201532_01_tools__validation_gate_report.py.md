@@ -89,8 +89,8 @@ modules (seq 03); documentation rows (seq 04, 05).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the renderer per Procedure/Method/Details after the seq 03 tests (plan Phase 1) and the seq 02 `reason` field land | Pending | — | — | plan Phase 2 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for this module | Pending | — | — | plan Phase 5 |
+| 1 | Implement the renderer per Procedure/Method/Details after the seq 03 tests (plan Phase 1) and the seq 02 `reason` field land | Completed | — | 20261117-231500 | plan Phase 2 render_summary created; reason read from GateResult, TYPE_CHECKING import only |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for this module | Completed | — | 20261117-231500 | plan Phase 5 pytest 98 passed; radon -n C empty after splitting render_summary into 3 funcs (was C 11); bandit clean; mypy clean; size gate OK |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

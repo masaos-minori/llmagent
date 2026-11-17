@@ -931,3 +931,185 @@ def test_ci_parity_gates_run_in_full_mode_only() -> None:
     assert not names & fast
     assert names <= full
     assert not any(g.exclusive for g in TOOLCHAIN_GATES if g.name in names)
+
+
+# --- Not available reason classification (wftool006 REQ-001, AC-1) ---------------
+
+
+def _placeholder_gate() -> Gate:
+    return Gate(
+        name="needs-arg",
+        command=(("uv", "run", "python", "tools/x.py", "--file", "<path>"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+    )
+
+
+def _raiser(exc: Exception):
+    def _run(
+        argv: list[str], env: dict[str, str] | None
+    ) -> subprocess.CompletedProcess:
+        raise exc
+
+    return _run
+
+
+def test_run_gate_reason_runtime_argument() -> None:
+    """A placeholder gate is ``Not available`` with reason ``runtime-argument`` (AC-1)."""
+    result = run_gate(_placeholder_gate(), runner=_runner_for(0))
+    assert result.status == "Not available"
+    assert result.reason == "runtime-argument"
+
+
+def test_run_gate_reason_missing_tool() -> None:
+    """A not-found command is ``Not available`` with reason ``missing-tool`` (AC-1)."""
+    exc = FileNotFoundError(2, "No such file or directory")
+    exc.filename = "ast-grep"
+    result = run_gate(_named_gate("missing"), runner=_raiser(exc))
+    assert result.status == "Not available"
+    assert result.reason == "missing-tool"
+
+
+def test_run_gate_reason_os_error() -> None:
+    """Another OSError is ``Not available`` with reason ``os-error`` (AC-1)."""
+    result = run_gate(_named_gate("oserr"), runner=_raiser(OSError("exec failed")))
+    assert result.status == "Not available"
+    assert result.reason == "os-error"
+
+
+def test_run_gate_reason_empty_for_pass_and_fail() -> None:
+    """``Pass`` and ``Fail`` results carry the empty default reason (AC-1)."""
+    assert run_gate(_named_gate("ok"), runner=_runner_for(0)).reason == ""
+    assert run_gate(_named_gate("bad"), runner=_runner_for(1)).reason == ""
+
+
+def test_gate_result_constructor_without_reason_still_works() -> None:
+    """Existing positional constructions of ``GateResult`` keep working (AC-1)."""
+    from tools.run_validation_gates import GateResult
+
+    assert GateResult("n", "Pass", "cmd").reason == ""
+
+
+# --- summary renderer (wftool006 REQ-002 to REQ-004, AC-2 to AC-4) ---------------
+
+
+def _mixed_results():
+    from tools.run_validation_gates import GateResult
+
+    return [
+        GateResult(
+            "visible-fail", "Fail", "uv run python tools/fail.py", "exit code 1"
+        ),
+        GateResult(
+            "visible-missing",
+            "Not available",
+            "ast-grep scan",
+            "command not found: ast-grep",
+            "missing-tool",
+        ),
+        GateResult(
+            "hidden-arg",
+            "Not available",
+            "uv run python tools/x.py --file <path>",
+            "needs a runtime argument (placeholder in command)",
+            "runtime-argument",
+        ),
+    ]
+
+
+def test_default_summary_hides_runtime_argument_rows(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Hidden row absent, visible rows present, exactly one count line naming --verbose (AC-2)."""
+    import tools._validation_gate_report as report
+
+    report.render_summary(_mixed_results(), ["scripts/a.py"], "fast", "master")
+    out = capsys.readouterr().out
+    assert "hidden-arg" not in out
+    assert "visible-missing" in out
+    assert "visible-fail" in out
+    count_lines = [line for line in out.splitlines() if "--verbose" in line]
+    assert len(count_lines) == 1
+    assert "1" in count_lines[0]
+
+
+def test_default_summary_has_no_count_line_when_nothing_hidden(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """No hidden row means no count line (AC-2)."""
+    import tools._validation_gate_report as report
+
+    visible = [r for r in _mixed_results() if r.reason != "runtime-argument"]
+    report.render_summary(visible, ["scripts/a.py"], "fast", "master")
+    out = capsys.readouterr().out
+    assert "--verbose" not in out
+    assert "visible-fail" in out and "visible-missing" in out
+
+
+def test_verbose_summary_prints_every_row(capsys: pytest.CaptureFixture[str]) -> None:
+    """verbose=True prints the runtime-argument row too and adds no count line (AC-2, AC-3)."""
+    import tools._validation_gate_report as report
+
+    report.render_summary(_mixed_results(), ["scripts/a.py"], "fast", "master", True)
+    out = capsys.readouterr().out
+    assert "hidden-arg" in out and "visible-missing" in out and "visible-fail" in out
+    assert "--verbose" not in out
+
+
+def test_summary_header_names_the_run_base(capsys: pytest.CaptureFixture[str]) -> None:
+    """The header prints the base ref passed to the renderer, not a fixed master (AC-4)."""
+    import tools._validation_gate_report as report
+
+    report.render_summary([], [], "fast", "HEAD~1")
+    out = capsys.readouterr().out
+    assert "base: HEAD~1" in out
+
+
+def test_verbose_flag_changes_display_not_selection_or_exit(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """main() with and without --verbose selects the same gates and exits the same (AC-3)."""
+    import tools.run_validation_gates as rvg
+
+    seen: list[list[Gate]] = []
+    real_run_gates = rvg.run_gates
+
+    def _spy(gates, *, jobs=None, runner=None, changed_files=None):
+        seen.append(list(gates))
+        return real_run_gates(
+            gates, jobs=1, runner=_runner_for(0), changed_files=changed_files
+        )
+
+    monkeypatch.setattr(rvg, "_changed_files", lambda base: ["plans/p.md"])
+    monkeypatch.setattr(rvg, "run_gates", _spy)
+
+    code_default = rvg.main(["--base", "master"])
+    out_default = capsys.readouterr().out
+    code_verbose = rvg.main(["--base", "master", "--verbose"])
+    out_verbose = capsys.readouterr().out
+
+    assert seen[0] and seen[0] == seen[1]
+    hidden = [g.name for g in seen[0] if g.requires_context]
+    assert hidden, (
+        "the selection must include a placeholder gate for this test to mean anything"
+    )
+    assert all(name not in out_default for name in hidden)
+    assert all(name in out_verbose for name in hidden)
+    assert code_default == code_verbose == 0
+
+
+def test_run_summary_header_prints_the_cli_base(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """main() hands its --base value to the summary header (AC-4)."""
+    import tools.run_validation_gates as rvg
+
+    monkeypatch.setattr(rvg, "_changed_files", lambda base: [])
+    rvg.main(["--base", "HEAD"])
+    out = capsys.readouterr().out
+    assert "base: HEAD" in out
+
+
+def test_verbose_option_parses() -> None:
+    assert build_parser().parse_args([]).verbose is False
+    assert build_parser().parse_args(["--verbose"]).verbose is True

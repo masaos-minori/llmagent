@@ -163,11 +163,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: classification, renderer, flag, header | In Progress | — | — |  |
-| 2 | Classification field and renderer module | In Progress | — | — |  |
-| 3 | Wire the flag and remove the inline printer | In Progress | — | — |  |
-| 4 | Documentation: Phase 4 note and tool rows | In Progress | — | — |  |
-| 5 | Verification: validation sequence, drift, size gates, smoke runs | In Progress | — | — |  |
+| 1 | Tests first: classification, renderer, flag, header | Completed | — | 20261117-231834 |  |
+| 2 | Classification field and renderer module | Completed | — | 20261117-231834 |  |
+| 3 | Wire the flag and remove the inline printer | Completed | — | 20261117-231834 |  |
+| 4 | Documentation: Phase 4 note and tool rows | Completed | — | 20261117-231834 |  |
+| 5 | Verification: validation sequence, drift, size gates, smoke runs | Completed | — | 20261117-231600 | batch-end validation: full suite 12656 passed, diff-cover pass, drift, size gate 23696 B, smoke default/verbose/--base |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -177,11 +177,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261117-201532_01_tools__validation_gate_report.py.md | 2, 5 | Procedure | Pending | — | — |
-| implementations/20261117-201532_02_tools_run_validation_gates.py.md | 2, 3, 5 | Procedure | Pending | — | — |
-| implementations/20261117-201532_03_tests_tools_test_run_validation_gates.py.md | 1, 5 | Procedure | Pending | — | — |
-| implementations/20261117-201532_04_skills_git-commit-and-sync_workflow.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261117-201532_05_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261117-201532_01_tools__validation_gate_report.py.md | 2, 5 | Procedure | Completed | — | — |
+| implementations/20261117-201532_02_tools_run_validation_gates.py.md | 2, 3, 5 | Procedure | Completed | — | — |
+| implementations/20261117-201532_03_tests_tools_test_run_validation_gates.py.md | 1, 5 | Procedure | Completed | — | — |
+| implementations/20261117-201532_04_skills_git-commit-and-sync_workflow.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261117-201532_05_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

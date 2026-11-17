@@ -72,8 +72,8 @@ The renderer module (seq 01), the runner edits (seq 02), documentation (seq 04, 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the classification, renderer, `--verbose`, and header tests (they fail first) | Pending | — | — | plan Phase 1 |
-| 2 | Re-run the module green after the seq 01 and seq 02 code lands; lint and types | Pending | — | — | plan Phase 5 |
+| 1 | Write the classification, renderer, `--verbose`, and header tests (they fail first) | Completed | — | 20261117-231500 | plan Phase 1 tests written first: 12 failed, 86 existing passed |
+| 2 | Re-run the module green after the seq 01 and seq 02 code lands; lint and types | Completed | — | 20261117-231500 | plan Phase 5 98 passed after seq 01/02 landed; ruff clean; mypy scripts/ tests/eventbus tools clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

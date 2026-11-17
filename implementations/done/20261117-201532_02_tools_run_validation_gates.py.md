@@ -82,9 +82,9 @@ issue, not this Plan).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `reason` field and set it in `run_gate` | Pending | — | — | plan Phase 2 |
-| 2 | Add `--verbose`, call the renderer, remove the inline printer | Pending | — | — | plan Phase 3; import-block landing order per Assumptions |
-| 3 | Run the validation sequence (`rules/toolchain.md`), drift, size gate, smoke runs | Pending | — | — | plan Phase 5 |
+| 1 | Add the `reason` field and set it in `run_gate` | Completed | — | 20261117-231500 | plan Phase 2 |
+| 2 | Add `--verbose`, call the renderer, remove the inline printer | Completed | — | 20261117-231500 | plan Phase 3; import-block landing order per Assumptions |
+| 3 | Run the validation sequence (`rules/toolchain.md`), drift, size gate, smoke runs | Completed | — | 20261117-231500 | plan Phase 5 drift OK; runner 23696 B (<23988); smoke default hides 3 runtime-argument rows + count line; --verbose shows them; --base HEAD prints base: HEAD |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

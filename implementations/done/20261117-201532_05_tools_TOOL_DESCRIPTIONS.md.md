@@ -18,7 +18,9 @@ Single-file procedure for row 5 of the plan's frozen `Implementation Target File
   follow-up issue; this edit changes only the sentences about the default output, the flag,
   and the header.
 - Overlap with the sibling Plans and `implementations/20261117-180831_03_tools_TOOL_DESCRIPTIONS.md.md`
-  on this file is row-level and compatible (plan Assumptions and UNK-01).
+  on this file is row-level and compatible (plan Assumptions and UNK-01). Verified 20261117:
+  the `180831` and `110514` batch procedures, including `180831_03`, are archived under
+  `implementations/done/` and their rows have landed; the overlap claim holds as a history note.
 
 ## Design decisions
 - Sentence-level edits inside existing rows; no row reordering, no new section.
@@ -67,8 +69,8 @@ The UNK-02 prose drift in the same rows; all other rows; the commit-workflow not
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | run after the seq 01/02 code lands |
-| 2 | Run the documentation checker named in Validation plan | Pending | — | — | `check_tool_descriptions_sync.py` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261117-231500 | run after the seq 01/02 code lands Index row for _validation_gate_report.py + both runner rows; UNK-02 prose untouched |
+| 2 | Run the documentation checker named in Validation plan | Completed | — | 20261117-231500 | `check_tool_descriptions_sync.py` check_tool_descriptions_sync.py: no issues |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

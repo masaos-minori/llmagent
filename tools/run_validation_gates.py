@@ -59,6 +59,7 @@ from tools._validation_gate_defs import (
     Gate,
     _checker_id_from_command,
 )
+from tools._validation_gate_report import render_summary
 
 if TYPE_CHECKING:
     from subprocess import CompletedProcess
@@ -101,6 +102,7 @@ class GateResult:
     status: str
     command: str
     detail: str = ""
+    reason: str = ""
 
 
 Runner = Callable[[list[str], dict[str, str] | None], "CompletedProcess"]
@@ -288,6 +290,7 @@ def run_gate(
             "Not available",
             gate.display_command,
             "needs a runtime argument (placeholder in command)",
+            "runtime-argument",
         )
     env = _merge_env(gate.env)
     try:
@@ -314,6 +317,7 @@ def run_gate(
             "Not available",
             gate.display_command,
             f"command not found: {exc.filename}",
+            "missing-tool",
         )
     except OSError as exc:
         return GateResult(
@@ -321,6 +325,7 @@ def run_gate(
             "Not available",
             gate.display_command,
             str(exc),
+            "os-error",
         )
     return GateResult(gate.name, "Pass", gate.display_command)
 
@@ -545,32 +550,13 @@ def drift_report(
     return len(errors), errors
 
 
-def _print_summary(results: list[GateResult], changed: list[str], mode: str) -> None:
-    """Print the per-gate summary table and the changed-file/mode header."""
-    print(
-        f"Validation gates — mode: {mode}, base: master, changed files: {len(changed)}"
-    )
-    if changed:
-        print(", ".join(changed))
-    print()
-    if not results:
-        print("No gates selected for these changed files.")
-        return
-    name_width = max(len(r.name) for r in results)
-    status_width = max(len(r.status) for r in results)
-    for res in results:
-        name = res.name.ljust(name_width)
-        status = res.status.ljust(status_width)
-        print(f"  {name}  {status}  {res.command}")
-        if res.detail:
-            print(f"          ({res.detail})")
-
-
-def _run_gates(base: str, mode: str, jobs: int | None = None) -> int:
+def _run_gates(
+    base: str, mode: str, jobs: int | None = None, verbose: bool = False
+) -> int:
     changed = _changed_files(base)
     gates = select_gates(changed, mode)
     results = run_gates(gates, jobs=jobs, changed_files=changed)
-    _print_summary(results, changed, mode)
+    render_summary(results, changed, mode, base, verbose)
     return 1 if any(res.status == "Fail" for res in results) else 0
 
 
@@ -626,6 +612,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum gates run at once (default: CPU count; 1 runs them one by one). "
         "Gates that rewrite files or use every CPU always run alone.",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print every gate row, including gates whose command needs a runtime "
+        "argument (the default summary hides them and prints one count line).",
+    )
     subparsers = parser.add_subparsers(dest="action")
     subparsers.add_parser(
         "drift",
@@ -641,7 +633,9 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.action == "drift":
         return _run_drift()
-    return _run_gates(args.base, "full" if args.full else MODE_FAST, args.jobs)
+    return _run_gates(
+        args.base, "full" if args.full else MODE_FAST, args.jobs, args.verbose
+    )
 
 
 _ALL_GATES: tuple[Gate, ...] = (*ROUTING_GATES, *TOOLCHAIN_GATES)
