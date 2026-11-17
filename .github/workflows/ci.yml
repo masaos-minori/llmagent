@@ -82,6 +82,23 @@ jobs:
         # `coverage run -m pytest -n ...` would not. All tests run, none deselected.
         run: uv run pytest -v -n logical --cov=scripts --cov-report= tests/
       - name: Coverage report
+        # A push to master is checked out at the pushed commit, so `origin/master` equals
+        # HEAD and diff-cover would see an empty diff and pass. Compare a push against the
+        # tip it replaced (`github.event.before`) and a pull request against its base.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
           uv run coverage xml
-          uv run diff-cover coverage.xml --compare-branch=origin/master --fail-under=90
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE="origin/$BASE_REF"
+          elif [ -n "$BEFORE_SHA" ] && [ "${BEFORE_SHA//0/}" != "" ] \
+            && git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+            BASE="$BEFORE_SHA"
+          else
+            # New ref or a force push that dropped the previous tip: fall back.
+            BASE="origin/master"
+          fi
+          echo "diff-cover base: $BASE"
+          uv run diff-cover coverage.xml --compare-branch="$BASE" --fail-under=90
