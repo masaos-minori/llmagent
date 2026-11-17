@@ -12,9 +12,9 @@ Single-file procedure for row 5 of the plan's frozen `Implementation Target File
 ## Assumptions
 - The tool and its rows are created by the seq 01 document; this edit lands after or with
   the tool so the description states true facts.
-- Add rows only, edit no existing row: compatible with the other tooling Plans and the open
-  `implementations/20261117-180831_03_tools_TOOL_DESCRIPTIONS.md.md` on this file
-  (plan Assumptions and UNK-02).
+- Add rows only, edit no existing row: compatible with the other tooling Plans and with the
+  archived `implementations/done/20261117-180831_03_tools_TOOL_DESCRIPTIONS.md.md` on this
+  file (its rows landed 20261117; plan Assumptions and UNK-02).
 
 ## Design decisions
 - One Index row plus one detail row in the `## Work Items` table (the lifecycle section),
@@ -70,8 +70,8 @@ Edits to any existing row; the workflow and SKILL.md text (seq 03, 04).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | run after the seq 01 tool file exists |
-| 2 | Run the documentation checker named in Validation plan | Pending | — | — | `check_tool_descriptions_sync.py` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261117-225000 | run after the seq 01 tool file exists |
+| 2 | Run the documentation checker named in Validation plan | Completed | — | 20261117-225000 | `check_tool_descriptions_sync.py` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

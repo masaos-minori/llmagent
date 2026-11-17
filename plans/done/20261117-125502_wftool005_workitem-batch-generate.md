@@ -172,11 +172,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the spec format and write the tests first | In Progress | — | — |  |
-| 2 | Parse, validate, and allocate | In Progress | — | — |  |
-| 3 | Write, preview, and check | In Progress | — | — |  |
-| 4 | Documentation: tool rows, workflow step, naming note | In Progress | — | — |  |
-| 5 | Verification: validation sequence, size gates, smoke runs | In Progress | — | — |  |
+| 1 | Confirm the spec format and write the tests first | Completed | — | 20261117-230036 |  |
+| 2 | Parse, validate, and allocate | Completed | — | 20261117-230036 |  |
+| 3 | Write, preview, and check | Completed | — | 20261117-230036 |  |
+| 4 | Documentation: tool rows, workflow step, naming note | Completed | — | 20261117-230036 |  |
+| 5 | Verification: validation sequence, size gates, smoke runs | Completed | — | 20261117-225900 | batch-end validation: full suite 12640 passed, diff-cover pass, static gates and smoke runs per member 01 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -186,10 +186,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261117-200906_01_tools_generate_issue_batch.py.md | 1, 2, 3 | Procedure | Pending | — | — |
-| implementations/20261117-200906_03_skills_issue-creator_workflow.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261117-200906_04_skills_issue-creator_SKILL.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261117-200906_05_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261117-200906_01_tools_generate_issue_batch.py.md | 1, 2, 3 | Procedure | Completed | — | — |
+| implementations/20261117-200906_03_skills_issue-creator_workflow.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261117-200906_04_skills_issue-creator_SKILL.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261117-200906_05_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

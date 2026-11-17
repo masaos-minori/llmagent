@@ -114,6 +114,8 @@ that `skills/issue-to-plan` Step 6 generates (`issues/{timestamp}[_{NN}]_unknown
 Format: `{timestamp}_{id}_{slug}.md`
 
 - **`{timestamp}`** — `YYYYMMDD-HHmmss`, generated at issue creation time (e.g., `20260828-155804`).
+  A batch filed with `tools/generate_issue_batch.py` allocates all timestamps of the batch from
+  one clock read in strictly increasing one-second steps in spec order.
 - **`{id}`** — Short identifier derived from the issue's domain or component, matching
   `[a-z0-9]+` (no underscores or dashes, so the `_` separators stay unambiguous; e.g.,
   `nc019`, `mcp003`, `doc005`, `refactor001`). The full filename, not `{id}` alone, MUST be

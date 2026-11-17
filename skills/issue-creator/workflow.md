@@ -394,6 +394,19 @@ Manual procedure (when the tool is unavailable, or for a direct write under the 
    `issues/done/` before writing (a glob on `{timestamp}_*` is not a substitute: it does not
    cover `issues/done/`). Create the file from the `templates/issue.md` skeleton.
 
+Batch path (when filing several issues from one Markdown spec):
+
+`uv run python tools/generate_issue_batch.py SPEC.md` creates every issue of the spec in one
+call. It validates the whole spec against the documented spec grammar (the
+`tools/TOOL_DESCRIPTIONS.md` row) before writing anything, allocates all timestamps of the
+batch from one clock read in strictly increasing one-second steps in spec order, refuses the
+whole run (non-zero exit, no write) when any allocated path collides in `issues/` or
+`issues/done/`, honors `--dry-run`, replaces each `{{issue:<id>}}` token with the referenced
+issue's allocated path, and runs the structure and leftover checker once over all created
+paths. Step 10.2a collision handling and Step 10.4 verification apply to every created file.
+The tool's exit codes are `0` success, `1` checker findings, and `2` usage, validation,
+collision, write, or checker error.
+
 ### Step 10.2a: On a collision
 
 Regenerate with the next available disambiguator — append digits to `{id}` or a word to

@@ -66,8 +66,8 @@ itself (seq 01).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in Validation plan | Pending | — | — | `check_skills_references.py`, `check_skills_heading_cycles.py` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261117-225000 |  |
+| 2 | Run the documentation checkers named in Validation plan | Completed | — | 20261117-225000 | `check_skills_references.py`, `check_skills_heading_cycles.py` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

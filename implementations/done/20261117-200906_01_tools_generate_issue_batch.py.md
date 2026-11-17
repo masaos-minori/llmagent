@@ -15,8 +15,9 @@ under the size gate, AC-1 to AC-6, AC-8). The companion test module is listed un
 Companion test files.
 
 ## Assumptions
-- UNK-01 open: the maintainer must confirm the Decision 1 spec format before the first code
-  step (plan Phase 1); a different format changes only the parser and its tests.
+- UNK-01 resolved 20261117: the maintainer approved the Decision 1 Markdown spec format before
+  the first code step (plan Phase 1); a later format change would touch only the parser and its
+  tests.
 - The wftool001 dependency is satisfied: `tools/check_workitem_structure.py --file` already
   accepts several paths and carries leftover detection (verified against source, commit
   4f5a6d73e).
@@ -61,6 +62,13 @@ writes, `--dry-run`, failure report, post-write checker call, exit codes, and `m
 - After writing, run `uv run python tools/check_workitem_structure.py --file <p1> <p2> ...`
   once and report per-file results; exit `0` clean, `1` findings, `2` usage/validation
   error; entry point `main(argv: list[str] | None = None) -> int` (REQ-006).
+- Implementation contract (verified against source): the checker runs as a subprocess with a
+  fixed argv `[sys.executable, <repo>/tools/check_workitem_structure.py, "--file", *paths]`
+  and `cwd=ROOT_DIR`, no shell — the pattern of `tools/amend_plan.py`'s `_run_check`. The
+  checker resolves every checked path against the repo root
+  (`relative_to(ROOT_DIR)` in its finding builders), so `tmp_path` fixture files would only
+  produce `unknown-kind`; the companion tests therefore stub the tool's checker-call function
+  (plan AC-6 "stubbed checker call"), and the real checker is exercised by the smoke run only.
 ### Details
 Keep every function below radon grade C (REQ-008); no function reaches the generator's
 complexity. Do not touch `tools/generate_workitem.py` (AC-8: `git diff --stat` on it is
@@ -110,10 +118,10 @@ target rows, seq 03 to 05).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the Decision 1 spec format with the maintainer, then write the companion tests (they fail first) | Pending | — | — | plan Phase 1; UNK-01 |
-| 2 | Implement parse, validation, reference resolution, timestamp and path allocation (pure functions) | Pending | — | — | plan Phase 2 |
-| 3 | Implement preflight, atomic writes, `--dry-run`, failure report, post-write checker call, exit codes, `main` | Pending | — | — | plan Phase 3 |
-| 4 | Run the validation sequence (`rules/toolchain.md`), size gates, complexity, bandit, and the smoke runs | Pending | — | — | plan Phase 5 |
+| 1 | Confirm the Decision 1 spec format with the maintainer, then write the companion tests (they fail first) | Completed | 20261117-224149 | 20261117-224734 | plan Phase 1; UNK-01 tests written first (failed: module missing), then 25 passed in random and fixed order; UNK-01 approved by maintainer |
+| 2 | Implement parse, validation, reference resolution, timestamp and path allocation (pure functions) | Completed | 20261117-224734 | 20261117-224734 | plan Phase 2 plan Phase 2 |
+| 3 | Implement preflight, atomic writes, `--dry-run`, failure report, post-write checker call, exit codes, `main` | Completed | 20261117-224734 | 20261117-224734 | plan Phase 3 plan Phase 3 |
+| 4 | Run the validation sequence (`rules/toolchain.md`), size gates, complexity, bandit, and the smoke runs | Completed | 20261117-224734 | 20261117-225800 | plan Phase 5 changed files: tools/generate_issue_batch.py, tests/tools/test_generate_issue_batch.py full suite 12640 passed; diff-cover pass (no measured diff lines); static gates per member Step 3e |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
