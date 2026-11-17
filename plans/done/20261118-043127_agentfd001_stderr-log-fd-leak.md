@@ -157,7 +157,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| — | — | Pending | — | — | |
+| 1 | Core Logic — remove the dead `_log_files` store (`scripts/agent/http_lifecycle_stderr_log_manager.py`) | In Progress | — | — | REQ-002 |
+| 2 | Tests (`tests/agent/test_http_lifecycle_stderr_log_manager.py`) | In Progress | — | — | REQ-004 |
+| 3 | Deployment & Verification | Pending | — | — | REQ-004 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -167,7 +169,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-070524_01_scripts_agent_http_lifecycle_stderr_log_manager.py.md | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -181,3 +183,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-070524 -->

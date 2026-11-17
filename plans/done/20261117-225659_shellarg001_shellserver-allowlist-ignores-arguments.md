@@ -301,10 +301,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Contract model + shipped table (`scripts/mcp_servers/shell/shell_service.py`) | Pending | — | — | REQ-001, REQ-002 |
-| 2 | Wire validation into `_check_command` (`scripts/mcp_servers/shell/shell_service.py`) | Pending | — | — | REQ-001 |
-| 3 | Tests (`tests/mcp_servers/shell/test_shell_command_arg_contract.py`) | Pending | — | — | REQ-004 |
-| 4 | Config documentation (`config/shell_mcp_server.toml`) | Pending | — | — | REQ-003 |
+| 1 | Contract model + shipped table (`scripts/mcp_servers/shell/shell_service.py`) | In Progress | — | — | REQ-001, REQ-002 |
+| 2 | Wire validation into `_check_command` (`scripts/mcp_servers/shell/shell_service.py`) | In Progress | — | — | REQ-001 |
+| 3 | Tests (`tests/mcp_servers/shell/test_shell_command_arg_contract.py`) | In Progress | — | — | REQ-004 |
+| 4 | Config documentation (`config/shell_mcp_server.toml`) | In Progress | — | — | REQ-003 |
 | 5 | Verification (all touched files) | Pending | — | — | REQ-004 |
 
 ### Blocker Log
@@ -315,7 +315,9 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-065653_01_scripts_mcp_servers_shell_shell_service.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261118-065653_02_tests_mcp_servers_shell_test_shell_command_arg_contract.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-065653_03_config_shell_mcp_server.toml.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -334,3 +336,5 @@ N/A: no release unit
 | REQ-002 | Implementation Intent / Required Changes; interpreter free-form code and mutating `git` reach execution (Confirmed by repository evidence) | `scripts/mcp_servers/shell/shell_service.py` | 1, 2 | `python -c`/`python3 -c` raise `ShellAuthorizationError`; mutating `git` raises; read-only `git` passes | `test_shell_command_arg_contract.py` code-execution and mutating-git rejection, read-only allowance | Confirmed by repository evidence |
 | REQ-003 | Documentation Impact | `config/shell_mcp_server.toml` | 4 | `command_allowlist` comment documents permitted argument shapes per command and that code-executing/mutating forms are rejected | static/manual read (no TOML syntax error) | Confirmed by repository evidence |
 | REQ-004 | Testing Expectations / AI Implementation Instruction | `tests/mcp_servers/shell/test_shell_command_arg_contract.py` | 3, 5 | Existing `_check_command` tests (`ls`/`echo`) still pass; no subprocess launched in new tests | run shell suite + `ruff` + `mypy --no-namespace-packages` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-065653 -->
