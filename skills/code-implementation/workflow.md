@@ -81,6 +81,7 @@ structure. Additionally for this workflow, MUST NOT perform any of the following
 Apply `rules/ai-execution.md` Sequential Target Processing (Base): each cycle covers
 Steps 1-7, ending with the move to `implementations/done/` in Step 7 (after the Step 5
 documentation update and Step 6 validation) before starting Step 1 for the next file.
+Batch mode (plan batch) and Batch mode (release unit) below are the stated exceptions.
 
 For whether a resumed batch is safe to re-run without re-executing already-completed
 files, see Step 1's All-steps-completed check.
@@ -95,19 +96,52 @@ applied and validated).
 Apply `rules/ai-execution.md` Context Reading and Tool Usage for the per-cycle load and
 call discipline, and Progress Reporting (Base) for the per-step report cadence.
 
+### Batch mode (plan batch)
+
+Applies when one run covers two or more procedures with the same `Source plan` that are not
+members of a declared release unit (a declared unit uses Batch mode (release unit), which takes
+precedence for its members). A run holding one procedure of a Plan keeps the per-cycle gate and
+per-file archival. The procedures of one Plan are one change split per file in `seq` order: a
+cycle can leave the suite red until a later procedure lands (for example a default removed in
+`seq` 01 whose call sites change in later procedures), and a full-suite run per procedure
+repeats the same run once per member.
+
+Explicit exceptions, stated per `rules/ai-execution.md` Instruction Precedence > Explicit
+exceptions, for a plan batch only:
+- Step 4's full-suite run and the diff-cover gate run once per plan batch, after the last member
+  that completed Steps 1-6, instead of once per cycle.
+- `rules/ai-execution.md` Sequential Target Processing (Base), "Complete its full workflow
+  cycle and required gates before loading the next target", is excepted for the full suite, the
+  diff-cover gate, and Step 7 only; every other step and gate completes per member.
+
+Per member, in `seq` order: Steps 1-3e, 5 and 6 run as usual, and Step 4's impact-selected
+targeted tests still run and MUST pass. Unlike a declared unit there are no allowed red states:
+a targeted-test failure or a Step 3e finding stops the cycle under the Attempt Limit (3
+attempts) and Failure Log. A member's own Execution Status row 3 stays `In Progress` until the
+end-of-batch run passes. A member that ends `Blocked` or by Rollback stops the rest of its Plan
+(Dependency order).
+
+End of batch: run the full suite with coverage and diff-cover once (Step 4) over the completed
+members. On failure the Attempt Limit applies, and Rollback on Failure covers the files recorded
+in the members' Notes; a path changed by more than one member is reported, not reverted. When a
+member ended `Blocked` and the failure is attributed to a symbol that member would have created,
+report `Blocked` for the batch without a rollback and ask (Question policy). Once the run
+passes, run Step 7 for every completed member with `--stage-only`, then the Plan Execution
+Status update.
+
 ### Batch mode (release unit)
 
 Applies only when the procedures of one `Source plan` carry the same unit name on the
 `Release unit` line of `## Scope` (the Plan's `### Release units` entry names the members and
 why they cannot be validated alone). If only part of a unit is in the batch, stop and ask
 (Question policy) rather than running a half unit in ordinary mode. A Plan without a unit,
-and any procedure whose line is `N/A: not part of a release unit`, keeps the per-cycle gate
-and per-file archival unchanged.
+and any procedure whose line is `N/A: not part of a release unit`, is handled by Batch mode (plan
+batch) when the run holds two or more procedures of its Plan, and otherwise keeps the per-cycle
+gate and per-file archival.
 
 Explicit exceptions, stated per `rules/ai-execution.md` Instruction Precedence > Explicit
 exceptions, for a declared unit only:
-- Step 4's "exactly once per cycle" full-suite run (this file) becomes once per unit, after
-  the last member.
+- Step 4's full-suite run (this file) runs once per unit, after the last member.
 - `rules/ai-execution.md` Sequential Target Processing (Base), "Complete its full workflow
   cycle and required gates before loading the next target", is excepted for the full suite,
   the diff-cover gate, and Step 7 only; every other step and gate completes per member.
@@ -449,30 +483,24 @@ failure's cause is not immediately obvious, load and apply
   touched formatting, typing, or imports, re-run Step 3e's validators per its scoped
   re-validation rule before returning to this Step's targeted tests — MUST NOT treat
   Step 3e as satisfied by its earlier pass.
-- Run the repository-defined full test suite exactly once per cycle, after targeted
-  tests pass and confirmed to have collected at least one test — the only full-suite
-  run for this cycle, using the parallel command of `rules/toolchain.md` section 6 (`-n logical`, with `repo_scan` deselected as that section states); Step 6 MUST NOT run tests again. If it fails, fixing and re-running
-  the full suite is subject to the same Attempt Limit (3 attempts) and Failure Log as
-  targeted tests — this re-run is the one exception to "exactly once" for an
-  ordinary failure; reaching the Attempt Limit without a passing full-suite run means
-  applying Rollback on Failure (below), not a fourth attempt. A full-suite re-run after a
-  failure follows only a passing targeted run that includes the previously failing tests.
-  If Step 3c reported a cross-file conflict with an already-processed earlier file, that
-  earlier file is already archived and the current file's cycle ended `Blocked` without
-  reaching this Step. Before continuing the batch, run the full test suite once against
+- Run the repository-defined full test suite exactly once per run unit: the cycle of a single
+  procedure, or the end of a plan batch or release unit (Multi-file processing > Batch mode
+  (plan batch), Batch mode (release unit)). Run it after targeted tests pass and confirmed to
+  have collected at least one test, using the parallel command of `rules/toolchain.md`
+  section 6 (`-n logical`, with `repo_scan` deselected as that section states); Step 6 MUST NOT
+  run tests again. In a batch a member's Step 4 ends at its targeted tests. Fixing and
+  re-running after a failure is subject to the same Attempt Limit (3 attempts) and Failure Log
+  as targeted tests; reaching the Attempt Limit without a passing full-suite run means applying
+  Rollback on Failure (below), not a fourth attempt. A re-run follows only a passing targeted
+  run that includes the previously failing tests.
+  Outside a plan batch or release unit (where the earlier file is not yet archived and the
+  end-of-batch run covers it): if Step 3c reported a cross-file conflict with an
+  already-processed earlier file, that earlier file is already archived and the current
+  file's cycle ended `Blocked` without reaching this Step. Before continuing the batch, run the full test suite once against
   the current working tree (which holds the earlier file's changes) — this is a second,
-  independent exception to "exactly once," scoped strictly to the conflict-detected
-  case. If it fails, report `Blocked` for that earlier file in the Final Report; its
+  independent run, scoped strictly to the conflict-detected case. If it fails, report `Blocked` for that earlier file in the Final Report; its
   archived procedure is not un-archived.
-  For a declared release unit, the single run is the end-of-unit run (see Multi-file processing >
-  Batch mode (release unit)); this is a third exception to "exactly once per cycle", scoped to a unit.
-
-  For a batch whose target files are all confined to one directory tree (e.g. `tools/` and
-  `tests/tools/`) under the same Plan, with no `scripts/` change, the full-suite run is
-  shared: one run at the end of the batch instead of one per cycle. Targeted tests still
-  run per cycle, and this shared run feeds the coverage gate. This is a fourth exception to
-  "exactly once per cycle", scoped to a single-directory batch. The documentation-only
-  case above runs no full suite at all; it is a fifth scoped exception.
+  The documentation-only case above runs no full suite at all.
 - Run the test commands the procedure's `## Validation plan` lists too (a listed test
   that cannot be run is `Not run: {reason}` in Notes).
 - Make the full-suite run feed the coverage gate, so the suite still runs once, parallel through `pytest --cov` (`coverage run` does not measure worker processes); one cycle's full run is the coverage run or the plain parallel run, not both:
@@ -534,8 +562,9 @@ stop and report `Blocked: {checker} still failing after 3 attempts`.
 
 ## Step 7: Move the Completed Implementation Procedure File
 
-This step MUST NOT be skipped. In batch mode this Step runs for all members after the end-of-unit
-run passes (Batch mode (release unit)).
+This step MUST NOT be skipped. In a plan batch or release unit this Step runs for all completed
+members after the end-of-batch or end-of-unit run passes (Batch mode (plan batch), Batch mode
+(release unit)).
 
 The move to `implementations/done/` needs no human approval — proceed once Step 2 (stale detection) and Steps 3, 4, 5, and 6 pass, without asking.
 `rules/workflow-lifecycle.md` is scoped to `issue-to-plan`/`plan-to-impl-procedure`: its Archival Move and Plan Freeze rules do not apply here; only Target Validation (Step 1) and the

@@ -46,8 +46,8 @@ structure.
 - Documentation is routed, not guessed: only update a `docs/*.md` section that
   `docs/00_index.md`'s "Document References by Task" table maps a changed file to. A
   changed file with no matching row is a normal, non-blocking outcome.
-- Run the repository-defined full test suite once per cycle after targeted tests
-  pass; a failure may be fixed and re-run within Attempt Limit (3 attempts) (`workflow.md` Step 4);
+- Run the repository-defined full test suite once per run unit (a single procedure's cycle, or
+  the end of a plan batch or release unit) after targeted tests pass; a failure may be fixed and re-run within Attempt Limit (3 attempts) (`workflow.md` Step 4);
   the documentation-only case is defined in `workflow.md` Step 4.
 - Process one procedure file at a time. See `workflow.md` Multi-file processing. A
   `Blocked` cycle stops the remaining procedures of the same Plan until the user decides

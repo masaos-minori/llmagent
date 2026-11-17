@@ -396,7 +396,9 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 - When phases cannot each be validated alone (a phase breaks existing callers or tests until
   another phase lands, such as a `NOT NULL` column added before its write path), declare a
   release unit in the `### Release units` block of `templates/plan.md`, naming the member
-  phases and the reason; otherwise leave the default `N/A: no release unit`.
+  phases and the reason; otherwise leave the default `N/A: no release unit`. Phases that
+  "land together" or "in the same commit" cannot be validated alone, so they are a release
+  unit: `tools/check_workitem_structure.py` flags an `N/A` line that says so.
 - A deploy step MUST be included if `scripts/`/`config/` changes. Write it as a hand-off
   to `skills/deploy/SKILL.md` and state its prerequisite: the change is committed and
   pushed first, and deploying is the user's decision (it has an approval gate). If a new

@@ -111,7 +111,8 @@ checklist items are sub-tasks, and the Execution Status table has one row per st
 Declare a release unit (see `### Release units` below) when a phase breaks existing callers or
 tests until another phase lands (for example a `NOT NULL` column added before its write path):
 one line per unit, `**Unit**: {name} | **Phases**: {N, N} | **Reason**: {why the members cannot be
-validated alone}`.
+validated alone}`. Phases that land together in one commit cannot be validated alone: declare them
+as a unit; `N/A` is only for a Plan whose every phase passes validation alone.
 
 1. **Phase 1: Preparation / Refactoring (if needed)**
    - [ ] Step description (Requirement ID; File Path from Implementation Target Files)

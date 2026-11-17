@@ -20,7 +20,9 @@ For a Plan, it also validates the optional release-unit declaration: a
 `### Release units` block inside `## Implementation steps` whose entries read
 `**Unit**: {name} | **Phases**: {N, N} | **Reason**: {text}` with every field
 non-empty and every phase number a top-level numbered step of that section. A Plan
-without the block, or whose block is the default `N/A: ...` line, is unaffected.
+without the block is unaffected. A block that is an `N/A: ...` line is accepted unless its
+text says phases land together or in the same commit: phases that cannot be validated alone
+are a release unit and must be declared as one.
 
 Never writes, renames, moves, or deletes anything under `issues/`, `plans/`,
 or `implementations/`.
@@ -65,6 +67,12 @@ _STEP_NUMBER_RE = re.compile(r"(?m)^(\d+)\. ")
 _UNIT_ENTRY_RE = re.compile(
     r"^\*\*Unit\*\*:\s*(?P<name>.*?)\s*\|\s*\*\*Phases\*\*:\s*(?P<phases>.*?)"
     r"\s*\|\s*\*\*Reason\*\*:\s*(?P<reason>.*?)\s*$"
+)
+
+# An `N/A` release-unit line that describes phases landing together contradicts itself.
+_NA_CONTRADICTION_RE = re.compile(
+    r"(?i)land(?:s|ed)?\s+together|same\s+commit|validated\s+together"
+    r"|until\s+(?:another|a\s+later)\s+phase"
 )
 
 # (kind, template path relative to ROOT_DIR, work-item directory relative to ROOT_DIR)
@@ -208,6 +216,13 @@ def find_release_unit_findings(doc_path: Path) -> list[dict[str, str]]:
     if not lines:
         return [*findings, finding("block is empty (use `N/A: no release unit`)")]
     if all(line.startswith("N/A") for line in lines):
+        if _NA_CONTRADICTION_RE.search(" ".join(lines)):
+            findings.append(
+                finding(
+                    "`N/A` says phases land together or in the same commit; phases "
+                    "that cannot be validated alone are a release unit, declare one"
+                )
+            )
         return findings
     known_phases = {int(n) for n in _STEP_NUMBER_RE.findall(steps_text)}
     for line in lines:

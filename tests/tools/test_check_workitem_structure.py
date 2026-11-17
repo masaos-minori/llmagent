@@ -185,6 +185,36 @@ def test_release_unit_valid_declarations_pass(
     assert _unit_findings(tmp_path, monkeypatch, _plan_with_block(block)) == []
 
 
+@pytest.mark.parametrize(
+    "block",
+    [
+        "N/A: no release unit. The changes land together with their call-site updates.",
+        "N/A: no release unit; everything ships in the same commit.",
+        "N/A: phase 1 breaks callers until another phase lands.",
+        "N/A: the phases can only be validated together.",
+    ],
+)
+def test_release_unit_na_that_says_phases_land_together_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, block: str
+) -> None:
+    findings = _unit_findings(tmp_path, monkeypatch, _plan_with_block(block))
+    assert len(findings) == 1
+    assert "declare one" in findings[0]["detail"]
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        "N/A: no release unit",
+        "N/A: every phase passes its own validation and can be merged alone.",
+    ],
+)
+def test_release_unit_na_without_coupling_language_passes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, block: str
+) -> None:
+    assert _unit_findings(tmp_path, monkeypatch, _plan_with_block(block)) == []
+
+
 def test_release_unit_absent_block_is_unaffected(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
