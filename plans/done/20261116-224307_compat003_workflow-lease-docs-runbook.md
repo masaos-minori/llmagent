@@ -237,3 +237,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-006 | Issue "Unresolved Questions" (ADR existence); Issue AC line 56 | `adr_02_02_001` | Step 1 | Historical material marked and non-normative | ADR checkers in `routing.md` | Resolved at plan time |
 | REQ-007 | Issue "Required Changes" (definition contract); Issue Constraints line 47 | `agent_03_03` | Step 2 | `retry_on` documented as required after compat001 | `check_docs_consistency.py --domain agent` | Derived from confirmed evidence |
 | REQ-008 | Issue "Required Changes" (lease columns); Issue Constraints line 47 | `db_02`, `db_07` | Step 3 | Lease columns documented as schema-enforced `NOT NULL` after compat002 | `check_docs_consistency.py --domain db` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261117-123746 -->

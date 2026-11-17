@@ -56,9 +56,9 @@ Creating a new workflow-lease ADR; changing INV-07 or any invariant wording; cod
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Blocked by governance conflict (GV-022 + governance_01 historical-content rule). Target file untouched; no non-compliant edit applied. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ADR checkers + doc checkers in Validation plan. |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Superseded | — | — | Blocked by governance conflict (GV-022 + governance_01 historical-content rule). Target file untouched; no non-compliant edit applied. Superseded: REQ-006 has no compliant placement: GV-022 requires a canonical Known Issue ledger ID in Known Deviations bullets and forbids resolved/removed items; governance_01 keeps ADR history in version control. INV-07 already states the current lease contract; the age-rule removal history stays in version control and issues/done/20261109-112715_adrrev005_schema-fingerprint-unify.md. Owner decision 2026-11-17. |
+| 2 | Add or update tests per Validation plan | Superseded | — | — | N/A: documentation-only row. Superseded: REQ-006 has no compliant placement: GV-022 requires a canonical Known Issue ledger ID in Known Deviations bullets and forbids resolved/removed items; governance_01 keeps ADR history in version control. INV-07 already states the current lease contract; the age-rule removal history stays in version control and issues/done/20261109-112715_adrrev005_schema-fingerprint-unify.md. Owner decision 2026-11-17. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Superseded | — | — | ADR checkers + doc checkers in Validation plan. Superseded: REQ-006 has no compliant placement: GV-022 requires a canonical Known Issue ledger ID in Known Deviations bullets and forbids resolved/removed items; governance_01 keeps ADR history in version control. INV-07 already states the current lease contract; the age-rule removal history stays in version control and issues/done/20261109-112715_adrrev005_schema-fingerprint-unify.md. Owner decision 2026-11-17. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
