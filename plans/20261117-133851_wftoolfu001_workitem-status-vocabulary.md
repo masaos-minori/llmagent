@@ -1,0 +1,243 @@
+## Goal
+- Decide the status of `N/A` once, define the Execution Status vocabulary in one place that the template, the writers, the consumers, and the structure checker all read, and make the checker report any Status value outside it for active work items and for newly archived ones, so a value such as `Done` can no longer enter the repository unnoticed.
+
+## Priority
+Medium
+
+## Scope
+- **In-Scope**: (1) `N/A` becomes a vocabulary member with the meaning "step not applicable", applied to the vocabulary source, the template, and the two consumers that classify by value; (2) the checker reports out-of-vocabulary Status values of top-level plans and procedures; (3) the archived-status run reports them for archived procedures and plans, with a baseline of the paths that already hold one; (4) the hook trigger, the routing rows, and the tool description follow; (5) tests for each.
+- **Out-of-Scope**: rewriting Status values in archived work items; adding statuses beyond the `N/A` decision; aliases for `Complete`, `Skipped`, `Deferred`, or `Done`; the workflow database status columns; the `Done` writer of the docs-wave tool (a sibling Plan); leftover detection.
+- **Dependencies**: the shared completed-status name must exist first, and the structure checker is edited by the structure-gate work, so this Plan lands after both (structured lines below). The tool description file and the checker module are also edited by other tooling Plans of this batch; the regions differ (see Assumptions) and the order is settled at implementation time (UNK-03).
+  - **Depends on**: plans/20261117-124614_wftool002_status-vocabulary-unify.md | phase 2 | adds the shared `COMPLETED_STATUS` name to `tools/_workitem_status_table.py`, which the vocabulary constants here sit beside and reuse
+  - **Depends on**: plans/20261117-124139_wftool001_gate-workitem-structure.md | phase 1 | changes `--file` to several paths and adds code to `tools/check_workitem_structure.py`; this Plan adds its rule on top of that shape
+
+## Background
+Filed as a follow-up of the status-vocabulary Plan (its UNK-01). That Plan makes one writer emit `Completed`; this Plan closes the validation gap that let the other non-vocabulary rows through. It is distinct from the workflow-database status issue, which covers database columns, not Markdown tables.
+
+## Problem
+The vocabulary is `Pending`, `In Progress`, `Blocked`, `Completed`, `Superseded` in `tools/_workitem_status_table.py` (`_VALID_STATUSES`, private) and in the `Status options` line of `templates/execution-status.md` (`Explicit in code`). The two are separate copies. `tools/close_procedures_batch.py` treats `Completed` and `N/A` as terminal (`TERMINAL_STATUSES`), so `N/A` is accepted by one consumer and absent from the vocabulary (`Explicit in code`). `tools/sync_plan_workitem_status.py` (`procedure_outcome`) reconciles a procedure only when every row is `Completed`, or only `Completed` and `Superseded` with one `Superseded`; one `N/A` row leaves the Plan row `Pending` (`Explicit in code`). The archived-status rule matches unfinished rows by lower-cased prefix (`_UNFINISHED_PREFIXES`), not by exact value, and nothing validates the Status column (`Explicit in code`).
+
+Measured again in this cycle with the shared parser (`Operationally observed`): 635 archived procedures hold a value outside the vocabulary (1482 rows: `Done` 732, `N/A` 358, `Complete` 149, `Skipped` 118, `Passed` 20, `Not needed` 11, `Deferred` 9, `N/A: no doc edit in this file` 6, and others); 10 archived plans hold 19 such rows (`Complete` 13, `Done` 4, `Obsolete` 1, `Reverted (partial)` 1); 3 of the 4 active procedures hold 5 rows that read exactly `N/A`; the 6 active plans hold none. The issue counted 631 procedures; the four extra were archived since.
+
+## Reason for Change
+- Consumers classify by value: one reads `N/A` as finished, another leaves the procedure unreconciled, and a third matches by prefix. A value outside the vocabulary is therefore read differently by each, silently.
+- Hand-written rows are the main source, so fixing one writer cannot close the gap, and rows keep arriving: the newest archived batch holds `Done` rows. Nothing makes the change urgent beyond that drift.
+
+## Implementation Intent
+- Decision 1 (`N/A`): accept it as a terminal, not-done status ("step not applicable") and define it with the other statuses. It is already written by hand in 358 archived and 5 active rows, already accepted by the batch-close tool, and rejecting it would force the active procedures and the docs-wave batch to be rewritten.
+- Decision 2 (variants): the checker rejects `Complete`, `Skipped`, `Deferred`, `Done`, and the rest. The active set holds none, so rejection costs nothing today; aliases would imply that every writer normalizes them, which is a larger change than this issue allows. Prose after `N/A` (`N/A: reason`) is rejected too: the reason belongs in the Notes column.
+- The vocabulary gets one public definition in `tools/_workitem_status_table.py`. The template line is checked against it by a test, because a Markdown file cannot import it. The checker reads the constant; the new logic lives in a new module so the checker module stays under the size gate.
+- The check has two scopes: active top-level files (no baseline) and archived files (a baseline of the 645 existing paths), because archival is the moment the drift becomes permanent.
+
+## Requirements
+- `REQ-001`: `tools/_workitem_status_table.py` defines the vocabulary as public constants including `N/A` (`NOT_APPLICABLE_STATUS`), `_normalize_status` accepts exactly that set, and `templates/execution-status.md` lists the same six values in its `Status options` line and explains `N/A` in its Notes.
+- `REQ-002`: `tools/close_procedures_batch.py` builds `TERMINAL_STATUSES` from the shared constants without a behavior change, and `tools/sync_plan_workitem_status.py` ignores `N/A` rows when deciding the outcome: a procedure whose other rows are all `Completed` (or `Completed` and `Superseded`) reconciles as before, and a procedure whose rows are all `N/A` stays unreconciled.
+- `REQ-003`: A new module `tools/_workitem_status_check.py` reports, for one plan or procedure, each row whose Status is not exactly a vocabulary value, with the file, the step, and the value; `tools/check_workitem_structure.py` runs it for top-level plans and procedures in `--file` mode (one or several paths) and in the directory scan, as category `status-value`, and exits `1` on a finding.
+- `REQ-004`: `--archived-status` also reports a `status-value` finding for an archived procedure or plan outside the baseline `tools/check_status_value_baseline.txt` (same format as `tools/check_archived_status_baseline.txt`, never grown by hand), and the baseline holds exactly the archived paths that hold such a value today.
+- `REQ-005`: A test asserts that the template's `Status options` line equals the vocabulary constants, so the two cannot diverge.
+- `REQ-006`: `.pre-commit-config.yaml` triggers the archived-status hook for archived plans as well, and `routing.md` and `tools/TOOL_DESCRIPTIONS.md` describe the value check and the changed trigger.
+- `REQ-007`: Every changed tool keeps the `tools/` size gate, adds no function of complexity grade C or worse, and passes ruff, mypy, and bandit.
+
+## Implementation Target Files
+**Freeze status**: Frozen
+
+This table is the canonical, frozen source of implementation scope for this Plan. Once
+`Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
+`plan-to-implementation-procedure` document MUST reference file paths only from this
+table — no other file may be treated as a modification target.
+
+| File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
+|---|---|---|---|---|---|---|
+| `tools/_workitem_status_table.py` | Public vocabulary constants including `N/A`; `_normalize_status` reads them | `_VALID_STATUSES` is a private frozenset without `N/A`, and the template line is a second copy | REQ-001 / AC-1 | `_VALID_STATUSES` at line 298 is `{"Pending","In Progress","Blocked","Completed","Superseded"}`; 13664 B (checked in Step 3) | `tests/tools/test_check_workitem_structure.py` | Verified |
+| `tools/_workitem_status_check.py` | Create the value rule: rows outside the vocabulary of one document | The checker module holds 18168 B of 24576 B and the structure-gate Plan adds code to it, so new logic goes to a new module | REQ-003, REQ-004, REQ-007 / AC-3, AC-4, AC-7 | New file; `tools/` exists and holds the sibling `_workitem_*` helper modules (checked in Step 3) | `tests/tools/test_check_workitem_structure.py` | Verified |
+| `tools/check_workitem_structure.py` | Call the rule in `--file` and directory modes; extend `--archived-status` with the baseline | No Status validation exists; `find_archived_status_findings` matches unfinished rows by prefix only | REQ-003, REQ-004, REQ-007 / AC-3, AC-4, AC-7 | `collect_findings` and `collect_single_file_findings` run section and release-unit checks only; `find_archived_status_findings` at line 261 (checked in Step 3) | `tests/tools/test_check_workitem_structure.py` | Verified |
+| `tools/sync_plan_workitem_status.py` | Ignore `N/A` rows in `procedure_outcome` | One `N/A` row returns `None`, so the Plan row stays `Pending` | REQ-002 / AC-2 | `procedure_outcome` returns `Completed` only for `{"Completed"}` and `Superseded` only for a subset of `{"Completed","Superseded"}` (checked in Step 3) | `tests/tools/test_sync_plan_workitem_status.py` | Verified |
+| `tools/close_procedures_batch.py` | Build `TERMINAL_STATUSES` from the shared constants | The terminal set is a literal `frozenset({"Completed", "N/A"})` | REQ-002 / AC-2 | `TERMINAL_STATUSES` at line 72; 21498 B (checked in Step 3) | `tests/tools/test_close_procedures_batch.py` | Verified |
+| `templates/execution-status.md` | State `N/A` in the `Status options` line and Notes | The line lists five values and the batch-close tool accepts a sixth | REQ-001 / AC-1, AC-5 | The `Status options:` line and the Notes list (checked in Step 3) | `tests/tools/test_check_workitem_structure.py` | Verified |
+| `tools/check_status_value_baseline.txt` | Create the baseline of archived paths that hold a non-vocabulary value | 635 archived procedures and 10 archived plans hold one today and must not be reported | REQ-004 / AC-4 | New file beside `tools/check_archived_status_baseline.txt`; counts from the shared parser (checked in Step 3) | `tests/tools/test_check_workitem_structure.py` | Verified |
+| `.pre-commit-config.yaml` | Widen the archived-status hook trigger to archived plans | The hook `files` pattern is `^implementations/done/.*\.md$` | REQ-006 / AC-6 | Hook `archived-procedure-status` at line 120; no test names the hook id (checked in Step 3) | `tools/run_validation_gates.py drift` | Verified |
+| `routing.md` | Update the structure-check and archived-status rows | The rows describe section presence and unfinished rows only | REQ-006 / AC-6 | The "When to run which tool" rows for `check_workitem_structure.py --file` and `--archived-status` (checked in Step 3) | `tools/check_skills_references.py`, `tools/check_skills_heading_cycles.py` | Verified |
+| `tools/TOOL_DESCRIPTIONS.md` | Describe the value check, the baseline, and the helper module | The checker entry does not mention a Status check | REQ-006 / AC-6 | Entries for `check_workitem_structure.py` and the helper modules (checked in Step 3) | `tools/check_tool_descriptions_sync.py` | Verified |
+| `tests/tools/test_check_workitem_structure.py` | Value-rule, baseline, live-set, and template-equality tests | No test covers Status values | REQ-003, REQ-004, REQ-005 / AC-3, AC-4, AC-5 | Existing tests install the real templates under `tmp_path` and monkeypatch `ROOT_DIR` (checked in Step 3) | The file itself | Verified |
+| `tests/tools/test_sync_plan_workitem_status.py` | `N/A` cases for `procedure_outcome` | No `N/A` case exists | REQ-002 / AC-2 | The file exists and tests `procedure_outcome` (checked in Step 3) | The file itself | Verified |
+| `tests/tools/test_close_procedures_batch.py` | Assert the terminal set equals the shared constants | The set is not tied to the vocabulary | REQ-002 / AC-2 | The file exists (checked in Step 3) | The file itself | Verified |
+
+## Reference Files
+Files that must be read to implement the targets above, but MUST NOT be modified. Same
+one-file-per-row discipline as `Implementation Target Files` above — no directories,
+glob patterns, components, file groups, or vague phrases.
+
+| File Path | Why It Must Be Read | Related Target File or Requirement |
+|---|---|---|
+| `tools/check_archived_status_baseline.txt` | Format and header comment of the baseline to mirror | `tools/check_status_value_baseline.txt` / REQ-004 |
+| `tools/manage_workitem_stage.py` | Re-exports the status-table names and writes statuses through `set-status` | `tools/_workitem_status_table.py` / REQ-001 |
+| `tools/_atomic_write.py` | Not edited; confirms no rewrite path is added | `tools/check_workitem_structure.py` / REQ-003 |
+
+## Acceptance Criteria
+- AC-1 (REQ-001): The vocabulary constants include `N/A`, `_normalize_status("N/A")` returns it, and a status outside the set still raises (tests).
+- AC-2 (REQ-002): `TERMINAL_STATUSES` equals the shared terminal constants and the batch-close behavior is unchanged (test); a procedure with `Completed` and `N/A` rows reconciles to `Completed`, one with only `N/A` rows stays unreconciled (tests).
+- AC-3 (REQ-003): A plan or procedure under the active directories with a Status outside the vocabulary makes the checker exit `1` and name the file, step, and value, in `--file` mode and in the directory scan; an accepted value and `N/A` pass; `N/A: reason` is reported (tests).
+- AC-4 (REQ-004, REQ-005): An archived file outside the baseline is reported by `--archived-status` and one inside it is not; the live active set and the live archived set report nothing (tests and a smoke run).
+- AC-5 (REQ-005): The template's `Status options` line equals the vocabulary (test).
+- AC-6 (REQ-006): The hook trigger covers `plans/done/`, the routing rows and the tool description match the tool, and `tools/check_tool_descriptions_sync.py`, `tools/check_skills_references.py`, `tools/check_skills_heading_cycles.py`, and `run_validation_gates.py drift` pass.
+- AC-7 (REQ-007): Both `tools/` size-gate invocations pass, `radon cc -n C` reports no new function in the changed tools, and ruff, mypy, and bandit are clean.
+
+## Tests
+- `tests/tools/test_check_workitem_structure.py`: unknown value in an active procedure and in an active plan, accepted values, `N/A` accepted, `N/A: reason` rejected, several paths in one `--file` call, archived file inside and outside the baseline, baseline loader (comments and blanks), the live active set (REQ-003, REQ-004), template equality (REQ-005).
+- `tests/tools/test_sync_plan_workitem_status.py`: `N/A` mixed with `Completed`, with `Superseded`, and alone (REQ-002).
+- `tests/tools/test_close_procedures_batch.py`: terminal set equals the shared constants (REQ-002).
+- Smoke run: the checker over the live active set and `--archived-status` over the live archived set (REQ-003, REQ-004).
+
+## Documentation Impact
+N/A for `docs/*.md`: no file under `docs/` changes. `templates/execution-status.md`, the two `routing.md` rows, and the tool description change (REQ-001, REQ-006).
+
+## Assumptions
+- `N/A` is accepted as a terminal, not-done status (Decision 1). The alternative, rejecting it, is described in Design; the choice is recorded as UNK-01 for maintainer confirmation before Phase 2.
+- The issue's baseline requirement is read as covering archival: the check runs on archived files through `--archived-status`, because a baseline is needed only where archived files are scanned. A narrower reading (active files only, no baseline) would drop REQ-004 and Phase 4.
+- Scope amendment against the issue's target list: the new module, the baseline file, `tools/sync_plan_workitem_status.py` (a consumer that classifies by value), `.pre-commit-config.yaml`, `routing.md`, and two more test files are added; the issue's own list would leave the `N/A` decision unapplied to one consumer and the size gate at risk. `tools/close_procedures_batch.py` changes only if it adopts the shared constants, not to remove `N/A`.
+- The six active plans hold no non-vocabulary value and the 5 active `N/A` rows read exactly `N/A`, so the live active set passes after Decision 1.
+- Overlap with the structure-gate Plan is compatible: it adds multi-path `--file` and issue leftover code to `tools/check_workitem_structure.py` and its test; this Plan adds a call into a new module and separate tests, after that Plan's phase 1. Overlap on `.pre-commit-config.yaml` is compatible: that Plan adds a new hook entry, this Plan edits the `files` pattern of the existing `archived-procedure-status` entry. Overlap on `tools/TOOL_DESCRIPTIONS.md` and `routing.md` is row-level, but the `check_workitem_structure.py` routing row is edited by both Plans: that Plan's documentation phase lands first, and Phase 5 here re-reads the row before editing it (UNK-03). The new-routing-rows Plan edits other rows.
+
+## Unknowns
+| ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
+|---|---|---|---|---|
+| UNK-01 | Whether `N/A` is a status (Decision 1) or a marker the consumers should stop accepting | A maintainer decision; the evidence (358 archived and 5 active `N/A` rows, one accepting consumer) favors accepting it | The maintainer confirms Decision 1 before Phase 2 starts; if rejected, Phases 2 and 3 change (remove `N/A` from the terminal set, rewrite the 5 active rows) and the Plan is amended first | False |
+| UNK-02 | Whether the `archived-procedure-status` hook may be widened to plans without side effects | The hook runs on every change under `implementations/done/` today; its runtime over plans was not measured | Measure the `--archived-status` run time over both directories in Phase 4 and keep a separate hook id if it is slow | False |
+| UNK-03 | Order against the structure-gate Plan and the other Plans editing `tools/TOOL_DESCRIPTIONS.md` and `routing.md` | The other Plans' final text of the shared rows | Land after the two prerequisites; re-read the shared rows at implementation time | False |
+
+## Affected areas
+`skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
+columns. The `File` column here MUST be a subset of `Implementation Target Files`'
+rows — this table analyzes change-impact risk for those same files; it is not a
+separate scope-of-record.
+
+| File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
+|---|---|---|---|---|---|
+| `tools/_workitem_status_table.py` | Modify | Medium: imported directly by five tool modules and re-exported to three more; the change adds names and tightens one function | 2 | High: single author | not applicable (rsynced) |
+| `tools/_workitem_status_check.py` | Create | Low: new, one caller | N/A: new file | N/A: new file | not applicable (rsynced) |
+| `tools/check_workitem_structure.py` | Modify | Medium: runs in a pre-commit hook and the structure gate | 4 | High: single author | not applicable (rsynced) |
+| `tools/sync_plan_workitem_status.py` | Modify | Low: one function, run by hand | 2 | High: single author | not applicable (rsynced) |
+| `tools/close_procedures_batch.py` | Modify | Low: one constant | 2 | High: single author | not applicable (rsynced) |
+| `templates/execution-status.md` | Modify | Medium: shared by the plan, procedure, and implementation templates | 3 | High: single author | not applicable (rsynced) |
+| `tools/check_status_value_baseline.txt` | Create | Low: read only by the checker | N/A: new file | N/A: new file | not applicable (rsynced) |
+| `.pre-commit-config.yaml` | Modify | Medium: every commit runs the hooks | 11 | High: single author | not applicable (rsynced) |
+| `routing.md` | Modify | Medium: loaded by every task | 20 | High: single author | not applicable (rsynced) |
+| `tools/TOOL_DESCRIPTIONS.md` | Modify | Low: documentation rows read by the sync checker | 74 | High: single author | not applicable (rsynced) |
+| `tests/tools/test_check_workitem_structure.py` | Modify | Low | 4 | High: single author | not applicable (rsynced) |
+| `tests/tools/test_sync_plan_workitem_status.py` | Modify | Low | 1 | High: single author | not applicable (rsynced) |
+| `tests/tools/test_close_procedures_batch.py` | Modify | Low | 2 | High: single author | not applicable (rsynced) |
+
+## Design
+**Classification**: Path B (thirteen target rows, two of them new files). The four analyses ran once for this cycle.
+- **Architecture**: all targets are `tools/` helpers; `tools/_workitem_status_check.py` imports only the status-table module and the standard library, and the checker imports it. No `scripts/` package and no import-linter contract is involved.
+- **Dependency graphing**: `tools/_workitem_status_table.py` is imported directly by `tools/_detect_unexecuted_archive.py`, `tools/_workitem_stage_parser.py` (which calls `_normalize_status`, so `set-status` accepts exactly the vocabulary), `tools/check_workitem_structure.py`, `tools/manage_workitem_stage.py`, and `tools/sync_plan_workitem_status.py`; `tools/amend_plan.py`, `tools/close_procedures_batch.py`, and `tools/plan_dependency_order.py` reach it through the re-exports of `tools/manage_workitem_stage.py`. Their tests run in Phase 6. The Status string is read by value in `tools/plan_dependency_order.py` (`_OPEN_STATUSES`: `Pending`, `In Progress`, `Blocked`), which `N/A` does not affect.
+- **Historical**: churn is low for the Python targets and very high for `tools/TOOL_DESCRIPTIONS.md` and `routing.md`; every target has one author.
+- **Operational**: no port, database, dependency, or lock is involved; the persisted-schema check does not apply.
+- **Decision 1, `N/A`**: Option A, accept `N/A` as a terminal, not-done status. Consumers: the vocabulary source and the template gain it; `close_procedures_batch` already accepts it and now reads the shared constant; `sync_plan_workitem_status` ignores `N/A` rows (otherwise one `N/A` row blocks reconciliation, which is the inconsistency found); `set-status` may then write it. Option B, reject `N/A`: remove it from the batch-close terminal set and rewrite the 5 active rows; rejected because the docs-wave batch and 358 archived rows use it for "no edit needed" and the active rewrite would only move the rows to another value.
+- **Decision 2, variants**: reject, do not alias (see Implementation Intent).
+- **Decision 3, scopes**: the active check has no baseline (the live set is clean); the archived check uses a baseline because 645 paths already hold a value. The baseline records paths, never values, so a file in it that gains a new bad value is not noticed; the archived-status baseline has the same property.
+- **Decision 4, matching**: exact string match against the vocabulary after trimming cell whitespace; no case folding, so `completed` is reported.
+- **Baseline**: `vulture` and `bandit` findings under `scripts/` are pre-existing and outside the targets; `radon` reports `update_execution_status` (D, 30) and `parse_execution_status_rows` (C, 14) in the status module, which this Plan does not extend; `diff-cover` has no baseline because the tree equals `master`.
+
+## Implementation steps
+Each step description MUST cite the exact file path(s) it touches by referencing rows
+of `Implementation Target Files` above — do not restate file-level detail
+independently of that frozen table. A step is a top-level numbered item (a Phase); its
+checklist items are sub-tasks, and the Execution Status table has one row per step.
+
+1. **Phase 1: Tests first**
+   - [ ] Add the value-rule, baseline, and template-equality tests; they fail first (REQ-003, REQ-004, REQ-005; `tests/tools/test_check_workitem_structure.py`)
+   - [ ] Add the `N/A` outcome cases (REQ-002; `tests/tools/test_sync_plan_workitem_status.py`)
+   - [ ] Add the terminal-set equality test (REQ-002; `tests/tools/test_close_procedures_batch.py`)
+2. **Phase 2: `N/A` decision and vocabulary** (starts after UNK-01 is confirmed)
+   - [ ] Define the public constants and let `_normalize_status` read them (REQ-001; `tools/_workitem_status_table.py`)
+   - [ ] Add `N/A` to the `Status options` line and the Notes (REQ-001; `templates/execution-status.md`)
+   - [ ] Ignore `N/A` rows in `procedure_outcome` (REQ-002; `tools/sync_plan_workitem_status.py`)
+   - [ ] Build the terminal set from the constants (REQ-002; `tools/close_procedures_batch.py`)
+3. **Phase 3: Active-file check**
+   - [ ] Create the value rule module (REQ-003, REQ-007; `tools/_workitem_status_check.py`)
+   - [ ] Call it in `--file` and directory modes as `status-value` (REQ-003, REQ-007; `tools/check_workitem_structure.py`)
+4. **Phase 4: Archived check and baseline**
+   - [ ] Extend `--archived-status` with the baseline rule (REQ-004; `tools/check_workitem_structure.py`)
+   - [ ] Generate the baseline from the shared parser once, and confirm the live archived set reports nothing (REQ-004; `tools/check_status_value_baseline.txt`)
+   - [ ] Widen the hook trigger to archived plans (REQ-006; `.pre-commit-config.yaml`)
+5. **Phase 5: Documentation**
+   - [ ] Update the two routing rows (REQ-006; `routing.md`)
+   - [ ] Update the checker entries and add the helper module row (REQ-006; `tools/TOOL_DESCRIPTIONS.md`)
+6. **Phase 6: Verification** (no deploy step: no `scripts/` or `config/` file changes)
+   - [ ] Run the validation sequence of `rules/toolchain.md` for the changed tools, the tests of the importers of the status module, both size gates, `run_validation_gates.py drift`, the skills reference checkers, and `tools/check_tool_descriptions_sync.py`; smoke-run the checker over the live active and archived sets (REQ-001 to REQ-007; all target files)
+
+### Release units
+N/A: no release unit; each phase passes validation alone when applied in order 1 to 5.
+
+## Validation plan
+| Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
+|---|---|---|---|
+| `tools/_workitem_status_table.py`, `tools/sync_plan_workitem_status.py`, `tools/close_procedures_batch.py` | Unit tests and importer regression | `uv run pytest tests/tools/test_sync_plan_workitem_status.py tests/tools/test_close_procedures_batch.py tests/tools/test_manage_workitem_stage.py tests/tools/test_manage_workitem_stage_new.py tests/tools/test_amend_plan.py tests/tools/test_plan_dependency_order.py -q` | Pass |
+| `tools/_workitem_status_check.py`, `tools/check_workitem_structure.py`, baseline | Unit tests; smoke run on live data | `uv run pytest tests/tools/test_check_workitem_structure.py -v`; `uv run python tools/check_workitem_structure.py`; `uv run python tools/check_workitem_structure.py --archived-status` | Pass; exit `0` on the live sets |
+| All changed tools | Lint, types, security, complexity, size | `uv run ruff format tools tests/tools`; `uv run ruff check tools tests/tools`; `uv run mypy --no-namespace-packages scripts/ tests/eventbus tools`; `uv run bandit tools/_workitem_status_check.py tools/check_workitem_structure.py`; `uv run radon cc tools/_workitem_status_check.py tools/check_workitem_structure.py -s -n C`; both `tools/check_module_size.py` invocations | Clean; no new grade C or worse; gates pass |
+| `templates/execution-status.md`, `routing.md`, `tools/TOOL_DESCRIPTIONS.md`, `.pre-commit-config.yaml` | Reference and sync checkers | `uv run python tools/check_tool_descriptions_sync.py`; `uv run python tools/check_skills_references.py`; `uv run python tools/check_skills_heading_cycles.py`; `uv run python tools/run_validation_gates.py drift` | No finding |
+
+## Risks
+- **Risk**: Accepting `N/A` is the wrong decision for the maintainer → **Mitigation**: UNK-01 asks for confirmation before Phase 2; Phase 1 tests and Phase 3's rule do not depend on the choice except for one constant.
+- **Risk**: The baseline hides a new bad value in a file already listed → **Mitigation**: the baseline never grows by hand, its header says so, and a test asserts the loader and the not-in-baseline report; the property matches the existing archived-status baseline.
+- **Risk**: A large baseline (645 paths) is noisy in review → **Mitigation**: it is generated once in Phase 4 and only shrinks afterwards.
+- **Risk**: `tools/check_workitem_structure.py` crosses the size gate after the structure-gate Plan and this one both add code → **Mitigation**: the rule lives in a new module and the checker gains only a call; the size gate runs in Phase 6.
+- **Risk**: Widening the archived hook slows every commit touching `plans/done/` → **Mitigation**: UNK-02 measures it and allows a separate hook id.
+- **Risk**: Reconciliation of Plan rows changes for procedures that hold `N/A` rows → **Mitigation**: the change only turns a never-reconciled case into `Completed`; tests cover mixed and all-`N/A` procedures, and archived procedures are not rewritten.
+- **Risk**: `tools/TOOL_DESCRIPTIONS.md` and `routing.md` have high churn → **Mitigation**: change only the named rows and settle the order per UNK-03.
+
+## Execution Status
+
+Table structure, status/type vocabulary, and general guidance: see
+`templates/execution-status.md`. Default rows for a freshly generated Plan (replace
+with the Plan's actual steps once Implementation steps are broken down):
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Tests first: value rule, baseline, template equality, `N/A` outcome, terminal set | Pending | — | — | |
+| 2 | `N/A` decision and vocabulary constants, template, and two consumers | Pending | — | — | |
+| 3 | Active-file check: new rule module and the checker call | Pending | — | — | |
+| 4 | Archived check, baseline, and hook trigger | Pending | — | — | |
+| 5 | Documentation: routing rows and tool description | Pending | — | — | |
+| 6 | Verification: validation sequence, importer tests, live-set smoke runs | Pending | — | — | |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+- **Workflow phase**: issue-to-plan
+- **Source issue**: issues/20261117-132201_wftoolfu001_workitem-status-vocabulary.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: this document is the generated plan
+- **Source implementation procedure**: N/A: not applicable in this phase
+- **Generated at**: 20261117-133851
+- **Related target files**: `tools/_workitem_status_table.py`; `tools/_workitem_status_check.py`; `tools/check_workitem_structure.py`; `tools/sync_plan_workitem_status.py`; `tools/close_procedures_batch.py`; `templates/execution-status.md`; `tools/check_status_value_baseline.txt`; `.pre-commit-config.yaml`; `routing.md`; `tools/TOOL_DESCRIPTIONS.md`; `tests/tools/test_check_workitem_structure.py`; `tests/tools/test_sync_plan_workitem_status.py`; `tests/tools/test_close_procedures_batch.py`
+
+### Requirement Traceability
+| Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
+|---|---|---|---|---|---|---|
+| REQ-001 | Implementation Intent (one decision for `N/A`); Required Changes | `tools/_workitem_status_table.py` | Phase 2 | AC-1 | vocabulary tests | Explicit in issue |
+| REQ-001 | Required Changes (apply to the template) | `templates/execution-status.md` | Phase 2 | AC-1, AC-5 | template-equality test | Explicit in issue |
+| REQ-002 | Implementation Intent (applied to every consumer); `procedure_outcome` evidence | `tools/sync_plan_workitem_status.py` | Phase 2 | AC-2 | `N/A` outcome tests | Derived from confirmed evidence |
+| REQ-002 | Required Changes (apply to the batch-close tool) | `tools/close_procedures_batch.py` | Phase 2 | AC-2 | terminal-set test | Explicit in issue |
+| REQ-002 | Testing Expectations (`N/A` decision tests) | `tests/tools/test_sync_plan_workitem_status.py` | Phase 1 | AC-2 | the file itself | Explicit in issue |
+| REQ-002 | Testing Expectations (`N/A` decision tests) | `tests/tools/test_close_procedures_batch.py` | Phase 1 | AC-2 | the file itself | Explicit in issue |
+| REQ-003 | Required Changes (Status value check for active work items) | `tools/_workitem_status_check.py` | Phase 3 | AC-3, AC-7 | value-rule tests | Explicit in issue |
+| REQ-003 | Required Changes (Status value check for active work items) | `tools/check_workitem_structure.py` | Phase 3 | AC-3, AC-7 | value-rule tests; live-set smoke run | Explicit in issue |
+| REQ-003 | Required Changes (add tests) | `tests/tools/test_check_workitem_structure.py` | Phase 1 | AC-3 | the file itself | Explicit in issue |
+| REQ-004 | Implementation Intent (baseline for archived files) | `tools/check_workitem_structure.py` | Phase 4 | AC-4 | baseline tests | Derived from confirmed evidence |
+| REQ-004 | Target Files (new baseline beside the archived-status baseline) | `tools/check_status_value_baseline.txt` | Phase 4 | AC-4 | live archived-set smoke run | Explicit in issue |
+| REQ-005 | Implementation Intent (one place that the template and checker read) | `tests/tools/test_check_workitem_structure.py` | Phase 1 | AC-5 | template-equality test | Derived from confirmed evidence |
+| REQ-006 | Required Changes (tool description and routing row) | `.pre-commit-config.yaml` | Phase 4 | AC-6 | hook-parity test; `run_validation_gates.py drift` | Derived from confirmed evidence |
+| REQ-006 | Required Changes (routing row) | `routing.md` | Phase 5 | AC-6 | skills reference checkers | Explicit in issue |
+| REQ-006 | Required Changes (tool description) | `tools/TOOL_DESCRIPTIONS.md` | Phase 5 | AC-6 | `tools/check_tool_descriptions_sync.py` | Explicit in issue |
+| REQ-007 | Constraints (tool conventions, size gate) | `tools/_workitem_status_check.py` | Phase 6 | AC-7 | ruff, mypy, bandit, radon, size gates | Explicit in issue |
