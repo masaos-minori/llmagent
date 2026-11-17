@@ -80,7 +80,7 @@ Task → routing.md → skill + shared rules → relevant docs → execute
 ## Environment
 
 - **OS:** Linux
-- **Python:** 3.13 (production venv: `/opt/llm/venv/`; dev venv: `.venv/` managed by uv)
+- **Python:** 3.13 (`uv run`/build 実態・`requires-python`・ruff/mypy はすべて 3.13)。production venv: `/opt/llm/.venv/` (uv 管理)、dev venv: `.venv/` (リトリルート、uv 管理)。システム既定 (`uv python find`) は 3.14
 - **DB:** SQLite + `sqlite-vec` extension at `/opt/llm/sqlite-vec/vec0.so`
 
 Full details (schema, config reference, service ports): `rules/env.md`
