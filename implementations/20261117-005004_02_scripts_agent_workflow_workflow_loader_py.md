@@ -74,9 +74,9 @@ Changing `max_attempts`/`retry_wait_sec` required-key handling; the model-layer 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-092948 | 20261117-092948 | Implementation applied (_REQUIRED_POLICY_KEYS has retry_on; absent-key fallback removed; docstrings updated). Static validation passed (ruff, mypy, lint-imports, bandit). Test additions owned by companion test_workflow_loader.py (seq 09). |
 | 2 | Add or update tests per Validation plan | Pending | — | — | Covered by `tests/agent/workflow/test_workflow_loader.py` (seq 09). |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs handled by seq 03. |
 
 ### Blocker Log
