@@ -79,9 +79,9 @@ N/A: reads repository Markdown only; no eval, subprocess, or network access is a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement multi-path `--file` and issue leftover detection | Pending | — | — | |
-| 2 | Add tests via the companion test file | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement multi-path `--file` and issue leftover detection | Completed | 20261117-164918 | 20261117-164918 | multi-path --file (nargs+), find_template_leftovers + _issue_template_leftover_lines added; live scan of open work items: 0 leftover findings |
+| 2 | Add tests via the companion test file | Completed | 20261117-164918 | 20261117-164918 | 9 new tests in companion file; 46/46 pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-164918 | 20261117-170012 | targeted validators pass (ruff, mypy, bandit, size gate, radon: only pre-existing grade C find_release_unit_findings); full sequence at batch end full batch validation: pytest tests/ 12591 passed 7 skipped; diff-cover no measurable lines (tools/tests/docs only); drift 0 errors; hooks pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

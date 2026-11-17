@@ -413,24 +413,16 @@ Write the Phase 1-8 content into the file created by either path, replacing ever
 
 ### Step 10.4: Verify the written file
 
-- Run `uv run python tools/check_workitem_structure.py --file issues/{filename}.md`. It checks
-  that every required `## ` section is present; it does not judge content, so the Phase 9c
-  checklist still applies to the filled text.
-- Confirm no template placeholder (`{...}`, `<Issue Title>`) remains. The checker cannot see
-  the template's instruction sentences under each heading (for example `High / Medium /
-  Low` or `Briefly describe the task and the intended outcome.`), so replace each of them
-  with real content and then check that none survives verbatim:
-
-  ```bash
-  tmp=$(mktemp)
-  sed -n '/^```markdown/,/^```$/p' templates/issue.md | sed '1d;$d' | rg -v '^(#|- |$)' > "$tmp"
-  rg -n -F -x -f "$tmp" issues/{filename}.md    # any output is a leftover template line
-  rm "$tmp"
-  ```
-
-  (On a filled issue this prints nothing; on the unfilled scaffold it prints every
-  instruction line.) For `{...}`, run `rg -n '\{[^}]*\}|<Issue Title>' issues/{filename}.md`
-  and judge each hit: braces that belong to the issue's own content are fine.
+- Run `uv run python tools/check_workitem_structure.py --file issues/{filename}.md` explicitly
+  on the new file before the hand-off. It checks that every required `## ` section is present
+  and reports lines kept verbatim from the template scaffold — the `# <Issue Title>` line,
+  bullets holding a `{...}` placeholder, and the instruction sentences under each heading —
+  as `template-leftover` findings. The validation gate and the `workitem-structure` hook run
+  the same check automatically on commit; running it here catches an unfilled leftover at
+  the step that produced it.
+- The checker does not judge content, so the Phase 9c checklist still applies to the filled
+  text, and it only detects the template's own placeholder lines: braces that belong to the
+  issue's own content stay a manual judgment and are fine.
 
 ### Step 10.5: Report to the user
 

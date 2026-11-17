@@ -24,6 +24,13 @@ without the block is unaffected. A block that is an `N/A: ...` line is accepted 
 text says phases land together or in the same commit: phases that cannot be validated alone
 are a release unit and must be declared as one.
 
+For an issue, it additionally reports document lines kept verbatim from the
+canonical template's scaffold (`templates/issue.md`'s fenced example: the title
+line, bullets holding a `{...}` placeholder, and the instruction lines under
+each `## ` heading) as `template-leftover` findings — unfilled scaffold text
+that survived into a real document. The rule is read from the template at run
+time; braces in the document's own content are not reported.
+
 Never writes, renames, moves, or deletes anything under `issues/`, `plans/`,
 or `implementations/`.
 
@@ -33,14 +40,15 @@ Usage:
     python tools/check_workitem_structure.py --include-done
     python tools/check_workitem_structure.py --format json
     python tools/check_workitem_structure.py --file plans/20260908-073509_plan.md
+    python tools/check_workitem_structure.py --file issues/a.md issues/b.md
 
-`--file` checks exactly one document (its kind is inferred from which
-top-level directory it lives under) and ignores `--kind`/`--include-done` —
-use it from a workflow step that just produced or is about to consume one
-specific document, so a repository-wide scan's legacy-template findings
+`--file` checks one or more documents (each kind is inferred from which
+top-level directory the path lives under) and ignores `--kind`/`--include-done`
+— use it from a workflow step that just produced or is about to consume
+specific documents, so a repository-wide scan's legacy-template findings
 (documents predating the current template revision, which this tool has no
 way to distinguish from a genuinely incomplete document) never block a
-single-file check.
+`--file` check.
 
 `--archived-status [--baseline PATH]` checks a different property: no procedure under
 `implementations/done/` keeps an unfinished (`Pending`, `In Progress`, `Blocked`)
@@ -49,7 +57,7 @@ Execution Status row. A procedure that was not implemented is archived with
 archive predates the rule, so the paths that already violated it are listed in
 `tools/check_archived_status_baseline.txt` and are not reported.
 
-Exit code: 0 when no document is missing a required section; 1 otherwise.
+Exit code: 0 when no finding is reported; 1 otherwise.
 """
 
 from __future__ import annotations
@@ -83,6 +91,9 @@ _UNIT_ENTRY_RE = re.compile(
     r"^\*\*Unit\*\*:\s*(?P<name>.*?)\s*\|\s*\*\*Phases\*\*:\s*(?P<phases>.*?)"
     r"\s*\|\s*\*\*Reason\*\*:\s*(?P<reason>.*?)\s*$"
 )
+
+# A `{...}` placeholder kept verbatim from the issue template's scaffold bullets.
+_PLACEHOLDER_BRACE_RE = re.compile(r"\{[^{}]*\}")
 
 # An `N/A` release-unit line that describes phases landing together contradicts itself.
 _NA_CONTRADICTION_RE = re.compile(
@@ -247,6 +258,56 @@ def find_release_unit_findings(doc_path: Path) -> list[dict[str, str]]:
     return findings
 
 
+def _issue_template_leftover_lines(template_path: Path) -> frozenset[str]:
+    """Build the verbatim leftover rule from the issue template's fenced scaffold.
+
+    The rule is the scaffold an unfilled issue keeps verbatim: the `# <Issue
+    Title>` line, the bullets holding a `{...}` placeholder, and the
+    instruction lines under each `## ` heading. Section headings and table
+    rows stay out — a filled document legitimately repeats them.
+    """
+    fence_match = _FENCE_RE.search(template_path.read_text(encoding="utf-8"))
+    if fence_match is None:
+        return frozenset()
+    lines: list[str] = []
+    for raw in fence_match.group(1).splitlines():
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("##") or stripped.startswith("|"):
+            continue
+        if stripped.startswith("# ") or not stripped.startswith(("- ", "* ")):
+            lines.append(stripped)
+        elif _PLACEHOLDER_BRACE_RE.search(stripped):
+            lines.append(stripped)
+    return frozenset(lines)
+
+
+def find_template_leftovers(
+    doc_path: Path, rule: frozenset[str] | None = None
+) -> list[dict[str, str]]:
+    """Report an issue document that keeps canonical-template lines verbatim.
+
+    ``rule`` lets a directory scan load the template once; pass None to read
+    it from ``templates/issue.md`` on the spot.
+    """
+    if rule is None:
+        rule = _issue_template_leftover_lines(ROOT_DIR / "templates" / "issue.md")
+    if not rule:
+        return []
+    rel_path = doc_path.relative_to(ROOT_DIR).as_posix()
+    findings: list[dict[str, str]] = []
+    for raw in doc_path.read_text(encoding="utf-8").splitlines():
+        stripped = raw.strip()
+        if stripped in rule:
+            findings.append(
+                {
+                    "category": "template-leftover",
+                    "file": rel_path,
+                    "detail": f"verbatim issue-template leftover: {stripped}",
+                }
+            )
+    return findings
+
+
 def load_archived_status_baseline(path: Path = ARCHIVED_STATUS_BASELINE) -> set[str]:
     """Repository-relative paths grandfathered by the archived-status rule."""
     if not path.is_file():
@@ -328,11 +389,14 @@ def collect_single_file_findings(doc_path: Path) -> list[dict[str, str]]:
     findings = find_missing_sections(doc_path, spec)
     if kind == "plan":
         findings.extend(find_release_unit_findings(doc_path))
+    if kind == "issue":
+        findings.extend(find_template_leftovers(doc_path))
     return findings
 
 
 def collect_findings(kinds: set[str], include_done: bool) -> list[dict[str, str]]:
     specs = load_template_specs()
+    leftover_rule = _issue_template_leftover_lines(ROOT_DIR / "templates" / "issue.md")
     findings: list[dict[str, str]] = []
     for kind, doc_path in discover_documents(kinds, include_done):
         spec = specs[kind]
@@ -341,6 +405,8 @@ def collect_findings(kinds: set[str], include_done: bool) -> list[dict[str, str]
         findings.extend(find_missing_sections(doc_path, spec))
         if kind == "plan":
             findings.extend(find_release_unit_findings(doc_path))
+        if kind == "issue":
+            findings.extend(find_template_leftovers(doc_path, leftover_rule))
     return findings
 
 
@@ -382,17 +448,18 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "documents contain every '## ' section required by their "
             "canonical template (templates/issue.md, templates/plan.md, "
             "templates/implementation-procedure.md). For a Plan it also validates "
-            "the optional '### Release units' declaration."
+            "the optional '### Release units' declaration; for an issue it also "
+            "reports lines kept verbatim from the issue template's scaffold."
         )
     )
     parser.add_argument(
         "--file",
         type=Path,
+        nargs="+",
         default=None,
         help=(
-            "Check exactly this one document instead of scanning a "
-            "directory; its kind is inferred from its path. Ignores "
-            "--kind/--include-done."
+            "Check exactly these documents instead of scanning a directory; "
+            "each kind is inferred from its path. Ignores --kind/--include-done."
         ),
     )
     parser.add_argument(
@@ -443,7 +510,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         findings = find_archived_status_findings(baseline)
     elif args.file is not None:
-        findings = collect_single_file_findings(args.file)
+        findings = [
+            finding
+            for path in args.file
+            for finding in collect_single_file_findings(path)
+        ]
     else:
         kinds = set(args.kinds) if args.kinds else {"issue", "plan", "implementation"}
         findings = collect_findings(kinds, args.include_done)

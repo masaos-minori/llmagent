@@ -63,8 +63,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the two table rows | Pending | — | — | |
-| 2 | Run `tools/check_tool_descriptions_sync.py` | Pending | — | — | |
+| 1 | Update the two table rows | Completed | 20261117-165638 | 20261117-165638 | both rows updated: multi-path --file and template-leftover wording; --archived-status wording untouched |
+| 2 | Run `tools/check_tool_descriptions_sync.py` | Completed | 20261117-165638 | 20261117-170012 | check_tool_descriptions_sync.py run result recorded below check_tool_descriptions_sync.py: no issues |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

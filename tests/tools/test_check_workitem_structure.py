@@ -11,6 +11,10 @@ Covers:
   as missing whenever casing differs.
 - Genuinely missing sections are still reported with the correct detail.
 - Kind inference from the top-level directory (including ``done/``).
+- Issue template-leftover detection: an unfilled scaffold is reported, a filled
+  issue and brace-containing own content are not; plans and procedures stay out.
+- Multi-path ``--file``: several documents aggregate; a single path keeps the
+  pre-change output.
 
 The tool reads ``ROOT_DIR`` (a module constant) to locate templates and to build
 relative file paths, so every test that exercises path handling monkeypatches
@@ -358,3 +362,155 @@ def test_archived_status_cli_exit_codes(
 def test_the_committed_archive_has_no_violation_outside_the_baseline() -> None:
     """The real archive and the real baseline: a new unfinished archive entry fails here."""
     assert cwis.main(["--archived-status"]) == 0
+
+
+# --- issue template-leftover detection (REQ-002) and multi-path --file (REQ-001) ---
+
+
+def _issue_scaffold() -> str:
+    """The raw fenced example of the real issue template: an unfilled scaffold."""
+    text = (_SRC_ROOT / "templates" / "issue.md").read_text(encoding="utf-8")
+    fence = cwis._FENCE_RE.search(text)
+    assert fence is not None
+    return fence.group(1)
+
+
+_FILLED_ISSUE_SECTIONS: dict[str, str] = {
+    "Priority": "High",
+    "Summary": "Gate the work item structure check on changed top-level documents.",
+    "Background": "N/A: covered by Summary",
+    "Problem": "A raw git commit can skip the structure check entirely.",
+    "Reason for Change": "Close the gate gap before more procedures archive.",
+    "Implementation Intent": "Extend the existing checker, gate, and hook definitions.",
+    "Target Files or Areas": "tools/check_workitem_structure.py",
+    "Required Changes": "- Accept several paths after the flag.",
+    "Constraints": "N/A: none",
+    "Acceptance Criteria": "- The regression tests pass.",
+    "Testing Expectations": "- Unit tests under tests/tools/.",
+    "Documentation Impact": "Update the tool description rows.",
+    "Out of Scope": "Checkers for other document kinds.",
+    "Dependencies": "N/A: none",
+    "Unresolved Questions": "N/A: none",
+    "AI Implementation Instruction": "Keep the diff scoped to the task.",
+    "Traceability": (
+        "- **Workflow phase**: `issue-creator`\n"
+        "- **Source issue**: N/A: this document is the issue\n"
+        "- **Source requirement**: N/A: no standalone requirement document is generated\n"
+        "- **Source plan**: N/A: not filed from a Plan\n"
+        "- **Source implementation procedure**: N/A: not filed from an implementation\n"
+        "- **Generated at**: 20261117-000000\n"
+        "- **Related target files**: tools/check_workitem_structure.py"
+    ),
+}
+
+
+def _filled_issue() -> str:
+    return "\n".join(
+        f"## {heading}\n{body}\n" for heading, body in _FILLED_ISSUE_SECTIONS.items()
+    )
+
+
+@pytest.fixture
+def issue_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    _install_templates(tmp_path)
+    monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
+    issues = tmp_path / "issues"
+    issues.mkdir(parents=True, exist_ok=True)
+    return issues
+
+
+def test_unfilled_issue_scaffold_is_reported_as_template_leftover(
+    issue_root: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    doc = _write(issue_root, "20260104-000000_issue.md", _issue_scaffold())
+    findings = cwis.collect_single_file_findings(doc)
+    leftovers = [f for f in findings if f["category"] == "template-leftover"]
+    assert leftovers
+    assert all(f["file"] == "issues/20260104-000000_issue.md" for f in leftovers)
+    assert cwis.main(["--file", str(doc)]) == 1
+    assert "verbatim issue-template leftover" in capsys.readouterr().out
+
+
+def test_scaffold_leftovers_name_the_title_and_placeholder_lines(
+    issue_root: Path,
+) -> None:
+    doc = _write(issue_root, "20260104-000001_issue.md", _issue_scaffold())
+    details = [f["detail"] for f in cwis.collect_single_file_findings(doc)]
+    assert any("# <Issue Title>" in d for d in details)
+    assert any("**Generated at**" in d for d in details)
+
+
+def test_filled_issue_has_no_leftover_and_exits_zero(issue_root: Path) -> None:
+    spec = cwis.load_template_specs()["issue"]
+    assert {h.lower() for h in spec.required_headings} == {
+        h.lower() for h in _FILLED_ISSUE_SECTIONS
+    }
+    doc = _write(issue_root, "20260104-000002_issue.md", _filled_issue())
+    assert cwis.collect_single_file_findings(doc) == []
+    assert cwis.main(["--file", str(doc)]) == 0
+
+
+def test_braces_in_the_documents_own_content_are_not_reported(
+    issue_root: Path,
+) -> None:
+    body = _filled_issue() + "\nOwn analysis with {custom} braces and {another} one.\n"
+    doc = _write(issue_root, "20260104-000003_issue.md", body)
+    assert cwis.collect_single_file_findings(doc) == []
+
+
+def test_directory_scan_reports_issue_scaffold_leftover(issue_root: Path) -> None:
+    _write(issue_root, "20260104-000004_issue.md", _issue_scaffold())
+    findings = cwis.collect_findings({"issue"}, include_done=False)
+    assert [f["category"] for f in findings if f["category"] == "template-leftover"]
+    assert all("20260104-000004_issue.md" in f["file"] for f in findings)
+
+
+@pytest.mark.parametrize(
+    ("dir_name", "template_name"),
+    [
+        ("plans", "plan.md"),
+        ("implementations", "implementation-procedure.md"),
+    ],
+)
+def test_plan_and_procedure_skeletons_get_no_leftover_rule(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dir_name: str, template_name: str
+) -> None:
+    """Plans and procedures stay out of the leftover rule (plan UNK-01)."""
+    _install_templates(tmp_path)
+    monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
+    fence = cwis._FENCE_RE.search(
+        (_SRC_ROOT / "templates" / template_name).read_text(encoding="utf-8")
+    )
+    assert fence is not None
+    doc = _write(tmp_path / dir_name, "20260105-000000_doc.md", fence.group(1))
+    findings = cwis.collect_single_file_findings(doc)
+    assert [f for f in findings if f["category"] == "template-leftover"] == []
+
+
+def test_file_flag_accepts_several_paths_and_keeps_single_path_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _install_templates(tmp_path)
+    monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
+    spec = cwis.load_template_specs()["plan"]
+    good = _write(
+        tmp_path / "plans",
+        "good_plan.md",
+        "\n".join(f"## {h}\nbody\n" for h in spec.required_headings),
+    )
+    bad = _write(
+        tmp_path / "plans",
+        "bad_plan.md",
+        "\n".join(
+            f"## {h}\nbody\n" for h in spec.required_headings if h != "Traceability"
+        ),
+    )
+    assert cwis.main(["--file", str(good)]) == 0
+    assert (
+        capsys.readouterr().out == "No findings.\n"
+    )  # single-path output is unchanged
+    assert cwis.main(["--file", str(good), str(bad)]) == 1
+    multi = capsys.readouterr().out
+    assert "bad_plan.md" in multi
+    assert "good_plan.md" not in multi
+    assert cwis.main(["--file", str(good), str(good)]) == 0

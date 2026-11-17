@@ -64,8 +64,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the Step 10.4 snippet | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` | Pending | — | — | |
+| 1 | Replace the Step 10.4 snippet | Completed | 20261117-165610 | 20261117-165610 | mktemp snippet and manual placeholder-search block removed; Step 10.4 names the checker call and the automatic gate/hook run; brace-judgment sentence kept |
+| 2 | Run the documentation checkers named in `routing.md` | Completed | 20261117-165610 | 20261117-165610 | check_skills_references.py and check_skills_heading_cycles.py: no issues; manual read confirms no mktemp block remains |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

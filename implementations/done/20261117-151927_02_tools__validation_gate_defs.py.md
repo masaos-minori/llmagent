@@ -71,9 +71,9 @@ N/A: no new I/O; the module only declares commands.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the gate row and add the sentinel skip in `_checker_id_from_command` | Pending | — | — | |
-| 2 | Tests are added by the seq 08 document | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Edit the gate row and add the sentinel skip in `_checker_id_from_command` | Completed | 20261117-165453 | 20261117-165453 | gate row: --file __CHANGED_FILES__, single-segment patterns; _CHANGED_FILES_SENTINEL skip in _checker_id_from_command; checker_id=check_workitem_structure:--file; requires_context False |
+| 2 | Tests are added by the seq 08 document | Completed | 20261117-165453 | 20261117-165453 | landed with seq 03/04/08 as the drift-consistent pair; 86/86 pass in test_run_validation_gates.py; radon _checker_id_from_command grade unchanged C (16->18, comprehension +2) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-165453 | 20261117-170012 | ruff/mypy/bandit/size gate pass; drift: 45 checkers mapped, 0 errors; full sequence at batch end full batch validation: pytest tests/ 12591 passed 7 skipped; diff-cover no measurable lines (tools/tests/docs only); drift 0 errors; hooks pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

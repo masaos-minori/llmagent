@@ -21,6 +21,7 @@ import pytest
 import yaml
 
 from tools.run_validation_gates import (
+    CHANGED_FILES_SENTINEL,
     COMMIT_ONLY_HOOKS,
     MODE_FAST,
     MODE_FULL,
@@ -31,6 +32,8 @@ from tools.run_validation_gates import (
     Gate,
     _checker_id_from_cell,
     _checker_id_from_command,
+    _expand_changed_files,
+    _parse_routing_run_cells,
     _resolve_argv,
     _split_md_row,
     build_parser,
@@ -181,6 +184,7 @@ _PARITY_GATES = _ADR_GATES | {
     "check_plan_target_overlaps",
     "check_conftest_integrity",
     "check_workitem_traceability",
+    "check_workitem_structure",
 }
 
 
@@ -193,12 +197,24 @@ _PARITY_GATES = _ADR_GATES | {
         ("tools/check_adr_structure.py", _ADR_GATES),
         ("docs/a.md", {"check_known_deviation_sync"}),
         ("docs/sub/a.md", {"check_known_deviation_sync"}),
-        ("plans/p.md", {"check_plan_target_overlaps", "check_workitem_traceability"}),
+        (
+            "plans/p.md",
+            {
+                "check_plan_target_overlaps",
+                "check_workitem_traceability",
+                "check_workitem_structure",
+            },
+        ),
         ("tests/conftest.py", {"check_conftest_integrity"}),
         ("tests/agent/conftest.py", {"check_conftest_integrity"}),
-        ("issues/i.md", {"check_workitem_traceability"}),
+        ("issues/i.md", {"check_workitem_traceability", "check_workitem_structure"}),
+        ("issues/done/i.md", {"check_workitem_traceability"}),
         ("plans/done/p.md", {"check_workitem_traceability"}),
-        ("implementations/i.md", {"check_workitem_traceability"}),
+        (
+            "implementations/i.md",
+            {"check_workitem_traceability", "check_workitem_structure"},
+        ),
+        ("implementations/done/i.md", {"check_workitem_traceability"}),
         ("assets/logo.png", set()),
     ],
 )
@@ -231,6 +247,61 @@ def test_workitem_traceability_gate_id_matches_hook_id() -> None:
     hooks, _ = parse_precommit_hooks(PRECOMMIT_CONFIG.read_text(encoding="utf-8"))
     assert gate.checker_id == "check_workitem_traceability:--active-only"
     assert hooks["workitem-traceability"] == gate.checker_id
+
+
+def _workitem_structure_gate() -> Gate:
+    return next(g for g in ROUTING_GATES if g.name == "check_workitem_structure")
+
+
+def test_workitem_structure_gate_selects_top_level_paths_only() -> None:
+    """Single-segment glob patterns: top-level documents select it, done/ ones do not."""
+    for path in ("issues/i.md", "plans/p.md", "implementations/i.md"):
+        assert "check_workitem_structure" in {
+            g.name for g in select_gates([path], MODE_FAST)
+        }
+    for path in ("issues/done/i.md", "plans/done/p.md", "implementations/done/i.md"):
+        assert "check_workitem_structure" not in {
+            g.name for g in select_gates([path], MODE_FULL)
+        }
+
+
+def test_workitem_structure_gate_expands_sentinel_to_matched_paths() -> None:
+    """The gate command carries the sentinel; expansion replaces it with the matched paths."""
+    gate = _workitem_structure_gate()
+    assert CHANGED_FILES_SENTINEL in gate.command[0]
+    assert gate.requires_context is False  # the sentinel is not a runtime placeholder
+    expanded = _expand_changed_files(gate.command[0], ["issues/i.md", "plans/p.md"])
+    assert expanded == (
+        "uv",
+        "run",
+        "python",
+        "tools/check_workitem_structure.py",
+        "--file",
+        "issues/i.md",
+        "plans/p.md",
+    )
+
+
+def test_workitem_structure_gate_fail_and_pass_via_runner() -> None:
+    """AC-5: the expanded command runs, and a non-zero checker exit is a ``Fail``."""
+    gate = _workitem_structure_gate()
+    assert run_gate(gate, runner=_runner_for(0)).status == "Pass"
+    fail_result = run_gate(gate, changed_files=["issues/i.md"], runner=_runner_for(1))
+    assert fail_result.status == "Fail"
+    assert "exit code 1" in fail_result.detail
+
+
+def test_workitem_structure_id_is_shared_by_gate_routing_cell_and_hook() -> None:
+    """Gate, routing Run cell, and hook all reduce to the same checker id (Decision 6)."""
+    gate = _workitem_structure_gate()
+    assert gate.checker_id == "check_workitem_structure:--file"
+    routing_cell_ids = {
+        _checker_id_from_cell(cell)
+        for cell in _parse_routing_run_cells(ROUTING_MD.read_text(encoding="utf-8"))
+    }
+    assert gate.checker_id in routing_cell_ids
+    hooks, _ = parse_precommit_hooks(PRECOMMIT_CONFIG.read_text(encoding="utf-8"))
+    assert hooks["workitem-structure"] == gate.checker_id
 
 
 def test_full_mode_only_gate_is_absent_from_fast_selection() -> None:

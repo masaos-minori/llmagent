@@ -123,6 +123,11 @@ repos:
         language: system
         pass_filenames: false
         files: ^implementations/done/.*\.md$
+      - id: workitem-structure
+        name: Check structure of changed top-level work item documents
+        entry: uv run python tools/check_workitem_structure.py --file
+        language: system
+        files: ^(issues|plans|implementations)/[^/]+\.md$
       - id: gates-hook-parity
         name: Check validation gates and pre-commit hooks stay in parity
         entry: uv run python -m tools.run_validation_gates drift

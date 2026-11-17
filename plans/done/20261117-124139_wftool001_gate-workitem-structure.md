@@ -179,11 +179,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Checker: multi-path `--file` and issue leftover detection, with tests | In Progress | — | — |  |
-| 2 | Gate table: auto-runnable top-level structure gate, with tests | In Progress | — | — |  |
-| 3 | Pre-commit hook and parity tests | In Progress | — | — |  |
-| 4 | Documentation: issue-creator step, routing row, tool description | In Progress | — | — |  |
-| 5 | Verification: validation sequence, size and drift gates, smoke runs | Pending | — | — |  |
+| 1 | Checker: multi-path `--file` and issue leftover detection, with tests | Completed | — | 20261117-170051 |  |
+| 2 | Gate table: auto-runnable top-level structure gate, with tests | Completed | — | 20261117-170051 |  |
+| 3 | Pre-commit hook and parity tests | Completed | — | 20261117-170051 |  |
+| 4 | Documentation: issue-creator step, routing row, tool description | Completed | — | 20261117-170051 |  |
+| 5 | Verification: validation sequence, size and drift gates, smoke runs | Completed | — | 20261117-170201 | validation sequence run: tools targeted ruff/mypy/bandit, size gate, drift 0 errors (45 checkers), skills reference checkers, tool-descriptions sync, live checker scan (0 findings), full pytest 12591 passed 7 skipped, diff-cover no measurable lines |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -193,13 +193,13 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261117-151927_01_tools_check_workitem_structure.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261117-151927_02_tools__validation_gate_defs.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261117-151927_03_.pre-commit-config.yaml.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261117-151927_04_routing.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261117-151927_05_skills_issue-creator_workflow.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261117-151927_06_tools_TOOL_DESCRIPTIONS.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261117-151927_08_tests_tools_test_run_validation_gates.py.md` | 2, 3 | Procedure | Pending | — | — |
+| `implementations/20261117-151927_01_tools_check_workitem_structure.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261117-151927_02_tools__validation_gate_defs.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261117-151927_03_.pre-commit-config.yaml.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261117-151927_04_routing.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261117-151927_05_skills_issue-creator_workflow.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261117-151927_06_tools_TOOL_DESCRIPTIONS.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261117-151927_08_tests_tools_test_run_validation_gates.py.md` | 2, 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

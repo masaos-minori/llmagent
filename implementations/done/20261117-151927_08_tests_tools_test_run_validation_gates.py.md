@@ -66,8 +66,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the selection, expansion, id, and parity tests | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the selection, expansion, id, and parity tests | Completed | 20261117-165508 | 20261117-165508 | selection/sentinel-expansion/Fail/id-equality tests added; _PARITY_GATES + trigger table extended (top-level and done/ rows) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-165508 | 20261117-170012 | 86/86 in this file; tests/tools 2081 passed, 2 skipped; drift 0 errors; full sequence at batch end full batch validation: pytest tests/ 12591 passed 7 skipped; diff-cover no measurable lines (tools/tests/docs only); drift 0 errors; hooks pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

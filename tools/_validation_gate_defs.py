@@ -67,7 +67,8 @@ def _checker_id_from_command(argv: tuple[str, ...]) -> str:
             break
     if not base:
         return tokens[0] if tokens else ""
-    rest = tokens[base_idx + 1 :]
+    # Runtime marker, not an identity argument: gate/Run-cell/hook ids stay equal.
+    rest = [tok for tok in tokens[base_idx + 1 :] if tok != _CHANGED_FILES_SENTINEL]
     # A value flag (--type/--format/...) consumes the following token as its value; skip
     # those values when looking for a positional subcommand so "--type mcp" is not read as
     # the positional "mcp".
@@ -122,6 +123,9 @@ _BARE_EXCEPT_RULE = (
 
 # Tokens that mark a command as needing a concrete runtime argument.
 _PLACEHOLDER_TOKEN_RE = re.compile(r"[<\[\]]|\.\.\.")
+
+# Placeholder the orchestrator expands to matching changed files at runtime.
+_CHANGED_FILES_SENTINEL = "__CHANGED_FILES__"
 
 
 # argv token that names a tools/<name>.py the gate runs. Unanchored so it matches both
@@ -417,12 +421,12 @@ ROUTING_GATES: tuple[Gate, ...] = (
                 "python",
                 "tools/check_workitem_structure.py",
                 "--file",
-                "<path>",
+                _CHANGED_FILES_SENTINEL,
             ),
         ),
         source=SOURCE_ROUTING,
         mode=MODE_FAST,
-        patterns=("plans/**", "issues/**", "implementations/**"),
+        patterns=("issues/*.md", "plans/*.md", "implementations/*.md"),
     ),
     # Commit-split classifier: `<path>` is a runtime placeholder, so it reports `Not available`.
     Gate(
