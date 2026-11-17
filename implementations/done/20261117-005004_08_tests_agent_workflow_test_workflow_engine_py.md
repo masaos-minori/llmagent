@@ -52,8 +52,8 @@ Other call sites (their own rows).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-094053 | 20261117-094053 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-094053 | 20261117-094053 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

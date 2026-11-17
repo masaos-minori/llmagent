@@ -26,7 +26,7 @@ _VALID = {
         {"id": "execute", "timeout_sec": 120, "retryable": True},
         {"id": "verify", "timeout_sec": 10, "retryable": False},
     ],
-    "retry_policy": {"max_attempts": 3, "retry_wait_sec": 1},
+    "retry_policy": {"max_attempts": 3, "retry_wait_sec": 1, "retry_on": ["exception"]},
 }
 
 
@@ -172,7 +172,11 @@ class TestWorkflowLoaderLoad:
 
     def test_invalid_retry_policy_rejected(self, tmp_path: Path) -> None:
         data = dict(_VALID)
-        data["retry_policy"] = {"max_attempts": 0, "retry_wait_sec": 1}
+        data["retry_policy"] = {
+            "max_attempts": 0,
+            "retry_wait_sec": 1,
+            "retry_on": ["exception"],
+        }
         _write_json(tmp_path, "default", data)
         loader = WorkflowLoader(workflows_dir=tmp_path)
         with pytest.raises(WorkflowLoadError, match="max_attempts must be >= 1"):
@@ -183,6 +187,7 @@ class TestWorkflowLoaderLoad:
         data["retry_policy"] = {
             "max_attempts": 3,
             "retry_wait_sec": -1,
+            "retry_on": ["exception"],
         }
         _write_json(tmp_path, "default", data)
         loader = WorkflowLoader(workflows_dir=tmp_path)
@@ -282,20 +287,33 @@ class TestRetryOn:
             "llm_failure",
         )
 
-    def test_absent_retry_on_key_loads_default(self, tmp_path: Path) -> None:
-        _write_json(tmp_path, "default", _VALID)
+    def test_absent_retry_on_key_is_rejected(self, tmp_path: Path) -> None:
+        """REQ-001: an absent retry_on key is rejected, naming the field."""
+        data = copy.deepcopy(_VALID)
+        del data["retry_policy"]["retry_on"]
+        _write_json(tmp_path, "default", data)
         loader = WorkflowLoader(workflows_dir=tmp_path)
-        assert loader.load().retry_policy.retry_on == ("exception",)
+        with pytest.raises(WorkflowLoadError, match="retry_on"):
+            loader.load()
 
-    def test_older_format_definition_without_retry_on_loads(
+    def test_older_format_definition_without_retry_on_is_rejected(
         self, tmp_path: Path
     ) -> None:
-        """AC-9: a pre-wfretry001 definition (no retry_on key) still loads."""
-        _write_json(tmp_path, "default", _VALID)
+        """AC-9: a pre-wfretry001 definition (no retry_on key) is rejected."""
+        data = copy.deepcopy(_VALID)
+        del data["retry_policy"]["retry_on"]
+        _write_json(tmp_path, "default", data)
         loader = WorkflowLoader(workflows_dir=tmp_path)
-        wdef = loader.load()
-        assert wdef.name == "default"
-        assert wdef.retry_policy.retry_on == ("exception",)
+        with pytest.raises(WorkflowLoadError, match="retry_on"):
+            loader.load()
+
+    def test_empty_retry_on_loads_as_empty_tuple(self, tmp_path: Path) -> None:
+        """Decision 2: an explicit retry_on: [] loads and yields () ("retry nothing")."""
+        data = copy.deepcopy(_VALID)
+        data["retry_policy"]["retry_on"] = []
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        assert loader.load().retry_policy.retry_on == ()
 
     def test_unknown_kind_rejected(self, tmp_path: Path) -> None:
         data = dict(_VALID)

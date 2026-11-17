@@ -59,9 +59,9 @@ Other test files (each its own row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | No new tests; this row only repairs existing call sites. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-093739 | 20261117-093739 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261117-093739 | 20261117-093739 | No new tests; this row only repairs existing call sites. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-093739 | 20261117-093739 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

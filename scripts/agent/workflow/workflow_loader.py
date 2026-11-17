@@ -23,8 +23,8 @@ from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 class _RetryPolicyJson(TypedDict, total=False):
     """JSON representation of a workflow retry policy.
 
-    max_attempts and retry_wait_sec are required at runtime, enforced by
-    _REQUIRED_POLICY_KEYS in _validate; retry_on is optional.
+    max_attempts, retry_wait_sec, and retry_on are required at runtime,
+    enforced by _REQUIRED_POLICY_KEYS in _validate.
     """
 
     max_attempts: int
@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 # config/workflows/ is four parent levels up from this file:
 WORKFLOWS_DIR = resolve_config_dir() / "workflows"
 _REQUIRED_STAGE_KEYS = {"id", "timeout_sec", "retryable"}
-_REQUIRED_POLICY_KEYS = {"max_attempts", "retry_wait_sec"}
+_REQUIRED_POLICY_KEYS = {"max_attempts", "retry_wait_sec", "retry_on"}
 _REQUIRED_STAGES = {"plan", "execute", "verify"}
 
 
@@ -66,14 +66,12 @@ _RETRY_KINDS = frozenset({"exception", "timeout", "llm_failure"})
 
 
 def _validate_retry_on(policy: _RetryPolicyJson) -> tuple[str, ...]:
-    """Validate retry_policy.retry_on and return it as a tuple of kinds.
+    """Validate a present retry_policy.retry_on and return it as a tuple of kinds.
 
-    An absent key returns the default ("exception",). A present key must be a
-    list of strings drawn from _RETRY_KINDS.
+    The key is required (enforced by _REQUIRED_POLICY_KEYS); a present key must be
+    a list of strings drawn from _RETRY_KINDS. An empty list means "retry nothing".
     """
-    raw = policy.get("retry_on")
-    if raw is None:
-        return ("exception",)
+    raw = policy["retry_on"]
     if not isinstance(raw, list) or not all(isinstance(kind, str) for kind in raw):
         raise WorkflowLoadError("retry_policy.retry_on must be a list of strings")
     for kind in raw:

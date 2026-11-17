@@ -131,7 +131,7 @@ All `plan`/`execute`/`verify` stages go through the same retry loop function. St
 - Backoff strategy is currently implemented as "fixed" only: the retry wait is the same delay on every attempt
 - `retry_wait_sec`: Delay between retries
 - `retry_on`: the list of failure kinds that are eligible for retry, drawn from `exception`,
-  `timeout`, and `llm_failure` (shipped default: `["exception"]`). A failure whose kind is not in
+  `timeout`, and `llm_failure`. An empty list means "retry nothing": every failure is terminal. A failure whose kind is not in
   `retry_on` is terminal at once — no retry wait and no further attempt.
 - Every failed attempt consumes one `max_attempts` unit, regardless of its kind.
 - A stage deadline expiry is classified by the deadline's own expired state and persisted with kind
@@ -149,12 +149,12 @@ All `plan`/`execute`/`verify` stages go through the same retry loop function. St
 
 When loading workflow definitions from `config/workflows/*.json`:
 
-- A definition must have a non-empty list of uniquely identified stages, which must include `plan`, `execute`, and `verify`; each stage must be a JSON object and declares `timeout_sec` and `retryable`, with `timeout_sec` an integer of at least 1 and `retryable` a boolean (not a string, number, or null)
+- `name`, `version`, `stages`, and `retry_policy` are all required keys; a definition missing any of them stops loading with a workflow load error that names the field. `stages` must be a non-empty list of uniquely identified stages, which must include `plan`, `execute`, and `verify`; each stage must be a JSON object and declares `timeout_sec` and `retryable`, with `timeout_sec` an integer of at least 1 and `retryable` a boolean (not a string, number, or null). The empty-stages invariant is owned by the model; the loader enforces the non-empty-list requirement at the config path
 - `retry_policy.max_attempts` and `retry_policy.retry_wait_sec` must both be integers, not booleans, floats, or strings, with `max_attempts` at least 1 and `retry_wait_sec` at least 0
-- Each stage must be an object and `retry_policy`, when present, must itself be an object; a stage or `retry_policy` of any other JSON type stops loading with a workflow load error that names the field
+- Each stage must be an object and `retry_policy` must itself be an object; a stage or `retry_policy` of any other JSON type stops loading with a workflow load error that names the field
 - A value that fails this validation stops loading with a workflow load error that names the field and the offending value, so every caller observes the same error type, including the startup preflight `check_workflow_definition`, which reports the refusal as a `RuntimeError` whose `__cause__` is the workflow load error
-- `retry_policy.retry_on`, when present, must be a list of strings drawn from `exception`, `timeout`,
-  and `llm_failure`; an absent key loads the default `["exception"]`
+- `retry_policy.retry_on` is required and must be a list of strings drawn from `exception`, `timeout`,
+  and `llm_failure`; an absent key is rejected
 - The `require_approval` key must not be present: the workflow has no approval stage
 
 See also: the [Workflow Deployment Runbook](agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) for recovery steps when a rule is violated.

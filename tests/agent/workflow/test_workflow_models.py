@@ -4,6 +4,7 @@ Unit tests for agent/workflow/models.py — dataclass construction and WorkflowD
 
 from __future__ import annotations
 
+import pytest
 from agent.workflow.models import (
     ArtifactRef,
     AttemptRecord,
@@ -74,7 +75,7 @@ class TestWorkflowDef:
             StageDefinition(id="execute", timeout_sec=120, retryable=True),
             StageDefinition(id="verify", timeout_sec=10, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=3, retry_wait_sec=1)
+        policy = RetryPolicy(max_attempts=3, retry_wait_sec=1, retry_on=("exception",))
         return WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -90,11 +91,22 @@ class TestWorkflowDef:
         wdef = self._make_wdef()
         assert wdef.get_stage("nonexistent") is None
 
-    def test_default_retry_policy(self) -> None:
-        wdef = WorkflowDef(name="x", version="1.0.0")
-        assert wdef.retry_policy.max_attempts == 3
-        assert wdef.retry_policy.retry_wait_sec == 1
+    def test_retry_on_required(self) -> None:
+        with pytest.raises(TypeError):
+            RetryPolicy(max_attempts=3, retry_wait_sec=1)
 
-    def test_stages_default_empty(self) -> None:
-        wdef = WorkflowDef(name="x", version="1.0.0")
-        assert wdef.stages == []
+    def test_workflow_def_requires_all_three(self) -> None:
+        policy = RetryPolicy(max_attempts=3, retry_wait_sec=1, retry_on=("exception",))
+        stages = [StageDefinition(id="plan", timeout_sec=1, retryable=False)]
+        # All three supplied constructs.
+        WorkflowDef(name="x", version="1.0.0", stages=stages, retry_policy=policy)
+        # Omitting stages or retry_policy raises TypeError.
+        with pytest.raises(TypeError):
+            WorkflowDef(name="x", version="1.0.0", stages=stages)
+        with pytest.raises(TypeError):
+            WorkflowDef(name="x", version="1.0.0", retry_policy=policy)
+
+    def test_empty_stages_raises_assertion(self) -> None:
+        policy = RetryPolicy(max_attempts=3, retry_wait_sec=1, retry_on=("exception",))
+        with pytest.raises(AssertionError):
+            WorkflowDef(name="x", version="1.0.0", stages=[], retry_policy=policy)

@@ -57,8 +57,8 @@ Code/schema/test changes; schema-level `NOT NULL` statements (compat002); other 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) — documentation checkers named above | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-093402 | 20261117-093402 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) — documentation checkers named above | Completed | 20261117-093402 | 20261117-093402 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

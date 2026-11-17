@@ -208,7 +208,9 @@ def _patch_workflow_loader():
                 StageDefinition(id="execute", timeout_sec=60, retryable=True),
                 StageDefinition(id="verify", timeout_sec=60, retryable=False),
             ],
-            retry_policy=RetryPolicy(max_attempts=3, retry_wait_sec=1),
+            retry_policy=RetryPolicy(
+                max_attempts=3, retry_wait_sec=1, retry_on=("exception",)
+            ),
         )
         mock_loader.return_value.load.return_value = _default_wdef
         state_store_cls.return_value.create_task.return_value = mock_task
@@ -435,7 +437,7 @@ class TestHandleTurnInvokesWorkflowEngine:
             StageDefinition(id="execute", timeout_sec=0.01, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=1, retry_wait_sec=0)
+        policy = RetryPolicy(max_attempts=1, retry_wait_sec=0, retry_on=("exception",))
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -533,7 +535,7 @@ class TestHandleTurnInvokesWorkflowEngine:
             StageDefinition(id="execute", timeout_sec=0.01, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=1, retry_wait_sec=0)
+        policy = RetryPolicy(max_attempts=1, retry_wait_sec=0, retry_on=("exception",))
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -634,7 +636,7 @@ class TestExecuteStageRetryRunsTurnEntryOnce:
             StageDefinition(id="execute", timeout_sec=60, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=3, retry_wait_sec=0)
+        policy = RetryPolicy(max_attempts=3, retry_wait_sec=0, retry_on=("exception",))
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -874,7 +876,7 @@ class TestEntryWorkFailureIsNotRetried:
             StageDefinition(id="execute", timeout_sec=60, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=3, retry_wait_sec=0)
+        policy = RetryPolicy(max_attempts=3, retry_wait_sec=0, retry_on=("exception",))
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -982,7 +984,7 @@ class TestEntryWorkOutsideStageTimeout:
             StageDefinition(id="execute", timeout_sec=0.1, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=3, retry_wait_sec=0)
+        policy = RetryPolicy(max_attempts=3, retry_wait_sec=0, retry_on=("exception",))
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -1076,7 +1078,7 @@ class TestEntryWorkOutsideStageTimeout:
             StageDefinition(id="execute", timeout_sec=0.1, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=3, retry_wait_sec=0)
+        policy = RetryPolicy(max_attempts=3, retry_wait_sec=0, retry_on=("exception",))
         orch._workflow_def = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -3284,7 +3286,9 @@ def _status_harness(
         ),
         StageDefinition(id="verify", timeout_sec=5, retryable=False),
     ]
-    policy = RetryPolicy(max_attempts=max_attempts, retry_wait_sec=0)
+    policy = RetryPolicy(
+        max_attempts=max_attempts, retry_wait_sec=0, retry_on=("exception",)
+    )
     wdef = WorkflowDef(
         name="default", version="1.0.0", stages=stages, retry_policy=policy
     )
@@ -4059,7 +4063,9 @@ class TestTurnLevelPersistenceFailureRealFlow:
             db, monkeypatch, [{"role": "user", "content": "before"}], MagicMock()
         )
         on_error = orch._on_error
-        orch._workflow_def.retry_policy = RetryPolicy(max_attempts=3, retry_wait_sec=0)
+        orch._workflow_def.retry_policy = RetryPolicy(
+            max_attempts=3, retry_wait_sec=0, retry_on=("exception",)
+        )
         monkeypatch.setattr(
             orch._workflow_adapter,
             "_workflow_engine",
@@ -4107,7 +4113,9 @@ class TestTurnLevelPersistenceFailureRealFlow:
             db, monkeypatch, [{"role": "user", "content": "before"}], MagicMock()
         )
         on_error = orch._on_error
-        orch._workflow_def.retry_policy = RetryPolicy(max_attempts=3, retry_wait_sec=0)
+        orch._workflow_def.retry_policy = RetryPolicy(
+            max_attempts=3, retry_wait_sec=0, retry_on=("exception",)
+        )
         monkeypatch.setattr(
             orch._workflow_adapter,
             "_workflow_engine",

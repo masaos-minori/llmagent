@@ -6,7 +6,7 @@ Dataclasses for the Metadata DB entities and workflow definition schema.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 # Status vocabularies for the workflow state tables, mirroring the CHECK
 # constraints in the DDL (db/schema_sql.py). The writers in task_ops,
@@ -77,7 +77,7 @@ class RetryPolicy:
 
     max_attempts: int
     retry_wait_sec: int
-    retry_on: tuple[str, ...] = ("exception",)
+    retry_on: tuple[str, ...]
 
 
 @dataclass
@@ -86,10 +86,12 @@ class WorkflowDef:
 
     name: str
     version: str
-    stages: list[StageDefinition] = field(default_factory=list)
-    retry_policy: RetryPolicy = field(
-        default_factory=lambda: RetryPolicy(max_attempts=3, retry_wait_sec=1)
-    )
+    stages: list[StageDefinition]
+    retry_policy: RetryPolicy
+
+    def __post_init__(self) -> None:
+        """Reject a definition with no stages."""
+        assert self.stages, "WorkflowDef requires at least one stage"  # nosec B101 — model contract invariant; loader supplies stages
 
     def get_stage(self, stage_id: str) -> StageDefinition | None:
         """Return the StageDefinition for the given id, or None."""

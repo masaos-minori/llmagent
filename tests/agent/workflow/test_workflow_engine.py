@@ -47,7 +47,11 @@ def _make_wdef(max_attempts: int = 3, retry_wait_sec: int = 0) -> WorkflowDef:
         StageDefinition(id="execute", timeout_sec=5, retryable=True),
         StageDefinition(id="verify", timeout_sec=5, retryable=False),
     ]
-    policy = RetryPolicy(max_attempts=max_attempts, retry_wait_sec=retry_wait_sec)
+    policy = RetryPolicy(
+        max_attempts=max_attempts,
+        retry_wait_sec=retry_wait_sec,
+        retry_on=("exception",),
+    )
     return WorkflowDef(
         name="default",
         version="1.0.0",
@@ -274,7 +278,7 @@ class TestWorkflowEngineTimeout:
             StageDefinition(id="execute", timeout_sec=1, retryable=True),
             StageDefinition(id="verify", timeout_sec=5, retryable=False),
         ]
-        policy = RetryPolicy(max_attempts=1, retry_wait_sec=0)
+        policy = RetryPolicy(max_attempts=1, retry_wait_sec=0, retry_on=("exception",))
         wdef = WorkflowDef(
             name="default", version="1.0.0", stages=stages, retry_policy=policy
         )
@@ -844,7 +848,9 @@ class TestEngineFacadeRouting:
                 StageDefinition(id="execute", timeout_sec=5, retryable=False),
                 StageDefinition(id="verify", timeout_sec=5, retryable=False),
             ],
-            retry_policy=RetryPolicy(max_attempts=3, retry_wait_sec=0),
+            retry_policy=RetryPolicy(
+                max_attempts=3, retry_wait_sec=0, retry_on=("exception",)
+            ),
         )
 
     @pytest.mark.asyncio
