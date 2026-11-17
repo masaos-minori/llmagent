@@ -173,6 +173,29 @@ class TestCheckDedup:
         call_args = ctx.diagnostics.save.call_args
         assert call_args[0][1] == "guard_hint"
 
+    def test_zero_repeats_disables_dedup_and_leaves_seen_empty(self) -> None:
+        """REQ-001: tool_dedup_max_repeats <= 0 disables dedup. check_dedup
+        returns None without touching seen_calls, mirroring the sibling guards.
+        The production validator forbids <= 0, so assign the field directly to
+        exercise the guard's defensive disable path on a real ToolConfig."""
+        ctx = _make_ctx()
+        ctx.cfg.tool.tool_dedup_max_repeats = 0
+        guard = ToolLoopGuard(ctx)
+        seen: dict[str, int] = {}
+        result = guard.check_dedup(seen, _msg("tool_a", "tool_a"))
+        assert result is None
+        assert seen == {}
+
+    def test_negative_repeats_disables_dedup(self) -> None:
+        """A negative limit also disables dedup (returns None, seen_calls empty)."""
+        ctx = _make_ctx()
+        ctx.cfg.tool.tool_dedup_max_repeats = -1
+        guard = ToolLoopGuard(ctx)
+        seen: dict[str, int] = {}
+        result = guard.check_dedup(seen, _msg("tool_a"))
+        assert result is None
+        assert seen == {}
+
 
 class TestCheckRetry:
     def test_retry_max_zero_disabled(self) -> None:

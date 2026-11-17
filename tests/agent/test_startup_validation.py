@@ -50,15 +50,17 @@ async def _run_check_services(
     *,
     wait_for_side_effect: BaseException | None = None,
     mcp_servers: dict[str, object] | None = None,
+    discovery_findings: list[Any] | None = None,
 ) -> StartupValidationResult:
     """Run the real check_services() with every other check mocked to a clean pass."""
     ctx = _make_ctx()
     if mcp_servers is not None:
         ctx.cfg.mcp.mcp_servers = mcp_servers
+    findings = [] if discovery_findings is None else discovery_findings
     discovery = MagicMock(
         return_value=MagicMock(
             discover_all=AsyncMock(
-                return_value=MagicMock(registry=None, findings=[], unreachable=[])
+                return_value=MagicMock(registry=None, findings=findings, unreachable=[])
             )
         )
     )
@@ -317,6 +319,43 @@ class TestRagConsistencyTimeout:
         assert category in warned[0].message
         assert type(exc).__name__ in warned[0].message
         assert not result.has_fatal
+
+
+class TestToolDiscoveryFatalSkipsRagCheck:
+    """REQ-001/REQ-003: a tool-discovery FATAL returns before the RAG check."""
+
+    @pytest.mark.asyncio
+    async def test_tool_discovery_fatal_skips_rag_check(self) -> None:
+        """A FATAL discovery finding records an mcp_tool_discovery FATAL, sets
+        has_fatal, and skips the RAG check entirely (service not called, no
+        rag_consistency outcome)."""
+        rag_service = MagicMock()
+        fatal = MagicMock(
+            status=StartupCheckStatus.FATAL, message="tool discovery failed"
+        )
+        result = await _run_check_services(rag_service, discovery_findings=[fatal])
+
+        fatals = [o for o in result.outcomes if o.source == "mcp_tool_discovery"]
+        assert fatals
+        assert result.has_fatal
+        assert not [o for o in result.outcomes if o.source == "rag_consistency"]
+        rag_service.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_tool_discovery_warning_only_still_runs_rag_check(self) -> None:
+        """A warning-only discovery path records no FATAL and still runs the RAG
+        check (the service is called and a rag_consistency outcome is produced)."""
+        rag_service = MagicMock()
+        rag_service.consistency.return_value = MagicMock(is_consistent=True, issues=[])
+        warning = MagicMock(
+            status=StartupCheckStatus.WARNING, message="tool discovery warning"
+        )
+        result = await _run_check_services(rag_service, discovery_findings=[warning])
+
+        assert not result.has_fatal
+        warned = [o for o in result.outcomes if o.source == "rag_consistency"]
+        assert warned
+        rag_service.consistency.assert_called()
 
 
 @pytest.mark.asyncio
