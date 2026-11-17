@@ -80,9 +80,9 @@ Changing retry semantics, retry kinds, or `max_attempts`/`retry_wait_sec` handli
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-092806 | 20261117-092806 | Implementation applied. Static validation passed (ruff format/check, mypy, lint-imports, bandit). ~14 test-call-site failures across batch-owned companion test files (seq 04-09) are expected; resolved by those companion procedures; full-suite validated once at batch end. |
 | 2 | Add or update tests per Validation plan | Pending | — | — | Covered by `tests/agent/workflow/test_workflow_models.py` (seq 05). |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs handled by seq 03. |
 
 ### Blocker Log
