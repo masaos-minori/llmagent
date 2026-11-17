@@ -35,7 +35,12 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from tools._compat_leftover_phrases import check_leftover_phrases, python_nodes
+from tools._compat_leftover_phrases import (
+    check_contract_guards,
+    check_leftover_phrases,
+    check_mcp_health_reexport_import,
+    python_nodes,
+)
 
 # Patterns that should not appear in active source code or docs
 COMPAT_PATTERNS = {
@@ -489,34 +494,6 @@ def _is_historical_context(lines: list[str], line_idx: int) -> bool:
     return False
 
 
-_MCP_HEALTH_REEXPORT_NAMES = frozenset(
-    {
-        "McpServerHealthRegistry",
-        "McpServerHealthState",
-        "MCPHealthSnapshot",  # pre-rename name
-        "ServerHealthState",  # pre-rename name
-        "classify_server_failure",  # pre-rename name
-    }
-)
-
-
-def check_mcp_health_reexport_import(content: str, filepath: Path) -> list[str]:
-    """Flag an import of a Health name from the removed shared.mcp_config re-export."""
-    if filepath.suffix != ".py":
-        return []
-    issues: list[str] = []
-    for node in python_nodes(content):
-        if isinstance(node, ast.ImportFrom) and node.module == "shared.mcp_config":
-            for alias in node.names:
-                if alias.name in _MCP_HEALTH_REEXPORT_NAMES:
-                    issues.append(
-                        f"{filepath}:{node.lineno}: Health name imported from the "
-                        f"removed shared.mcp_config re-export path — import "
-                        f"'{alias.name}' from shared.mcp_health instead"
-                    )
-    return issues
-
-
 def check_gateless_discovery_construction(content: str, filepath: Path) -> list[str]:
     """Flag a McpToolDiscoveryService construction that omits posture_gates."""
     if filepath.suffix != ".py":
@@ -659,10 +636,17 @@ def check_all(
     (CI and pre-commit).
 
     Two syntax-tree rules are always on: a Health-name import from the removed
-    `shared.mcp_config` re-export, and a `McpToolDiscoveryService` construction
-    without `posture_gates`. Eleven path-scoped leftover phrases from
-    `tools._compat_leftover_phrases` are always on too; re-adding any phrase in
-    its scope makes `main()` exit non-zero by default.
+    `shared.mcp_config` re-export (helper-supplied), and a
+    `McpToolDiscoveryService` construction without `posture_gates`. The
+    compat004 contract guards dispatched through the helper's
+    `check_contract_guards` are always on too: reintroduced defaults on
+    `RetryPolicy.retry_on` / `WorkflowDef.stages` / `WorkflowDef.retry_policy`,
+    an optional or defaulted `lease_duration_sec` in `begin_stage_if_new`,
+    nullable `owner_id` / `lease_expires_at` in the canonical `attempts` DDL,
+    and current-tense `legacy age threshold` wording in `docs/` outside the
+    `removed`/`historical`/`withdrawn` allowance. Eleven path-scoped leftover
+    phrases from `tools._compat_leftover_phrases` are always on too; re-adding
+    any phrase in its scope makes `main()` exit non-zero by default.
     """
     if is_allowlisted(filepath, allowlist):
         return []
@@ -672,6 +656,7 @@ def check_all(
     issues += check_leftover_phrases(content, filepath, allowlist)
     issues += check_mcp_health_reexport_import(content, filepath)
     issues += check_gateless_discovery_construction(content, filepath)
+    issues += check_contract_guards(content, filepath)
     if include_removed_names:
         issues += check_removed_name_reintroduction(content, filepath)
     return issues

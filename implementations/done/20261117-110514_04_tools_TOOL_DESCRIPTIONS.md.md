@@ -61,10 +61,10 @@ N/A: documentation-only change; no code surface.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Gated: only meaningful after procedure 02's wiring lands (compat002 gate) |
-| 2 | Add or update tests per Validation plan | N/A | — | — | Existing sync test covers this |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Blocked | — | — | check_tool_descriptions_sync.py after procedure 02 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | This document is the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117 | 20261117 | compat002 gate cleared 20261117 (commit `3bc1efd58`); ship in the same change as procedure 02's wiring four rows updated in the same change as procedure 02 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261117-120000 | Existing sync test covers this |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117 | 20261117 | `check_tool_descriptions_sync.py` runs in the same change as procedure 02 check_tool_descriptions_sync.py exits 0; sync test 3 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261117-120000 | This document is the documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

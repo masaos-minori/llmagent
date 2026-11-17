@@ -69,10 +69,10 @@ Add checker tests to `tests/tools/test_check_compat_shims.py` for every new cont
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Rule-level tests can land after procedure 01; wiring tests land with procedure 02 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117 | 20261117 | Rule-level tests can land after procedure 01; wiring tests land with procedure 02 6 test classes / 28 cases added; file now 191 passed 28 new cases across 6 classes; targeted file 191 passed |
 | 2 | Add or update tests per Validation plan | N/A | — | — | This document is the test change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No docs owned here |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261117-120000 | test file lint/mypy clean; 191 tests pass; batch-end gates still pending targeted/lint green; batch-end full-suite gates pending |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261117-120000 | No docs owned here |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -2,7 +2,7 @@
 Wire the new contract guards into `check_all` in `tools/check_compat_shims.py` as always-on rules, keeping the file at or below its 36235 B baseline ceiling by extracting the existing `check_mcp_health_reexport_import` AST rule into the helper first (`UNK-04`), and keep the `db.store` / `eventbus.db` prohibitions unchanged (`REQ-001`–`REQ-005`).
 
 ## Scope
-**Release unit**: N/A: not part of a release unit — but this document is landing-gated: its wiring MUST NOT be implemented before the compat002 source changes (`implementations/20261117-011632_*`) are implemented, because `REQ-002`/`REQ-003`/`REQ-004` findings against `scripts/agent/workflow/idempotency_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/db/schema_sql.py`, and `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` would then fail the live `check_compat_shims` run, the CI `backward-compat-check` job, and the `test_no_compatibility_policy_gate.py` repo-scan gate. `REQ-001` is not gated (compat001 already landed).
+**Release unit**: N/A: not part of a release unit — this document is landing-gated: its wiring MUST NOT be implemented before the compat002 source changes (`implementations/20261117-011632_*`) are implemented, because `REQ-002`/`REQ-003`/`REQ-004` findings against `scripts/agent/workflow/idempotency_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/db/schema_sql.py`, and `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` would then fail the live `check_compat_shims` run, the CI `backward-compat-check` job, and the `test_no_compatibility_policy_gate.py` repo-scan gate. `REQ-001` is not gated (compat001 already landed). Gate status verified 20261117: the compat002 source has landed via commit `3bc1efd58` (`schema_sql.py:192-193` NOT NULL; required `lease_duration_sec: int` at `idempotency_ops.py:41` / `state_store.py:117`; zero current-tense `legacy age threshold` matches under `docs/`), so the gate is cleared.
 
 - `tools/check_compat_shims.py`: extraction of one existing AST rule into the helper, one new `check_all` call line, and a concise docstring update.
 
@@ -40,7 +40,7 @@ Wire the new contract guards into `check_all` in `tools/check_compat_shims.py` a
 
 ### Details
 - Expected byte math: removal ≈ 1000 B; additions (import names, one call line, docstring paragraph) ≈ 300 B; net shrink, final file under 36235 B and the tightened baseline records the new lower size.
-- `tests/tools/test_compat_checker_precompiled.py` mirrors `COMPAT_PATTERNS`/`ADR_PROHIBITED_PATTERNS` tables only; the extracted rule is not a table mirror, so that test is unaffected.
+- `tests/tools/test_compat_checker_precompiled.py` tests the shared `python_nodes` parse and mirrors the precompiled `COMPAT_PATTERNS`/`ADR_PROHIBITED_PATTERNS` tables; the extracted rule affects neither, so that test is unaffected.
 - Post-wiring live scan must report zero findings: `REQ-001` passes today; `REQ-002`/`REQ-003`/`REQ-004` pass only because compat002's source landed (step 1 gate).
 
 ## Compatibility considerations
@@ -74,15 +74,15 @@ Wire the new contract guards into `check_all` in `tools/check_compat_shims.py` a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated on compat002 source landing (procedure step 1 gate); procedure 01 must land first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests owned by procedure 03; live-tree assertions valid only after the gate clears |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Includes `check_module_size.py --scripts-dir tools`; the improved `check_compat_shims.py` baseline row is re-recorded downward with `--update-baseline` (tool data, not a design target) |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | `tools/TOOL_DESCRIPTIONS.md` update owned by procedure 04, same change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117 | 20261117 | compat002 gate cleared 20261117 (commit `3bc1efd58`, verified); procedure 01 must land first re-export rule moved to helper, check_contract_guards wired, checker 36235->35828 B, baseline tightened |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261117-120000 | Tests owned by procedure 03; live-tree assertions valid only after the gate clears tests shipped by procedure 03: 28 cases in tests/tools/test_check_compat_shims.py, targeted run 191 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261117-120000 | Includes `check_module_size.py --scripts-dir tools`; the improved `check_compat_shims.py` baseline row is re-recorded downward with `--update-baseline` (tool data, not a design target) checker tests 181 passed, live scan 0 findings, lint/mypy/bandit(CI flags) clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261117-120000 | `tools/TOOL_DESCRIPTIONS.md` update owned by procedure 04, same change procedure 04 rows shipped in the same change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Wiring fails the live scan until `implementations/20261117-011632_*` (compat002) is implemented | No | — |
+| 1 | Wiring fails the live scan until `implementations/20261117-011632_*` (compat002) is implemented | Yes | 20261117 — compat002 source landed via commit `3bc1efd58`; end state verified in current source |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

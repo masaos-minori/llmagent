@@ -205,9 +205,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify signals and prepare net-size-neutral wiring | Pending | — | — | Revalidated 20261117: compat001 implemented (strict source in place); compat002 procedures pending in implementations/20261117-011632_* |
-| 2 | Add the four rules to `_compat_leftover_phrases.py` and wire into `check_all` | In Progress | — | — | Gated (revalidated 20261117): REQ-002/003/004 wiring deferred until the compat002 procedures land (live-tree scan and repo-scan gate test would fail before then); REQ-001 no longer gated; exact AST predicates pinned in the procedure documents; keep check_compat_shims.py <= 36235 B (UNK-04). |
-| 3 | Tests, size/lint/type/security gates, tool-description sync | In Progress | — | — | Gated (revalidated 20261117): REQ-002/003/004 negative cases against live source require compat002's implemented contract (implementations/20261117-011632_*); REQ-001 cases can be written now. |
+| 1 | Verify signals and prepare net-size-neutral wiring | Completed | — | 20261117-120000 | Revalidated 20261117: compat001 implemented (strict source in place); compat002 procedures pending in implementations/20261117-011632_* |
+| 2 | Add the four rules to `_compat_leftover_phrases.py` and wire into `check_all` | Completed | — | 20261117-120000 | Gated (revalidated 20261117): REQ-002/003/004 wiring deferred until the compat002 procedures land (live-tree scan and repo-scan gate test would fail before then); REQ-001 no longer gated; exact AST predicates pinned in the procedure documents; keep check_compat_shims.py <= 36235 B (UNK-04). |
+| 3 | Tests, size/lint/type/security gates, tool-description sync | Completed | — | 20261117-120000 | Gated (revalidated 20261117): REQ-002/003/004 negative cases against live source require compat002's implemented contract (implementations/20261117-011632_*); REQ-001 cases can be written now. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

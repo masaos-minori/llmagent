@@ -13,7 +13,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from tools._compat_leftover_phrases import LEFTOVER_PHRASES
+from tools._compat_leftover_phrases import (
+    LEFTOVER_PHRASES,
+    check_attempts_ddl_nullability,
+    check_dataclass_field_defaults,
+    check_historical_doc_phrases,
+    check_optional_guarded_params,
+)
 from tools.check_compat_shims import (
     _HISTORICAL_CONTEXT_MARKERS,
     ADR_PROHIBITED_PATTERNS,
@@ -1142,3 +1148,207 @@ class TestNewAstRulesWiring:
         content = "with pytest.raises(TypeError):\n    McpToolDiscoveryService(ctx)\n"
         path = Path("tests/agent/services/test_mcp_tool_discovery_posture_gate.py")
         assert check_all(content, path, allowlist={path}) == []
+
+
+class TestContractDataclassDefaults:
+    """REQ-001 (compat004): a reintroduced default on a guarded dataclass field fails."""
+
+    def _issues(self, source: str) -> list[str]:
+        return check_dataclass_field_defaults(source, Path("scripts/test.py"))
+
+    def test_retry_on_default_fails(self) -> None:
+        source = "class RetryPolicy:\n    retry_on: list = []\n"
+        assert any("RetryPolicy.retry_on" in i for i in self._issues(source))
+
+    def test_stages_default_factory_fails(self) -> None:
+        source = (
+            "from dataclasses import dataclass, field\n"
+            "class WorkflowDef:\n    stages: list = field(default_factory=list)\n"
+        )
+        assert any("WorkflowDef.stages" in i for i in self._issues(source))
+
+    def test_retry_policy_default_fails(self) -> None:
+        source = (
+            "class WorkflowDef:\n    retry_policy: dict = field(default_factory=dict)\n"
+        )
+        assert any("WorkflowDef.retry_policy" in i for i in self._issues(source))
+
+    def test_field_kwarg_default_fails(self) -> None:
+        source = "class RetryPolicy:\n    retry_on: list = field(default=())\n"
+        assert any("RetryPolicy.retry_on" in i for i in self._issues(source))
+
+    def test_default_free_contract_passes(self) -> None:
+        source = (
+            "class RetryPolicy:\n    retry_on: list\n"
+            "class WorkflowDef:\n    stages: list\n    retry_policy: dict\n"
+        )
+        assert self._issues(source) == []
+
+    def test_live_models_source_has_no_findings(self) -> None:
+        """Negative case against the real strict contract (read, not written)."""
+        models = ROOT_DIR / "scripts" / "agent" / "workflow" / "models.py"
+        assert (
+            check_dataclass_field_defaults(models.read_text(encoding="utf-8"), models)
+            == []
+        )
+
+
+class TestContractLeaseParam:
+    """REQ-002 (compat004): begin_stage_if_new must keep lease_duration_sec required."""
+
+    def _issues(self, source: str) -> list[str]:
+        return check_optional_guarded_params(source, Path("scripts/test.py"))
+
+    def test_defaulted_lease_param_fails(self) -> None:
+        source = "def begin_stage_if_new(task_id, lease_duration_sec: int = 30): ...\n"
+        assert any("lease_duration_sec" in i for i in self._issues(source))
+
+    def test_optional_annotation_lease_param_fails(self) -> None:
+        source = "def begin_stage_if_new(task_id, lease_duration_sec: int | None = None): ...\n"
+        assert any("lease_duration_sec" in i for i in self._issues(source))
+
+    def test_kwonly_defaulted_lease_param_fails(self) -> None:
+        source = "def begin_stage_if_new(task_id, *, lease_duration_sec=30): ...\n"
+        assert any("lease_duration_sec" in i for i in self._issues(source))
+
+    def test_required_lease_param_passes(self) -> None:
+        source = "def begin_stage_if_new(task_id, lease_duration_sec: int): ...\n"
+        assert self._issues(source) == []
+
+
+class TestContractAttemptsDdl:
+    """REQ-003 (compat004): the canonical attempts DDL must stay NOT NULL."""
+
+    def _issues(self, source: str) -> list[str]:
+        return check_attempts_ddl_nullability(source, Path("scripts/test.py"))
+
+    def test_nullable_owner_id_column_fails(self) -> None:
+        source = (
+            "CREATE TABLE IF NOT EXISTS attempts (\n"
+            "    attempt_id TEXT PRIMARY KEY,\n"
+            "    owner_id TEXT,\n"
+            "    lease_expires_at TEXT NOT NULL\n"
+            ");\n"
+        )
+        assert any("attempts.owner_id" in i for i in self._issues(source))
+
+    def test_nullable_lease_expires_at_column_fails(self) -> None:
+        source = (
+            "CREATE TABLE IF NOT EXISTS attempts (\n"
+            "    attempt_id TEXT PRIMARY KEY,\n"
+            "    owner_id TEXT NOT NULL,\n"
+            "    lease_expires_at TEXT\n"
+            ");\n"
+        )
+        assert any("attempts.lease_expires_at" in i for i in self._issues(source))
+
+    def test_not_null_columns_pass(self) -> None:
+        source = (
+            "CREATE TABLE IF NOT EXISTS attempts (\n"
+            "    attempt_id TEXT PRIMARY KEY,\n"
+            "    owner_id TEXT NOT NULL CHECK (length(owner_id) > 0),\n"
+            "    lease_expires_at TEXT NOT NULL\n"
+            ");\n"
+        )
+        assert self._issues(source) == []
+
+    def test_other_tables_not_scanned(self) -> None:
+        source = "CREATE TABLE other_table (\n    owner_id TEXT,\n    lease_expires_at TEXT\n);\n"
+        assert self._issues(source) == []
+
+
+class TestContractHistoricalDocPhrase:
+    """REQ-004 (compat004): current-tense age-threshold wording fails unless
+    marked removed/historical/withdrawn within the lookback window."""
+
+    _PHRASE = (
+        "legacy age threshold"  # split-built below keeps no full literal in source
+    )
+
+    def _doc(self, tmp_path: Path, text: str) -> Path:
+        docs = tmp_path / "docs"
+        docs.mkdir(parents=True, exist_ok=True)
+        doc = docs / "x.md"
+        doc.write_text(text, encoding="utf-8")
+        return doc
+
+    def test_current_tense_age_threshold_fails(self, tmp_path: Path) -> None:
+        phrase = "legacy age" + " threshold"
+        doc = self._doc(tmp_path, f"# Ops\nThe {phrase} applies to old rows.\n")
+        issues = check_historical_doc_phrases(doc.read_text(encoding="utf-8"), doc)
+        assert any(self._PHRASE in i for i in issues)
+
+    @pytest.mark.parametrize("marker", ["removed", "historical", "withdrawn"])
+    def test_marker_on_the_line_allowed(self, tmp_path: Path, marker: str) -> None:
+        phrase = "legacy age" + " threshold"
+        doc = self._doc(tmp_path, f"The {phrase} claim is marked {marker}.\n")
+        assert check_historical_doc_phrases(doc.read_text(encoding="utf-8"), doc) == []
+
+    @pytest.mark.parametrize("marker", ["removed", "historical", "withdrawn"])
+    def test_marker_in_preceding_line_allowed(
+        self, tmp_path: Path, marker: str
+    ) -> None:
+        phrase = "legacy age" + " threshold"
+        doc = self._doc(
+            tmp_path, f"This section is {marker}.\nmore lines\nThe {phrase}.\n"
+        )
+        assert check_historical_doc_phrases(doc.read_text(encoding="utf-8"), doc) == []
+
+    def test_age_threshold_outside_docs_scope_passes(self, tmp_path: Path) -> None:
+        phrase = "legacy age" + " threshold"
+        scripts = tmp_path / "scripts"
+        scripts.mkdir(parents=True, exist_ok=True)
+        src = scripts / "x.md"
+        src.write_text(f"mention of {phrase} outside docs/\n", encoding="utf-8")
+        assert check_historical_doc_phrases(src.read_text(encoding="utf-8"), src) == []
+
+
+class TestRemovedStoreImportsStillFlagged:
+    """REQ-005 (compat004): the db.store / eventbus.db prohibitions are unchanged."""
+
+    def test_db_store_import_still_flagged(self) -> None:
+        content = "from db.store import Store\n"
+        issues = check_all(content, Path("scripts/test.py"), allowlist=set())
+        assert any("from db.store import" in i for i in issues)
+
+    def test_eventbus_db_import_still_flagged(self) -> None:
+        content = "from eventbus.db import Bus\nimport eventbus.db\n"
+        issues = check_all(content, Path("scripts/test.py"), allowlist=set())
+        assert any("from eventbus.db import" in i for i in issues)
+        assert any("import eventbus.db" in i for i in issues)
+
+
+class TestContractGuardsWiring:
+    """Procedure 02 wiring: check_all runs every contract guard always-on, with no
+    flag and an explicitly empty allowlist (an accidental widening would fail)."""
+
+    def test_check_all_flags_reintroduced_dataclass_default(self) -> None:
+        content = "class RetryPolicy:\n    retry_on: list = []\n"
+        issues = check_all(content, Path("scripts/test.py"), allowlist=set())
+        assert any("reintroduced default on RetryPolicy.retry_on" in i for i in issues)
+
+    def test_check_all_flags_defaulted_lease_param(self) -> None:
+        content = "def begin_stage_if_new(task_id, lease_duration_sec: int = 30): ...\n"
+        issues = check_all(content, Path("scripts/test.py"), allowlist=set())
+        assert any("lease_duration_sec" in i for i in issues)
+
+    def test_check_all_flags_nullable_attempts_column(self) -> None:
+        content = (
+            "CREATE TABLE IF NOT EXISTS attempts (\n"
+            "    attempt_id TEXT PRIMARY KEY,\n"
+            "    owner_id TEXT\n"
+            ");\n"
+        )
+        issues = check_all(content, Path("scripts/test.py"), allowlist=set())
+        assert any("nullable attempts.owner_id column" in i for i in issues)
+
+    def test_check_all_flags_current_tense_age_threshold_doc(
+        self, tmp_path: Path
+    ) -> None:
+        phrase = "legacy age" + " threshold"
+        docs = tmp_path / "docs"
+        docs.mkdir(parents=True, exist_ok=True)
+        doc = docs / "x.md"
+        doc.write_text(f"The {phrase} applies.\n", encoding="utf-8")
+        issues = check_all(doc.read_text(encoding="utf-8"), doc, allowlist=set())
+        assert any(phrase in i for i in issues)
