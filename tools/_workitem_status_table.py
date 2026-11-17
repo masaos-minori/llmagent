@@ -3,6 +3,7 @@
 Execution Status table logic of tools/manage_workitem_stage.py: parsing the
 `### Execution Status` table of a work item, rendering its rows, and rewriting the
 status of a row. Not a CLI; tools/manage_workitem_stage.py re-exports the public names.
+`COMPLETED_STATUS` is the completed-status name every status writer imports.
 """
 
 from __future__ import annotations
@@ -294,9 +295,12 @@ def build_data_row_line(header: list[str], cells: list[str]) -> str:
 
 EXECUTION_STATUS_HEADING = "### Execution Status"
 
+# The completed status every status writer imports; the vocabulary below contains it
+# by construction, so a writer cannot emit a status the parsers reject.
+COMPLETED_STATUS = "Completed"
 
 _VALID_STATUSES = frozenset(
-    {"Pending", "In Progress", "Blocked", "Completed", "Superseded"}
+    {"Pending", "In Progress", "Blocked", COMPLETED_STATUS, "Superseded"}
 )
 # Alias mapping: camelCase / snake_case variants → canonical status string
 _STATUS_ALIASES = {
