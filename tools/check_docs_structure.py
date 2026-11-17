@@ -138,7 +138,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # scope. 911c69459 (bounded artifact retention sweeps) and 37651b04c (drill archive
     # failures record) grew the file 26156 -> 27083 after bca9ec63f recorded the ceiling;
     # the ceiling is re-recorded to the accepted size. Any further growth fails.
-    "db_07_api_and_operations-recovery-and-reference.md": 27083,
+    # Re-accepted 27995 (2026-11-17): compat003 procedure 20261117-020145_03 (REQ-001/REQ-005)
+    # removed the §9.7 legacy age-threshold clause and added the §11 workflow verification,
+    # no-migration, and release-rollback bullets; the ceiling equals the accepted size, so
+    # further growth fails.
+    "db_07_api_and_operations-recovery-and-reference.md": 27995,
     # Re-accepted 25553 (2026-11-15): dbreview004 added the MISSING enum member, the
     # missing-file diagnosis bullet, the probe-semantics bullet, and the
     # missing_database/active_db_state="missing" result-contract additions.

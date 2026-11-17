@@ -6,12 +6,13 @@ Move the age-rule removal history into `adr_02_02_001_agent-workflow-engine-mand
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- `REQ-006` matches current committed source: the ADR-001 INV-07 already states the full current lease contract (an Attempt is interrupted when its lease has expired, not by wall-clock age; `recover_stale_attempts()` recovers only lease-expired rows — `adr_02_02_001:70,172`; `state_store.py:365-419`). The age-rule removal was committed by adrrev005 (`issues/done/20261109-112715_adrrev005_schema-fingerprint-unify.md:43`).
-- The Known Deviations section currently reads "Not applicable" (`adr_02_02_001:229-231`); adding marked, non-normative history is appropriate there.
+- `REQ-006` matches current committed source: the ADR-001 INV-07 already states the full current lease contract (an Attempt is interrupted when its lease has expired, not by wall-clock age; `recover_stale_attempts()` recovers only lease-expired rows — `adr_02_02_001:70,172`; `state_store.py:365-419`). The age-rule removal was committed by adrrev005 (`issues/done/20261109-112715_adrrev005_schema-fingerprint-unify.md`; recorded in code as the `_classify_running_attempts()` / `recover_stale_attempts()` docstrings at `state_store.py:230-231,369-370`).
+- The Known Deviations section currently reads "Not applicable" (`adr_02_02_001:229-231`).
 - Adding a Known Deviations entry triggers the ADR checkers in `routing.md` (see Validation plan).
+- **BLOCKED (adversarial verification 20261117): the planned edit conflicts with two enforced governance rules and must not be implemented as written.** (a) `check_known_deviation_sync.py` (rule GV-022, pre-commit blocking): a top-level Known Deviations bullet must cite a canonical Known Issue ledger ID (`docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1) — a history note has no such ID (ERROR) — and resolved/removed items are not allowed in active documents (Current-Specification-Only Policy, ERROR). (b) `governance_01_documentation-policy.md` "ADR Responsibilities and Historical Content": "an ADR holds no Amendment section, and **history stays in version control**". No ledger entry exists for the removed age rule, and none of the active docs cites one (verified 20261117: the age-rule wording was removed from `agent_03_03` and `db_07` by procedures 020145_01/03). A compliant variant of REQ-006 would need a governance amendment or a ledger entry for a resolved item, which the Current-Specification-Only Policy forbids. The history is already preserved in version control, `issues/done/20261109-112715_adrrev005_schema-fingerprint-unify.md`, the code docstrings, and INV-07's current wording.
 
 ## Design decisions
-- **Append a single marked, non-normative entry** to Known Deviations describing that a pre-migration age-threshold rule existed (lease-less rows recovered after a fixed age) and was removed by adrrev005; it is historical and non-normative and does not describe current behavior. Keep it beside INV-07, which already captures the current lease contract.
+- **Blocked — do not append to Known Deviations.** The original decision (append a single marked, non-normative history entry beside INV-07) is overridden by the 20261117 verification: GV-022 (Known Deviations bullets require a canonical Known Issue ledger ID; resolved/removed items are ERROR) and governance_01's "history stays in version control" make the planned placement non-compliant. Keep INV-07 as the sole normative statement of the current lease contract; the removed age-rule's history remains in version control and `issues/done/20261109-112715_adrrev005_schema-fingerprint-unify.md`. Landing REQ-006 would require a governance amendment or an open ledger item — an owner decision, recorded in the Blocker Log.
 
 ## Alternatives considered
 - **Creating a dedicated workflow-lease ADR.** Rejected: it would duplicate INV-07 (which already states the lease contract) and add an ADR operators must discover; history belongs in ADR-001's marked Known Deviations section.
@@ -55,14 +56,14 @@ Creating a new workflow-lease ADR; changing INV-07 or any invariant wording; cod
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Blocked | — | — | Blocked by governance conflict (GV-022 + governance_01 historical-content rule). Target file untouched; no non-compliant edit applied. |
 | 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only row. |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ADR checkers + doc checkers in Validation plan. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | REQ-006's planned placement (historical entry in Known Deviations) conflicts with GV-022 (`check_known_deviation_sync.py`: Known Deviations bullets require a canonical Known Issue ledger ID; resolved/removed items are ERROR) and governance_01 "history stays in version control". No compliant edit exists without a governance amendment or an open ledger item — owner decision required. | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
