@@ -172,11 +172,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the spec format and write the tests first | Pending | — | — | |
-| 2 | Parse, validate, and allocate | Pending | — | — | |
-| 3 | Write, preview, and check | Pending | — | — | |
-| 4 | Documentation: tool rows, workflow step, naming note | Pending | — | — | |
-| 5 | Verification: validation sequence, size gates, smoke runs | Pending | — | — | |
+| 1 | Confirm the spec format and write the tests first | In Progress | — | — |  |
+| 2 | Parse, validate, and allocate | In Progress | — | — |  |
+| 3 | Write, preview, and check | In Progress | — | — |  |
+| 4 | Documentation: tool rows, workflow step, naming note | In Progress | — | — |  |
+| 5 | Verification: validation sequence, size gates, smoke runs | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -186,7 +186,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261117-200906_01_tools_generate_issue_batch.py.md | 1, 2, 3 | Procedure | Pending | — | — |
+| implementations/20261117-200906_03_skills_issue-creator_workflow.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261117-200906_04_skills_issue-creator_SKILL.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261117-200906_05_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -216,3 +219,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-007 | Required Changes (Step 10.2); timestamp rule found in Step 3 | `skills/issue-creator/workflow.md` | Phase 4 | AC-7 | `tools/check_skills_references.py` | Explicit in issue |
 | REQ-007 | Target Files (`skills/issue-creator/SKILL.md`); timestamp rule found in Step 3 | `skills/issue-creator/SKILL.md` | Phase 4 | AC-7 | `tools/check_skills_heading_cycles.py` | Confirmed by repository evidence |
 | REQ-008 | Constraints (size gate; the generator MUST NOT grow) | `tools/generate_issue_batch.py` | Phase 5 | AC-8 | size gate; `radon cc -n C`; `git diff --stat` on the generator | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261117-200906 -->

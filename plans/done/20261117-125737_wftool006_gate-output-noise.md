@@ -163,11 +163,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: classification, renderer, flag, header | Pending | — | — | |
-| 2 | Classification field and renderer module | Pending | — | — | |
-| 3 | Wire the flag and remove the inline printer | Pending | — | — | |
-| 4 | Documentation: Phase 4 note and tool rows | Pending | — | — | |
-| 5 | Verification: validation sequence, drift, size gates, smoke runs | Pending | — | — | |
+| 1 | Tests first: classification, renderer, flag, header | In Progress | — | — |  |
+| 2 | Classification field and renderer module | In Progress | — | — |  |
+| 3 | Wire the flag and remove the inline printer | In Progress | — | — |  |
+| 4 | Documentation: Phase 4 note and tool rows | In Progress | — | — |  |
+| 5 | Verification: validation sequence, drift, size gates, smoke runs | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -177,7 +177,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261117-201532_01_tools__validation_gate_report.py.md | 2, 5 | Procedure | Pending | — | — |
+| implementations/20261117-201532_02_tools_run_validation_gates.py.md | 2, 3, 5 | Procedure | Pending | — | — |
+| implementations/20261117-201532_03_tests_tools_test_run_validation_gates.py.md | 1, 5 | Procedure | Pending | — | — |
+| implementations/20261117-201532_04_skills_git-commit-and-sync_workflow.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261117-201532_05_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -203,3 +207,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-005 | Constraints (size gate; the runner is near the limit) | `tools/run_validation_gates.py` | Phase 5 | AC-5 | `tools/check_module_size.py` (tools scope) | Confirmed by repository evidence |
 | REQ-006 | Required Changes (update the Phase 4 note and the tool description) | `skills/git-commit-and-sync/workflow.md` | Phase 4 | AC-6 | `tools/check_skills_references.py` | Explicit in issue |
 | REQ-006 | Required Changes (update the tool description) | `tools/TOOL_DESCRIPTIONS.md` | Phase 4 | AC-6 | `tools/check_tool_descriptions_sync.py` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261117-201532 -->
