@@ -110,6 +110,7 @@ def _unit_sources(name: str) -> tuple[str, ...]:
         return BINARY_SOURCES["agent"]
     return tuple(sorted({entry for mcp in _MCP_NAMES for entry in BINARY_SOURCES[mcp]}))
 
+
 # Statuses that mean the binary should be rebuilt.
 _REBUILD_STATUSES = frozenset({"stale", "unknown", "mismatch", "invalid"})
 
