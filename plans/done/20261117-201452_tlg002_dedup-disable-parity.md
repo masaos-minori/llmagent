@@ -204,9 +204,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Core logic: add `<= 0` early-return to `check_dedup` | In Progress | — | — |  |
-| 2 | Tests: regression test for `<= 0` disable and unchanged positive path | In Progress | — | — |  |
-| 3 | Verification: ruff, mypy, pytest | Pending | — | — |  |
+| 1 | Core logic: add `<= 0` early-return to `check_dedup` | Completed | 20261117-212000 | 20261117-212200 |  |
+| 2 | Tests: regression test for `<= 0` disable and unchanged positive path | Completed | 20261117-212200 | 20261117-212300 |  |
+| 3 | Verification: ruff, mypy, pytest | Completed | 20261117-212300 | 20261117-212500 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

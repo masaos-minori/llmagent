@@ -205,9 +205,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Core logic: add `has_fatal` early return after tool discovery | In Progress | — | — |  |
-| 2 | Tests: regression test for tool-discovery FATAL skip | In Progress | — | — |  |
-| 3 | Docs & verification: ops doc update and validation | In Progress | — | — |  |
+| 1 | Core logic: add `has_fatal` early return after tool discovery | Completed | 20261117-210500 | 20261117-210700 |  |
+| 2 | Tests: regression test for tool-discovery FATAL skip | Completed | 20261117-210700 | 20261117-210800 |  |
+| 3 | Docs & verification: ops doc update and validation | Completed | 20261117-212700 | 20261117-212830 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
