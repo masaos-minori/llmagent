@@ -7,7 +7,7 @@ Medium
 ## Scope
 - **In-Scope**: (1) `tools/check_workitem_structure.py` accepts several paths after one `--file`; (2) the checker reports template leftovers of an issue; (3) the gate table runs the check on changed top-level work item files; (4) a pre-commit hook with the same trigger; (5) the issue-creator Step 10.4 snippet and the routing row are updated; (6) the tool description is updated; (7) tests for each.
 - **Out-of-Scope**: changing any template; checking archived work items under `done/`; content-quality judgment; leftover detection for plans and procedures (UNK-01); automatic detection of generic `{...}` braces; any change to `tools/run_validation_gates.py`.
-- **Dependencies**: N/A: nothing must be done first. The gate-output-noise work (wftool006) follows this Plan, because this Plan removes the structure check from the runtime-placeholder rows of the gate output. `tools/TOOL_DESCRIPTIONS.md` is also edited by the other tooling issues of this batch and by the open procedure `implementations/20261117-110514_04_tools_TOOL_DESCRIPTIONS.md.md`; the edits here touch one table row, and the order is settled at implementation time (UNK-02).
+- **Dependencies**: N/A: nothing must be done first. The batch work (`plan_dependency_order.py`, re-run 20261117) shows `wftool005` gated behind this Plan's Phase 1, and the gate-output-noise work (`wftool006`) is gated behind `wftool004` Phase 1; this Plan stays the first in the recommended order. `tools/TOOL_DESCRIPTIONS.md` is also targeted by all five sibling Plans of this batch (see the Assumptions overlap note); the `compat004` procedure that also edited it is now archived at `implementations/done/20261117-110514_04_tools_TOOL_DESCRIPTIONS.md.md`, and the edits here touch one table row (UNK-02).
 
 ## Background
 Filed from the investigation of the issue -> plan -> implementation toolchain. The gate table maps the structure check with a runtime placeholder, so it is always `Not available`; the only pre-commit hook for the checker is `--archived-status`. The checker verifies section presence only, and `skills/issue-creator/workflow.md` Step 10.4 replaces leftover detection with a manual shell snippet.
@@ -19,14 +19,14 @@ A structurally incomplete or unfilled work item can be committed and pushed: the
 The skills rely on each author running the check by hand, and the leftover check exists only as prose plus a snippet that an author can skip or mistype. The gate already has a changed-file expansion (`__CHANGED_FILES__`), so closing the gap needs a small change; no deadline makes it urgent.
 
 ## Implementation Intent
-The gate and the hook select the structure check for changed top-level work item files only, and the checker derives its leftover rule from `templates/issue.md` so there is one source. The existing `--file` single-path behavior and the checker id stay stable, so the routing row and the hook-parity check need no new mapping logic. The change lands in the gate table module, not in the already near-limit orchestrator.
+The gate and the hook select the structure check for changed top-level work item files only, and the checker derives its leftover rule from `templates/issue.md` so there is one source. The existing `--file` single-path behavior stays stable. The checker id is derived from the command argv by `_checker_id_from_command`, so the gate row, the routing Run cell, and the new hook must all resolve to one id: the id derivation skips the `__CHANGED_FILES__` sentinel (Decision 6), the routing Run cell adopts `--file __CHANGED_FILES__`, and all three sides then share the id `check_workitem_structure:--file`. The change lands in the gate table module, not in the already near-limit orchestrator.
 
 ## Requirements
 - `REQ-001`: `--file` accepts one or more paths (`nargs="+"`); a single path behaves exactly as before, and each path is checked and reported.
 - `REQ-002`: For an issue, the checker reports category `template-leftover` findings for (a) a verbatim template instruction line, (b) a verbatim template bullet line that holds a `{...}` placeholder, and (c) the verbatim `# <Issue Title>` title line; the rule is derived at run time from the `templates/issue.md` fence and applies in `--file` and directory-scan modes; plans and procedures are unaffected.
-- `REQ-003`: The `check_workitem_structure` gate runs automatically: its command is `--file __CHANGED_FILES__` and its patterns select only top-level `issues/*.md`, `plans/*.md`, and `implementations/*.md` (never `done/`).
+- `REQ-003`: The `check_workitem_structure` gate runs automatically: its command is `--file __CHANGED_FILES__` and its patterns select only top-level `issues/*.md`, `plans/*.md`, and `implementations/*.md` (never `done/`); the gate checker id stays `check_workitem_structure:--file` through the sentinel skip of Decision 6.
 - `REQ-004`: A pre-commit hook `workitem-structure` runs the same command on staged top-level work item files, mirrors the gate trigger, and passes the hook-parity check without an allowlist entry.
-- `REQ-005`: `skills/issue-creator/workflow.md` Step 10.4 replaces the leftover snippet with the checker invocation and keeps the manual brace judgment; the `routing.md` row states the automatic run and the leftover check.
+- `REQ-005`: `skills/issue-creator/workflow.md` Step 10.4 replaces the leftover snippet with the checker invocation and keeps the manual brace judgment; the `routing.md` row states the automatic run and the leftover check, and its Run cell carries `--file __CHANGED_FILES__` so the drift check maps it to the gate (Decision 6).
 - `REQ-006`: The `check_workitem_structure.py` entry of `tools/TOOL_DESCRIPTIONS.md` describes the multi-path `--file` and the leftover check.
 - `REQ-007`: The change keeps the `tools/` module-size gates passing with `tools/_validation_gate_defs.py` below the limit, adds no new function of complexity grade C, and keeps ruff, mypy, and bandit clean on the changed tools.
 
@@ -67,14 +67,14 @@ glob patterns, components, file groups, or vague phrases.
 - AC-3 (REQ-002): A plan and an implementation procedure built from their real templates get no `template-leftover` finding (test).
 - AC-4 (REQ-003): `select_gates` selects `check_workitem_structure` for `issues/i.md`, `plans/p.md`, and `implementations/i.md`, never for a `done/` path; the gate is not `requires_context`, and its command expands to `--file <matched paths>` (tests).
 - AC-5 (REQ-003): A top-level issue lacking a required section makes the checker exit `1`, so the gate result is `Fail` (test with a runner).
-- AC-6 (REQ-004): `parse_precommit_hooks` maps `workitem-structure` to the gate's checker id, `uv run python tools/run_validation_gates.py drift` passes with no `COMMIT_ONLY_HOOKS` entry, and the parity test includes the gate.
+- AC-6 (REQ-004): `parse_precommit_hooks` maps `workitem-structure` to the checker id `check_workitem_structure:--file` — the same id the gate row and the routing Run cell resolve to after Decision 6 — `uv run python tools/run_validation_gates.py drift` passes with no `COMMIT_ONLY_HOOKS` entry, and the parity test includes the gate.
 - AC-7 (REQ-005): Step 10.4 no longer contains the `mktemp` snippet, and `tools/check_skills_references.py` and `tools/check_skills_heading_cycles.py` pass.
 - AC-8 (REQ-006): `tools/check_tool_descriptions_sync.py` passes and the entry names the new behavior.
 - AC-9 (REQ-007): Both `tools/check_module_size.py` scopes pass, `tools/_validation_gate_defs.py` is below the limit, and ruff, mypy, and bandit are clean on the changed tools; radon reports no new grade C function.
 
 ## Tests
 - `tests/tools/test_check_workitem_structure.py`: multi-path `--file`; unfilled scaffold, filled issue, brace content, and the title line (REQ-001, REQ-002); plan and procedure skeletons stay clean (REQ-002).
-- `tests/tools/test_run_validation_gates.py`: selection for top-level and `done/` paths, `requires_context` false, sentinel expansion, hook-id parity, and the extended `_PARITY_GATES` table (REQ-003, REQ-004).
+- `tests/tools/test_run_validation_gates.py`: selection for top-level and `done/` paths, `requires_context` false, sentinel expansion, the Decision 6 id reconciliation (`check_workitem_structure:--file` on gate, routing row, and hook), hook-id parity, and the extended `_PARITY_GATES` table (REQ-003, REQ-004).
 - Smoke run on the live repository: the checker over the open work items and a throwaway scaffold (REQ-001, REQ-002).
 
 ## Documentation Impact
@@ -85,13 +85,13 @@ N/A for `docs/*.md`: no file under `docs/` changes. The routing row, the issue-c
 - pre-commit passes the staged filenames to a hook whose `pass_filenames` is left at its default, and the hook `files` regular expression mirrors the gate patterns (the same shape as `workitem-traceability`).
 - A single maintainer owns every target file (the shortlog shows one author under name variants), so no cross-owner approval step is planned.
 - The open procedure for `tools/TOOL_DESCRIPTIONS.md` of `compat004` edits other rows than the `check_workitem_structure.py` entries; its content was not read in this cycle (UNK-02).
-- Overlap with other active Frozen Plans: none, because `plans/` holds no other Plan (recorded in Step 8b).
+- Overlap with other active Frozen Plans: five sibling Plans share five target files with this one — `routing.md` with `wftool004`, `skills/issue-creator/workflow.md` with `wftool005`, `tests/tools/test_run_validation_gates.py` with `wftool004` and `wftool006`, `tools/TOOL_DESCRIPTIONS.md` with all five, `tools/_validation_gate_defs.py` with `wftool004` (`tools/check_plan_target_overlaps.py`, re-run 20261117). All are row-level edits; the batch is executed one Plan at a time, so no concurrent edit occurs.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
 | UNK-01 | Which leftover rule suits plans and procedures | The issue-template rule does not transfer: the plan template has many instruction lines and a filled archived plan keeps many of them verbatim, and a filled archived procedure keeps most of the procedure template's instruction lines | File a follow-up issue that analyses a rule per template (for example bracket-wrapped placeholder lines) before extending REQ-002 | False |
-| UNK-02 | Order against the open procedure `implementations/20261117-110514_04_tools_TOOL_DESCRIPTIONS.md.md` and the sibling tooling issues that edit `tools/TOOL_DESCRIPTIONS.md` | The procedure's target rows were not read | Read its target rows at implementation time; the edits are row-level and compatible unless they share the `check_workitem_structure.py` rows, in which case land the earlier one first | False |
+| UNK-02 | Order against the open procedure `implementations/20261117-110514_04_tools_TOOL_DESCRIPTIONS.md.md` and the sibling tooling issues that edit `tools/TOOL_DESCRIPTIONS.md` | The procedure's target rows were not read | Resolved in the 20261117 verification: that procedure is archived under `implementations/done/`, and the sibling edits are row-level in five different Plans executed one at a time; this Plan edits only the two `check_workitem_structure.py` table rows | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -116,12 +116,13 @@ separate scope-of-record.
 - **Dependency graphing**: callers of the checker are four skills, `routing.md`, `tools/amend_plan.py` (one `--file` path), the gate table (two rows), and one test module; `tools/_validation_gate_defs.py` is imported by `tools/run_validation_gates.py` and its test. The consumer scan for the checker found no other consumer; it lists candidates only, and the test-impact data it relies on was stale.
 - **Historical**: churn is highest for `tools/TOOL_DESCRIPTIONS.md` (merge-conflict risk) and `routing.md`; every target has one author, so the bus factor is high (`git shortlog`; `git-fame` was not needed).
 - **Operational**: no port, database, or dependency is involved; `pip-audit` and lock checks do not apply. The persisted-schema check does not apply.
-- **Decision 1, `--file` arity**: make `--file` take one or more paths. Alternative: a new `--files` flag. Rejected because the checker id (derived from the first flag) would change, which forces a new routing row and a mapping change; `nargs="+"` keeps the id `check_workitem_structure:--file`, keeps the routing row valid, and lets pre-commit append filenames.
+- **Decision 1, `--file` arity**: make `--file` take one or more paths. Alternative: a new `--files` flag. Rejected because a second flag name forces a new routing row and a new hook mapping; `nargs="+"` keeps the flag `--file` in every command form (gate, routing Run cell, hook entry), so the drift check keeps mapping all three to one id. Verification note: the current gate id is `check_workitem_structure:<path>` — the placeholder token is read as the positional — not `check_workitem_structure:--file`; the id reconciliation is Decision 6.
 - **Decision 2, gate and hook**: add both. The gate serves the commit skill's pre-commit run; the hook serves a raw `git commit`. This resolves the issue's open question; the precedent is `workitem-traceability`. The hook `files` regular expression is `^(issues|plans|implementations)/[^/]+\.md$`, and the gate patterns are the matching single-segment globs, so `done/` never matches.
 - **Decision 3, where the gate change lives**: the issue named `tools/run_validation_gates.py`. Reading it showed that `run_gate` already expands `__CHANGED_FILES__` and that the gate rows live in `tools/_validation_gate_defs.py`. The orchestrator stays unchanged. The gate-row edit adds roughly 25 bytes to a module with 329 bytes of headroom; REQ-007 verifies it.
 - **Decision 4, leftover rule scope**: the rule is the 25 non-bullet instruction lines plus the 5 template bullets that hold a `{...}` placeholder plus the title line, matched verbatim. Measured on the repository: no open issue hits it and one archived issue hits it. The same verbatim rule is not usable for a plan (81 candidate lines; a filled archived plan keeps about 22 to 48 of them verbatim) or a procedure (13 candidates; a filled archived procedure keeps 9), so REQ-002 is limited to issues and UNK-01 records the rest.
 - **Decision 5, braces**: generic brace detection stays manual, because open issues contain legitimate braces in their own content; only the template's own placeholder lines are detected.
-- **Baseline**: `radon` reports `find_release_unit_findings` (grade C) in the checker and `_checker_id_from_command` (grade C) in the gate module, both pre-existing and untouched; the new leftover function must stay below grade C. `vulture` and `bandit` findings under `scripts/` are pre-existing and outside the targets. `diff-cover` has no baseline: the tree equals `master`, so the diff is empty; the 90% threshold applies at implementation.
+- **Decision 6, checker-id reconciliation (verified 20261117)**: `Gate.checker_id` runs the first command through `_checker_id_from_command`, which reads the first non-flag token as the positional. Today the gate command `... --file <path>` yields `check_workitem_structure:<path>` and the routing Run cell yields the same id, so drift passes. A gate command `... --file __CHANGED_FILES__` alone would yield `check_workitem_structure:__CHANGED_FILES__` and break the drift check — a simulation of the design as written reproduced 3 errors (routing row unmapped, mapping entry not a routing checker, new hook without a mapping). The fix: `_checker_id_from_command` (in `tools/_validation_gate_defs.py`, imported by the orchestrator) skips the `__CHANGED_FILES__` token when it scans for a positional or a value flag, and the routing Run cell adopts `--file __CHANGED_FILES__`; the gate, the routing row, and the hook entry `--file` then all resolve to `check_workitem_structure:--file` (same simulation: 0 errors). `__CHANGED_FILES__` carries no `<`/`[`/`]`/`...` token, so `requires_context` turns false without touching the orchestrator or `COMMIT_ONLY_HOOKS`.
+- **Baseline**: `radon` reports `find_release_unit_findings` (grade C) in the checker and `_checker_id_from_command` (grade C) in the gate module, both pre-existing; `_checker_id_from_command` is edited by Decision 6 (sentinel skip) and the edit must not raise its grade, while the new leftover function must stay below grade C. `vulture` and `bandit` findings under `scripts/` are pre-existing and outside the targets. `diff-cover` has no baseline: the tree equals `master`, so the diff is empty; the 90% threshold applies at implementation.
 
 ## Implementation steps
 Each step description MUST cite the exact file path(s) it touches by referencing rows
@@ -134,14 +135,14 @@ checklist items are sub-tasks, and the Execution Status table has one row per st
    - [ ] Add the leftover detection for issues, derived from the template fence, in a function that stays below complexity grade C (REQ-002, REQ-007; `tools/check_workitem_structure.py`)
    - [ ] Add tests that fail first: multi-path, unfilled scaffold, filled issue, brace content, title line, and clean plan and procedure skeletons (REQ-001, REQ-002; `tests/tools/test_check_workitem_structure.py`)
 2. **Phase 2: Gate table change** (applies after Phase 1, because the gate passes several paths to `--file`)
-   - [ ] Replace the placeholder with `__CHANGED_FILES__` and narrow the patterns to single-segment globs (REQ-003, REQ-007; `tools/_validation_gate_defs.py`)
+   - [ ] Replace the placeholder with `__CHANGED_FILES__`, narrow the patterns to single-segment globs, and make `_checker_id_from_command` skip the sentinel token so the gate id becomes `check_workitem_structure:--file` (REQ-003, REQ-007; `tools/_validation_gate_defs.py`)
    - [ ] Add selection, `requires_context`, expansion, and `Fail` tests (REQ-003; `tests/tools/test_run_validation_gates.py`)
 3. **Phase 3: Pre-commit hook**
    - [ ] Add the `workitem-structure` hook with the `--file` entry and the top-level `files` filter (REQ-004; `.pre-commit-config.yaml`)
    - [ ] Add the hook-id parity assertion and extend `_PARITY_GATES` and the trigger table (REQ-004; `tests/tools/test_run_validation_gates.py`)
 4. **Phase 4: Documentation**
    - [ ] Replace the Step 10.4 snippet with the checker invocation and keep the manual brace judgment (REQ-005; `skills/issue-creator/workflow.md`)
-   - [ ] Update the routing row note (REQ-005; `routing.md`)
+   - [ ] Update the routing row note and its Run cell (`--file __CHANGED_FILES__`, Decision 6) (REQ-005; `routing.md`)
    - [ ] Update the `check_workitem_structure.py` entries (REQ-006; `tools/TOOL_DESCRIPTIONS.md`)
 5. **Phase 5: Verification** (no deploy step: no `scripts/` or `config/` file changes, and `deploy/deploy.sh` references `tools/` only for `manage_binaries.py`)
    - [ ] Run the validation sequence of `rules/toolchain.md` for the changed tools, both `tools/check_module_size.py` scopes, `run_validation_gates.py drift`, the skills reference checkers, and `tools/check_tool_descriptions_sync.py`; smoke-run the checker over the open work items and a throwaway scaffold (REQ-007; all target files)
@@ -162,10 +163,10 @@ N/A: no release unit; each phase passes validation alone when applied in order 1
 | `tests/tools/test_run_validation_gates.py` | Self | `uv run pytest tests/tools -n logical -q` | Pass |
 
 ## Risks
-- **Risk**: `tools/_validation_gate_defs.py` is 329 B below the size limit → **Mitigation**: the edit is about 25 B; verify with the size gate before and after, and extract rows into a new module only if it fails.
+- **Risk**: `tools/_validation_gate_defs.py` is 329 B below the size limit → **Mitigation**: the gate-row edit is about 25 B and the Decision 6 sentinel skip a few short lines; verify with the size gate before and after, and extract rows into a new module only if it fails.
 - **Risk**: The hook blocks a commit that touches a legacy open work item shaped like an old template → **Mitigation**: the baseline scan reports no finding on the open items; run it again before the hook lands.
 - **Risk**: `--file` arity change breaks `tools/amend_plan.py`, which passes one path → **Mitigation**: `nargs="+"` keeps single-path behavior; a test pins it and `tests/tools/test_amend_plan.py` runs in Phase 5.
-- **Risk**: A legitimate issue reuses a template instruction line verbatim and is reported → **Mitigation**: the measured rate is one archived issue in 1650 and none of the open ones; the report names the line so the author can reword it.
+- **Risk**: A legitimate issue reuses a template instruction line verbatim and is reported → **Mitigation**: the measured rate is one archived issue in 1656 and none of the 28 open ones; the report names the line so the author can reword it.
 - **Risk**: `tools/TOOL_DESCRIPTIONS.md` has the highest churn of the targets, so edits conflict → **Mitigation**: change one table row, rebase through the commit skill, and settle the order per UNK-02.
 - **Risk**: The gate misses an untracked new issue file → **Mitigation**: the commit skill stages before the gate, and the hook sees staged files; the author still runs `--file` explicitly in Step 10.4.
 
@@ -178,11 +179,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Checker: multi-path `--file` and issue leftover detection, with tests | Pending | — | — | |
-| 2 | Gate table: auto-runnable top-level structure gate, with tests | Pending | — | — | |
-| 3 | Pre-commit hook and parity tests | Pending | — | — | |
-| 4 | Documentation: issue-creator step, routing row, tool description | Pending | — | — | |
-| 5 | Verification: validation sequence, size and drift gates, smoke runs | Pending | — | — | |
+| 1 | Checker: multi-path `--file` and issue leftover detection, with tests | In Progress | — | — |  |
+| 2 | Gate table: auto-runnable top-level structure gate, with tests | In Progress | — | — |  |
+| 3 | Pre-commit hook and parity tests | In Progress | — | — |  |
+| 4 | Documentation: issue-creator step, routing row, tool description | In Progress | — | — |  |
+| 5 | Verification: validation sequence, size and drift gates, smoke runs | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -192,7 +193,13 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261117-151927_01_tools_check_workitem_structure.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261117-151927_02_tools__validation_gate_defs.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261117-151927_03_.pre-commit-config.yaml.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261117-151927_04_routing.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261117-151927_05_skills_issue-creator_workflow.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261117-151927_06_tools_TOOL_DESCRIPTIONS.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261117-151927_08_tests_tools_test_run_validation_gates.py.md` | 2, 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -219,3 +226,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-006 | Documentation Impact | `tools/TOOL_DESCRIPTIONS.md` | Phase 4 | AC-8 | `tools/check_tool_descriptions_sync.py` | Explicit in issue |
 | REQ-007 | Constraints (size gate, tool conventions) | `tools/check_workitem_structure.py` | Phase 5 | AC-9 | size gates, ruff, mypy, bandit, radon | Confirmed by repository evidence |
 | REQ-007 | Constraints (size gate; the gate table is near the limit) | `tools/_validation_gate_defs.py` | Phase 5 | AC-9 | `tools/check_module_size.py` (tools scope) | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261117-151927 -->
