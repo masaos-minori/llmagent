@@ -81,15 +81,25 @@ one clarification.
 - Changing the deploy phase model or the freshness report labels.
 - The build mechanics beyond the one-invocation fact, and the staleness implementation.
 
+## Verification Findings (2026-11-17, adversarial verification)
+
+Verification Status: Verified — insertion anchor confirmed.
+
+- Line 78 confirmed verbatim as the paragraph end: "The Event Bus and ingestion run from the
+  deployed `scripts/` source and have no binary." Phase 1b spans lines 61-89; the sentence goes
+  after line 78, before the `UV_SYSTEM_CERTS` paragraph (line 80).
+- Accuracy precondition: the sentence is only correct once seq 01 (single invocation) and seq 02
+  (one staleness unit) are implemented — write this row after both.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | one prose addition in Phase 1b |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-103109 | 20261117-103131 | one prose addition in Phase 1b One sentence added at the Phase 1b paragraph end (after the Event Bus/ingestion sentence): mcp_<server> names are one rebuild unit, single invocation rebuilds and swaps the whole set; no counts or name lists added |
+| 2 | Add or update tests per Validation plan | Completed | 20261117-103132 | 20261117-103132 | N/A: documentation row N/A: documentation row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-103132 | 20261117-103132 | pre-commit file-reference check passed; accurate against landed seq 01/02 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261117-103132 | 20261117-103132 | this row this row is the skills doc change itself |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

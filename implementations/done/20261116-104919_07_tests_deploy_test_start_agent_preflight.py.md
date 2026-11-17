@@ -87,15 +87,25 @@ validating the same fail-fast-before-launch behavior.
 - The agent binary build (that is `deploy/build_binaries.sh`, `REQ-001`).
 - The ten MCP names pre-check (that is `deploy/deploy.sh`, `REQ-004`).
 
+## Verification Findings (2026-11-17, adversarial verification)
+
+Verification Status: Verified — no change to the test required.
+
+- `deploy/start_agent.sh` confirmed: `check_agent_binary` defined at line 17 and called before
+  launch at line 208 (`check_agent_binary "/opt/llm/bin/agent"`).
+- Both cases pass on 2026-11-17 (included in the 45-case tools/deploy baseline run).
+- Seq 01 keeps the agent's own build and the name `agent`, so the pre-flight and `_AGENT`
+  constant are unaffected.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | verify existing coverage; no edit expected |
-| 2 | Add or update tests per Validation plan | Pending | — | — | existing file, both cases |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-102241 | 20261117-102316 | verify existing coverage; no edit expected start_agent.sh check_agent_binary at 17, called at 208 for /opt/llm/bin/agent; build_binaries.sh stages agent artifact as final name agent (single-main build, name-suffixed launcher); no edit |
+| 2 | Add or update tests per Validation plan | Completed | 20261117-102316 | 20261117-102316 | existing file, both cases both cases pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-102316 | 20261117-102316 | pytest 2 passed; ruff clean; mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261117-102316 | 20261117-102316 | N/A: no docs/ change in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

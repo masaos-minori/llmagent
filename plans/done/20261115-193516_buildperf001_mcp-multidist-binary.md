@@ -358,12 +358,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Multi-main build and install (`deploy/build_binaries.sh`) | In Progress | — | — | REQ-001, REQ-002 |
-| 2 | One-rebuild-unit tracking (`tools/manage_binaries.py`) | In Progress | — | — | REQ-003 |
-| 3 | Deploy pre-check (`deploy/deploy.sh`) | In Progress | — | — | REQ-004 |
-| 4 | Tests (`tests/tools/*`, `tests/mcp_servers/*`, `tests/deploy/*`) | In Progress | — | — | REQ-001-REQ-006 |
+| 1 | Multi-main build and install (`deploy/build_binaries.sh`) | Completed | — | 20261117-103807 | REQ-001, REQ-002 |
+| 2 | One-rebuild-unit tracking (`tools/manage_binaries.py`) | Completed | — | 20261117-103807 | REQ-003 |
+| 3 | Deploy pre-check (`deploy/deploy.sh`) | Completed | — | 20261117-103807 | REQ-004 |
+| 4 | Tests (`tests/tools/*`, `tests/mcp_servers/*`, `tests/deploy/*`) | Completed | — | 20261117-103807 | REQ-001-REQ-006 |
 | 5 | Manual build verification (build host, out of CI) | Pending | — | — | REQ-007 |
-| 6 | Documentation (`docs/90_deployment/*`, `skills/deploy/*`, `rules/env.md`) | In Progress | — | — | REQ-007, REQ-008 |
+| 6 | Documentation (`docs/90_deployment/*`, `skills/deploy/*`, `rules/env.md`) | Completed | — | 20261117-103807 | REQ-007, REQ-008 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -373,15 +373,15 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261116-104919_01_deploy_build_binaries.sh.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261116-104919_02_tools_manage_binaries.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261116-104919_03_deploy_deploy.sh.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261116-104919_06_tests_mcp_servers_test_config_isolation_import.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261116-104919_07_tests_deploy_test_start_agent_preflight.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261116-104919_08_docs_90_deployment_deployment_01_deployment.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261116-104919_09_skills_deploy_SKILL.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261116-104919_10_skills_deploy_workflow.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261116-104919_11_rules_env.md.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261116-104919_01_deploy_build_binaries.sh.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261116-104919_02_tools_manage_binaries.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261116-104919_03_deploy_deploy.sh.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261116-104919_06_tests_mcp_servers_test_config_isolation_import.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261116-104919_07_tests_deploy_test_start_agent_preflight.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261116-104919_08_docs_90_deployment_deployment_01_deployment.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261116-104919_09_skills_deploy_SKILL.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261116-104919_10_skills_deploy_workflow.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261116-104919_11_rules_env.md.md` | 6 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

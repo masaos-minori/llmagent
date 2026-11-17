@@ -198,6 +198,149 @@ def test_list_stale_prints_names(
     assert capsys.readouterr().out.strip() == "agent"
 
 
+# -- MCP rebuild unit (ten mcp_<server> names as one freshness unit) --------------
+
+_MCP_NAMES = [n for n in mod.BINARY_SOURCES if n != "agent"]
+_ALL_NAMES = ["agent", *_MCP_NAMES]
+
+
+@pytest.fixture
+def built_unit(tmp_path: Path) -> tuple[Path, Path, str]:
+    """A repo, a bin dir holding all eleven binaries with build info, and the commit."""
+    repo = tmp_path / "repo"
+    commit = _init_repo(repo)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for name in _ALL_NAMES:
+        binary = _make_binary(bin_dir / name, name.encode())
+        assert (
+            mod.main(
+                [
+                    "write-info",
+                    "--binary",
+                    str(binary),
+                    "--module",
+                    f"mcp_servers.{name}" if name != "agent" else "agent.repl",
+                    "--repo",
+                    str(repo),
+                ]
+            )
+            == 0
+        )
+    return repo, bin_dir, commit
+
+
+def test_mcp_names_cover_every_non_agent_binary() -> None:
+    assert mod._MCP_NAMES == tuple(_MCP_NAMES)
+    assert "agent" not in mod._MCP_NAMES
+
+
+def test_unit_sources_agent_is_its_own_and_mcp_share_the_union() -> None:
+    assert mod._unit_sources("agent") == mod.BINARY_SOURCES["agent"]
+    union = mod._unit_sources("mcp_shell")
+    for name in _MCP_NAMES:
+        assert mod._unit_sources(name) == union
+        assert set(mod.BINARY_SOURCES[name]) <= set(union)
+    assert "scripts/agent/" not in union
+
+
+def test_unit_change_under_one_server_package_marks_all_ten_stale(
+    built_unit: tuple[Path, Path, str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo, bin_dir, _ = built_unit
+    _commit_file(repo, "scripts/mcp_servers/shell/s.py", "v2\n")
+    assert _check(bin_dir, repo, names=" ".join(_ALL_NAMES)) == 0
+    out = capsys.readouterr().out
+    assert "agent: ok" in out
+    for name in _MCP_NAMES:
+        assert f"{name}: stale" in out
+
+
+def test_unit_agent_only_change_leaves_the_ten_mcp_names_ok(
+    built_unit: tuple[Path, Path, str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo, bin_dir, _ = built_unit
+    _commit_file(repo, "scripts/agent/z.py", "z\n")
+    assert _check(bin_dir, repo, names=" ".join(_ALL_NAMES)) == 0
+    out = capsys.readouterr().out
+    assert "agent: stale" in out
+    for name in _MCP_NAMES:
+        assert f"{name}: ok" in out
+
+
+def test_unit_swap_and_rollback_move_the_ten_names_together(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    bin_dir.chmod(0o755)
+    for name in _MCP_NAMES:
+        _make_binary(bin_dir / name, b"old-" + name.encode())
+        assert (
+            mod.main(
+                [
+                    "write-info",
+                    "--binary",
+                    str(bin_dir / name),
+                    "--module",
+                    "mcp_servers.x.x_server",
+                    "--repo",
+                    str(repo),
+                ]
+            )
+            == 0
+        )
+    stage = _stage(tmp_path, {name: b"new" for name in _MCP_NAMES})
+    for name in _MCP_NAMES:
+        assert (
+            mod.main(
+                [
+                    "write-info",
+                    "--binary",
+                    str(stage / name),
+                    "--module",
+                    "mcp_servers.x.x_server",
+                    "--repo",
+                    str(repo),
+                ]
+            )
+            == 0
+        )
+    names_arg = " ".join(_MCP_NAMES)
+    assert mod.main(["swap", "--stage-dir", str(stage), "--bin-dir", str(bin_dir), "--names", names_arg]) == 0
+    prev = tmp_path / "bin.prev"
+    for name in _MCP_NAMES:
+        assert (bin_dir / name).read_bytes().endswith(b"new")
+        assert (prev / name).read_bytes().endswith(b"old-" + name.encode())
+    assert mod.main(["rollback", "--bin-dir", str(bin_dir), "--names", names_arg]) == 0
+    for name in _MCP_NAMES:
+        assert (bin_dir / name).read_bytes().endswith(b"old-" + name.encode())
+
+
+def test_unit_swap_refused_when_one_staged_name_is_invalid(tmp_path: Path) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    bin_dir.chmod(0o755)
+    for name in _MCP_NAMES:
+        _make_binary(bin_dir / name, b"old")
+    stage = _stage(tmp_path, {name: b"new" for name in _MCP_NAMES})
+    (stage / "mcp_git").write_bytes(b"not an elf")
+    code = mod.main(
+        [
+            "swap",
+            "--stage-dir",
+            str(stage),
+            "--bin-dir",
+            str(bin_dir),
+            "--names",
+            " ".join(_MCP_NAMES),
+        ]
+    )
+    assert code == 1
+    for name in _MCP_NAMES:
+        assert (bin_dir / name).read_bytes().endswith(b"old")
+
+
 def _stage(tmp_path: Path, names: dict[str, bytes]) -> Path:
     stage = tmp_path / "stage"
     stage.mkdir()

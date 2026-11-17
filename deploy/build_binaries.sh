@@ -1,8 +1,10 @@
 #!/bin/bash
 # build_binaries.sh
-# エージェント本体と各 MCP サーバー（計11）を Nuitka `--onefile` でビルドして
-# ${BIN_DIR} へ配置する。sudachipy のリソースを同梱し、config/・Sudachi 辞書・
-# sqlite-vec(vec0.so) は外部配置のままにする。
+# エージェント本体と各 MCP サーバー（計11 名）を Nuitka `--onefile` でビルドして
+# ${BIN_DIR} へ配置する。エージェントは単独ビルド、10 本の MCP サーバーは 1 回の
+# Nuitka 起動 (multi-main) で 1 つのバイナリにまとめ、インストール名のハードリンク
+# (失敗時はコピー) で 10 名分に配置する。sudachipy のリソースを同梱し、config/・
+# Sudachi 辞書・sqlite-vec(vec0.so) は外部配置のままにする。
 #
 # 実行前提 (build host のみ。/opt/llm へデプロイされない):
 #   * Python 3.13 (dev headers: Python.h あり)
@@ -18,7 +20,7 @@
 #   NUTKA_UNSTRIPPED=1 bash deploy/build_binaries.sh
 #   # 出力先を変更:
 #   BIN_DIR=/opt/llm/bin OUTPUT_DIR=/data/nuitka_dist bash deploy/build_binaries.sh
-#   # 一部のバイナリのみ再ビルド (空白区切りの出力名):
+#   # 一部のバイナリのみ再ビルド (空白区切りの出力名。選ばれた MCP は 1 起動にまとまる):
 #   BUILD_ONLY="agent" bash deploy/build_binaries.sh
 #   # 直前の swap 前のバイナリ一式へ戻す (Nuitka 不要。${BIN_DIR}.prev から復元):
 #   bash deploy/build_binaries.sh --rollback
@@ -35,7 +37,11 @@
 # nuitka4.x に関する注記:
 #   --onefile（スタンドアロン実行可能）と --module（インポート用拡張モジュール）は
 #   x4 で両立できない。そのため各エントリの __main__ を再現するランチャ (.py) を
-#   生成し、それを --onefile の対象（位置引数）としてコンパイルする。
+#   生成し、それを --onefile の対象としてコンパイルする。位置 main は 1 本しか渡せ
+#   ないため、multi-main は --main=PATH の繰り返しで渡す (4.2.2 で実行確認)。
+#   multi-main の onefile は起動時のファイル名から main を選ぶ (name dispatch)。
+#   名前がどれとも一致しない起動は Nuitka が FATAL で拒否する。そのため MCP の
+#   ランチャ名はインストール名 (mcp_<server>) と一致していなければならない。
 
 set -euo pipefail
 
@@ -88,9 +94,11 @@ if [[ "${NUTKA_UNSTRIPPED:-0}" == "1" ]]; then
     BASE_NUTKA_ARGS+=(--unstripped)
 fi
 
-# 同時にビルドするバイナリ数。ccache が温まると 1 本のビルドは Nuitka の Python 側処理
-# (単一スレッド) が支配的になり、並列化が効く。4 スレッド/RAM 7GB の実測では、2 並列で
-# 壁時間 1.6 倍速、4 並列で 2.0 倍速 (RAM の下限は約 2GB)。1 で従来どおりの直列。
+# 並列ビルド設定。1 で agent → MCP グループの直列。2 以上で agent ビルドと MCP
+# グループ (multi-main 1 起動) を重ねる (同時に走る Nuitka 起動は最大 2)。
+# ccache が温まると 1 起動のビルドは Nuitka の Python 側処理 (単一スレッド) が支配的
+# になり、並列化が効く。4 スレッド/RAM 7GB の実測では、2 並列で壁時間 1.6 倍速、
+# 4 並列で 2.0 倍速 (RAM の下限は約 2GB)。
 NUTKA_PARALLEL="${NUTKA_PARALLEL:-2}"
 if [[ ! "${NUTKA_PARALLEL}" =~ ^[1-9][0-9]*$ ]]; then
     echo "[FATAL] NUTKA_PARALLEL must be a positive integer (got '${NUTKA_PARALLEL}')." >&2
@@ -141,8 +149,15 @@ export UV_SYSTEM_CERTS="${UV_SYSTEM_CERTS:-true}"
 # クラス名が空のエントリは agent.repl のように main() を呼ぶ種別 (設定ファイル名も空)。
 # 設定ファイル名はサーバークラスの own_config_file と一致させる (ランチャが import 前に
 # ConfigLoader.restrict_to() で隔離するために使う)。
-ENTRIES=(
+# agent は単独ビルド (AGENT_ENTRY)、MCP は ENTRIES の選んだ分だけ 1 回の multi-main
+# ビルドで 1 バイナリにまとめる。tests/mcp_servers/test_config_isolation_import.py が
+# ENTRIES 配列からクラス付き行 (MCP) を読み取するため、MCP 行はこの配列に置く。
+# 出力名 (agent 含む) は tests/tools/test_manage_binaries.py の名前抽出が
+# 行頭引用符の 1 行エントリとして読むため、両配列とも 1 行 1 エントリ形式にする。
+AGENT_ENTRY=(
     "agent.repl:agent::"
+)
+ENTRIES=(
     "mcp_servers.shell.shell_server:mcp_shell:ShellMCPServer:shell_mcp_server.toml"
     "mcp_servers.git.git_server:mcp_git:GitMCPServer:git_mcp_server.toml"
     "mcp_servers.web_search.web_search_server:mcp_web_search:WebSearchMCPServer:web_search_mcp_server.toml"
@@ -315,13 +330,40 @@ cleanup_launchers() { rm -rf "${LAUNCHER_DIR}"; }
 trap cleanup_launchers EXIT
 
 # ── ランチャ生成 ──────────────────────────────────────────────────────────────
-# {final_name}.py を生成する。ランチャは run_http() を呼ぶだけで、posture ゲートと設定隔離は
+# ランチャ (.py) を生成する。ランチャは run_http() を呼ぶだけで、posture ゲートと設定隔離は
 # run_http() の共通起動経路で実施される (ランチャ側では再現しない)。
-# nuitka4x では --module モードと --onefile は競合するため、ランチャを位置引数で
-# コンパイルしてスタンドアロン実行可能を生産する。
+# ランチャのファイル名はコンパイル時にトップレベルモジュール名になる:
+#   * agent (cls 空): <name>_launcher.py。単一 main の onefile は名前の dispatch を
+#     行わないので、インストール名 agent と違ってもよい (scripts/agent パッケージと
+#     衝突しないことも兼ねる)。
+#   * MCP: <name>.py。multi-main の onefile は起動名 == main モジュール名で dispatch
+#     するため、インストール名 (mcp_<server>) と完全一致が必須 (REQ-005)。
+launcher_base_name() {
+    local final_name="$1" cls="$2"
+    if [[ -z "${cls}" ]]; then
+        printf '%s_launcher' "${final_name}"
+    else
+        printf '%s' "${final_name}"
+    fi
+}
+
+# multi-main での name dispatch を壊さないため、ランチャのモジュール名が scripts/ の
+# 既存パッケージ・モジュールと同名でないことを実行時に検査する (例: mcp_shell が
+# scripts/mcp_shell/ として追加されたら import がランチャ自身へ解決される)。
+_launcher_collision() {
+    local base="$1"
+    if [[ -e "${REPO_ROOT}/scripts/${base}.py" || -d "${REPO_ROOT}/scripts/${base}" ]]; then
+        echo "[FATAL] launcher module '${base}' collides with an existing scripts/ entry; rename the entry." >&2
+        return 1
+    fi
+}
+
 gen_launcher() {
     local module="$1" final_name="$2" cls="$3" cfg="$4"
-    local dest="${LAUNCHER_DIR}/${final_name}_launcher.py"
+    local base
+    base="$(launcher_base_name "${final_name}" "${cls}")"
+    _launcher_collision "${base}" || return 1
+    local dest="${LAUNCHER_DIR}/${base}.py"
 
     if [[ -z "${cls}" ]]; then
         # agent.repl など main() を呼ぶ種別
@@ -353,12 +395,15 @@ total_seconds=0
 total_bytes=0
 
 # 並列時は背景サブシェルで実行されるため、共有変数は更新せず結果ファイルに書く。
+# agent 単独ビルド用 (単一 main)。MCP は build_mcp_group を使う。
 build_one() {
     local module="$1" final_name="$2" cls="$3" cfg="$4"
-    # The launcher is compiled as a top-level module named after its file, so its
-    # name must not equal a scripts/ package (e.g. "agent"), or `import agent.repl`
-    # resolves to the launcher itself ("'agent' is not a package").
-    local launcher="${LAUNCHER_DIR}/${final_name}_launcher.py"
+    # gen_launcher と同じ命名規則でランチャを指す (agent は <name>_launcher.py。
+    # 単一 main の onefile は名前の dispatch を行わないためインストール名と異な
+    # ってもよいが、scripts/agent パッケージとの衝突は naming 規則自体が避けている)。
+    local base launcher
+    base="$(launcher_base_name "${final_name}" "${cls}")"
+    launcher="${LAUNCHER_DIR}/${base}.py"
 
     echo "--- ビルド: ${module} -> ${final_name} ---"
     gen_launcher "${module}" "${final_name}" "${cls}" "${cfg}"
@@ -386,11 +431,11 @@ build_one() {
     fi
     local elapsed=$(( SECONDS - start ))
 
-    # onefile 出力は nuitka が <final_name>.bin として生成（--onefile の既定名）。
+    # onefile 出力は nuitka がランチャ名由来の <base>.bin として生成（--onefile の既定名）。
     # 念のため拡張子なし / .so にも対応。
     local produced=""
     local cand
-    for cand in "${OUTPUT_DIR}/${final_name}_launcher.bin" "${OUTPUT_DIR}/${final_name}_launcher" "${OUTPUT_DIR}/${final_name}.bin" "${OUTPUT_DIR}/${final_name}" "${OUTPUT_DIR}/${final_name}.so" "${OUTPUT_DIR}/${final_name}".*.so; do
+    for cand in "${OUTPUT_DIR}/${base}.bin" "${OUTPUT_DIR}/${base}" "${OUTPUT_DIR}/${final_name}.bin" "${OUTPUT_DIR}/${final_name}" "${OUTPUT_DIR}/${final_name}.so" "${OUTPUT_DIR}/${final_name}".*.so; do
         if [[ -f "${cand}" ]]; then produced="${cand}"; break; fi
     done
     if [[ -z "${produced}" ]]; then
@@ -412,6 +457,97 @@ build_one() {
     printf '  OK  %-22s module=%-45s build=%4ds size=%s\n' \
         "${final_name}" "${module}" "${elapsed}" "${size_h}"
     printf '%s %s\n' "${elapsed}" "${size_bytes}" > "${RESULT_DIR}/${final_name}.ok"
+}
+
+# 選ばれた MCP 群を 1 回の Nuitka 起動 (multi-main) でビルドする。
+# 生成された 1 バイナリを各インストール名のハードリンク (cross-device 失敗時だけ
+# コピー) で STAGE_DIR に配置し、各名前に write-info と結果ファイルを書く。
+# dispatch は起動時のファイル名で行われるため、MCP ランチャ名はインストール名と
+# 一致している (REQ-005: 全 main 外の名前で起動すると Nuitka が FATAL で拒否)。
+build_mcp_group() {
+    local -a entries=("$@")
+    local -a mains=() names=() modules=()
+    local entry
+    for entry in "${entries[@]}"; do
+        parse_entry "${entry}"
+        gen_launcher "${entry_module}" "${entry_name}" "${entry_cls}" "${entry_cfg}" || return 1
+        mains+=(--main="${LAUNCHER_DIR}/${entry_name}.py")
+        names+=("${entry_name}")
+        modules+=("${entry_module}")
+    done
+
+    echo "--- ビルド: MCP ${#names[@]} 本 (multi-main, 1 起動) ---"
+
+    # 遅延 import 用の --include-module フラグを構築
+    local include_args=()
+    local mod
+    for mod in "${LAZY_IMPORTS[@]+"${LAZY_IMPORTS[@]}"}"; do
+        include_args+=(--include-module="${mod}")
+    done
+
+    local args=("${BASE_NUTKA_ARGS[@]+"${BASE_NUTKA_ARGS[@]}"}" "${include_args[@]+"${include_args[@]}"}")
+    if [[ -n "${NUTKA_EXTRA_FLAGS}" ]]; then
+        # 意図的に単語分割してフラグを渡す
+        # shellcheck disable=SC2206
+        args+=(${NUTKA_EXTRA_FLAGS})
+    fi
+    # nuitka 4.x: 位置 main は 1 本まで。multi-main は --main=PATH の繰り返しで渡す
+    # (4.2.2 で実行確認。位置引数を 2 本以上渡すと拒否される)。--module は不要。
+    args+=("${mains[@]}" --output-dir="${OUTPUT_DIR}")
+
+    local start=${SECONDS}
+    if ! "${NUTKA_CMD[@]}" "${args[@]}"; then
+        echo "[FATAL] Nuitka multi-main build failed for: ${names[*]}" >&2
+        return 1
+    fi
+    local elapsed=$(( SECONDS - start ))
+
+    # onefile 成果物は 1 本。名前は渡した main に由来するため各候補名を探す。
+    local produced=""
+    local cand n
+    for n in "${names[@]}"; do
+        for cand in "${OUTPUT_DIR}/${n}.bin" "${OUTPUT_DIR}/${n}" "${OUTPUT_DIR}/${n}".*.so; do
+            if [[ -f "${cand}" ]]; then produced="${cand}"; break 2; fi
+        done
+    done
+    if [[ -z "${produced}" ]]; then
+        echo "[FATAL] Expected Nuitka output not found for: ${names[*]}" >&2
+        ls -l "${OUTPUT_DIR}" >&2 || true
+        return 1
+    fi
+
+    # 1 成果物を各名前のハードリンクで配置。全名前が同一 inode を共有するため
+    # ディスク実体は 1 本分。write-info は各名前のファイルに対して書き、記録
+    # checksum をそのファイル自身と一致させる。
+    local size_bytes size_h first=1
+    size_bytes="$(du -sb "${produced}" | cut -f1)"
+    size_h="$(du -h "${produced}" | cut -f1)"
+    local i module
+    for i in "${!names[@]}"; do
+        n="${names[$i]}"
+        module="${modules[$i]}"
+        if ! ln "${produced}" "${STAGE_DIR}/${n}" 2>/dev/null; then
+            cp -f "${produced}" "${STAGE_DIR}/${n}"
+        fi
+        chmod 0755 "${STAGE_DIR}/${n}"
+        if ! python3 "${REPO_ROOT}/tools/manage_binaries.py" write-info \
+                --binary "${STAGE_DIR}/${n}" --module "${module}" \
+                --repo "${REPO_ROOT}" > /dev/null; then
+            echo "[FATAL] write-info failed for ${n}" >&2
+            return 1
+        fi
+        printf '  OK  %-22s module=%-45s build=%4ds size=%s\n' \
+            "${n}" "${module}" "${elapsed}" "${size_h}"
+        # 時間・サイズは共有成果物 1 本分を最初の名前にだけ記録する (10 重計上防止)。
+        # 他の名前の .ok は成否の証憑として 0 を書く。
+        if (( first )); then
+            printf '%s %s\n' "${elapsed}" "${size_bytes}" > "${RESULT_DIR}/${n}.ok"
+            first=0
+        else
+            printf '0 0\n' > "${RESULT_DIR}/${n}.ok"
+        fi
+    done
+    rm -f "${produced}"
 }
 
 # ENTRIES の 1 行を module / final_name / cls / cfg に分解する。
@@ -437,52 +573,98 @@ echo "  NUTKA_JOBS  : ${NUTKA_JOBS} (cpu threads: ${_cpu_threads})"
 echo "  NUTKA_PARALLEL: ${NUTKA_PARALLEL}"
 echo "  HELPERS_CANON: ${HELPERS_CANON_STATE}"
 [[ -n "${NUTKA_EXTRA_FLAGS}" ]] && echo "  EXTRA FLAGS : ${NUTKA_EXTRA_FLAGS}"
-echo "  エントリポイント数: ${#ENTRIES[@]}"
+echo "  エントリ     : agent 1 + MCP ${#ENTRIES[@]} (選ばれた MCP は 1 起動にまとまる)"
 echo ""
 
 wall_start=${SECONDS}
-built=0
 failed=0
+
+# 選択: agent は単独ビルド、MCP は選ばれた分だけ 1 回の multi-main にまとめる。
+selected_agent=""
+parse_entry "${AGENT_ENTRY[0]}"
+if selected "${entry_name}"; then
+    selected_agent="${AGENT_ENTRY[0]}"
+fi
+declare -a selected_mcp=()
 for entry in "${ENTRIES[@]}"; do
     parse_entry "${entry}"
-    selected "${entry_name}" || continue
-    built=$(( built + 1 ))
-    if (( NUTKA_PARALLEL == 1 )); then
-        build_one "${entry_module}" "${entry_name}" "${entry_cls}" "${entry_cfg}"
-        continue
+    if selected "${entry_name}"; then
+        selected_mcp+=("${entry}")
     fi
-    # 空きができるまで待つ。失敗したら新規には起動せず、実行中のものだけ待ち切る。
-    while (( $(jobs -rp | wc -l) >= NUTKA_PARALLEL )); do
-        wait -n || failed=1
-    done
-    (( failed == 0 )) || break
-    echo "--- ビルド開始: ${entry_name} (log: ${LOG_DIR}/${entry_name}.log) ---"
-    build_one "${entry_module}" "${entry_name}" "${entry_cls}" "${entry_cfg}" \
-        > "${LOG_DIR}/${entry_name}.log" 2>&1 &
 done
+built=0
+[[ -n "${selected_agent}" ]] && built=$(( built + 1 ))
+built=$(( built + ${#selected_mcp[@]} ))
 if (( built == 0 )); then
     echo "[FATAL] BUILD_ONLY='${BUILD_ONLY}' matched no entry." >&2
     exit 1
 fi
-while (( $(jobs -rp | wc -l) > 0 )); do
-    wait -n || failed=1
-done
 
-# 結果を ENTRIES の順に集める。結果ファイルが無いビルドは失敗として扱う。
-for entry in "${ENTRIES[@]}"; do
+MCP_GROUP_LOG="${LOG_DIR}/mcp_group.log"
+agent_log=""
+
+if (( NUTKA_PARALLEL == 1 )); then
+    # 直列: agent → MCP グループ。
+    if [[ -n "${selected_agent}" ]]; then
+        parse_entry "${selected_agent}"
+        build_one "${entry_module}" "${entry_name}" "${entry_cls}" "${entry_cfg}"
+    fi
+    if (( ${#selected_mcp[@]} > 0 )); then
+        build_mcp_group "${selected_mcp[@]}" || failed=1
+    fi
+else
+    # agent ビルドと MCP グループを重ねる (同時起動は最大 2)。
+    if [[ -n "${selected_agent}" ]]; then
+        parse_entry "${selected_agent}"
+        agent_log="${LOG_DIR}/${entry_name}.log"
+        echo "--- ビルド開始: ${entry_name} (log: ${agent_log}) ---"
+        build_one "${entry_module}" "${entry_name}" "${entry_cls}" "${entry_cfg}" \
+            > "${agent_log}" 2>&1 &
+    fi
+    if (( ${#selected_mcp[@]} > 0 )); then
+        echo "--- ビルド開始: MCP ${#selected_mcp[@]} 本 (log: ${MCP_GROUP_LOG}) ---"
+        build_mcp_group "${selected_mcp[@]}" > "${MCP_GROUP_LOG}" 2>&1 &
+    fi
+    while (( $(jobs -rp | wc -l) > 0 )); do
+        wait -n || failed=1
+    done
+fi
+
+# 結果を選択順 (agent, ENTRIES 順の MCP) に集める。結果ファイルが無いビルドは
+# 失敗として扱う (multi-main は全名前成功か全失敗かのどちらか)。
+declare -a selected_all=()
+[[ -n "${selected_agent}" ]] && selected_all+=("${selected_agent}")
+(( ${#selected_mcp[@]} > 0 )) && selected_all+=("${selected_mcp[@]}")
+mcp_ok_printed=0
+for entry in "${selected_all[@]}"; do
     parse_entry "${entry}"
-    selected "${entry_name}" || continue
+    if [[ -z "${entry_cls}" ]]; then
+        log="${agent_log:-${LOG_DIR}/${entry_name}.log}"
+    else
+        log="${MCP_GROUP_LOG}"
+    fi
     if [[ -f "${RESULT_DIR}/${entry_name}.ok" ]]; then
         read -r _elapsed _bytes < "${RESULT_DIR}/${entry_name}.ok"
         BUILT_NAMES+=("${entry_name}")
         total_seconds=$(( total_seconds + _elapsed ))
         total_bytes=$(( total_bytes + _bytes ))
+        # 並列時の OK 行はビルドログ側にある。agent ログは該当名前で、グループ
+        # ログは MCP の先頭名前で 1 回だけ表示する (10 重表示防止)。
         if (( NUTKA_PARALLEL > 1 )); then
-            grep -h '^  OK ' "${LOG_DIR}/${entry_name}.log" || true
+            if [[ -z "${entry_cls}" ]] && [[ -n "${agent_log}" ]]; then
+                grep -h '^  OK  ' "${agent_log}" || true
+            elif [[ -n "${entry_cls}" ]] && (( mcp_ok_printed == 0 )); then
+                grep -h '^  OK  ' "${MCP_GROUP_LOG}" || true
+                mcp_ok_printed=1
+            fi
         fi
-    elif [[ -f "${LOG_DIR}/${entry_name}.log" ]]; then
-        echo "[FATAL] build failed: ${entry_name} (last lines of ${LOG_DIR}/${entry_name}.log)" >&2
-        tail -n 40 "${LOG_DIR}/${entry_name}.log" >&2
+    else
+        if [[ -f "${log}" ]]; then
+            echo "[FATAL] build failed: ${entry_name} (last lines of ${log})" >&2
+            tail -n 40 "${log}" >&2
+        else
+            echo "[FATAL] build failed: ${entry_name}" >&2
+        fi
         failed=1
     fi
 done

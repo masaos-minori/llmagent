@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess
 import types
@@ -147,7 +148,7 @@ def test_main_reports_a_missing_nuitka(
     assert not out.exists()
 
 
-# -- deploy/build_binaries.sh: parallel pool and canonical-header wiring --------------
+# -- deploy/build_binaries.sh: multi-main MCP group build and canonical-header wiring ----
 
 _STUB_UV = r"""
 case "$*" in
@@ -160,23 +161,46 @@ case "$*" in
   *"python find"*|*"python dir"*) exit 0 ;;
   *--version*) exit 0 ;;
   *nuitka*)
-    out_dir=""; launcher=""
+    out_dir=""; mains=""; positional=""
     for a in "$@"; do
-      case "$a" in --output-dir=*) out_dir="${a#--output-dir=}" ;; *.py) launcher="$a" ;; esac
+      case "$a" in
+        --output-dir=*) out_dir="${a#--output-dir=}" ;;
+        --main=*) mains="$mains $(basename "${a#--main=}" .py)" ;;
+        *.py) positional="$(basename "$a" .py)" ;;
+      esac
     done
-    name="$(basename "$launcher" .py)"
+    if [ -n "$mains" ]; then id=group; names="$(echo $mains)"; else id=agent; names="$positional"; fi
     echo "$PATH|${NUITKA_CCACHE_BINARY:-}|${NUITKA_CANON_HELPERS:-}" >> "$STUB_LOG/env_build"
-    echo "start $name $(date +%s%N)" >> "$STUB_LOG/events"
+    echo "$id $names" >> "$STUB_LOG/mains"
+    echo "start $id $(date +%s%N)" >> "$STUB_LOG/events"
     sleep 0.4
-    if [ "$name" = "${FAIL_NAME:-}_launcher" ]; then echo "boom $name" >&2; exit 1; fi
-    printf '\177ELF' > "$out_dir/$name.bin"
-    echo "end $name $(date +%s%N)" >> "$STUB_LOG/events"
+    for n in $names; do
+      case ",${FAIL_NAMES:-}," in
+        *",$n,"*) echo "boom $n" >&2; exit 1 ;;
+      esac
+    done
+    first="$(echo $names | cut -d' ' -f1)"
+    printf '\177ELF' > "$out_dir/$first.bin"
+    echo "artifact $id" >> "$out_dir/$first.bin"
+    echo "end $id $(date +%s%N)" >> "$STUB_LOG/events"
     exit 0 ;;
 esac
 exit 0
 """
 
-_BINARIES = "mcp_git mcp_shell mcp_cicd"
+_MCP_NAMES = [
+    "mcp_shell",
+    "mcp_git",
+    "mcp_web_search",
+    "mcp_file_delete",
+    "mcp_file_write",
+    "mcp_file_read",
+    "mcp_github",
+    "mcp_cicd",
+    "mcp_rag_pipeline",
+    "mcp_mdq",
+]
+_ALL_NAMES = ["agent", *_MCP_NAMES]
 
 
 def _run_build(
@@ -204,7 +228,6 @@ def _run_build(
         "BIN_DIR": str(tmp_path / "bin"),
         "OUTPUT_DIR": str(tmp_path / "dist"),
         "STUB_LOG": str(logs),
-        "BUILD_ONLY": _BINARIES,
         **extra_env,
     }
     result = subprocess.run(
@@ -215,6 +238,14 @@ def _run_build(
         env=env,
     )
     return result, logs
+
+
+def _installed(tmp_path: Path) -> list[str]:
+    return sorted(p.name for p in (tmp_path / "bin").iterdir() if "." not in p.name)
+
+
+def _mains(logs: Path) -> list[str]:
+    return (logs / "mains").read_text().splitlines()
 
 
 def _max_concurrency(events_file: Path) -> int:
@@ -229,31 +260,63 @@ def _max_concurrency(events_file: Path) -> int:
     return peak
 
 
-def test_parallel_one_builds_sequentially(tmp_path: Path) -> None:
-    result, logs = _run_build(tmp_path, {"NUTKA_PARALLEL": "1"})
-    assert result.returncode == 0, result.stderr
-    assert _max_concurrency(logs / "events") == 1
-    assert sorted(
-        p.name for p in (tmp_path / "bin").iterdir() if "." not in p.name
-    ) == (sorted(_BINARIES.split()))
-
-
-def test_parallel_two_overlaps_builds_and_installs_every_binary(
+def test_full_build_produces_one_group_invocation_with_all_mains(
     tmp_path: Path,
 ) -> None:
-    result, logs = _run_build(tmp_path, {"NUTKA_PARALLEL": "2"})
+    result, logs = _run_build(tmp_path, {})
+    assert result.returncode == 0, result.stderr
+    mains = _mains(logs)
+    assert mains == ["agent agent_launcher", f"group {' '.join(_MCP_NAMES)}"]
+    assert _installed(tmp_path) == sorted(_ALL_NAMES)
+    bin_dir = tmp_path / "bin"
+    digests = {
+        hashlib.sha256((bin_dir / n).read_bytes()).hexdigest() for n in _MCP_NAMES
+    }
+    assert len(digests) == 1  # one artifact installed under all ten names
+    assert hashlib.sha256((bin_dir / "agent").read_bytes()).hexdigest() not in digests
+    for name in _ALL_NAMES:
+        assert (bin_dir / f"{name}.build-info.json").is_file()
+
+
+def test_agent_only_build_uses_a_single_main_invocation(tmp_path: Path) -> None:
+    result, logs = _run_build(tmp_path, {"BUILD_ONLY": "agent"})
+    assert result.returncode == 0, result.stderr
+    assert _mains(logs) == ["agent agent_launcher"]
+    assert _installed(tmp_path) == ["agent"]
+
+
+def test_selected_mcp_subset_builds_one_group_with_those_mains(
+    tmp_path: Path,
+) -> None:
+    result, logs = _run_build(tmp_path, {"BUILD_ONLY": "mcp_git mcp_shell"})
+    assert result.returncode == 0, result.stderr
+    # ENTRIES order: mcp_shell is passed as the first main.
+    assert _mains(logs) == ["group mcp_shell mcp_git"]
+    assert _installed(tmp_path) == ["mcp_git", "mcp_shell"]
+
+
+def test_parallel_one_builds_agent_and_group_sequentially(tmp_path: Path) -> None:
+    result, logs = _run_build(
+        tmp_path, {"NUTKA_PARALLEL": "1", "BUILD_ONLY": "agent mcp_git mcp_shell"}
+    )
+    assert result.returncode == 0, result.stderr
+    assert _max_concurrency(logs / "events") == 1
+    assert _installed(tmp_path) == ["agent", "mcp_git", "mcp_shell"]
+
+
+def test_parallel_two_overlaps_agent_and_group(tmp_path: Path) -> None:
+    result, logs = _run_build(
+        tmp_path, {"NUTKA_PARALLEL": "2", "BUILD_ONLY": "agent mcp_git mcp_shell"}
+    )
     assert result.returncode == 0, result.stderr
     assert _max_concurrency(logs / "events") == 2
-    installed = sorted(
-        p.name for p in (tmp_path / "bin").iterdir() if "." not in p.name
-    )
-    assert installed == sorted(_BINARIES.split())
+    assert _installed(tmp_path) == ["agent", "mcp_git", "mcp_shell"]
     assert result.stdout.count("  OK  ") == 3
     assert "壁時間" in result.stdout
 
 
-def test_parallel_failure_leaves_the_bin_dir_untouched(tmp_path: Path) -> None:
-    result, _ = _run_build(tmp_path, {"NUTKA_PARALLEL": "2", "FAIL_NAME": "mcp_shell"})
+def test_group_failure_leaves_the_bin_dir_untouched(tmp_path: Path) -> None:
+    result, _ = _run_build(tmp_path, {"NUTKA_PARALLEL": "2", "FAIL_NAMES": "mcp_shell"})
     assert result.returncode != 0
     assert "build failed: mcp_shell" in result.stderr
     assert "boom mcp_shell" in result.stderr

@@ -96,15 +96,31 @@ behave as one freshness/swap unit. This row documents those two additions.
 - The build mechanics (`deploy/build_binaries.sh`) or the staleness implementation
   (`tools/manage_binaries.py`).
 
+## Verification Findings (2026-11-17, adversarial verification)
+
+Verification Status: Verified — apply the doc-policy constraint below when writing the edits.
+
+- Line anchors confirmed: line 236 is the build/placement sentence ("`deploy/build_binaries.sh`
+  builds the 11 binaries ..."); the "Build, freshness, and rollback." paragraph is at line 256;
+  the pre-flight/layout/launch paragraphs sit between them (lines 240-254).
+- Docs content policy (`skills/DESIGN.md`, enforced by `tools/check_docs_content_policy.py`):
+  the doc must not enumerate counts of configurable items. The existing "11 binaries" framing
+  predates this plan and stays; the new sentences must phrase the unit as "the `mcp_<server>`
+  names form one rebuild unit" without introducing new per-server counts or a list of names.
+  Run the checker after the edit (Step 3/6 gate).
+- Facts to state must match the implemented behavior after seq 01/02 land: one Nuitka
+  `--onefile` invocation produces the single MCP artifact installed under the ten names
+  (hardlinks); staleness of the ten names moves together.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | two prose additions in §2.6 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-102344 | 20261117-102920 | two prose additions in §2.6 Two prose additions applied in 2.6: single multi-main artifact clause (line 236 sentence) and mcp_<server> rebuild-unit sentence in Build, freshness, and rollback paragraph; no new counts or name lists |
+| 2 | Add or update tests per Validation plan | Completed | 20261117-102920 | 20261117-102920 | N/A: documentation row N/A: documentation row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-102920 | 20261117-102920 | check_docs_quality/structure/content_policy/consistency --domain deployment all pass; docs ceiling re-recorded 27339->27682 in check_docs_structure.py; pre-existing db_07 ceiling drift closed 26156->27083; tools module-size baseline re-recorded 32665->33347; pre-commit passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261117-102920 | 20261117-102920 | this row this row is the docs change itself |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

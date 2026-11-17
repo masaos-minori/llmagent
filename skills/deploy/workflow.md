@@ -75,7 +75,7 @@ BUILD_ONLY="${STALE}" bash deploy/build_binaries.sh
 the whole set into `/opt/llm/bin/` only after every requested binary passes the structural check, so a
 failed build leaves the previous binaries in place. The previous set stays in `/opt/llm/bin.prev/`.
 An empty `STALE` means nothing needs rebuilding (do not run the build with an empty `BUILD_ONLY`, which
-builds every binary). The Event Bus and ingestion run from the deployed `scripts/` source and have no binary.
+builds every binary). The Event Bus and ingestion run from the deployed `scripts/` source and have no binary. The `mcp_<server>` names are one rebuild unit: a change under any one of their embedded paths marks them all stale, and a single `deploy/build_binaries.sh` invocation rebuilds and swaps the whole set together.
 
 The build exports `UV_SYSTEM_CERTS=true` by default (for hosts whose certificates are only in the system store); set `UV_SYSTEM_CERTS=false` to turn it off.
 

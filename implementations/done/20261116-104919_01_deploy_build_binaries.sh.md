@@ -23,14 +23,16 @@ and `REQ-002` (launcher isolation and non-collision).
 
 ## Design decisions
 
-- **Install method (open, `UNK-01`).** The single binary must appear as ten `mcp_<server>`
-  files. Prefer hardlinks (single disk cost, replaced together on every swap, consistent
-  with treating the set as one rebuild unit) or copies (verified dispatch in the prototype);
-  both are regular files directly inside the bin dir and therefore pass
-  `CommandValidator`'s `os.path.realpath` + regular-file check. Do not use a symlink unless a
-  real build shows the invoked name survives `CommandValidator`'s realpath resolution (a
-  symlink whose target is outside the dir fails). Decide from evidence on the production-like
-  host before freeze.
+- **Install method (`UNK-01`): hardlinks, with a copy fallback.** Decided 2026-11-17 from
+  source evidence. The single binary must appear as ten `mcp_<server>` regular files. Dispatch
+  reads the invoked filename (see Details), and a hardlink's `os.path.realpath` resolves to
+  itself, so `CommandValidator` (which validates and launches the resolved path,
+  `scripts/agent/http_lifecycle_command_validator.py:144,199-209`) still invokes the installed
+  name — dispatch-safe, one disk cost, replaced together on every swap. A copy is equally safe
+  (prototype-verified) and is the fallback when `ln` fails (cross-device). A symlink is rejected
+  for a dispatch-specific reason beyond the realpath check: realpath resolves to the target's
+  name, so every symlinked name would dispatch the target's server. Re-confirm on the build
+  host in the manual step (`REQ-007`).
 - **One invocation for the MCP set, one for the agent.** Ten MCP launchers go into a single
   Nuitka `--onefile` run; the agent keeps its own run, so an agent change never rebuilds the
   MCP set.
@@ -56,9 +58,10 @@ and `REQ-002` (launcher isolation and non-collision).
 2. In the main build loop (lines 446-462), when the agent is selected, run the current
    single-entry `build_one` path for the agent unchanged.
 3. When any MCP entry is selected, build the ten MCPs in one Nuitka invocation: generate all
-   ten MCP launchers first, invoke Nuitka once with every launcher as a positional main plus
-   `BASE_NUTKA_ARGS`, resolve the single produced artifact, then materialize the ten names in
-   `STAGE_DIR` as copies or hardlinks (per the install-method decision).
+   ten MCP launchers first, invoke Nuitka once with every launcher as a repeated `--main=PATH`
+   flag (Nuitka 4.2.2 rejects more than one positional main) plus `BASE_NUTKA_ARGS`, resolve
+   the single produced artifact, then materialize the ten names in `STAGE_DIR` as hardlinks
+   (copy fallback per the install-method decision).
 4. Write a `.build-info.json` for each of the ten staged names via
    `tools/manage_binaries.py write-info` against the installed file, so each recorded
    checksum matches its own file.
@@ -72,21 +75,27 @@ and `REQ-002` (launcher isolation and non-collision).
   `ENTRIES`; preserve `BUILD_ONLY` filtering, `NUTKA_PARALLEL`/`NUTKA_JOBS`, the ccache
   `__helpers.h` canonicalization, and the `swap` call.
 - For the combined build, call `gen_launcher` (lines 322-349) for each of the ten MCP
-  entries, then pass all ten launcher paths to a single Nuitka invocation as positional
-  mains. Resolve the single onefile output (name is the implementer's choice, e.g. a shared
-  `mcp_*` name), then copy or hardlink it to each `${STAGE_DIR}/${final_name}`.
-- Do not change launcher generation: each MCP launcher still runs
-  `ConfigLoader.restrict_to("${cfg}")` before `from ${module} import ${cls}`, and the agent
-  launcher still calls `main()`. Launchers stay top-level modules named
-  `${final_name}_launcher.py`, which the existing comment in `build_one` (lines 358-361)
-  already guards against colliding with a `scripts/` package.
+  entries, then pass all ten launcher paths to a single Nuitka invocation as repeated
+  `--main=PATH` flags. Resolve the single onefile output (named `<first-main>.bin`), then
+  hardlink (or copy) it to each `${STAGE_DIR}/${final_name}`.
+- Change the MCP launcher file name to exactly `${final_name}.py`: name-derived dispatch
+  requires the invoked filename to equal the main module name (verified on Nuitka 4.2.2, see
+  Verification Findings), so a launcher named `${final_name}_launcher.py` would make the
+  installed name `${final_name}` fail dispatch. None of the ten `mcp_<server>` names collides
+  with a `scripts/` top-level package; keep the guard from the `build_one` comment (lines
+  358-361) as a runtime check: abort if `scripts/<final_name>.py` or `scripts/<final_name>/`
+  exists. The agent keeps `agent_launcher.py` (a single-main onefile does not dispatch by name,
+  so the installed `agent` name works unchanged). Launcher bodies are unchanged: each MCP
+  launcher still runs `ConfigLoader.restrict_to("${cfg}")` before `from ${module} import
+  ${cls}`, and the agent launcher still calls `main()`.
 - Do not mask Nuitka's dispatch error for a name that is not an entry; a start under such a
   name must fail with Nuitka's filename-derived-name error (`REQ-005`).
 
 ### Details
 
 - The single onefile binary dispatches by the invoked filename; copies/hardlinks named after
-  different servers each start the matching server (prototype-observed).
+  different servers each start the matching server (prototype-observed, re-verified on
+  Nuitka 4.2.2 on 2026-11-17 — see Verification Findings).
 - Because the ten names share one artifact, the freshness check, build info, swap, and
   rollback treat them as one rebuild unit — see `tools/manage_binaries.py`; this row only
   ensures `BUILT_NAMES` carries all ten names to the existing swap.
@@ -137,15 +146,44 @@ and `REQ-002` (launcher isolation and non-collision).
 - Folding the agent binary into the multi-entry binary.
 - Changing the staleness/build-info/swap/rollback model (that is `tools/manage_binaries.py`).
 
+## Verification Findings (2026-11-17, adversarial verification)
+
+Verification Status: Verified — findings applied to Procedure/Method above.
+
+- Live experiment on the pinned Nuitka 4.2.2 (dev host, minimal two-main prototype,
+  `/tmp/opencode/mmtest`): multiple positional mains are rejected ("specify only one positional
+  argument"); repeated `--main=PATH` is accepted and produces a single onefile artifact named
+  `<first-main>.bin`.
+- Name-derived dispatch confirmed: copies named after a main module's name run that main; a
+  copy named `mcp_a` against main `mcp_a_launcher` fails with `Error, failed to detect what to
+  do for filename derived name 'mcp_a'.` This is exactly the `REQ-005` failure mode and proves
+  the MCP launcher file must be named `${final_name}.py` (Method updated).
+- `ENTRIES` (lines 144-156) confirmed: agent row `agent.repl:agent::` (empty cls) plus ten MCP
+  rows. Keep the array named `ENTRIES=(`, one quoted row per line, and split the agent into its
+  own `AGENT_ENTRY` variable: `tests/mcp_servers/test_config_isolation_import.py` `_entries()`
+  (lines 286-295) locates `ENTRIES(`, drops empty-`cls` rows, and must keep yielding exactly
+  ten MCP rows after the split.
+- Current shape confirmed: `gen_launcher` 322-349, `build_one` 356-415 (candidate search 389-395,
+  `mv` to `STAGE_DIR` 402-403, per-name `write-info` 404-406), `parse_entry` 418-425, main loop
+  446-462, result collection 472-488, all-or-nothing abort 489-492, swap 496-502. The MCP phase
+  must keep: per-name `write-info`, per-name `RESULT_DIR/<name>.ok` (the collection loop at
+  472-488 expects one result file per selected name), `BUILT_NAMES` carrying all ten names to
+  the swap, and the 358-361 collision guard as a runtime check.
+- Install method decided: hardlinks with copy fallback (Design decisions updated). Symlink
+  rejection now has a dispatch-specific reason: realpath resolution changes the invoked name.
+- Companion baseline: `tests/tools/test_build_binaries_script.py` 17 cases pass on 2026-11-17;
+  its stub asserts one `.py` launcher per build (line 216) and no `--module` flag (line 199).
+  The stub and its assertions must be rewritten for the two-phase multi-main build.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | companion `test_build_binaries_script.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-095134 | 20261117-101306 | two-phase build (agent build_one + build_mcp_group multi-main), hardlink staging, launcher naming mcp_<server>.py, collision guard |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261117-101306 | companion `test_build_binaries_script.py` companion test_build_binaries_script.py rewritten for multi-main stub; 20 pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261117-101306 | bash -n; targeted 78 pass; full suite 12478 pass; diff-cover N/A (no source lines); pre-commit passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261117-101306 | N/A: docs scope handled by procedures 08-11 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -22,7 +22,7 @@ Environment details (paths, service names, ports): see `rules/env.md`.
 | `deploy/deploy.sh` | Sync `scripts/`, `tests/`, and `docs/` to `/opt/llm/` with `rsync --delete`; copy `config/*.toml`, `pyproject.toml`, `uv.lock`, `start_agent.sh`, the binaries, and the dictionary; record `/opt/llm/DEPLOYED_REV` | Every code or config change |
 | `deploy/init_db.sh` | Initialize the SQLite schemas (the separated DBs, ADR-008) via `create_schema.py` | First run only (`IF NOT EXISTS`, so idempotent; skip if the DBs already exist) |
 | `deploy/setup_services.sh` | Check the remote LLM health and start the Event Bus (MCP servers are started by the agent) | First run only |
-| `deploy/build_binaries.sh` | Build the Nuitka `--onefile` binaries (every `ENTRIES` entry, or `BUILD_ONLY`) into a staging directory, swap them into `/opt/llm/bin/` after all pass, and keep the previous set (`--rollback` restores it) | Whenever a binary is stale (Phase 1b), on the build host |
+| `deploy/build_binaries.sh` | Build the Nuitka `--onefile` binaries (the MCP `ENTRIES` entries in one multi-main invocation, one artifact installed under each `mcp_<server>` name; the agent builds separately; select a subset with `BUILD_ONLY`) into a staging directory, swap them into `/opt/llm/bin/` after all pass, and keep the previous set (`--rollback` restores it) | Whenever a binary is stale (Phase 1b), on the build host |
 | `tools/manage_binaries.py` | Build info, freshness check, staged swap, rollback, and deployed-revision record for the binaries (called by the two scripts above) | Run `check` before every deploy |
 
 ## Binary layout
@@ -45,7 +45,7 @@ The agent binary resolves these via:
 | Phase | Goal | Gate |
 |---|---|---|
 | 1 Pre-deploy | Clean-tree and revision check + syntax check + deploy.sh config/binary list confirmation + binary freshness report | the working tree is clean and `HEAD` is pushed and validated, `compileall` reports no `SyntaxError`, `check_db_separation.py` exits 0, config and binary list diffs empty or explained (`workflow.md` Phase 1 Completed when) |
-| 1b Build | Rebuild the binaries the freshness report lists as stale or unknown | `tools/manage_binaries.py check` lists no stale or unknown binary (`workflow.md` Phase 1b Completed when) |
+| 1b Build | Rebuild the binaries the freshness report lists as stale or unknown; the `mcp_<server>` names are one rebuild unit — a single rebuild refreshes all of them | `tools/manage_binaries.py check` lists no stale or unknown binary (`workflow.md` Phase 1b Completed when) |
 | 2 Deploy | Preview the sync, obtain the user's approval, then copy files to `/opt/llm/` | the user approved (`workflow.md` Approval gate) and `bash deploy/deploy.sh` exits 0 |
 | 3 Restart | Restart only the affected services the approval covered | Port health check returns OK |
 | 4 Verify | Log check + basic operation | No new errors in logs |

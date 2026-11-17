@@ -90,15 +90,29 @@ row documents those two additions.
 - Changing the deploy phase model or the Approval gate.
 - The build mechanics beyond the one-artifact fact, and the staleness implementation.
 
+## Verification Findings (2026-11-17, adversarial verification)
+
+Verification Status: Verified — quoted lines confirmed.
+
+- Line 25 quote confirmed verbatim: "Build the Nuitka `--onefile` binaries (every `ENTRIES`
+  entry, or `BUILD_ONLY`) into a staging directory, swap them into `/opt/llm/bin/` after all
+  pass, and keep the previous set (`--rollback` restores it)".
+- Line 48 quote confirmed verbatim: "Rebuild the binaries the freshness report lists as stale
+  or unknown".
+- Docs content policy: state the unit ("all ten `mcp_<server>` names move as one unit" phrasing
+  already exists in this skill's context); do not enumerate server names; run
+  `tools/check_docs_content_policy.py` after the edit if it covers `skills/` (else the docs
+  checker covers `docs/` only and a manual policy check applies).
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | two prose edits (lines 25, 48) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-102950 | 20261117-103041 | two prose edits (lines 25, 48) Two table edits applied: build_binaries.sh row (single multi-main invocation, one artifact per mcp_<server> name, agent separate) and Phase 1b row (mcp_<server> names are one rebuild unit); no counts or name lists added |
+| 2 | Add or update tests per Validation plan | Completed | 20261117-103041 | 20261117-103041 | N/A: documentation row N/A: documentation row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-103041 | 20261117-103041 | content_policy covers docs/ only; manual policy check clean; pre-commit skills file-reference check passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261117-103041 | 20261117-103041 | this row this row is the skills doc change itself |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

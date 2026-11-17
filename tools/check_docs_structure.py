@@ -134,7 +134,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted 37291 (2026-11-15): dbreview004 added the `missing` condition to the
     # Decision Detail #14 and INV-13 enumerations and the MISSING/rollback-journal test
     # citations to the INV-13 and INV-16 rows.
-    "db_07_api_and_operations-recovery-and-reference.md": 26156,
+    # Re-accepted 27083 (2026-11-17): closing a pre-existing gap, not part of buildperf001
+    # scope. 911c69459 (bounded artifact retention sweeps) and 37651b04c (drill archive
+    # failures record) grew the file 26156 -> 27083 after bca9ec63f recorded the ceiling;
+    # the ceiling is re-recorded to the accepted size. Any further growth fails.
+    "db_07_api_and_operations-recovery-and-reference.md": 27083,
     # Re-accepted 25553 (2026-11-15): dbreview004 added the MISSING enum member, the
     # missing-file diagnosis bullet, the probe-semantics bullet, and the
     # missing_database/active_db_state="missing" result-contract additions.
@@ -224,7 +228,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # the §3.1 init_db.sh responsibilities bullet grew 36 bytes total replacing the stale
     # four-table lists with the five-table required set (tool_call_state added); the ceiling
     # equals the accepted size, so any further growth fails.
-    "deployment_01_deployment.md": 27339,
+    # Re-accepted 2026-11-17 (buildperf001 procedure 08): §2.6 grew 27339 -> 27682 with the
+    # two required additions (single multi-main artifact for the mcp_<server> names; the
+    # mcp_<server> rebuild-unit sentence in Build, freshness, and rollback). The ceiling
+    # equals the accepted size, so any further growth fails.
+    "deployment_01_deployment.md": 27682,
     # Re-accepted 2026-11-12, closing a pre-existing gap: the file had grown 26797 -> 27339
     # by df511141b (generalized fingerprint gate description) without the ceiling being
     # re-recorded. Not part of adrrev011 scope; recorded here only to keep

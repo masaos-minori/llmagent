@@ -105,15 +105,33 @@ validating the same guarantee; this row verifies that rather than rewriting the 
 - The multi-main build mechanics (`deploy/build_binaries.sh`, `REQ-001`).
 - The staleness/rebuild-unit model (`tools/manage_binaries.py`, `REQ-003`).
 
+## Verification Findings (2026-11-17, adversarial verification)
+
+Verification Status: Verified — no change to the test required, contingent on seq 01 holding
+the shapes below.
+
+- Baseline: all 30 cases pass on 2026-11-17.
+- `_entries()` exact position: lines 286-295; it searches the literal `ENTRIES(` substring,
+  reads rows up to the first `\n)\n`, splits on `:`, and drops rows with an empty `cls` — the
+  agent row (`agent.repl:agent::`) is already excluded today. After seq 01 splits the agent
+  into `AGENT_ENTRY` (not an array row), the same helper yields the same ten MCP rows; do not
+  rename `ENTRIES` to `MCP_ENTRIES` in seq 01.
+- `test_entries_table_matches_the_server_classes` (line 298) asserts `len(entries) ==
+  len(_SERVERS)` — both ten — and each class's `own_config_file` matches its cfg column.
+- `test_launcher_template_restricts_config_before_the_server_import` (lines 306-310) asserts
+  the literal `ConfigLoader.restrict_to("${cfg}")` appears before `from ${module} import
+  ${cls}` in the script text; the MCP launcher body keeps both literals in that order, so this
+  stays green when only the launcher file name changes (seq 01 Method).
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | verify existing coverage; no edit expected |
-| 2 | Add or update tests per Validation plan | Pending | — | — | existing file, all cases |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-102145 | 20261117-102211 | verify existing coverage; no edit expected Verified against rewritten build_binaries.sh: ENTRIES keeps 10 MCP rows, AGENT_ENTRY separate, restrict-before-import literals intact; no edit |
+| 2 | Add or update tests per Validation plan | Completed | 20261117-102212 | 20261117-102212 | existing file, all cases existing file, 30 cases pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-102212 | 20261117-102212 | pytest 30 passed; ruff clean; mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261117-102212 | 20261117-102212 | N/A: no docs/ change in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

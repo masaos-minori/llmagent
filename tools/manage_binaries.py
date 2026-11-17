@@ -96,6 +96,20 @@ BINARY_SOURCES: dict[str, tuple[str, ...]] = {
     "mcp_mdq": ("scripts/mcp_servers/mdq/", "scripts/db/", *_MCP_COMMON),
 }
 
+# The ten mcp_<server> names are built from a single multi-main artifact and form one
+# rebuild unit: a change under any server's embedded paths marks all ten stale, and an
+# agent-only change marks none of them stale. Derived from the table so adding or
+# removing a server keeps the unit in sync.
+_MCP_NAMES: tuple[str, ...] = tuple(n for n in BINARY_SOURCES if n != "agent")
+
+
+def _unit_sources(name: str) -> tuple[str, ...]:
+    """Embedded paths of the rebuild unit ``name`` belongs to: agent alone, or the
+    union over every MCP name for the ten MCP names."""
+    if name == "agent":
+        return BINARY_SOURCES["agent"]
+    return tuple(sorted({entry for mcp in _MCP_NAMES for entry in BINARY_SOURCES[mcp]}))
+
 # Statuses that mean the binary should be rebuilt.
 _REBUILD_STATUSES = frozenset({"stale", "unknown", "mismatch", "invalid"})
 
@@ -229,7 +243,7 @@ def _check_binary(name: str, bin_dir: Path, rev: str, repo: Path) -> tuple[str, 
     except RuntimeError:
         return "stale", f"recorded commit {built[:12]} is not in the repository"
     hits = sorted(
-        p for p in changed if any(_matches(p, e) for e in BINARY_SOURCES[name])
+        p for p in changed if any(_matches(p, e) for e in _unit_sources(name))
     )
     if hits:
         return "stale", f"{len(hits)} embedded path(s) changed, e.g. {hits[0]}"

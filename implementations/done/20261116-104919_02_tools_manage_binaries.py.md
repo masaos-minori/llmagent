@@ -120,15 +120,30 @@ and the ten names are restored together because `deploy.sh` rolls back all ten n
 - The deploy pre-check (that is `deploy/deploy.sh`).
 - Changing the staleness rule to per-binary import closures.
 
+## Verification Findings (2026-11-17, adversarial verification)
+
+Verification Status: Verified — no change to the procedure required.
+
+- Line references confirmed: `BINARY_SOURCES` at line 71; staleness lookup `sources =
+  BINARY_SOURCES[name]` in `_check_binary` at line 232; `_replace_files`/`_verify_binaries`
+  require every requested name (lines 294, 307 region).
+- `swap`, `rollback`, `record_revision` confirmed to iterate the passed names (or all of
+  `BINARY_SOURCES`); step 3's "leave as-is" holds.
+- `build_binaries.sh` calls `manage_binaries.py write-info --binary --module` per final name
+  (build_binaries.sh 404-406); seq 01 keeps that per-name call, so build info stays per name.
+- Union note confirmed: `scripts/db/` and `scripts/rag/` are already in the MCP union via
+  `mcp_rag_pipeline`/`mcp_mdq`; an agent-only change (`scripts/agent/`) marks no MCP name stale.
+- Companion baseline: `tests/tools/test_manage_binaries.py` 26 cases pass on 2026-11-17.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | companion `test_manage_binaries.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261117-101422 | 20261117-101807 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261117-101807 | 20261117-101807 | companion `test_manage_binaries.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261117-101807 | 20261117-101807 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261117-101807 | 20261117-101807 | N/A: no docs/ changes; docs updates belong to procedure 10 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
