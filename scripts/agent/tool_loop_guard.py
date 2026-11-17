@@ -419,6 +419,8 @@ class ToolLoopGuard:
     ) -> str | None:
         """Block re-execution of identical (tool, args); return exit msg when hit."""
         ctx = self._ctx
+        if ctx.cfg.tool.tool_dedup_max_repeats <= 0:
+            return None
         for func, key in self._iter_tool_call_keys(message):
             seen_calls[key] = seen_calls.get(key, 0) + 1
             if seen_calls[key] >= ctx.cfg.tool.tool_dedup_max_repeats:

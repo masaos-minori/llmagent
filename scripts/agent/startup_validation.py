@@ -222,6 +222,10 @@ class StartupValidationPipeline:
                 remediation="Check MCP server connectivity and configuration.",
             )
 
+        # A tool-discovery FATAL skips the RAG check too.
+        if pipeline.has_fatal:
+            return pipeline
+
         # 6. RAG consistency
         stop = threading.Event()
         try:
