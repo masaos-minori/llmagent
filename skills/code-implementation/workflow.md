@@ -129,6 +129,17 @@ report `Blocked` for the batch without a rollback and ask (Question policy). Onc
 passes, run Step 7 for every completed member with `--stage-only`, then the Plan Execution
 Status update.
 
+**Resume.** A member of a plan batch (or of a release unit) that finished Steps 1-6 keeps row 3
+`In Progress` with every other row `Completed`, and its changed files stay uncommitted in the
+working tree; the changed-file list is in its Notes (Step 3d). A new run that finds such a
+member in `implementations/` treats it as awaiting the end-of-batch run: it does not redo the
+member's Steps 1-6, and Step 1's Partial-completion resume does not restart it. The unfinished
+members run Steps 1-6 in `seq` order, then the end-of-batch run covers every member, awaiting
+and new; when only awaiting members remain, go straight to that run. Before running it, check
+that each awaiting member's recorded files still show as modified in `git status --short`; if
+one no longer does (committed or reverted by another writer), stop and ask (Question policy)
+rather than running the end-of-batch run on a changed premise.
+
 ### Batch mode (release unit)
 
 Applies only when the procedures of one `Source plan` carry the same unit name on the
@@ -265,7 +276,9 @@ Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) — target files 
   Step 7).
 - **Partial-completion resume**: if at least one row is `Completed` but not all
   (a resumed, previously-interrupted cycle), resume from the first Step whose row is
-  not `Completed`. MUST NOT re-run a Step already marked `Completed` unless a later
+  not `Completed`. The exception is a member left awaiting a batch's end-of-batch run
+  (row 3 `In Progress`, every other row `Completed`): it is not a cycle to resume, see
+  Multi-file processing > Batch mode (plan batch), Resume. MUST NOT re-run a Step already marked `Completed` unless a later
   Step's Adversarial Verification (Step 3a) specifically finds that Step's output is
   now stale. MUST NOT re-derive or re-verify a `Completed` Step's conclusion merely
   because the cycle is resuming.
@@ -408,7 +421,10 @@ shows as modified there, and was not changed by an earlier cycle of this batch, 
 changes that are not this cycle's: stop and report
 `Blocked: {path} has uncommitted changes not from this cycle`. Another session's
 `pre-commit` run can stash unstaged files for a short time
-(`skills/git-commit-and-sync/workflow.md` Phase 6), so re-check before deciding.
+(`skills/git-commit-and-sync/workflow.md` Phase 6), so re-check before deciding. A path
+listed in the Notes of a member of the same Plan whose row 3 is `In Progress` counts as
+changed by an earlier cycle of this batch, including a cycle of an earlier session
+(Multi-file processing > Batch mode (plan batch), Resume).
 
 Implement the feature per the (possibly corrected) procedure, applying the guidance
 loaded in Step 0 from `skills/python-implementation/SKILL.md` and
