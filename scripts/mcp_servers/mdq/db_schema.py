@@ -119,7 +119,7 @@ def create_production_tables(
     db_dir.mkdir(parents=True, exist_ok=True)
     try:
         apply_connection_pragmas(
-            conn, busy_timeout_ms=sqlite_busy_timeout, write_mode=False
+            conn, busy_timeout_ms=sqlite_busy_timeout, write_mode=True
         )
         existing = conn.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='documents'"

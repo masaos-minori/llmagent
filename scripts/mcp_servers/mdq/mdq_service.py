@@ -130,7 +130,7 @@ class MdqService:
             raise MdqDatabaseError(f"Failed to open database: {e}") from e
         conn.row_factory = sqlite3.Row
         apply_connection_pragmas(
-            conn, busy_timeout_ms=self.sqlite_busy_timeout, write_mode=False
+            conn, busy_timeout_ms=self.sqlite_busy_timeout, write_mode=True
         )
         return conn
 

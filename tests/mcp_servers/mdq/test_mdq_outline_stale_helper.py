@@ -46,6 +46,10 @@ def test_outline_no_stale_warning_when_document_row_missing(
 
     conn = service._get_db_connection()
     try:
+        # Simulate a legacy/external orphan (a pre-FK manual delete that left the
+        # chunks behind): production connections enforce FK and cascade, so the
+        # orphan state this guard covers can only predate FK enforcement.
+        conn.execute("PRAGMA foreign_keys=OFF")
         conn.execute(
             "DELETE FROM documents WHERE source_path = ?",
             (str(f),),

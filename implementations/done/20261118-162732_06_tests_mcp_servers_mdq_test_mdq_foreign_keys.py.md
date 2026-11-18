@@ -85,8 +85,8 @@ resolved by procedures 01/02 in the same release unit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the three FK tests (red-first run recorded) | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the three FK tests (red-first run recorded) | Completed | 2026-11-18 | — | red-first evidence 2026-11-18: cascade FAIL assert 1==0 (chunk survives raw documents DELETE); pragma FAIL assert 0==1; orphan-insert FAIL DID NOT RAISE IntegrityError (all 3 red before procedures 01/02) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

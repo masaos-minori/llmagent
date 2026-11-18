@@ -72,8 +72,8 @@ are unaffected — they do not depend on FK state.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Switch `write_mode` to True in `create_production_tables()` | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Switch `write_mode` to True in `create_production_tables()` | Completed | 2026-11-18 | — |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

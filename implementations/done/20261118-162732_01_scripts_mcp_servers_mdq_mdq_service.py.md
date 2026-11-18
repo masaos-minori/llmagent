@@ -82,13 +82,13 @@ the sibling procedure 06 cascade test and existing `test_index_delete.py`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Switch `write_mode` to True in `_get_db_connection()` | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Switch `write_mode` to True in `_get_db_connection()` | Completed | 2026-11-18 | — |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py` (not a plan target row) builds an orphan state by deleting a `documents` row and expects the chunks to survive; FK ON cascades and breaks it. Resolved by simulating the legacy/external orphan in that test with `PRAGMA foreign_keys=OFF` on the helper connection only | Yes | 2026-11-18 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
