@@ -39,7 +39,7 @@ High
 - `REQ-003`: Add the deployment-phase preconditions to adrrev005 Phase 7 and adrrev002 Phase 6: the data lifecycle decision text recorded in ADR-008 (approval pending in `AAL-025` and `AAL-026`), adrrev005 `UNK-02` and `UNK-03` resolved by the maintainer, each deployed database that fails the fingerprint archived and recreated by the operator, and the deployment itself not run by any document edit.
 - `REQ-004`: In adrrev005 Phase 6, cite for each of the three ADR edits its commit and either its ledger row (`AAL-025` for ADR-008, pending) or "no ledger row; pending" (ADR-001, ADR-006); write no approval statement.
 - `REQ-005`: Remove `build_eventbus_schema_sql`, `_EVENTBUS_SCHEMA_PATH`, their module-docstring entry, and the `Path` import that only they use from `scripts/db/schema_sql.py`, and remove the import and `test_db_accessor_returns_eventbus_canonical_ddl` from `tests/db/test_create_schema.py`; add no alias, shim, or history comment.
-- `REQ-006`: Make both plans follow the rule: the adrrev005 `scripts/db/schema_sql.py` row and `Implementation steps` text describe canonical DDL accessors for workflow, session, and rag only, with the EventBus DDL owned by `eventbus.db_tools`; adrrev002 `AC-04` returns no match on the tree and its text stays unchanged.
+- `REQ-006`: Make both plans follow the rule: the adrrev005 `Implementation Target Files` row for `scripts/db/schema_sql.py` describes canonical DDL accessors for workflow, session, and rag only, with the EventBus DDL owned by `eventbus.db_tools` (its `Implementation steps` text names no EventBus accessor and stays unchanged); adrrev002 `AC-04` returns no match on the tree and its text stays unchanged.
 - `REQ-007`: Verify with `uv run python tools/check_db_separation.py`, `uv run pytest tests/db -v`, the archived-plan checkers, and the full validation sequence of `rules/toolchain.md`.
 
 ## Implementation Target Files
@@ -78,7 +78,7 @@ glob patterns, components, file groups, or vague phrases.
 - `AC-03` (REQ-003): adrrev005 Phase 7 and adrrev002 Phase 6 each list the four preconditions of `REQ-003`, name `AAL-025`, `AAL-026`, `UNK-02`, and `UNK-03`, and state that deployment is the user's decision after commit and push.
 - `AC-04` (REQ-004): adrrev005 Phase 6 names commits `5e8e89203`, `c3573341e`, `8f5c5825c` with `AAL-025` (ADR-008) and "no ledger row; pending" (ADR-001, ADR-006); no approval statement appears in either plan.
 - `AC-05` (REQ-005): `rg -n "build_eventbus_schema_sql|_EVENTBUS_SCHEMA_PATH" scripts tools tests docs` returns no match; `uv run pytest tests/db -v` passes.
-- `AC-06` (REQ-006): adrrev002 `AC-04` search returns no match; the adrrev005 `scripts/db/schema_sql.py` row and Phase 3 text name accessors for workflow, session, and rag only and name `eventbus.db_tools` as the EventBus DDL owner.
+- `AC-06` (REQ-006): adrrev002 `AC-04` search returns no match; the adrrev005 `scripts/db/schema_sql.py` target row names accessors for workflow, session, and rag only and names `eventbus.db_tools` as the EventBus DDL owner; the adrrev005 `Implementation steps` text is unchanged because it names no EventBus accessor.
 - `AC-07` (REQ-007): `uv run python tools/check_db_separation.py` passes, `uv run python tools/check_workitem_structure.py --archived-status` reports no new finding, and the full validation sequence of `rules/toolchain.md` passes.
 
 ## Tests
@@ -170,10 +170,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the EventBus DDL accessor (code) | Pending | — | — | |
-| 2 | Reconcile adrrev005 | Pending | — | — | |
-| 3 | Reconcile adrrev002 | Pending | — | — | |
-| 4 | Verification and deploy hand-off | Pending | — | — | |
+| 1 | Remove the EventBus DDL accessor (code) | In Progress | — | — |  |
+| 2 | Reconcile adrrev005 | In Progress | — | — |  |
+| 3 | Reconcile adrrev002 | In Progress | — | — |  |
+| 4 | Verification and deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -183,7 +183,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261118-165056_01_scripts_db_schema_sql.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261118-165056_03_plans_done_20261110-095137_adrrev005_schema-fingerprint-unify.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261118-165056_04_plans_done_20261110-091327_adrrev002_agent-eventbus-coupling.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -206,9 +208,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-004 | Required Changes: reference the Phase 6 approval records or mark them pending; commits and ledger rows in Step 2 | `plans/done/20261110-095137_adrrev005_schema-fingerprint-unify.md` | 2 | AC-04 | Read-back of the Phase 6 text; ledger rows in `governance_03` Part 5 | Confirmed by repository evidence |
 | REQ-005 | Required Changes (decision): remove `build_eventbus_schema_sql` and `_EVENTBUS_SCHEMA_PATH`; the user chose removal | `scripts/db/schema_sql.py` | 1 | AC-05 | `uv run pytest tests/db -v`; the removed-symbols search | Confirmed by repository evidence |
 | REQ-005 | Required Changes (decision): update the callers | `tests/db/test_create_schema.py` | 1 | AC-05 | `uv run pytest tests/db/test_create_schema.py -v` | Confirmed by repository evidence |
-| REQ-006 | Implementation Intent: both plans follow one rule; adrrev005 row and Phase 3 text | `plans/done/20261110-095137_adrrev005_schema-fingerprint-unify.md` | 2 | AC-06 | Read-back of the row and Phase 3 text | Derived from confirmed evidence |
+| REQ-006 | Implementation Intent: both plans follow one rule; adrrev005 `scripts/db/schema_sql.py` target row | `plans/done/20261110-095137_adrrev005_schema-fingerprint-unify.md` | 2 | AC-06 | Read-back of the `scripts/db/schema_sql.py` target row | Derived from confirmed evidence |
 | REQ-006 | Acceptance Criteria: the `AC-04` search result matches the plan text | `plans/done/20261110-091327_adrrev002_agent-eventbus-coupling.md` | 3 | AC-06 | adrrev002 `AC-04` search | Derived from confirmed evidence |
 | REQ-007 | Testing Expectations: `check_db_separation.py`, `tests/db/`, the full validation sequence | `scripts/db/schema_sql.py` | 4 | AC-07 | `uv run python tools/check_db_separation.py`; full validation sequence | Explicit in issue |
 | REQ-007 | Testing Expectations | `tests/db/test_create_schema.py` | 4 | AC-07 | `uv run pytest tests/db -v` | Explicit in issue |
 | REQ-007 | Testing Expectations: archived-plan checkers | `plans/done/20261110-095137_adrrev005_schema-fingerprint-unify.md` | 4 | AC-07 | `uv run python tools/check_workitem_structure.py --archived-status` | Explicit in issue |
 | REQ-007 | Testing Expectations: archived-plan checkers | `plans/done/20261110-091327_adrrev002_agent-eventbus-coupling.md` | 4 | AC-07 | `uv run python tools/check_workitem_structure.py --archived-status` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-165056 -->
