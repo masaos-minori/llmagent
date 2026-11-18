@@ -87,7 +87,7 @@ Medium — carried from the source issue (`issues/done/20261117-123019_adrchk019
 | `tools/check_db_separation.py` | Check 3 reads the `DbConfig` field default (`:189`); stays green because the agent.toml value equals the default | REQ-004, Validation plan |
 | `scripts/shared/mcp_dedup.py` | Comment at `:32-33` references "the workflow_db_path default in scripts/db/config.py" — remains accurate (the field default stays); no edit | REQ-004 |
 | `docs/10_adr/adr_02_01_002_platform-config-isolation.md` | Required-Keys semantics (`:81, 85`) proving no ADR change/approval record is needed | Problem P5 |
-| `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` | Names `DbConfig.workflow_db_path` as a target API (`:145`); no invariant touched | Problem P5 |
+| `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` | Names `DbConfig.workflow_db_path` as a target API (`:150`); no invariant touched. Decision #6 ("Physical foreign keys ... across DBs") scopes to cross-DB use; per-DB physical FKs are the established pattern in `scripts/db/schema_sql.py` | Problem P5, REQ-002 |
 
 ## Acceptance Criteria
 - **AC-1**: The new cascade-delete test passes (and is demonstrated red before REQ-002 lands); a chunk `INSERT` with a nonexistent `doc_id` is rejected with `sqlite3.IntegrityError` on a production MDQ connection.
