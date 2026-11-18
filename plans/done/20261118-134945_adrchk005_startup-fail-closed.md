@@ -55,16 +55,16 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
+| `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | Modify: add ledger rows AAL-021, AAL-022, AAL-023 to Part 5 | The pending bullets cite ledger ids that must exist first (scope amendment decided by the user) | REQ-006 / AC-6 | Part 5 ends at AAL-020 (ADR-005 row); the ledger row form has `ID`, `ADR`, `Decision`, `Approver`, `Date`, `Scope` (checked in Step 2) | `tools/check_adr_structure.py` | Verified |
+| `scripts/db/rag_consistency.py` | Modify: add five issue builders and wire them into `_CHECKS`; make `_ConsistencyCheck.issue` required and update its docstring | Five `_CHECKS` rules have `issue=None`, so `findings` stays empty while `is_consistent` is false | REQ-003, REQ-004 / AC-3 | `_CHECKS` entries for `diagnostic_errors`, `read_smoke_test_ok`, `fk_unverified`, `embedding_unverified`, `schema_unverified` have no builder; `findings` is built only from entries with a builder (checked in Step 3) | `tests/db/test_rag_consistency.py` | Verified |
+| `docs/21_rag/rag_05_07-rag-index-consistency-checks.md` | Modify: add rows for the new findings to the repair table and the Startup Warnings text | The document lists every finding with severity and `repair_action`; new findings must appear (scope amendment) | REQ-007 / AC-7 | `Repair Decision Flow` table and `Startup Warnings` list the existing findings only (checked in Step 2) | `tools/check_docs_structure.py` (validation) | Verified |
 | `scripts/agent/startup_validation.py` | Modify: safety-tier gaps to `add_fatal`; correct the drift comment; add the FATAL `rag_consistency` fallback entry | Gaps are recorded as warnings (`add_warning` loop in `check_config`); `check_services` iterates only `findings` | REQ-001, REQ-002, REQ-004 / AC-1, AC-2, AC-3 | `check_config` sends safety-tier messages to `add_warning` and the comment says drift is always FATAL; `check_services` routes only `rag_check.findings` (checked in Step 2 and Step 3) | `tests/agent/test_startup_validation.py`, `tests/agent/test_startup_severity_classification.py`, `tests/agent/test_startup.py` | Verified |
 | `scripts/agent/services/routing_drift.py` | Modify: docstrings state that strict mode raises on any drift and the safety-tier function returns gap messages the caller records as FATAL | Docstrings say "Returns warning messages" for both | REQ-001, REQ-002 / AC-1, AC-2 | `check_routing_drift` raises `RuntimeError` when `drift and strict`; `check_routing_safety_tiers` wraps `check_tool_safety_tiers` (checked in Step 3) | `tests/agent/test_startup_validation.py` | Verified |
-| `scripts/db/rag_consistency.py` | Modify: add five issue builders and wire them into `_CHECKS`; make `_ConsistencyCheck.issue` required and update its docstring | Five `_CHECKS` rules have `issue=None`, so `findings` stays empty while `is_consistent` is false | REQ-003, REQ-004 / AC-3 | `_CHECKS` entries for `diagnostic_errors`, `read_smoke_test_ok`, `fk_unverified`, `embedding_unverified`, `schema_unverified` have no builder; `findings` is built only from entries with a builder (checked in Step 3) | `tests/db/test_rag_consistency.py` | Verified |
-| `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` | Modify: Decision #15 severity, Verification row, Startup Validation bullet, Failure Policy classification, Data Ownership term, pending bullets for #15, #16, #17 | Contradictory severity, abort scope, failure class, data class; no approval state for #16 and #17 | REQ-005, REQ-006 / AC-5, AC-6 | Decision #15 says "warns"; Verification says "startup is aborted on drift"; Startup Validation says `required=true`; the Approval Record covers #1 to #15 (checked in Step 2) | `tools/check_adr_structure.py`, `tools/check_adr_preservation.py` (validation) | Verified |
-| `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | Modify: add ledger rows AAL-021, AAL-022, AAL-023 to Part 5 | The pending bullets cite ledger ids that must exist first (scope amendment decided by the user) | REQ-006 / AC-6 | Part 5 ends at AAL-020 (ADR-005 row); the ledger row form has `ID`, `ADR`, `Decision`, `Approver`, `Date`, `Scope` (checked in Step 2) | `tools/check_adr_structure.py` | Verified |
-| `docs/21_rag/rag_05_07-rag-index-consistency-checks.md` | Modify: add rows for the new findings to the repair table and the Startup Warnings text | The document lists every finding with severity and `repair_action`; new findings must appear (scope amendment) | REQ-007 / AC-7 | `Repair Decision Flow` table and `Startup Warnings` list the existing findings only (checked in Step 2) | `tools/check_docs_structure.py` (validation) | Verified |
 | `tests/agent/test_startup_validation.py` | Modify: add tests for a real drifted tool, a safety-tier gap, and the RAG fallback entry | Acceptance Criteria require these tests | REQ-001, REQ-002, REQ-004 / AC-1, AC-2, AC-3 | Existing `test_routing_drift_is_fatal` and `test_safety_tier_failure_is_fatal` mock the functions and never use real drift data (checked in Step 3) | itself | Verified |
+| `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` | Modify: Decision #15 severity, Verification row, Startup Validation bullet, Failure Policy classification, Data Ownership term, pending bullets for #15, #16, #17 | Contradictory severity, abort scope, failure class, data class; no approval state for #16 and #17 | REQ-005, REQ-006 / AC-5, AC-6 | Decision #15 says "warns"; Verification says "startup is aborted on drift"; Startup Validation says `required=true`; the Approval Record covers #1 to #15 (checked in Step 2) | `tools/check_adr_structure.py`, `tools/check_adr_preservation.py` (validation) | Verified |
+| `tests/db/test_rag_consistency.py` | Modify: tests that each silent rule yields a finding, `is_consistent` agrees with `findings`, and `fk_unverified=True` with zero counts yields a finding | Acceptance Criteria; pins the single-rule design | REQ-003, REQ-004 / AC-3 | `test_is_consistent_false_on_diagnostic_errors` checks only `is_consistent`; the unverified-probe tests check only the flags (checked in Step 3) | itself | Verified |
 | `tests/agent/test_startup_severity_classification.py` | Modify: change `test_routing_safety_tiers_warning_on_messages` to expect FATAL | It pins the old warning behavior | REQ-002 / AC-2 | Test at line 345 asserts a warning for returned messages (checked in Step 3) | itself | Verified |
 | `tests/agent/test_startup.py` | Modify: same change for its `test_routing_safety_tiers_warning_on_messages` | It pins the old warning behavior | REQ-002 / AC-2 | Test at line 440 asserts a warning for returned messages (checked in Step 3) | itself | Verified |
-| `tests/db/test_rag_consistency.py` | Modify: tests that each silent rule yields a finding, `is_consistent` agrees with `findings`, and `fk_unverified=True` with zero counts yields a finding | Acceptance Criteria; pins the single-rule design | REQ-003, REQ-004 / AC-3 | `test_is_consistent_false_on_diagnostic_errors` checks only `is_consistent`; the unverified-probe tests check only the flags (checked in Step 3) | itself | Verified |
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified.
@@ -104,12 +104,13 @@ Yes. ADR-003 (REQ-005, REQ-006) and `rag_05_07` (REQ-007) per `routing.md` Docs 
 - The Decision #15 severity correction ("warns" to "aborts startup") is treated as an amendment of an approved decision, so it gets a pending bullet instead of an approval statement (conservative reading of governance_01/governance_05; see UNK-04).
 - Unverifiable RAG results are DEGRADED (WARNING) findings, aligned with ADR-004 Decision Group 2 item 7 (pending, AAL-019); decided by the maintainer in this cycle. The FATAL fallback in `check_services` covers only a rule that has no builder.
 - No overlap with another Frozen Plan (checked in Step 8b).
+- Rows of `Implementation Target Files` were reordered in Step 3a of plan-to-implementation-procedure so that `seq` order equals the implementation order (ledger rows before the ADR-003 bullets that cite them, code before the tests that need it); no row was added or removed.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
 | UNK-01 | `repair_action` value and message wording for the five unverifiable findings | No documented vocabulary for "re-run the check" findings; existing values are `rebuild_fts`, `rebuild_vec`, `reingest`, `restore_from_backup` | Implementer chooses one value, records it in `rag_05_07` and the test pinning it; no approval needed (code and doc vocabulary) | False |
-| UNK-02 | Whether the ADR-003 template and `check_adr_structure.py` allow a `Fail-Closed Conditions` subsection under Failure Policy | `docs/10_adr` template and the checker were not read for this question | Implementer reads the ADR template and the checker; if no subsection is allowed, state the Fail-Closed classification in an existing bullet instead | False |
+| UNK-02 | Where ADR-003 states the Fail-Closed classification of an unregistered Tool | Resolved in Step 3a: no ADR in `docs/10_adr/` has a Fail-Closed subsection, so the bullet leaves `Fail-Fast Conditions` and the classification is stated in the `Fallback Policy` paragraph (ADR-004 Decision Group 5 item 15) | None; resolved | False |
 | UNK-03 | An empty `tool_safety_tiers` makes `check_tool_safety_tiers` return `[]`, so no gap is reported when tiers are not configured | Whether ADR-004 INV-07 requires the map to be non-empty | Outside this Issue; record in the report and let the maintainer file a separate Issue | False |
 | UNK-04 | Whether the Decision #15 severity correction needs an approval record (pending) or counts as a wording correction | `governance_01`/`governance_05` do not say how to classify a severity correction of an approved decision | Plan uses the conservative pending bullet (AAL-021); maintainer may withdraw it | False |
 
@@ -135,7 +136,7 @@ Decisions:
 2. Safety tiers: `check_routing_safety_tiers` keeps returning messages (its callers in `tests/agent/shared/test_startup_validation_pipeline.py` expect a list); `check_config` records each as `add_fatal("routing_safety_tiers", msg)` per ADR-004 INV-07. Alternative (raise inside the function) rejected: it would change the return contract.
 3. RAG: five `_ConsistencyCheck` builders in `rag_consistency.py` return `ConsistencyFinding(severity=DEGRADED, ...)`, so `summarize_issues` and `check_rag_consistency` pick them up without a second condition list. Because every rule then has a builder, `_ConsistencyCheck.issue` becomes required. Alternative (FATAL, the Issue's interim value) rejected by the maintainer in this cycle in favor of ADR-004 item 7 alignment.
 4. Fallback in `check_services`: when `is_consistent` is false and `rag_check.findings` is empty, call `pipeline.add_fatal("rag_consistency", ...)` (fail-closed guard for a rule without a builder). It needs a test that supplies an inconsistent result with no finding.
-5. ADR-003 wording: Decision #15 "warns after the fact" becomes "aborts startup when drift is detected (ADR-004 INV-02)"; Startup Validation bullet: a posture failure aborts startup "regardless of `required`" (ADR-004); the unregistered-tool condition is runtime Fail-Closed (ADR-004 Decision Group 5 item 15; subject to UNK-02); `ToolRegistry` becomes "Static Reference Data (tests, documentation generation, startup Drift validation)".
+5. ADR-003 wording: Decision #15 "warns after the fact" becomes "aborts startup when drift is detected (ADR-004 INV-02)"; Startup Validation bullet: a posture failure aborts startup "regardless of `required`" (ADR-004); the unregistered-tool bullet leaves `Fail-Fast Conditions` and the `Fallback Policy` paragraph states it is rejected at runtime as Fail-Closed (ADR-004 Decision Group 5 item 15; UNK-02 resolved); `ToolRegistry` becomes "Static Reference Data (tests, documentation generation, startup Drift validation)".
 6. Pending approval: three bullets `- **Current Decision Approval (pending)**: ... tracked by AAL-02N.` under `### Approval Record`, with ledger rows AAL-021 (#15 severity), AAL-022 (#16), AAL-023 (#17) in `governance_03` Part 5; the ledger rows must land before the ADR bullets that cite them.
 Consumer scan: not run; no persisted schema, public API, or shared constant changes (`ConsistencyFinding` shape is unchanged).
 
@@ -179,11 +180,11 @@ N/A: no release unit (each phase passes validation alone)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add ledger rows AAL-021 to AAL-023 in governance_03 | Pending | — | — | |
-| 2 | Phase 2: RAG issue builders, tests, rag_05_07 rows | Pending | — | — | |
-| 3 | Phase 3: startup pipeline FATAL entries, docstrings, tests | Pending | — | — | |
-| 4 | Phase 4: ADR-003 wording and pending bullets | Pending | — | — | |
-| 5 | Phase 5: full validation and deploy hand-off | Pending | — | — | |
+| 1 | Phase 1: add ledger rows AAL-021 to AAL-023 in governance_03 | In Progress | — | — |  |
+| 2 | Phase 2: RAG issue builders, tests, rag_05_07 rows | In Progress | — | — |  |
+| 3 | Phase 3: startup pipeline FATAL entries, docstrings, tests | In Progress | — | — |  |
+| 4 | Phase 4: ADR-003 wording and pending bullets | In Progress | — | — |  |
+| 5 | Phase 5: full validation and deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -193,7 +194,13 @@ N/A: no release unit (each phase passes validation alone)
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-135645_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-135645_02_scripts_db_rag_consistency.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-135645_03_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-135645_04_scripts_agent_startup_validation.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-135645_05_scripts_agent_services_routing_drift.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-135645_06_tests_agent_test_startup_validation.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-135645_07_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -224,3 +231,5 @@ N/A: no release unit (each phase passes validation alone)
 | REQ-006 | Reason for Change (approval records); Required Changes (pending) | `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` | 4 | AC-6 | `tools/check_adr_structure.py` | Explicit in issue |
 | REQ-006 | Dependencies (pending form from governance issue); ledger required | `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | 1 | AC-6 | `tools/check_adr_structure.py` | Derived from confirmed evidence |
 | REQ-007 | Documentation Impact; rag doc lists every finding | `docs/21_rag/rag_05_07-rag-index-consistency-checks.md` | 2 | AC-7 | `tools/check_docs_structure.py` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-135645 -->
