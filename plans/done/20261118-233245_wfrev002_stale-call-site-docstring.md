@@ -129,7 +129,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Rewrite the `pending_tool_calls` docstring (`scripts/agent/workflow/tool_call_state_ops.py`, REQ-001) | Pending | — | — | |
+| 1 | Phase 1: Rewrite the `pending_tool_calls` docstring (`scripts/agent/workflow/tool_call_state_ops.py`, REQ-001) | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -139,7 +139,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261119-071535_01_scripts_agent_workflow_tool_call_state_ops.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -156,3 +156,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
 |---|---|---|---|---|---|---|
 | REQ-001 | Required Changes bullets 1-3; Implementation Intent | `scripts/agent/workflow/tool_call_state_ops.py` | Step 1 | AC-1, AC-2, AC-3 | T (test_workflow_state_store.py) | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261119-071535 -->

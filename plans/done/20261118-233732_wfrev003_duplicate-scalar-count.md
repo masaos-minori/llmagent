@@ -141,8 +141,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Consolidate the two `_scalar_count` bodies (`scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, REQ-001) | Pending | — | — | |
-| 2 | Phase 2: Verify consolidation (`scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, REQ-002) | Pending | — | — | |
+| 1 | Phase 1: Consolidate the two `_scalar_count` bodies (`scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, REQ-001) | In Progress | — | — |  |
+| 2 | Phase 2: Verify consolidation (`scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, REQ-002) | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -152,7 +152,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261119-071847_01_scripts_agent_workflow_task_ops.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261119-071847_02_scripts_agent_workflow_state_store.py.md | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -170,3 +171,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 |---|---|---|---|---|---|---|
 | REQ-001 | Required Changes bullet 1; Implementation Intent | `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py` | Step 1 | AC-1, AC-2 | T-1 | Confirmed by repository evidence |
 | REQ-002 | Constraints; Required Changes bullet 3 | `scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py` | Step 2 | AC-3 | T-2 | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261119-071847 -->

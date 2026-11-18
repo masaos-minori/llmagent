@@ -170,9 +170,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Extract turn-entry preparation into `_run_turn_entry` (`scripts/agent/workflow_engine_adapter.py`, REQ-001) | Pending | — | — | |
-| 2 | Phase 2: Narrow the per-attempt execute closure (`scripts/agent/workflow_engine_adapter.py`, REQ-002) | Pending | — | — | |
-| 3 | Phase 3: Collapse the `exit_reason` state machine and verify (`scripts/agent/workflow_engine_adapter.py`, `tests/agent/workflow/test_adapter_guards.py`, REQ-003/004/005) | Pending | — | — | |
+| 1 | Phase 1: Extract turn-entry preparation into `_run_turn_entry` (`scripts/agent/workflow_engine_adapter.py`, REQ-001) | In Progress | — | — |  |
+| 2 | Phase 2: Narrow the per-attempt execute closure (`scripts/agent/workflow_engine_adapter.py`, REQ-002) | In Progress | — | — |  |
+| 3 | Phase 3: Collapse the `exit_reason` state machine and verify (`scripts/agent/workflow_engine_adapter.py`, `tests/agent/workflow/test_adapter_guards.py`, REQ-003/004/005) | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -182,7 +182,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261119-070552_01_scripts_agent_workflow_engine_adapter.py.md | 1, 2, 3 | Procedure | Pending | — | — |
+| implementations/20261119-070552_02_tests_agent_workflow_test_adapter_guards.py.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -203,3 +204,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-003 | Required Changes bullet 3; `_status_for_exit` returns `None` except `"cancelled"` (L56-68) | `scripts/agent/workflow_engine_adapter.py` | Step 3 | AC-1, AC-3 | T-2 | Confirmed by repository evidence |
 | REQ-004 | Constraints bullet 4; `_owns_state_store` close-on-exit in `finally` (L220-224) | `scripts/agent/workflow_engine_adapter.py` | Step 3 | AC-2 | T-1 | Confirmed by repository evidence |
 | REQ-005 | Constraints (byte-for-byte identical); Testing Expectations | `scripts/agent/workflow_engine_adapter.py`, `tests/agent/workflow/test_adapter_guards.py` | Step 3 | AC-2, AC-3 | T-1, T-2 | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261119-070552 -->

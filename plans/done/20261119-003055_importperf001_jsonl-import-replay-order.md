@@ -180,7 +180,7 @@ N/A: no release unit — the single phase passes validation alone.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Make import replay order tracking O(1) in import_ops.py | Pending | — | — | |
+| 1 | Make import replay order tracking O(1) in import_ops.py | In Progress | — | — | impl doc: implementations/20261119-074329_01_scripts_agent_memory_import_ops.py.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -190,7 +190,7 @@ N/A: no release unit — the single phase passes validation alone.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261119-074329_01_scripts_agent_memory_import_ops.py.md | 1 | implementation-procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -209,3 +209,5 @@ N/A: no release unit — the single phase passes validation alone.
 | REQ-003 | Constraints; AI Implementation Instruction | scripts/agent/memory/import_ops.py | Phase 1 | insert set + write order unchanged | test_import_ops.py | Confirmed by repository evidence |
 | REQ-004 | Constraints; Acceptance Criteria | scripts/agent/memory/import_ops.py | Phase 1 | counts unchanged | test_import_ops.py | Confirmed by repository evidence |
 | REQ-005 | Constraints | scripts/agent/memory/import_ops.py | Phase 1 | dry_run returns (jsonl_count, 0) | test_import_ops.py | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261119-074329 -->

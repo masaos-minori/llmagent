@@ -192,9 +192,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add public accessor to config_section_builders if none exists | Pending | — | — | |
-| 2 | Route resolve_memory_jsonl_dir() through the public accessor | Pending | — | — | |
-| 3 | Add test and run ruff/mypy/tests | Pending | — | — | |
+| 1 | Add public accessor to config_section_builders if none exists | In Progress | — | — |  |
+| 2 | Route resolve_memory_jsonl_dir() through the public accessor | In Progress | — | — |  |
+| 3 | Add test and run ruff/mypy/tests | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -204,7 +204,8 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261119-072220_01_scripts_agent_memory_config_path.py.md | 2, 3 | Procedure | Pending | — | — |
+| implementations/20261119-072220_02_scripts_agent_config_section_builders.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -221,3 +222,5 @@ N/A: no release unit
 | REQ-001 | Problem; AI Implementation Instruction | scripts/agent/memory/config_path.py | Phase 2 | no underscore import | ruff check / test_config_path.py | Confirmed by repository evidence |
 | REQ-002 | Implementation Intent; Required Changes | scripts/agent/memory/config_path.py, scripts/agent/config_section_builders.py | Phase 1, Phase 2 | same path; lint-imports passes | test_config_path.py | Confirmed by repository evidence |
 | REQ-003 | Constraints; Acceptance Criteria | scripts/agent/memory/config_path.py | Phase 2 | default /opt/llm/memory preserved | test_config_path.py (new assertion) | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261119-072220 -->

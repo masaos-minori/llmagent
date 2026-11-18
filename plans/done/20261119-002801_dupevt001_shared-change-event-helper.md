@@ -204,9 +204,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add synchronous shared emitter to jsonl_store.py | Pending | — | — | |
-| 2 | Route write_ops._emit_delete_event and pin_ops._emit_event through the emitter | Pending | — | — | |
-| 3 | Add archive-path test and run ruff/mypy/tests | Pending | — | — | |
+| 1 | Add synchronous shared emitter to jsonl_store.py | In Progress | — | — | impl doc: implementations/20261119-073306_01_scripts_agent_memory_jsonl_store.py.md |
+| 2 | Route write_ops._emit_delete_event and pin_ops._emit_event through the emitter | In Progress | — | — | impl docs: _01 write_ops _03 pin_ops |
+| 3 | Add archive-path test and run ruff/mypy/tests | In Progress | — | — | verification across all three impl docs |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -216,7 +216,9 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261119-073306_01_scripts_agent_memory_jsonl_store.py.md | 1 | implementation-procedure | Pending | — | — |
+| implementations/20261119-073306_02_scripts_agent_memory_write_ops.py.md | 2 | implementation-procedure | Pending | — | — |
+| implementations/20261119-073306_03_scripts_agent_memory_pin_ops.py.md | 2 | implementation-procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -234,3 +236,5 @@ N/A: no release unit
 | REQ-002 | Required Changes; Acceptance Criteria | scripts/agent/memory/write_ops.py, scripts/agent/memory/pin_ops.py | Phase 2 | no JsonlMemoryStore import in callers | delete/pin/unpin handler tests | Confirmed by repository evidence |
 | REQ-003 | Constraints; Acceptance Criteria | scripts/agent/memory/jsonl_store.py, scripts/agent/memory/write_ops.py, scripts/agent/memory/pin_ops.py | Phase 1, Phase 2 | SQLite-first + error propagation preserved | delete/pin/unpin handler tests | Confirmed by repository evidence |
 | REQ-004 | Constraints; Acceptance Criteria | scripts/agent/memory/jsonl_store.py | Phase 1 | archive filename/resolution unchanged | new archive-path test | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261119-073306 -->

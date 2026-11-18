@@ -279,10 +279,10 @@ as a unit; `N/A` is only for a Plan whose every phase passes validation alone.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add public read-only `embed_dim` accessor to store.py | Pending | — | — | |
-| 2 | Route ingestion._persist_entry_with_embedding through the accessor | Pending | — | — | |
-| 3 | Update mock-based tests to expose `.embed_dim` | Pending | — | — | |
-| 4 | Add accessor assertion and run ruff/mypy/tests | Pending | — | — | |
+| 1 | Add public read-only `embed_dim` accessor to store.py | In Progress | — | — |  |
+| 2 | Route ingestion._persist_entry_with_embedding through the accessor | In Progress | — | — |  |
+| 3 | Update mock-based tests to expose `.embed_dim` | In Progress | — | — |  |
+| 4 | Add accessor assertion and run ruff/mypy/tests | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -292,7 +292,11 @@ as a unit; `N/A` is only for a Plan whose every phase passes validation alone.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261119-072739_01_scripts_agent_memory_store.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261119-072739_02_scripts_agent_memory_ingestion.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261119-072739_03_tests_agent_memory_test_memory_layer.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261119-072739_04_tests_integration_test_rag_llm_integration.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261119-072739_05_tests_agent_memory_test_memory_store.py.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -312,3 +316,5 @@ as a unit; `N/A` is only for a Plan whose every phase passes validation alone.
 | REQ-004 | Constraints; AI Implementation Instruction | scripts/agent/memory/write_ops.py (reference) | Phase 2 (no change) | signatures unchanged | ruff/mypy diff | Confirmed by repository evidence |
 | REQ-005 | AI Implementation Instruction deviation (evidence-confirmed) | tests/agent/memory/test_memory_layer.py, tests/integration/test_rag_llm_integration.py | Phase 3 | tests forward real embed_dim | both suites pass | Confirmed by repository evidence |
 | REQ-006 | Testing Expectations | tests/agent/memory/test_memory_store.py | Phase 4 | accessor mirrors constructor dim | new assertion | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261119-072739 -->
