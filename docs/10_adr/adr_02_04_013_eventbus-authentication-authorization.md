@@ -59,7 +59,7 @@ The EventBus is intentionally kept in service (keep decision recorded in `adr_02
 ## Assumptions
 
 - "Privileged replay" means all `/replay` calls require operator permission (all replay is treated as an operator action).
-- The token is stored as a plain string in config (following the existing `auth_token = "${ENV:...}"` convention used by every `*_mcp_server.toml` file).
+- The token is stored in config as a `${ENV:VAR_NAME}` reference resolved at configuration load time, before any token value is validated (`scripts/shared/config_utils.py` `resolve_env_ref()`), following the existing `auth_token = "${ENV:...}"` convention used by every `*_mcp_server.toml` file; the MCP token convention is recorded in ADR-017 (`adr_02_03_017_mcp-authentication.md`).
 - Empty/missing `auth_token` must fail closed at startup.
 
 ## Decision

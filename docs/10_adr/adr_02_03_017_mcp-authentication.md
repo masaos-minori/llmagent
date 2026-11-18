@@ -105,7 +105,7 @@ Resolving the same environment variable on the Agent side and the server side re
 
 ### Negative Consequences
 - Token rotation requires restarting the Agent and every affected MCP server; there is no hot reload.
-- Every new MCP server must route its token through `require_auth_token()`; a new server that bypasses it violates INV-03.
+- Every new MCP server must route its token through `require_auth_token()`; a new server that bypasses it violates INV-02.
 
 ### Ongoing Risks
 - New server modules or middleware call sites must keep routing through the shared enforcement point; the completeness tests in `tests/mcp_servers/test_require_auth_token.py` guard this.

@@ -295,6 +295,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-13; individual reviewer names are not recorded.
+- **Current Decision Approval (pending)**: proposed amendment of INV-04 to "The Agent's configuration files carry no MCP-server-owned settings. The only MCP-specific value the Agent is given is each enabled server's connection token, supplied through the environment-variable mechanism owned by ADR-017; an enabled server resolving to an empty token aborts startup per ADR-017." Approval: Not recorded; ledger entry: `AAL-030`.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

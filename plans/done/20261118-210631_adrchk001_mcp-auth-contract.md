@@ -182,9 +182,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: no-decision wording fixes in `docs/10_adr/adr_02_03_017_mcp-authentication.md`, `docs/10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md`, `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | In Progress | — | — |  |
-| 2 | Phase 2: gated proposal — `AAL-030` in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` and pending bullet in `docs/10_adr/adr_02_01_002_platform-config-isolation.md` | In Progress | — | — | Gated on user acknowledgement of the scope amendment and maintainer authorization |
-| 3 | Phase 3: validation and hand-off — full validation plan run, no deploy step (`N/A`: no `scripts/` or `config/` change) | Pending | — | — |  |
+| 1 | Phase 1: no-decision wording fixes in `docs/10_adr/adr_02_03_017_mcp-authentication.md`, `docs/10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md`, `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | Completed | 20261118-220145 | 20261118-220746 | members 02/03/04 completed 20261118-220218/220256/220346 |
+| 2 | Phase 2: gated proposal — `AAL-030` in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` and pending bullet in `docs/10_adr/adr_02_01_002_platform-config-isolation.md` | Completed | 20261118-220346 | 20261118-220746 | Gated on user acknowledgement of the scope amendment and maintainer authorization gate released by user acknowledgement (session question 20261118-220333); members 05 then 01 completed 20261118-220420/220448 |
+| 3 | Phase 3: validation and hand-off — full validation plan run, no deploy step (`N/A`: no `scripts/` or `config/` change) | Completed | 20261118-220746 | 20261118-220746 | end-of-batch validation run: docs quality/structure/content-policy/japanese/consistency(mcp) + four ADR checkers Pass; check_adr_preservation flags only procedure-authorized edits; pytest N/A documentation-only batch; deploy N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -194,11 +194,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-212828_01_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-212828_02_docs_10_adr_adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-212828_03_docs_10_adr_adr_02_03_017_mcp-authentication.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-212828_04_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-212828_05_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-212828_01_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-212828_02_docs_10_adr_adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-212828_03_docs_10_adr_adr_02_03_017_mcp-authentication.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-212828_04_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-212828_05_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -81,9 +81,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Plan Phase 1 (no decision needed) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-220145 | 20261118-220218 | Plan Phase 1 (no decision needed) Changed: docs/10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md |
 | 2 | Add or update tests per Validation plan | N/A | — | — | Docs-only row; no test changes |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docs checkers only; ruff/mypy/pytest N/A |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-220218 | 20261118-220746 | Docs checkers only; ruff/mypy/pytest N/A 3e member checkers Pass (structure/reference/authority/invariant_matrix; rg 'secret file' no match); row 3 awaits end-of-batch validation run 3e end-of-batch validation Pass: check_docs_quality (175 files, exit 0), check_docs_structure on 5 changed docs Pass, check_docs_content_policy Pass, check_docs_japanese N/A (no Japanese files), check_docs_consistency --domain mcp Pass, check_adr_structure/reference/authority/invariant_matrix Pass, check_workitem_traceability exit 0; pytest N/A (documentation-only, no scripts/config change); check_adr_preservation flags only the procedure-authorized edits (see Final Report) |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | The target file is the documentation itself (Step 1) |
 
 ### Blocker Log

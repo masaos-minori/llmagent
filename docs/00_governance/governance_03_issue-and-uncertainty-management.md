@@ -580,6 +580,15 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Date:** Not recorded
 - **Scope:** Decision Detail 9, INV-07, Data Ownership
 
+#### AAL-030
+
+- **ID:** AAL-030
+- **ADR:** ADR-002
+- **Decision:** INV-04 amendment proposal: config files carry no MCP-server-owned settings; the only MCP-specific value given to the Agent is each enabled server's connection token supplied through ADR-017's environment-variable mechanism, and an enabled server resolving to an empty token aborts startup per ADR-017
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-04
+
 ## Resolution Rules
 
 The following resolution criteria apply across the parts of this document:

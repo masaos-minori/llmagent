@@ -75,7 +75,7 @@ MCP (Model Context Protocol) normally uses the stdio Transport, but this project
 7. Connection Timeout, response Timeout, Retry, Semaphore, Circuit Breaker, structured errors, and logging are handled in the common Transport layer.
 8. MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent.
 9. MCP servers bind only to a loopback address (a non-loopback host is rejected at startup) and every MCP server configuration must carry a non-empty authentication token. Every MCP server, including mdq-mcp, rejects a request without a matching Bearer token on every endpoint. mdq-mcp's `allowed_dirs` is a separate, fail-closed resource-authorization boundary applied only after successful authentication; it neither replaces authentication nor is replaced by it. Exposure beyond localhost is not supported; it would additionally require TLS, which is not implemented. (Explicit in code — `scripts/mcp_servers/server.py` `MCPServer.run_http()`, `scripts/agent/startup_validation.py`, `scripts/mcp_servers/mdq/mdq_server.py`) The authentication rules themselves (shared-variable resolution, empty-token startup abort, fail-closed middleware) are recorded in ADR-017 (`adr_02_03_017_mcp-authentication.md`).
-10. The Agent and each MCP server read their own token from their own configuration file (the Agent from `agent.toml`, mdq-mcp from `mdq_mcp_server.toml`); the two values must match, but neither process reads the other's file (ADR-002).
+10. The Agent and each MCP server read their own token from their own configuration file (the Agent from `agent.toml`, mdq-mcp from `mdq_mcp_server.toml`); neither process reads the other's file (ADR-002). Token supply and value-matching rules are recorded in ADR-017 (`adr_02_03_017_mcp-authentication.md` INV-05).
 11. Fault isolation, operational monitoring, independent deployment take priority over the cost of HTTP Serialization and Socket communication.
 12. Each MCP server validates its own security configuration and publishes the result as a security posture on `GET /health`; the Agent validates only that posture's contract version and shape, never the server's configuration file (item 10). How a `FAILED` posture is handled is defined by ADR-004, the single normative authority for posture handling.
 
@@ -215,7 +215,7 @@ Not applicable
 ### Fail-Fast Conditions
 
 - When a required (mandatory) MCP server Health Check fails at startup
-- When an MCP server configuration has an empty authentication token (Agent startup validation)
+- When an enabled MCP server configuration has an empty authentication token (Agent startup validation; disabled servers are exempt)
 - When an MCP server process, including mdq-mcp, starts with an empty or unset authentication token (the server refuses to start)
 - When an MCP server request has a missing, malformed, or non-matching `Authorization` header (HTTP 401); this is a Safety/Integrity failure, not an availability failure
 - When mdq-mcp's `allowed_dirs` is empty or a requested path is not inside it, or cannot be canonicalized (the request is denied, fail-closed, after authentication)
@@ -353,7 +353,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/shared/http_transport.py` — `HttpTransport.call()`
 - `scripts/shared/tool_transport_invoker.py` — `ToolTransportInvoker.invoke()`
 - `scripts/shared/mcp_health.py` — `McpServerHealthRegistry.record_failure()`
-- `config/*_mcp_server.toml` — MCP server configuration files, authentication tokens (environment variables or secret files)
+- `config/*_mcp_server.toml` — MCP server configuration files, authentication tokens (environment variables)
 - HTTP endpoints — `POST /v1/call_tool`, `GET /v1/tools`, `GET /health`
 - Tests — `tests/mcp_servers/`, `tests/shared/test_mcp_config.py`, `tests/shared/test_mcp_health.py`
 
