@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the wording and approval-record edits (Implementation > Procedure) | Pending | — | — | |
-| 2 | Run the ADR and documentation checkers (Validation plan) | Pending | — | — | |
+| 1 | Apply the wording and approval-record edits (Implementation > Procedure) | Completed | 20261118-140956 | 20261118-140956 | Changed: docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md. check_adr_preservation reports Approval, Decision, Failure Policy and Data Ownership text changed (pending bullets and wording); gate-listed checkers pass. |
+| 2 | Run the ADR and documentation checkers (Validation plan) | Completed | 20261118-140956 | 20261118-140956 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

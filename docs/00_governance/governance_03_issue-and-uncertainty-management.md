@@ -499,6 +499,33 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Date:** Not recorded
 - **Scope:** Fail-Open or Degraded Conditions
 
+#### AAL-021
+
+- **ID:** AAL-021
+- **ADR:** ADR-003
+- **Decision:** Drift validation aborts startup (severity wording of Decision Detail #15 corrected)
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Detail #15
+
+#### AAL-022
+
+- **ID:** AAL-022
+- **ADR:** ADR-003
+- **Decision:** Security Posture exclusion from RuntimeToolRegistry and its startup consequence
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Detail #16
+
+#### AAL-023
+
+- **ID:** AAL-023
+- **ADR:** ADR-003
+- **Decision:** Dynamic health hints are advisory error metadata
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Detail #17
+
 ## Resolution Rules
 
 The following resolution criteria apply across the parts of this document:

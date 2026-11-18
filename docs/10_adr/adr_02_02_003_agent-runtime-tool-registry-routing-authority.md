@@ -82,7 +82,7 @@ When routing from a Tool name to an MCP server happens through multiple paths, o
 12. Dynamic Health state must not automatically change LLM visibility (such as `enabled_for_llm`).
 13. An Approval requirement is not a kind of disabled Tool state. Approval is owned by `agent/tool_policy.py`/`tool_approval.py` and is a per-call policy decision applied after Routing is resolved (risk can vary with arguments); it must not be represented as, or confused with, a disabled Tool.
 14. Reflecting Discovery-derived Tool definitions (`raw_definition`, the static `status`, and so on) requires a full restart of the Agent process. Unless the currently approved specification explicitly defines Rediscovery, a Reload operation updates only Policy-derived fields such as Safety Tier and allowlist-derived LLM visibility, and does not re-obtain Discovery-derived Tool definitions. Reload behavior is described only to the extent currently supported.
-15. The static `ToolRegistry` may be used only as input data for startup Drift validation (comparison of the configured `tool_names` and the runtime `/v1/tools` responses by `shared/tool_routing_validation.py`; the live `/v1/tools` check runs via `agent/services/mcp_tool_discovery.py`). This use is not a Routing decision itself; it is a diagnostic verification that warns after the fact about the validity of the already determined `RuntimeToolRegistry`-based Routing result, and it does not change the principle that `ToolRouteResolver.resolve()` references only `RuntimeToolRegistry` (Decision Detail #3, INV-02).
+15. The static `ToolRegistry` may be used only as input data for startup Drift validation (comparison of the configured `tool_names` and the runtime `/v1/tools` responses by `shared/tool_routing_validation.py`; the live `/v1/tools` check runs via `agent/services/mcp_tool_discovery.py`). This use is not a Routing decision itself; it is a diagnostic verification of the already determined `RuntimeToolRegistry`-based Routing result whose drift finding aborts startup (ADR-004 INV-02), and it does not change the principle that `ToolRouteResolver.resolve()` references only `RuntimeToolRegistry` (Decision Detail #3, INV-02).
 16. A server whose Security Posture is not accepted is excluded when `RuntimeToolRegistry` is constructed, so its Tools are neither exposed to the LLM nor routable. The exclusion is a Static Availability decision (Decision Detail #11): it is computed once at startup from the posture each server publishes on its own `/health`, it is not a Dynamic Health state, and it is not re-evaluated until the process restarts (Decision Detail #14). For this rule a Security Posture that is not accepted is a `FAILED` result: ADR-004 treats a `FAILED` posture as a safety/integrity failure that aborts Agent startup regardless of the server's `required` value, and a `required = false` server does not permit startup to continue. This row restates only the registry-exclusion decision; ADR-004 owns the abort consequence and remains the single normative authority for it.
 17. Dynamic health hints are advisory error metadata and do not change the static visibility contract: a tool is registered and exposed based on registration-time configuration (Decision 11), and a transient health state only annotates an error result that the runtime already produced (Decision 12).
 
@@ -220,7 +220,6 @@ A single "enabled/disabled" concept carrying several meanings causes the misrefe
 
 - Multiple MCP servers expose the same Tool name
 - Initialization of `RuntimeToolRegistry` fails
-- An unregistered Tool is requested for Routing
 
 ### Fail-Open or Degraded Conditions
 
@@ -232,12 +231,12 @@ Dynamic Health uses the Circuit Breaker's CLOSED/OPEN/HALF_OPEN Trial-Recovery S
 
 ### Fallback Policy
 
-There is no Fallback to the static `ToolRegistry` and no Routing by name inference (Decision Details #4 and #6).
+There is no Fallback to the static `ToolRegistry` and no Routing by name inference (Decision Details #4 and #6). An unregistered Tool is rejected at runtime (Fail-Closed, ADR-004 Decision Group 5 item 15): `ToolRouteResolver.resolve()` raises `ValueError` (INV-02).
 
 ## Data Ownership and Persistence
 
 - **System of Record**: `RuntimeToolRegistry` (Discovery results obtained from `McpToolDiscoveryService` at startup)
-- **Derived Data**: `ToolRegistry` (for tests and documentation generation)
+- **Static Reference Data**: `ToolRegistry` (populated from the tool constants, not derived from `RuntimeToolRegistry`; used by tests, documentation generation, and startup Drift validation)
 - **Ownership**: `RuntimeToolRegistry`
 - **Persistence**: in memory (per process, rebuilt on restart)
 - **Transaction Boundary**: at startup
@@ -264,7 +263,7 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
 
 - Routing is determined at startup based on Discovery results
 - Startup aborts when Discovery fails for a required MCP server or a subprocess server fails to spawn (ADR-004 Exceptions); an unavailable non-mandatory server has its Tools disabled (ADR-004 item 18)
-- Each MCP server's published Security Posture is evaluated before `RuntimeToolRegistry` is built: a posture that is not accepted excludes that server's Tools, and a posture failure on a `required=true` server aborts startup through `check_readiness()`
+- Each MCP server's published Security Posture is evaluated before `RuntimeToolRegistry` is built: a posture that is not accepted excludes that server's Tools, and a posture failure aborts startup through `check_readiness()` regardless of the server's `required` value (Decision Detail #16; ADR-004)
 
 ### Deployment Validation
 
@@ -329,6 +328,10 @@ Task-level approval decision for Decision Details #10 to #15 and INV-04 (runtime
 - **Approved By**: repository owner
 - **Approval Date**: 2026-10-07
 - **Approval Reference**: documentation task reviewing the approval scope of ADR-003; the repository owner approved the current content, including Decision Details #10 to #15
+
+- **Current Decision Approval (pending)**: The Decision Detail #15 severity correction (a Drift finding aborts startup instead of warning) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-021.
+- **Current Decision Approval (pending)**: Decision Detail #16 (Security Posture exclusion from `RuntimeToolRegistry` and its startup consequence) has no approval record and awaits maintainer approval; it is tracked by AAL-022.
+- **Current Decision Approval (pending)**: Decision Detail #17 (dynamic health hints are advisory error metadata) has no approval record and awaits maintainer approval; it is tracked by AAL-023.
 
 ## Related ADRs
 

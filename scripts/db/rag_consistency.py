@@ -137,9 +137,7 @@ def check_rag_consistency(
         diagnostic_errors=tuple(diagnostic_errors) if diagnostic_errors else None,
     )
     findings = tuple(
-        check.issue(report)
-        for check in _CHECKS
-        if check.issue is not None and not check.clean(report)
+        check.issue(report) for check in _CHECKS if not check.clean(report)
     )
     return dataclasses.replace(
         report,
@@ -370,19 +368,83 @@ def _unknown_schema_issue(report: RagConsistencyReport) -> ConsistencyFinding:
     )
 
 
+_RERUN_SENTENCE = " Re-run the consistency check after the cause is resolved."
+
+
+def _diagnostic_errors_issue(report: RagConsistencyReport) -> ConsistencyFinding:
+    """A consistency stage raised, so part of the report could not be collected."""
+    errors = report.diagnostic_errors or ()
+    first = errors[0] if errors else "unknown"
+    return ConsistencyFinding(
+        severity=FindingSeverity.DEGRADED,
+        message=(
+            f"[WARNING] Consistency diagnostics failed (count={len(errors)})."
+            f" First: {first}.{_RERUN_SENTENCE}"
+        ),
+        repair_action="rerun_check",
+    )
+
+
+def _read_smoke_test_issue(report: RagConsistencyReport) -> ConsistencyFinding:
+    """A required RAG table could not be read."""
+    return ConsistencyFinding(
+        severity=FindingSeverity.DEGRADED,
+        message=(
+            "[WARNING] Read smoke test failed: a required RAG table could not be read."
+            f"{_RERUN_SENTENCE}"
+        ),
+        repair_action="rerun_check",
+    )
+
+
+def _fk_unverified_issue(report: RagConsistencyReport) -> ConsistencyFinding:
+    """The FK consistency probe could not run."""
+    return ConsistencyFinding(
+        severity=FindingSeverity.DEGRADED,
+        message=(
+            "[WARNING] FK consistency could not be verified (the probe failed)."
+            f"{_RERUN_SENTENCE}"
+        ),
+        repair_action="rerun_check",
+    )
+
+
+def _embedding_unverified_issue(report: RagConsistencyReport) -> ConsistencyFinding:
+    """The embedding-dimension probe could not run."""
+    return ConsistencyFinding(
+        severity=FindingSeverity.DEGRADED,
+        message=(
+            "[WARNING] Embedding dimension could not be verified (the probe failed)."
+            f"{_RERUN_SENTENCE}"
+        ),
+        repair_action="rerun_check",
+    )
+
+
+def _schema_unverified_issue(report: RagConsistencyReport) -> ConsistencyFinding:
+    """The schema-recognition probe could not run."""
+    return ConsistencyFinding(
+        severity=FindingSeverity.DEGRADED,
+        message=(
+            "[WARNING] RAG schema shape could not be verified (the probe failed)."
+            f"{_RERUN_SENTENCE}"
+        ),
+        repair_action="rerun_check",
+    )
+
+
 @dataclasses.dataclass(frozen=True)
 class _ConsistencyCheck:
     """One consistency rule: the predicate that says it is clean, and its message.
 
     `is_consistent()` and `summarize_issues()` both iterate `_CHECKS`, so each rule is
     stated once. An issue builder runs only when its own predicate reports the rule
-    unclean, which is why the builders no longer guard their own conditions.
-    `issue` is None for the two rules whose state the caller already reads from the
-    report fields and that have no repair guidance to add.
+    unclean, which is why the builders no longer guard their own conditions. Every
+    rule has a builder, so an unclean report always carries a finding.
     """
 
     clean: Callable[[RagConsistencyReport], bool]
-    issue: Callable[[RagConsistencyReport], ConsistencyFinding] | None = None
+    issue: Callable[[RagConsistencyReport], ConsistencyFinding]
 
 
 _CHECKS: tuple[_ConsistencyCheck, ...] = (
@@ -414,13 +476,19 @@ _CHECKS: tuple[_ConsistencyCheck, ...] = (
         lambda report: report.dimension_mismatch == 0, _embedding_dimension_issue
     ),
     _ConsistencyCheck(lambda report: report.unknown_schema == 0, _unknown_schema_issue),
-    _ConsistencyCheck(lambda report: not report.diagnostic_errors),
-    _ConsistencyCheck(lambda report: report.read_smoke_test_ok),
+    _ConsistencyCheck(
+        lambda report: not report.diagnostic_errors, _diagnostic_errors_issue
+    ),
+    _ConsistencyCheck(lambda report: report.read_smoke_test_ok, _read_smoke_test_issue),
     # Fail closed: a probe that could not run marks its dimension unverified, and an
     # unverified dimension is never aggregated as healthy even at all-zero counts.
-    _ConsistencyCheck(lambda report: not report.fk_unverified),
-    _ConsistencyCheck(lambda report: not report.embedding_unverified),
-    _ConsistencyCheck(lambda report: not report.schema_unverified),
+    _ConsistencyCheck(lambda report: not report.fk_unverified, _fk_unverified_issue),
+    _ConsistencyCheck(
+        lambda report: not report.embedding_unverified, _embedding_unverified_issue
+    ),
+    _ConsistencyCheck(
+        lambda report: not report.schema_unverified, _schema_unverified_issue
+    ),
 )
 
 
@@ -433,7 +501,7 @@ def summarize_issues(report: RagConsistencyReport) -> list[str]:
     """
     issues: list[str] = []
     for check in _CHECKS:
-        if check.issue is None or check.clean(report):
+        if check.clean(report):
             continue
         issues.append(check.issue(report).message)
     return issues

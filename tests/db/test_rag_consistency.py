@@ -1153,6 +1153,7 @@ _REPAIR_PHRASE = {
     "rebuild_vec": "/session rag-rebuild-vec",
     "reingest": "ingester.py --force",
     "restore_from_backup": "verified backup",
+    "rerun_check": "Re-run the consistency check",
 }
 
 
@@ -1174,7 +1175,26 @@ def _all_unclean_report() -> RagConsistencyReport:
         fk_inconsistency_count=1,
         dimension_mismatch=1,
         unknown_schema=1,
+        diagnostic_errors=("probe failed",),
+        read_smoke_test_ok=False,
+        fk_unverified=True,
+        embedding_unverified=True,
+        schema_unverified=True,
     )
+
+
+_SILENT_RULES: dict[str, dict[str, Any]] = {
+    "diagnostic_errors": {"diagnostic_errors": ("probe failed",)},
+    "read_smoke_test": {"read_smoke_test_ok": False},
+    "fk_unverified": {"fk_unverified": True},
+    "embedding_unverified": {"embedding_unverified": True},
+    "schema_unverified": {"schema_unverified": True},
+}
+
+
+def _findings_of(report: RagConsistencyReport) -> list[ConsistencyFinding]:
+    """The findings the `_CHECKS` rules produce for *report*."""
+    return [check.issue(report) for check in _CHECKS if not check.clean(report)]
 
 
 class TestFindingConsistency:
@@ -1182,17 +1202,10 @@ class TestFindingConsistency:
 
     @staticmethod
     def _findings() -> list[ConsistencyFinding]:
-        report = _all_unclean_report()
-        return [
-            check.issue(report)
-            for check in _CHECKS
-            if check.issue is not None and not check.clean(report)
-        ]
+        return _findings_of(_all_unclean_report())
 
-    def test_every_rule_with_an_issue_builder_yields_a_finding(self) -> None:
-        expected = sum(1 for check in _CHECKS if check.issue is not None)
-
-        assert len(self._findings()) == expected
+    def test_every_rule_yields_a_finding(self) -> None:
+        assert len(self._findings()) == len(_CHECKS)
 
     def test_prefix_matches_severity(self) -> None:
         for finding in self._findings():
@@ -1212,3 +1225,47 @@ class TestFindingConsistency:
         for finding in self._findings():
             phrase = _REPAIR_PHRASE[finding.repair_action]
             assert phrase in finding.message, finding.message
+
+    @pytest.mark.parametrize("overrides", _SILENT_RULES.values(), ids=_SILENT_RULES)
+    def test_each_silent_rule_yields_one_degraded_finding(
+        self, overrides: dict[str, Any]
+    ) -> None:
+        findings = _findings_of(_report(**overrides))
+
+        assert len(findings) == 1
+        assert findings[0].severity == FindingSeverity.DEGRADED
+        assert findings[0].repair_action == "rerun_check"
+
+    @pytest.mark.parametrize(
+        "overrides", [{}, *_SILENT_RULES.values()], ids=["clean", *_SILENT_RULES]
+    )
+    def test_findings_are_empty_exactly_when_the_report_is_consistent(
+        self, overrides: dict[str, Any]
+    ) -> None:
+        report = _report(**overrides)
+
+        assert is_consistent(report) == (not _findings_of(report))
+
+    def test_unverified_fk_with_zero_counts_yields_a_finding(self) -> None:
+        report = _report(fk_unverified=True)
+
+        assert is_consistent(report) is False
+        assert [f.message for f in _findings_of(report)] == [
+            "[WARNING] FK consistency could not be verified (the probe failed)."
+            " Re-run the consistency check after the cause is resolved."
+        ]
+
+    def test_probe_error_report_carries_the_unverified_finding(self) -> None:
+        db = _make_rag_db()
+        doc_id = _insert_doc(db)
+        _insert_vec(db, _insert_chunk(db, doc_id, "fk probe error"))
+        db.commit()
+        helper = _RaisingSQLiteHelper(
+            db.conn, "FROM chunks WHERE doc_id NOT IN (SELECT doc_id FROM documents)"
+        )
+
+        report = check_rag_consistency(helper)  # type: ignore[arg-type]  # _RaisingSQLiteHelper is structurally compatible, as in TestFailClosedProbeErrors
+
+        messages = [finding.message for finding in report.findings]
+        assert any("FK consistency could not be verified" in m for m in messages)
+        assert any("Consistency diagnostics failed" in m for m in messages)

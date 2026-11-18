@@ -72,9 +72,9 @@ N/A: revert the commit; no persisted data or schema is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the five builders, wire them into `_CHECKS`, make `issue` required (Implementation > Procedure) | Pending | — | — | |
-| 2 | Update and add tests in `tests/db/test_rag_consistency.py` (Companion test files) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the five builders, wire them into `_CHECKS`, make `issue` required (Implementation > Procedure) | Completed | 20261118-140956 | 20261118-140956 | Changed: scripts/db/rag_consistency.py, tests/db/test_rag_consistency.py. Full suite 12780 passed, diff-cover 100%. |
+| 2 | Update and add tests in `tests/db/test_rag_consistency.py` (Companion test files) | Completed | 20261118-140956 | 20261118-140956 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-140956 | 20261118-140956 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

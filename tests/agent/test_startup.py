@@ -437,7 +437,8 @@ class TestCheckServicesSeverityClassification:
     # ── routing_safety_tiers ─────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_routing_safety_tiers_warning_on_messages(self) -> None:
+    async def test_routing_safety_tiers_gap_is_fatal(self) -> None:
+        """A tool without a declared safety tier is Fail-Closed (INV-07)."""
         ctx = _make_startup_ctx()
         pipeline, exc = await _run_check_config(
             ctx,
@@ -445,10 +446,10 @@ class TestCheckServicesSeverityClassification:
                 return_value=["tool 'foo' has no declared safety tier"]
             ),
         )
-        assert exc is None
+        assert exc is not None
         outcomes = [o for o in pipeline.outcomes if o.source == "routing_safety_tiers"]
         assert len(outcomes) == 1
-        assert outcomes[0].status == StartupCheckStatus.WARNING
+        assert outcomes[0].status == StartupCheckStatus.FATAL
 
     @pytest.mark.asyncio
     async def test_routing_safety_tiers_emits_no_outcome_when_clean(self) -> None:

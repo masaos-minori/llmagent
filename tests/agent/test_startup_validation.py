@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import agent.startup_validation as startup_validation
 import pytest
 import yaml
 from agent.shared.health_models import (
@@ -27,7 +28,7 @@ from agent.startup_validation import (
     StartupValidationPipeline,
     _check_component_mandatoriness,
 )
-from db.models import FindingSeverity
+from db.models import ConsistencyFinding, FindingSeverity
 from shared.component_mandatoriness import (
     ComponentMandatorinessError,
     load_component_mandatoriness,
@@ -37,6 +38,7 @@ from shared.mcp_config import (
     StartupMode,
     TransportType,
 )
+from shared.tool_registry import get_registry
 
 
 def _make_ctx() -> MagicMock:
@@ -252,6 +254,38 @@ class TestCheckConfigStage:
             o.source in ("mcp_auth", "routing_drift") for o in result.outcomes
         )
 
+    @pytest.mark.asyncio
+    async def test_unregistered_routed_tool_is_fatal(self) -> None:
+        """One configured tool the registry does not know is drift: the real strict
+        check raises and the stage records a FATAL routing_drift outcome."""
+        ctx = _make_ctx()
+        server_key = next(iter(get_registry().get_servers()))
+        result = _run_check_config(
+            ctx,
+            mcp_servers={server_key: MagicMock(tool_names=["unregistered_tool_x"])},
+            check_routing_drift=startup_validation.check_routing_drift,
+        )
+
+        outcomes = [o for o in result.outcomes if o.source == "routing_drift"]
+        assert [o.status for o in outcomes] == [StartupCheckStatus.FATAL]
+        assert result.has_fatal
+
+    @pytest.mark.asyncio
+    async def test_tool_missing_from_safety_tiers_is_fatal(self) -> None:
+        """One registered tool missing from tool_safety_tiers is FATAL, never a warning."""
+        ctx = _make_ctx()
+        names = sorted(get_registry().get_all_tool_names())
+        ctx.cfg.approval.tool_safety_tiers = {name: "read" for name in names[1:]}
+        result = _run_check_config(
+            ctx,
+            check_routing_safety_tiers=startup_validation.check_routing_safety_tiers,
+        )
+
+        outcomes = [o for o in result.outcomes if o.source == "routing_safety_tiers"]
+        assert [o.status for o in outcomes] == [StartupCheckStatus.FATAL]
+        assert names[0] in outcomes[0].message
+        assert not any(o.status == StartupCheckStatus.WARNING for o in outcomes)
+
 
 class TestRagConsistencyTimeout:
     """Tests for REQ-002, REQ-003: RAG check timeout enforcement."""
@@ -280,6 +314,39 @@ class TestRagConsistencyTimeout:
 
         assert _rag_outcomes(result) == [StartupCheckStatus.OK]
         rag_service.consistency.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_inconsistent_rag_result_without_findings_is_fatal(self) -> None:
+        """An inconsistent result that carries no finding is never silent."""
+        rag_service = MagicMock()
+        rag_service.consistency.return_value = MagicMock(
+            is_consistent=False, findings=()
+        )
+
+        result = await _run_check_services(rag_service)
+
+        assert _rag_outcomes(result) == [StartupCheckStatus.FATAL]
+        assert result.has_fatal
+
+    @pytest.mark.asyncio
+    async def test_unverified_probe_finding_is_a_warning(self) -> None:
+        """An unverifiable-result finding is DEGRADED: a warning, and startup continues."""
+        rag_service = MagicMock()
+        rag_service.consistency.return_value = MagicMock(
+            is_consistent=False,
+            findings=(
+                ConsistencyFinding(
+                    severity=FindingSeverity.DEGRADED,
+                    message="[WARNING] FK consistency could not be verified.",
+                    repair_action="rerun_check",
+                ),
+            ),
+        )
+
+        result = await _run_check_services(rag_service)
+
+        assert _rag_outcomes(result) == [StartupCheckStatus.WARNING]
+        assert not result.has_fatal
 
     @pytest.mark.asyncio
     async def test_rag_check_programming_error_classified(self) -> None:

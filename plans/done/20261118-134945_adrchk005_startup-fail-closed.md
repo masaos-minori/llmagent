@@ -180,10 +180,10 @@ N/A: no release unit (each phase passes validation alone)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add ledger rows AAL-021 to AAL-023 in governance_03 | In Progress | — | — |  |
-| 2 | Phase 2: RAG issue builders, tests, rag_05_07 rows | In Progress | — | — |  |
-| 3 | Phase 3: startup pipeline FATAL entries, docstrings, tests | In Progress | — | — |  |
-| 4 | Phase 4: ADR-003 wording and pending bullets | In Progress | — | — |  |
+| 1 | Phase 1: add ledger rows AAL-021 to AAL-023 in governance_03 | Completed | — | 20261118-141007 |  |
+| 2 | Phase 2: RAG issue builders, tests, rag_05_07 rows | Completed | — | 20261118-141007 |  |
+| 3 | Phase 3: startup pipeline FATAL entries, docstrings, tests | Completed | — | 20261118-141007 |  |
+| 4 | Phase 4: ADR-003 wording and pending bullets | Completed | — | 20261118-141007 |  |
 | 5 | Phase 5: full validation and deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
@@ -194,13 +194,13 @@ N/A: no release unit (each phase passes validation alone)
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-135645_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-135645_02_scripts_db_rag_consistency.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-135645_03_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-135645_04_scripts_agent_startup_validation.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-135645_05_scripts_agent_services_routing_drift.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-135645_06_tests_agent_test_startup_validation.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-135645_07_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-135645_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-135645_02_scripts_db_rag_consistency.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-135645_03_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-135645_04_scripts_agent_startup_validation.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-135645_05_scripts_agent_services_routing_drift.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-135645_06_tests_agent_test_startup_validation.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-135645_07_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

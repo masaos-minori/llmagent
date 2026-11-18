@@ -12,9 +12,10 @@ logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
 def check_routing_drift(ctx: AgentContext, *, strict: bool = False) -> list[str]:
-    """Check config tool_names against ToolRegistry at startup. Returns warning messages.
+    """Check config tool_names against ToolRegistry at startup.
 
-    When strict=True, raises RuntimeError if any drift is detected. Any other
+    Returns the drift messages for informational use. When strict=True, any drift
+    raises RuntimeError, so no message is returned in that mode. Any other
     exception is an unexpected failure of the check itself and propagates; the
     caller decides its severity.
     """
@@ -39,7 +40,11 @@ def check_routing_drift(ctx: AgentContext, *, strict: bool = False) -> list[str]
 
 
 def check_routing_safety_tiers(ctx: AgentContext) -> list[str]:
-    """Check that all registered tools have a declared safety tier. Returns warning messages."""
+    """Check that all registered tools have a declared safety tier.
+
+    Returns one message per registered tool missing from tool_safety_tiers; the
+    startup pipeline records each as FATAL (ADR-004 INV-07).
+    """
     from shared.tool_routing_validation import check_tool_safety_tiers
 
     tool_safety_tiers = getattr(ctx.cfg.approval, "tool_safety_tiers", {})

@@ -70,9 +70,9 @@ N/A: revert the commit; no persisted data is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit `check_config` and `check_services`, add `_record_rag_findings` (new) (Implementation > Procedure) | Pending | — | — | |
-| 2 | Update the two companion tests (Companion test files) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Edit `check_config` and `check_services`, add `_record_rag_findings` (new) (Implementation > Procedure) | Completed | 20261118-140956 | 20261118-140956 | Changed: scripts/agent/startup_validation.py, tests/agent/test_startup_severity_classification.py, tests/agent/test_startup.py. Companion tests expect exc is not None because the orchestrator raises on FATAL. |
+| 2 | Update the two companion tests (Companion test files) | Completed | 20261118-140956 | 20261118-140956 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-140956 | 20261118-140956 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

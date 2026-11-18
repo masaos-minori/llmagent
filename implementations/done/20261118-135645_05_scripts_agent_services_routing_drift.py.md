@@ -51,8 +51,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit both docstrings (Implementation > Procedure) | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Edit both docstrings (Implementation > Procedure) | Completed | 20261118-140956 | 20261118-140956 | Changed: scripts/agent/services/routing_drift.py (docstrings only). |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-140956 | 20261118-140956 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

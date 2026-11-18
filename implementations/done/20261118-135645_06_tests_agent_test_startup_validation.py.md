@@ -56,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the four tests (Implementation > Procedure) | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the four tests (Implementation > Procedure) | Completed | 20261118-140956 | 20261118-140956 | Changed: tests/agent/test_startup_validation.py. Real functions are reached through startup_validation attributes to satisfy check_mock_patch_targets. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-140956 | 20261118-140956 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

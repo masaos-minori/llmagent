@@ -21,9 +21,10 @@ The RAG index requires synchronization between the following tables:
 
 On every agent startup, a read-only RAG consistency check runs via `check_rag_consistency()` (`scripts/db/rag_consistency.py`). Each finding carries a fixed severity (`FindingSeverity.DEGRADED` or `FindingSeverity.FATAL`, `db.models`), and startup routes on it (`scripts/agent/startup_validation.py`):
 
-- **Degraded findings** (FTS gap, FTS orphan, vector count mismatch, orphan vec rows, chunks without vector rows, documents without chunks, URL-level inconsistency) print a console warning per finding with its repair action; startup proceeds. ADR-004 classifies these results as availability failures of the RAG derived indexes.
+- **Degraded findings** (FTS gap, FTS orphan, vector count mismatch, orphan vec rows, chunks without vector rows, documents without chunks, URL-level inconsistency) print a console warning per finding with its repair action; startup proceeds. ADR-004 classifies these results as availability failures of the RAG derived indexes. Unverifiable results (a failed consistency stage, a failed read smoke test, an unverified FK, embedding-dimension, or schema probe) are reported the same way, with the repair action `rerun_check`.
 - **Fatal findings** (duplicate `chunk_index`, FK inconsistency, embedding-dimension mismatch, unknown schema) register a `rag_consistency` fatal finding and abort startup, with the repair action in the message. No config path may downgrade a fatal finding (AC-4).
 - **Ingest-time embedding-dimension mismatch** (outside the startup check): ingestion skips the affected chunk and logs a WARNING; the same mismatch at startup is the Fatal finding listed above.
+- **An inconsistent result without a finding** registers a `rag_consistency` fatal finding and aborts startup: a result that cannot be explained is not trusted.
 - **A failed or timed-out check** prints a warning marking RAG consistency unverified and lets startup continue. ADR-004 classifies a failed or timed-out check the same way.
 
 ```text
@@ -93,12 +94,15 @@ Use `/session rag-consistency` to detect issues. The report includes identifiers
 | chunks without vector rows | Degraded | `reingest` | Run `ingester.py --force` for the affected chunks. |
 | documents without chunks | Degraded | `reingest` | Run `ingester.py --force` for the affected documents. |
 | URL-level inconsistency | Degraded | `reingest` | Run `ingester.py --force` for the affected URLs. |
+| diagnostic errors (a consistency stage failed) | Degraded | `rerun_check` | Re-run the consistency check after the database error is resolved; part of the report could not be collected. |
+| failed read smoke test | Degraded | `rerun_check` | Re-run the consistency check after the unreadable table is repaired. |
+| unverified FK, embedding-dimension, or schema probe | Degraded | `rerun_check` | Re-run the consistency check after the probe failure is resolved; the dimension is unverified, not healthy. |
 | duplicate `chunk_index` | Fatal | `restore_from_backup` | Restore from a verified backup or re-ingest; duplicate indices indicate data corruption. |
 | FK inconsistency | Fatal | `restore_from_backup` | Restore from a verified backup; a chunk references a missing document. |
 | embedding-dimension mismatch | Fatal | `restore_from_backup` | Restore from a verified backup; stored vectors do not match the configured dimension. |
 | unknown schema | Fatal | `restore_from_backup` | Restore from a verified backup; a required table is missing. |
 
-The `repair_action` value is appended to the console message at startup (`... Repair action: <value>`). `rebuild_fts` and `rebuild_vec` repair only the findings that name them; `reingest` findings need ingestion to run again; fatal findings require restore-from-backup or re-ingest.
+The `repair_action` value is appended to the console message at startup (`... Repair action: <value>`). `rebuild_fts` and `rebuild_vec` repair only the findings that name them; `reingest` findings need ingestion to run again; `rerun_check` findings need the check to be run again once the cause is resolved; fatal findings require restore-from-backup or re-ingest.
 
 Run `/session rag-rebuild-fts` to re-sync `chunks_fts` from the `chunks` table.
 

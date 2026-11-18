@@ -26,6 +26,7 @@ from agent.context import AgentContext
 from agent.production_config_validator import ProductionConfigValidator
 from agent.services.mcp_health import check_readiness, collect_server_postures
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
+from agent.services.models import RagConsistencyResult
 from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.services.routing_drift import check_routing_drift, check_routing_safety_tiers
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
@@ -64,6 +65,30 @@ def _record_drift_check_failure(
     """
     message = f"Routing drift check failed: {exc}"
     pipeline.add_fatal("routing_drift", message)
+
+
+def _record_rag_findings(
+    pipeline: StartupValidationResult, rag_check: RagConsistencyResult
+) -> None:
+    """Record every finding of an inconsistent RAG result by its severity.
+
+    Findings carry severity structurally (docs 05/03/04); route by it. No config
+    path may downgrade a fatal finding (AC-4). An inconsistent result without any
+    finding is itself FATAL: a result that cannot be explained is not trusted.
+    """
+    if not rag_check.findings:
+        pipeline.add_fatal(
+            "rag_consistency",
+            "RAG consistency result is inconsistent but carries no finding; "
+            "the result cannot be trusted.",
+        )
+        return
+    for finding in rag_check.findings:
+        message = f"{finding.message} Repair action: {finding.repair_action}"
+        if finding.severity == FindingSeverity.FATAL:
+            pipeline.add_fatal("rag_consistency", message)
+        else:
+            pipeline.add_warning("rag_consistency", message)
 
 
 def _check_component_mandatoriness(
@@ -142,7 +167,9 @@ class StartupValidationPipeline:
         _check_component_mandatoriness(ctx, pipeline)
 
         # 5. Routing drift (static)
-        # Strict-only: a drift finding is always FATAL (ADR-003 routing authority).
+        # Strict mode raises RuntimeError on any drift, which is recorded as FATAL
+        # below (ADR-003 routing authority). The returned messages are informational
+        # and empty in strict mode.
         try:
             for msg in check_routing_drift(ctx, strict=True):
                 pipeline.add_warning("routing_drift", msg)
@@ -152,9 +179,17 @@ class StartupValidationPipeline:
             _record_drift_check_failure(pipeline, exc)
 
         # 5b. Routing safety tiers
+        # A registered tool without a declared tier is Fail-Closed (ADR-004 INV-07).
         try:
             for msg in check_routing_safety_tiers(ctx):
-                pipeline.add_warning("routing_safety_tiers", msg)
+                pipeline.add_fatal(
+                    "routing_safety_tiers",
+                    msg,
+                    remediation=(
+                        "Declare a safety tier for the tool under [tool_safety_tiers] "
+                        "in config/agent.toml (ADR-004 INV-07)."
+                    ),
+                )
         except Exception as exc:  # noqa: BLE001 — Safety Tier failures are Fail-Closed per INV-07; broad catch handles RuntimeError from check_tool_safety_tiers
             pipeline.add_fatal(
                 "routing_safety_tiers", f"Routing safety tier check failed: {exc}"
@@ -240,16 +275,7 @@ class StartupValidationPipeline:
             if rag_check.is_consistent:
                 pipeline.add_ok("rag_consistency")
             else:
-                # Findings carry severity structurally (docs 05/03/04); route by it.
-                # No config path may downgrade a fatal finding (AC-4).
-                for finding in rag_check.findings:
-                    message = (
-                        f"{finding.message} Repair action: {finding.repair_action}"
-                    )
-                    if finding.severity == FindingSeverity.FATAL:
-                        pipeline.add_fatal("rag_consistency", message)
-                    else:
-                        pipeline.add_warning("rag_consistency", message)
+                _record_rag_findings(pipeline, rag_check)
         except asyncio.CancelledError:
             # The awaiting stage was cancelled (shutdown request): the executor
             # future is cancelled but the worker thread keeps running, so set the

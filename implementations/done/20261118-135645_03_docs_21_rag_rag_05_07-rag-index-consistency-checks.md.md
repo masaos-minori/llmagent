@@ -57,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the table, the Startup Warnings bullets, and the closing paragraph (Implementation > Procedure) | Pending | — | — | |
-| 2 | Run the documentation checkers (Validation plan) | Pending | — | — | |
+| 1 | Edit the table, the Startup Warnings bullets, and the closing paragraph (Implementation > Procedure) | Completed | 20261118-140956 | 20261118-140956 | Changed: docs/21_rag/rag_05_07-rag-index-consistency-checks.md. Docs checkers pass. |
+| 2 | Run the documentation checkers (Validation plan) | Completed | 20261118-140956 | 20261118-140956 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

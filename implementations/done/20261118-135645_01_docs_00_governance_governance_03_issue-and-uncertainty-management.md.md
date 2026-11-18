@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the three ledger entries (Implementation > Procedure) | Pending | — | — | |
-| 2 | Run the documentation checkers (Validation plan) | Pending | — | — | |
+| 1 | Add the three ledger entries (Implementation > Procedure) | Completed | 20261118-140956 | 20261118-140956 | Changed: docs/00_governance/governance_03_issue-and-uncertainty-management.md. Docs checkers pass; stale detector clean. |
+| 2 | Run the documentation checkers (Validation plan) | Completed | 20261118-140956 | 20261118-140956 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
