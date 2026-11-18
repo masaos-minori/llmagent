@@ -88,10 +88,10 @@ Give the guarded marker tool the batch capability of the retired tool: `list` an
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-094700 | 20261118-094700 | Multi-path list/mark: positional `path`→`paths` nargs="+" in both subparsers; main validates every path before dispatch, iterates _print_list/_print_mark per path, aggregates exit codes (0 all ok, 1 any nothing-to-mark, 2 any unusable). --all unions missing names across paths. main complexity reduced via _unusable_paths/_resolve_names helpers (radon: no grade C+). |
+| 2 | Add or update tests per Validation plan | Completed | 20261118-094700 | 20261118-094700 | Added TestMultiPathCli: multi-path list, multi-path mark write, unusable-path-exits-2-before-write, per-path refusal aggregation, all-succeed-zero, UTF-8 round-trip across paths, already-marked-left-alone at CLI. Migrated retired-tool UTF-8 + already-marked cases. 19 passed (12 original + 7 new). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-094700 | 20261118-094700 | ruff format+check clean; mypy clean (569 files); bandit B404 subprocess pre-existing (not introduced); radon no block ≥ C; smoke: list + mark --all --dry-run on two real procedure copies succeed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Docs (TOOL_DESCRIPTIONS.md, workflows) handled by seq 05/06/07; this member is code-only. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

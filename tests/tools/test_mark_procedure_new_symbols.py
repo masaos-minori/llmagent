@@ -141,3 +141,116 @@ class TestCli:
         rc = mps.main(["mark", str(proc), "--symbols", "REASON_OK", "--dry-run"])
 
         assert rc == 0
+
+
+class TestMultiPathCli:
+    """The CLI accepts several paths: validates all before writing, guards per
+    path, and aggregates the per-path exit codes."""
+
+    def _two_paths(self, tmp_path: Path, text: str = PROC_TEXT) -> tuple[Path, Path]:
+        a = tmp_path / "a.md"
+        b = tmp_path / "b.md"
+        a.write_text(text, encoding="utf-8")
+        b.write_text(text, encoding="utf-8")
+        return a, b
+
+    def test_list_reports_each_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        a, b = self._two_paths(tmp_path)
+        seen: list[str] = []
+
+        def fake(_proc: Path) -> list[str]:
+            seen.append(_proc.name)
+            return ["REASON_OK"]
+
+        monkeypatch.setattr(mps, "reported_missing_symbols", fake)
+
+        rc = mps.main(["list", str(a), str(b)])
+
+        assert rc == 0
+        assert sorted(seen) == ["a.md", "b.md"]
+
+    def test_mark_writes_to_every_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        a, b = self._two_paths(tmp_path)
+        monkeypatch.setattr(mps, "reported_missing_symbols", lambda _: ["REASON_OK"])
+
+        rc = mps.main(["mark", str(a), str(b), "--symbols", "REASON_OK"])
+
+        assert rc == 0
+        assert a.read_text(encoding="utf-8").count("`REASON_OK` (new)") == 2
+        assert b.read_text(encoding="utf-8").count("`REASON_OK` (new)") == 2
+
+    def test_unusable_path_exits_two_before_any_write(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        good, _ = self._two_paths(tmp_path)
+        good_before = good.read_bytes()
+
+        rc = mps.main(["mark", str(good), str(tmp_path / "absent.md"), "--all"])
+
+        assert rc == 2
+        assert good.read_bytes() == good_before
+
+    def test_refusal_applies_per_path_and_aggregates(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        a, b = self._two_paths(tmp_path)
+
+        def fake(_proc: Path) -> list[str]:
+            return ["REASON_OK"] if _proc.name == "a.md" else []
+
+        monkeypatch.setattr(mps, "reported_missing_symbols", fake)
+
+        rc = mps.main(["mark", str(a), str(b), "--symbols", "REASON_OK", "--dry-run"])
+
+        out = capsys.readouterr().out
+        assert rc == 1
+        assert "REFUSED: 'REASON_OK'" in out
+        assert "Nothing to mark." in out
+        assert a.read_text(encoding="utf-8") == PROC_TEXT
+
+    def test_all_paths_succeed_returns_zero(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        a, b = self._two_paths(tmp_path)
+        monkeypatch.setattr(mps, "reported_missing_symbols", lambda _: ["REASON_OK"])
+
+        rc = mps.main(["mark", str(a), str(b), "--symbols", "REASON_OK", "--dry-run"])
+
+        assert rc == 0
+
+    def test_real_run_writes_utf8_to_all_paths(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        text = "Create `alpha` and `beta`.\nSee existing 日本 ünï.\n"
+        a = tmp_path / "a.md"
+        b = tmp_path / "b.md"
+        a.write_text(text, encoding="utf-8")
+        b.write_text(text, encoding="utf-8")
+        monkeypatch.setattr(mps, "reported_missing_symbols", lambda _: ["alpha"])
+
+        rc = mps.main(["mark", str(a), str(b), "--symbols", "alpha"])
+
+        expected = "Create `alpha` (new) and `beta`.\nSee existing 日本 ünï.\n"
+        assert rc == 0
+        assert a.read_bytes() == expected.encode("utf-8")
+        assert b.read_bytes() == expected.encode("utf-8")
+
+    def test_already_marked_name_left_alone_at_cli(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        doc = tmp_path / "p.md"
+        original = "See `alpha` (new) and `beta`.\n"
+        doc.write_text(original, encoding="utf-8")
+        monkeypatch.setattr(mps, "reported_missing_symbols", lambda _: ["alpha"])
+
+        rc = mps.main(["mark", str(doc), "--symbols", "alpha"])
+
+        assert rc == 0
+        assert doc.read_text(encoding="utf-8") == original

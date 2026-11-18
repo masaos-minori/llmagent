@@ -23,9 +23,9 @@ The tool never infers which names are new. Reviewing the `list` output and
 choosing the names stays with the operator.
 
 Usage:
-    python -m tools.mark_procedure_new_symbols list <procedure.md>
-    python -m tools.mark_procedure_new_symbols mark <procedure.md> --symbols a,b,c
-    python -m tools.mark_procedure_new_symbols mark <procedure.md> --all [--dry-run]
+    python -m tools.mark_procedure_new_symbols list <procedure.md> [<procedure.md> ...]
+    python -m tools.mark_procedure_new_symbols mark <procedure.md> [<procedure.md> ...] --symbols a,b,c
+    python -m tools.mark_procedure_new_symbols mark <procedure.md> [<procedure.md> ...] --all [--dry-run]
 """
 
 from __future__ import annotations
@@ -149,6 +149,30 @@ def _print_mark(proc: Path, names: Iterable[str], dry_run: bool) -> int:
     return 0
 
 
+def _unusable_paths(paths: list[Path]) -> list[Path]:
+    """Return paths that are not files, printing an error for each."""
+    bad: list[Path] = []
+    for p in paths:
+        if not p.is_file():
+            print(f"ERROR: not a file: {p}")
+            bad.append(p)
+    return bad
+
+
+def _resolve_names(paths: list[Path], symbols: str, use_all: bool) -> list[str]:
+    """Names to mark: the ``--symbols`` list, or the union across paths when
+    ``--all`` is given (each path then filters by its own allowed set)."""
+    names = [part.strip() for part in symbols.split(",") if part.strip()]
+    if use_all:
+        all_names: list[str] = []
+        for proc in paths:
+            for name in reported_missing_symbols(proc):
+                if name not in all_names:
+                    all_names.append(name)
+        names = all_names
+    return names
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -156,10 +180,14 @@ def main(argv: list[str] | None = None) -> int:
     list_parser = sub.add_parser(
         "list", help="report missing symbol names and their lines"
     )
-    list_parser.add_argument("path", help="implementation procedure document")
+    list_parser.add_argument(
+        "paths", nargs="+", help="one or more implementation procedure documents"
+    )
 
     mark_parser = sub.add_parser("mark", help="insert (new) markers for supplied names")
-    mark_parser.add_argument("path", help="implementation procedure document")
+    mark_parser.add_argument(
+        "paths", nargs="+", help="one or more implementation procedure documents"
+    )
     mark_parser.add_argument(
         "--symbols", default="", help="comma-separated names to mark"
     )
@@ -173,22 +201,21 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     args = parser.parse_args(argv)
-    proc = Path(args.path)
-    if not proc.is_file():
-        print(f"ERROR: not a file: {proc}")
+    paths = [Path(p) for p in args.paths]
+    if _unusable_paths(paths):
         return 2
 
     if args.command == "list":
-        _print_list(proc)
+        for proc in paths:
+            _print_list(proc)
         return 0
 
-    names = [part.strip() for part in args.symbols.split(",") if part.strip()]
-    if args.all:
-        names = reported_missing_symbols(proc)
+    names = _resolve_names(paths, args.symbols, args.all)
     if not names and not args.all:
         print("ERROR: supply --symbols or --all")
         return 2
-    return _print_mark(proc, names, args.dry_run)
+    path_codes = [_print_mark(proc, names, args.dry_run) for proc in paths]
+    return 1 if any(code == 1 for code in path_codes) else 0
 
 
 if __name__ == "__main__":

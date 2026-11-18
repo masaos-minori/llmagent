@@ -77,10 +77,10 @@ Retire the unguarded marker tool: remove `tools/fix_procedure_new_markers.py` an
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-095430 | 20261118-095430 | git rm of tools/fix_procedure_new_markers.py and tests/tools/test_fix_procedure_new_markers.py; zero external callers confirmed (rg clean beyond tool/test/TOOL_DESCRIPTIONS.md). No alias/wrapper/history note. |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Deletion only; migrated cases live in tests/tools/test_mark_procedure_new_symbols.py (seq 01). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-095430 | 20261118-095430 | pytest tests/tools: 2145 passed, 2 skipped (deleted module gone). ls confirms both files absent. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | TOOL_DESCRIPTIONS.md row/list handled by seq 07. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -76,10 +76,10 @@ After:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: docs-only row; validation is the reference checkers |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row is the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-095815 | 20261118-095815 | Extended way-forward bullet (a) of 'Stale detection result handling' to name `tools/mark_procedure_new_symbols.py mark {proc_path} --all` for approved marker corrections. Abort-and-report bullets (364/367) word-for-word unchanged. |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Docs-only row. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-095815 | 20261118-095815 | check_skills_references.py: No issues found; check_skills_heading_cycles.py: No issues found. Read-back confirms abort + MUST NOT correct rules intact. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261118-095815 | 20261118-095815 | This row IS the documentation change. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

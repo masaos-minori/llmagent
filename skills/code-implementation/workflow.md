@@ -368,7 +368,9 @@ If the stale detector reports any mismatch:
   is stale, and all failures are reported in a single pass (`SKILL.md` Core Execution
   Rules).
 - Offer the user these ways forward and do none of them without their decision: (a) they
-  approve a correction to the procedure document, then re-invoke this skill; (b)
+  approve a correction to the procedure document — for a name the procedure creates,
+  `uv run python tools/mark_procedure_new_symbols.py mark {proc_path} --all` applies the
+  `(new)` markers the detector left unmarked — then re-invoke this skill; (b)
   regenerate it with `plan-to-implementation-procedure` once they decide how to reopen the
   Plan (it may already be in `plans/done/`; this skill does not move it); (c) drop the
   procedure.

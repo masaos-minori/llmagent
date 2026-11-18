@@ -73,10 +73,10 @@ Kept-tool row, After:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: docs-only row; validation is the description checkers |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row is the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-095940 | 20261118-095940 | Three edits + one row: removed fix_procedure_new_markers.py from dry-run writers list (added mark_procedure_new_symbols.py), replaced "the seven above" count with pointer to the --dry-run paragraph, deleted the retired-tool row, updated the kept-tool row to multi-path form. |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Docs-only row. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-095940 | 20261118-095940 | rg: no "fix_procedure_new_markers"/"the seven above" in TOOL_DESCRIPTIONS.md; check_tool_descriptions_sync.py: No issues found; check_module_size.py: OK (15 baselined modules). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261118-095940 | 20261118-095940 | This row IS the documentation change. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

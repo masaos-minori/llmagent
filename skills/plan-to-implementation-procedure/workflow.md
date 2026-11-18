@@ -337,7 +337,7 @@ condition keeps its own document, and every other file keeps the one-file rule:
   - After writing it, run `uv run python tools/stale_detector.py {document_path}` (the
     same check `code-implementation` runs before executing a procedure, so a stale
     reference surfaces here instead of aborting that later cycle). For each mismatch:
-    (1) a name, import, or target file this document creates — add `(new)` after it
+    (1) a name, import, or target file this document creates — add `(new)` after it via `tools/mark_procedure_new_symbols.py`
     (see `templates/implementation-procedure.md` Notes); (2) a name that only a
     sibling procedure of this Plan marks `(new)` — the tool resolves a name declared by an
     earlier-`seq` sibling and prints a `resolved from sibling` line naming the declaring

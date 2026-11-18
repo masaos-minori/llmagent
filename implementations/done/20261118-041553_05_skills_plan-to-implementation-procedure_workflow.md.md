@@ -74,10 +74,10 @@ After:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: docs-only row; validation is the reference checkers |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: this row is the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-095500 | 20261118-095500 | Named tools/mark_procedure_new_symbols.py in the plan-to-implementation-procedure workflow's stale-detector Step 3 case (1): the name this document creates gets its (new) marker via this tool. One clause added; surrounding bullets untouched. |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Docs-only row. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-095500 | 20261118-095500 | check_skills_references.py: No issues found; check_skills_heading_cycles.py: No issues found. Read-back confirms the added clause and adjacent bullets intact. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261118-095500 | 20261118-095500 | This row IS the documentation change. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
