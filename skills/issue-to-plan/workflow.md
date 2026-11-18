@@ -358,6 +358,11 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
   After a `0` exit, independently verify the reported output path exists and contains
   the expected `## ` section headings before filling it in (`rules/ai-execution.md` Repository Tool Usage item 8: a `0` exit alone MUST NOT be
   treated as proof).
+- When copying the Issue's `Dependencies` into the Plan's Scope, use the template's canonical rule: a Plan
+  that must wait for another Plan or Issue records it as a structured `Depends on` bullet; the prose
+  `Dependencies` line never names another Plan or Issue by path, and a compatible overlap or a
+  sequencing-only note names the other Plan by title or id, because `tools/plan_dependency_order.py` reads
+  every `plans/` or `issues/` `.md` path in that line as a dependency on phase `all`.
 - Use the section order and structure from `SKILL.md` Output format.
 - Assign every requirement a stable ID (`REQ-001`, `REQ-002`, ...). Each Acceptance
   criterion, Test, and Implementation step MUST reference its related Requirement ID.
@@ -564,9 +569,8 @@ After marking the section `Frozen`, check it against the other active Plans: run
 a file that appears in more than one `Frozen` Plan under `plans/`, this Plan included, so
 it only sees this Plan once it is `Frozen`. For each finding that names this Plan, read the
 other Plan's design and judge it as one of:
-- **compatible**: record it in this Plan's `Assumptions`;
-- **sequencing dependency**: record it in `Assumptions` and add the other Plan to `Scope`
-  Dependencies;
+- **compatible**: record it in this Plan's `Assumptions`; when `Scope` mentions the other Plan at all, name it by title or id, never by a `plans/` or `issues/` path;
+- **sequencing dependency**: record it in `Assumptions` and add a structured `Depends on` bullet for the other Plan in `Scope`, never a path in the prose `Dependencies` line — `tools/plan_dependency_order.py` reads every `plans/` or `issues/` path in that line as a dependency on phase `all`;
 - **conflict** (the two designs contradict each other on that file): set `Freeze status`
   back to `Draft` (a conflicting scope is not validated), report
   `Blocked: conflicting Plan {path} — {description}`, and leave the Issue in `issues/`

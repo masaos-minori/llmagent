@@ -16,8 +16,8 @@ High / Medium / Low
 ## Scope
 - **In-Scope**: [List of explicit items to be implemented]
 - **Out-of-Scope**: [List of items explicitly excluded from this task]
-- **Dependencies**: [The Issue's Dependencies, including fix order against sibling issues or plans; `N/A: none` if there are none]
-  - **Depends on**: {plans/ or issues/ path} | phase {N or all} | {reason}  [one bullet per dependency on another Plan or Issue, `phase` is a step number of that Plan or `all`; omit when `N/A: none`; sequencing-only notes stay in the prose line above]
+- **Dependencies**: [The Issue's Dependencies, including fix order against sibling issues or plans; `N/A: none` if there are none. Write each ordering dependency as the `Depends on` bullet below; write each other mention by title or id — this line never names another Plan or Issue by a `plans/` or `issues/` path]
+  - **Depends on**: {plans/ or issues/ path} | phase {N or all} | {reason}  [one bullet per dependency on another Plan or Issue, `phase` is a step number of that Plan or `all`; omit when `N/A: none`; a Plan that must wait for another Plan or Issue records it as this bullet, and the prose line above never names another Plan or Issue by path — a compatible overlap or a sequencing-only note names it by title or id]
 
 ## Background
 [Why this requirement exists]

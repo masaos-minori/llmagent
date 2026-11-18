@@ -168,11 +168,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Pin the prose fallback behavior with tests | In Progress | — | — |  |
-| 2 | Template: state the rule at the Dependencies line and the Depends on note | In Progress | — | — |  |
-| 3 | Workflow: state the rule in Step 5 and Step 8b | In Progress | — | — |  |
-| 4 | Tool description row | In Progress | — | — |  |
-| 5 | Verification: tests, checkers, live-Plan run, unchanged tool | Pending | — | — |  |
+| 1 | Pin the prose fallback behavior with tests | Completed | — | 20261118-143454 |  |
+| 2 | Template: state the rule at the Dependencies line and the Depends on note | Completed | — | 20261118-143710 |  |
+| 3 | Workflow: state the rule in Step 5 and Step 8b | Completed | — | 20261118-143803 |  |
+| 4 | Tool description row | Completed | — | 20261118-143832 |  |
+| 5 | Verification: tests, checkers, live-Plan run, unchanged tool | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -182,10 +182,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-073315_01_templates_plan.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-073315_02_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-073315_03_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261118-073315_04_tests_tools_test_plan_dependency_order.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-073315_01_templates_plan.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-073315_02_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-073315_03_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261118-073315_04_tests_tools_test_plan_dependency_order.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

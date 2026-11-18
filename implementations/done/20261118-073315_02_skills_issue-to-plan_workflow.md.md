@@ -13,8 +13,8 @@ State the one ordering rule where the Plan's Scope Dependencies are actually wri
 
 ## Assumptions
 
-- This edit executes after the prerequisite Plan's Step 3 procedure executes (its Step 8b audit rewrite is already merged into the current section text; the prerequisite Plan is archived with Step 3 `In Progress`, re-verified 20261118): re-read the whole Step 8b section before editing (Plan Assumption and UNK-02).
-- Guidance-only option is chosen; UNK-01 maintainer confirmation gates Phase 2 execution of this Plan's phases (the template edit first, then this one). (Plan Assumption)
+- The prerequisite Plan (`plans/done/20261117-125207_wftool004_orphan-tool-routing.md`) is archived with Step 3 `Completed` (20261118-103933; its seq 06 procedure is in `implementations/done/`), so the prerequisite holds (re-verified 20261118). The whole Step 8b section was re-read: the audit paragraph and the three judgment branches (`compatible` / `sequencing dependency` / `conflict`) are in the current file (Plan Assumption and UNK-02).
+- Guidance-only option is chosen. UNK-01 is resolved: the maintainer's 20261118 execution instruction (`memo3.md`) directs running this procedure set, the template edit landing first. (Plan Assumption)
 - `skills/plan-to-implementation-procedure/workflow.md` Step 2 already reports each `prose-dependency` warning and asks the user (reference file, unchanged); this workflow must stay consistent with it.
 
 ## Design decisions
@@ -85,10 +85,18 @@ Targeted edits inside the two step sections; no heading changes (the skills refe
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — |  |
+| 2 | Add or update tests per Validation plan | Completed | — | — |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — |  |
+
+### Verification Findings
+| ID | Finding | Action |
+|----|---------|--------|
+| V1 | Step 8b branches read verbatim: `- **compatible**: record it in this Plan's \`Assumptions\`;` and `- **sequencing dependency**: record it in \`Assumptions\` and add the other Plan to \`Scope\` Dependencies;` | Edit both branches as planned (step 3) |
+| V2 | Step 4 mapping row (line 272) `\| Dependencies \| Scope (Dependencies), Risks (when an ordering dependency can fail) \|` is a section mapping, not a copy instruction | Keep it untouched (step 5 confirmed, no edit) |
+| V3 | Step 5 "Generate the Plan" has the scaffold bullet (`Optionally scaffold the empty file first with ... generate_workitem.py ...`) | Place the new rule bullet after it (step 2) |
+| V4 | Prerequisite Plan Step 3 is `Completed` (20261118-103933), not `In Progress` as the Plan's Revalidation note recorded | Assumption updated; gate cleared |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

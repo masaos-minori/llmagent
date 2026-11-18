@@ -360,6 +360,58 @@ class TestMain:
         assert f"{archived}: gated, blocked by issues/i.md phase all" in out
         assert f"{PLAN_A}: gated" not in out
 
+    def test_plan_mode_prose_dependency_gates(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """A prose path naming an open Plan gates with the `prose` label and a warning.
+
+        The archived-prerequisite half documents the guidance's point: a
+        `plans/done/` path resolves by existence only, so it warns but never
+        gates — an archived-but-unexecuted prerequisite reads `ready`.
+        """
+        archived = "plans/done/20261101-000010_w_plan.md"
+        _plan(tmp_path, PLAN_A, [f"- **Dependencies**: after `{PLAN_B}`"])
+        _plan(tmp_path, PLAN_B, [f"- **Dependencies**: after `{archived}`"])
+        _plan(tmp_path, archived, ["- **Dependencies**: N/A: none"])
+        assert pdo.main(["--root", str(tmp_path), "--plan", PLAN_A]) == 0
+        out = capsys.readouterr().out
+        assert f"{PLAN_A}: gated (prose), blocked by {PLAN_B} phase all" in out
+        assert f"{PLAN_A}: prose-dependency: {PLAN_B}" in out
+        capsys.readouterr()
+        assert pdo.main(["--root", str(tmp_path), "--plan", PLAN_B]) == 0
+        out = capsys.readouterr().out
+        assert "Gated:\n  (none)" in out
+        assert f"{PLAN_B}: prose-dependency: {archived}" in out
+        assert f"{PLAN_A}: gated" not in out
+
+    def test_prose_by_title_does_not_gate(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        _plan(
+            tmp_path,
+            PLAN_A,
+            ["- **Dependencies**: after plan 20261101-000002_b_plan (title only)"],
+        )
+        _plan(tmp_path, PLAN_B, [])
+        assert pdo.main(["--root", str(tmp_path)]) == 0
+        out = capsys.readouterr().out
+        assert "Gated:\n  (none)" in out
+        assert "prose-dependency" not in out
+        assert f"  {PLAN_A}" in out
+
+    def test_json_mode_exposes_prose_gate_and_warning(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        _plan(tmp_path, PLAN_A, [f"- **Dependencies**: after `{PLAN_B}`"])
+        _plan(tmp_path, PLAN_B, [])
+        assert pdo.main(["--root", str(tmp_path), "--format", "json"]) == 0
+        data = orjson.loads(capsys.readouterr().out)
+        entry = {r["plan"]: r for r in data["results"]}[PLAN_A]
+        assert entry["status"] == "gated"
+        assert entry["label"] == "gated (prose)"
+        assert entry["blocking"] == [f"{PLAN_B} phase all"]
+        assert f"{PLAN_A}: prose-dependency: {PLAN_B}" in data["warnings"]
+
     def test_missing_plan_path_returns_one(self, tmp_path: Path) -> None:
         self._repo(tmp_path)
         assert pdo.main(["--root", str(tmp_path), "--plan", "plans/nope.md"]) == 1

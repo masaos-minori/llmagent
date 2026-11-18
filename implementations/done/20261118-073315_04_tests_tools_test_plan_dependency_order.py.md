@@ -18,18 +18,25 @@ and `--json` exposes the undeclared `all` gate. No production code changes in th
 - `tools/plan_dependency_order.py` is unchanged (REQ-005); these tests pass against the current tool
   and serve as characterization coverage for the documented contract. (Verified 20261118.)
 - Parser-level fallback is already tested (`test_prose_fallback_reads_paths_with_warning` at line 108,
-  `test_prose_fallback_reads_continuation_lines`, `test_structured_line_wins_over_prose`); the gap is
-  the end-to-end `--plan`/`--json` consequence, which no existing test pins. (Verified 20261118.)
+  `test_prose_fallback_reads_continuation_lines` at line 124, `test_structured_line_wins_over_prose` at
+  line 129); the gap is the end-to-end `--plan`/`--json` consequence, which no existing test pins.
+  (Re-verified 20261118.)
+- Fixture facts (re-verified 20261118 against `resolve_dependency` and `readiness`): an unresolvable prose
+  path yields `ready` plus a `Needs confirmation` line, not a gate, so the gating test must name an
+  existing open Plan; a `plans/done/` path is closed by existence only.
 
 ## Design decisions
 
 - Reuse the module's existing helpers and constants (`_plan`, `_plan_text`, `_depends`,
   `PLAN_A`..`PLAN_D`, `capsys`) and the existing class layout; no new fixture helpers.
 - Name the tests after the contract, not the implementation: `test_plan_mode_prose_dependency_gates` (new)
-  (open prose path under `plans/` -> `gated (prose)` line and `prose-dependency` warning in
-  capsys output), `test_prose_by_title_does_not_gate` (new) (prose names the sibling Plan by title/id only
-  -> `ready`), `test_json_mode_exposes_undeclared_all_gate` (new) (gate with `phase == "all"` and
-  `declared == false`).
+  (open prose path under `plans/` -> `gated (prose)` line, `blocked by <path> phase all`, and the
+  `prose-dependency` warning in capsys output), `test_prose_by_title_does_not_gate` (new) (prose names the
+  sibling Plan by title or id only -> `ready`, no warning), `test_json_mode_exposes_prose_gate_and_warning`
+  (new) (the results entry has `label == "gated (prose)"` and a `blocking` entry `<path> phase all`, and
+  the payload's `warnings` list carries `prose-dependency: <path>`; re-verified 20261118 against
+  `render_json` — the earlier `phase`/`declared` gate-entry claim was wrong, those fields are not
+  serialized).
 - Keep the archived-prerequisite case inside the first test (`plans/done/...` path resolves by
   existence and the plan reports `ready`), documenting why the guidance forbids prose paths: an
   archived-but-unexecuted prerequisite reads `ready` (Plan Revalidation note).
@@ -62,8 +69,11 @@ Test-only additions inside the existing test classes; no changes to any `tools/`
 
 ### Details
 
-- Expected report fragments (current behavior): `gated (prose)` in the `--plan` line, and a warning
-  line containing `prose-dependency: <path>`; `--json` gate entries carry `path`, `phase`, `declared`.
+- Expected report fragments (current behavior, re-verified 20261118 against `render_text` and
+  `render_json`): `gated (prose)` in the `--plan` line with `blocked by <path> phase all`, and a warning
+  line `prose-dependency: <path>`; `--json` results entries carry `plan`, `status`, `label`, `blocking`
+  (`<path> phase all` strings) and `confirmations`, and the payload's `warnings` list carries the fallback
+  warnings.
 
 ## Compatibility considerations
 
@@ -100,10 +110,17 @@ Test-only additions inside the existing test classes; no changes to any `tools/`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — |  |
+| 2 | Add or update tests per Validation plan | Completed | — | — |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — |  |
+
+### Verification Findings
+| ID | Finding | Action |
+|----|---------|--------|
+| V1 | `render_json` payload: results entries `plan`/`status`/`label`/`blocking`/`confirmations`, top-level `warnings`; no `path`/`phase`/`declared` gate fields | Third test renamed and re-specified in Design decisions/Details |
+| V2 | Unresolvable prose paths yield `ready` + `Needs confirmation` (existing `test_json_output_parses` shows `PLAN_B: ready` for `plans/missing.md`); gating needs an existing open Plan | New fixture fact added to Assumptions |
+| V3 | Helpers `_write`/`_plan_text`/`_plan`/`_depends`/`_readiness` and `PLAN_A`..`PLAN_D` confirmed; `test_plan_option_limits_the_report` at line 343; `TestMain._repo` is the fixture pattern to reuse | Reuse them; no new helpers |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
