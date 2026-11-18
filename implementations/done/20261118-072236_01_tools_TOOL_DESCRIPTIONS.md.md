@@ -21,6 +21,7 @@ Make the two `tools/TOOL_DESCRIPTIONS.md` rows for `tools/run_validation_gates.p
 
 - State the observable behavior instead of deleting sentences: all selected gates run and each result is reported, the run exits 1 when any gate is `Fail` and 0 otherwise, and within one gate the commands stop at the first non-zero exit. (Plan Decision, wording)
 - Two targeted cell edits, one per row, keeping the row layouts and the sentences the prerequisite Plan introduced; this file's rows are shared with two other open Plans of this batch at row level (report-only overlap).
+- Verification (20261118-125800, pre-execution stale detection passed): every referenced construct exists and every claim was confirmed against current source. `--help` shows no `--fast` option, `--full` as an additive flag, fast mode as the default, and `--verbose`, `--jobs`, `--base`, and the `drift` subcommand; `_changed_files` runs `git diff --staged --diff-filter=AMRC <base>` plus `git diff --diff-filter=AMRC` (unstaged against the index), so untracked and deleted paths are never seen; `classify` produces only `Not available`, `Pass`, and `Fail`, and `Partial`/`Blocked` appear nowhere outside `VOCAB`, the docstrings, and the `--help` description; `run_gate` stops at the first non-zero exit with `exit code {n}` as the `Fail` detail; `_run_gates` runs every selected gate and returns 1 when any gate is `Fail`; `rules/toolchain.md` has nine numbered steps; the five-status wording exists in `routing.md`, the runner docstring, and `--help` (UNK-02: report-only). UNK-01 confirmed: no stop-at-first-failure mode exists in the code.
 
 ## Alternatives considered
 
@@ -90,10 +91,10 @@ Targeted cell edits with the edit tool, one row at a time; verify with the check
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | both rows corrected against --help and source; claim list recorded in procedure Verification |
+| 2 | Add or update tests per Validation plan | N/A | — | — | no tests owned here; sync checker validates |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | full suite 12759 passed/7 skipped; diff-cover exit 0; sync checker and --fast rg clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | no docs/*.md in scope per routing mapping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

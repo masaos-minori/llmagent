@@ -141,9 +141,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify each claim of the two rows against `--help` and the code | In Progress | — | — |  |
-| 2 | Correct the two rows | In Progress | — | — |  |
-| 3 | Verification: sync check, confirmation record, report the other copies | Pending | — | — |  |
+| 1 | Verify each claim of the two rows against `--help` and the code | Completed | — | 20261118-130657 |  |
+| 2 | Correct the two rows | Completed | — | 20261118-130657 |  |
+| 3 | Verification: sync check, confirmation record, report the other copies | Completed | — | 20261118-130657 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -153,7 +153,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-072236_01_tools_TOOL_DESCRIPTIONS.md.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261118-072236_01_tools_TOOL_DESCRIPTIONS.md.md | 1, 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
