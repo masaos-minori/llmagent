@@ -62,10 +62,10 @@ Eliminate the dead `_log_files` store in `StderrLogManager` and the associated u
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-083309 | 20261118-083309 | stale detection clean; removed self._log_files declaration + write in open_log; forget/clear/rotate_log already operate on _log_paths only |
+| 2 | Add or update tests per Validation plan | Completed | 20261118-083309 | 20261118-083309 | test_empty_dict_state _log_files assertion removed; test_open_log_stores_handle -> test_open_log_retains_no_handle; added test_cleanup_methods_do_not_raise_without_log_files; 24 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-083922 | 20261118-083922 | ruff format+check clean; mypy clean; bandit -ll clean; lint-imports 6 contracts kept; ast-grep no-bare-except clean; targeted 24 passed; full suite 12685 passed/7 skipped (prior 2 concurrent-test failures confirmed flaky under parallel load, pass serially); diff-cover 92% >= 90 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261118-083945 | 20261118-083945 | N/A: no docs/00_index.md task-scope row for this internal manager; generate_reference_table.py --check clean (no drift) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

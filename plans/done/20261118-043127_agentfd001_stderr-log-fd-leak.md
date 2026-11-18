@@ -157,8 +157,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Core Logic — remove the dead `_log_files` store (`scripts/agent/http_lifecycle_stderr_log_manager.py`) | In Progress | — | — | REQ-002 |
-| 2 | Tests (`tests/agent/test_http_lifecycle_stderr_log_manager.py`) | In Progress | — | — | REQ-004 |
+| 1 | Core Logic — remove the dead `_log_files` store (`scripts/agent/http_lifecycle_stderr_log_manager.py`) | Completed | — | 20261118-084201 | REQ-002 |
+| 2 | Tests (`tests/agent/test_http_lifecycle_stderr_log_manager.py`) | Completed | — | 20261118-084201 | REQ-004 |
 | 3 | Deployment & Verification | Pending | — | — | REQ-004 |
 
 ### Blocker Log
@@ -169,7 +169,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-070524_01_scripts_agent_http_lifecycle_stderr_log_manager.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261118-070524_01_scripts_agent_http_lifecycle_stderr_log_manager.py.md | 1, 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

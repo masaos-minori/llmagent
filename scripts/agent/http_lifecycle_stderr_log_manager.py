@@ -27,7 +27,6 @@ class StderrLogManager:
         stderr_tail_bytes: int | None = None,
     ) -> None:
         self._stderr_tail_bytes = stderr_tail_bytes or _DEFAULT_STDERR_TAIL_BYTES
-        self._log_files: dict[str, IO[bytes]] = {}
         self._log_paths: dict[str, str] = {}
 
     def open_log(self, server_key: str, cfg: object) -> IO[bytes]:
@@ -61,7 +60,6 @@ class StderrLogManager:
             )
 
         log_file = open(log_file_path, "ab")
-        self._log_files[server_key] = log_file
         self._log_paths[server_key] = log_file_path
         return log_file
 

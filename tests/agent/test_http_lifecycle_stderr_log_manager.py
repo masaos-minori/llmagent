@@ -67,7 +67,6 @@ class TestStderrLogManagerInit:
 
     def test_empty_dict_state(self):
         mgr = StderrLogManager()
-        assert mgr._log_files == {}
         assert mgr._log_paths == {}
 
 
@@ -88,7 +87,7 @@ class TestOpenLog:
                 mock_makedirs.assert_called_once()
                 mock_open.assert_called_once()
 
-    def test_open_log_stores_handle(self):
+    def test_open_log_retains_no_handle(self):
         mgr = StderrLogManager()
         cfg = MagicMock()
         with (
@@ -97,8 +96,9 @@ class TestOpenLog:
         ):
             mock_fh = MagicMock(spec=BytesIO)
             mock_open.return_value = mock_fh
-            mgr.open_log("server1", cfg)
-            assert "server1" in mgr._log_files
+            result = mgr.open_log("server1", cfg)
+            assert result is mock_fh
+            assert not hasattr(mgr, "_log_files")
 
     def test_open_log_stores_path(self):
         mgr = StderrLogManager()
@@ -208,3 +208,9 @@ class TestClear:
         mgr._log_paths["server2"] = "/tmp/server2.stderr.log"
         mgr.clear()
         assert mgr._log_paths == {}
+
+    def test_cleanup_methods_do_not_raise_without_log_files(self):
+        mgr = StderrLogManager()
+        mgr.forget("server1")
+        mgr.clear()
+        assert mgr.rotate_log("server1", 1024) is False
