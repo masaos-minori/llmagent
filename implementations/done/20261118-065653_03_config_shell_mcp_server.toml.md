@@ -52,10 +52,10 @@ Rewrite the `command_allowlist` comment in `config/shell_mcp_server.toml` to sta
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261118-080641 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261118-080641 | N/A: config-comment change; validation plan uses static/manual TOML read, no tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-080641 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261118-080641 | N/A: no docs/00_index.md task-scope mapping for the changed file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

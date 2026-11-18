@@ -1,6 +1,20 @@
 # shell-mcp server configuration
 
-# command_allowlist: permitted command names (matched against argv[0] basename)
+# command_allowlist: permitted command basenames (matched against argv[0]).
+# Each entry is gated by a deny-by-default argument-shape contract in
+# scripts/mcp_servers/shell/shell_service.py (_COMMAND_ARG_CONTRACT): an argv that
+# does not match the command's permitted shape raises ShellAuthorizationError
+# before any subprocess launches. An allowlist entry is NOT a safety guarantee.
+#   python / python3 : name-only non-executing forms (--version/--help) only;
+#                       -c / -m (free-form code) are rejected.
+#   pytest           : denied entirely (imports and runs repository code).
+#   git              : read-only subcommands only (log, show, status, diff,
+#                       blame, ls-files, for-each-ref, rev-parse, cat-file,
+#                       tag, branch, push --dry-run); mutating forms (push
+#                       without --dry-run, reset, checkout, branch -D/-F) and
+#                       unknown subcommands are rejected.
+#   ruff / mypy      : static-analysis flag shapes (--help/--fix / --help/--version).
+# Operators widen/narrow permitted shapes by editing the Python contract table.
 command_allowlist = ["pytest", "python", "python3", "git", "ruff", "mypy"]
 
 # max_timeout_sec: upper bound for request-specified timeout_sec

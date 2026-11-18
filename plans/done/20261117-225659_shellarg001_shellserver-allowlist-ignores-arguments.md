@@ -301,11 +301,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Contract model + shipped table (`scripts/mcp_servers/shell/shell_service.py`) | In Progress | — | — | REQ-001, REQ-002 |
-| 2 | Wire validation into `_check_command` (`scripts/mcp_servers/shell/shell_service.py`) | In Progress | — | — | REQ-001 |
-| 3 | Tests (`tests/mcp_servers/shell/test_shell_command_arg_contract.py`) | In Progress | — | — | REQ-004 |
-| 4 | Config documentation (`config/shell_mcp_server.toml`) | In Progress | — | — | REQ-003 |
-| 5 | Verification (all touched files) | Pending | — | — | REQ-004 |
+| 1 | Contract model + shipped table (`scripts/mcp_servers/shell/shell_service.py`) | Completed | — | 20261118-080711 | REQ-001, REQ-002 |
+| 2 | Wire validation into `_check_command` (`scripts/mcp_servers/shell/shell_service.py`) | Completed | — | 20261118-080711 | REQ-001 |
+| 3 | Tests (`tests/mcp_servers/shell/test_shell_command_arg_contract.py`) | Completed | — | 20261118-080711 | REQ-004 |
+| 4 | Config documentation (`config/shell_mcp_server.toml`) | Completed | — | 20261118-080711 | REQ-003 |
+| 5 | Verification (all touched files) | Completed | — | 20261118-080734 | REQ-004 Full suite 12674 passed / 7 skipped; diff-cover 91% >= 90 on shell_service.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -315,9 +315,9 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-065653_01_scripts_mcp_servers_shell_shell_service.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261118-065653_02_tests_mcp_servers_shell_test_shell_command_arg_contract.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-065653_03_config_shell_mcp_server.toml.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-065653_01_scripts_mcp_servers_shell_shell_service.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261118-065653_02_tests_mcp_servers_shell_test_shell_command_arg_contract.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-065653_03_config_shell_mcp_server.toml.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

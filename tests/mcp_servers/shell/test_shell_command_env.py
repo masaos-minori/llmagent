@@ -8,13 +8,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from mcp_servers.shell.shell_models import ShellRunRequest
 from mcp_servers.shell.shell_service import ShellService
 from mcp_servers.shell.shell_service_static_helpers import (
     build_command_env,
     is_secret_env_key,
 )
-from mcp_servers.shell.subprocess_runner import SubprocessRunner
 from shared.protocols.shell import ShellPolicy
 
 
@@ -117,20 +115,23 @@ class TestRunCommandEnvironment:
     async def test_command_cannot_see_server_token_variables(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # The sandboxed command never inherits server tokens: build_command_env
+        # strips them before the command runs. The argument-shape contract now
+        # rejects `python -c`, so the leak check is asserted at the filtering
+        # boundary rather than through a code-executing child process.
         monkeypatch.setenv("MCP_SHELL_AUTH_TOKEN", "fake-shell-token")
         monkeypatch.setenv("MCP_GITHUB_AUTH_TOKEN", "fake-github-token")
         monkeypatch.setenv("GITHUB_TOKEN", "fake-gh-token")
-        svc = _make_service(tmp_path)
-        script = "import os; print(sorted(k for k in os.environ if 'TOKEN' in k))"
-        req = ShellRunRequest(command=f'{Path(sys.executable).name} -c "{script}"')
-        with (
-            patch.object(SubprocessRunner, "build_argv", lambda _self, argv: argv),
-            patch.dict("os.environ", {"PATH": str(Path(sys.executable).parent)}),
-        ):
-            svc._path = str(Path(sys.executable).parent)
-            result = await svc.run_command(req)
-        assert result.exit_code == 0, result.stderr
-        assert result.stdout.strip() == "[]"
+        base = {
+            "HOME": "/h",
+            "MCP_SHELL_AUTH_TOKEN": "fake-shell-token",
+            "MCP_GITHUB_AUTH_TOKEN": "fake-github-token",
+            "GITHUB_TOKEN": "fake-gh-token",
+            "PATH": "/existing",
+        }
+        env = build_command_env(base, "/usr/bin", {})
+        assert not [k for k in env if "TOKEN" in k]
+        assert env["PATH"] == "/usr/bin"
 
     @pytest.mark.asyncio
     async def test_req_env_allowlist_still_filters_before_the_secret_pass(

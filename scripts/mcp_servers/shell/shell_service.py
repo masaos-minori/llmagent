@@ -24,8 +24,10 @@ import os
 import pwd
 import shlex
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Final
 
 from shared.json_utils import dumps as _json_dumps
 from shared.json_utils import now_iso_raw
@@ -47,6 +49,213 @@ from .subprocess_runner import SubprocessRunner
 
 # Standard library logger; log path is owned by shell_mcp_server.py
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Command argument-shape contracts
+# ---------------------------------------------------------------------------
+#
+# Each allowlisted command has an immutable, deny-by-default contract describing
+# the exact argv shape the harness will accept. Any argv that does not match
+# raises ShellAuthorizationError. Basenames without an entry pass through
+# unchanged (the basename allowlist remains their sole check).
+
+
+@dataclass(frozen=True)
+class _ArgShapeContract:
+    """Immutable contract for one allowlisted command.
+
+    Attributes:
+        positional_min: Minimum positional arguments required.
+        positional_max: Maximum positional arguments allowed (``None`` =
+            unbounded).
+        positional_exact: Exact positional count when known (``None`` = range
+            only).
+        allowed_flags: Flag tokens accepted anywhere in argv. Anything else
+            fails closed.
+        allowed_subcommands: Permitted leading positional token (subcommand).
+            Empty means the command takes plain operands only (no subcommand
+            gate); used to fail closed on unknown ``git`` subcommands.
+        required_flags: Leading subcommand -> flags that MUST be present for
+            that subcommand to be permitted (e.g. ``push`` requires
+            ``--dry-run``).
+        forbidden_flags: Leading subcommand -> flags that must NEVER appear for
+            that subcommand (e.g. ``branch`` may not use ``-D``/``-F``).
+        deny_all: When true the command rejects every invocation (shipped
+            default for inherently code-executing tools such as ``pytest``).
+    """
+
+    positional_min: int
+    positional_max: int | None
+    positional_exact: int | None
+    allowed_flags: frozenset[str]
+    allowed_subcommands: frozenset[str]
+    required_flags: Mapping[str, frozenset[str]]
+    forbidden_flags: Mapping[str, frozenset[str]]
+    deny_all: bool
+
+
+_COMMAND_ARG_CONTRACT: Final[Mapping[str, _ArgShapeContract]] = {
+    "git": _ArgShapeContract(
+        positional_min=1,
+        positional_max=None,
+        positional_exact=None,
+        allowed_flags=frozenset({"--no-pager", "--help", "--dry-run"}),
+        allowed_subcommands=frozenset(
+            {
+                "log",
+                "show",
+                "status",
+                "diff",
+                "blame",
+                "ls-files",
+                "for-each-ref",
+                "rev-parse",
+                "cat-file",
+                "tag",
+                "branch",
+                "push",
+            }
+        ),
+        required_flags={"push": frozenset({"--dry-run"})},
+        forbidden_flags={"branch": frozenset({"-D", "-F"})},
+        deny_all=False,
+    ),
+    "ruff": _ArgShapeContract(
+        positional_min=1,
+        positional_max=None,
+        positional_exact=None,
+        allowed_flags=frozenset({"--help", "--fix", "-h"}),
+        allowed_subcommands=frozenset(),
+        required_flags={},
+        forbidden_flags={},
+        deny_all=False,
+    ),
+    "mypy": _ArgShapeContract(
+        positional_min=1,
+        positional_max=None,
+        positional_exact=None,
+        allowed_flags=frozenset({"--help", "--version", "-h"}),
+        allowed_subcommands=frozenset(),
+        required_flags={},
+        forbidden_flags={},
+        deny_all=False,
+    ),
+    "python": _ArgShapeContract(
+        positional_min=0,
+        positional_max=0,
+        positional_exact=None,
+        # Shipped default permits only non-executing forms (--version/--help).
+        # -c/-m run free-form code / a module and are rejected (see Plan Design).
+        allowed_flags=frozenset({"--version", "--help", "-h"}),
+        allowed_subcommands=frozenset(),
+        required_flags={},
+        forbidden_flags={},
+        deny_all=False,
+    ),
+    "python3": _ArgShapeContract(
+        positional_min=0,
+        positional_max=0,
+        positional_exact=None,
+        allowed_flags=frozenset({"--version", "--help", "-h"}),
+        allowed_subcommands=frozenset(),
+        required_flags={},
+        forbidden_flags={},
+        deny_all=False,
+    ),
+    "pytest": _ArgShapeContract(
+        positional_min=1,
+        positional_max=None,
+        positional_exact=None,
+        allowed_flags=frozenset(),
+        allowed_subcommands=frozenset(),
+        required_flags={},
+        forbidden_flags={},
+        # pytest imports and runs repository code; shipped default fails closed.
+        deny_all=True,
+    ),
+}
+
+
+def _validate_arg_shape(base: str, argv: Sequence[str]) -> None:
+    """Validate ``argv`` against the contract for ``base``.
+
+    Raises:
+        ShellAuthorizationError: If ``base`` has a contract and ``argv`` does
+            not match it.
+
+    Returns:
+        None. The caller decides whether a missing contract means deny or
+        pass-through.
+    """
+    contract = _COMMAND_ARG_CONTRACT.get(base)
+    if contract is None:
+        return
+
+    if contract.deny_all:
+        raise ShellAuthorizationError(
+            f"Command '{base}' rejects all argument shapes in the shipped contract"
+        )
+
+    # Contract describes argv[1:] (everything after the executable basename).
+    operands = argv[1:]
+    positionals: list[str] = []
+    flags: list[str] = []
+    for token in operands:
+        if token.startswith("-"):
+            flags.append(token)
+        else:
+            positionals.append(token)
+
+    for flag in flags:
+        if flag not in contract.allowed_flags:
+            raise ShellAuthorizationError(
+                f"Disallowed flag '{flag}' for command '{base}'"
+            )
+
+    count = len(positionals)
+    if count < contract.positional_min:
+        raise ShellAuthorizationError(
+            f"Command '{base}' requires at least {contract.positional_min} "
+            f"positional argument(s); got {count}"
+        )
+    if contract.positional_max is not None and count > contract.positional_max:
+        raise ShellAuthorizationError(
+            f"Command '{base}' allows at most {contract.positional_max} "
+            f"positional argument(s); got {count}"
+        )
+    if contract.positional_exact is not None and count != contract.positional_exact:
+        raise ShellAuthorizationError(
+            f"Command '{base}' requires exactly {contract.positional_exact} "
+            f"positional argument(s); got {count}"
+        )
+
+    leading = positionals[0] if positionals else None
+
+    if (
+        contract.allowed_subcommands
+        and leading is not None
+        and leading not in contract.allowed_subcommands
+    ):
+        raise ShellAuthorizationError(
+            f"Subcommand '{leading}' is not permitted for command '{base}'"
+        )
+
+    if leading is not None and leading in contract.required_flags:
+        missing = contract.required_flags[leading] - set(flags)
+        if missing:
+            raise ShellAuthorizationError(
+                f"Command '{base}' subcommand '{leading}' requires flag(s): "
+                f"{sorted(missing)}"
+            )
+
+    if leading is not None and leading in contract.forbidden_flags:
+        bad = set(flags) & contract.forbidden_flags[leading]
+        if bad:
+            raise ShellAuthorizationError(
+                f"Command '{base}' subcommand '{leading}' may not use flag(s): "
+                f"{sorted(bad)}"
+            )
 
 
 class ShellService:
@@ -127,6 +336,7 @@ class ShellService:
             raise ShellAuthorizationError(
                 f"Command not in allowlist: {base!r}",
             )
+        _validate_arg_shape(base, argv)
         return argv
 
     def _filter_env(self, req_env: dict[str, str]) -> dict[str, str]:
