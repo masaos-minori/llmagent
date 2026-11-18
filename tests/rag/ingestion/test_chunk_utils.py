@@ -6,7 +6,7 @@ Unit tests for rag/ingestion/chunk_utils.py.
 from __future__ import annotations
 
 import pytest
-from rag.ingestion.chunk_utils import merge_text_items, start_next_buf
+from rag.ingestion.chunk_utils import _split_overlong, merge_text_items, start_next_buf
 
 
 class TestStartNextBuf:
@@ -104,3 +104,17 @@ class TestMergeTextItems:
             [item], " ", min_chunk=1, max_chunk=50, chunk_overlap=0
         )
         assert result == [item]
+
+
+class TestSplitOverlong:
+    @pytest.mark.parametrize("max_chunk", [0, -1])
+    def test_non_positive_max_chunk_raises(self, max_chunk: int) -> None:
+        with pytest.raises(ValueError):
+            _split_overlong("a" * 100, " ", max_chunk)
+
+    def test_positive_max_chunk_splits_and_reproduces_input(self) -> None:
+        item = "word " * 40
+        chunks = _split_overlong(item, " ", 50)
+        assert chunks
+        assert all(len(c) <= 50 for c in chunks)
+        assert "".join(chunks) == item

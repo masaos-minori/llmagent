@@ -25,7 +25,7 @@ from shared.runtime_paths import resolve_sudachi_dict_path
 from sudachipy import dictionary as sudachi_dict
 from sudachipy import tokenizer as sudachi_tok
 
-from rag.exceptions import ChunkFormatError
+from rag.exceptions import ChunkFormatError, PipelineValidationError
 from rag.ingestion.chunk_english import ChunkEnglishMixin
 from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
 from rag.ingestion.chunk_utils import merge_text_items
@@ -74,6 +74,10 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         self._chunk_dir: Path = rag_src_dir / "chunk"
         self._min_chunk: int = int(cfg["min_chunk"])
         self._max_chunk: int = int(cfg["max_chunk"])
+        if self._max_chunk <= 0:
+            raise PipelineValidationError(
+                f"max_chunk must be positive, got {self._max_chunk}"
+            )
         self._en_stopwords: frozenset[str] = frozenset(cfg["en_stopwords"])
         self._ja_stop_pos: frozenset[str] = frozenset(cfg["ja_stop_pos"])
         self._chunk_overlap: int = int(cfg.get("chunk_overlap", 50))

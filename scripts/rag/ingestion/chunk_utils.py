@@ -27,6 +27,8 @@ def _split_overlong(item: str, sep: str, max_chunk: int) -> list[str]:
     chunks: list[str] = []
     start = 0
     end = len(item)
+    if max_chunk <= 0:
+        raise ValueError(f"max_chunk must be positive, got {max_chunk}")
     while start < end:
         window_end = min(start + max_chunk, end)
         if window_end == end:

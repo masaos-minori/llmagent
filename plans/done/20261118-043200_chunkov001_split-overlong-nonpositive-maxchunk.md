@@ -160,9 +160,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Core Logic — guard `_split_overlong` (`scripts/rag/ingestion/chunk_utils.py`) | In Progress | — | — | REQ-001 |
-| 2 | Optional load-time validation (`scripts/rag/ingestion/chunk_splitter.py`) | In Progress | — | — | REQ-002 (optional; gated on author decision) |
-| 3 | Tests (`tests/rag/ingestion/test_chunk_utils.py`) | In Progress | — | — | REQ-003 |
+| 1 | Core Logic — guard `_split_overlong` (`scripts/rag/ingestion/chunk_utils.py`) | Completed | — | 20261118-090341 | REQ-001 |
+| 2 | Optional load-time validation (`scripts/rag/ingestion/chunk_splitter.py`) | Completed | — | 20261118-090341 | REQ-002 (optional; gated on author decision) |
+| 3 | Tests (`tests/rag/ingestion/test_chunk_utils.py`) | Completed | — | 20261118-090341 | REQ-003 |
 | 4 | Deployment & Verification | Pending | — | — | REQ-003 |
 
 ### Blocker Log
@@ -173,9 +173,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-070731_01_scripts_rag_ingestion_chunk_utils.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-070731_02_tests_rag_ingestion_test_chunk_utils.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-070731_03_scripts_rag_ingestion_chunk_splitter.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-070731_01_scripts_rag_ingestion_chunk_utils.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-070731_02_tests_rag_ingestion_test_chunk_utils.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-070731_03_scripts_rag_ingestion_chunk_splitter.py.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

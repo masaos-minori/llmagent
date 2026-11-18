@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import orjson
 import pytest
+from rag.exceptions import PipelineValidationError
 from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
 from rag.ingestion.chunk_splitter import ChunkSplitter
 from rag.ingestion.pipeline_utils import read_chunk_json
@@ -42,6 +43,14 @@ def _make_chunk_doc(url: str, content: str = "", lang: str = "en") -> ChunkDocum
         chunk_type="",
         fetched_at="2024-01-01T00:00:00Z",
     )
+
+
+class TestMaxChunkValidation:
+    def test_non_positive_max_chunk_raises_at_construction(self) -> None:
+        cfg = dict(_CRAWL_CONFIG)
+        cfg["max_chunk"] = 0
+        with pytest.raises(PipelineValidationError):
+            ChunkSplitter(config=cfg)
 
 
 class TestIsMarkdownSource:

@@ -55,10 +55,10 @@ Optionally validate `max_chunk > 0` at load time in `ChunkSplitter.__init__` so 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-18 | 2026-11-18 | — |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-18 | 2026-11-18 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-18 | 2026-11-18 | Step 3e all validators clean; full suite 12688 passed/7 skipped/1 fail = known flaky TestSessionIdConcurrency (unrelated tests/agent module, passes serially 3/3); diff-cover 92%>=90%; chunk_splitter.py omitted from coverage by pyproject policy |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-18 | 2026-11-18 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
