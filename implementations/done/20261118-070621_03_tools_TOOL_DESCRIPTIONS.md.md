@@ -77,10 +77,10 @@ Targeted cell edits with the edit tool; read the current rows first (UNK-03: sib
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-111025 | 20261118-111025 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261118-111025 | 20261118-111025 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-111025 | 20261118-111025 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261118-111025 | 20261118-111025 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

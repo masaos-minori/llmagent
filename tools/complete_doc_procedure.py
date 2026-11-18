@@ -7,14 +7,17 @@ One call per documentation procedure document in the batch workflow:
   2. Inserts a `### Verification Findings` table (one row per --vf argument, format
      `ITEM|FINDING|ACTION`) before `### Blocker Log` when any --vf is given and the
      section does not already exist.
-  3. With --archive: removes the document's line from MEMO (default memo3.md, matched
-     by filename) and moves the procedure doc to `implementations/done/`. Refuses when
-     the destination exists.
+  3. With --archive: refuses a document that still carries an unfinished
+     (`Pending`/`In Progress`/`Blocked`) row, requires the document to be directly under
+     `implementations/` (otherwise a usage error), removes the document's line from MEMO
+     (default memo3.md, matched by filename), and moves the procedure doc to
+     `implementations/done/` through the sanctioned `move_to_done` (a staged `git mv`
+     carrying the rewritten content). Refuses when the destination exists.
 
 Every validation runs before anything is committed; the commit order is procedure
-content, memo line, archive move. The procedure and memo rewrites and the archive
-write go through `tools/_atomic_write.py` staged writes, so an interruption leaves the
-original files untouched.
+content, archive move, then memo line. The procedure rewrite and the archive move go
+through `tools/_atomic_write.py` staged writes and `move_to_done`, so an interruption
+leaves the original files untouched.
 
 Usage:
     python tools/complete_doc_procedure.py PROC.md \\
@@ -26,7 +29,9 @@ printed, the intended archive move is reported, and nothing is written, renamed,
 edited; the exit code is the one the real run would return.
 
 `main(argv)` takes the argument list; `argv=None` means `sys.argv[1:]`.
-Exit 0 on success, 1 on a missing anchor (status table, memo line), 2 on usage error.
+Exit 0 on success, 1 on a refusal (unfinished row, taken destination, missing memo line
+or anchor), 2 on a usage error (unknown option, missing procedure, or a document not
+directly under `implementations/`).
 """
 
 from __future__ import annotations
@@ -41,10 +46,16 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tools._atomic_write import print_dry_run, stage_write
-from tools._workitem_status_table import COMPLETED_STATUS
+from tools._workitem_status_table import (
+    _UNFINISHED_STATUSES,
+    COMPLETED_STATUS,
+    parse_execution_status_rows,
+)
+from tools.manage_workitem_stage import move_to_done
 
 REPO = Path(__file__).resolve().parent.parent
-DONE_DIR = REPO / "implementations" / "done"
+IMPLEMENTATIONS_DIR = REPO / "implementations"
+DONE_DIR = IMPLEMENTATIONS_DIR / "done"
 
 STATUS_ANCHOR = "### Execution Status"
 FINDINGS_ANCHOR = "### Verification Findings"
@@ -111,6 +122,10 @@ def parse_args(argv: list[str]) -> Options:
     opts = Options(proc=_resolve(argv[0]))
     if not opts.proc.is_file():
         raise DocProcedureError(f"procedure doc not found: {opts.proc}", 2)
+    if opts.proc.parent != IMPLEMENTATIONS_DIR:
+        raise DocProcedureError(
+            f"procedure must be directly under implementations/: {opts.proc}", 2
+        )
     index = 1
     while index < len(argv):
         consumed = _apply_option(opts, argv, index)
@@ -150,6 +165,33 @@ def _complete_status_rows(
     if changed == 0:
         raise DocProcedureError("no Pending rows found in Execution Status", 1)
     return rows, changed
+
+
+def _unfinished_row_refusal(opts: Options, updated_lines: list[str]) -> None:
+    """Refuse archiving when the updated text still carries an unfinished row.
+
+    Evaluated against the updated in-memory text (after stamping the `Pending` rows), so a
+    document whose only unfinished rows are the `Pending` rows about to be stamped passes,
+    while `In Progress`/`Blocked` rows that stamping skips are caught. No-op under
+    `--no-archive` (the refusal is archive-scoped).
+    """
+    if not opts.archive:
+        return
+    rows = parse_execution_status_rows("\n".join(updated_lines) + "\n")
+    if rows is None:
+        return
+    unfinished = [
+        row for row in rows if row.get("Status", "").strip() in _UNFINISHED_STATUSES
+    ]
+    if unfinished:
+        detail = "; ".join(
+            f"Step {row.get('Step', '?')}: {row.get('Description', '?')} "
+            f"({row.get('Status', '?')})"
+            for row in unfinished
+        )
+        raise DocProcedureError(
+            f"unfinished Execution Status rows before archiving: {detail}", 1
+        )
 
 
 def _insert_findings(lines: list[str], vfs: list[str]) -> list[str]:
@@ -210,10 +252,13 @@ def _commit(
     dest: Path | None,
     changed: int,
 ) -> None:
-    """Commit the staged writes in order: procedure content, memo line, archive move."""
+    """Commit in order: procedure content, the sanctioned archive move, then the memo.
+
+    The archive goes through `move_to_done` (a staged `git mv` carrying the rewritten
+    content); the memo line is removed last so a failed move never leaves the memo without
+    its line.
+    """
     staged = [stage_write(opts.proc, new_text)]
-    if memo_new is not None:
-        staged.append(stage_write(opts.memo, memo_new))
     try:
         for write in staged:
             write.commit()
@@ -222,18 +267,21 @@ def _commit(
             write.discard()
         raise
     print(f"status updated: {changed} row(s); vf rows: {len(opts.vfs)}")
-    if memo_new is not None:
-        print(f"memo line removed: {opts.proc.name}")
     if dest is not None:
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        archived = stage_write(dest, new_text)
-        try:
-            archived.commit()
-        except BaseException:
-            archived.discard()
-            raise
-        opts.proc.unlink()
+        result = move_to_done(
+            opts.proc, kind="implementation procedure", stage_only=True
+        )
+        if not result.success:
+            raise DocProcedureError(f"archive failed: {result.error}", 1)
         print(f"archived: implementations/done/{opts.proc.name}")
+    if memo_new is not None:
+        memo_write = stage_write(opts.memo, memo_new)
+        try:
+            memo_write.commit()
+        except BaseException:
+            memo_write.discard()
+            raise
+        print(f"memo line removed: {opts.proc.name}")
 
 
 def run(opts: Options) -> None:
@@ -243,6 +291,7 @@ def run(opts: Options) -> None:
     rows, changed = _complete_status_rows(old.splitlines(), opts, stamp)
     rows = _insert_findings(rows, opts.vfs)
     new_text = "\n".join(rows) + "\n"
+    _unfinished_row_refusal(opts, rows)
     dest = _archive_destination(opts)
     memo_new = _memo_text(opts) if opts.archive else None
     if opts.dry_run:
