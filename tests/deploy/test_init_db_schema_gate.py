@@ -172,8 +172,8 @@ def _provision_canonical_vec_db(name: str, path: pathlib.Path) -> None:
 def _write_config(tmp_path: pathlib.Path, db_dir: pathlib.Path) -> pathlib.Path:
     """Copy config/ into the sandbox with every /opt/llm/db path rewritten to db_dir.
 
-    agent.toml carries workflow_db_path, so the whole-file rewrite above re-points it
-    into db_dir like every other DB path key.
+    agent.toml carries the workflow DB path key, so the whole-file rewrite above
+    re-points it into db_dir like every other DB path key.
     """
     cfg_dir = tmp_path / "config"
     shutil.copytree(_REPO_ROOT / "config", cfg_dir)

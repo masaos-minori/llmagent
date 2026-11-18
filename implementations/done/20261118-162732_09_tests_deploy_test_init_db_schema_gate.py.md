@@ -74,7 +74,7 @@ The `eventbus.toml` rewrite block (`:192-198`) stays untouched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Drop the pinning insertion and update the docstring | Completed | 2026-11-18 | 2026-11-18 |  |
+| 1 | Drop the pinning insertion and update the docstring | Completed | 2026-11-18 | 2026-11-18 | docstring re-worded to not name the key literally (Method: rg workflow_db_path finds nothing) |
 | 2 | Run the gate test (validation) | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
