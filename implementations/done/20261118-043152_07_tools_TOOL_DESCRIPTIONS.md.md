@@ -72,10 +72,10 @@ Correct `tools/TOOL_DESCRIPTIONS.md`: rewrite the audit entry to match the tool'
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: doc-only change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document is the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-103429 | 20261118-103512 | Index audit row rewritten to the tool's verified behavior; Shared base rows: defs row now names only the routing table, new toolchain row inserted after it; new audit detail row inserted after the amend_plan.py row with exit codes, default arguments, and the routing trigger; sync_plan_workitem_status.py detail row gained the routing-trigger sentence |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261118-103512 | N/A: doc-only change N/A: doc-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-103512 | check_tool_descriptions_sync.py: No issues found; audit entries read back against tools/audit_plan_target_paths.py (target paths only, creation hints create/new/generated/manifest;/registry;, count line, exit 1) and both triggers match the seq 05 routing rows |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261118-103512 | This document is the documentation change N/A: this document is the documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

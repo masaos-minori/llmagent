@@ -77,10 +77,10 @@ Create `tools/_validation_gate_toolchain.py` holding the toolchain gate table an
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by the seq 04 document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Description row is the seq 07 document |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-101701 | 20261118-101912 | tools/_validation_gate_toolchain.py created, 4528 B; blocks copied verbatim via sed from lines 107-121 and 145-282 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261118-101912 | Covered by the seq 04 document N/A: covered by the seq 04 document |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-101912 | file-level ruff format/check, mypy, bandit -c pyproject.toml: clean; module size gate passes; tables captured to /tmp/opencode/gate_tables_before_move.json |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261118-101912 | Description row is the seq 07 document N/A: description rows are the seq 07 document |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

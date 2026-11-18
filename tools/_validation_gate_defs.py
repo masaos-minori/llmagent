@@ -1,8 +1,9 @@
 """tools/_validation_gate_defs.py
 
 Gate definitions of tools/run_validation_gates.py: the `Gate` type, the argv helpers it
-depends on, the source and mode constants, and the toolchain and routing gate tables.
-Not a CLI; the entry module imports these names and re-exports them.
+depends on, the source and mode constants, and the routing gate table. The toolchain
+gate table moved to tools/_validation_gate_toolchain.py. Not a CLI; the entry module
+imports these names and re-exports them.
 """
 
 from __future__ import annotations
@@ -104,23 +105,6 @@ MODE_FAST = "fast"
 MODE_FULL = "full"
 
 
-# rules/toolchain.md section 4 bare-except check. A bare `--pattern 'except: $$$'` is not a
-# valid ast-grep pattern (it parses as several nodes), and a plain `--pattern` run exits 0 even
-# on matches. Scanning with an error-severity rule exits non-zero on a hit.
-_BARE_EXCEPT_RULE = (
-    "id: no-bare-except\n"
-    "language: python\n"
-    "severity: error\n"
-    "message: bare except is prohibited (rules/coding.md)\n"
-    "rule:\n"
-    "  pattern: |\n"
-    "    try:\n"
-    "        $$$A\n"
-    "    except:\n"
-    "        $$$B\n"
-)
-
-
 # Tokens that mark a command as needing a concrete runtime argument.
 _PLACEHOLDER_TOKEN_RE = re.compile(r"[<\[\]]|\.\.\.")
 
@@ -137,149 +121,9 @@ _VALUE_FLAG_RE = re.compile(r"^--(type|format|domain|kind|status)$")
 
 
 # --- Embedded gate inventory -----------------------------------------------------
-# Transcribed from rules/toolchain.md (9-step sequence, full mode) and routing.md
-# "When to run which tool" (path-keyed checkers, fast mode). Keep the commands equal to
-# those sources; the drift check fails if routing.md gains a checker without a matching
-# entry here.
-
-TOOLCHAIN_GATES: tuple[Gate, ...] = (
-    Gate(
-        name="ruff-format-lint",
-        command=(
-            ("uv", "run", "ruff", "format", "scripts/"),
-            ("uv", "run", "ruff", "check", "scripts/"),
-        ),
-        source=SOURCE_TOOLCHAIN,
-        mode=MODE_FULL,
-        exclusive=True,
-    ),
-    Gate(
-        name="mypy",
-        command=(
-            (
-                "uv",
-                "run",
-                "mypy",
-                "--no-namespace-packages",
-                "scripts/",
-                "tests/eventbus",
-                "tools",
-            ),
-        ),
-        source=SOURCE_TOOLCHAIN,
-        mode=MODE_FULL,
-    ),
-    Gate(
-        name="lint-imports",
-        command=(("uv", "run", "lint-imports"),),
-        source=SOURCE_TOOLCHAIN,
-        mode=MODE_FULL,
-        env=(("PYTHONPATH", "scripts"),),
-    ),
-    Gate(
-        name="ast-grep",
-        command=(
-            (
-                "ast-grep",
-                "scan",
-                "--inline-rules",
-                _BARE_EXCEPT_RULE,
-                "scripts/",
-            ),
-        ),
-        source=SOURCE_TOOLCHAIN,
-        mode=MODE_FULL,
-    ),
-    Gate(
-        name="bandit",
-        command=(
-            (
-                "uv",
-                "run",
-                "bandit",
-                "-r",
-                "scripts/",
-                "-c",
-                "pyproject.toml",
-                "-ll",
-            ),
-        ),
-        source=SOURCE_TOOLCHAIN,
-        mode=MODE_FULL,
-    ),
-    Gate(
-        name="pytest",
-        command=(
-            (
-                "uv",
-                "run",
-                "pytest",
-                "tests/",
-                "-n",
-                "logical",
-                "--cov=scripts",
-                "--cov-report=",
-                "-m",
-                "not integration and not production_paths_allowed and not repo_scan",
-            ),
-            (
-                "uv",
-                "run",
-                "pytest",
-                "tests/mcp_servers/mdq/test_mdq_rag_boundary.py",
-            ),
-        ),
-        source=SOURCE_TOOLCHAIN,
-        mode=MODE_FULL,
-        exclusive=True,
-    ),
-    Gate(
-        name="diff-cover",
-        command=(
-            ("uv", "run", "coverage", "xml"),
-            (
-                "uv",
-                "run",
-                "diff-cover",
-                "coverage.xml",
-                "--compare-branch",
-                "master",
-                "--fail-under",
-                "90",
-            ),
-        ),
-        source=SOURCE_TOOLCHAIN,
-        mode=MODE_FULL,
-        exclusive=True,
-    ),
-    Gate(
-        name="pre-commit",
-        command=(("uv", "run", "pre-commit", "run", "--all-files"),),
-        source=SOURCE_TOOLCHAIN,
-        mode=MODE_FULL,
-        exclusive=True,
-    ),
-    Gate(
-        name="reference-drift",
-        command=(
-            ("uv", "run", "python", "tools/generate_reference_table.py", "--check"),
-        ),
-        source=SOURCE_TOOLCHAIN,
-        mode=MODE_FULL,
-    ),
-    Gate(
-        name="cited-adr-tests",
-        command=(("uv", "run", "python", ".github/run_cited_adr_tests.py"),),
-        source=SOURCE_TOOLCHAIN,
-        mode=MODE_FULL,
-    ),
-    Gate(
-        name="diff-review",
-        command=(("git", "diff"),),
-        source=SOURCE_TOOLCHAIN,
-        mode=MODE_FULL,
-    ),
-)
+# Transcribed from routing.md "When to run which tool" (path-keyed checkers, fast
+# mode). Keep the commands equal to that source; the drift check fails if routing.md
+# gains a checker without a matching entry here.
 
 
 ROUTING_GATES: tuple[Gate, ...] = (
@@ -819,5 +663,33 @@ ROUTING_GATES: tuple[Gate, ...] = (
         source=SOURCE_ROUTING,
         mode=MODE_FAST,
         patterns=("scripts/*.py", "scripts/**/*.py"),
+    ),
+    # Manual planning-time tools: `<plan>` is a runtime placeholder and no patterns are
+    # given, so the gate check never auto-selects them; the routing.md rows carry the
+    # triggers. The Run cells mirror these argv token for token (drift id parity).
+    Gate(
+        name="audit_plan_target_paths",
+        command=(
+            ("uv", "run", "python", "tools/audit_plan_target_paths.py", "<plan>"),
+        ),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=(),
+    ),
+    Gate(
+        name="sync_plan_workitem_status",
+        command=(
+            (
+                "uv",
+                "run",
+                "python",
+                "tools/sync_plan_workitem_status.py",
+                "<plan>",
+                "--dry-run",
+            ),
+        ),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=(),
     ),
 )

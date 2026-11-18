@@ -595,12 +595,61 @@ def test_tools_size_gate_is_selected_by_a_tool_change() -> None:
 
 def test_reexported_gate_definitions_are_the_same_objects() -> None:
     import tools._validation_gate_defs as defs
+    import tools._validation_gate_toolchain as toolchain
     import tools.run_validation_gates as entry
 
     assert entry.Gate is defs.Gate
     assert entry.ROUTING_GATES is defs.ROUTING_GATES
-    assert entry.TOOLCHAIN_GATES is defs.TOOLCHAIN_GATES
+    assert entry.TOOLCHAIN_GATES is toolchain.TOOLCHAIN_GATES
     assert entry._checker_id_from_command is defs._checker_id_from_command
+
+
+def test_gate_modules_have_no_import_cycle() -> None:
+    """A fresh interpreter importing both gate modules must not deadlock or fail."""
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import tools._validation_gate_defs, tools._validation_gate_toolchain",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+
+MANUAL_PLAN_TOOLS = ("audit_plan_target_paths", "sync_plan_workitem_status")
+
+
+def test_manual_plan_tool_gates_have_manual_shape() -> None:
+    """Both mappings are patternless manual gates: routing rows carry the triggers."""
+    by_name = {gate.name: gate for gate in ROUTING_GATES}
+    for name in MANUAL_PLAN_TOOLS:
+        gate = by_name[name]
+        assert gate.patterns == ()
+        assert gate.requires_context
+        assert gate.source == SOURCE_ROUTING
+        assert gate.mode == MODE_FAST
+
+
+def test_manual_plan_tool_gate_ids_match_routing_rows() -> None:
+    """The routing.md Run cells derive the same checker ids as the gate mappings."""
+    cells = _parse_routing_run_cells(ROUTING_MD.read_text(encoding="utf-8"))
+    cell_ids = {_checker_id_from_cell(cell) for cell in cells}
+    by_id = {gate.checker_id: gate for gate in ROUTING_GATES}
+    for name in MANUAL_PLAN_TOOLS:
+        gate = next(gate for gate in ROUTING_GATES if gate.name == name)
+        assert gate.checker_id in cell_ids
+        assert by_id[gate.checker_id] is gate
+
+
+def test_manual_plan_tool_gates_are_never_auto_selected() -> None:
+    """Even a change that touches the tools and plans must not select either gate."""
+    changed = ["tools/audit_plan_target_paths.py", "plans/x.md", "routing.md"]
+    for mode in (MODE_FAST, MODE_FULL):
+        names = {gate.name for gate in select_gates(changed, mode)}
+        assert names.isdisjoint(MANUAL_PLAN_TOOLS)
 
 
 # --- concurrent execution --------------------------------------------------------
@@ -915,8 +964,8 @@ def test_every_ci_lint_command_has_a_gate_or_a_reviewed_exception() -> None:
         and _command_key(shlex.split(command)) not in gate_keys
     ]
     assert uncovered == [], (
-        "CI lint commands without a gate (add one to tools/_validation_gate_defs.py and"
-        f" rules/toolchain.md, or a reviewed exception here): {uncovered}"
+        "CI lint commands without a gate (add one to tools/_validation_gate_toolchain.py"
+        f" and rules/toolchain.md, or a reviewed exception here): {uncovered}"
     )
 
 

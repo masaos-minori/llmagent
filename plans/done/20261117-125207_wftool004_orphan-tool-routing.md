@@ -172,11 +172,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Move the toolchain gate table into a new module | In Progress | — | — |  |
-| 2 | Routing rows, manual mappings, and tests | In Progress | — | — |  |
-| 3 | Step 8b audit in the issue-to-plan workflow | In Progress | — | — |  |
-| 4 | Tool description rows | In Progress | — | — |  |
-| 5 | Verification: validation sequence, drift, size gates, checkers | Pending | — | — |  |
+| 1 | Move the toolchain gate table into a new module | Completed | — | 20261118-103933 | seq 01, 02, 03 procedures archived: tools/_validation_gate_toolchain.py created (4528 B), blocks removed from defs (24526->21484 B), runner import repointed; captured-tables diff: no diff |
+| 2 | Routing rows, manual mappings, and tests | Completed | — | 20261118-103933 | seq 04, 05 procedures archived: two manual Gate entries and two routing.md rows landed together, drift: 47 checkers all mapped, mapping tests pass |
+| 3 | Step 8b audit in the issue-to-plan workflow | Completed | — | 20261118-103933 | seq 06 procedure archived: Step 8b audit paragraph and Toolchain clause in skills/issue-to-plan/workflow.md |
+| 4 | Tool description rows | Completed | — | 20261118-103933 | seq 07 procedure archived: audit Index row corrected, audit detail row added, sync detail row trigger sentence, defs row trimmed, toolchain row added; check_tool_descriptions_sync: no findings |
+| 5 | Verification: validation sequence, drift, size gates, checkers | Completed | — | 20261118-103933 | drift: 47 mapped; module size gate: OK; bandit -c pyproject.toml on the new module: clean; ruff format/check and mypy clean; skills reference, heading-cycle, tool-descriptions-sync checkers: no findings; full suite: 12675 passed, 9 skipped |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -186,13 +186,13 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-043152_01_tools__validation_gate_toolchain.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-043152_02_tools__validation_gate_defs.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261118-043152_03_tools_run_validation_gates.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-043152_04_tests_tools_test_run_validation_gates.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261118-043152_05_routing.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-043152_06_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-043152_07_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-043152_01_tools__validation_gate_toolchain.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-043152_02_tools__validation_gate_defs.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261118-043152_03_tools_run_validation_gates.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-043152_04_tests_tools_test_run_validation_gates.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261118-043152_05_routing.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-043152_06_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-043152_07_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

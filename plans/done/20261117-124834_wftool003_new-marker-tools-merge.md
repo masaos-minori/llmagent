@@ -168,11 +168,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Zero-caller check and tests first | In Progress | — | — |  |
-| 2 | Multi-path support in the kept tool | In Progress | — | — |  |
-| 3 | Retire the old tool and its test | In Progress | — | — |  |
-| 4 | Workflows and tool description | In Progress | — | — |  |
-| 5 | Verification: validation sequence, checkers, smoke run | Pending | — | — |  |
+| 1 | Zero-caller check and tests first | Completed | — | 20261118-095545 | zero-caller re-check 20261118: rg -n fix_procedure_new_markers names only the tool, its test, tools/TOOL_DESCRIPTIONS.md, and this batch's procedure docs; multi-path tests written first and failed before the CLI change |
+| 2 | Multi-path support in the kept tool | Completed | — | 20261118-095545 | seq 01 procedure archived: implementations/done/20261118-041553_01_tools_mark_procedure_new_symbols.py.md |
+| 3 | Retire the old tool and its test | Completed | — | 20261118-100246 | seq 03 procedure archived: tools/fix_procedure_new_markers.py and its test deleted, no alias or wrapper; tools/TOOL_DESCRIPTIONS.md mentions removed by the seq 07 document in the same change |
+| 4 | Workflows and tool description | Completed | — | 20261118-100925 | seq 05, 06, 07 procedures archived: both workflows name the kept tool, tools/TOOL_DESCRIPTIONS.md current |
+| 5 | Verification: validation sequence, checkers, smoke run | Completed | — | 20261118-101348 | Re-verified on the merged tree after conflict resolution (the origin 3bee87279 implementation, tests, and archived seq 01 document adopted; this session's duplicate batch1 edits dropped): 19 marker-tool + 102 gate tests pass; bandit -c pyproject.toml low-only findings (pre-existing subprocess call, CI -ll gate clear); radon: no grade C+ block; ruff format/check and mypy clean; tool_descriptions_sync, module size, skills reference and heading-cycle checkers: no findings; rg retired name: no match; drift: 47 routing.md checkers all mapped |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -182,11 +182,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-041553_01_tools_mark_procedure_new_symbols.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261118-041553_03_tools_fix_procedure_new_markers.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-041553_05_skills_plan-to-implementation-procedure_workflow.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261118-041553_06_skills_code-implementation_workflow.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261118-041553_07_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-041553_01_tools_mark_procedure_new_symbols.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261118-041553_03_tools_fix_procedure_new_markers.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-041553_05_skills_plan-to-implementation-procedure_workflow.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261118-041553_06_skills_code-implementation_workflow.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261118-041553_07_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

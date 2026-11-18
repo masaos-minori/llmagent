@@ -71,10 +71,10 @@ Give `skills/issue-to-plan/workflow.md` Step 8b the Plan path audit before the f
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: doc-only change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This document is the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-103339 | 20261118-103351 | Step 8b audit paragraph inserted between the same-cycle-dedup paragraph and the Completed-when line; Toolchain paragraph now names audit_plan_target_paths.py (before the freeze) and check_plan_target_overlaps.py (after it) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261118-103351 | N/A: doc-only change N/A: doc-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-103351 | check_skills_references and check_skills_heading_cycles: No issues found |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261118-103351 | This document is the documentation change N/A: this document is the documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

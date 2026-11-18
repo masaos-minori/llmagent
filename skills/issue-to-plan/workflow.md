@@ -30,7 +30,8 @@ This is a document-only phase. Allowed operations:
 
 Both paths: `rg`/`fd`/`ast-grep` (search), `radon`/`vulture`/
 `bandit`/`diff-cover` (validation quality baseline, Step 5; the commands in Step 5 are the whole baseline, `semgrep` and `pytest-testmon` are not part of it), and
-`tools/check_plan_target_overlaps.py` (Step 8b).
+`tools/audit_plan_target_paths.py` (Step 8b, before the freeze) and
+`tools/check_plan_target_overlaps.py` (Step 8b, after it).
 Path B's extra analysis tools are in `workflow-path-b.md`, loaded only when Step 3 classifies Path B.
 
 Repository scaffolding/archival tools (see `tools/TOOL_DESCRIPTIONS.md` for usage):
@@ -549,6 +550,12 @@ remains `Needs confirmation` or the section is not `Frozen`.
 A row whose existence and evidence were recorded this cycle with a `(checked in Step N)`
 tag is validated from that record (Step 2's same-cycle dedup rule), and all four Freeze
 criteria still apply to it. A row without a tag is checked as before.
+
+Before marking the section `Frozen`, run `uv run python tools/audit_plan_target_paths.py <plan file>`.
+It is read-only and flags every target row whose path does not exist; such a row MUST state
+create or new in its `Change Responsibility`, the column the tool reads. When the tool cannot
+run, fall back to the manual existence check of `rules/workflow-lifecycle.md` (its Freeze
+existence criterion).
 
 **Completed when**: every row is `Verified` and the section is marked `Frozen`.
 

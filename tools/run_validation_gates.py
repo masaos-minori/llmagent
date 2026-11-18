@@ -55,11 +55,13 @@ from tools._validation_gate_defs import (
     ROUTING_GATES,
     SOURCE_ROUTING,
     SOURCE_TOOLCHAIN,  # noqa: F401 — re-exported for tests/tools/test_run_validation_gates.py
-    TOOLCHAIN_GATES,
     Gate,
     _checker_id_from_command,
 )
 from tools._validation_gate_report import render_summary
+from tools._validation_gate_toolchain import (
+    TOOLCHAIN_GATES,  # noqa: F401 — re-exported for tests/tools/test_run_validation_gates.py
+)
 
 if TYPE_CHECKING:
     from subprocess import CompletedProcess

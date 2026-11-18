@@ -37,7 +37,7 @@ Update `tests/tools/test_run_validation_gates.py` for the toolchain-table move: 
    → no diff (throwaway check, not a permanent test; the capture is made by the seq 01 document).
 5. Phase 2 (with seq 02's mappings and seq 05's rows): add mapping tests —
    - existence and shape: for each new gate name, the `ROUTING_GATES` entry has `patterns == ()`, `requires_context` true, `source == SOURCE_ROUTING`, `mode == MODE_FAST`;
-   - ids: `{_checker_id_from_cell(cell) for cell in _parse_routing_run_cells(Path("routing.md").read_text())}` contains both `audit_plan_target_paths` and `sync_plan_workitem_status`, and each equals the corresponding gate's `checker_id`;
+   - ids: `{_checker_id_from_cell(cell) for cell in _parse_routing_run_cells(Path("routing.md").read_text())}` contains both `audit_plan_target_paths:<plan>` and `sync_plan_workitem_status:<plan>` (the positional token after the tool path appends a `:<positional>` suffix — precedent `amend_plan:<plan>`; ids corrected 20261118 by adversarial re-verification), and each equals the corresponding gate's `checker_id`;
    - non-selection: `select_gates(changed, MODE_FAST)` and `select_gates(changed, MODE_FULL)` with a representative changed list (e.g. `["tools/audit_plan_target_paths.py", "plans/x.md", "routing.md"]`) exclude both gate names (AC-2).
 
 ### Method
@@ -79,10 +79,10 @@ Update `tests/tools/test_run_validation_gates.py` for the toolchain-table move: 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This document is the test change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-102158 | 20261118-103215 | identity test repointed to the toolchain module, parity message names the new module, fresh-interpreter cycle guard added |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261118-103215 | This document is the test change N/A: this document is the test change; three manual-mapping tests added (shape, id parity with routing.md cells, non-selection in fast and full mode) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-103215 | 102 tests pass; ruff format/check and mypy clean; captured-tables diff: no diff |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261118-103215 | N/A N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -69,10 +69,10 @@ Repoint the orchestrator: `tools/run_validation_gates.py` imports `TOOLCHAIN_GAT
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by the seq 04 document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Module rows are the seq 07 document |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-102014 | 20261118-103141 | import repointed: TOOLCHAIN_GATES now from tools._validation_gate_toolchain with the noqa F401 re-export comment; ruff --fix wrapped the import to satisfy I001 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261118-103141 | Covered by the seq 04 document N/A: covered by the seq 04 document |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-103141 | file-level ruff format/check, mypy: clean; test_reexported_gate_definitions_are_the_same_objects passes against the new module; runner 23820 B under the limit |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261118-103141 | Module rows are the seq 07 document N/A: module rows are the seq 07 document |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
