@@ -10,13 +10,21 @@ Governance does not define the approval ledger, the pending-amendment form, the 
 Filed from the consolidated ADR review task list `memo-issue.md` (package `ADRCHK2-H11`; merged from ADRCHK-H13, H14, H15, M03, L20 (review findings N1, N2, N4, N8, N25, M18, H8)). The review's claims carry the evidence label `Documentation only` unless this issue marks them otherwise; the implementer MUST re-verify each claim against current source before changing anything.
 
 ## Problem
-Claims come from the review (`Documentation only` until re-verified).
+Re-verified on 2026-11-18 against current docs and tools (adversarial pass; labels follow `skills/DESIGN.md` Evidence labels).
+- Confirmed (`Explicit in code`): `governance_01` ADR Status Definitions define only `Proposed` and `Accepted`; ADR-010 `## Status` is `Withdrawn`; `tools/check_adr_structure.py` checks only that the `## Status` heading exists (`check_section_headings`), not its value.
+- Confirmed (`Documentation only`): no governance document defines an approval ledger (pending bullets in ADR-001, 004, 005, 006, 008, 012, 014, 015, 016 cite "the ADR approval ledger" by name, and no ledger ID is cited anywhere); no governance document maps the Required Reviewer names (Architecture Owner, Affected Component Owner, Security Reviewer, Ops Reviewer, Data Owner) to the `governance_05` RACI roles.
+- Corrected: a de facto pending form already exists as `- **Current Decision Approval (pending)**:` bullets under `### Approval Record` in ADR-001, 004, 005, 006, 008, 009, 012, 014, 015, and 016, and ADR-010 uses `### Withdrawal Approval Record` with `Pending maintainer statement`. Governance does not define the form. The pending changes are already applied in the ADR text (for example the ADR-001 INV-02 row and the `ADR Dependency Graph` section name in `adr_01_index.md`).
+- Corrected: the ADR-004 dedup fail-open and warning-only exceptions already carry a written rationale. Only their approval is missing (`Maintainer approval record: written by a maintainer; not fabricated here.`, with no NC or ledger reference). The subprocess spawn-failure exception states no approval. The `path_denylist` rationale is PENDING and tracked as NC-001. ADR-004 `## Known Deviations` is `Not applicable`.
+- Corrected: `tools/check_known_deviation_sync.py` parses only Part 1 Known Issue IDs in Known Deviations bullets (Part 2 `NC-` headings are excluded, and a bullet without a Known Issue ID is an ERROR). Exceptions listed in Known Deviations therefore need Known Issue entries; an NC entry alone does not satisfy the listing.
+- Constraint found: `tools/check_canonical_source_registry.py` and `tools/check_canonical_source_conflicts.py` require the first line of an ADR-sourced entry's Status to equal `Accepted`, so the pending form must not alter the Status line.
+- Constraint found: `governance_02` `status` rule removes a deprecated or superseded document from the active set instead of marking it with a historical status, which is in tension with a governed `Withdrawn` status and with the Current-Specification-Only policy in `governance_01`. CSC-001 is in `governance_03` Part 3; ADR-010 does not reference it.
+- Path corrections: `adrrev013` and `rmcompat003` exist only under `issues/done/`; CSC-001 Validation evidence still cites `rmcompat003` as an open `issues/` path.
 
 ## Reason for Change
 - Pending changes are already in Accepted text: examples are ADR-001 INV-02 Blocking=No, the ADR-016 section rename, the ADR-006 INV-13 wording, the ADR-010 withdrawal (Withdrawn By: Pending), and the ADR-004 Decision Group 10 amendment. governance_01 and governance_05 treat an unapproved decision change as a Blocking merge condition.
 - The approval ledger is undefined: many ADRs cite an ADR approval ledger, but no governance document defines its location, format, or owner.
 - Withdrawn is not a governed status: governance defines only Proposed and Accepted, ADR-010 is Withdrawn but keeps present-tense decision text, and `tools/check_adr_structure.py` only checks that a Status heading exists. CSC-001 covers this but ADR-010 does not reference it.
-- ADR-004 Exceptions are untracked: the `path_denylist` rationale is marked PENDING, dedup fail-open and warning-only continuation have no rationale or approval, only `path_denylist` is an NC item, and Known Deviations says Not applicable.
+- ADR-004 Exceptions are untracked: the `path_denylist` rationale is marked PENDING, the dedup fail-open and warning-only exceptions have a rationale but no approval reference, only `path_denylist` is an NC item, and Known Deviations says Not applicable.
 - Reviewer names do not map to roles: Required Reviewers do not match the RACI handles.
 
 ## Implementation Intent
@@ -77,7 +85,8 @@ Yes. governance_01/02/03/05 and each affected ADR: ledger, pending form, Withdra
 
 ## Unresolved Questions
 - The ledger location is `不明`; ask the maintainer for the path.
-- The memo names `adrrev013` under `issues/`; it exists only under `issues/done/`.
+- The memo names `adrrev013` under `issues/`; it exists only under `issues/done/`. Whether an archived issue may be edited is `不明`; the plan does not target it.
+- Whether ADR-010 stays as a governed `Withdrawn` ADR or leaves the active set is a maintainer decision (`governance_02` and the Current-Specification-Only policy favor removal; CSC-001 and `adr_01_index.md` currently assume `Withdrawn`).
 
 ## AI Implementation Instruction
 - Never write approval text, and never create ledger entries for past approvals.
