@@ -298,7 +298,7 @@ class TestConfigValidation:
         with pytest.raises(ConfigParseError):
             load_dedup_config(bad2)
         bad3 = tmp_path / "mcp_dedup.toml"
-        bad3.write_text("[dedup]\n[retry_class]\nweb_search = 5\n", encoding="utf-8")
+        bad3.write_text("[dedup]\n[retry_class]\nwrite_file = 5\n", encoding="utf-8")
         with pytest.raises(ConfigParseError):
             load_dedup_config(bad3)
 
@@ -313,13 +313,38 @@ class TestConfigValidation:
     def test_retry_class_lookup(self, tmp_path):
         cfg_file = tmp_path / "mcp_dedup.toml"
         cfg_file.write_text(
-            '[dedup]\n[retry_class]\nweb_search = "retryable"\nmdq_rag_query = "retryable"\n',
+            '[dedup]\n[retry_class]\nwrite_file = "retryable"\nshell_run = "non_retryable"\n',
             encoding="utf-8",
         )
         cfg = load_dedup_config(cfg_file)
-        assert retry_class("web_search", cfg) == "retryable"
+        assert retry_class("write_file", cfg) == "retryable"
+        assert retry_class("shell_run", cfg) == "non_retryable"
         # Unknown tools are never retried blindly.
         assert retry_class("some_new_tool", cfg) == "non_retryable"
+
+    def test_retry_class_unknown_tool_name_rejected(self, tmp_path):
+        bad = tmp_path / "mcp_dedup.toml"
+        bad.write_text(
+            '[dedup]\n[retry_class]\nnot_a_tool = "retryable"\n', encoding="utf-8"
+        )
+        with pytest.raises(ConfigParseError, match="not_a_tool"):
+            load_dedup_config(bad)
+
+    def test_retry_class_disallowed_value_rejected(self, tmp_path):
+        bad = tmp_path / "mcp_dedup.toml"
+        bad.write_text(
+            '[dedup]\n[retry_class]\nwrite_file = "sometimes"\n', encoding="utf-8"
+        )
+        with pytest.raises(ConfigParseError, match="write_file"):
+            load_dedup_config(bad)
+
+    def test_retry_class_membership_contradiction_rejected(self, tmp_path):
+        bad = tmp_path / "mcp_dedup.toml"
+        bad.write_text(
+            '[dedup]\n[retry_class]\nsearch_web = "retryable"\n', encoding="utf-8"
+        )
+        with pytest.raises(ConfigParseError, match="search_web"):
+            load_dedup_config(bad)
 
     def test_store_opens_from_config_db_path(self, tmp_path):
         cfg_file = tmp_path / "mcp_dedup.toml"

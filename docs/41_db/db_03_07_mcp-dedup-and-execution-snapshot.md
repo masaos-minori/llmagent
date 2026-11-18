@@ -59,8 +59,10 @@ Contract details (all owned by `scripts/shared/mcp_dedup.py`):
 - Result size cap: a stored result larger than 8000 serialized characters is replaced by a
   truncated sentinel (`{"truncated": true, "sha256": <full-payload hash>, "preview": <first 1000 chars>}`).
   A truncated stored payload is never served as a replay result; it triggers a fresh attempt.
-- Retry classification: `[retry_class]` in `config/mcp_dedup.toml` maps live tool names to
-  `retryable` / `non_retryable`. Unknown tools default to `non_retryable` (fail-safe unreplayable).
+- Retry classification: `RETRYABLE_TOOLS` in `scripts/shared/tool_constants.py` owns the
+  classification; `[retry_class]` in `config/mcp_dedup.toml` is its mirror, load-validated
+  against the owner (unknown tool names, disallowed values, and contradictions with the owner
+  are rejected). Unlisted tools default to `non_retryable` at lookup (fail-safe unreplayable).
 - Retention sweep: `purge_expired(retention_days)` deletes terminal rows older than the retention
   window (default 14 days). Pending rows are never purged; their timeout path is classification.
   The dispatcher purges once per process on first use.
@@ -69,7 +71,8 @@ Contract details (all owned by `scripts/shared/mcp_dedup.py`):
   disagree with the incoming call is rejected as `idempotency_key_reused` before any dispatch.
 
 Config keys (all in `config/mcp_dedup.toml`): `dedup.db_path`, `dedup.retention_days` (14),
-`dedup.pending_timeout_minutes` (10), and the `[retry_class]` map. The same timeout value is
+`dedup.pending_timeout_minutes` (10), and the `[retry_class]` map (load-validated against
+`RETRYABLE_TOOLS` and the known MCP tool names). The same timeout value is
 the source for the agent-side stale-pending classification in `workflow.sqlite`. The config file is
 read once per process: after the first successful load the parsed config is cached until the service
 restarts, and a failed load is not cached.

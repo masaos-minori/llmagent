@@ -4,6 +4,9 @@ Unit tests for shared/tool_constants.py: canonical tool classification sets.
 
 from __future__ import annotations
 
+import tomllib
+from pathlib import Path
+
 from shared.tool_constants import (
     CICD_TOOLS,
     DELETE_TOOLS,
@@ -19,9 +22,11 @@ from shared.tool_constants import (
     RAG_TOOLS,
     RAG_WRITE_TOOLS,
     READ_TOOLS,
+    RETRYABLE_TOOLS,
     SHELL_TOOLS,
     WEB_SEARCH_TOOLS,
     WRITE_TOOLS,
+    get_all_mcp_tool_names,
 )
 
 
@@ -92,3 +97,33 @@ class TestRagToolClassification:
 
     def test_rag_read_write_are_disjoint(self) -> None:
         assert RAG_READ_TOOLS.isdisjoint(RAG_WRITE_TOOLS)
+
+
+class TestRetryClassConfigConsistency:
+    """Cross-source consistency: RETRYABLE_TOOLS is the owner classification and
+    the repository config/mcp_dedup.toml [retry_class] map is its load-validated
+    mirror. Parsed with tomllib directly (not load_dedup_config) so the two
+    source artifacts are compared independently of the loader gate.
+    """
+
+    _CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "mcp_dedup.toml"
+
+    def _retry_class_map(self) -> dict[str, str]:
+        data = tomllib.loads(self._CONFIG_PATH.read_text(encoding="utf-8"))
+        return data["retry_class"]
+
+    def test_retryable_keys_equal_retryable_tools(self) -> None:
+        retry_keys = {k for k, v in self._retry_class_map().items() if v == "retryable"}
+        assert retry_keys == set(RETRYABLE_TOOLS)
+
+    def test_every_key_is_a_known_tool_name(self) -> None:
+        unknown = set(self._retry_class_map()) - set(get_all_mcp_tool_names())
+        assert not unknown, f"unknown [retry_class] keys: {unknown}"
+
+    def test_non_retryable_keys_outside_retryable_tools(self) -> None:
+        contradicted = {
+            k
+            for k, v in self._retry_class_map().items()
+            if v == "non_retryable" and k in RETRYABLE_TOOLS
+        }
+        assert not contradicted, f"contradicted keys: {contradicted}"

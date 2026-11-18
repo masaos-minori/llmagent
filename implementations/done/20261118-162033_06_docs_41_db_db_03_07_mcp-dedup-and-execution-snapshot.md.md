@@ -73,8 +73,8 @@ Do not list the 22 retryable tools or per-key values in the guide.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the two claim spots | Pending | — | — | |
-| 2 | Run the docs checkers (routing.md Tools, docs scope) | Pending | — | — | |
+| 1 | Update the two claim spots | Completed | 2026-11-18 | — |  |
+| 2 | Run the docs checkers (routing.md Tools, docs scope) | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

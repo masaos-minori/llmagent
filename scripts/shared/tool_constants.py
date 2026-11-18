@@ -130,7 +130,7 @@ WEB_SEARCH_TOOLS: frozenset[str] = frozenset({"search_web", "browser_fetch"})
 # validation does not report their absence from config or from the live response.
 CONFIG_GATED_TOOLS: frozenset[str] = frozenset({"browser_fetch"})
 
-# GitHub tools (github-mcp, port 8012)
+# GitHub tools (github-mcp, port 8006)
 GITHUB_READ_TOOLS: frozenset[str] = frozenset(
     {
         "github_search_repositories",
@@ -171,7 +171,8 @@ GITHUB_TOOLS: frozenset[str] = (
     GITHUB_READ_TOOLS | GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
 )
 
-# Retry-classification owner (ADR-008). A tool in this set is
+# Retry-classification owner (ADR-004, dispatch retry policy; ADR-008 owns the
+# disposable dedup-store semantics this classification feeds). A tool in this set is
 # 'retryable' (dispatch-capable: a failed call can be safely re-dispatched and
 # deduplicated); every other tool — including unknown ones — is 'non_retryable'
 # (fail-safe). This frozenset is the single source of truth shared by the

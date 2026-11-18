@@ -1,11 +1,12 @@
 # mcp_dedup configuration (toolexec001)
 #
 # Durable dedup store for the shared MCP dispatcher (dispatch_tool) and the
-# per-tool retry classes. retry_class values are the owner
-# classification: dispatch-capable HTTP tools retryable; external-side-effect
-# tools non_retryable. Keys are live dispatch tool names (verified 2026-10-31
-# against scripts/shared/tool_constants.py; the plan group names are
-# expanded here so retry_class(tool_name) lookups hit instead of defaulting).
+# per-tool retry classes. scripts/shared/tool_constants.py RETRYABLE_TOOLS is the
+# owner classification; this [retry_class] map is its mirror, load-validated
+# against RETRYABLE_TOOLS membership and the known MCP tool names (the loader
+# rejects unknown names, disallowed values, and contradictions with the owner).
+# The split follows dispatch-capability: dispatch-capable HTTP tools retryable;
+# external-side-effect tools non_retryable.
 # Unknown tools default to non_retryable: trigger_workflow and any future tool
 # are fail-safe unreplayable until explicitly classified.
 # Loader and validation live in scripts/shared/mcp_dedup.py.
@@ -45,5 +46,5 @@ refresh_index = "retryable"
 rag_delete_document = "retryable"
 # shell server (shell)
 shell_run = "non_retryable"
-# web_search (web_search)
-web_search = "non_retryable"
+# web_search server (web_search)
+search_web = "non_retryable"

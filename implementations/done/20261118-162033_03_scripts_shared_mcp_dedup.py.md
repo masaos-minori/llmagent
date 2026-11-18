@@ -104,9 +104,9 @@ the dedup-field checks (`:133-147`) are unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the import and the three per-key validation checks | Pending | — | — | |
-| 2 | Update `tests/shared/test_mcp_dedup.py` fixtures and add the 3 rejection tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the import and the three per-key validation checks | Completed | 2026-11-18 | — |  |
+| 2 | Update `tests/shared/test_mcp_dedup.py` fixtures and add the 3 rejection tests | Completed | 2026-11-18 | 2026-11-18 | full suite + diff-cover run at release-unit end 2026-11-18 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -75,8 +75,8 @@ symbols, not implementation detail).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the source-attribution sentence | Pending | — | — | |
-| 2 | Run the docs checkers (routing.md Tools, docs scope) | Pending | — | — | |
+| 1 | Update the source-attribution sentence | Completed | 2026-11-18 | — |  |
+| 2 | Run the docs checkers (routing.md Tools, docs scope) | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

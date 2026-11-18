@@ -26,6 +26,7 @@ from shared.config_errors import ConfigMissingError, ConfigParseError
 from shared.execution_snapshot import snapshot_json
 from shared.runtime_paths import resolve_config_dir
 from shared.schema_fingerprint import assert_matches
+from shared.tool_constants import RETRYABLE_TOOLS, get_all_mcp_tool_names
 
 logger = logging.getLogger(__name__)
 
@@ -147,10 +148,30 @@ def load_dedup_config(path: str | Path | None = None) -> DedupConfig:
             )
 
     retry_class: dict[str, str] = {}
+    known_tool_names = get_all_mcp_tool_names()
     for tool_name, cls in retry_section.items():
         if not isinstance(cls, str):
             raise ConfigParseError(
                 filename, ValueError(f"retry_class.{tool_name} must be a string")
+            )
+        if tool_name not in known_tool_names:
+            raise ConfigParseError(
+                filename,
+                ValueError(f"retry_class.{tool_name} is not a known MCP tool name"),
+            )
+        if cls not in ("retryable", "non_retryable"):
+            raise ConfigParseError(
+                filename,
+                ValueError(
+                    f"retry_class.{tool_name} must be 'retryable' or 'non_retryable'"
+                ),
+            )
+        if (tool_name in RETRYABLE_TOOLS) != (cls == "retryable"):
+            raise ConfigParseError(
+                filename,
+                ValueError(
+                    f"retry_class.{tool_name} contradicts RETRYABLE_TOOLS membership"
+                ),
             )
         retry_class[str(tool_name)] = cls
 

@@ -352,9 +352,9 @@ replay allowed per ADR-004 MCP-001/MCP-002).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: config key rename + comment fixes (`config/mcp_dedup.toml`, `scripts/shared/tool_constants.py`) | In Progress | — | — |  |
-| 2 | Phase 2: loader validation + `tests/shared/test_mcp_dedup.py` fixtures/new tests | In Progress | — | — | Lands with Phase 1 (release unit) |
-| 3 | Phase 3: cross-source test + docs fixes + full validation + REQ-006 report | In Progress | — | — |  |
+| 1 | Phase 1: config key rename + comment fixes (`config/mcp_dedup.toml`, `scripts/shared/tool_constants.py`) | Completed | — | 2026-11-18 |  |
+| 2 | Phase 2: loader validation + `tests/shared/test_mcp_dedup.py` fixtures/new tests | Completed | — | 2026-11-18 | Lands with Phase 1 (release unit) |
+| 3 | Phase 3: cross-source test + docs fixes + full validation + REQ-006 report | Completed | — | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -364,12 +364,12 @@ replay allowed per ADR-004 MCP-001/MCP-002).
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-162033_01_scripts_shared_tool_constants.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-162033_02_config_mcp_dedup.toml.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-162033_03_scripts_shared_mcp_dedup.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-162033_05_tests_shared_test_tool_constants.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-162033_06_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-162033_07_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-162033_01_scripts_shared_tool_constants.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-162033_02_config_mcp_dedup.toml.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-162033_03_scripts_shared_mcp_dedup.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-162033_05_tests_shared_test_tool_constants.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-162033_06_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-162033_07_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -84,8 +84,8 @@ two source artifacts independently of the loader gate added in procedure 03.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the consistency test class | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the consistency test class | Completed | 2026-11-18 | — | mutation spot-check passed: test fails on RETRYABLE_TOOLS drift; gate rejects mutated repo config |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
