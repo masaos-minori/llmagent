@@ -111,8 +111,8 @@ source issue's claims:
   INV-03, and docstring wording that makes clear the gateway guards the server-side write path only, not
   Agent-side approval.
 - `ProductionConfigValidator._check_approval_risk_floor()` already rejects git write tools that resolve below
-  `HIGH`, so the floor is enforced; what is missing is a guard for the redundant tier/rule pairs.
-- `scripts/agent/tool_approval.py:17` cites `docs/05_agent_06_01_tool-execution-and-approval-execution.md`,
+  `HIGH`, so the floor is enforced; what is missing is a guard for the redundant tier/rule pairs. DT-01 Option A (approved 2026-11-18) accepts the pairs as documented defense-in-depth for plan-mode blocking and the ADR-003 tier-vs-write classification rather than adding a guard.
+- `scripts/agent/tool_approval.py:45` cites `docs/05_agent_06_01_tool-execution-and-approval-execution.md`,
   a path that does not exist; the canonical documents are
   `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md` and
   `docs/23_agent/agent_06_04_tool-execution-and-approval-canonical.md`.
@@ -167,6 +167,7 @@ behaviour.
 Validation — see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze):
 every row exists in the working tree, states a concrete modification, cites file:line or symbol
 evidence, and links to a Requirement or Acceptance criterion defined in this Plan).
+Amended 2026-11-18 (scope): added tests/agent/test_orchestrator.py — DT-05 Option A adds automated evidence for INV-03 and changes its matrix row from Manual Review to a test gate; the gate test belongs in the suite that already cites ADR-014, which was not in the frozen table
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -177,22 +178,22 @@ may be treated as a modification target.
 |---|---|---|---|---|---|---|
 | `scripts/agent/tool_policy.py` | docstring/contract clarification; behavior change only after DT-01/DT-06 approval | `classify_risk()` and `is_plan_mode_blocked()` must state the evaluation order and the `RiskLevel.NONE` short-circuit in their docstrings; DT-01/DT-06 approval can then change tier/rule or protected-path handling | REQ-001, REQ-002, REQ-004 | `scripts/agent/tool_policy.py:426-468` (`classify_risk`), `:413-423` (`is_plan_mode_blocked`), `:471-512` (`check_allowed_root`), `:515-530` (`check_allowed_repo`), `:368-410` (`_special_case_risk`), `:323-349` (`_escalate_for_path`) | `tests/agent/test_tool_policy.py`, `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/test_tool_approval_risk.py` | Verified |
 | `scripts/agent/tool_arg_validator.py` | validation default policy (DT-02 gated) | `_check_extra_fields()` returns "valid" when a schema has no `properties`, which is a permissive default that no shipped schema currently exercises; DT-02 decides strict-reject versus documented escape hatch | REQ-004, REQ-008 | `scripts/agent/tool_arg_validator.py:166-184` | `tests/agent/test_tool_arg_validator.py` (`test_properties_absent_allows_extra`) | Verified |
-| `scripts/agent/tool_approval.py` | reference fix | Module docstring line 17 cites `docs/05_agent_06_01_tool-execution-and-approval-execution.md`, which does not exist; point it at the canonical approval document | REQ-006 | `scripts/agent/tool_approval.py:17` | `tests/agent/test_tool_approval_preflight.py`, `tests/agent/test_tool_approval_paths.py` | Verified |
-| `scripts/agent/tool_audit.py` | orphan-path removal or activation (DT-04 gated) | `log_approval_decision()` has no production caller while `audit_approval()` is the live path; DT-04 decides removal of the orphan function or wiring it into the approval gate | REQ-004, REQ-007 | `scripts/agent/tool_audit.py:97-127` (`audit_approval`, emits `tool_approval`), `:130-149` (`log_approval_decision`, emits `approval_decision`); no production caller found by `tools/scan_change_consumers.py --seed log_approval_decision` | `tests/agent/test_tool_audit.py:21,90,107,413,425`, `tests/agent/test_tool_approval_preflight.py:856-887`, `tests/tools/test_check_compat_shims.py:110` | Verified |
+| `scripts/agent/tool_approval.py` | reference fix | Comment at line 45 cites `docs/05_agent_06_01_tool-execution-and-approval-execution.md`, which does not exist (`grep -n 'docs/' scripts/agent/tool_approval.py` returns only that line); point it at the canonical approval document | REQ-006 | `scripts/agent/tool_approval.py:45` | `tests/agent/test_tool_approval_preflight.py`, `tests/agent/test_tool_approval_paths.py` | Verified |
+| `scripts/agent/tool_audit.py` | orphan-path removal or activation (DT-04 gated) | `log_approval_decision()` has no production caller while `audit_approval()` is the live path; DT-04 decides removal of the orphan function or wiring it into the approval gate | REQ-004, REQ-007 | `scripts/agent/tool_audit.py:97-127` (`audit_approval`, emits `tool_approval`), `:130-149` (`log_approval_decision`, emits `approval_decision`); no production caller found by `tools/scan_change_consumers.py --seed log_approval_decision` | `tests/agent/test_tool_audit.py:21,90,107,413,425`, `tests/agent/test_tool_approval_preflight.py:856-887`, `tests/tools/test_check_compat_shims.py` (`:110`) | Verified |
 | `scripts/agent/shared/models.py` | orphan-event removal (DT-04 gated) | `ApprovalDecisionEvent` is constructed only by `log_approval_decision()`; if DT-04 chooses removal the dataclass must be deleted with it | REQ-004, REQ-007 | `scripts/agent/shared/models.py:30` (`ApprovalDecisionEvent`), `:13` (`ToolApprovalEvent`, live path) | `tests/agent/test_tool_audit.py` | Verified |
 | `scripts/agent/tool_models.py` | orphan-outcome removal (DT-04 gated) | `ApprovalOutcome` is referenced only by `tool_audit.log_approval_decision()` and tests; removal must delete the dataclass and its imports together | REQ-004, REQ-007 | `scripts/agent/tool_models.py:45`; import at `scripts/agent/tool_audit.py:20` | `tests/agent/test_tool_audit.py:25,84,102,427`, `tests/agent/test_tool_approval_preflight.py:23,864,882` | Verified |
 | `scripts/agent/repository_gateway.py` | docstring boundary clarification (DT-05 gated) | Module docstring line 3 and the class docstring assert a "Single write enforcement boundary"; the wording must state the process boundary the ADR-012 Decision describes so it is not read as Agent-side approval authority | REQ-004, REQ-009, REQ-011 | `scripts/agent/repository_gateway.py:3` and class docstring; ADR-012 Decision text at `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md:43` | `tests/agent/test_repository_gateway.py` | Verified |
 | `config/agent.toml` | configuration posture (DT-01/DT-02/DT-03/DT-06 gated) | Tier entries for the 19 ruled tools are unreachable for risk purposes; the five `plan_blocked_tools` entries are redundant; protected paths have no effect inside `allowed_root`; `git` and `mdq` are missing from `tool_concurrency_limits` | REQ-001, REQ-004, REQ-005 | `config/agent.toml:71` (`tool_concurrency_limits`), `:109-115` (`plan_blocked_tools`), `:116-123` (`approval_protected_paths`), `:229` (`approval_github_allowed_repos = []`), `:252-271` (`[approval_risk_rules]`), `:287-351` (`[tool_safety_tiers]`) | `tests/agent/test_tool_policy.py`, `tests/agent/test_tool_approval_risk.py`, `tests/agent/test_tool_approval_repos.py` | Verified |
-| `scripts/agent/production_config_validator.py` | config-consistency guard (DT-01 gated) | `_check_approval_risk_floor()` already enforces the git-write risk floor; DT-01 approval adds a guard that rejects a `tool_safety_tiers` entry that can never affect risk because the tool has an `approval_risk_rules` entry | REQ-004, REQ-012 | `scripts/agent/production_config_validator.py` (`_check_approval_risk_floor`) | `tests/agent/test_production_config_validator.py` | Verified |
-| `tests/agent/test_production_config_validator.py` | validator test addition (DT-01 gated) | Must assert the new tier/rule-redundancy guard rejects the posture it is written to reject and accepts the approved one | REQ-004, REQ-012 | `tests/agent/test_production_config_validator.py` (existing `_check_approval_risk_floor` cases) | — | Verified |
+| `scripts/agent/production_config_validator.py` | posture documentation and existing-guard verification (DT-01 decided Option A) | `_check_approval_risk_floor()` already enforces the git-write risk floor; Option A adds no new guard, so this module documents that rules are authoritative for risk and verifies that every remaining tier entry is required for plan-mode blocking or the ADR-003 tier-vs-write classification | REQ-004, REQ-012 | `scripts/agent/production_config_validator.py` (`_check_approval_risk_floor`) | `tests/agent/test_production_config_validator.py` | Verified |
+| `tests/agent/test_production_config_validator.py` | validator test characterization (DT-01 decided Option A) | No new guard exists to test; the existing floor tests must keep passing and a characterization assertion must pin the rule-authoritative posture (a rule overrides its tool's tier) | REQ-004, REQ-012 | `tests/agent/test_production_config_validator.py` (`TestProductionConfigValidatorApprovalRiskFloor`, `tests/agent/test_production_config_validator.py:114-204`, covering the live `_check_approval_risk_floor()` guard at `scripts/agent/production_config_validator.py:88`) | — | Verified |
 | `tests/agent/test_tool_policy.py` | characterization + provenance tests | Must pin the current tier/rule/escalation outcomes and add assertions for which branch produced the level, which no existing test asserts | REQ-001, REQ-003 | `tests/agent/test_tool_policy.py:185-192`, `:601-603`, `:374-534` (`_escalate_for_path` imports) | — | Verified |
 | `tests/agent/test_tool_policy_comprehensive.py` | characterization tests | Must pin the tier-`NONE` short-circuit for the ruled-but-tiered tools and the `sideeffect001` static-membership contract this Plan depends on | REQ-001, REQ-003 | `tests/agent/test_tool_policy_comprehensive.py:230-275` | — | Verified |
 | `tests/agent/test_tool_arg_validator.py` | contract test rewrite | `test_properties_absent_allows_extra` pins today's lenient default; DT-02 must rewrite this assertion rather than add a second test that contradicts it | REQ-008 | `tests/agent/test_tool_arg_validator.py` (`test_properties_absent_allows_extra`) | — | Verified |
 | `tests/agent/test_tool_approval_paths.py` | characterization tests | Must pin that a path-bearing ruled tool escalates to `HIGH` under the shipped protected paths, so a DT-06 change is visible as an intentional delta | REQ-003 | `tests/agent/test_tool_approval_paths.py:1-30` (fixture), pre-flight cases | — | Verified |
-| `tests/agent/test_tool_approval_risk.py` | characterization tests | Must pin the rule-over-tier precedence and the tier-`NONE` escalation gap measured under the shipped config | REQ-003 | `tests/agent/test_tool_approval_risk.py:281-341` | — | Verified |
+| `tests/agent/test_tool_approval_risk.py` | characterization tests | Must pin the rule-over-tier precedence and the tier-`NONE` escalation gap measured under the shipped config | REQ-003 | `tests/agent/test_tool_approval_risk.py:97-110` (rule- and tier-derived levels), `:196-210` (`test_custom_risk_rules_override_default`, `test_empty_risk_rules_falls_back_to_tier`) | — | Verified |
 | `tests/agent/test_tool_approval_repos.py` | keep deny-all pinned | `test_allowed_repos_empty_denies_all_github_write` is the fail-closed regression guard; any allowlist change must extend this file rather than alter that test | REQ-003, REQ-012 | `tests/agent/test_tool_approval_repos.py:104,119,207-232` | — | Verified |
 | `tests/agent/test_tool_approval_preflight.py` | orphan-path test removal (DT-04 gated) | Its `log_approval_decision` section tests the orphan path; removal or activation of DT-04 changes this file | REQ-007 | `tests/agent/test_tool_approval_preflight.py:6,20,856-887` | — | Verified |
-| `tests/agent/test_tool_audit.py` | orphan-path test removal (DT-04 gated) | Tests construct `ApprovalOutcome` and call `log_approval_decision()`; it also carries the ADR-001 INV-11 citation that must survive the change | REQ-007, REQ-009 | `tests/agent/test_tool_audit.py:21,25,84-107,413-427`; `registry/manifests/invariant_coverage.yaml:25-30` (INV-11 cites this file) | — | Verified |
+| `tests/agent/test_tool_audit.py` | orphan-path test removal (DT-04 gated) | Tests construct `ApprovalOutcome` and call `log_approval_decision()`; it also carries the ADR-001 INV-11 citation that must survive the change | REQ-007, REQ-009 | `tests/agent/test_tool_audit.py:21,25,84-107,413-427`; `registry/manifests/invariant_coverage.yaml:23-29` (INV-11 cites this file) | — | Verified |
 | `tests/tools/test_check_compat_shims.py` | compat-shim expectation update | Line 110 asserts `log_approval_decision(ctx, outcome)` is not a shim; DT-04 removal changes the expectation this checker validates | REQ-007 | `tests/tools/test_check_compat_shims.py:110` | — | Verified |
 | `tests/agent/_config_test_defaults.py` | shared test fixture alignment | Exports `ALL_APPROVAL_RISK_RULES`, `ALL_TOOL_SAFETY_TIERS`, `PERMISSIVE_ALLOWED_ROOT` that the approval tests build configs from; the approved tier/rule posture changes these constants | REQ-003, REQ-012 | `tests/agent/_config_test_defaults.py` (consumed by `tests/agent/test_tool_approval_paths.py:18-22`) | `tests/agent/test_tool_approval_paths.py` | Verified |
 | `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md` | canonical approval-flow documentation | Must state the verified evaluation order, the `RiskLevel.NONE` short-circuit, the protected-path/allowed-root interaction, and the tier-authoritative plan-mode rule as the canonical description | REQ-002, REQ-010 | `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md:105-112` (plan-mode rule) | — | Verified |
@@ -201,15 +202,16 @@ may be treated as a modification target.
 | `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md` | approval-configuration guide | Must document the tier/rule precedence as implemented, the protected-path scope relative to `allowed_root`, and the display-only nature of `role` | REQ-002, REQ-005, REQ-010 | `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md:103,127` (empty allowlist = deny all) | — | Verified |
 | `docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` | tier-to-approval mapping table | The table at lines 73-74 states the tier supplies the default and rules override it; it must also state which tier entries are plan-mode-only and which tools never reach escalation | REQ-001, REQ-002, REQ-010 | `docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md:73-74` | — | Verified |
 | `docs/91_security/security_02_high-risk-tool-common-policy.md` | security policy mapping | Line 119 defers the approval-to-tier mapping to the MCP risk-tier document; it must stay consistent with whatever DT-01/DT-06 approve and state the Agent-side versus server-side control split | REQ-004, REQ-009, REQ-010 | `docs/91_security/security_02_high-risk-tool-common-policy.md:119-124` | — | Verified |
-| `docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md` | ADR invariant text (DT-05 gated) | INV-03 at line 132 forbids taking over MCP-server technical safety judgments in the Orchestrator/ToolExecutor layers, and the matrix records it as Manual Review with no automated test; the Plan must state whether the Agent-approval/server-guard split needs new invariant text here or is already covered by ADR-012 INV-04 | REQ-004, REQ-009 | `docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md:130-132` (the only three invariants), `163` ("INV-01 and INV-03 have no automated tests"); matrix row `docs/10_adr/adr_01_index.md:209` | `tests/agent/test_orchestrator.py` (cites ADR-014) | Verified |
+| `docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md` | ADR invariant text (DT-05 gated) | INV-03 at line 132 forbids taking over MCP-server technical safety judgments in the Orchestrator/ToolExecutor layers, and the matrix records it as Manual Review with no automated test; DT-05 Option A (approved 2026-11-18) adds automated evidence for INV-03, changes its matrix row to a test gate, and rewords the `RepositoryGateway` docstrings | REQ-004, REQ-009 | `docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md:130-132` (the only three invariants), `163` ("INV-01 and INV-03 have no automated tests"); matrix row `docs/10_adr/adr_01_index.md:209` | `tests/agent/test_orchestrator.py` (cites ADR-014) | Verified |
 | `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md` | ADR decision/invariant text (DT-05 gated) | Line 43 already records client-side approval with the git endpoint independent of approval state, and INV-04 at line 133 states the two checks are independent; the wording must stay aligned with the verified split and with the `RepositoryGateway` docstrings, and must not be shortened | REQ-004, REQ-009 | `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md:43` (Decision), `:133` (INV-04); authority entry `config/adr_authority.toml:48-52` (`agent.tool-approval`, primary ADR-003, supplemental ADR-012) | `tests/mcp_servers/git/` (INV-01-INV-04 evidence, matrix row `docs/10_adr/adr_01_index.md:205`) | Verified |
-| `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` | ADR invariant text (DT-04 gated) | INV-11 at line 175 is the invariant the approval-audit tests cite; removing the orphan approval event path must not orphan that invariant's evidence | REQ-007, REQ-009 | `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md:175`; `registry/manifests/invariant_coverage.yaml:25-30` | `tests/agent/test_tool_audit.py::TestAuditApprovalInv11` | Verified |
+| `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` | ADR invariant text (DT-04 gated) | INV-11 at line 175 is the invariant the approval-audit tests cite; removing the orphan approval event path must not orphan that invariant's evidence | REQ-007, REQ-009 | `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md:175`; `registry/manifests/invariant_coverage.yaml:23-29` | `tests/agent/test_tool_audit.py::TestAuditApprovalInv11` | Verified |
 | `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` | ADR invariant text (DT-02/DT-03 gated) | States that approval state and execution eligibility are distinct concepts and that Safety Tier/Write attributes must agree across Routing; the tier-redundancy and validation decisions must be reflected in that text | REQ-004, REQ-009 | `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md:36,48,55` | `tests/agent/test_tool_policy_comprehensive.py` | Verified |
 | `docs/10_adr/adr_01_index.md` | ADR index and invariant verification matrix | The matrix must reflect any invariant added or reworded by DT-05 and re-cite the test evidence changed by DT-04 (it is the source the `invariant_coverage` manifest is generated from) | REQ-009, REQ-011 | `docs/10_adr/adr_01_index.md:180` (ADR-001 INV-11 row), `:205` (ADR-012 row), `:207-209` (ADR-014 rows); `tools/generate_reference_table.py:471` (`invariant_coverage` source) | `tools/check_adr_invariant_matrix.py` | Verified |
 | `config/documentation_canonical_sources.toml` | canonical-source registry | No entry currently maps the approval risk-tier claims; the claims this Plan documents must each resolve to one canonical source | REQ-010 | `config/documentation_canonical_sources.toml` (no `approval_risk_rules`/`tool_safety_tiers` entry found by grep) | `tools/check_canonical_source_registry.py` | Verified |
 | `docs/23_agent/agent_13_reference-api-generated.md` | generated artifact refresh | Row 143 publishes `log_approval_decision` and every approval-module docstring is published here; docstring edits and DT-04 removal must be regenerated, not hand-edited | REQ-011 | `docs/23_agent/agent_13_reference-api-generated.md:143`; guarded block in the same file | `uv run python tools/generate_reference_table.py --check` | Verified |
 | `registry/manifests/agent_api.yaml` | generated manifest refresh | Lines 548-549 publish the orphan `log_approval_decision` signature; regenerated from source after DT-04 and the docstring changes | REQ-011 | `registry/manifests/agent_api.yaml:548-549` | `uv run python tools/generate_reference_table.py --check` (manifest-vs-source direction) | Verified |
-| `registry/manifests/invariant_coverage.yaml` | generated manifest refresh | INV-11 evidence lines 25-30 cite the approval-audit test file this Plan modifies; the manifest must be regenerated after the ADR and test changes | REQ-009, REQ-011 | `registry/manifests/invariant_coverage.yaml:25-30` | `uv run python tools/check_adr_invariant_matrix.py` | Verified |
+| `registry/manifests/invariant_coverage.yaml` | generated manifest refresh | The INV-11 evidence entry (lines 23-29) cites the approval-audit test file this Plan modifies; the manifest must be regenerated after the ADR and test changes | REQ-009, REQ-011 | `registry/manifests/invariant_coverage.yaml:23-29` | `uv run python tools/check_adr_invariant_matrix.py` | Verified |
+| `tests/agent/test_orchestrator.py` | ADR-014 INV-03 automated evidence test (DT-05 Option A) | DT-05 Option A adds automated evidence for INV-03 and changes its matrix row from Manual Review to a test gate; the gate test belongs in the suite that already cites ADR-014, which was not in the frozen table | REQ-009 / AC-009 | tests/agent/test_orchestrator.py:3205-3209 (existing ADR-014 INV-02 citation block; no test cites INV-03); matrix row docs/10_adr/adr_01_index.md:209 (Manual Review) | tests/agent/test_orchestrator.py | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) for the full validation procedure):
@@ -315,12 +317,12 @@ regenerated by the generator, not written as documentation edits.
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | DT-01: which control should own a tool's approval risk when both a tier entry and a rule entry exist — keep rules authoritative and drop the redundant tier entries, keep tiers and drop the redundant rules, or add a validator that rejects the redundant pair | Maintainer decision; no ADR currently states which is authoritative | Option table DT-01 in `Design`; requires an approval record before `scripts/agent/tool_policy.py`, `config/agent.toml`, `scripts/agent/production_config_validator.py` are edited | True |
-| UNK-02 | DT-02: should a tool schema without `properties` fail closed or keep the lenient default with `RuntimeTool.allow_extra_fields` as the only escape hatch | No shipped schema exercises the branch; cannot measure real-world impact | Option table DT-02 in `Design`; approval record before `scripts/agent/tool_arg_validator.py` and its test are edited | True |
-| UNK-03 | DT-03: keep `plan_blocked_tools` as an explicit extension of the tier rule, or remove the five redundant entries | No ADR states whether an explicit plan-mode block list is required as an operational control independent of tiers | Option table DT-03 in `Design`; approval record before `config/agent.toml` is edited | True |
-| UNK-04 | DT-04: remove the orphan `approval_decision` event cluster, or wire `escalation_reason` into the live `tool_approval` event | No product requirement exists for `escalation_reason` in audit output | Option table DT-04 in `Design`; approval record before the models, audit module, and their tests are edited | True |
-| UNK-05 | DT-05: whether ADR-014 INV-03 should gain an automated gate, and whether the existing ADR-012 Decision and INV-04 text plus the `agent.tool-approval` authority entry are sufficient authority for the split | ADR-014 INV-03 is recorded as Manual Review with no automated test (`docs/10_adr/adr_01_index.md:209`); nothing records what an automated gate for it would assert | Option table DT-05 in `Design`; requires an ADR approval record before the ADR and gateway docstrings are edited | True |
-| UNK-06 | DT-06: whether `approval_protected_paths` should be scoped to paths outside `allowed_root`, widened to paths that `allowed_root` does not jail, or documented as jail-internal escalation only | The intended operational threat model for the protected list is not recorded anywhere | Option table DT-06 in `Design`; approval record before `config/agent.toml` and `scripts/agent/tool_policy.py` are edited | True |
+| UNK-01 | DT-01: which control should own a tool's approval risk when both a tier entry and a rule entry exist — keep rules authoritative and drop the redundant tier entries, keep tiers and drop the redundant rules, or add a validator that rejects the redundant pair | Maintainer decision; no ADR currently states which is authoritative | Option table DT-01 in `Design`; requires an approval record before `scripts/agent/tool_policy.py`, `config/agent.toml`, `scripts/agent/production_config_validator.py` are editedResolved 2026-11-18: maintainer approved Option A (see Decision records in `Design`). | False |
+| UNK-02 | DT-02: should a tool schema without `properties` fail closed or keep the lenient default with `RuntimeTool.allow_extra_fields` as the only escape hatch | No shipped schema exercises the branch; cannot measure real-world impact | Option table DT-02 in `Design`; approval record before `scripts/agent/tool_arg_validator.py` and its test are editedResolved 2026-11-18: maintainer approved Option A (see Decision records in `Design`). | False |
+| UNK-03 | DT-03: keep `plan_blocked_tools` as an explicit extension of the tier rule, or remove the five redundant entries | No ADR states whether an explicit plan-mode block list is required as an operational control independent of tiers | Option table DT-03 in `Design`; approval record before `config/agent.toml` is editedResolved 2026-11-18: maintainer approved Option A (see Decision records in `Design`). | False |
+| UNK-04 | DT-04: remove the orphan `approval_decision` event cluster, or wire `escalation_reason` into the live `tool_approval` event | No product requirement exists for `escalation_reason` in audit output | Option table DT-04 in `Design`; approval record before the models, audit module, and their tests are editedResolved 2026-11-18: maintainer approved Option A (see Decision records in `Design`). | False |
+| UNK-05 | DT-05: whether ADR-014 INV-03 should gain an automated gate, and whether the existing ADR-012 Decision and INV-04 text plus the `agent.tool-approval` authority entry are sufficient authority for the split | ADR-014 INV-03 is recorded as Manual Review with no automated test (`docs/10_adr/adr_01_index.md:209`); nothing records what an automated gate for it would assert | Option table DT-05 in `Design`; requires an ADR approval record before the ADR and gateway docstrings are editedResolved 2026-11-18: maintainer approved Option A (see Decision records in `Design`). | False |
+| UNK-06 | DT-06: whether `approval_protected_paths` should be scoped to paths outside `allowed_root`, widened to paths that `allowed_root` does not jail, or documented as jail-internal escalation only | The intended operational threat model for the protected list is not recorded anywhere | Option table DT-06 in `Design`; approval record before `config/agent.toml` and `scripts/agent/tool_policy.py` are editedResolved 2026-11-18: maintainer approved Option A (see Decision records in `Design`). | False |
 | UNK-07 | Whether the production host's listening MCP ports and running services match this host's configuration | This host listens on none of the MCP server ports (8005-8009, 8012-8014 all empty under `ss`); production state was not inspected | Inspect the production host before applying the approved config posture | False |
 | UNK-08 | Whether any external consumer depends on the `approval_decision` event type | Grep over `scripts/`, `tests/`, `docs/`, `registry/` found only tests and generated artifacts; no external consumer inventory exists | Confirm with the maintainer before DT-04 removal is executed | False |
 
@@ -341,7 +343,7 @@ columns. The `File` column here is a subset of `Implementation Target Files`' ro
 | `scripts/agent/production_config_validator.py` | edit | startup validation path, its test module | 3 | 2 authors | not applicable (rsynced) |
 | `tests/agent/test_tool_policy.py` | edit | approval risk characterization suite | 6 | 2 authors / 16 commits | not applicable (rsynced) |
 | `tests/agent/test_tool_policy_comprehensive.py` | edit | write-classification and tier suite | 4 | 2 authors | not applicable (rsynced) |
-| `tests/agent/test_tool_arg_validator.py` | edit (assertion rewrite) | argument-validation suite, ADR-014 citation | 1 | 2 authors | not applicable (rsynced) |
+| `tests/agent/test_tool_arg_validator.py` | edit (assertion rewrite) | argument-validation suite | 1 | 2 authors | not applicable (rsynced) |
 | `tests/agent/test_tool_approval_paths.py` | edit | allowed-root pre-flight suite | 3 | 2 authors | not applicable (rsynced) |
 | `tests/agent/test_tool_approval_risk.py` | edit | approval risk suite | 3 | 2 authors | not applicable (rsynced) |
 | `tests/agent/test_tool_approval_repos.py` | edit (additive) | GitHub allowlist suite | 2 | 2 authors | not applicable (rsynced) |
@@ -364,6 +366,7 @@ columns. The `File` column here is a subset of `Implementation Target Files`' ro
 | `docs/23_agent/agent_13_reference-api-generated.md` | regenerated | every generated API consumer | 21 | 2 authors / 32 commits | not applicable (docs are rsynced) |
 | `registry/manifests/agent_api.yaml` | regenerated | API contract consumers and drift checks | 14 | 2 authors / 14 commits | not applicable (rsynced) |
 | `registry/manifests/invariant_coverage.yaml` | regenerated | invariant verification matrix and its checkers | 4 | 2 authors | not applicable (rsynced) |
+| `tests/agent/test_orchestrator.py` | Modify | Not assessed (amendment 2026-11-18) | N/A | N/A | Not assessed (amendment 2026-11-18) |
 
 ## Design
 Verification-first, decision-gated design. The phases separate three kinds of change that must not be conflated:
@@ -387,7 +390,7 @@ removals are removals, and reworded text states the current specification only.
   generator (`invariant_coverage` type). Any docstring or signature change in this Plan therefore has a mandatory
   regeneration step, and hand-editing those files is prohibited.
 - `ProductionConfigValidator` is the existing place where config-level policy is enforced at startup; a
-  tier/rule-redundancy guard belongs there rather than in `classify_risk()`.
+  tier/rule-redundancy guard would belong there rather than in `classify_risk()` (DT-01 Option A: no guard added).
 
 ### Dependency-graph findings (Step 5, Path B)
 - `classify_risk`: consumed by `agent/tool_approval.py` at three sites and by five test modules; no consumer in
@@ -451,6 +454,7 @@ removals are removals, and reworded text states the current specification only.
 ### Decision tasks (approval required before implementation)
 
 DT-01 — Approval-risk authority when a tool has both a tier entry and a rule entry.
+**Decision (2026-11-18): Option A approved** — rules remain authoritative; delete the `tool_safety_tiers` entries that can never affect risk, keeping tier entries only for plan-mode blocking.
 
 | Option | Description | Compatibility impact |
 |---|---|---|
@@ -459,6 +463,7 @@ DT-01 — Approval-risk authority when a tool has both a tier entry and a rule e
 | C | Keep both, document the redundancy as intended defense-in-depth, no guard | No code or config change; the unreachable entries stay in the file and the reachability report becomes the only record |
 
 DT-02 — Argument validation for schemas without `properties`.
+**Decision (2026-11-18): Option A approved** — fail closed: a schema without `properties` rejects unknown fields.
 
 | Option | Description | Compatibility impact |
 |---|---|---|
@@ -467,6 +472,7 @@ DT-02 — Argument validation for schemas without `properties`.
 | C | Require `properties` to be present unless the tool is explicitly registered with `allow_extra_fields` | Adds a registration-time validation step; strongest contract, largest change |
 
 DT-03 — `plan_blocked_tools` (five entries, all already blocked by the tier rule).
+**Decision (2026-11-18): Option A approved** — keep as an explicit operational control; document it as redundant-by-design under the current tiers.
 
 | Option | Description | Compatibility impact |
 |---|---|---|
@@ -475,6 +481,7 @@ DT-03 — `plan_blocked_tools` (five entries, all already blocked by the tier ru
 | C | Keep the key but reject entries the tier already blocks at validation time | New startup failure mode; keeps explicit intent visible |
 
 DT-04 — Orphan `approval_decision` event cluster.
+**Decision (2026-11-18): Option A approved** — remove `log_approval_decision()`, `ApprovalDecisionEvent`, `ApprovalOutcome`, their imports, and their tests; regenerate API artifacts.
 
 | Option | Description | Compatibility impact |
 |---|---|---|
@@ -485,6 +492,7 @@ DT-04 — Orphan `approval_decision` event cluster.
 DT-05 — Agent-side approval versus MCP server-side write enforcement boundary. ADR-012's Decision and INV-04 and
 ADR-014 INV-03 already describe the split; what is open is whether ADR-014 INV-03 should gain automated evidence,
 and how the gateway docstrings should name the process they guard.
+**Decision (2026-11-18): Option A approved** — add automated evidence for ADR-014 INV-03, change its matrix row from Manual Review to a test gate, and reword `RepositoryGateway` docstrings to match.
 
 | Option | Description | Compatibility impact |
 |---|---|---|
@@ -493,6 +501,7 @@ and how the gateway docstrings should name the process they guard.
 | C | Add a new invariant that names the Agent-approval versus server-technical-safety split explicitly | New invariant row plus a new evidence requirement; overlaps ADR-012 INV-04 and risks a duplicate authority claim against the `agent.tool-approval` authority entry |
 
 DT-06 — `approval_protected_paths` scope relative to `allowed_root`.
+**Decision (2026-11-18): Option A approved** — document the current semantics: inside the jail every ruled path-bearing tool escalates to `HIGH`; the list has no discriminating effect outside it because the jail already denies those paths.
 
 | Option | Description | Compatibility impact |
 |---|---|---|
@@ -514,8 +523,8 @@ Each step cites rows of `Implementation Target Files`.
      `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md` (REQ-001, REQ-002).
    - [ ] State the evaluation order and the `RiskLevel.NONE` short-circuit in the docstrings of `classify_risk()`
      and `is_plan_mode_blocked()` in `scripts/agent/tool_policy.py` (REQ-002).
-   - [ ] Present DT-01 … DT-06 to the maintainer and record each decision; stop before Phase 3 until a decision
-     exists (REQ-004).
+   - [x] Present DT-01 … DT-06 to the maintainer and record each decision; stop before Phase 3 until a decision
+     exists (REQ-004). Done 2026-11-18: all six approved as Option A.
 2. **Phase 2: Behavior-neutral corrections**
    - [ ] Fix the stale document path in `scripts/agent/tool_approval.py` (REQ-006).
    - [ ] Add explicit `git` and `mdq` entries to `tool_concurrency_limits` in `config/agent.toml`, or name the
@@ -545,6 +554,7 @@ Each step cites rows of `Implementation Target Files`.
    - [ ] Update `docs/91_security/security_02_high-risk-tool-common-policy.md` and
      `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md` to the approved posture (REQ-004, REQ-010).
    - [ ] Register the approval-claim canonical sources in `config/documentation_canonical_sources.toml` (REQ-010).
+   - [ ] ADR-014 INV-03 automated evidence test (DT-05 Option A) (REQ-009; `tests/agent/test_orchestrator.py`) — amendment 2026-11-18
 6. **Phase 6: Regeneration and verification**
    - [ ] Regenerate `registry/manifests/agent_api.yaml` and `registry/manifests/invariant_coverage.yaml` with
      `uv run python tools/generate_reference_table.py --manifests`, which also re-renders the guarded block in
@@ -577,7 +587,7 @@ Each step cites rows of `Implementation Target Files`.
 | `scripts/agent/tool_audit.py`, `scripts/agent/shared/models.py`, `scripts/agent/tool_models.py` | Unit | `uv run pytest tests/agent/test_tool_audit.py tests/agent/test_tool_approval_preflight.py tests/tools/test_check_compat_shims.py -q` | No reference to a symbol that no longer exists; INV-11 evidence still present |
 | `scripts/agent/repository_gateway.py` | Unit | `uv run pytest tests/agent/test_repository_gateway.py -q` | Behavior unchanged; only docstrings differ |
 | `config/agent.toml` | Config validation | `uv run python tools/check_docs_consistency.py --domain agent` and the `ProductionConfigValidator` startup path | No unknown or redundant approval key survives the approved posture |
-| `scripts/agent/production_config_validator.py` | Unit | `uv run pytest tests/agent/test_production_config_validator.py -q` | Approved guard rejects the posture it was written to reject |
+| `scripts/agent/production_config_validator.py` | Unit | `uv run pytest tests/agent/test_production_config_validator.py -q` | Existing floor tests pass unchanged; the rule-authoritative characterization assertion passes |
 | `docs/23_agent/agent_13_reference-api-generated.md`, `registry/manifests/agent_api.yaml`, `registry/manifests/invariant_coverage.yaml`, `docs/10_adr/adr_01_index.md` | Generated-artifact drift | `uv run python tools/generate_reference_table.py --manifests` then `uv run python tools/generate_reference_table.py --check` and `uv run python tools/check_adr_invariant_matrix.py` | Zero drift; no hand edits |
 | All `docs/*.md` targets | Structural | `uv run python tools/check_docs_quality.py` and `uv run python tools/check_docs_structure.py` | Pass with no unregistered Needs-Confirmation markers |
 | Whole change set | Full suite plus coverage gate | `uv run python tools/run_validation_gates.py --full` | Pass; `diff-cover` reports coverage of the changed lines; no new failure against the 12810-passed baseline |
@@ -608,12 +618,12 @@ Each step cites rows of `Implementation Target Files`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: reachability report and characterization baseline | Pending | — | — | Verification findings are recorded in this Plan; the report artifacts are Phase 1 work |
-| 2 | Phase 2: behavior-neutral corrections | Pending | — | — | Not decision-gated |
-| 3 | Phase 3: approved policy applied | Pending | — | — | Not started: DT-01, DT-02, DT-03 and DT-06 approval records must exist before this step starts |
-| 4 | Phase 4: approval-event path resolution | Pending | — | — | Not started: DT-04 approval record must exist before this step starts |
-| 5 | Phase 5: boundary documentation and ADR records | Pending | — | — | Not started: DT-05 approval record must exist before this step starts |
-| 6 | Phase 6: regeneration and verification | Pending | — | — | Must run in the same commits as Phases 4 and 5 |
+| 1 | Phase 1: reachability report and characterization baseline | In Progress | — | — | Verification findings are recorded in this Plan; the report artifacts are Phase 1 work Procedure documents generated 2026-11-18 (rows 01/11/12/14/15/21/25) |
+| 2 | Phase 2: behavior-neutral corrections | In Progress | — | — | Not decision-gated Procedure documents generated 2026-11-18 (rows 03/08/23/24) |
+| 3 | Phase 3: approved policy applied | In Progress | — | — | Not started: DT-01, DT-02, DT-03 and DT-06 approval records must exist before this step starts Decision records 2026-11-18: DT-01, DT-02, DT-03, DT-06 approved as Option A; gate satisfied Procedure documents generated 2026-11-18 (rows 01/02/08/09/13-companion-of-02/20) |
+| 4 | Phase 4: approval-event path resolution | In Progress | — | — | Not started: DT-04 approval record must exist before this step starts Decision record 2026-11-18: DT-04 approved as Option A; gate satisfied Procedure documents generated 2026-11-18 (rows 04/05/06/17/18/19-companion-of-04/22) |
+| 5 | Phase 5: boundary documentation and ADR records | In Progress | — | — | Not started: DT-05 approval record must exist before this step starts Decision record 2026-11-18: DT-05 approved as Option A; gate satisfied Procedure documents generated 2026-11-18 (rows 07/24/26/27/28/29/30/32/36) |
+| 6 | Phase 6: regeneration and verification | In Progress | — | — | Must run in the same commits as Phases 4 and 5 Procedure documents generated 2026-11-18 (rows 31/33/34/35) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -625,7 +635,38 @@ Each step cites rows of `Implementation Target Files`.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261118-233456_01_scripts_agent_tool_policy.py.md` | 1, 3 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_02_scripts_agent_tool_arg_validator.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_03_scripts_agent_tool_approval.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_04_scripts_agent_tool_audit.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_05_scripts_agent_shared_models.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_06_scripts_agent_tool_models.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_07_scripts_agent_repository_gateway.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_08_config_agent.toml.md` | 2, 3 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_09_scripts_agent_production_config_validator.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_11_tests_agent_test_tool_policy.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_12_tests_agent_test_tool_policy_comprehensive.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_14_tests_agent_test_tool_approval_paths.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_15_tests_agent_test_tool_approval_risk.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_17_tests_agent_test_tool_approval_preflight.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_18_tests_agent_test_tool_audit.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_20_tests_agent__config_test_defaults.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_21_docs_23_agent_agent_06_02_tool-execution-and-approval-approval.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_22_docs_23_agent_agent_06_04_tool-execution-and-approval-canonical.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_23_docs_23_agent_agent_06_03_tool-execution-and-approval-concurrency-safety.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_24_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md` | 2, 5 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_25_docs_22_mcp_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_26_docs_91_security_security_02_high-risk-tool-common-policy.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_27_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_28_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_29_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_30_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_31_docs_10_adr_adr_01_index.md.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_32_config_documentation_canonical_sources.toml.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_33_docs_23_agent_agent_13_reference-api-generated.md.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_34_registry_manifests_agent_api.yaml.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_35_registry_manifests_invariant_coverage.yaml.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_36_tests_agent_test_orchestrator.py.md` | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -634,7 +675,7 @@ Each step cites rows of `Implementation Target Files`.
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261118-224457
-- **Related target files**: `scripts/agent/tool_policy.py`, `scripts/agent/tool_arg_validator.py`,
+- **Related target files**: `scripts/agent/tool_policy.py`, `scripts/agent/tool_arg_validator.py`, `tests/agent/test_orchestrator.py`
   `scripts/agent/tool_approval.py`, `scripts/agent/tool_audit.py`, `scripts/agent/shared/models.py`,
   `scripts/agent/tool_models.py`, `scripts/agent/repository_gateway.py`, `config/agent.toml`,
   `scripts/agent/production_config_validator.py`, `tests/agent/test_tool_policy.py`,
@@ -669,15 +710,15 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-002 | Protected-path scope | `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md` | 2, 5 | AC-002 | `uv run python tools/check_docs_quality.py` | Planned |
 | REQ-003 | Measured tier-`NONE` gap (`git_add`, `git_commit`, `index_paths`, `refresh_index`) | `tests/agent/test_tool_policy.py` | 1 | AC-003 | `uv run pytest tests/agent/test_tool_policy.py -q` | Planned |
 | REQ-003 | Measured rule-over-tier precedence | `tests/agent/test_tool_policy_comprehensive.py` | 1 | AC-003 | `uv run pytest tests/agent/test_tool_policy_comprehensive.py -q` | Planned |
-| REQ-003 | `tests/agent/test_tool_approval_risk.py:281-341` | `tests/agent/test_tool_approval_risk.py` | 1 | AC-003 | `uv run pytest tests/agent/test_tool_approval_risk.py -q` | Planned |
+| REQ-003 | `tests/agent/test_tool_approval_risk.py:97-110` (rule- and tier-derived levels), `:196-210` (`test_custom_risk_rules_override_default`, `test_empty_risk_rules_falls_back_to_tier`) | `tests/agent/test_tool_approval_risk.py` | 1 | AC-003 | `uv run pytest tests/agent/test_tool_approval_risk.py -q` | Planned |
 | REQ-003 | Measured in-jail escalation to `HIGH` | `tests/agent/test_tool_approval_paths.py` | 1 | AC-003 | `uv run pytest tests/agent/test_tool_approval_paths.py -q` | Planned |
 | REQ-003 | `test_allowed_repos_empty_denies_all_github_write` guard | `tests/agent/test_tool_approval_repos.py` | 1 | AC-003 | `uv run pytest tests/agent/test_tool_approval_repos.py -q` | Planned |
 | REQ-004 | Issue "Required decisions" plus this Plan's `Design` decision tables | `docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md` | 1, 5 | AC-004 | ADR approval record | Planned |
-| REQ-004 | DT-01 guard location | `scripts/agent/production_config_validator.py` | 3 | AC-004 | `uv run pytest tests/agent/test_production_config_validator.py -q` | Planned |
+| REQ-004 | DT-01 Option A: no new guard; existing floor guard verified | `scripts/agent/production_config_validator.py` | 3 | AC-004 | `uv run pytest tests/agent/test_production_config_validator.py -q` | Planned |
 | REQ-004 | `config/agent.toml:109-123` | `config/agent.toml` | 3 | AC-004 | config validation at Agent startup | Planned |
 | REQ-005 | `scripts/shared/tool_transport_invoker.py:33` default fallback | `config/agent.toml` | 2 | AC-005 | `uv run python tools/check_docs_consistency.py --domain agent` | Planned |
 | REQ-005 | `docs/23_agent/agent_06_03_tool-execution-and-approval-concurrency-safety.md:47` | `docs/23_agent/agent_06_03_tool-execution-and-approval-concurrency-safety.md` | 2 | AC-005 | `uv run python tools/check_docs_quality.py` | Planned |
-| REQ-006 | `scripts/agent/tool_approval.py:17` non-existent document path | `scripts/agent/tool_approval.py` | 2 | AC-006 | `tests/agent/test_tool_approval_preflight.py` | Planned |
+| REQ-006 | `scripts/agent/tool_approval.py:45` non-existent document path | `scripts/agent/tool_approval.py` | 2 | AC-006 | `tests/agent/test_tool_approval_preflight.py` | Planned |
 | REQ-007 | `scripts/agent/tool_audit.py:130-149` with no production caller | `scripts/agent/tool_audit.py` | 4 | AC-007 | `uv run pytest tests/agent/test_tool_audit.py -q` | Planned |
 | REQ-007 | `scripts/agent/shared/models.py:30` | `scripts/agent/shared/models.py` | 4 | AC-007 | `uv run pytest tests/agent/test_tool_audit.py -q` | Planned |
 | REQ-007 | `scripts/agent/tool_models.py:45` | `scripts/agent/tool_models.py` | 4 | AC-007 | `uv run pytest tests/agent/test_tool_approval_preflight.py -q` | Planned |
@@ -693,11 +734,13 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-009 | Routing-authority approval-state claim at `:36,48,55` | `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` | 5 | AC-009 | `tests/agent/test_tool_policy_comprehensive.py` | Planned |
 | REQ-009 | Security policy control split | `docs/91_security/security_02_high-risk-tool-common-policy.md` | 5 | AC-009 | `uv run python tools/check_docs_quality.py` | Planned |
 | REQ-009 | Invariant verification matrix | `docs/10_adr/adr_01_index.md` | 5, 6 | AC-009 | `uv run python tools/check_adr_invariant_matrix.py`, `uv run python tools/check_adr_preservation.py` | Planned |
-| REQ-009 | `tests/agent/test_tool_arg_validator.py:621` ADR citation | `tests/agent/test_tool_arg_validator.py` | 3, 5 | AC-009 | `uv run pytest tests/agent/test_tool_arg_validator.py -q` | Planned |
 | REQ-010 | No existing canonical mapping for the approval tier claims | `config/documentation_canonical_sources.toml` | 5 | AC-010 | `uv run python tools/check_canonical_source_registry.py` | Planned |
 | REQ-010 | Empty-allowlist claim | `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md` | 2, 5 | AC-010 | `uv run python tools/check_docs_quality.py` | Planned |
 | REQ-011 | `docs/23_agent/agent_13_reference-api-generated.md:143` published orphan symbol | `docs/23_agent/agent_13_reference-api-generated.md` | 6 | AC-011 | `uv run python tools/generate_reference_table.py` drift check | Planned |
 | REQ-011 | `registry/manifests/agent_api.yaml:548-549` | `registry/manifests/agent_api.yaml` | 6 | AC-011 | `uv run python tools/generate_reference_table.py` drift check | Planned |
-| REQ-011 | `registry/manifests/invariant_coverage.yaml:25-30` | `registry/manifests/invariant_coverage.yaml` | 6 | AC-011 | `uv run python tools/check_adr_invariant_matrix.py`, `uv run python tools/check_adr_preservation.py` | Planned |
+| REQ-011 | `registry/manifests/invariant_coverage.yaml:23-29` | `registry/manifests/invariant_coverage.yaml` | 6 | AC-011 | `uv run python tools/check_adr_invariant_matrix.py`, `uv run python tools/check_adr_preservation.py` | Planned |
 | REQ-012 | Baseline suite run (12810 passed, 7 skipped) | `tests/agent/_config_test_defaults.py` | 1, 3 | AC-012 | `uv run pytest tests/agent -q` | Planned |
 | REQ-012 | `rules/toolchain.md` gate sequence | `config/agent.toml` | 6 | AC-012 | `uv run python tools/run_validation_gates.py --full` | Planned |
+| REQ-009 | Amendment 2026-11-18: DT-05 Option A adds automated evidence for INV-03 and changes its matrix row from Manual Review to a test gate; the gate test belongs in the suite that already cites ADR-014, which was not in the frozen table | tests/agent/test_orchestrator.py | 5 | AC-009 | tests/agent/test_orchestrator.py | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-233456 -->
