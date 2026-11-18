@@ -10,13 +10,23 @@ The RAG consistency check, ADR-004, ADR-005, ADR-009, and the archived RAG issue
 Filed from the consolidated ADR review task list `memo-issue.md` (package `ADRCHK2-H06`; merged from ADRCHK-H07, M30, M34, L02, L05 (review findings H5, N8, N22, N42, N49, N50)). The review's claims carry the evidence label `Documentation only` unless this issue marks them otherwise; the implementer MUST re-verify each claim against current source before changing anything.
 
 ## Problem
-Claims come from the review (`Documentation only`) except where marked.
+Re-verified on 2026-11-18 against current source and docs (adversarial pass; labels follow `skills/DESIGN.md` Evidence labels). Archived files under `issues/done/` were not read, so claims about them stay `Needs confirmation`.
+- Confirmed (`Explicit in code`): `scripts/agent/startup_validation.py` adds a warning and lets startup continue for a RAG consistency timeout, for any other exception, and for DEGRADED findings; only FATAL findings abort. ADR-004 Decision Group 2 forbids converting a safety/integrity failure into warning-only continuation, and its `## Exceptions` lists no RAG case.
+- Corrected: the startup comment says the unverified state "is fail-closed downstream"; no module consumes the `rag_consistency` outcome except the startup reporter's counts, so the claim has no code support.
+- Confirmed: ADR-005 `Fail-Open or Degraded Conditions` says the post-ingestion check only logs warnings, and its Degraded condition is `fts_gap > 0` or `orphan_vec_count > 0`.
+- Corrected: ADR-009 lists `fts_gap > 0` as its Degraded condition, not None. It still words the skip of a file whose normalization fails and the Failure Policy correctly.
+- Confirmed: ADR-009 `Transaction Boundary` says per chunk, while `TransactionManager.commit` in `scripts/rag/ingestion/transaction_commit.py` commits one `BEGIN IMMEDIATE` transaction per URL and ADR-005 says per document.
+- Confirmed with a policy constraint: ADR-009 lists INV-01 to INV-08 as invariants, INV-10 and INV-11 appear only in `## Implementation Notes`, and a Manual Review line cites INV-11. INV-09 was folded into INV-04 (a pending amendment of the approval ledger). The Current-Specification-Only policy forbids a history note, so "explain INV-09" means stating the current numbering.
+- Corrected: three findings, not two, carry `[CRITICAL]` with DEGRADED severity: FTS orphan, orphan vec rows, and chunks without vector rows; every FATAL finding is `[CRITICAL]` and every other DEGRADED finding is `[WARNING]`.
+- Confirmed and widened: orphan vec rows, vector mismatch, and chunks without vector rows set `repair_action=rebuild_vec` while the message says to run `ingester.py --force`; documents without chunks also uses `rebuild_vec`; URL-level inconsistency sets `reconcile_url` while the message says to re-run ingestion. Since the repair persistence fix, `rebuild_vec` only removes orphan vector rows and `reconcile_url` only inserts missing FTS entries, so they fit the orphan-vector finding only.
+- Confirmed: `scripts/rag/corpus_identity.py` does not exist and no `scripts/` or `tests/` file references `corpus_identity`; `governance_05` records the removal. CSC-001 itself concerns ADR-010's surviving present-tense wording, and its Validation evidence still cites `rmcompat003` as an open `issues/` path.
+- Closed dependencies: the RAG repair persistence issue (code merged, `rebuild_vec` contract is orphan removal) and the ADR approval governance issue (ledger and pending-amendment form defined).
 
 ## Reason for Change
-- The policy is contradicted: ADR-004 forbids continuing on a data-integrity failure with a warning only, yet startup continues with a warning on a timeout, an exception, or DEGRADED findings. ADR-005 only logs consistency mismatches. ADR-009 skips files that fail normalization but lists the Degraded condition as None. No ADR-004 Exception covers this.
+- The policy is contradicted: ADR-004 forbids continuing on a data-integrity failure with a warning only, yet startup continues with a warning on a timeout, an exception, or DEGRADED findings. ADR-005 only logs consistency mismatches. ADR-009 skips files that fail normalization and lists `fts_gap > 0` as its Degraded condition. No ADR-004 Exception covers this.
 - The earlier issue files point in opposite directions: `rmcompat001` asks to document warn and continue, while `adrrev013` asks to choose between aborting and registering an exception. Both now live in `issues/done/`, so their stale text still misleads readers (`Explicit in code`: the files are under `issues/done/`).
 - Stale text: `adrrev013` lists a closed issue as a dependency and rests on a refuted premise; `rmcompat001` targets a warning that is gone from the code; `rmcompat003` says removing corpus identity is not done, but `scripts/rag/corpus_identity.py` no longer exists (`Explicit in code`) and the RAG maintenance service no longer imports it. CSC-001 stays open because of this text.
-- Findings contradict their own fields: orphan vector and vector mismatch findings set `repair_action=rebuild_vec` but tell users to run `ingester --force`; two `[CRITICAL]` messages have DEGRADED severity; "documents without chunks" uses `rebuild_vec`, which cannot fix that state.
+- Findings contradict their own fields: orphan vector, vector mismatch, and chunks-without-vector findings set `repair_action=rebuild_vec` but tell users to run `ingester --force`; three `[CRITICAL]` messages have DEGRADED severity; "documents without chunks" uses `rebuild_vec`, which cannot fix that state; URL-level inconsistency uses `reconcile_url` but tells users to re-run ingestion.
 - ADR wording is inconsistent: ADR-005 sets the transaction boundary per document and ADR-009 per chunk; ADR-009 skips INV-09 without saying why.
 
 ## Implementation Intent
@@ -76,7 +86,9 @@ Yes. ADR-004, ADR-005, ADR-009, the RAG consistency guide, and governance_03 (CS
 
 ## Unresolved Questions
 - The memo names the three issue files under `issues/`, but they exist only under `issues/done/`. Whether to edit archived files or file corrections elsewhere is `不明`.
-- To close CSC-001, confirm the removal of corpus identity and read `docs/21_rag/rag_05_07-rag-index-consistency-checks.md`.
+- To close CSC-001, ADR-010's surviving present-tense wording must be moved or removed; ADR-010 is not a Target File, so this is a scope amendment for the maintainer.
+- The policy for derived-index mismatches, the check timeout, and the check exception is the maintainer's decision; the plan prepares the option table and stops at that gate.
+- The claims about the three archived issue files are `Needs confirmation` until the maintainer decides whether an archived file may be read or edited.
 
 ## AI Implementation Instruction
 - Do not write the policy decision. Prepare a short option table for the maintainer and stop.
