@@ -417,7 +417,7 @@ entries:
   kind: class
   name: RepositoryGateway
   signature: class RepositoryGateway
-  summary: Single write enforcement boundary for all repository mutation operations.
+  summary: Agent-side enforcement boundary for all repository mutation operations.
 - file: scripts/agent/resource_shutdown_coordinator.py
   kind: class
   name: ResourceShutdownCoordinator
@@ -545,11 +545,6 @@ entries:
   summary: Write a structured tool_approval event to the audit log.
 - file: scripts/agent/tool_audit.py
   kind: function
-  name: log_approval_decision
-  signature: def log_approval_decision(ctx, outcome) -> None
-  summary: Write a structured approval_decision event to the audit log.
-- file: scripts/agent/tool_audit.py
-  kind: function
   name: audit_workflow_start
   signature: def audit_workflow_start(ctx, task_id, workflow_version, workflow_id,
     session_id) -> None
@@ -659,11 +654,6 @@ entries:
   name: ToolExecutionResult
   signature: class ToolExecutionResult
   summary: Result of executing one tool call.
-- file: scripts/agent/tool_models.py
-  kind: class
-  name: ApprovalOutcome
-  signature: class ApprovalOutcome
-  summary: Structured result of a single tool approval evaluation.
 - file: scripts/agent/tool_models.py
   kind: class
   name: GuardDecision

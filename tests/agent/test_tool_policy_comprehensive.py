@@ -10,9 +10,11 @@ from unittest.mock import patch
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
+from agent.tool_enums import RiskLevel
 from agent.tool_exceptions import PolicyViolationError
 from agent.tool_policy import (
     _STATIC_SIDE_EFFECT_TOOLS,
+    _TIER_TO_RISK,
     _escalate_for_github_branch,
     _escalate_for_path,
     _special_case_risk,
@@ -23,6 +25,20 @@ from agent.tool_policy import (
     classify_risk,
 )
 from shared.runtime_tool_registry import RuntimeTool, RuntimeToolRegistry
+
+from tests.agent._config_test_defaults import (
+    ALL_APPROVAL_RISK_RULES,
+    ALL_TOOL_SAFETY_TIERS,
+)
+
+# Config-derived set: registered tools whose shipped tier maps to RiskLevel.NONE
+# and that carry no approval_risk_rules entry — the tier-NONE population the
+# short-circuit in classify_risk() protects (Plan row 12).
+_TIER_NONE_UNRULED_TOOLS = sorted(
+    name
+    for name, tier in ALL_TOOL_SAFETY_TIERS.items()
+    if _TIER_TO_RISK.get(tier) is RiskLevel.NONE and name not in ALL_APPROVAL_RISK_RULES
+)
 
 
 def _cfg(**overrides: Any) -> AgentConfig:
@@ -723,3 +739,44 @@ class TestPathArgumentConstraintsComprehensive:
         )
         result = classify_risk(cfg, "shell_run", {"command": "cat /home/user/file.txt"})
         assert result == "none"
+
+
+class TestClassifyRiskConfigPosture:
+    """REQ-001/REQ-003 properties over the shipped approval tables in
+    tests/agent/_config_test_defaults.py (mirror of config/agent.toml): a future
+    config change surfaces as a test failure, not silent policy drift (Plan row
+    12)."""
+
+    @staticmethod
+    def _shipped_cfg() -> AgentConfig:
+        return _cfg(
+            tool_safety_tiers=ALL_TOOL_SAFETY_TIERS,
+            approval_risk_rules=ALL_APPROVAL_RISK_RULES,
+            approval_protected_paths=["/opt/", "/etc/"],
+            approval_resource_keys={
+                "path_keys": ["path", "repo_path"],
+                "branch_keys": ["branch"],
+            },
+        )
+
+    @pytest.mark.parametrize(("tool", "rule"), sorted(ALL_APPROVAL_RISK_RULES.items()))
+    def test_rule_value_wins_over_tier_value(self, tool: str, rule: str) -> None:
+        """Provenance: for every ruled tool the level comes from the
+        approval_risk_rules branch (Priority 1), not the tier branch — e.g.
+        github_create_branch (WRITE_SAFE tier → none) resolves to medium."""
+        cfg = self._shipped_cfg()
+        assert classify_risk(cfg, tool, {}) == rule
+
+    @pytest.mark.parametrize("tool", _TIER_NONE_UNRULED_TOOLS)
+    def test_tier_none_unruled_tool_never_escalates(self, tool: str) -> None:
+        """Provenance: the NONE short-circuit returns before _special_case_risk()
+        and _escalate_for_path() — a tier-NONE tool stays none even with a
+        protected-path argument."""
+        cfg = self._shipped_cfg()
+        with (
+            patch("agent.tool_policy._special_case_risk") as special,
+            patch("agent.tool_policy._escalate_for_path") as escalate,
+        ):
+            assert classify_risk(cfg, tool, {"path": "/opt/local/data"}) == "none"
+            special.assert_not_called()
+            escalate.assert_not_called()

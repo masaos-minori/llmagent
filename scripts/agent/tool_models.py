@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from agent.tool_enums import ApprovalDecisionType, GuardDecisionType, RiskLevel
+from agent.tool_enums import GuardDecisionType
 
 
 @dataclass(frozen=True)
@@ -39,25 +39,6 @@ class ToolExecutionResult:
     full_text: str
     is_error: bool
     llm_text: str
-
-
-@dataclass(frozen=True)
-class ApprovalOutcome:
-    """Structured result of a single tool approval evaluation."""
-
-    tool_name: str
-    risk_level: RiskLevel
-    decision: ApprovalDecisionType
-    escalation_reason: str = ""
-    preview: str = ""
-
-    @property
-    def approved(self) -> bool:
-        """True when the approval decision allows auto-execution."""
-        return self.decision in (
-            ApprovalDecisionType.AUTO,
-            ApprovalDecisionType.APPROVED,
-        )
 
 
 @dataclass(frozen=True)

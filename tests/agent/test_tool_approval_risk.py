@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.tool_policy import classify_risk as _classify_risk
@@ -22,6 +23,7 @@ from tests.agent._config_test_defaults import (
     GIT_RISK_FLOOR,
     PERMISSIVE_ALLOWED_ROOT,
     PERMISSIVE_SQLITE_VEC_SO,
+    SHIPPED_APPROVAL_PROTECTED_PATHS,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -213,6 +215,22 @@ class TestClassifyRisk:
         assert (
             _classify_risk(cfg, "edit_file", {"file_path": "/opt/llm/x.py"}) == "high"
         )
+
+    def test_shipped_medium_rules_win_over_write_safe_tier(self) -> None:
+        """REQ-003 pin (Plan row 15): these shipped tools carry a medium rule and
+        a WRITE_SAFE tier (tier alone maps to none); the resolved medium proves the
+        approval_risk_rules branch produced the level, not the tier branch."""
+        cfg = _make_cfg(approval_protected_paths=SHIPPED_APPROVAL_PROTECTED_PATHS)
+        for tool in ("github_create_branch", "github_create_issue"):
+            assert _classify_risk(cfg, tool, {}) == "medium"
+
+    @pytest.mark.parametrize("tool", ["git_add", "git_commit"])
+    def test_tier_none_git_tools_ignore_protected_path(self, tool: str) -> None:
+        """REQ-003 gap pin (Plan row 15): WRITE_SAFE tier maps to NONE and the
+        NONE short-circuit returns before _escalate_for_path(), so a protected
+        path argument cannot raise git_add/git_commit (measured: none)."""
+        cfg = _make_cfg(approval_protected_paths=SHIPPED_APPROVAL_PROTECTED_PATHS)
+        assert _classify_risk(cfg, tool, {"path": "/opt/llm/repo/file.txt"}) == "none"
 
 
 # ── _build_preview() ──────────────────────────────────────────────────────────

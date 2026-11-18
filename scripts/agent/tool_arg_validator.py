@@ -168,11 +168,22 @@ def _check_extra_fields(
 ) -> ValidationResult:
     """Check that no extra fields are present beyond what the schema defines.
 
-    When the schema has no 'properties' key, the extra field check is skipped
-    (lenient fallback — we cannot determine which fields are allowed).
+    Fail closed: when the schema has no 'properties', no field can be authorized,
+    so any argument is rejected (`RuntimeTool.allow_extra_fields` is the only
+    per-tool escape hatch, bypassing this check in validate_tool_arguments()).
+    A no-properties schema called with no arguments passes: there is nothing to
+    authorize.
     """
     properties = input_schema.get("properties")
     if not properties or not isinstance(properties, dict):
+        if args:
+            return ValidationResult(
+                success=False,
+                reason=(
+                    f"No properties in input schema for {tool_name}; cannot "
+                    f"validate extra fields, rejecting: {sorted(args.keys())}"
+                ),
+            )
         return ValidationResult(success=True)
 
     allowed_keys = set(properties.keys())

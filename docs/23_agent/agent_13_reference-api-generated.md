@@ -115,7 +115,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `AgentREPL` | `class AgentREPL` | Thin composition facade over extracted REPL concern classes. |
 |  | `main` | `def main() -> None` | Start the interactive REPL. |
 | `scripts/agent/repl_input_loop.py` | `ReplInputLoop` | `class ReplInputLoop` | Manages REPL input reading, dispatch, and exit conditions. |
-| `scripts/agent/repository_gateway.py` | `RepositoryGateway` | `class RepositoryGateway` | Single write enforcement boundary for all repository mutation operations. |
+| `scripts/agent/repository_gateway.py` | `RepositoryGateway` | `class RepositoryGateway` | Agent-side enforcement boundary for all repository mutation operations. |
 | `scripts/agent/resource_shutdown_coordinator.py` | `ResourceShutdownCoordinator` | `class ResourceShutdownCoordinator` | Coordinates resource shutdown across all subsystems. |
 | `scripts/agent/secrets_masker.py` | `detects_secrets` | `def detects_secrets(text) -> bool` | Return True when any SECRET_PATTERNS substitution would change the text. |
 | `scripts/agent/session.py` | `SchemaMissingError` | `class SchemaMissingError` | Raised when required SQLite schema tables are missing. |
@@ -140,7 +140,6 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `validate_tool_arguments` | `def validate_tool_arguments(tool_name, args, input_schema, allow_extra_fields) -> ValidationResult` | Validate tool call arguments against the MCP tool's input schema. |
 |  | `register_custom_validator` | `def register_custom_validator(tool_name) -> Callable[[CustomValidator], CustomValidator]` | Decorator that registers a custom validation hook for tool_name. |
 | `scripts/agent/tool_audit.py` | `audit_approval` | `def audit_approval(ctx, tool_name, risk, args, decision) -> None` | Write a structured tool_approval event to the audit log. |
-|  | `log_approval_decision` | `def log_approval_decision(ctx, outcome) -> None` | Write a structured approval_decision event to the audit log. |
 |  | `audit_workflow_start` | `def audit_workflow_start(ctx, task_id, workflow_version, workflow_id, session_id) -> None` | Write workflow_start event to audit log. |
 |  | `audit_stage_completed` | `def audit_stage_completed(ctx, task_id, stage_id, elapsed_ms, workflow_id, session_id) -> None` | Write stage_completed event to audit log. |
 |  | `audit_tool_exec` | `def audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type, artifact_uri, source, idempotency_key, task_linkage, dedup_state) -> None` | Write a tool_exec event with mcp_request_id to the audit log. |
@@ -162,7 +161,6 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/tool_models.py` | `ToolCallRequest` | `class ToolCallRequest` | Parsed, validated representation of a single LLM tool call. |
 |  | `ToolMeta` | `class ToolMeta` | Scheduling metadata for a single tool. |
 |  | `ToolExecutionResult` | `class ToolExecutionResult` | Result of executing one tool call. |
-|  | `ApprovalOutcome` | `class ApprovalOutcome` | Structured result of a single tool approval evaluation. |
 |  | `GuardDecision` | `class GuardDecision` | Result of a tool-loop guard check. |
 | `scripts/agent/tool_output.py` | `emit_tool_call` | `def emit_tool_call(name, args_json, output) -> None` | Write a tool invocation line. |
 |  | `emit_tool_result` | `def emit_tool_result(name, display, output) -> None` | Write a tool result summary line. |

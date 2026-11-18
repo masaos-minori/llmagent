@@ -413,10 +413,13 @@ def _special_case_risk(
 def is_plan_mode_blocked(cfg: AgentConfig, tool_name: str) -> bool:
     """Return True when plan mode must reject the tool call.
 
-    Plan mode permits read-only tools only: a tool is blocked unless its
-    tool_safety_tiers entry is READ_ONLY, so a tool without a tier (including
-    an unknown tool name) fails closed. cfg.tool.plan_blocked_tools names
-    additional tools that are blocked regardless of their tier.
+    Plan mode permits read-only tools only: the tool_safety_tiers rule is the
+    authority — a tool is blocked unless its tier is READ_ONLY, so a tool without
+    a tier entry (including an unknown tool name) fails closed.
+    cfg.tool.plan_blocked_tools is an explicit operational extension naming
+    tools blocked regardless of their tier; under the shipped tiers every entry
+    is already blocked by the tier rule (redundant-by-design).
+    Canonical policy: docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md
     """
     if tool_name in cfg.tool.plan_blocked_tools:
         return True
@@ -431,7 +434,18 @@ def classify_risk(
 ) -> RiskLevel:
     """Return the risk level for a tool call.
 
-    Order: explicit rule → tier fallback → special-case → escalation overrides.
+    Lookup order: approval_risk_rules → tool_safety_tiers →
+    scripts/shared/tool_constants.py default → MEDIUM fallback. A base of
+    RiskLevel.NONE returns before _special_case_risk(), _escalate_for_path(), and
+    _escalate_for_github_branch(), so a tier-NONE tool (index_paths, refresh_index,
+    git_add, git_commit, every READ_ONLY tool) is never escalated by
+    approval_protected_paths. A ruled path-bearing tool whose path is protected
+    (write_file, edit_file, move_file under the shipped approval_protected_paths)
+    escalates to HIGH; check_allowed_root() rejects jail-external paths first, and
+    an empty approval_github_allowed_repos denies all GitHub writes
+    (check_allowed_repo()).
+    Canonical policy: docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md
+
     The registry parameter is threaded through to Priority 3 (operation type
     classification) so UNKNOWN/READ decisions use RuntimeToolRegistry instead
     of the static ToolRegistry.

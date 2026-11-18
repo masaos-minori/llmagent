@@ -33,7 +33,7 @@ Accepted
 
 The authority that determines the target MCP server from a Tool name is consolidated into `RuntimeToolRegistry`, preventing duplicated routing through static definitions, configuration, and Discovery results. At startup, Tool definitions obtained from each MCP server are normalized and registered as `RuntimeTool`, and `ToolRouteResolver` references only `RuntimeToolRegistry`. The static `ToolRegistry`, Tool name lists in configuration, and Tool definitions in the LLM Prompt are not used for runtime Routing.
 
-`RuntimeToolRegistry` is also the sole authority for LLM visibility, static availability, Dynamic Health, approval state, and execution eligibility, which are distinct concepts and are not merged into a single "enabled/disabled" flag.
+`RuntimeToolRegistry` is also the sole authority for LLM visibility, static availability, Dynamic Health, approval state, and execution eligibility, which are distinct concepts and are not merged into a single "enabled/disabled" flag. In configuration terms: an `approval_risk_rules` entry decides the approval risk of a tool, while its `tool_safety_tiers` entry decides execution eligibility (plan-mode blocking and the tier-vs-write classification); a tool may legitimately carry both keys, and the rule does not feed escalation and the tier does not feed the approval level.
 
 ## Context
 
@@ -45,14 +45,14 @@ When routing from a Tool name to an MCP server happens through multiple paths, o
 - If the `tool_names` list in a configuration file acts as a routing input, mismatches between configuration and Discovery results cause unexpected routing
 - Routing an unregistered Tool by inferring from naming conventions allows Security Controls to be bypassed
 - When multiple MCP servers expose the same Tool name, it becomes unclear which one to route to
-- Tool definition existence, Discovery, LLM visibility, Routing ownership, static configuration-derived availability, dynamic server health, approval state, and execution eligibility are distinct concepts; when they are implicitly merged into a single "enabled/disabled" flag, code references the wrong concept, or documentation describes processing stages as filtering when they actually do not
+- Tool definition existence, Discovery, LLM visibility, Routing ownership, static configuration-derived availability, dynamic server health, approval state, and execution eligibility are distinct concepts; when they are implicitly merged into a single "enabled/disabled" flag, code references the wrong concept, or documentation describes processing stages as filtering when they actually do not. The same separation applies to the config keys: `approval_risk_rules` feeds approval state, `tool_safety_tiers` feeds execution eligibility
 
 ### Constraints
 
 - Execution on a single host with multiple processes is assumed
 - In the deployment environment, Tool definitions must be obtained from each MCP server before startup
 - Security requirement: execution of unregistered Tools must be rejected
-- Data integrity: Safety Tier and Write attributes must reference the same values in Routing, approval, and auditing
+- Data integrity: Safety Tier and Write attributes must reference the same values in Routing, approval, and auditing. Argument validation on the registered schema also fails closed: a tool schema that defines no `properties` (or an empty `properties`) rejects any non-empty argument set (`agent/tool_arg_validator.py`); `allow_extra_fields` on the `RuntimeTool` is the only per-tool escape hatch
 - Operational requirement: Discovery results are obtained once at startup and are not re-obtained until the Agent process restarts
 - External dependencies: the `/v1/tools` endpoint of each MCP server
 

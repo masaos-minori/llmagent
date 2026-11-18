@@ -85,6 +85,12 @@ def _check_unknown_tool_safety_tiers(
     return [f"'{k}' not a registered tool name" for k in unknown]
 
 
+# Approval-risk posture (DT-01 Option A, approved 2026-11-18): approval_risk_rules
+# is authoritative — a rule entry overrides the tool's tier here exactly as it does
+# in classify_risk(), and tier entries for rule-eligible tools are intentional
+# defense-in-depth for plan-mode blocking and the ADR-003 tier-vs-write
+# classification. No rule/tier redundancy guard exists by decision; if one is ever
+# decided it belongs in this module, not in classify_risk().
 def _check_approval_risk_floor(
     approval_risk_rules: Mapping[str, object],
     tool_safety_tiers: Mapping[str, object],

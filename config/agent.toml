@@ -68,6 +68,8 @@ tool_dedup_max_repeats = 3
 tool_cycle_detect_window = 2
 tool_error_max_consecutive = 3
 tool_error_retry_max = 1
+# git and mdq are intentionally unlisted: keys absent from this map fall back
+# to DEFAULT_PER_SERVER_CONCURRENCY = 8 (shared/tool_transport_invoker.py).
 tool_concurrency_limits = {file_read = 4, file_write = 1, file_delete = 1, shell = 2, web_search = 2, github = 3, rag_pipeline = 4, cicd = 2}
 tool_result_max_llm_chars = 8000
 tool_results_turn_max_chars = 50000
@@ -106,6 +108,9 @@ otel_service_name = "llm-agent"
 # ── Security ──────────────────────────────────────────────────────────────────
 
 masked_fields = ["content", "old_text", "new_text"]
+# Explicit extension of the plan-mode block: the tool_safety_tiers rule is the
+# authority (only READ_ONLY tools pass); this list adds tools blocked regardless
+# of tier, redundant under the current tiers by design (DT-03 Option A).
 plan_blocked_tools = [
   "write_file",
   "create_directory",
@@ -113,6 +118,9 @@ plan_blocked_tools = [
   "delete_directory",
   "shell_run",
 ]
+# Protected paths escalate every ruled path-bearing tool to HIGH when the path
+# is inside allowed_root; a path outside allowed_root is already denied by the
+# path jail before this rule applies (DT-06 Option A).
 approval_protected_paths = [
   "/opt/",
   "/etc/",
@@ -226,6 +234,8 @@ approval_dry_run_tools = [
   "shell_run",
 ]
 allowed_root = "/opt/llm"
+# Empty list denies ALL GitHub writes by design (deny-all default; pinned by
+# tests/agent/test_tool_approval_repos.py).
 approval_github_allowed_repos = []
 
 # ── System prompts ────────────────────────────────────────────────────────────
@@ -249,6 +259,9 @@ default  = "あなたは有能なエンジニアアシスタントです。必�
 strict   = "あなたは厳格なエンジニアアシスタントです。事実のみを回答し、不確かな情報は「不明」と答えてください。ツールを積極的に使用して情報を確認してください。"
 creative = "あなたは創造的なエンジニアアシスタントです。複数のアプローチや代替案を提案し、自由な発想で問題解決を支援してください。"
 
+# approval_risk_rules is authoritative for approval risk: rules are consulted
+# first, and a tool's tool_safety_tiers value is only consulted when no rule
+# matches it.
 [approval_risk_rules]
 write_file = "medium"
 edit_file = "medium"
@@ -284,6 +297,9 @@ branch_keys = [
   "head",
 ]
 
+# Tier entries for approval-rule-eligible tools exist for plan-mode blocking and
+# the ADR-003 tier-vs-write classification, not for approval-risk escalation
+# (defense-in-depth; DT-01 Option A).
 [tool_safety_tiers]
 read_text_file           = "READ_ONLY"
 list_directory           = "READ_ONLY"

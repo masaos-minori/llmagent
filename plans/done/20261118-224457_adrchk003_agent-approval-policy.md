@@ -618,55 +618,55 @@ Each step cites rows of `Implementation Target Files`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: reachability report and characterization baseline | In Progress | — | — | Verification findings are recorded in this Plan; the report artifacts are Phase 1 work Procedure documents generated 2026-11-18 (rows 01/11/12/14/15/21/25) |
-| 2 | Phase 2: behavior-neutral corrections | In Progress | — | — | Not decision-gated Procedure documents generated 2026-11-18 (rows 03/08/23/24) |
-| 3 | Phase 3: approved policy applied | In Progress | — | — | Not started: DT-01, DT-02, DT-03 and DT-06 approval records must exist before this step starts Decision records 2026-11-18: DT-01, DT-02, DT-03, DT-06 approved as Option A; gate satisfied Procedure documents generated 2026-11-18 (rows 01/02/08/09/13-companion-of-02/20) |
-| 4 | Phase 4: approval-event path resolution | In Progress | — | — | Not started: DT-04 approval record must exist before this step starts Decision record 2026-11-18: DT-04 approved as Option A; gate satisfied Procedure documents generated 2026-11-18 (rows 04/05/06/17/18/19-companion-of-04/22) |
-| 5 | Phase 5: boundary documentation and ADR records | In Progress | — | — | Not started: DT-05 approval record must exist before this step starts Decision record 2026-11-18: DT-05 approved as Option A; gate satisfied Procedure documents generated 2026-11-18 (rows 07/24/26/27/28/29/30/32/36) |
-| 6 | Phase 6: regeneration and verification | In Progress | — | — | Must run in the same commits as Phases 4 and 5 Procedure documents generated 2026-11-18 (rows 31/33/34/35) |
+| 1 | Phase 1: reachability report and characterization baseline | Completed | — | 20261119-084320 | Verification findings are recorded in this Plan; the report artifacts are Phase 1 work Procedure documents generated 2026-11-18 (rows 01/11/12/14/15/21/25) procedures rows 01/11/12/14/15/21/25 archived; reachability tables recorded in mcp_05_03 and agent_06_02; provenance and tier-NONE gap tests pass against unmodified code |
+| 2 | Phase 2: behavior-neutral corrections | Completed | — | 20261119-084320 | Not decision-gated Procedure documents generated 2026-11-18 (rows 03/08/23/24) procedures rows 03/08/23/24 archived |
+| 3 | Phase 3: approved policy applied | Completed | — | 20261119-084320 | Not started: DT-01, DT-02, DT-03 and DT-06 approval records must exist before this step starts Decision records 2026-11-18: DT-01, DT-02, DT-03, DT-06 approved as Option A; gate satisfied Procedure documents generated 2026-11-18 (rows 01/02/08/09/13-companion-of-02/20) procedures rows 01/02/08/09/20 archived; DT-01/DT-02/DT-03/DT-06 Option A applied; companion tests of row 02 archived |
+| 4 | Phase 4: approval-event path resolution | Completed | — | 20261119-084320 | Not started: DT-04 approval record must exist before this step starts Decision record 2026-11-18: DT-04 approved as Option A; gate satisfied Procedure documents generated 2026-11-18 (rows 04/05/06/17/18/19-companion-of-04/22) procedures rows 04/05/06/17/18/22 archived in release unit approval-event-cleanup; companion tests/tools/test_check_compat_shims.py updated with row 04 |
+| 5 | Phase 5: boundary documentation and ADR records | Completed | — | 20261119-084320 | Not started: DT-05 approval record must exist before this step starts Decision record 2026-11-18: DT-05 approved as Option A; gate satisfied Procedure documents generated 2026-11-18 (rows 07/24/26/27/28/29/30/32/36) procedures rows 07/24/26/27/28/29/30/32/36 archived in release unit boundary-and-adr-record; ADR-014 INV-03 automated gate TestNoServerSideSafetyReimplementation added |
+| 6 | Phase 6: regeneration and verification | Completed | — | 20261119-084320 | Must run in the same commits as Phases 4 and 5 Procedure documents generated 2026-11-18 (rows 31/33/34/35) regeneration rows 31/33/34/35 archived no-hand-edit; Phase 6 checkers pass; deploy check pass - changed config files already copied by deploy.sh and no new config toml introduced (documentation_canonical_sources.toml is tools-only and intentionally not deployed); run_validation_gates --full pass 12895 passed vs 12810 baseline, diff-cover fail-under 90 pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 3 | DT-01, DT-02, DT-03, DT-06 require maintainer approval records before any approval-behavior change | No | — |
-| 4 | DT-04 requires a maintainer decision on the orphan approval-event cluster and confirmation that no external consumer depends on `approval_decision` | No | — |
-| 5 | DT-05 requires an ADR decision on whether ADR-014 INV-03 needs an automated gate and how the gateway docstrings should name the guarded process | No | — |
+| 3 | DT-01, DT-02, DT-03, DT-06 require maintainer approval records before any approval-behavior change | Yes | 2026-11-18 |
+| 4 | DT-04 requires a maintainer decision on the orphan approval-event cluster and confirmation that no external consumer depends on `approval_decision` | Yes | 2026-11-18 |
+| 5 | DT-05 requires an ADR decision on whether ADR-014 INV-03 needs an automated gate and how the gateway docstrings should name the guarded process | Yes | 2026-11-18 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261118-233456_01_scripts_agent_tool_policy.py.md` | 1, 3 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_02_scripts_agent_tool_arg_validator.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_03_scripts_agent_tool_approval.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_04_scripts_agent_tool_audit.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_05_scripts_agent_shared_models.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_06_scripts_agent_tool_models.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_07_scripts_agent_repository_gateway.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_08_config_agent.toml.md` | 2, 3 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_09_scripts_agent_production_config_validator.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_11_tests_agent_test_tool_policy.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_12_tests_agent_test_tool_policy_comprehensive.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_14_tests_agent_test_tool_approval_paths.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_15_tests_agent_test_tool_approval_risk.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_17_tests_agent_test_tool_approval_preflight.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_18_tests_agent_test_tool_audit.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_20_tests_agent__config_test_defaults.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_21_docs_23_agent_agent_06_02_tool-execution-and-approval-approval.md.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_22_docs_23_agent_agent_06_04_tool-execution-and-approval-canonical.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_23_docs_23_agent_agent_06_03_tool-execution-and-approval-concurrency-safety.md.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_24_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md` | 2, 5 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_25_docs_22_mcp_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_26_docs_91_security_security_02_high-risk-tool-common-policy.md.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_27_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_28_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_29_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_30_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_31_docs_10_adr_adr_01_index.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_32_config_documentation_canonical_sources.toml.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_33_docs_23_agent_agent_13_reference-api-generated.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_34_registry_manifests_agent_api.yaml.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_35_registry_manifests_invariant_coverage.yaml.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261118-233456_36_tests_agent_test_orchestrator.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261118-233456_01_scripts_agent_tool_policy.py.md` | 1, 3 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_02_scripts_agent_tool_arg_validator.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_03_scripts_agent_tool_approval.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_04_scripts_agent_tool_audit.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_05_scripts_agent_shared_models.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_06_scripts_agent_tool_models.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_07_scripts_agent_repository_gateway.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_08_config_agent.toml.md` | 2, 3 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_09_scripts_agent_production_config_validator.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_11_tests_agent_test_tool_policy.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_12_tests_agent_test_tool_policy_comprehensive.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_14_tests_agent_test_tool_approval_paths.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_15_tests_agent_test_tool_approval_risk.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_17_tests_agent_test_tool_approval_preflight.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_18_tests_agent_test_tool_audit.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_20_tests_agent__config_test_defaults.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_21_docs_23_agent_agent_06_02_tool-execution-and-approval-approval.md.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_22_docs_23_agent_agent_06_04_tool-execution-and-approval-canonical.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_23_docs_23_agent_agent_06_03_tool-execution-and-approval-concurrency-safety.md.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_24_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md` | 2, 5 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_25_docs_22_mcp_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_26_docs_91_security_security_02_high-risk-tool-common-policy.md.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_27_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_28_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_29_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_30_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_31_docs_10_adr_adr_01_index.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_32_config_documentation_canonical_sources.toml.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_33_docs_23_agent_agent_13_reference-api-generated.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_34_registry_manifests_agent_api.yaml.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_35_registry_manifests_invariant_coverage.yaml.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261118-233456_36_tests_agent_test_orchestrator.py.md` | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

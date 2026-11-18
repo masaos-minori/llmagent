@@ -138,5 +138,8 @@ class TestRealMatrixRegression:
         # ADR-014 INV-02 gained its second counting-test citation.
         # 51 after 2026-11-12: the ADR-004 INV-14 row cites the registry loader's
         # unknown-component test and the unmocked startup-abort tests.
+        # 52 after 2026-11-19: the ADR-014 INV-03 row became an automated gate citing
+        # tests/agent/test_orchestrator.py::TestNoServerSideSafetyReimplementation (ADR-014
+        # Manual Review -> Unit Test, adrchk003 row 31).
         lines = helper.ADR_INDEX.read_text(encoding="utf-8").splitlines()
-        assert len(helper.extract_cited_node_ids(lines)) == 51
+        assert len(helper.extract_cited_node_ids(lines)) == 52

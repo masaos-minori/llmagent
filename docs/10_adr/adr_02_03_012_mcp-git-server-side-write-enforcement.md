@@ -40,7 +40,7 @@ Approval and technical safety are different concerns: Agent-side approval confir
 ### Constraints
 
 - Git MCP wraps local `git` operations via GitPython; it does not shell out through a shell interpreter (no shell-injection vector), but GitPython still passes argument strings to `git`'s own CLI option parser.
-- Approval is enforced client-side in the Agent process (`agent/tool_policy.py`, `tool_approval.py`); the Git MCP HTTP endpoint itself has no dependency on Agent-side approval state and accepts calls authenticated by the Bearer token required by ADR-007 INV-09.
+- Approval is enforced client-side in the Agent process (`agent/tool_policy.py`, `tool_approval.py`, and the `RepositoryGateway` write path in `agent/repository_gateway.py` — which guards the Agent-side write path only and does not take over the Git MCP server's technical safety judgments, ADR-014 INV-03); the Git MCP HTTP endpoint itself has no dependency on Agent-side approval state and accepts calls authenticated by the Bearer token required by ADR-007 INV-09.
 
 ## Assumptions
 

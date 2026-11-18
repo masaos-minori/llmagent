@@ -27,21 +27,6 @@ class ToolApprovalEvent:
 
 
 @dataclass(frozen=True)
-class ApprovalDecisionEvent:
-    """Structured audit event for approval_decision log entries."""
-
-    event: Literal["approval_decision"]
-    task_id: str
-    tool: str
-    risk_level: str
-    decision: str
-    escalation_reason: str
-    ts: float
-    workflow_id: str = ""
-    session_id: str = ""
-
-
-@dataclass(frozen=True)
 class ToolExecEvent:
     """Structured audit event for tool_exec log entries."""
 

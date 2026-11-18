@@ -129,6 +129,15 @@ The following table summarizes the approval-to-tier mapping defined in `mcp_05_0
 
 *Source: `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Risk Tier Classification*
 
+## Control split: Agent-side and server-side
+
+High-risk tool protection is split across two processes and the two sides must not duplicate each other's checks (ADR-014 INV-03; ADR-012 INV-04):
+
+- **Agent-side (Orchestrator process)**: risk classification and the approval gate (`agent/tool_policy.py`, `agent/tool_approval.py`), the `allowed_root` path jail, and the Agent-side allowlists (`approval_github_allowed_repos`, `command_allowlist`, `allowed_repo_paths`).
+- **Server-side (MCP process)**: the Git MCP's own enforcement — branch/remote refspec pattern rejection, protected-branch rejection, and no forced update through the normal tool path (`git-mcp-server`, ADR-012 INV-01/INV-02/INV-03).
+
+The Git MCP endpoint does not consult Agent-side approval state: the two checks are independent, and a call that passes the Agent's approval gate is still subject to the server's own validation.
+
 ## Audit fields
 
 All high-risk tool executions emit audit log entries with the following fields:

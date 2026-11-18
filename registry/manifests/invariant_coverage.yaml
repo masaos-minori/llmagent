@@ -265,13 +265,14 @@ entries:
   status: Confirmed
   timing: CI
 - adr: ADR-014
-  cadence: every change to Orchestrator or ToolExecutor.
-  expected_evidence: the code-review record showing no server-side safety check duplicated
-    in Agent-side layers.
-  gate: Manual Review
+  cited:
+  - tests/agent/test_mcp_health_posture.py
+  - tests/agent/test_orchestrator.py::TestNoServerSideSafetyReimplementation
+  - tests/shared/test_runtime_tool_registry.py
+  gate: Unit Test
   invariant: INV-03
-  status: Manual
-  timing: Code Review
+  status: Confirmed
+  timing: CI
 - adr: ADR-015
   cited:
   - tests/tools/test_generate_reference_table.py::TestCheckDrift::test_live_docs_have_no_drift

@@ -138,7 +138,8 @@ The mandatoriness and uniqueness of the Workflow Engine defined by ADR-001 are a
 | Test | Verifies | Type | Blocking | Implementation |
 | --- | --- | --- | --- | --- |
 | A regression test that `LlmTurnExecutor` is constructed exactly once by the `Orchestrator` and no component holds an unused or duplicate instance | INV-02 | Unit | No | `tests/agent/test_orchestrator.py` |
-| Agent-side posture contract validation; a server whose posture is not accepted has no `RuntimeToolRegistry` entry (ADR-003 Decision Detail #16), and its `FAILED` posture aborts startup (ADR-004); contract gate only; the INV-03 duplication rule itself stays review-verified | INV-03 | Unit | No | `tests/agent/test_mcp_health_posture.py`, `tests/shared/test_runtime_tool_registry.py` |
+| Agent-side posture contract validation; a server whose posture is not accepted has no `RuntimeToolRegistry` entry (ADR-003 Decision Detail #16), and its `FAILED` posture aborts startup (ADR-004); contract gate only; the INV-03 duplication rule itself is gated by the source-boundary test below | INV-03 | Unit | No | `tests/agent/test_mcp_health_posture.py`, `tests/shared/test_runtime_tool_registry.py` |
+| `TestNoServerSideSafetyReimplementation` source scan: the Orchestrator/ToolExecutor-layer modules contain no import of `mcp_servers.tool_validators` and no re-definition of server-owned path-validation/sandboxing/allowlist helpers, and keep delegating to `check_allowed_root()` / `check_allowed_repo()` / `RepositoryGateway` | INV-03 | Unit | No | `tests/agent/test_orchestrator.py` (`TestNoServerSideSafetyReimplementation`) |
 
 ### Startup Validation
 
@@ -158,9 +159,9 @@ Not applicable.
 ### Manual Review
 
 - When adding a new component, or during code review of a change that alters the scope of responsibility of the Orchestrator/LlmTurnExecutor/ToolExecutor/MCP Server, confirm consistency with this ADR's responsibility boundaries
-- When new Agent-side code inspects MCP server configuration or re-implements a server-side safety decision, review it against INV-03
+- When new Agent-side code inspects MCP server configuration or re-implements a server-side safety decision, review it against INV-03; the known re-implementation surface is already gated automatically by `TestNoServerSideSafetyReimplementation` (`tests/agent/test_orchestrator.py`)
 
-INV-01 and INV-03 have no automated tests and depend only on code review (Manual Review).
+INV-01 has no automated test and depends only on code review (Manual Review). INV-03 is gated by `TestNoServerSideSafetyReimplementation` (`tests/agent/test_orchestrator.py`, source-boundary scan) and additionally reviewed when new Agent-side code touches server-side safety decisions.
 
 ## Implementation Notes
 

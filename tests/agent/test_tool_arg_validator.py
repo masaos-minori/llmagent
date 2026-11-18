@@ -169,7 +169,7 @@ class TestValidateToolArgumentsExtraFields:
         assert "a" in result.reason
         assert "b" in result.reason
 
-    def test_properties_absent_allows_extra(self) -> None:
+    def test_properties_absent_rejects_extra(self) -> None:
         schema = {
             "type": "object",
             "required": ["path"],
@@ -178,6 +178,21 @@ class TestValidateToolArgumentsExtraFields:
             "read_file",
             {"path": "/tmp/f", "extra": "field"},
             schema,
+        )
+        assert result.success is False
+        assert "read_file" in result.reason
+        assert "properties" in result.reason
+
+    def test_properties_absent_escape_hatch_allows_extra(self) -> None:
+        schema = {
+            "type": "object",
+            "required": ["path"],
+        }
+        result = validate_tool_arguments(
+            "read_file",
+            {"path": "/tmp/f", "extra": "allowed"},
+            schema,
+            allow_extra_fields=True,
         )
         assert result.success is True
 

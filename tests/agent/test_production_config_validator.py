@@ -201,6 +201,23 @@ class TestProductionConfigValidatorApprovalRiskFloor:
             for err in result.errors
         )
 
+    def test_rule_takes_precedence_over_tier(self) -> None:
+        """DT-01 Option A characterization: the rule is authoritative — a git tool
+        ruled high passes the floor check even with a sub-HIGH tier entry, exactly
+        as classify_risk() resolves it."""
+        config = {
+            "approval_risk_rules": {
+                "git_checkout": "high",
+                "git_pull": "high",
+                "git_push": "high",
+            },
+            "tool_safety_tiers": {tool: "WRITE_DANGEROUS" for tool in self.GIT_TOOLS},
+        }
+        result = ProductionConfigValidator().validate(
+            config, known_tools=self.GIT_TOOLS
+        )
+        assert not any("Effective risk below HIGH" in err for err in result.errors)
+
 
 class TestProductionConfigValidatorValidateUnknownToolSafetyTiers:
     """Tests for standalone validate_unknown_tool_safety_tiers method."""

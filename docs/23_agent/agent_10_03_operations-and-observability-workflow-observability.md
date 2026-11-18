@@ -44,7 +44,7 @@ These three layers support three use cases: real-time execution monitoring, post
 ## Key Constraints
 
 - Workflow execution is mandatory; the workflow engine issues additional observability events beyond `turn_start`/`turn_end`.
-- Calling the `tool_approval` / `approval_decision` / `tool_exec` writing functions outside a
+- Calling the `tool_approval` / `tool_exec` writing functions outside a
   workflow context (empty `workflow_id`) writes no event and logs one warning naming the writer and
   the tool; the silent return for a missing `audit_logger` and `audit_tool_exec`'s empty
   `mcp_request_id` / `source` early return keep their precedence ahead of this check.

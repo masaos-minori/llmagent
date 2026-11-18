@@ -1,6 +1,12 @@
 """scripts/agent/repository_gateway.py
 
-Single enforcement boundary for all repository write/delete/API-write operations.
+Agent-side enforcement boundary for all repository write/delete/API-write operations.
+
+The MCP git server independently enforces its refspec, protected-branch, and
+forced-update rules regardless of Agent-side approval state (ADR-012 INV-04,
+docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md); this
+gateway guards the Agent-side write path only and does not take over the
+server's technical safety judgments (ADR-014 INV-03).
 
 Read-only tool calls are forwarded directly to ToolExecutor without checks.
 Write/delete/API-write tool calls are gated through:
@@ -44,11 +50,14 @@ def _denied_result(reason: str) -> ToolCallResult:
 
 
 class RepositoryGateway:
-    """Single write enforcement boundary for all repository mutation operations.
+    """Agent-side enforcement boundary for all repository mutation operations.
 
     Wraps ToolExecutor. Write/delete/API-write tool calls are gated through
     policy checks and audit logging. Read-only tool calls are forwarded
-    directly without additional checks.
+    directly without additional checks. The MCP git server behind the executor
+    enforces its own refspec, protected-branch, and forced-update rules
+    independently of Agent-side approval state (ADR-012 INV-04,
+    docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md).
 
     Precondition: this gateway does not itself prompt for interactive
     approval. Callers must route write/risky tool calls through

@@ -22,6 +22,7 @@ from tests.agent._config_test_defaults import (
     ALL_TOOL_SAFETY_TIERS,
     PERMISSIVE_ALLOWED_ROOT,
     PERMISSIVE_SQLITE_VEC_SO,
+    SHIPPED_APPROVAL_PROTECTED_PATHS,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -148,4 +149,85 @@ class TestCheckApprovalAllowedRoot:
 
         assert result is False
         logged = audit.info.call_args[0][0]
+        assert "denied_root_jail" in logged
+
+
+# ── Protected-path escalation (DT-06 Option A pin, Plan row 14) ──────────────
+
+
+class TestProtectedPathEscalation:
+    """Pin that a ruled path-bearing tool on a shipped protected path inside
+    allowed_root resolves to HIGH via the escalation branch, while a
+    protected path outside the jail is denied by the jail check first."""
+
+    IN_JAIL_PROTECTED_PATH = "/opt/llm/config/app.toml"
+
+    def _escalation_cfg(self) -> AgentConfig:
+        return _make_cfg(
+            allowed_root="/opt/llm",
+            approval_protected_paths=SHIPPED_APPROVAL_PROTECTED_PATHS,
+        )
+
+    @staticmethod
+    def _ctx_with_audit(ctx: MagicMock) -> MagicMock:
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: would write",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+        return ctx
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("tool", ["write_file", "edit_file", "move_file"])
+    async def test_in_jail_protected_path_resolves_high(self, tool: str) -> None:
+        ctx = self._ctx_with_audit(_make_ctx(cfg=self._escalation_cfg()))
+        # HIGH risk requires the full word "yes" (_prompt_user_approval).
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="yes")
+        ):
+            result = await check_approval(
+                ctx, tool, {"path": self.IN_JAIL_PROTECTED_PATH}
+            )
+        assert result is True
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
+        assert '"risk":"high"' in logged
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("tool", ["write_file", "edit_file", "move_file"])
+    async def test_same_path_without_protected_paths_stays_medium(
+        self, tool: str
+    ) -> None:
+        """Branch provenance: removing the protected paths from the same config
+        keeps the same call at the ruled medium level, proving the HIGH above
+        came from the escalation branch."""
+        cfg = _make_cfg(allowed_root="/opt/llm", approval_protected_paths=[])
+        ctx = self._ctx_with_audit(_make_ctx(cfg=cfg))
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+        ):
+            result = await check_approval(
+                ctx, tool, {"path": self.IN_JAIL_PROTECTED_PATH}
+            )
+        assert result is True
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
+        assert '"risk":"high"' not in logged
+        assert '"risk":"medium"' in logged
+
+    @pytest.mark.asyncio
+    async def test_protected_path_outside_jail_denied_by_jail(self) -> None:
+        """/etc/ is a shipped protected path but outside allowed_root: the jail
+        denies it before the escalation branch runs — the two mechanisms stay
+        distinguishable."""
+        ctx = self._ctx_with_audit(_make_ctx(cfg=self._escalation_cfg()))
+        read = AsyncMock(return_value="y")
+        with patch("agent.tool_approval._approval_read", new=read):
+            result = await check_approval(ctx, "write_file", {"path": "/etc/cron.d/x"})
+        assert result is False
+        read.assert_not_awaited()
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
         assert "denied_root_jail" in logged

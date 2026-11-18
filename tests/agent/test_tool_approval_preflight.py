@@ -3,7 +3,7 @@ tests/test_tool_approval_preflight.py
 Unit tests for check_approval() flows, audit logging, tool execution, and approval checks.
 
 Covers check_approval(), _audit_approval(), _audit_tool_exec(),
-execute_one_tool_call(), log_approval_decision(), and run_approval_checks().
+execute_one_tool_call(), and run_approval_checks().
 """
 
 from __future__ import annotations
@@ -17,10 +17,7 @@ from agent.config_dataclasses import AgentConfig, ToolConfig
 from agent.tool_approval import check_approval, run_approval_checks
 from agent.tool_audit import audit_approval as _audit_approval
 from agent.tool_audit import audit_tool_exec as _audit_tool_exec
-from agent.tool_audit import log_approval_decision
-from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_loop_guard import ToolLoopGuard
-from agent.tool_models import ApprovalOutcome
 from agent.tool_policy import (
     PolicyViolationError,
     check_preflight,
@@ -851,40 +848,6 @@ class TestExecuteOneToolCall:
         ctx.services_required.audit_logger.info.assert_called_once()
         logged = ctx.services_required.audit_logger.info.call_args[0][0]
         assert "req-999" in logged
-
-
-# ── log_approval_decision ─────────────────────────────────────────────────────
-
-
-class TestLogApprovalDecision:
-    def test_logs_structured_event(self) -> None:
-        ctx = _make_ctx()
-        ctx.services_required.audit_logger = MagicMock()
-        ctx.turn.current_turn_id = "turn-xyz"
-        outcome = ApprovalOutcome(
-            tool_name="write_file",
-            risk_level=RiskLevel.MEDIUM,
-            decision=ApprovalDecisionType.APPROVED,
-            escalation_reason="",
-        )
-        log_approval_decision(ctx, outcome)
-        ctx.services_required.audit_logger.info.assert_called_once()
-        logged = ctx.services_required.audit_logger.info.call_args[0][0]
-        assert "approval_decision" in logged
-        assert "write_file" in logged
-        assert "task_id" in logged
-        assert "turn-xyz" in logged
-        assert "ts" in logged
-
-    def test_no_op_when_audit_logger_none(self) -> None:
-        ctx = _make_ctx()
-        ctx.services_required.audit_logger = None
-        outcome = ApprovalOutcome(
-            tool_name="write_file",
-            risk_level=RiskLevel.MEDIUM,
-            decision=ApprovalDecisionType.APPROVED,
-        )
-        log_approval_decision(ctx, outcome)  # must not raise
 
 
 # ── run_approval_checks() ─────────────────────────────────────────────────────

@@ -21,8 +21,11 @@ from agent.tool_policy import (
     check_preflight,
     classify_operation_type,
     classify_risk,
+    is_plan_mode_blocked,
 )
 from shared.runtime_tool_registry import RuntimeTool, RuntimeToolRegistry
+
+from tests.agent._config_test_defaults import ALL_TOOL_SAFETY_TIERS
 
 # Every tool name this file passes to the policy functions; the _cfg default
 # allowlist must contain them so the deny-on-empty behavior (REQ-002) does not
@@ -1857,3 +1860,102 @@ class TestAuditResourceScopeExtraction:
         ctx = self._audit_ctx(cfg)
         scope = _extract_resource_scope(ctx, {"path": "/opt/llm/x", "branch": "main"})
         assert scope == {"path": "/opt/llm/x", "branch": "main"}
+
+
+class TestClassifyRiskBranchProvenance:
+    """AC-003 characterization: each test names the classify_risk() branch
+    (rule, tier, constants, escalation, NONE short-circuit) that produced the
+    asserted level (Plan row 11, REQ-003)."""
+
+    def test_rule_provenance_overrides_tier(self) -> None:
+        # Priority 1 (approval_risk_rules) wins over Priority 2 (tiers): the
+        # ADMIN tier alone would resolve HIGH; the medium rule produces medium.
+        cfg = _cfg(
+            approval_risk_rules={"write_file": "medium"},
+            tool_safety_tiers={"write_file": "ADMIN"},
+        )
+        assert classify_risk(cfg, "write_file", {}) == "medium"
+
+    def test_tier_provenance_when_no_rule(self) -> None:
+        # Priority 2 (tool_safety_tiers) branch: no rule entry, the ADMIN tier
+        # produces high without reaching the constants branch.
+        cfg = _cfg(tool_safety_tiers={"write_file": "ADMIN"})
+        assert classify_risk(cfg, "write_file", {}) == "high"
+
+    def test_escalation_provenance_for_ruled_path_tool(self) -> None:
+        # Escalation branch: a ruled medium path-bearing tool with a protected
+        # path is raised to high by _escalate_for_path().
+        cfg = _cfg(
+            approval_risk_rules={"write_file": "medium"},
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+            approval_protected_paths=["/opt/llm/"],
+        )
+        assert classify_risk(cfg, "write_file", {"path": "/opt/llm/config"}) == "high"
+
+    def test_rule_none_short_circuits_escalation(self) -> None:
+        # NONE short-circuit branch: a none-ruled tool returns before
+        # escalation even with a protected path; provenance evidence is that
+        # _escalate_for_path() is never called.
+        cfg = _cfg(
+            approval_risk_rules={"write_file": "none"},
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+            approval_protected_paths=["/opt/llm/"],
+        )
+        with patch("agent.tool_policy._escalate_for_path") as escalate:
+            assert (
+                classify_risk(cfg, "write_file", {"path": "/opt/llm/config"}) == "none"
+            )
+            escalate.assert_not_called()
+
+
+class TestTierNoneGapProvenance:
+    """REQ-001 measured gap: shipped tier-NONE tools (WRITE_SAFE/READ_ONLY map
+    to NONE) return none even with a protected path argument (Plan row 11)."""
+
+    SHIPPED_NONE_TIER_TOOLS = ["git_add", "git_commit", "index_paths", "refresh_index"]
+
+    @pytest.mark.parametrize("tool", SHIPPED_NONE_TIER_TOOLS)
+    def test_write_safe_tool_returns_none_on_protected_path(self, tool: str) -> None:
+        cfg = _cfg(
+            tool_safety_tiers=ALL_TOOL_SAFETY_TIERS,
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+            approval_protected_paths=["/opt/llm/"],
+        )
+        with patch("agent.tool_policy._escalate_for_path") as escalate:
+            assert classify_risk(cfg, tool, {"path": "/opt/llm/data/x"}) == "none"
+            escalate.assert_not_called()
+
+    def test_read_only_tool_returns_none_on_protected_path(self) -> None:
+        cfg = _cfg(
+            tool_safety_tiers=ALL_TOOL_SAFETY_TIERS,
+            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
+            approval_protected_paths=["/opt/llm/"],
+        )
+        assert classify_risk(cfg, "git_status", {"path": "/opt/llm/data/x"}) == "none"
+
+
+class TestPlanModeProvenance:
+    """is_plan_mode_blocked(): the tool_safety_tiers rule is the authority and
+    plan_blocked_tools extends it (DT-03 Option A posture, Plan row 11)."""
+
+    def test_tier_rule_is_the_authority(self) -> None:
+        cfg = _cfg(
+            tool_safety_tiers={
+                "read_text_file": "READ_ONLY",
+                "write_file": "WRITE_DANGEROUS",
+            },
+            plan_blocked_tools=[],
+        )
+        assert is_plan_mode_blocked(cfg, "read_text_file") is False
+        assert is_plan_mode_blocked(cfg, "write_file") is True
+        # unknown tool name: tier lookup misses and the check fails closed
+        assert is_plan_mode_blocked(cfg, "mystery_tool") is True
+
+    def test_plan_blocked_tools_extends_tier_rule(self) -> None:
+        # a tier-READ_ONLY tool is still blocked when named explicitly,
+        # proving the list is an extension of the tier rule, not its source
+        cfg = _cfg(
+            tool_safety_tiers={"git_status": "READ_ONLY"},
+            plan_blocked_tools=["git_status"],
+        )
+        assert is_plan_mode_blocked(cfg, "git_status") is True

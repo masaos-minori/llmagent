@@ -38,6 +38,8 @@ Documents the structure and constraints of MCP, Approval, and Observability conf
 
 Each `[mcp_servers.*]` entry carries only transport and lifecycle settings: `startup_mode` (`none` / `persistent` / `subprocess`), the HTTP `transport` and base `url`, and the subprocess `cmd`.
 
+`role` is a display-only label: it is surfaced by the MCP status command and status service, and is never consulted by tool routing or approval (`scripts/shared/mcp_config.py` — confirmed display-only; field semantics are canonical in [mcp_06_02](../22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md)).
+
 #### Component Criticality Classification
 
 `McpServerConfig.required: bool` (default `True`) records each MCP server's
@@ -86,9 +88,12 @@ Per-tool base risk is set by `approval_risk_rules` in `config/agent.toml`; tools
 
 `ProductionConfigValidator` rejects a configuration in which the git tools `git_checkout`/`git_pull`/`git_push` resolve to a risk below high (Explicit in code — scripts/agent/production_config_validator.py `_check_approval_risk_floor()`). The per-tool mapping is in `[approval_risk_rules]` of `config/agent.toml` and the [MCP ownership matrix](../22_mcp/mcp_01_tool_ownership_matrix.md).
 
+**Precedence**: `approval_risk_rules` decides the level whenever a tool is listed there; `tool_safety_tiers` is consulted only when no rule matches, and otherwise drives plan-mode blocking and the tier-vs-write classification, not the approval level (a tool may carry both keys by design — `git_add` is `WRITE_SAFE` with no rule and resolves to `none`, while `github_create_branch` is `WRITE_SAFE` with a `medium` rule and resolves to `medium`). The evaluation order itself is canonical in [agent_06_02](agent_06_02_tool-execution-and-approval-approval.md).
+
 #### Escalation, Auto-Approval and Dry Run
 
 - `approval_protected_paths` and `approval_high_risk_branches` escalate an operation to high risk (values: `config/agent.toml`).
+- Protected-path escalation only ever sees paths inside `allowed_root`: a path outside the jail is denied at the pre-check stage before risk classification runs (see the Protected-path scope note in [agent_06_02](agent_06_02_tool-execution-and-approval-approval.md)). The list does not discriminate between paths inside the jail.
 - `approval_shell_safe_prefixes` defines auto-approval prefixes for `shell_run`.
 - `approval_dry_run_tools` lists tools executed in advance with `dry_run=True`.
 

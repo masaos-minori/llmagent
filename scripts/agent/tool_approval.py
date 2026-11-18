@@ -42,7 +42,8 @@ _GITHUB_MUTATION_TOOLS: frozenset[str] = GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_T
 
 # gitops_push_blocked guards repository-content and PR mutations.
 # Issue-tracker mutations are intentionally excluded — see
-# docs/05_agent_06_01_tool-execution-and-approval-execution.md.
+# docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md and
+# docs/23_agent/agent_06_04_tool-execution-and-approval-canonical.md.
 _GITOPS_BLOCKABLE_TOOLS: frozenset[str] = _GITHUB_MUTATION_TOOLS - {
     "github_create_issue",
     "github_add_issue_comment",

@@ -68,12 +68,14 @@ At the agent level: `config/agent.toml`'s `approval_dry_run_tools` lists tools w
 
 Safety tiers (from `config/agent.toml::tool_safety_tiers`) supply a default approval risk (`none`/`medium`/`high`); an explicit `config/agent.toml::approval_risk_rules` entry takes precedence (`classify_risk` in `agent/tool_policy.py`). The approval method follows the effective risk, not the tier name alone:
 
-| Tier | Default risk | Approval Method | Examples |
-|---|---|---|---|
-| `READ_ONLY` | `none` | Automatic approval | `read_text_file`, `git_status`, `search_web`, `rag_run_pipeline` |
-| `WRITE_SAFE` | `none` | Automatic approval unless an `approval_risk_rules` entry sets `medium` (then `y/N`) | No rule (automatic): `git_add`, `git_commit`, `index_paths`. `medium` rule (`y/N`): `write_file`, `edit_file`, `create_directory`, `github_create_issue` |
-| `WRITE_DANGEROUS` | `medium` | `y/N` prompt by default; full `yes` when an `approval_risk_rules` entry sets `high` | `medium`: `trigger_workflow`, `rag_delete_document`. `high`: `delete_file`, `github_push_files`, `git_checkout`, `git_pull`, `git_push` |
-| `ADMIN` | `high` | Requires `yes` (full word) input | `shell_run` |
+| Tier | Default risk | Approval Method | Plan-mode blocking | Examples |
+|---|---|---|---|---|
+| `READ_ONLY` | `none` | Automatic approval | Allowed (the only tier plan mode permits) | `read_text_file`, `git_status`, `search_web`, `rag_run_pipeline` |
+| `WRITE_SAFE` | `none` | Automatic approval unless an `approval_risk_rules` entry sets `medium` (then `y/N`) | Blocked | No rule (automatic): `git_add`, `git_commit`, `index_paths`. `medium` rule (`y/N`): `write_file`, `edit_file`, `create_directory`, `github_create_issue` |
+| `WRITE_DANGEROUS` | `medium` | `y/N` prompt by default; full `yes` when an `approval_risk_rules` entry sets `high` | Blocked | `medium`: `trigger_workflow`, `rag_delete_document`. `high`: `delete_file`, `github_push_files`, `git_checkout`, `git_pull`, `git_push` |
+| `ADMIN` | `high` | Requires `yes` (full word) input | Blocked | `shell_run` |
+
+Reachability under the shipped config (19 `approval_risk_rules` entries, 64 `tool_safety_tiers` entries; every ruled tool also carries a tier entry): a base of `none` returns from `classify_risk()` before special-case and protected-path escalation, so the 43 tier-`none` tools with no rule never reach escalation — all 39 `READ_ONLY` tools plus the unruled `WRITE_SAFE` tools `git_add`, `git_commit`, `index_paths`, `refresh_index`. Only tier values that map to a base above `none`, or an explicit rule, take a call to the prompt. The evaluation order itself is canonical in [agent_06_02](../23_agent/agent_06_02_tool-execution-and-approval-approval.md).
 
 A tool missing from `tool_safety_tiers` is not given a default tier: startup validation rejects it (see below), and a tool absent from the registry entirely is classified `high` at call time.
 

@@ -45,6 +45,9 @@ Documents design decisions for approval flows, risk classification, and plan mod
 1. `approval_risk_rules[tool_name]` (Explicit rules)
 2. `tool_safety_tiers[tool_name]` (Tier mapping)
 3. Fallback to `tool_constants.py` classification: `DELETE_TOOLS`/`SHELL_TOOLS` → `high`, `WRITE_TOOLS` → `medium`, others → `medium` (default)
+4. `medium` remains the final fallback for a registered-but-untiered, unruled tool; a tool absent from the registry entirely resolves to `high` (Fail-safe)
+
+**Evaluation order**: the lookup is strictly `approval_risk_rules` → `tool_safety_tiers` → `tool_constants.py` default → `medium` fallback, evaluated in `classify_risk()` (`agent/tool_policy.py`). **A base of `RiskLevel.NONE` returns before Special Risk Overrides and Risk Escalation** — a tier-derived `none` (see the Tier-Risk Mapping table) is never raised by a protected path or a special-case flag. A tool with an explicit rule and a tier entry resolves to the rule value; the tier entry stays in the config for plan-mode blocking and the ADR-003 tier-vs-write classification, not for risk escalation.
 
 **Vocabulary**: the *safety tier* (`READ_ONLY`/`WRITE_SAFE`/`WRITE_DANGEROUS`/`ADMIN`, from `tool_safety_tiers`) and the *approval risk* (`none`/`medium`/`high`, `RiskLevel`) are distinct. Only the approval risk decides whether a prompt is shown; the tier supplies its default value. An `approval_risk_rules` entry overrides the tier default in either direction (for example, `WRITE_SAFE` file write tools carry a `medium` rule and therefore prompt, while `WRITE_SAFE` tools without a rule, such as `git_add`, do not).
 
@@ -86,6 +89,8 @@ After special case risk determination, the following are further evaluated as es
 
 - Path is included in `approval_protected_paths` → Escalate to `high`
 - GitHub branch is in `approval_high_risk_branches` → Escalate to `high`
+
+**Protected-path scope**: escalation only ever sees paths inside `allowed_root` — a path outside the jail is rejected by `check_allowed_root()` at the pre-check stage, before risk classification runs (`check_approval()`, `agent/tool_approval.py`). Under the shipped config, every ruled path-bearing tool (`write_file`, `edit_file`, `move_file`) therefore resolves to `high` on a protected path in-jail, and a protected path outside the jail never reaches the prompt: the two mechanisms stay distinct — the jail denies, the escalation prompts.
 
 ### GitOps Flags
 

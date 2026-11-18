@@ -97,3 +97,38 @@ claim_type = "architecture-decision"
 source_paths = ["docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md"]
 area = "EventBus"
 notes = "ADR-006 fixes stored event offsets as non-decreasing."
+
+[[canonical_sources]]
+decision_target = "agent.approval-risk-evaluation"
+claim_type = "runtime-behavior"
+source_paths = ["scripts/agent/tool_policy.py"]
+area = "Agent"
+notes = "classify_risk() evaluation order (rules -> tiers -> constants default -> medium fallback; NONE short-circuit before escalation); docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md and docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md defer to it."
+
+[[canonical_sources]]
+decision_target = "agent.approval-configuration-posture"
+claim_type = "configuration-schema"
+source_paths = ["config/agent.toml"]
+area = "Agent"
+notes = "Shipped approval_risk_rules/tool_safety_tiers/concurrency posture; docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md defers to it."
+
+[[canonical_sources]]
+decision_target = "agent.argument-validation-default"
+claim_type = "runtime-behavior"
+source_paths = ["scripts/agent/tool_arg_validator.py"]
+area = "Agent"
+notes = "Fail-closed argument validation when a schema defines no properties (allow_extra_fields is the only per-tool escape hatch); docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md records the boundary claim deferring to it."
+
+[[canonical_sources]]
+decision_target = "mcp.risk-tier-mapping"
+claim_type = "runtime-behavior"
+source_paths = ["scripts/agent/tool_policy.py"]
+area = "MCP"
+notes = "_TIER_TO_RISK tier-to-approval mapping and the tier's plan-mode eligibility; docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md is the tier-side presentation that defers to it."
+
+[[canonical_sources]]
+decision_target = "agent.approval-server-boundary"
+claim_type = "architecture-decision"
+source_paths = ["docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md"]
+area = "Agent"
+notes = "Agent-side approval vs server-side git enforcement split (ADR-012 INV-04, with ADR-014 INV-03 non-duplication); docs/91_security/security_02_high-risk-tool-common-policy.md defers to it."

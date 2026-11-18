@@ -3242,6 +3242,65 @@ class TestSingleLlmTurnExecutorOwnership:
         assert orch._workflow_adapter._llm_executor is orch._llm_executor
 
 
+# ── INV-03: no server-side safety re-implementation (ADR-014) ────────────────
+
+
+class TestNoServerSideSafetyReimplementation:
+    """INV-03 regression (ADR-014): the Orchestrator/ToolExecutor layers do not
+    import or re-define the MCP servers' technical safety entry points
+    (`scripts/mcp_servers/tool_validators.py`) and keep delegating to the
+    Agent-side boundary checks (`check_allowed_root()`, `check_allowed_repo()`,
+    `RepositoryGateway`). Source-boundary scan; the automated gate for the
+    invariant ADR-014 previously recorded as Manual Review only."""
+
+    _AGENT_SIDE_MODULES: tuple[str, ...] = (
+        "agent/orchestrator.py",
+        "agent/llm_turn_executor.py",
+        "agent/tool_runner.py",
+        "agent/tool_preparation.py",
+        "agent/tool_scheduler.py",
+    )
+    # Public and private helper entry points defined by the server-side validator
+    # module; none may be re-defined in the Agent-side layers (ADR-014 INV-03).
+    _SERVER_VALIDATOR_SYMBOLS: tuple[str, ...] = (
+        "def register_validator",
+        "def validate_tool_args",
+        "def _assert_absolute_path",
+        "def _assert_non_blank_str",
+        "def _validate_git_commit",
+        "def _validate_git_push",
+        "def _validate_trigger_workflow",
+        "def _validate_shell_run",
+    )
+
+    @staticmethod
+    def _scripts_dir() -> Path:
+        return Path(__file__).resolve().parents[2] / "scripts"
+
+    @pytest.mark.parametrize("module", _AGENT_SIDE_MODULES)
+    def test_no_server_validator_import_or_redefinition(self, module: str) -> None:
+        src = (self._scripts_dir() / module).read_text(encoding="utf-8")
+        assert "mcp_servers.tool_validators" not in src
+        for symbol in self._SERVER_VALIDATOR_SYMBOLS:
+            assert symbol not in src
+
+    def test_agent_layers_delegate_to_boundary_checks(self) -> None:
+        """Delegation side of INV-03: the Agent-side boundary checks stay the
+        single implementation the execution path routes through."""
+        scripts = self._scripts_dir()
+        policy = (scripts / "agent/tool_policy.py").read_text(encoding="utf-8")
+        assert "def check_allowed_root(" in policy
+        assert "def check_allowed_repo(" in policy
+        # check_preflight() calls both before any tool call proceeds.
+        preflight = policy[policy.index("def check_preflight(") :]
+        assert "check_allowed_root(cfg, tool_name, args, registry)" in preflight
+        assert "check_allowed_repo(cfg, tool_name, args)" in preflight
+        gateway = (scripts / "agent/repository_gateway.py").read_text(encoding="utf-8")
+        assert "class RepositoryGateway" in gateway
+        factory = (scripts / "agent/factory.py").read_text(encoding="utf-8")
+        assert "RepositoryGateway(" in factory
+
+
 # ── Task status per turn outcome (real WorkflowEngine + real StateStore) ──────
 
 

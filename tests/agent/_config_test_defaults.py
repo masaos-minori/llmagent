@@ -7,6 +7,15 @@ a non-empty allowed_tools, a non-empty allowed_root, and a non-empty sqlite_vec_
 must merge these in unless the test specifically exercises the missing/empty
 error path (see tests/agent/test_config_builders.py's _MIN_CFG, which
 intentionally omits them).
+
+Mirror relationship (Plan row 20): ALL_APPROVAL_RISK_RULES, ALL_TOOL_SAFETY_TIERS
+and SHIPPED_APPROVAL_PROTECTED_PATHS mirror the shipped config/agent.toml
+tables entry-for-entry; a shipped-config edit must surface as a fixture edit in
+this file, never as silent divergence between what tests pin and what ships.
+A tool may carry BOTH an approval_risk_rules entry and a tool_safety_tiers
+entry by design: rules are authoritative for approval risk, while tiers drive
+plan-mode blocking and the ADR-003 tier-vs-write classification
+(scripts/agent/tool_policy.py::classify_risk / is_plan_mode_blocked).
 """
 
 from shared.tool_registry import get_registry
@@ -38,6 +47,19 @@ GIT_RISK_FLOOR: dict[str, str] = {
     "git_pull": "high",
     "git_push": "high",
 }
+
+# Mirrors config/agent.toml's approval_protected_paths. Approval-path
+# characterization tests (tests/agent/test_tool_approval_paths.py, Plan row 14)
+# must build escalation configs from this mirror instead of a local copy of the
+# list, so a shipped-config edit surfaces as fixture drift.
+SHIPPED_APPROVAL_PROTECTED_PATHS: list[str] = [
+    "/opt/",
+    "/etc/",
+    "/boot/",
+    "/usr/",
+    "/bin/",
+    "/sbin/",
+]
 
 ALL_APPROVAL_RISK_RULES: dict[str, str] = {
     "write_file": "medium",

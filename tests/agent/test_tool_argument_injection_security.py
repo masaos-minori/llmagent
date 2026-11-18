@@ -59,15 +59,17 @@ class TestUnexpectedFieldRejection:
         assert "test_tool" in result.reason
         assert "input schema" in result.reason
 
-    def test_no_properties_key_allows_any_field(self) -> None:
-        """Schema without 'properties' key allows any field even with allow_extra_fields=False."""
+    def test_no_properties_key_rejects_any_field(self) -> None:
+        """Schema without 'properties' fails closed: no field can be authorized."""
         schema = {"type": "object", "required": ["name"]}
         result = validate_tool_arguments(
             "test_tool",
             {"name": "test", "__meta": "injected"},
             schema,
         )
-        assert result.success is True
+        assert result.success is False
+        assert "test_tool" in result.reason
+        assert "properties" in result.reason
 
     def test_multiple_extra_fields_all_reported(self) -> None:
         """Multiple extra fields are reported together."""
@@ -279,8 +281,10 @@ class TestWhitelistFilteringEnforced:
         result = validate_tool_arguments("test_tool", {"a": "hello", "b": 42}, schema)
         assert result.success is True
 
-    def test_empty_properties_allows_any_field(self) -> None:
-        """Empty properties means no whitelist to enforce — any field passes."""
+    def test_empty_properties_rejects_any_field(self) -> None:
+        """An empty properties whitelist authorizes no field: any arg is rejected."""
         schema = {"type": "object", "properties": {}, "required": []}
         result = validate_tool_arguments("test_tool", {"any_field": "value"}, schema)
-        assert result.success is True
+        assert result.success is False
+        assert "test_tool" in result.reason
+        assert "properties" in result.reason

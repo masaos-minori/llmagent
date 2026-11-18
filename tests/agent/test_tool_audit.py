@@ -18,11 +18,9 @@ from agent.tool_audit import (
     AUDIT_ARGS_PREVIEW_MAX_CHARS,
     audit_approval,
     audit_tool_exec,
-    log_approval_decision,
     write_round_exec,
 )
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
-from agent.tool_models import ApprovalOutcome
 from shared.json_utils import dumps as _json_dumps
 
 from tests.agent._config_test_defaults import (
@@ -74,37 +72,6 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.session.session_id = None
     ctx.services_required.audit_logger = None
     return ctx
-
-
-class TestLogApprovalDecision:
-    def test_logs_structured_event(self) -> None:
-        ctx = _make_ctx()
-        ctx.services_required.audit_logger = MagicMock()
-        ctx.turn.current_turn_id = "turn-xyz"
-        outcome = ApprovalOutcome(
-            tool_name="write_file",
-            risk_level=RiskLevel.MEDIUM,
-            decision=ApprovalDecisionType.APPROVED,
-            escalation_reason="",
-        )
-        log_approval_decision(ctx, outcome)
-        ctx.services_required.audit_logger.info.assert_called_once()
-        logged = ctx.services_required.audit_logger.info.call_args[0][0]
-        assert "approval_decision" in logged
-        assert "write_file" in logged
-        assert "task_id" in logged
-        assert "turn-xyz" in logged
-        assert "ts" in logged
-
-    def test_no_op_when_audit_logger_none(self) -> None:
-        ctx = _make_ctx()
-        ctx.services_required.audit_logger = None
-        outcome = ApprovalOutcome(
-            tool_name="write_file",
-            risk_level=RiskLevel.NONE,
-            decision=ApprovalDecisionType.APPROVED,
-        )
-        log_approval_decision(ctx, outcome)  # must not raise
 
 
 class TestAuditApprovalInv11:
@@ -410,26 +377,15 @@ class TestAuditPreviewScrub:
 _SKIP_WRITERS: list[tuple[str, str, str]] = [
     # (branch key, public writer name, tool name used in the call)
     ("approval", "audit_approval", "read_text_file"),
-    ("decision", "log_approval_decision", "write_file"),
     ("exec", "audit_tool_exec", "read_text_file"),
 ]
 
 
 def _call_audit_writer(branch: str, ctx: MagicMock) -> None:
-    """Call one of the three workflow-id-precondition writers on ctx."""
+    """Call one of the two workflow-id-precondition writers on ctx."""
     if branch == "approval":
         audit_approval(
             ctx, "read_text_file", RiskLevel.MEDIUM, {"path": "/tmp/skip"}, "approved"
-        )
-    elif branch == "decision":
-        log_approval_decision(
-            ctx,
-            ApprovalOutcome(
-                tool_name="write_file",
-                risk_level=RiskLevel.MEDIUM,
-                decision=ApprovalDecisionType.APPROVED,
-                escalation_reason="",
-            ),
         )
     else:
         # non-empty mcp_request_id so the workflow-id check is reached

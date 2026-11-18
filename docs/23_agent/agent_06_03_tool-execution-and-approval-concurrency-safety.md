@@ -47,7 +47,7 @@ Controls the internal tool loop within `LlmTurnExecutor`. The guards (deduplicat
 `tool_concurrency_limits: dict[str, int]` in `ToolConfig` maps server keys to maximum concurrent calls. It is implemented as an `asyncio.Semaphore` created on-demand during tool execution; a server with no entry is capped at the process-wide default concurrency ceiling.
 
 - If the server key exists in the limit dictionary, calls are limited to that value
-- If the key does not exist: calls fall back to the process-wide default concurrency ceiling
+- If the key does not exist: calls fall back to the process-wide default concurrency ceiling `DEFAULT_PER_SERVER_CONCURRENCY = 8` (`scripts/shared/tool_transport_invoker.py`). Under the shipped `config/agent.toml`, the MCP server keys `git` and `mdq` are intentionally unlisted and run at this default (see the `tool_concurrency_limits` comment in `config/agent.toml`)
 - A configured `0` or negative limit opts out and stays unlimited (no semaphore)
 - Unknown server keys log a warning but do not cause errors
 

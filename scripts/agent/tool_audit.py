@@ -15,9 +15,8 @@ from typing import TYPE_CHECKING
 from shared.execution_snapshot import build_execution_snapshot, snapshot_json
 from shared.json_utils import dumps as _json_dumps
 
-from agent.shared.models import ApprovalDecisionEvent, ToolApprovalEvent, ToolExecEvent
+from agent.shared.models import ToolApprovalEvent, ToolExecEvent
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
-from agent.tool_models import ApprovalOutcome
 from agent.tool_policy import classify_operation_type
 from agent.tool_result_formatter import mask_args
 
@@ -120,27 +119,6 @@ def audit_approval(
         risk=str(risk),
         decision=str(decision),
         args_preview=_bounded_preview(masked),
-        ts=time.time(),
-        workflow_id=workflow_id,
-        session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
-    )
-    ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
-
-
-def log_approval_decision(ctx: AgentContext, outcome: ApprovalOutcome) -> None:
-    """Write a structured approval_decision event to the audit log."""
-    if ctx.services_required.audit_logger is None:
-        return
-    workflow_id = _workflow_id_or_skip(ctx, "log_approval_decision", outcome.tool_name)
-    if workflow_id is None:
-        return
-    evt = ApprovalDecisionEvent(
-        event="approval_decision",
-        task_id=ctx.turn.current_turn_id or "",
-        tool=outcome.tool_name,
-        risk_level=str(outcome.risk_level),
-        decision=str(outcome.decision),
-        escalation_reason=outcome.escalation_reason,
         ts=time.time(),
         workflow_id=workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
