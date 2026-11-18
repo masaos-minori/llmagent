@@ -202,6 +202,7 @@ def _get_valid_production_keys() -> frozenset[str]:
             "sqlite_timeout",
             "sqlite_vec_so",
             "sqlite_wal_checkpoint_mode",
+            "workflow_db_path",
         }
     )
 

@@ -126,10 +126,9 @@ def _provision_databases() -> None:
 def _isolate_db_config(root: Path) -> None:
     """Point every production DB path that DbConfig receives into the isolation root.
 
-    agent.toml does not set workflow_db_path (the production config validator rejects
-    the key), so build_db_config() falls back to a production default in code, and
-    tests build DbConfig directly with some paths left at their defaults. DbConfig
-    refuses to be built when a path's parent directory is missing, which is the case
+    agent.toml sets workflow_db_path to the production path, and tests build DbConfig
+    directly with some paths left at their defaults. DbConfig refuses to be built when
+    a path's parent directory is missing, which is the case
     on a host without /opt/llm/db (such as the CI runner). The rewrite therefore runs
     inside DbConfig.__post_init__, before that validation, and covers both routes.
     """

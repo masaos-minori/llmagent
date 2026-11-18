@@ -73,8 +73,8 @@ the block (Current-Specification-Only: no history-style comments remain).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Drop the pinned prepend and its comment | Pending | — | — | |
-| 2 | Run the gate test (validation) | Pending | — | — | |
+| 1 | Drop the pinned prepend and its comment | Completed | 2026-11-18 | 2026-11-18 |  |
+| 2 | Run the gate test (validation) | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

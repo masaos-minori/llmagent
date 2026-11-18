@@ -74,8 +74,8 @@ The `eventbus.toml` rewrite block (`:192-198`) stays untouched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Drop the pinning insertion and update the docstring | Pending | — | — | |
-| 2 | Run the gate test (validation) | Pending | — | — | |
+| 1 | Drop the pinning insertion and update the docstring | Completed | 2026-11-18 | 2026-11-18 |  |
+| 2 | Run the gate test (validation) | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

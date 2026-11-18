@@ -76,8 +76,8 @@ no manual sentence edit is needed in this file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the guarded DB Path Reference table | Pending | — | — | |
-| 2 | Run `generate_reference_table.py --check` and the deployment docs checker | Pending | — | — | |
+| 1 | Regenerate the guarded DB Path Reference table | Completed | 2026-11-18 | 2026-11-18 |  |
+| 2 | Run `generate_reference_table.py --check` and the deployment docs checker | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

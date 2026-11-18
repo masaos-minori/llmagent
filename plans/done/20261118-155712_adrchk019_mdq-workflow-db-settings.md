@@ -188,10 +188,10 @@ Medium — carried from the source issue (`issues/done/20261117-123019_adrchk019
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Test-first fixtures (`tests/mcp_servers/mdq/test_mdq_foreign_keys.py`, `tests/db/test_db_config.py`); red results recorded before Phase 2 | In Progress | — | — |  |
-| 2 | Phase 2: `write_mode=True` in `mdq_service.py` / `db_schema.py` (FK-ENFORCE) | In Progress | — | — | Lands with Phase 1 (release unit) |
-| 3 | Phase 3: WORKFLOW-CONFIG one-commit unit (`config/agent.toml`, `scripts/db/config.py`, validator + acceptance test, deploy-gate fixes, conftest docstring) | In Progress | — | — |  |
-| 4 | Phase 4: regeneration (`db_schema_versions.yaml`, deployment guarded table), `docs/41_db/db_01_...` claim fix, docs checkers, orphan re-measure report (REQ-008) | In Progress | — | — |  |
+| 1 | Phase 1: Test-first fixtures (`tests/mcp_servers/mdq/test_mdq_foreign_keys.py`, `tests/db/test_db_config.py`); red results recorded before Phase 2 | Completed | 2026-11-18 | 2026-11-18 | red-first FK evidence: cascade/pragma/orphan tests all fail pre-FK (procedure 06 notes) |
+| 2 | Phase 2: `write_mode=True` in `mdq_service.py` / `db_schema.py` (FK-ENFORCE) | Completed | 2026-11-18 | 2026-11-18 | Lands with Phase 1 (release unit) FK-ENFORCE unit committed a0a1213cc |
+| 3 | Phase 3: WORKFLOW-CONFIG one-commit unit (`config/agent.toml`, `scripts/db/config.py`, validator + acceptance test, deploy-gate fixes, conftest docstring) | Completed | 2026-11-18 | 2026-11-18 |  |
+| 4 | Phase 4: regeneration (`db_schema_versions.yaml`, deployment guarded table), `docs/41_db/db_01_...` claim fix, docs checkers, orphan re-measure report (REQ-008) | Completed | 2026-11-18 | 2026-11-18 | REQ-008 orphan re-measure: 0 orphan chunks (chunks=2403, documents=172) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -201,12 +201,12 @@ Medium — carried from the source issue (`issues/done/20261117-123019_adrchk019
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-162732_01_scripts_mcp_servers_mdq_mdq_service.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-162732_02_scripts_mcp_servers_mdq_db_schema.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-162732_01_scripts_mcp_servers_mdq_mdq_service.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-162732_02_scripts_mcp_servers_mdq_db_schema.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261118-162732_03_config_agent.toml.md | 3 | Procedure | Pending | — | — |
 | implementations/20261118-162732_04_scripts_db_config.py.md | 3 | Procedure | Pending | — | — |
 | implementations/20261118-162732_05_scripts_agent_production_config_validator.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-162732_06_tests_mcp_servers_mdq_test_mdq_foreign_keys.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-162732_06_tests_mcp_servers_mdq_test_mdq_foreign_keys.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261118-162732_07_tests_db_test_db_config.py.md | 1 | Procedure | Pending | — | — |
 | implementations/20261118-162732_09_tests_deploy_test_init_db_schema_gate.py.md | 3 | Procedure | Pending | — | — |
 | implementations/20261118-162732_10_tests_deploy_test_init_db_eventbus_schema.py.md | 3 | Procedure | Pending | — | — |

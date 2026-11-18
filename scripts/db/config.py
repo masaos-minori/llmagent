@@ -91,13 +91,18 @@ def build_db_config() -> DbConfig:
             "sqlite_vec_so is empty or absent in agent.toml (required for processes "
             "that open rag.sqlite or session.sqlite; set the path of the sqlite-vec library)"
         )
+    workflow_kwargs: dict[str, str] = (
+        {"workflow_db_path": cfg["workflow_db_path"]}
+        if "workflow_db_path" in cfg
+        else {}
+    )
     return DbConfig(
         rag_db_path=cfg.get("rag_db_path", ""),
         session_db_path=cfg.get("session_db_path", ""),
-        workflow_db_path=cfg.get("workflow_db_path", "/opt/llm/db/workflow.sqlite"),
         sqlite_vec_so=vec_so,
         sqlite_timeout=get_typed(cfg, "sqlite_timeout", int, "an integer", default=30),
         sqlite_busy_timeout_ms=get_typed(
             cfg, "sqlite_busy_timeout_ms", int, "an integer", default=30000
         ),
+        **workflow_kwargs,
     )

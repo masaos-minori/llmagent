@@ -233,6 +233,18 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
         result = ProductionConfigValidator().validate(config)
         assert not any("Unknown config keys" in err for err in result.errors)
 
+    def test_workflow_db_path_key_is_accepted(self) -> None:
+        """workflow_db_path is a registered subsystem DB path key (scripts/db/):
+        agent.toml carries it and startup validation must accept it."""
+        config = {
+            "workflow_db_path": "/opt/llm/db/workflow.sqlite",
+        }
+        result = ProductionConfigValidator().validate(config)
+        assert not any(
+            "Unknown config keys" in err and "workflow_db_path" in err
+            for err in result.errors
+        )
+
     def test_single_unknown_key_produces_error(self) -> None:
         config = {"unknown_mistyped_key": True}
         result = ProductionConfigValidator().validate(config)

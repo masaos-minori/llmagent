@@ -172,23 +172,16 @@ def _provision_canonical_vec_db(name: str, path: pathlib.Path) -> None:
 def _write_config(tmp_path: pathlib.Path, db_dir: pathlib.Path) -> pathlib.Path:
     """Copy config/ into the sandbox with every /opt/llm/db path rewritten to db_dir.
 
-    workflow_db_path is absent from agent.toml (build_db_config() defaults it to the
-    production path), so it is inserted as a top-level key before the first table
-    header. Appending it at EOF would land inside a [tool_definitions...] table and be
-    ignored by the flat loader, silently falling back to /opt/llm/db.
+    agent.toml carries workflow_db_path, so the whole-file rewrite above re-points it
+    into db_dir like every other DB path key.
     """
     cfg_dir = tmp_path / "config"
     shutil.copytree(_REPO_ROOT / "config", cfg_dir)
     agent = cfg_dir / "agent.toml"
-    text = agent.read_text(encoding="utf-8").replace("/opt/llm/db/", f"{db_dir}/")
-    lines = text.split("\n")
-    for index, line in enumerate(lines):
-        if line.startswith("["):
-            lines.insert(index, f'workflow_db_path = "{db_dir / "workflow.sqlite"}"')
-            break
-    else:
-        lines.insert(0, f'workflow_db_path = "{db_dir / "workflow.sqlite"}"')
-    agent.write_text("\n".join(lines), encoding="utf-8")
+    agent.write_text(
+        agent.read_text(encoding="utf-8").replace("/opt/llm/db/", f"{db_dir}/"),
+        encoding="utf-8",
+    )
     # The EventBus tool resolves its database from eventbus.toml, so the sandbox copy
     # must point db_path into db_dir (otherwise it would address /opt/llm/db).
     eventbus_toml = cfg_dir / "eventbus.toml"

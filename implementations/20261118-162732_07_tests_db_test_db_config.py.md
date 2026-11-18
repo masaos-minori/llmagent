@@ -81,8 +81,8 @@ text for the count assertion. No monkeypatching of the default.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the two config tests (red-first run recorded) | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the two config tests (red-first run recorded) | Completed | — | — | red-first evidence 2026-11-18: repo agent.toml has no workflow_db_path key; literal count == 2 (both tests red before procedures 03/04) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-18 | 2026-11-18 | green after procedures 03/04: repo agent.toml key present, build_db_config reads it, single literal |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

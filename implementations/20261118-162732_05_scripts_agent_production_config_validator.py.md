@@ -78,9 +78,9 @@ No comment about the change history (Current-Specification-Only).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the allowlist entry | Pending | — | — | |
-| 2 | Add the companion acceptance test | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the allowlist entry | Completed | 2026-11-18 | 2026-11-18 |  |
+| 2 | Add the companion acceptance test | Completed | 2026-11-18 | 2026-11-18 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -355,7 +355,7 @@ Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit 
 |---|---|---|
 | `rag.sqlite` | `rag_db_path` | Yes |
 | `session.sqlite` | `session_db_path` | Yes |
-| `workflow.sqlite` | `workflow_db_path` | No (Python-level default in `scripts/db/config.py`) |
+| `workflow.sqlite` | `workflow_db_path` | Yes |
 <!-- END AUTO-GENERATED -->
 
 `mdq.sqlite` is not in the table above because the table is generated only from `scripts/db/config.py` and `config/agent.toml`; its path is the `db_path` key of `config/mdq_mcp_server.toml`. For the MDQ store's owner, configuration source, and rebuild procedure, see [active databases](../41_db/db_08_active_databases.md) and [MDQ tools](../22_mcp/mcp_04_04_mdq.md).

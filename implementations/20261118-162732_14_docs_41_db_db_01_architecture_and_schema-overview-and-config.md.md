@@ -83,8 +83,8 @@ section of the doc is touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix the two path-key claims | Pending | — | — | |
-| 2 | Run the docs checkers (routing.md Tools, docs scope) | Pending | — | — | |
+| 1 | Fix the two path-key claims | Completed | 2026-11-18 | 2026-11-18 |  |
+| 2 | Run the docs checkers (routing.md Tools, docs scope) | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

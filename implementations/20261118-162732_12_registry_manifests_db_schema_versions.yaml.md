@@ -70,8 +70,8 @@ can be produced by one invocation pass but are committed as the same unit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the manifest with the generator | Pending | — | — | |
-| 2 | Run `generate_reference_table.py --check` | Pending | — | — | |
+| 1 | Regenerate the manifest with the generator | Completed | 2026-11-18 | 2026-11-18 |  |
+| 2 | Run `generate_reference_table.py --check` | Completed | 2026-11-18 | 2026-11-18 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

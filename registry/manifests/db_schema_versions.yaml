@@ -8,7 +8,7 @@ entries:
   kind: db_path
   name: session.sqlite
 - config_key: workflow_db_path
-  in_agent_toml: false
+  in_agent_toml: true
   kind: db_path
   name: workflow.sqlite
 - content_hash: 2bc19f5537678d05775e358ce2731f123fc0e506d394859ba995bd0ba6960ef7
