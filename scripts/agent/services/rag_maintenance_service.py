@@ -70,69 +70,56 @@ class RagMaintenanceService:
         """Run integrity check; restore from backup_path if corruption found."""
         result = recover_corruption(backup_path)
         return DbRecoverResult(
-            integrity_ok=result.success,
+            # VACUUM runs only after the integrity check passed, so its failure is
+            # not corruption.
+            integrity_ok=result.success or result.action == "vacuum_failed",
             recovered=result.action == "restored",
             detail=result.detail or "",
             logical_ok=result.logical_ok,
         )
 
     def rebuild_vec(self) -> int:
-        """Rebuild chunks_vec from chunks. Returns number of rows inserted."""
+        """Remove chunks_vec rows that have no chunks row.
+
+        Returns the number of chunks_vec rows left. Vector rows cannot be regenerated
+        from chunks: the embeddings live only in chunks_vec.
+        """
         with SQLiteHelper("rag").open(write_mode=True) as db:
-            db.execute("DELETE FROM chunks_vec")
-            rows = db.execute(
-                "SELECT chunk_id, embedding FROM chunks WHERE embedding IS NOT NULL"
+            orphans = db.execute(
+                "SELECT chunk_id FROM chunks_vec"
+                " WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks)"
             ).fetchall()
-            for row in rows:
-                db.execute(
-                    "INSERT INTO chunks_vec(chunk_id, embedding) VALUES(?, ?)",
-                    (row["chunk_id"], row["embedding"]),
-                )
-            return len(rows)
+            db.executemany(
+                "DELETE FROM chunks_vec WHERE chunk_id = ?",
+                [(row[0],) for row in orphans],
+            )
+            remaining: int = db.execute("SELECT COUNT(*) FROM chunks_vec").fetchone()[0]
+            db.commit()
+            return remaining
 
     def reconcile_url(self, url: str) -> dict[str, bool | int]:
-        """Rebuild FTS/vec for a single URL."""
-        with SQLiteHelper("rag").open(write_mode=True) as db:
+        """Insert the missing chunks_fts entries of the chunks of one URL.
+
+        An FTS5 'delete' of an entry that is not indexed corrupts the index, so only
+        chunks absent from chunks_fts_docsize are inserted; indexed entries and
+        chunks_vec are left alone.
+        """
+        with SQLiteHelper("rag").open(write_mode=True, row_factory=True) as db:
             doc = db.execute(
                 "SELECT doc_id FROM documents WHERE url = ?", (url,)
             ).fetchone()
             if doc is None:
                 return {"found": False}
             doc_id = doc["doc_id"]
-            chunk_ids = [
-                r["chunk_id"]
-                for r in db.execute(
-                    "SELECT chunk_id FROM chunks WHERE doc_id = ?", (doc_id,)
-                ).fetchall()
-            ]
-            for cid in chunk_ids:
-                db.execute("DELETE FROM chunks_vec WHERE chunk_id = ?", (cid,))
-            if chunk_ids:
-                for cid in chunk_ids:
-                    row_fts = db.execute(
-                        "SELECT content, normalized_content FROM chunks WHERE chunk_id = ?",
-                        (cid,),
-                    ).fetchone()
-                    if row_fts:
-                        fts_text = row_fts["normalized_content"] or row_fts["content"]
-                        db.execute(
-                            "INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', ?, ?)",
-                            (cid, fts_text),
-                        )
-            for cid in chunk_ids:
-                row = db.execute(
-                    "SELECT content, normalized_content, embedding FROM chunks WHERE chunk_id = ?",
-                    (cid,),
-                ).fetchone()
-                if row:
-                    fts_text = row["normalized_content"] or row["content"]
-                    db.execute(
-                        "INSERT INTO chunks_fts(rowid, content) VALUES(?, ?)",
-                        (cid, fts_text),
-                    )
-                    if row["embedding"]:
-                        db.execute(
-                            "INSERT INTO chunks_vec(chunk_id, embedding) VALUES(?, ?)",
-                            (cid, row["embedding"]),
-                        )
-            return {"found": True, "chunks": len(chunk_ids)}
+            db.execute(
+                "INSERT INTO chunks_fts(rowid, content)"
+                " SELECT chunk_id, COALESCE(normalized_content, content) FROM chunks"
+                " WHERE doc_id = ?"
+                " AND chunk_id NOT IN (SELECT id FROM chunks_fts_docsize)",
+                (doc_id,),
+            )
+            chunk_count: int = db.execute(
+                "SELECT COUNT(*) FROM chunks WHERE doc_id = ?", (doc_id,)
+            ).fetchone()[0]
+            db.commit()
+            return {"found": True, "chunks": chunk_count}

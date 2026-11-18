@@ -63,10 +63,10 @@ N/A: delete the new file (a single file this procedure created).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the persistence and `integrity_ok` tests | Pending | — | — |  |
-| 2 | Run the file and record the expected failures | Pending | — | — | Record the failing output here |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Stays In Progress until the end-of-unit run |
-| 4 | Update documentation, if in scope | Pending | — | — | N/A: test-only change |
+| 1 | Write the persistence and `integrity_ok` tests | Completed | 20261118-123012 | 20261118-123025 | New test file written; changed: tests/agent/services/test_rag_maintenance_persistence.py |
+| 2 | Run the file and record the expected failures | Completed | 20261118-123025 | 20261118-123025 | Pre-fix run: 8 failed, 6 passed. rebuild_vec x3: sqlite3.OperationalError no such column: embedding; reconcile_url x4: TypeError tuple indices must be integers; recover vacuum_failed mapping x1: integrity_ok mismatch. The unknown-URL case and five mapping cases pass and guard existing behavior |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-123617 | 20261118-123617 | End-of-unit run passed: full suite 12734 passed, 7 skipped; diff-cover 100% (10 changed lines in rag_maintenance_service.py); ruff, project mypy (569 files), bandit -ll (0 medium/high), lint-imports (6 kept), validation gates: pass |
+| 4 | Update documentation, if in scope | Completed | 20261118-123025 | 20261118-123025 | N/A: test-only change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

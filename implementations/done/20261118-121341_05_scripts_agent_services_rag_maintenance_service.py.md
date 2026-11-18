@@ -64,10 +64,10 @@ Revert only this procedure's own changes with `git checkout -- <path>` on each c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the owner decisions UNK-01, UNK-02, and UNK-05 | Pending | — | — | Stop and ask if not confirmed |
-| 2 | Implement the changes in Implementation > Procedure | Pending | — | — |  |
-| 3 | Run the new persistence tests and the related tests | Pending | — | — |  |
-| 4 | Run the validation sequence (`rules/toolchain.md`) and the end-of-unit full suite | Pending | — | — | Stays In Progress until the end-of-unit run passes |
+| 1 | Confirm the owner decisions UNK-01, UNK-02, and UNK-05 | Completed | 20261118-123153 | 20261118-123153 | Owner decisions UNK-01 (orphan removal), UNK-02 (rows left), UNK-05 (insert the missing FTS entries) confirmed in session 2026-11-18 via AskUserQuestion |
+| 2 | Implement the changes in Implementation > Procedure | Completed | 20261118-123153 | 20261118-123617 | rebuild_vec removes the orphan chunks_vec rows and commits (returns the rows left); reconcile_url opens with row_factory, inserts only the chunks absent from chunks_fts_docsize, and commits; recover maps integrity_ok = success or action vacuum_failed; changed: scripts/agent/services/rag_maintenance_service.py |
+| 3 | Run the new persistence tests and the related tests | Completed | 20261118-123617 | 20261118-123617 | Targeted: persistence tests, test_rag_index_integrity, test_agent_cmd_session: 90 passed (the fake gained executemany, recorded in procedure 03) |
+| 4 | Run the validation sequence (`rules/toolchain.md`) and the end-of-unit full suite | Completed | 20261118-123617 | 20261118-123617 | End-of-unit run passed: full suite 12734 passed, 7 skipped; diff-cover 100%; radon cc: reconcile_url C(12) to A(2); project mypy, bandit -ll, lint-imports, validation gates: pass. Docs: N/A, no docs/00_index.md statement conflicts and the Plan scopes docs out |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

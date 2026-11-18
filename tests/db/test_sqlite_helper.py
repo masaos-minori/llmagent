@@ -743,3 +743,42 @@ class TestInterruptWhen:
         helper.interrupt_when(None)  # remove
         result = helper._require_conn().execute(self._ABORT_CTE).fetchone()
         assert result[0] == 5000050000
+
+
+class TestCommitOnExit:
+    """Leaving the open() context closes the connection without committing."""
+
+    @staticmethod
+    def _rows(path: Path) -> list[tuple[int]]:
+        conn = sqlite3.connect(path)
+        try:
+            return conn.execute("SELECT v FROM t").fetchall()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def _helper_with_table(path: Path) -> SQLiteHelper:
+        helper = SQLiteHelper(db_path=str(path))
+        with helper.open(write_mode=True) as db:
+            db.execute("CREATE TABLE t (v INTEGER)")
+            db.commit()
+        return helper
+
+    def test_write_without_commit_is_discarded_at_exit(self, tmp_path: Path) -> None:
+        path = tmp_path / "commit.sqlite"
+        helper = self._helper_with_table(path)
+
+        with helper.open(write_mode=True) as db:
+            db.execute("INSERT INTO t (v) VALUES (1)")
+
+        assert self._rows(path) == []
+
+    def test_write_with_commit_persists(self, tmp_path: Path) -> None:
+        path = tmp_path / "commit.sqlite"
+        helper = self._helper_with_table(path)
+
+        with helper.open(write_mode=True) as db:
+            db.execute("INSERT INTO t (v) VALUES (1)")
+            db.commit()
+
+        assert self._rows(path) == [(1,)]

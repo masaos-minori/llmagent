@@ -55,10 +55,10 @@ Revert only this procedure's own changes with `git checkout -- <path>` on each c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Route the mocked `open` to the fake and update the two tests | Pending | — | — |  |
-| 2 | Run the file and record which tests are red until procedure 05 | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Stays In Progress until the end-of-unit run |
-| 4 | Update documentation, if in scope | Pending | — | — | N/A: test-only change |
+| 1 | Route the mocked `open` to the fake and update the two tests | Completed | 20261118-123047 | 20261118-123111 | Both repair tests now route the mocked open to the fake (side_effect = db.open); rebuild_vec test rewritten to the orphan-removal contract; changed: tests/agent/services/test_rag_index_integrity.py Correction during procedure 05: the fake gained executemany (the helper API the new rebuild_vec uses); same file |
+| 2 | Run the file and record which tests are red until procedure 05 | Completed | 20261118-123111 | 20261118-123111 | Red until procedure 05: reconcile test TypeError (tuple indices), rebuild_vec test assert 0 == 1 (the old code wipes the valid row); the other 7 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-123617 | 20261118-123617 | End-of-unit run passed: full suite 12734 passed, 7 skipped; diff-cover 100% (10 changed lines in rag_maintenance_service.py); ruff, project mypy (569 files), bandit -ll (0 medium/high), lint-imports (6 kept), validation gates: pass |
+| 4 | Update documentation, if in scope | Completed | 20261118-123111 | 20261118-123111 | N/A: test-only change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

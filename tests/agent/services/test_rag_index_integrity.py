@@ -152,6 +152,9 @@ class _FakeSQLiteHelper:
     def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
         return self._conn.execute(sql, params)
 
+    def executemany(self, sql: str, params_seq: list) -> sqlite3.Cursor:
+        return self._conn.executemany(sql, params_seq)
+
     def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
         return self._conn.execute(sql, params).fetchall()
 
@@ -407,7 +410,7 @@ def test_consistency_check_detects_fts_gap(canonical_db: _FakeSQLiteHelper) -> N
 
 
 def test_reconcile_url_fts_deletion(db: _FakeSQLiteHelper) -> None:
-    """reconcile_url() must not raise OperationalError on FTS deletion."""
+    """reconcile_url() must not raise on a consistent index and keeps it searchable."""
     conn = db._conn
     doc_id = _insert_doc(conn, url="http://reconcile.example.com")
     _insert_chunk(conn, doc_id, "reconcile text", None)
@@ -415,8 +418,7 @@ def test_reconcile_url_fts_deletion(db: _FakeSQLiteHelper) -> None:
     with patch(
         "agent.services.rag_maintenance_service.SQLiteHelper"
     ) as mock_helper_cls:
-        mock_helper_cls.return_value.open.return_value.__enter__.return_value = db
-        mock_helper_cls.return_value.open.return_value.__exit__ = lambda *_: None
+        mock_helper_cls.return_value.open.side_effect = db.open
         result = RagMaintenanceService().reconcile_url("http://reconcile.example.com")
 
     assert result == {"found": True, "chunks": 1}
@@ -435,68 +437,34 @@ from unittest.mock import patch as mock_patch
 def test_rebuild_vec_removes_orphaned_chunks_vec_rows(db: _FakeSQLiteHelper) -> None:
     """rebuild_vec() must remove orphaned chunks_vec rows while preserving valid ones."""
     conn = db._conn
-    # Insert a valid chunk with embedding
     doc_id = _insert_doc(conn, url="http://valid.example.com")
     valid_chunk_id = _insert_chunk(conn, doc_id, "valid content")
-    conn.execute(
-        "UPDATE chunks SET embedding = ? WHERE doc_id = ? AND chunk_index = ?",
-        (b"\x00\x01\x02\x03", doc_id, 0),
-    )
+    orphan_chunk_id = 9999  # no chunks row has this id
+    for chunk_id in (valid_chunk_id, orphan_chunk_id):
+        conn.execute(
+            "INSERT INTO chunks_vec(chunk_id, embedding) VALUES(?, ?)",
+            (chunk_id, b"\x00\x01\x02\x03"),
+        )
     conn.commit()
 
-    # First rebuild to populate chunks_vec with the valid chunk
     with mock_patch(
         "agent.services.rag_maintenance_service.SQLiteHelper"
     ) as mock_helper_cls:
-        mock_helper_cls.return_value.open.return_value.__enter__.return_value = db
-        mock_helper_cls.return_value.open.return_value.__exit__ = lambda *_: None
-        RagMaintenanceService().rebuild_vec()
-
-    # Verify valid row exists after first rebuild
-    valid_before = db.fetchall(
-        "SELECT * FROM chunks_vec WHERE chunk_id = ?", (valid_chunk_id,)
-    )
-    assert len(valid_before) == 1
-
-    # Insert an orphaned chunks_vec row (chunk_id that does NOT exist in chunks)
-    orphan_chunk_id = 9999
-    db.execute(
-        "INSERT OR IGNORE INTO chunks_vec(chunk_id) VALUES(?)",
-        (orphan_chunk_id,),
-    )
-    db.commit()
-
-    # Verify orphan exists before second rebuild
-    orphan_before = db.fetchall(
-        "SELECT * FROM chunks_vec WHERE chunk_id = ?", (orphan_chunk_id,)
-    )
-    assert len(orphan_before) == 1
-
-    # Second rebuild — orphan should be removed, valid row preserved
-    with mock_patch(
-        "agent.services.rag_maintenance_service.SQLiteHelper"
-    ) as mock_helper_cls:
-        mock_helper_cls.return_value.open.return_value.__enter__.return_value = db
-        mock_helper_cls.return_value.open.return_value.__exit__ = lambda *_: None
+        mock_helper_cls.return_value.open.side_effect = db.open
         count = RagMaintenanceService().rebuild_vec()
 
-    # Orphan must be removed
     orphan_after = db.fetchall(
         "SELECT * FROM chunks_vec WHERE chunk_id = ?", (orphan_chunk_id,)
     )
     assert len(orphan_after) == 0
 
-    # Valid row must be preserved
     valid_after = db.fetchall(
         "SELECT * FROM chunks_vec WHERE chunk_id = ?", (valid_chunk_id,)
     )
     assert len(valid_after) == 1
 
-    # Row count must match the number of chunks with embeddings
-    expected_count = len(
-        db.fetchall("SELECT chunk_id FROM chunks WHERE embedding IS NOT NULL")
-    )
-    assert count == expected_count
+    # The return value is the number of chunks_vec rows left.
+    assert count == len(db.fetchall("SELECT chunk_id FROM chunks_vec"))
 
 
 # ── stop-event wiring: consistency forwards the event to interrupt_when ─────────

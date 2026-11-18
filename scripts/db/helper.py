@@ -63,7 +63,11 @@ class DbTarget(StrEnum):
 
 
 class SQLiteHelper:
-    """SQLite connection manager with optional sqlite-vec extension; WAL/synchronous=NORMAL/busy_timeout applied to every connection.
+    """SQLite connection manager with an optional sqlite-vec extension.
+
+    A read-write connection gets WAL, synchronous=NORMAL, and busy_timeout; a
+    read-only connection gets only busy_timeout. Leaving the open() context closes
+    the connection without committing, so a caller commits its own writes.
 
     Connections default to sqlite3 check_same_thread=True; False is only for
     sequential cross-thread reuse (see open/_connect).

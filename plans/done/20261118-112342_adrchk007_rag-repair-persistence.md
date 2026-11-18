@@ -175,8 +175,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Failing tests and evidence: helper contract test, persistence tests, fake-helper alignment | In Progress | — | — |  |
-| 2 | Fix: docstring, repair commits and canonical-schema repairs, `integrity_ok` mapping | In Progress | — | — |  |
+| 1 | Failing tests and evidence: helper contract test, persistence tests, fake-helper alignment | Completed | — | 20261118-123627 |  |
+| 2 | Fix: docstring, repair commits and canonical-schema repairs, `integrity_ok` mapping | Completed | — | 20261118-123627 |  |
 | 3 | Validation and hand-off | Pending | — | — |  |
 
 ### Blocker Log
@@ -187,10 +187,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-121341_02_tests_agent_services_test_rag_maintenance_persistence.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-121341_03_tests_agent_services_test_rag_index_integrity.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-121341_04_scripts_db_helper.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261118-121341_05_scripts_agent_services_rag_maintenance_service.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-121341_02_tests_agent_services_test_rag_maintenance_persistence.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-121341_03_tests_agent_services_test_rag_index_integrity.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-121341_04_scripts_db_helper.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261118-121341_05_scripts_agent_services_rag_maintenance_service.py.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
