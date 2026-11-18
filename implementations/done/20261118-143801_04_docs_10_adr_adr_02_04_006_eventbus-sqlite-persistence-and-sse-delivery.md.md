@@ -54,8 +54,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the no-loss claims, Deletion Rule, Related ADRs, and approval bullet (Implementation > Procedure) | Pending | — | — | |
-| 2 | Run the ADR and documentation checkers (Validation plan) | Pending | — | — | |
+| 1 | Edit the no-loss claims, Deletion Rule, Related ADRs, and approval bullet (Implementation > Procedure) | Completed | 20261118-150735 | 20261118-150735 | Changed: docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md. check_adr_preservation reports INV-07, Related ADRs and Approval changed (pending AAL-029). |
+| 2 | Run the ADR and documentation checkers (Validation plan) | Completed | 20261118-150735 | 20261118-150735 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -52,8 +52,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the ARCH-003 strings (Implementation > Procedure) | Pending | — | — | |
-| 2 | Run the generator check and the checkers (Validation plan) | Pending | — | — | |
+| 1 | Edit the ARCH-003 strings (Implementation > Procedure) | Completed | 20261118-150735 | 20261118-150735 | Changed: config/adr_authority.toml (ARCH-003). generate_adr_authority --check and check_adr_authority pass. |
+| 2 | Run the generator check and the checkers (Validation plan) | Completed | 20261118-150735 | 20261118-150735 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

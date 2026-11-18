@@ -53,9 +53,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the ADR-008 size ceiling (Implementation > Procedure) | Pending | — | — | |
-| 2 | Add or update tests per Validation plan: no test change needed; run the existing test | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the ADR-008 size ceiling (Implementation > Procedure) | Completed | 20261118-150735 | 20261118-150735 | Changed: tools/check_docs_structure.py (ADR-008 ceiling 44006). ruff, mypy, tests pass. |
+| 2 | Add or update tests per Validation plan: no test change needed; run the existing test | Completed | 20261118-150735 | 20261118-150735 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-150735 | 20261118-150735 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

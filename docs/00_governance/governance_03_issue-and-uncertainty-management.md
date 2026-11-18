@@ -526,6 +526,60 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Date:** Not recorded
 - **Scope:** Decision Detail #17
 
+#### AAL-024
+
+- **ID:** AAL-024
+- **ADR:** ADR-008
+- **Decision:** Scope widened to six databases (title, Summary, Scope, Recovery Policy Matrix)
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Title, Summary, Scope, Recovery Policy Matrix
+
+#### AAL-025
+
+- **ID:** AAL-025
+- **ADR:** ADR-008
+- **Decision:** Schema-mismatch rule: every database is archived and recreated, with per-database preconditions
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Detail 22
+
+#### AAL-026
+
+- **ID:** AAL-026
+- **ADR:** ADR-008
+- **Decision:** Retention rule per database; EventBus events, consumer_delivery, and dlq_outbox growth is an accepted risk
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Detail 23, INV-09
+
+#### AAL-027
+
+- **ID:** AAL-027
+- **ADR:** ADR-008
+- **Decision:** Memory canonical store: memories and memory_links canonical, memories_fts and memories_vec derived, JSONL append-only archive
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Detail 24, Recovery Policy Matrix
+
+#### AAL-028
+
+- **ID:** AAL-028
+- **ADR:** ADR-008
+- **Decision:** INV-04 names the dlq_outbox durable promotion record
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-04
+
+#### AAL-029
+
+- **ID:** AAL-029
+- **ADR:** ADR-006
+- **Decision:** No-loss statements hold under the ADR-008 schema-mismatch rule; EventBus retention is an accepted risk
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Detail 9, INV-07, Data Ownership
+
 ## Resolution Rules
 
 The following resolution criteria apply across the parts of this document:

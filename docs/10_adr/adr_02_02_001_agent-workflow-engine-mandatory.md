@@ -196,7 +196,7 @@ An approval stage placed after the `execute` stage cannot prevent anything: when
 - Whether the workflow definition is valid (parseable JSON, required fields, stages, retry policy)
 - Whether the definition has no `require_approval` key
 - Whether the required DB tables exist
-- Whether the DB schema version matches
+- Whether the DB schema matches the canonical schema (shared fingerprint)
 
 ### Deployment Validation
 

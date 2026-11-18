@@ -65,7 +65,7 @@ The `chunks_vec` (`rag.sqlite`) and `memories_vec` (`session.sqlite`) tables def
 
 ### 8e. Supported Baseline and Archive-and-Recreate Runbook
 
-The only supported source schema of each database is the schema of the current release. Nothing migrates: `rag`, `session`, `workflow`, `eventbus`, and `mdq` all accept the current shape only, validated at startup by the shared fingerprint, and an older or drifted database is refused.
+The only supported source schema of each database is the schema of the current release. Nothing migrates: `rag`, `session`, `workflow`, `eventbus`, and `mdq` all accept the current shape only, validated at startup by the shared fingerprint, and an older or drifted database is refused; `mcp_dedup` is recreated empty. The rule for the six databases is ADR-008 Decision Detail #22.
 
 | Database | Accepted schema | Recovery when not accepted | Owner |
 |---|---|---|---|
@@ -73,6 +73,7 @@ The only supported source schema of each database is the schema of the current r
 | `eventbus.sqlite` | Canonical `schema.sql` shape validated by the shared fingerprint | Archive and recreate (runbook below) | The EventBus service |
 | `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | Delete the file and re-index the Markdown files (section 8d) | The `mdq-mcp` server |
 | `rag.sqlite`, `session.sqlite` | Current create-only shape | Archive and recreate (runbook below) | RAG / session layers |
+| `mcp_dedup.sqlite` | Current dedup ledger shape | Recreated empty | The shared MCP dispatcher |
 
 Recreation impact when a database is not accepted (full procedure: [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)):
 
@@ -81,6 +82,9 @@ Recreation impact when a database is not accepted (full procedure: [db_07 sectio
 | `workflow.sqlite` | Yes — task history is not carried over | Required: `rotate_all_dbs()` archives it (db_07 section 11, step 1) | Restore the archived file |
 | `eventbus.sqlite` | Yes — events and delivery state are not carried over | Required: `python -m eventbus.db_tools rotate` archives it | Restore the archived file manually; no automated restoration path exists (db_07 section 9) |
 | `mdq.sqlite` | No lasting loss — derived store, rebuilt from the Markdown files | Not required | Delete the file and re-index (section 8d) |
+| `session.sqlite` | Yes — sessions are lost; memory is recovered from the JSONL archive with `/memory rebuild` | Required: export conversations with `/session export`; `rotate_all_dbs()` archives the file | Restore the archived file |
+| `rag.sqlite` | Yes — the corpus is re-ingested | Required: `rotate_all_dbs()` archives it | Restore the archived file |
+| `mcp_dedup.sqlite` | No lasting loss — disposable ledger; non-retryable tools are rejected until the operator resolves the state | Not required | Not applicable (recreated empty) |
 
 Archive-and-recreate runbook (operator procedure; details in [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)):
 
@@ -108,7 +112,9 @@ DDL source: `db/schema_sql.py`; schema initialization entry point: `db/create_sc
 
 The `consumer_delivery` table grows proportionally to the product of (number of consumers × number of events). For a single consumer, this is bounded by the total number of events. For multiple consumers, the growth is linear with respect to the number of consumers.
 
-**Mitigation strategies:**
+No cleanup is implemented for `events`, `consumer_delivery`, or `dlq_outbox`; the unbounded growth is an accepted risk (ADR-008 Decision Detail #23).
+
+**Mitigation options (not implemented):**
 - Periodic cleanup of old delivery-state rows (e.g., events older than N days).
 - Partitioning by consumer_id or event_id if the dataset becomes very large.
 - Using a separate database per consumer if the workload requires strict isolation.

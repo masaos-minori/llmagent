@@ -50,8 +50,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the link text (Implementation > Procedure) | Pending | — | — | |
-| 2 | Run the documentation checkers (Validation plan) | Pending | — | — | |
+| 1 | Replace the link text (Implementation > Procedure) | Completed | 20261118-150735 | 20261118-150735 | Changed: docs/41_db/db_08_active_databases.md. |
+| 2 | Run the documentation checkers (Validation plan) | Completed | 20261118-150735 | 20261118-150735 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

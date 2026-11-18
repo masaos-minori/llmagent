@@ -1,5 +1,7 @@
 PRAGMA journal_mode=WAL;
 
+-- Retention: no row is deleted automatically; growth is an accepted risk
+-- (ADR-008 Decision Detail #23).
 CREATE TABLE IF NOT EXISTS events (
     seq                    INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id               TEXT    NOT NULL UNIQUE,
@@ -19,6 +21,8 @@ CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_events_redelivered_from ON events(redelivered_from) WHERE redelivered_from IS NOT NULL;
 
 -- Per-consumer delivery state: tracks ACK state per (consumer_id, event_id)
+-- Retention: no row is deleted automatically; growth is an accepted risk
+-- (ADR-008 Decision Detail #23).
 CREATE TABLE IF NOT EXISTS consumer_delivery (
     consumer_id                    TEXT    NOT NULL,
     event_id                       TEXT    NOT NULL,
@@ -41,6 +45,8 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
 -- DLQ promotion outbox (dlqbox001): durable generation record for DLQ->replay
 -- promotion requests. The worker consumes 'pending' rows ordered by next_attempt_at;
 -- 'done' rows are retained as the durable generation record for reconciliation.
+-- Retention: no row is deleted automatically; growth is an accepted risk
+-- (ADR-008 Decision Detail #23).
 CREATE TABLE IF NOT EXISTS dlq_outbox (
     event_id          TEXT    PRIMARY KEY REFERENCES events(event_id),
     requested_at      TEXT    NOT NULL,

@@ -37,7 +37,7 @@ Accepted
 
 ## Summary
 
-Canonicalizes SQLite as the persistent store of Events and SSE as the Live delivery channel, with At-Least-Once Delivery (duplicates tolerated, losses not), offset monotonicity, and Consumer ID conflict detection (see Decision).
+Canonicalizes SQLite as the persistent store of Events and SSE as the Live delivery channel, with At-Least-Once Delivery (duplicates tolerated, losses not, except under the ADR-008 schema-mismatch rule), offset monotonicity, and Consumer ID conflict detection (see Decision).
 
 ## Context
 
@@ -73,7 +73,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive) with different rol
 6. Consumer IDs stay fixed across restarts, and ACK Offsets are persisted.
 7. Moving an ACKed Offset backward is not permitted.
 8. Event IDs are assigned so that Consumers can process idempotently.
-9. At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not.
+9. At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not, except for events that are not carried over when the database is archived and recreated under the ADR-008 schema-mismatch rule (Decision Detail #22).
 10. The state, count, and history of NAK, Retry, DLQ, and Requeue are persisted.
 11. The following delivery rules apply:
     - 11a. An ACK with `new_offset <= current_offset` is accepted, offset unchanged (Monotonicity Invariant); enforced atomically in SQL on the per-consumer offset table.
@@ -110,7 +110,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive) with different rol
 
 ### 1. Primary Reason for Adoption — Data Integrity
 
-Making SQLite the canonical store of Events prevents Event loss. Because an SSE delivery failure is not confused with a persistence failure, Event reliability is ensured.
+Making SQLite the canonical store of Events prevents Event loss, except when the database is archived and recreated under the ADR-008 schema-mismatch rule. Because an SSE delivery failure is not confused with a persistence failure, Event reliability is ensured.
 
 ### 2. Second Reason for Adoption — Operability
 
@@ -150,7 +150,7 @@ Guaranteeing Offset monotonicity prevents offsets from moving backward through a
 
 ### Positive Consequences
 
-- Event loss is prevented
+- Event loss is prevented, except when the database is archived and recreated under the ADR-008 schema-mismatch rule
 - At-Least-Once Delivery becomes explicit
 - Unprocessed Events are reliably Replayed on Consumer reconnection
 - Offset monotonicity is guaranteed
@@ -184,7 +184,7 @@ Guaranteeing Offset monotonicity prevents offsets from moving backward through a
 - INV-04: Consumer IDs stay fixed across restarts, and ACK Offsets are persisted.
 - INV-05: Moving an ACKed Offset backward is not permitted.
 - INV-06: Event IDs are assigned so that Consumers can process idempotently.
-- INV-07: At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not.
+- INV-07: At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not, except for events that are not carried over when the database is archived and recreated under the ADR-008 schema-mismatch rule (Decision Detail #22).
 - INV-08: The state, count, and history of NAK, Retry, DLQ, and Requeue are persisted.
 - INV-09: An ACK with `new_offset <= current_offset` never updates the offset.
 - INV-10: A non-empty Consumer ID has at most one active `GET /subscribe` connection. On Subscribe, ACK, and NACK, a caller may use only the `consumer_id` and topic values explicitly bound to its authenticated Consumer principal; no superuser bypass exists (ADR-013 INV-02).
@@ -228,7 +228,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 - **Transaction Boundary**: per Event
 - **Recovery Source**: SQLite (canonical store)
 - **Durable promotion record**: the `dlq_outbox` table (`scripts/eventbus/schema.sql`) records each Event promoted to the DLQ with its request time, `status` (`pending`, `done`, or `failed`), attempt count, and next attempt time; it is the outbox the background loop consumes to generate deadletter files. `done` rows are kept as the generation record, and the EventBus does not delete them.
-- **Deletion Rule**: the EventBus does not delete Events; DLQ promotion marks the `events` row (`dlq_at`) and writes a deadletter file (Explicit in code — `scripts/eventbus/dlq.py` `promote_single()`)
+- **Deletion Rule**: the EventBus does not delete Events; DLQ promotion marks the `events` row (`dlq_at`) and writes a deadletter file (Explicit in code — `scripts/eventbus/dlq.py` `promote_single()`). No retention exists: `events`, `consumer_delivery`, and `dlq_outbox` rows are never deleted and grow without bound, an accepted risk (ADR-008 Decision Detail #23)
 
 ## Verification
 
@@ -327,6 +327,7 @@ Not applicable
 - **Current Decision Approval (pending)**: The Replay Contract (`/replay` Operator-only and offset-preserving; `/subscribe` start position order) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-007. No approval is recorded here.
 - **Current Decision Approval (pending)**: The INV-13 wording (`>= max_retry`), the re-mapping of the INV-04, INV-06, and INV-07 verification rows, and the requeue error text are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and they are tracked by AAL-008. No approval is recorded here.
 - **Current Decision Approval (pending)**: Adding ADR-008 to the front matter `related` and Related ADRs and stating in INV-15 that ADR-006 owns the loopback-binding decision (ADR-013 layers authentication on top) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-009. No approval is recorded here.
+- **Current Decision Approval (pending)**: Stating the no-loss claims (Decision Detail 9, INV-07, and the Rationale and Consequences statements) as holding under the ADR-008 schema-mismatch rule, and recording the missing EventBus retention as an accepted risk, are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and they are tracked by AAL-029. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -334,7 +335,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
 - ADR-004: Failure Handling Policy Across Environments
-- ADR-008: Separating SQLite into Four Databases
+- ADR-008: Separating SQLite into Six Databases
 - ADR-013: EventBus Authentication and Authorization
 
 ## Implementation References

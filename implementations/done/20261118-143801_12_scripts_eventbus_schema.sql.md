@@ -54,9 +54,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the retention comments and compare the fingerprints (Implementation > Procedure) | Pending | — | — | |
-| 2 | Add or update tests per Validation plan: no test change needed; run the existing tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the retention comments and compare the fingerprints (Implementation > Procedure) | Completed | 20261118-150735 | 20261118-150735 | Changed: scripts/eventbus/schema.sql (comments only); fingerprint unchanged. The comment edit changed the content hash recorded in the generated manifest (procedure 13). |
+| 2 | Add or update tests per Validation plan: no test change needed; run the existing tests | Completed | 20261118-150735 | 20261118-150735 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-150735 | 20261118-150735 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

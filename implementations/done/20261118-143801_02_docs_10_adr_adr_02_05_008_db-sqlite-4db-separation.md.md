@@ -70,8 +70,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the title, Matrix, Decision Detail, invariant, scope, reference, and approval edits (Implementation > Procedure) | Pending | — | — | |
-| 2 | Run the ADR and documentation checkers (Validation plan) | Pending | — | — | |
+| 1 | Apply the title, Matrix, Decision Detail, invariant, scope, reference, and approval edits (Implementation > Procedure) | Completed | 20261118-150735 | 20261118-150735 | Changed: docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md (44006 B). All DDL tables present in the ADR; ADR checkers pass; check_adr_preservation reports Approval, Known Deviations, front matter, INV-02/04/09 and Implementation References changed (decision-text amendments pending AAL-024 to AAL-028). |
+| 2 | Run the ADR and documentation checkers (Validation plan) | Completed | 20261118-150735 | 20261118-150735 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -347,13 +347,13 @@ review_triggers = [
 [[assumption]]
 id = "ARCH-003"
 name = "Local SQLite storage"
-current_value = "All persistent platform state is stored in local SQLite database files under the ADR-008 four-database separation"
+current_value = "All persistent platform state is stored in local SQLite database files under the ADR-008 six-database separation (four platform domains and two non-domain stores)"
 applicable_adrs = ["ADR-006", "ADR-008", "ADR-009"]
 validation_method = "manual-review"
 owner = "Repository owner"
 review_triggers = [
   "A persistent store moves to a server-based or remote database",
-  "The four-database separation changes",
+  "The six-database separation changes",
 ]
 
 [[assumption]]

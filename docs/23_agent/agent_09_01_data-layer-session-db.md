@@ -45,11 +45,13 @@ The message repository is (re)bound lazily to the `AgentSession` facade's curren
 
 `db/maintenance.py`'s `purge_old_sessions()` deletes old sessions based on `RetentionConfig`, following an age-based then count-based order. Deleting a session propagates to `messages` via `ON DELETE CASCADE`, but never to memory tables; memory retention is independent and is applied only by `/memory prune`. The purge runs only on demand (`/session purge`); no scheduler invokes it automatically. (Explicit in code — `scripts/agent/commands/cmd_session.py`, `scripts/agent/services/db_maintenance_service.py`)
 
+Retention follows ADR-008 Decision Detail #23: sessions by `purge_old_sessions()`, diagnostics by the `retention_days` purge, memory by `/memory prune`. A `session.sqlite` file that does not match the current schema is archived and recreated (ADR-008 Decision Detail #22): export conversations with `/session export` first and recover memory from the JSONL archive with `/memory rebuild`; session history is not restored.
+
 ### Memory Table Ownership
 
 When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
-- SQLite `memories` (in `session.sqlite`) is the source of truth for current memory state; `memories_fts`, `memories_vec` and `memory_links` live in the same DB, and the FTS and vector tables are derived indexes.
+- SQLite `memories` and `memory_links` (in `session.sqlite`) are the source of truth for current memory state (ADR-008 Decision Detail #24); `memories_fts`, `memories_vec` and `memory_links` live in the same DB, and the FTS and vector tables are derived indexes.
 - The JSONL file (`{memory_jsonl_dir}/memories.jsonl`) is an append-only archive for import/export and disaster recovery.
 
 `memories.session_id` records the source session of a memory for provenance.

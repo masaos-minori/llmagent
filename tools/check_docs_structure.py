@@ -105,7 +105,9 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # forward-only migration contract in Context > Constraints plus an Amendment
     # subsection and a realized Revisit Trigger (2026-10-30); the ceiling is
     # re-recorded to the accepted size.
-    "adr_02_05_008_db-sqlite-4db-separation.md": 37291,
+    # Re-accepted at 44006: the six-database scope, the per-database schema-mismatch and
+    # retention rules, the memory canonical store, and the table inventory.
+    "adr_02_05_008_db-sqlite-4db-separation.md": 44006,
 }
 
 
