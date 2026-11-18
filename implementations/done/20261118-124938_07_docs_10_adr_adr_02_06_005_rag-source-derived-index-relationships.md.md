@@ -55,10 +55,10 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the maintainer decision (UNK-01) | Pending | — | — | Stop and ask if absent |
-| 2 | Edit the Fail-Open or Degraded Conditions section | Pending | — | — |  |
-| 3 | Add the pending bullet citing the ledger entry | Pending | — | — |  |
-| 4 | Run the ADR and documentation checkers listed in Validation plan | Pending | — | — |  |
+| 1 | Confirm the maintainer decision (UNK-01) | Completed | 20261118-130813 | 20261118-130813 | Maintainer decision UNK-01 recorded in session 2026-11-18 via AskUserQuestion: option A (availability failure) |
+| 2 | Edit the Fail-Open or Degraded Conditions section | Completed | 20261118-130813 | 20261118-130821 | The delegation of the startup classification to the RAG guide is replaced by ADR-004 Decision Group 2 item 7 as the owner; the post-ingestion bullet is unchanged; changed: docs/10_adr/adr_02_06_005_rag-source-derived-index-relationships.md |
+| 3 | Add the pending bullet citing the ledger entry | Completed | 20261118-130821 | 20261118-130821 | Pending bullet cites AAL-020; the two existing pending bullets are untouched |
+| 4 | Run the ADR and documentation checkers listed in Validation plan | Completed | 20261118-130821 | 20261118-130821 | ADR structure, authority, invariant matrix, reference, canonical registry, docs checkers, docs consistency rag: pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

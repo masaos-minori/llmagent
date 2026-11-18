@@ -56,10 +56,10 @@ Revert only this procedure's own changes with `git checkout -- <path>` on each c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the maintainer decision (UNK-01) | Pending | — | — | Stop and ask if absent; option C is a Plan amendment |
-| 2 | Correct the comment (REQ-008) | Pending | — | — |  |
-| 3 | Run the startup tests | Pending | — | — |  |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Confirm the maintainer decision (UNK-01) | Completed | 20261118-130831 | 20261118-130831 | Maintainer decision UNK-01 recorded in session 2026-11-18 via AskUserQuestion: option A (availability failure); no behavior change |
+| 2 | Correct the comment (REQ-008) | Completed | 20261118-130831 | 20261118-130848 | The exception branch comment now says a failed RAG consistency check is an availability failure (ADR-004), reported as a warning with startup continuing; the unsupported fail-closed-downstream claim is removed; changed: scripts/agent/startup_validation.py (comment only; the noqa keeps its justification) |
+| 3 | Run the startup tests | Completed | 20261118-130848 | 20261118-130848 | test_startup, test_startup_validation, test_startup_severity_classification: 91 passed |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-131240 | 20261118-131240 | End-of-batch run: full suite 12762 passed, 7 skipped, 1 failed (tests/mcp_servers/git/test_mcp_git.py::test_check_repo_path_equivalence, Hypothesis FlakyFailure; passes alone; the test and the git MCP server code are untouched by this change, recorded as unrelated); diff-cover 100% (1 changed line in startup_validation.py); ruff, project mypy, bandit, lint-imports, validation gates, docs and ADR checkers: pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

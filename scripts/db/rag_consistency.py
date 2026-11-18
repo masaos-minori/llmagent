@@ -227,7 +227,7 @@ def _fts_orphan_issue(report: RagConsistencyReport) -> ConsistencyFinding:
     return ConsistencyFinding(
         severity=FindingSeverity.DEGRADED,
         message=(
-            f"[CRITICAL] FTS index has more entries than chunks"
+            f"[WARNING] FTS index has more entries than chunks"
             f" (fts={report.fts}, chunks={report.chunks}).{detail}"
             f" Run '/session rag-rebuild-fts' immediately; orphan FTS entries indicate data loss risk."
         ),
@@ -245,8 +245,8 @@ def _orphan_vec_issue(report: RagConsistencyReport) -> ConsistencyFinding:
     return ConsistencyFinding(
         severity=FindingSeverity.DEGRADED,
         message=(
-            f"[CRITICAL] Orphan vec rows detected (count={report.orphan_vec_count}).{detail}"
-            f" Re-run ingestion with 'ingester.py --force' for affected URLs."
+            f"[WARNING] Orphan vec rows detected (count={report.orphan_vec_count}).{detail}"
+            f" Run '/session rag-rebuild-vec' to remove the orphan rows."
         ),
         repair_action="rebuild_vec",
     )
@@ -265,7 +265,7 @@ def _vector_mismatch_issue(report: RagConsistencyReport) -> ConsistencyFinding:
             f"[WARNING] Vector count mismatch (chunks={report.chunks}, vec={report.vec}).{detail}"
             f" Re-run ingestion with 'ingester.py --force' for affected URLs."
         ),
-        repair_action="rebuild_vec",
+        repair_action="reingest",
     )
 
 
@@ -278,9 +278,9 @@ def _documents_without_chunks_issue(report: RagConsistencyReport) -> Consistency
         severity=FindingSeverity.DEGRADED,
         message=(
             f"[WARNING] Documents without chunks detected (count={report.documents_without_chunks_count}).{detail}"
-            f" Re-run ingestion for affected documents."
+            f" Re-run ingestion with 'ingester.py --force' for affected documents."
         ),
-        repair_action="rebuild_vec",
+        repair_action="reingest",
     )
 
 
@@ -292,10 +292,10 @@ def _chunks_without_vec_issue(report: RagConsistencyReport) -> ConsistencyFindin
     return ConsistencyFinding(
         severity=FindingSeverity.DEGRADED,
         message=(
-            f"[CRITICAL] Chunks without vector rows detected (count={report.chunks_without_vec_count}).{detail}"
+            f"[WARNING] Chunks without vector rows detected (count={report.chunks_without_vec_count}).{detail}"
             f" Re-run ingestion with 'ingester.py --force' for affected chunks."
         ),
-        repair_action="rebuild_vec",
+        repair_action="reingest",
     )
 
 
@@ -311,7 +311,7 @@ def _duplicate_chunk_index_issue(report: RagConsistencyReport) -> ConsistencyFin
         severity=FindingSeverity.FATAL,
         message=(
             f"[CRITICAL] Duplicate chunk_index values detected (count={report.duplicate_chunk_index_count}).{detail}"
-            f" Check ingestion logic; duplicate chunk indices indicate data corruption risk."
+            f" Restore from a verified backup or re-ingest; duplicate chunk indices indicate data corruption."
         ),
         repair_action="restore_from_backup",
     )
@@ -325,9 +325,9 @@ def _url_mismatch_issue(report: RagConsistencyReport) -> ConsistencyFinding:
         severity=FindingSeverity.DEGRADED,
         message=(
             f"[WARNING] URL-level inconsistency detected (mismatched URLs={len(mismatches)}).{detail}"
-            f" Re-run ingestion for affected URLs."
+            f" Re-run ingestion with 'ingester.py --force' for affected URLs."
         ),
-        repair_action="reconcile_url",
+        repair_action="reingest",
     )
 
 
@@ -338,6 +338,7 @@ def _fk_inconsistency_issue(report: RagConsistencyReport) -> ConsistencyFinding:
         message=(
             f"[CRITICAL] FK inconsistency detected"
             f" (chunks referencing missing documents={report.fk_inconsistency_count})."
+            f" Restore from a verified backup."
         ),
         repair_action="restore_from_backup",
     )
@@ -350,6 +351,7 @@ def _embedding_dimension_issue(report: RagConsistencyReport) -> ConsistencyFindi
         message=(
             f"[CRITICAL] Embedding dimension mismatch detected"
             f" (expected={get_embedding_dims()})."
+            f" Restore from a verified backup."
         ),
         repair_action="restore_from_backup",
     )
@@ -362,6 +364,7 @@ def _unknown_schema_issue(report: RagConsistencyReport) -> ConsistencyFinding:
         message=(
             f"[CRITICAL] Unknown RAG schema shape detected"
             f" (missing tables={report.unknown_schema})."
+            f" Restore from a verified backup."
         ),
         repair_action="restore_from_backup",
     )

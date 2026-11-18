@@ -166,6 +166,8 @@ Keeping `content` as a separate, never-replaced field guarantees that every stor
 - INV-10: AugmentStage outputs only `content` and does not output `normalized_content` to the LLM Context.
 - INV-11: A sentence whose normalized text is empty keeps its original text in `content` with `normalized_content = NULL`.
 
+INV-09 is not used.
+
 ## Failure Policy
 
 ### Failure Conditions
@@ -191,7 +193,7 @@ Not applicable (no failure Fallback exists). The `COALESCE(normalized_content, c
 - **Derived Data**: the `chunks_fts` virtual table
 - **Ownership**: RAG layer (owner of the canonical data)
 - **Persistence**: SQLite file system
-- **Transaction Boundary**: per chunk
+- **Transaction Boundary**: per document
 - **Recovery Source**: the `chunks` table (`content` + `normalized_content`); `chunks_fts` is rebuilt from it
 - **Deletion Rule**: deleting a document removes its `chunks` rows by CASCADE and the matching `chunks_fts` rows by Trigger; the deletion order is defined by ADR-005
 

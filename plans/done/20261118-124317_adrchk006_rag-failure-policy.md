@@ -16,7 +16,7 @@ The RAG consistency check, ADR-004, ADR-005, ADR-009, and earlier archived issue
 - Startup continues with a warning for a RAG consistency timeout, an exception, and DEGRADED findings; ADR-004 Decision Group 2 forbids warning-only continuation for safety/integrity failures, and no ADR-004 Exception covers this case.
 - Three DEGRADED findings (FTS orphan, orphan vector rows, chunks without vector rows) carry `[CRITICAL]`; the other DEGRADED findings carry `[WARNING]` and every FATAL finding carries `[CRITICAL]`.
 - Orphan vector rows, vector mismatch, chunks without vector rows, and documents without chunks set `repair_action=rebuild_vec`; URL-level inconsistency sets `reconcile_url`. The messages tell users to re-run ingestion, and `rebuild_vec` now only removes orphan vector rows while `reconcile_url` only inserts missing FTS entries.
-- ADR-009 says the transaction boundary is per chunk; the ingester commits one transaction per URL and ADR-005 says per document. ADR-009's invariant list ends at INV-08 while INV-10 and INV-11 appear only in Implementation Notes and a Manual Review line cites INV-11.
+- ADR-009 says the transaction boundary is per chunk; the ingester commits one transaction per URL and ADR-005 says per document. ADR-009's invariant list jumps from INV-08 to INV-10: INV-09 is missing.
 - The startup comment says the unverified RAG state is fail-closed downstream; no module consumes it except the reporter's counts.
 - CSC-001's Validation evidence cites a corpus-identity issue as an open `issues/` path; the identity modules no longer exist.
 
@@ -33,7 +33,7 @@ The RAG consistency check, ADR-004, ADR-005, ADR-009, and earlier archived issue
 - `REQ-001`: Every finding built from `_CHECKS` carries `[CRITICAL]` if and only if its severity is FATAL, and `[WARNING]` otherwise; the three DEGRADED findings that carry `[CRITICAL]` change their prefix, not their severity.
 - `REQ-002`: Each finding's `repair_action` and message name the same repair and the repair can fix the state: `rebuild_fts` for the FTS gap and FTS orphan, `rebuild_vec` (with the `/session rag-rebuild-vec` command in the message) for orphan vector rows, a new `reingest` value (message: re-run ingestion with `ingester.py --force`) for vector mismatch, chunks without vector rows, documents without chunks, and URL-level inconsistency, and `restore_from_backup` for the FATAL findings (UNK-02 default).
 - `REQ-003`: The repair table and prose of the RAG guide match REQ-002.
-- `REQ-004`: ADR-009 states the transaction boundary as per document and states its current invariant numbering (INV-09 unused; INV-10 and INV-11 defined in Implementation Notes) (UNK-04, UNK-05 defaults).
+- `REQ-004`: ADR-009 states the transaction boundary as per document and states its current invariant numbering (INV-09 unused; the list continues with INV-10 and INV-11) (UNK-04, UNK-05 defaults).
 - `REQ-005`: The CSC-001 entry of `governance_03` describes the current state: the identity modules are gone and unreferenced, ADR-010's surviving wording remains, and no archived issue path is cited as open (UNK-06).
 - `REQ-006`: The option table for the maintainer is in this Plan's Design section, and no policy decision or approval text is written before the maintainer's decision is recorded (UNK-01).
 - `REQ-007`: After the decision, ADR-004 covers the RAG consistency timeout, exception, and DEGRADED behavior as the decision states, shown in the pending-amendment form with an approval ledger entry; ADR-005's Fail-Open or Degraded Conditions, ADR-009's Degraded condition, and the guide's startup section follow it.
@@ -201,29 +201,29 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Failing diagnostics tests | In Progress | — | — |  |
-| 2 | Diagnostics fix and guide table | In Progress | — | — |  |
-| 3 | ADR-009 wording and CSC-001 evidence (no decision) | In Progress | — | — |  |
-| 4 | Decision gate and application | In Progress | — | — |  |
+| 1 | Failing diagnostics tests | Completed | — | 20261118-131251 |  |
+| 2 | Diagnostics fix and guide table | Completed | — | 20261118-131251 |  |
+| 3 | ADR-009 wording and CSC-001 evidence (no decision) | Completed | — | 20261118-131251 |  |
+| 4 | Decision gate and application | Completed | — | 20261118-131251 |  |
 | 5 | Validation and hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 4 | Maintainer decisions recorded in session 2026-11-18: UNK-01 option A (availability failure), UNK-02 reingest mapping, UNK-04 state the current numbering, UNK-05 wording alignment. Option A leaves the item 8 justification to the maintainer: NC-002 and an inline marker in ADR-004 | Yes | 20261118 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-124938_01_tests_db_test_rag_consistency.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-124938_02_scripts_db_rag_consistency.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-124938_03_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 2, 4 | Procedure | Pending | — | — |
-| implementations/20261118-124938_04_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 3, 4 | Procedure | Pending | — | — |
-| implementations/20261118-124938_05_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md | 3, 4 | Procedure | Pending | — | — |
-| implementations/20261118-124938_06_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261118-124938_07_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261118-124938_08_scripts_agent_startup_validation.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261118-124938_09_tools_check_docs_structure.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-124938_01_tests_db_test_rag_consistency.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-124938_02_scripts_db_rag_consistency.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-124938_03_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 2, 4 | Procedure | Completed | — | — |
+| implementations/20261118-124938_04_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 3, 4 | Procedure | Completed | — | — |
+| implementations/20261118-124938_05_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md | 3, 4 | Procedure | Completed | — | — |
+| implementations/20261118-124938_06_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261118-124938_07_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261118-124938_08_scripts_agent_startup_validation.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261118-124938_09_tools_check_docs_structure.py.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -59,10 +59,10 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the repair action mapping (UNK-02) with the owner | Pending | — | — | Stop and ask if not confirmed |
-| 2 | Update the pinned assertions and add the consistency tests | Pending | — | — |  |
-| 3 | Run the file and record the expected failures | Pending | — | — | Record the failing output here |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Stays In Progress until the end-of-unit run |
+| 1 | Confirm the repair action mapping (UNK-02) with the owner | Completed | 20261118-130400 | 20261118-130400 | Owner decision UNK-02 (reingest mapping) confirmed in session 2026-11-18 via AskUserQuestion |
+| 2 | Update the pinned assertions and add the consistency tests | Completed | 20261118-130400 | 20261118-130454 | Pinned assertions updated (FTS orphan, orphan vec, chunks without vec prefixes; orphan vec guidance; documents, URL-level, duplicate chunk index messages) and TestFindingConsistency added with _all_unclean_report and _REPAIR_PHRASE; changed: tests/db/test_rag_consistency.py |
+| 3 | Run the file and record the expected failures | Completed | 20261118-130454 | 20261118-130454 | Pre-fix run: 26 failed, 43 passed. Updated assertions fail on the old prefixes and sentences (for example [CRITICAL] FTS index versus [WARNING]); TestFindingConsistency fails on three prefixes, on reconcile_url not being a known action, and on messages that do not name their repair |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-131240 | 20261118-131240 | End-of-batch run: full suite 12762 passed, 7 skipped, 1 failed (tests/mcp_servers/git/test_mcp_git.py::test_check_repo_path_equivalence, Hypothesis FlakyFailure; passes alone; the test and the git MCP server code are untouched by this change, recorded as unrelated); diff-cover 100% (1 changed line in startup_validation.py); ruff, project mypy, bandit, lint-imports, validation gates, docs and ADR checkers: pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

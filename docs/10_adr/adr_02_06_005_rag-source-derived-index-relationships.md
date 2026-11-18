@@ -179,7 +179,7 @@ Because the indexes can be rebuilt even if FTS5 or the Vector Engine is replaced
 
 ### Fail-Open or Degraded Conditions
 
-- The startup consistency check routes each finding on the severity and startup policy owned by `rag_05_07` (`docs/21_rag/rag_05_07-rag-index-consistency-checks.md`); this ADR does not restate that policy or the timeout behavior (Explicit in code — `scripts/agent/startup_validation.py`)
+- The startup classification of the consistency check results (Degraded findings, a failed check, a timed-out check) is owned by ADR-004 Decision Group 2 item 7; the severity routing and the startup messages are described in `rag_05_07` (`docs/21_rag/rag_05_07-rag-index-consistency-checks.md`) (Explicit in code — `scripts/agent/startup_validation.py`)
 - The post-ingestion consistency check logs each issue as a warning and does not fail the ingestion run (Explicit in code — `scripts/rag/ingestion/document_manager.py` `DocumentManager.check_consistency()`)
 
 ### Retry Policy
@@ -283,6 +283,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval (pending)**: Approver not recorded; date not recorded; scope: the Decision 10 remediation for `orphan_vec_count > 0`, the Decision 11 shared-helper sentence, and the startup-check bullet reword under Fail-Open or Degraded Conditions. Pending maintainer approval, tracked by AAL-004; no approval or reviewer name is recorded here.
 - **Current Decision Approval (pending)**: Rewriting Decision 8 and the `RagMaintenanceService.rebuild_fts()` Implementation Note to reference ADR-009 (INV-03, INV-07) instead of restating the text-selection expression is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-005. No approval is recorded here.
+- **Current Decision Approval (pending)**: Moving the startup classification of the consistency check results from the RAG guide to ADR-004 in Fail-Open or Degraded Conditions awaits maintainer approval; it is tracked by AAL-020.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

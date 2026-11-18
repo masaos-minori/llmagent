@@ -58,10 +58,10 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the maintainer decision (UNK-01) | Pending | — | — | Stop and ask if absent; option C is a Plan amendment |
-| 2 | Add the classification text or the Exception entry | Pending | — | — |  |
-| 3 | Add the pending bullet citing the ledger entry | Pending | — | — |  |
-| 4 | Run the ADR and documentation checkers listed in Validation plan | Pending | — | — | Size check fails until procedure 09 |
+| 1 | Confirm the maintainer decision (UNK-01) | Completed | 20261118-130752 | 20261118-130752 | Maintainer decision UNK-01 recorded in session 2026-11-18 via AskUserQuestion: option A (availability failure) |
+| 2 | Add the classification text or the Exception entry | Completed | 20261118-130752 | 20261118-130804 | Option A: item 7 now classifies the RAG derived-index results (Degraded findings, a failed check, a timed-out check) as availability failures, keeps Fatal findings as safety/integrity failures, and leaves the item 8 justification (every affected function safely disabled while RAG search stays available) as an inline PENDING (Needs confirmation) marker on line 73, registered as NC-002; no rationale or approval written; the mandatoriness registry (MCP servers) is unchanged; changed: docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md |
+| 3 | Add the pending bullet citing the ledger entry | Completed | 20261118-130804 | 20261118-130804 | Pending bullet under Approval Record cites AAL-019 |
+| 4 | Run the ADR and documentation checkers listed in Validation plan | Completed | 20261118-131240 | 20261118-131240 | After procedure 09 the size check passes; all ADR, NC, known-deviation, authority, registry, and docs checkers pass; check_adr_preservation reports the Approval (ERROR) and Decision (WARNING) changes of the pending amendment, reviewed: no approval text written |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

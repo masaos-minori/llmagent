@@ -10,8 +10,13 @@ import sqlite3
 from typing import Any
 
 import pytest
-from db.models import RagConsistencyReport
-from db.rag_consistency import check_rag_consistency, is_consistent, summarize_issues
+from db.models import ConsistencyFinding, FindingSeverity, RagConsistencyReport
+from db.rag_consistency import (
+    _CHECKS,
+    check_rag_consistency,
+    is_consistent,
+    summarize_issues,
+)
 from db.schema_sql import build_rag_schema_sql
 
 # ── In-memory SQLite helper ───────────────────────────────────────────────────
@@ -281,7 +286,7 @@ class TestRagConsistencySeverity:
         assert not is_consistent(report)
         issues = summarize_issues(report)
         assert any(
-            "[CRITICAL]" in i and "FTS index has more entries" in i for i in issues
+            "[WARNING]" in i and "FTS index has more entries" in i for i in issues
         )
 
     def test_summarize_issues_fts_gap_has_warning_prefix(self) -> None:
@@ -297,13 +302,13 @@ class TestRagConsistencySeverity:
         issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
         assert any("[WARNING]" in i and "FTS gap" in i for i in issues)
 
-    def test_summarize_issues_orphan_vec_has_critical_prefix(self) -> None:
+    def test_summarize_issues_orphan_vec_has_warning_prefix(self) -> None:
         db = _make_rag_db()
         _insert_vec(db, 99999)
         db.commit()
 
         issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
-        assert any("[CRITICAL]" in i and "Orphan vec" in i for i in issues)
+        assert any("[WARNING]" in i and "Orphan vec" in i for i in issues)
 
     def test_summarize_issues_fts_gap_includes_rebuild_guidance(self) -> None:
         db = _make_rag_db()
@@ -318,13 +323,13 @@ class TestRagConsistencySeverity:
         issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
         assert any("/session rag-rebuild-fts" in i for i in issues)
 
-    def test_summarize_issues_orphan_vec_includes_force_guidance(self) -> None:
+    def test_summarize_issues_orphan_vec_includes_rebuild_vec_guidance(self) -> None:
         db = _make_rag_db()
         _insert_vec(db, 88888)
         db.commit()
 
         issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
-        assert any("--force" in i for i in issues)
+        assert any("/session rag-rebuild-vec" in i for i in issues)
 
     def test_fts_gap_includes_doc_ids(self) -> None:
         db = _make_rag_db()
@@ -410,7 +415,7 @@ class TestRagConsistencySeverity:
             (
                 i
                 for i in issues
-                if "[CRITICAL]" in i and "FTS index has more entries" in i
+                if "[WARNING]" in i and "FTS index has more entries" in i
             ),
             None,
         )
@@ -496,7 +501,7 @@ class TestNewConsistencyChecks:
         assert chunk_id in report.affected_chunks_without_vec
         assert not is_consistent(report)
         issues = summarize_issues(report)
-        assert any("[CRITICAL]" in i and "Chunks without vector" in i for i in issues)
+        assert any("[WARNING]" in i and "Chunks without vector" in i for i in issues)
 
     def test_duplicate_chunk_index_detected(self) -> None:
         """Duplicate chunk_index values within the same document should be flagged.
@@ -722,7 +727,7 @@ class TestFtsOrphanIssueDetail:
         )
 
         assert _only_issue(report) == (
-            "[CRITICAL] FTS index has more entries than chunks (fts=3, chunks=2). "
+            "[WARNING] FTS index has more entries than chunks (fts=3, chunks=2). "
             "Affected chunk_ids: [4, 5]." + self._TAIL
         )
 
@@ -735,7 +740,7 @@ class TestFtsOrphanIssueDetail:
         )
 
         assert _only_issue(report) == (
-            "[CRITICAL] FTS index has more entries than chunks (fts=3, chunks=2). "
+            "[WARNING] FTS index has more entries than chunks (fts=3, chunks=2). "
             "Affected URLs: [https://a, https://b]." + self._TAIL
         )
 
@@ -745,7 +750,7 @@ class TestFtsOrphanIssueDetail:
         report = _report(chunks=2, fts=3, fts_orphan_count=1, affected_orphan_urls=urls)
 
         assert _only_issue(report) == (
-            "[CRITICAL] FTS index has more entries than chunks (fts=3, chunks=2). "
+            "[WARNING] FTS index has more entries than chunks (fts=3, chunks=2). "
             "Affected URLs: [https://u0, https://u1, https://u2, https://u3, https://u4]."
             + self._TAIL
         )
@@ -755,7 +760,7 @@ class TestFtsOrphanIssueDetail:
         report = _report(chunks=2, fts=3, fts_orphan_count=1, affected_orphan_urls=urls)
 
         assert _only_issue(report) == (
-            "[CRITICAL] FTS index has more entries than chunks (fts=3, chunks=2). "
+            "[WARNING] FTS index has more entries than chunks (fts=3, chunks=2). "
             "Affected URLs: [https://u0, https://u1, https://u2, https://u3, https://u4 ...]."
             + self._TAIL
         )
@@ -764,7 +769,7 @@ class TestFtsOrphanIssueDetail:
         report = _report(chunks=2, fts=3, fts_orphan_count=1)
 
         assert _only_issue(report) == (
-            "[CRITICAL] FTS index has more entries than chunks (fts=3, chunks=2). "
+            "[WARNING] FTS index has more entries than chunks (fts=3, chunks=2). "
             "Chunk-level identifiers unavailable (FTS orphans have no parent chunk rows)."
             + self._TAIL
         )
@@ -774,7 +779,7 @@ class TestFtsOrphanIssueDetail:
         report = _report(chunks=2, fts=3, fts_orphan_count=1, affected_chunk_ids=(1, 2))
 
         assert _only_issue(report) == (
-            "[CRITICAL] FTS index has more entries than chunks (fts=3, chunks=2)."
+            "[WARNING] FTS index has more entries than chunks (fts=3, chunks=2)."
             + self._TAIL
         )
 
@@ -790,9 +795,9 @@ class TestOrphanVecAndVectorMismatchDetail:
         )
 
         assert _only_issue(report) == (
-            "[CRITICAL] Orphan vec rows detected (count=2). "
+            "[WARNING] Orphan vec rows detected (count=2). "
             "Affected URLs: [https://a, https://b]. "
-            "Re-run ingestion with 'ingester.py --force' for affected URLs."
+            "Run '/session rag-rebuild-vec' to remove the orphan rows."
         )
 
     def test_orphan_vec_urls_cut_at_five_and_mark_at_ten(self) -> None:
@@ -800,9 +805,9 @@ class TestOrphanVecAndVectorMismatchDetail:
         report = _report(orphan_vec_count=10, affected_orphan_urls=urls)
 
         assert _only_issue(report) == (
-            "[CRITICAL] Orphan vec rows detected (count=10). "
+            "[WARNING] Orphan vec rows detected (count=10). "
             "Affected URLs: [https://u0, https://u1, https://u2, https://u3, https://u4 ...]. "
-            "Re-run ingestion with 'ingester.py --force' for affected URLs."
+            "Run '/session rag-rebuild-vec' to remove the orphan rows."
         )
 
     def test_orphan_vec_chunk_ids_never_mark_truncation(self) -> None:
@@ -811,9 +816,9 @@ class TestOrphanVecAndVectorMismatchDetail:
         )
 
         assert _only_issue(report) == (
-            "[CRITICAL] Orphan vec rows detected (count=10). "
+            "[WARNING] Orphan vec rows detected (count=10). "
             "Affected chunk_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]. "
-            "Re-run ingestion with 'ingester.py --force' for affected URLs."
+            "Run '/session rag-rebuild-vec' to remove the orphan rows."
         )
 
     def test_vector_mismatch_prefers_urls(self) -> None:
@@ -851,7 +856,7 @@ class TestNewCheckIssueDetails:
 
         assert _only_issue(report) == (
             "[WARNING] Documents without chunks detected (count=2). Affected doc_ids: [4, 5]. "
-            "Re-run ingestion for affected documents."
+            "Re-run ingestion with 'ingester.py --force' for affected documents."
         )
 
     def test_documents_without_chunks_without_identifiers(self) -> None:
@@ -859,14 +864,14 @@ class TestNewCheckIssueDetails:
 
         assert _only_issue(report) == (
             "[WARNING] Documents without chunks detected (count=2). "
-            "Re-run ingestion for affected documents."
+            "Re-run ingestion with 'ingester.py --force' for affected documents."
         )
 
     def test_chunks_without_vec(self) -> None:
         report = _report(chunks_without_vec_count=1, affected_chunks_without_vec=(9,))
 
         assert _only_issue(report) == (
-            "[CRITICAL] Chunks without vector rows detected (count=1). Affected chunk_ids: [9]. "
+            "[WARNING] Chunks without vector rows detected (count=1). Affected chunk_ids: [9]. "
             "Re-run ingestion with 'ingester.py --force' for affected chunks."
         )
 
@@ -874,7 +879,7 @@ class TestNewCheckIssueDetails:
         report = _report(chunks_without_vec_count=1)
 
         assert _only_issue(report) == (
-            "[CRITICAL] Chunks without vector rows detected (count=1). "
+            "[WARNING] Chunks without vector rows detected (count=1). "
             "Re-run ingestion with 'ingester.py --force' for affected chunks."
         )
 
@@ -887,7 +892,7 @@ class TestNewCheckIssueDetails:
         assert _only_issue(report) == (
             "[CRITICAL] Duplicate chunk_index values detected (count=2). "
             "Affected (doc_id, chunk_index): [(1,1), (2,3)]. "
-            "Check ingestion logic; duplicate chunk indices indicate data corruption risk."
+            "Restore from a verified backup or re-ingest; duplicate chunk indices indicate data corruption."
         )
 
     def test_duplicate_chunk_indices_without_identifiers(self) -> None:
@@ -895,7 +900,7 @@ class TestNewCheckIssueDetails:
 
         assert _only_issue(report) == (
             "[CRITICAL] Duplicate chunk_index values detected (count=2). "
-            "Check ingestion logic; duplicate chunk indices indicate data corruption risk."
+            "Restore from a verified backup or re-ingest; duplicate chunk indices indicate data corruption."
         )
 
 
@@ -915,7 +920,7 @@ class TestUrlMismatchIssueDetail:
         assert _only_issue(report) == (
             "[WARNING] URL-level inconsistency detected (mismatched URLs=4). "
             "Affected URLs: [https://u0, https://u1, https://u2, https://u3]. "
-            "Re-run ingestion for affected URLs."
+            "Re-run ingestion with 'ingester.py --force' for affected URLs."
         )
 
     def test_exactly_five_urls_mark_truncation(self) -> None:
@@ -924,7 +929,7 @@ class TestUrlMismatchIssueDetail:
         assert _only_issue(report) == (
             "[WARNING] URL-level inconsistency detected (mismatched URLs=5). "
             "Affected URLs: [https://u0, https://u1, https://u2, https://u3, https://u4 ...]. "
-            "Re-run ingestion for affected URLs."
+            "Re-run ingestion with 'ingester.py --force' for affected URLs."
         )
 
     def test_empty_mapping_produces_no_issue(self) -> None:
@@ -952,11 +957,11 @@ class TestIssueOrder:
 
         assert [issue.split(" (")[0] for issue in summarize_issues(report)] == [
             "[WARNING] FTS gap detected",
-            "[CRITICAL] FTS index has more entries than chunks",
-            "[CRITICAL] Orphan vec rows detected",
+            "[WARNING] FTS index has more entries than chunks",
+            "[WARNING] Orphan vec rows detected",
             "[WARNING] Vector count mismatch",
             "[WARNING] Documents without chunks detected",
-            "[CRITICAL] Chunks without vector rows detected",
+            "[WARNING] Chunks without vector rows detected",
             "[CRITICAL] Duplicate chunk_index values detected",
             "[WARNING] URL-level inconsistency detected",
         ]
@@ -1140,3 +1145,70 @@ class TestVerificationStatusContract:
         """AC-002: an unverified dimension makes the report inconsistent at all-zero counts."""
         for flag in ("fk_unverified", "embedding_unverified", "schema_unverified"):
             assert is_consistent(self._clean_report(**{flag: True})) is False
+
+
+# What a user can act on for each repair action; a finding's message must contain it.
+_REPAIR_PHRASE = {
+    "rebuild_fts": "/session rag-rebuild-fts",
+    "rebuild_vec": "/session rag-rebuild-vec",
+    "reingest": "ingester.py --force",
+    "restore_from_backup": "verified backup",
+}
+
+
+def _all_unclean_report() -> RagConsistencyReport:
+    """A report on which every rule that has an issue builder is unclean."""
+    return _report(
+        chunks=3,
+        vec=1,
+        fts=2,
+        fts_gap=1,
+        fts_orphan_count=1,
+        orphan_vec_count=1,
+        documents_without_chunks_count=1,
+        chunks_without_vec_count=1,
+        duplicate_chunk_index_count=1,
+        url_level_mismatches={
+            "https://u0": {"chunk_count": 1, "vec_count": 0, "fts_count": 0}
+        },
+        fk_inconsistency_count=1,
+        dimension_mismatch=1,
+        unknown_schema=1,
+    )
+
+
+class TestFindingConsistency:
+    """Every finding's prefix matches its severity and its message names its repair."""
+
+    @staticmethod
+    def _findings() -> list[ConsistencyFinding]:
+        report = _all_unclean_report()
+        return [
+            check.issue(report)
+            for check in _CHECKS
+            if check.issue is not None and not check.clean(report)
+        ]
+
+    def test_every_rule_with_an_issue_builder_yields_a_finding(self) -> None:
+        expected = sum(1 for check in _CHECKS if check.issue is not None)
+
+        assert len(self._findings()) == expected
+
+    def test_prefix_matches_severity(self) -> None:
+        for finding in self._findings():
+            prefix = (
+                "[CRITICAL]"
+                if finding.severity == FindingSeverity.FATAL
+                else "[WARNING]"
+            )
+            assert finding.message.startswith(prefix), finding.message
+
+    def test_repair_action_is_a_known_action(self) -> None:
+        actions = {finding.repair_action for finding in self._findings()}
+
+        assert actions <= set(_REPAIR_PHRASE)
+
+    def test_message_names_the_repair_of_its_action(self) -> None:
+        for finding in self._findings():
+            phrase = _REPAIR_PHRASE[finding.repair_action]
+            assert phrase in finding.message, finding.message

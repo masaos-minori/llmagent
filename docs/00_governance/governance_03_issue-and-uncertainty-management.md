@@ -227,6 +227,24 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Resolution Target:** rationale text in the ADR-004 Group 1 exception record
 - **Blocking:** None
 
+#### NC-002
+
+- **ID:** NC-002
+- **Source File:** `adr_02_01_004_platform-environment-failure-handling-policy.md`
+- **Section:** Decision > Group 2 (item 7, RAG derived-index results)
+- **Line Number:** 73
+- **Question:** Can every function that the RAG derived-index results affect be safely disabled while the RAG search path stays available, as Decision Group 2 item 8 requires for continuing startup after an availability failure?
+- **Evidence:** The startup check reports Degraded findings, a failed check, and a timed-out check as warnings and startup continues; the RAG search path is not disabled on those results.
+- **Impact:** The conditions of item 8 are not shown to hold for the classification of these results as availability failures.
+- **Required Action:** The maintainer writes the justification into ADR-004 Decision Group 2 item 7 or reverses the classification; the implementer does not write it. Remove the inline marker only when the justification text is supplied.
+- **Status:** open
+- **Assigned To:** maintainer
+- **Last Reviewed:** 2026-11-18
+- **Priority:** High
+- **Related NC:** None
+- **Resolution Target:** justification text in ADR-004 Decision Group 2 item 7
+- **Blocking:** None
+
 ## Part 3: Canonical Source Conflict
 
 ### Purpose
@@ -254,12 +272,12 @@ An item is removed from this active inventory once it is resolved (exactly one n
 - **Canonical source:** `docs/10_adr/adr_02_06_010_rag-fallback.md` `## Status` (`Withdrawn`) and its withdrawal note ("The text below remains as the record of the withdrawn decision")
 - **Conflicting source or evidence:** The same ADR's Decision item 11 and the failure-outcome table row `Identity unverifiable (either identity absent)` still state the identity-comparison and unverifiable-handling contract in the present tense
 - **Conflict category:** Internal contradiction in one canonical source: withdrawn status vs surviving normative wording
-- **Impact:** Readers of the normative sections can take the withdrawn fallback's identity handling as current behavior while the owning decision is still open
+- **Impact:** Readers of the normative sections can take the withdrawn fallback's identity handling as current behavior although the corpus-identity handling no longer exists
 - **Severity:** High
 - **Blocking status:** Blocking
-- **Required action:** `issues/20261110-170753_rmcompat003_rag-corpus-identity-decision.md` decides the current corpus-identity handling; the surviving normative wording in ADR-010 is then moved to the withdrawn record or removed
+- **Required action:** The corpus-identity modules are gone: no `corpus_identity.py` exists under `scripts/rag/` and no `scripts/` or `tests/` file references it. The surviving present-tense wording in ADR-010 (Decision item 11 and the failure-outcome table row) is still to be moved to the withdrawn record or removed, a maintainer decision
 - **Owner:** Repository owner
-- **Validation evidence:** `issues/20261110-170753_rmcompat003_rag-corpus-identity-decision.md` (open)
+- **Validation evidence:** `rg corpus_identity scripts/ tests/` lists no file
 - **Status**: open
 
 ## Part 4: Configuration Drift
@@ -462,6 +480,24 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Approver:** Not recorded
 - **Date:** Not recorded
 - **Scope:** Decision Detail 6, Implementation Notes, Summary, Problem
+
+#### AAL-019
+
+- **ID:** AAL-019
+- **ADR:** ADR-004
+- **Decision:** RAG derived-index results classified as availability failures
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Group 2 item 7
+
+#### AAL-020
+
+- **ID:** AAL-020
+- **ADR:** ADR-005
+- **Decision:** The startup classification of the consistency check results is owned by ADR-004
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Fail-Open or Degraded Conditions
 
 ## Resolution Rules
 

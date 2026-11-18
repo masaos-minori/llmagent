@@ -13,14 +13,14 @@ Correct ADR-009's transaction boundary and state its invariant numbering (REQ-00
 - Use the ADR-005 term `per document` for the boundary.
 
 ## Alternatives considered
-Renumbering INV-10 and INV-11 into the invariant list was rejected: it changes citations and needs an approval record (UNK-04).
+Renumbering INV-10 and INV-11 down to close the gap was rejected: it changes citations and needs an approval record (UNK-04).
 
 ## Implementation
 ### Target file
 `docs/10_adr/adr_02_06_009_rag-fts5-text-separation.md`
 ### Procedure
 1. `Transaction Boundary`: change `per chunk` to `per document`.
-2. After the last invariant of `## Invariants` add one sentence: INV-09 is not used, and INV-10 and INV-11 are defined in `## Implementation Notes`.
+2. After the last invariant (INV-11) of `## Invariants` add one sentence: INV-09 is not used. (Step 3a correction: the list jumps from INV-08 to INV-10, and INV-10 and INV-11 are in the list, not in Implementation Notes.)
 3. Gate: confirm that the maintainer's decision on the Source plan's option table (UNK-01: option A, B, or C) is recorded as a maintainer comment on the Source plan; stop and ask when it is not. Option C changes startup behavior and is a Plan amendment: stop. Write no policy decision and no approval text. Then align the `Degraded condition` line of `### Runtime Monitoring` with the decision (it stays `fts_gap > 0` unless the decision changes the Degraded set). Show an ADR change that alters a decision only in the pending-amendment form of the policy governance document: a `Current Decision Approval (pending)` bullet under `### Approval Record` that cites its ledger entry; the Status line stays `Accepted`. Cite the ledger entry that procedure 04 added for ADR-009 (AAL-021, and AAL-022 for a boundary decision change).
 ### Method
 Edit in place; keep the heading order the structure checker requires; do not edit the Status line.
@@ -56,11 +56,11 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm UNK-04 and UNK-05 with the owner | Pending | — | — | Stop and ask if not confirmed |
-| 2 | Correct the transaction boundary and add the numbering statement (REQ-004) | Pending | — | — |  |
-| 3 | Confirm the maintainer decision (UNK-01) | Pending | — | — | Stop and ask if absent |
-| 4 | Align the Degraded condition in the pending form if the decision needs it (REQ-007) | Pending | — | — |  |
-| 5 | Run the ADR and documentation checkers listed in Validation plan | Pending | — | — |  |
+| 1 | Confirm UNK-04 and UNK-05 with the owner | Completed | 20261118-130657 | 20261118-130657 | Owner decisions UNK-04 (state the current numbering) and UNK-05 (wording alignment, no approval record) confirmed in session 2026-11-18 via AskUserQuestion |
+| 2 | Correct the transaction boundary and add the numbering statement (REQ-004) | Completed | 20261118-130657 | 20261118-130740 | Transaction Boundary corrected to per document (code: one BEGIN IMMEDIATE transaction per URL; ADR-005 says per document); one sentence after the last invariant says INV-09 is not used; changed: docs/10_adr/adr_02_06_009_rag-fts5-text-separation.md. Step 3a correction: the first edit wrongly said INV-10 and INV-11 are in Implementation Notes; they are in the Invariants list after INV-08, so the sentence was rewritten, and the plan and this procedure were corrected |
+| 3 | Confirm the maintainer decision (UNK-01) | Completed | 20261118-130740 | 20261118-130740 | Maintainer decision UNK-01 recorded in session 2026-11-18: option A |
+| 4 | Align the Degraded condition in the pending form if the decision needs it (REQ-007) | Completed | 20261118-130740 | 20261118-130740 | No change: under option A the Degraded set is unchanged, so the Degraded condition stays fts_gap > 0 and no pending bullet or ledger entry is needed |
+| 5 | Run the ADR and documentation checkers listed in Validation plan | Completed | 20261118-130740 | 20261118-130740 | ADR structure, invariant matrix, authority, reference, canonical registry, docs quality/structure/content-policy/japanese: pass; check_adr_preservation reports Data Ownership and Invariants wording changes (WARNING), reviewed: no decision changed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -55,9 +55,9 @@ Revert only this procedure's own changes with `git checkout -- <path>` on each c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read the ADR-004 size after procedure 06 | Pending | — | — | Skip the procedure if procedure 06 was not applied |
-| 2 | Set the ceiling to that size | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Read the ADR-004 size after procedure 06 | Completed | 20261118-130848 | 20261118-130848 | ADR-004 size after procedure 06: 35132 bytes |
+| 2 | Set the ceiling to that size | Completed | 20261118-130848 | 20261118-131240 | ADR-004 ceiling set from 34555 to 35132 (its size after procedure 06); same digit count, so the module stays at its size; changed: tools/check_docs_structure.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-131240 | 20261118-131240 | check_docs_structure, test_check_docs_structure (82 passed), module size gate, ruff, mypy: pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

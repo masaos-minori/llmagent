@@ -55,10 +55,10 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Align the repair table and the severity class prose (REQ-003) | Pending | — | — |  |
-| 2 | Confirm the maintainer decision (UNK-01) | Pending | — | — | Stop and ask if absent; option C is a Plan amendment |
-| 3 | Update the Startup Warnings bullets (REQ-007) | Pending | — | — |  |
-| 4 | Run the documentation checkers listed in Validation plan | Pending | — | — |  |
+| 1 | Align the repair table and the severity class prose (REQ-003) | Completed | 20261118-130548 | 20261118-130556 | Repair table, severity class cell, and closing paragraph aligned with the repair actions (reingest, rebuild_vec for orphan rows only); changed: docs/21_rag/rag_05_07-rag-index-consistency-checks.md |
+| 2 | Confirm the maintainer decision (UNK-01) | Completed | 20261118-130556 | 20261118-130556 | Maintainer decision UNK-01 recorded in session 2026-11-18 via AskUserQuestion: option A (availability failure) |
+| 3 | Update the Startup Warnings bullets (REQ-007) | Completed | 20261118-130556 | 20261118-130556 | Startup Warnings bullets for degraded findings and for a failed or timed-out check say ADR-004 classifies them as availability failures (the ADR-004 text is the pending amendment of procedure 06) |
+| 4 | Run the documentation checkers listed in Validation plan | Completed | 20261118-130556 | 20261118-130556 | docs quality/structure/content-policy/japanese and check_docs_consistency --domain rag: pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -21,10 +21,10 @@ The RAG index requires synchronization between the following tables:
 
 On every agent startup, a read-only RAG consistency check runs via `check_rag_consistency()` (`scripts/db/rag_consistency.py`). Each finding carries a fixed severity (`FindingSeverity.DEGRADED` or `FindingSeverity.FATAL`, `db.models`), and startup routes on it (`scripts/agent/startup_validation.py`):
 
-- **Degraded findings** (FTS gap, FTS orphan, vector count mismatch, orphan vec rows, chunks without vector rows, documents without chunks, URL-level inconsistency) print a console warning per finding with its repair action; startup proceeds.
+- **Degraded findings** (FTS gap, FTS orphan, vector count mismatch, orphan vec rows, chunks without vector rows, documents without chunks, URL-level inconsistency) print a console warning per finding with its repair action; startup proceeds. ADR-004 classifies these results as availability failures of the RAG derived indexes.
 - **Fatal findings** (duplicate `chunk_index`, FK inconsistency, embedding-dimension mismatch, unknown schema) register a `rag_consistency` fatal finding and abort startup, with the repair action in the message. No config path may downgrade a fatal finding (AC-4).
 - **Ingest-time embedding-dimension mismatch** (outside the startup check): ingestion skips the affected chunk and logs a WARNING; the same mismatch at startup is the Fatal finding listed above.
-- **A failed or timed-out check** prints a warning marking RAG consistency unverified and lets startup continue.
+- **A failed or timed-out check** prints a warning marking RAG consistency unverified and lets startup continue. ADR-004 classifies a failed or timed-out check the same way.
 
 ```text
 [WARNING] FTS gap detected (chunks=1042, fts=1039, gap=3). Affected doc_ids: [1, 2, 3]. Run '/session rag-rebuild-fts' to repair. Repair action: rebuild_fts
@@ -38,7 +38,7 @@ Classification is fixed in code, not configuration. Degraded findings are repair
 
 | Class | Findings | Startup consequence | Repair |
 |---|---|---|---|
-| Degraded | FTS gap, FTS orphan, vector count mismatch, orphan vec rows, chunks without vector rows, documents without chunks, URL-level inconsistency | Warn per finding; proceed | `rebuild_fts`, `rebuild_vec`, or `reconcile_url` (see below) |
+| Degraded | FTS gap, FTS orphan, vector count mismatch, orphan vec rows, chunks without vector rows, documents without chunks, URL-level inconsistency | Warn per finding; proceed | `rebuild_fts`, `rebuild_vec`, or `reingest` (see below) |
 | Fatal | Duplicate `chunk_index`, FK inconsistency, embedding-dimension mismatch, unknown schema | Abort, with repair action in the message | Restore from a verified backup or re-ingest; the rebuild commands do not repair these |
 
 
@@ -88,17 +88,17 @@ Use `/session rag-consistency` to detect issues. The report includes identifiers
 |---|---|---|---|
 | `fts_gap > 0` | Degraded | `rebuild_fts` | Run `/session rag-rebuild-fts` — rebuilds `chunks_fts` from `chunks` because FTS entries are missing. |
 | `fts_orphan_count > 0` | Degraded | `rebuild_fts` | Run `/session rag-rebuild-fts` — removes extra FTS entries (data-loss risk; urgent). |
-| `orphan_vec_count > 0` | Degraded | `rebuild_vec` | Run `/session rag-rebuild-vec` for the affected URL — `chunks_vec` rows with no matching `chunks` row. |
-| `vec != chunks` | Degraded | `rebuild_vec` | Run `ingester.py --force` for the affected URL. |
-| chunks without vector rows | Degraded | `rebuild_vec` | Run `ingester.py --force` for the affected chunks. |
-| documents without chunks | Degraded | `rebuild_vec` | Re-run ingestion for the affected documents. |
-| URL-level inconsistency | Degraded | `reconcile_url` | Re-run ingestion for the affected URLs. |
+| `orphan_vec_count > 0` | Degraded | `rebuild_vec` | Run `/session rag-rebuild-vec` — removes the `chunks_vec` rows that have no matching `chunks` row. |
+| `vec != chunks` | Degraded | `reingest` | Run `ingester.py --force` for the affected URL. |
+| chunks without vector rows | Degraded | `reingest` | Run `ingester.py --force` for the affected chunks. |
+| documents without chunks | Degraded | `reingest` | Run `ingester.py --force` for the affected documents. |
+| URL-level inconsistency | Degraded | `reingest` | Run `ingester.py --force` for the affected URLs. |
 | duplicate `chunk_index` | Fatal | `restore_from_backup` | Restore from a verified backup or re-ingest; duplicate indices indicate data corruption. |
 | FK inconsistency | Fatal | `restore_from_backup` | Restore from a verified backup; a chunk references a missing document. |
 | embedding-dimension mismatch | Fatal | `restore_from_backup` | Restore from a verified backup; stored vectors do not match the configured dimension. |
 | unknown schema | Fatal | `restore_from_backup` | Restore from a verified backup; a required table is missing. |
 
-The `repair_action` value is appended to the console message at startup (`... Repair action: <value>`). The rebuild commands (`rebuild_fts`, `rebuild_vec`) repair degraded findings only; fatal findings require restore-from-backup or re-ingest.
+The `repair_action` value is appended to the console message at startup (`... Repair action: <value>`). `rebuild_fts` and `rebuild_vec` repair only the findings that name them; `reingest` findings need ingestion to run again; fatal findings require restore-from-backup or re-ingest.
 
 Run `/session rag-rebuild-fts` to re-sync `chunks_fts` from the `chunks` table.
 

@@ -268,8 +268,8 @@ class StartupValidationPipeline:
                 f"{RAG_CONSISTENCY_TIMEOUT_SEC:g}s; startup continues "
                 "with RAG consistency unverified.",
             )
-        except Exception as exc:  # noqa: BLE001 — non-critical maintenance check must not abort startup;
-            # the unverified state is fail-closed downstream, not here.
+        except Exception as exc:  # noqa: BLE001 — a failed RAG consistency check is an availability failure (ADR-004);
+            # it is reported as a warning and startup continues with RAG consistency unverified.
             category = _classify_rag_failure(exc)
             logger.warning("RAG consistency check failed: %s", exc)
             pipeline.add_warning(

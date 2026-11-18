@@ -64,10 +64,10 @@ Revert only this procedure's own changes with `git checkout -- <path>` on each c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the owner decision UNK-02 | Pending | — | — | Stop and ask if not confirmed |
-| 2 | Implement the changes in Implementation > Procedure | Pending | — | — |  |
-| 3 | Run the tests of procedure 01 and the startup tests | Pending | — | — |  |
-| 4 | Run the validation sequence (`rules/toolchain.md`) and the end-of-unit full suite | Pending | — | — | Stays In Progress until the end-of-unit run passes |
+| 1 | Confirm the owner decision UNK-02 | Completed | 20261118-130506 | 20261118-130506 | Owner decision UNK-02 (reingest mapping) confirmed in session 2026-11-18 via AskUserQuestion |
+| 2 | Implement the changes in Implementation > Procedure | Completed | 20261118-130506 | 20261118-130529 | Prefixes (three DEGRADED findings to [WARNING]), reingest repair action (vector mismatch, documents without chunks, chunks without vec, URL-level), orphan vec guidance to /session rag-rebuild-vec, restore guidance on the four FATAL messages; changed: scripts/db/rag_consistency.py |
+| 3 | Run the tests of procedure 01 and the startup tests | Completed | 20261118-130529 | 20261118-130529 | Procedure 01 tests and the startup tests: 136 passed; every test file that references the consistency check: pass |
+| 4 | Run the validation sequence (`rules/toolchain.md`) and the end-of-unit full suite | Completed | 20261118-131240 | 20261118-131240 | End-of-batch run: full suite 12762 passed, 7 skipped, 1 failed (tests/mcp_servers/git/test_mcp_git.py::test_check_repo_path_equivalence, Hypothesis FlakyFailure; passes alone; the test and the git MCP server code are untouched by this change, recorded as unrelated); diff-cover 100% (1 changed line in startup_validation.py); ruff, project mypy, bandit, lint-imports, validation gates, docs and ADR checkers: pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

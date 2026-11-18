@@ -60,11 +60,11 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the CSC-001 entry (REQ-005) | Pending | — | — |  |
-| 2 | Record the archived-file re-verification result (REQ-009) | Pending | — | — | Archived files not read |
-| 3 | Confirm the maintainer decision (UNK-01) | Pending | — | — | Stop and ask if absent |
-| 4 | Add the pending ledger entries and, if needed, the registry entry (REQ-007) | Pending | — | — |  |
-| 5 | Run the checkers listed in Validation plan | Pending | — | — |  |
+| 1 | Correct the CSC-001 entry (REQ-005) | Completed | 20261118-130636 | 20261118-130648 | CSC-001 Required action, Validation evidence, and Impact corrected to current facts; rg corpus_identity over scripts/ and tests/ lists no file; CSC-001 stays open (closing needs an ADR-010 edit outside the plan, UNK-06); changed: docs/00_governance/governance_03_issue-and-uncertainty-management.md |
+| 2 | Record the archived-file re-verification result (REQ-009) | Completed | 20261118-130648 | 20261118-130648 | Archived issue files (adrrev013, rmcompat001, rmcompat003) were not read and not edited; the claims about them stay Needs confirmation (UNK-03); git status shows no archived file changed |
+| 3 | Confirm the maintainer decision (UNK-01) | Completed | 20261118-130648 | 20261118-130648 | Maintainer decision UNK-01 recorded in session 2026-11-18 via AskUserQuestion: option A (availability failure) |
+| 4 | Add the pending ledger entries and, if needed, the registry entry (REQ-007) | Completed | 20261118-130648 | 20261118-130648 | Option A: pending ledger entries AAL-019 (ADR-004) and AAL-020 (ADR-005); ADR-009 needs no entry (Degraded set unchanged; boundary correction is a wording alignment per UNK-05). NC-002 registered for the item 8 justification the maintainer must write: inline marker goes on ADR-004 Decision Group 2 item 7 (line 73). The mandatoriness registry covers MCP servers only, so it is not changed |
+| 5 | Run the checkers listed in Validation plan | Completed | 20261118-130821 | 20261118-130821 | After procedures 05 to 07: check_adr_structure (every pending bullet cites a ledger entry that exists), NC inventory, known-deviation sync, inventory conformance, docs checkers: pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
