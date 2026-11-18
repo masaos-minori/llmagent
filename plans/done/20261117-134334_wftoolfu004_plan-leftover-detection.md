@@ -51,8 +51,15 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `tools/_workitem_leftover_rules.py` | Create the plan and procedure leftover rules | New file: the checker holds 18168 B of 24576 B and the structure-gate Plan adds code to it, so the rules go to a new module | REQ-001, REQ-006 / AC-1, AC-6 | `tools/` exists and holds the sibling `_workitem_*` helper modules; `check_workitem_structure.py` is not in the size baseline (checked in Step 3) | `tests/tools/test_check_workitem_structure.py` | Verified |
-| `tools/check_workitem_structure.py` | Call the rules for plans and procedures in `--file` and directory modes | `collect_findings` and `collect_single_file_findings` run section and release-unit checks only | REQ-002, REQ-006 / AC-2, AC-6 | `collect_findings` at line 334 branches on `kind == "plan"` for the release-unit check; `infer_kind` at line 295 (checked in Step 3) | `tests/tools/test_check_workitem_structure.py` | Verified |
+| `tools/_workitem_leftover_rules.py` | Create the plan and procedure leftover rules | New file: the checker holds 21266 B of 24576 B (re-measured 20261118 after the prerequisite Plan) and this Plan adds code to it, so the rules go to a new module | REQ-001, REQ-006 / AC-1, AC-6 | `tools/` exists and holds the sibling `_workitem_*` helper modules; `check_workitem_structure.py` is not in the size baseline (re-verified 20261118) | `tests/tools/test_check_workitem_structure.py` | Verified |
+| `tools/check_workitem_structure.py` | Call the rules for plans and procedures in `--file` and directory modes | `collect_single_file_findings` and `collect_findings` run section and release-unit checks; only issues get the leftover call | REQ-002, REQ-006 / AC-2, AC-6 | `collect_single_file_findings` branches on kind (`plan` adds the release-unit findings, `issue` adds `find_template_leftovers`, which is issue-specific); `infer_kind` and `find_release_unit_findings` exist in the current file (re-verified 20261118) | `tests/tools/test_check_workitem_structure.py` | Verified |
+
+Revalidation (20261118, plan-to-implementation-procedure Step 3a): the prerequisite Plan is
+archived with every step `Completed`, so its leftover infrastructure (`find_template_leftovers`
+with a reusable `rule` parameter, the multi-path `--file` form) is in place and the dependency
+is satisfied. The checker's byte size and the cited function locations were re-measured; the
+line numbers this Plan first cited had shifted. The clean-skeleton assertion to reverse is
+`test_plan_and_procedure_skeletons_get_no_leftover_rule` in the test module (re-verified).
 | `tests/tools/test_check_workitem_structure.py` | Scaffold, filled, Freeze-rewrite, and dash-row tests; reverse the clean-skeleton test | The prerequisite Plan's tests assert that plan and procedure skeletons are clean | REQ-003 / AC-3 | Existing end-to-end tests install the real templates under `tmp_path` and monkeypatch `ROOT_DIR` (checked in Step 3) | The file itself | Verified |
 | `routing.md` | Widen the structure-check row to the three kinds | The row, after the prerequisite Plan, says the leftover check covers issues | REQ-005 / AC-5 | The "When to run which tool" row for `check_workitem_structure.py --file` (checked in Step 3) | `tools/check_skills_references.py`, `tools/check_skills_heading_cycles.py` | Verified |
 | `tools/TOOL_DESCRIPTIONS.md` | Describe the plan and procedure rules and the helper module | The checker entry, after the prerequisite Plan, describes issue leftovers only | REQ-005 / AC-5 | Entries for `check_workitem_structure.py` and the helper modules (checked in Step 3) | `tools/check_tool_descriptions_sync.py` | Verified |
@@ -96,7 +103,7 @@ N/A for `docs/*.md`: no file under `docs/` changes. The routing row and the tool
 |---|---|---|---|---|
 | UNK-01 | Whether the maintainer accepts option D instead of A, B, or C | A maintainer decision; the measurements favor D (the only option that reports both scaffolds with zero false reports) | The maintainer confirms before procedure generation; if another option is chosen, REQ-001 and the Design are amended first | False |
 | UNK-02 | Whether the empty-section signal of the procedure scaffold should be used, given 28 filled procedures with an empty section | The reason those sections were left empty | Not used; revisit only if a threshold rule (for example most sections empty) is proposed | False |
-| UNK-03 | Final names and layout of the prerequisite Plan's leftover infrastructure, and order against the status-value Plan | The checker after the prerequisite phase | Read the checker at implementation time, after the prerequisite phase | False |
+| UNK-03 | Final names and layout of the prerequisite Plan's leftover infrastructure, and order against the status-value Plan (the names half was resolved by verification 20261118: `find_template_leftovers` with a reusable `rule` parameter, `collect_single_file_findings` kind branching, and the multi-path `--file` form are in place) | What the status-value Plan adds to the checker and its test module at implementation time | Read the checker at implementation time, after the sibling Plan of this batch | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -171,11 +178,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: scaffold, filled, Freeze rewrite, dash rows, fence derivation | Pending | — | — | |
-| 2 | The rule module and the checker call | Pending | — | — | |
-| 3 | Re-measure over the newest filled documents and the active set | Pending | — | — | |
-| 4 | Documentation: routing row and tool description | Pending | — | — | |
-| 5 | Verification: validation sequence, size gates, scaffold smoke runs | Pending | — | — | |
+| 1 | Tests first: scaffold, filled, Freeze rewrite, dash rows, fence derivation | In Progress | — | — |  |
+| 2 | The rule module and the checker call | In Progress | — | — |  |
+| 3 | Re-measure over the newest filled documents and the active set | In Progress | — | — |  |
+| 4 | Documentation: routing row and tool description | In Progress | — | — |  |
+| 5 | Verification: validation sequence, size gates, scaffold smoke runs | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -185,7 +192,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-072547_01_tools__workitem_leftover_rules.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-072547_02_tools_check_workitem_structure.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-072547_03_tests_tools_test_check_workitem_structure.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-072547_04_routing.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-072547_05_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -206,3 +217,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-005 | Required Changes (update the tool description); Documentation Impact (routing row) | `routing.md` | Phase 4 | AC-5 | skills reference checkers | Explicit in issue |
 | REQ-005 | Required Changes (update the tool description) | `tools/TOOL_DESCRIPTIONS.md` | Phase 4 | AC-5 | `tools/check_tool_descriptions_sync.py` | Explicit in issue |
 | REQ-006 | Constraints (tool conventions, size gate) | `tools/_workitem_leftover_rules.py` | Phase 5 | AC-6 | ruff, mypy, bandit, radon, size gates | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-072547 -->

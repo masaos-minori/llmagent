@@ -14,7 +14,7 @@ Low
 Filed as a follow-up of the gate-output Plan (its UNK-02). The same drift was noted on 2026-11-02 in an archived procedure for this file ("not changed here") and was never tracked as an issue.
 
 ## Problem
-`uv run python tools/run_validation_gates.py --help` lists `--base`, `--full`, `--jobs`, and the `drift` subcommand; there is no `--fast` (`Explicit in code`, `Operationally observed` in this cycle). The default mode is fast, selected by the absence of `--full`. The rows state `--fast`/`--full` and "stops non-zero on the first `Fail`" (`Explicit in code`, lines 145 and 257 of `tools/TOOL_DESCRIPTIONS.md`).
+`uv run python tools/run_validation_gates.py --help` lists `--base`, `--full`, `--jobs`, `--verbose`, and the `drift` subcommand; there is no `--fast` (`Explicit in code`, `Operationally observed` in this cycle; `--verbose` was added by the prerequisite Plan, re-verified 20261118). The default mode is fast, selected by the absence of `--full`. The rows state `--fast`/`--full` and "stops non-zero on the first `Fail`" (`Explicit in code`, lines 147 and 260 of `tools/TOOL_DESCRIPTIONS.md` after the prerequisite Plan's documentation phase, re-verified 20261118).
 
 Checked against the code in this cycle, the stop claim is partly true and the issue's replacement wording has to keep that:
 - Across gates the runner runs every selected gate and returns `1` when any result is `Fail`, else `0` (`_run_gates`, `Explicit in code`).
@@ -23,7 +23,7 @@ Checked against the code in this cycle, the stop claim is partly true and the is
 Further claims of the rows that do not match the code (found while verifying "every other claim", beyond the issue's text):
 - The rows say changed files come "from `git diff <base>`". The runner diffs staged changes against the base and unstaged changes against the index, keeps only added, modified, renamed, and copied paths (`--diff-filter=AMRC`), and so never sees untracked or deleted files (`_changed_files`, `Explicit in code`).
 - The rows say the runner prints one `Pass`/`Fail`/`Partial`/`Not available`/`Blocked` summary. `classify` can return only `Pass`, `Fail`, and `Not available`; `Partial` and `Blocked` are in the vocabulary tuple but no code path produces them (`Explicit in code`).
-- The second row says it prints "the failing command". The summary prints every gate's command with its status, and a `Fail` carries the exit code as detail (`_print_summary`, `Explicit in code`); the gate-output Plan changes this output, so the sentence is re-checked after it.
+- The second row says it prints "the failing command". The summary prints every gate's command with its status, and a `Fail` row carries the exit code as its detail (the renderer is `tools/_validation_gate_report.py` since the prerequisite Plan landed, and the runner builds the `exit code` detail in `run_gate`; re-verified 20261118 in place of the `_print_summary` this Plan first cited).
 
 ## Reason for Change
 - A reader who copies `--fast` from the description gets an argument error, and one who relies on stop-at-first-failure misreads a run that reports every failure. A reader who expects untracked files to be validated gets no gate for a new file.
@@ -49,7 +49,12 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `tools/TOOL_DESCRIPTIONS.md` | Correct the two `run_validation_gates.py` rows | The rows name `--fast`, claim a stop at the first `Fail`, describe discovery as `git diff <base>`, and list five statuses | REQ-001, REQ-002, REQ-003, REQ-004 / AC-1, AC-2, AC-3, AC-4 | Lines 145 and 257; `--help` lists `--base`, `--full`, `--jobs`, `drift`; `_changed_files` and `classify` in `tools/run_validation_gates.py` (checked in Step 3) | `tools/check_tool_descriptions_sync.py` | Verified |
+| `tools/TOOL_DESCRIPTIONS.md` | Correct the two `run_validation_gates.py` rows | The rows name `--fast`, claim a stop at the first `Fail`, describe discovery as `git diff <base>`, and list five statuses | REQ-001, REQ-002, REQ-003, REQ-004 / AC-1, AC-2, AC-3, AC-4 | Lines 147 and 260 (re-verified 20261118 after the prerequisite Plan's documentation phase); `--help` lists `--base`, `--full`, `--jobs`, `--verbose`, `drift`; `_changed_files` (`--diff-filter=AMRC`, staged against the base and unstaged against the index), `classify` (produces only `Pass`, `Fail`, `Not available`), `run_gate` (stops at the first non-zero exit within a gate), and `_run_gates` (runs every gate, exits 1 when any is `Fail`) in `tools/run_validation_gates.py` (re-verified 20261118) | `tools/check_tool_descriptions_sync.py` | Verified |
+
+Revalidation (20261118, plan-to-implementation-procedure Step 3a): every claim of the target-row
+evidence was re-checked against the current code and `--help` output; only the two line numbers
+and the `--help` flag list changed (the prerequisite Plan's documentation phase landed, all its
+steps `Completed`). The dependency on that Plan is satisfied.
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified. Same
@@ -136,9 +141,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify each claim of the two rows against `--help` and the code | Pending | — | — | |
-| 2 | Correct the two rows | Pending | — | — | |
-| 3 | Verification: sync check, confirmation record, report the other copies | Pending | — | — | |
+| 1 | Verify each claim of the two rows against `--help` and the code | In Progress | — | — |  |
+| 2 | Correct the two rows | In Progress | — | — |  |
+| 3 | Verification: sync check, confirmation record, report the other copies | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -148,7 +153,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-072236_01_tools_TOOL_DESCRIPTIONS.md.md | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -166,3 +171,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-002 | Required Changes (state the all-gates run and exit rule); `run_gate` evidence | `tools/TOOL_DESCRIPTIONS.md` | Phase 2 | AC-2 | review against `run_gates` and `run_gate` | Derived from confirmed evidence |
 | REQ-003 | Required Changes (verify every other claim); `_changed_files` and `classify` evidence | `tools/TOOL_DESCRIPTIONS.md` | Phase 2 | AC-3 | review against `_changed_files` and `classify` | Derived from confirmed evidence |
 | REQ-004 | Required Changes (verify and run the sync check); Acceptance Criteria | `tools/TOOL_DESCRIPTIONS.md` | Phase 1, Phase 3 | AC-4 | `tools/check_tool_descriptions_sync.py`; confirmation record | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-072236 -->

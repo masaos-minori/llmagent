@@ -47,9 +47,19 @@ table — no other file may be treated as a modification target.
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `templates/plan.md` | State the rule at the `Dependencies` line and the `Depends on` bullet | Line 19 tells the author to copy the Issue's Dependencies into the prose line and line 20 says sequencing notes stay in the prose line | REQ-001 / AC-1 | Lines 19 and 20 of the template fence (checked in Step 3) | `tools/check_skills_references.py`, `tools/check_workitem_structure.py` | Verified |
-| `skills/issue-to-plan/workflow.md` | State the rule in Step 5 and Step 8b | No `Depends on` text exists in the workflow; Step 8b says to add the other Plan to Scope Dependencies | REQ-002 / AC-2 | Step 4 mapping row `Dependencies`, Step 5 "Generate the Plan" bullets, and Step 8b lines 561 and 562 (checked in Step 3) | `tools/check_skills_references.py`, `tools/check_skills_heading_cycles.py` | Verified |
-| `tools/TOOL_DESCRIPTIONS.md` | State the rule in the `plan_dependency_order.py` row | The row describes the fallback but gives no authoring rule | REQ-003 / AC-3 | Line 251 describes the fallback and the `prose-dependency` warning (checked in Step 3) | `tools/check_tool_descriptions_sync.py` | Verified |
-| `tests/tools/test_plan_dependency_order.py` | Add the `--plan` prose test and the by-title test | No test pins `--plan` mode with an open prose dependency or a by-title prose line | REQ-004 / AC-4 | `test_plan_option_limits_the_report` uses a prose line whose path is unresolvable; the fallback tests cover `parse_dependencies` and the label (checked in Step 3) | The file itself | Verified |
+| `skills/issue-to-plan/workflow.md` | State the rule in Step 5 and Step 8b | No `Depends on` text exists in the workflow; Step 8b says to add the other Plan to Scope Dependencies | REQ-002 / AC-2 | Step 4 mapping row `Dependencies`, Step 5 "Generate the Plan" bullets, and the Step 8b `sequencing dependency` bullet that says to "add the other Plan to `Scope` Dependencies" (re-verified 20261118; the lines first cited had shifted) | `tools/check_skills_references.py`, `tools/check_skills_heading_cycles.py` | Verified |
+| `tools/TOOL_DESCRIPTIONS.md` | State the rule in the `plan_dependency_order.py` row | The row describes the fallback but gives no authoring rule | REQ-003 / AC-3 | The summary and detailed rows for `plan_dependency_order.py` (re-verified 20261118; the line first cited had shifted) describe the fallback and the `prose-dependency` warning | `tools/check_tool_descriptions_sync.py` | Verified |
+| `tests/tools/test_plan_dependency_order.py` | Add the `--plan` prose test and the by-title test | No test pins `--plan` mode with an open prose dependency or a by-title prose line | REQ-004 / AC-4 | `test_plan_option_limits_the_report` exists and uses a prose line whose path is unresolvable; the fallback tests cover `parse_dependencies` and the `gated (prose)` label (re-verified 20261118) | The file itself | Verified |
+
+Revalidation (20261118, plan-to-implementation-procedure Step 3a): the prerequisite Plan is
+archived in `plans/done/` with Step 3 `In Progress` — its procedure documents exist
+(`implementations/20261118-043152_*`) but its Phase 3 execution has not run yet, and
+`tools/plan_dependency_order.py` resolves a `plans/done/` dependency by existence only. The
+guidance dependency therefore holds at execution time: this Plan's `skills/issue-to-plan/workflow.md`
+edit runs after the prerequisite's Step 3 procedure executes and re-reads the Step 8b section.
+The template's cited lines (19 and 20) are unchanged; the descriptions-file and workflow line
+numbers this Plan first cited had shifted. `test_plan_option_limits_the_report` and the
+fallback/label tests were confirmed in the current test module.
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified. Same
@@ -158,11 +168,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Pin the prose fallback behavior with tests | Pending | — | — | |
-| 2 | Template: state the rule at the Dependencies line and the Depends on note | Pending | — | — | |
-| 3 | Workflow: state the rule in Step 5 and Step 8b | Pending | — | — | |
-| 4 | Tool description row | Pending | — | — | |
-| 5 | Verification: tests, checkers, live-Plan run, unchanged tool | Pending | — | — | |
+| 1 | Pin the prose fallback behavior with tests | In Progress | — | — |  |
+| 2 | Template: state the rule at the Dependencies line and the Depends on note | In Progress | — | — |  |
+| 3 | Workflow: state the rule in Step 5 and Step 8b | In Progress | — | — |  |
+| 4 | Tool description row | In Progress | — | — |  |
+| 5 | Verification: tests, checkers, live-Plan run, unchanged tool | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -172,7 +182,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-073315_01_templates_plan.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-073315_02_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-073315_03_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-073315_04_tests_tools_test_plan_dependency_order.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -192,3 +205,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-004 | Required Changes (tests with a prose-only Plan); Acceptance Criteria | `tests/tools/test_plan_dependency_order.py` | Phase 1 | AC-4 | the added tests | Explicit in issue |
 | REQ-005 | Constraints (structured semantics unchanged); Required Changes (guidance-only option) | `tools/TOOL_DESCRIPTIONS.md` | Phase 5 | AC-5 | `git diff --stat` on the tool | Derived from confirmed evidence |
 | REQ-006 | Acceptance Criteria (the three checkers pass) | `skills/issue-to-plan/workflow.md` | Phase 5 | AC-6 | the three checkers | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-073315 -->

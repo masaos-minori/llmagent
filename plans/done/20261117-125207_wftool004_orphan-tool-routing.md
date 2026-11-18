@@ -7,7 +7,7 @@ Low
 ## Scope
 - **In-Scope**: (1) move the toolchain gate table and its bare-except rule out of the near-limit gate-definition module into a new module, unchanged; (2) add manual routing mappings for the audit and the reconciliation tool; (3) two `routing.md` rows; (4) Step 8b and the Toolchain paragraph of `skills/issue-to-plan/workflow.md`; (5) the tool description rows (correcting the audit entry, adding the new module); (6) tests for the move and the new mappings.
 - **Out-of-Scope**: changing the behavior of either tool; making the audit a blocking gate; changing `skills/code-implementation/workflow.md` (it already names the reconciliation tool, see Design); changing which gates the runner selects.
-- **Dependencies**: N/A: nothing must be done first. The Frozen Plans of the structure-gate, status-vocabulary, and new-marker issues (wftool001, wftool002, wftool003), the open procedure `implementations/20261117-110514_04_tools_TOOL_DESCRIPTIONS.md.md`, and the other tooling issues edit some of the same files; the edits are in different regions (see Assumptions), and the order is settled at implementation time (UNK-01). The gate-output-noise work (wftool006) edits the runner's output and follows this Plan's first phase; it does not depend on this Plan's mappings, because manual mappings are never selected and never print a row.
+- **Dependencies**: N/A: nothing must be done first. The Frozen Plans of the structure-gate, status-vocabulary, and new-marker issues (wftool001, wftool002, wftool003), the archived procedure `implementations/done/20261117-110514_04_tools_TOOL_DESCRIPTIONS.md.md` (all rows `Completed`; its edits are already in the tree), and the other tooling issues edit some of the same files; the edits are in different regions (see Assumptions), and the order is settled at implementation time (UNK-01). The gate-output-noise work (wftool006) edits the runner's output and follows this Plan's first phase; it does not depend on this Plan's mappings, because manual mappings are never selected and never print a row.
 
 ## Background
 Filed from the investigation of the issue -> plan -> implementation toolchain. `tools/audit_plan_target_paths.py` is called only by `tools/amend_plan.py` after a Plan is frozen. `tools/sync_plan_workitem_status.py` is named once, in the `Superseded` branch of the `code-implementation` workflow, and not in `routing.md`. Every checker row of the `routing.md` table needs a gate mapping, which the drift check enforces.
@@ -16,7 +16,7 @@ Filed from the investigation of the issue -> plan -> implementation toolchain. `
 A Plan can be frozen without an automated check that its target paths exist, because Step 8b relies on a manual existence check and the audit runs only after a freeze (`Explicit in code`). An operator scanning `routing.md` does not find the Plan row reconciliation tool (`Explicit in code`). The `tools/TOOL_DESCRIPTIONS.md` entry for the audit says it also reports cross-plan overlaps and path references in plan bodies, which the tool does not do: it audits only the `Implementation Target Files` paths (`Explicit in code`).
 
 ## Reason for Change
-The audit would catch the existence criterion of the Freeze check one step earlier, and the reconciliation tool is easy to miss when a procedure is archived outside the batch close. A routing row is not free: it needs a gate mapping, and `tools/_validation_gate_defs.py` has 329 bytes below the size limit while two mappings need about 600, so the change must free space first. Nothing makes it time-sensitive.
+The audit would catch the existence criterion of the Freeze check one step earlier, and the reconciliation tool is easy to miss when a procedure is archived outside the batch close. A routing row is not free: it needs a gate mapping, and `tools/_validation_gate_defs.py` has 50 bytes below the size limit while two mappings need about 600, so the change must free space first. Nothing makes it time-sensitive.
 
 ## Implementation Intent
 Move only the toolchain table (and the one constant only it uses) into a new module with identical content, so the routing table, the first Plan's edited row, and the module's helpers stay where they are. The two new mappings are manual (no path patterns), so the runner never selects or prints them; they exist for the drift check and for `routing.md` readers. Step 8b gains one read-only command with a fallback; no behavior of either tool changes.
@@ -39,13 +39,15 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `tools/_validation_gate_toolchain.py` | Create the module that holds the toolchain table | The definition module cannot hold two more mappings; the toolchain block and its rule are about 3.9 KB | REQ-001, REQ-006 / AC-1, AC-6 | New file; `tools/` exists; the toolchain block uses only `Gate`, `MODE_FULL`, `SOURCE_TOOLCHAIN`, and `_BARE_EXCEPT_RULE` (checked in Step 3) | `tests/tools/test_run_validation_gates.py` | Verified |
-| `tools/_validation_gate_defs.py` | Remove the toolchain block; add the two manual mappings | Holds the toolchain table and is 24247 B of 24576 B | REQ-001, REQ-002, REQ-006 / AC-1, AC-2, AC-6 | `TOOLCHAIN_GATES` and `_BARE_EXCEPT_RULE` are defined here and used by no other module; `ROUTING_GATES` is the routing table (checked in Step 3) | `tests/tools/test_run_validation_gates.py` | Verified |
-| `tools/run_validation_gates.py` | Import the toolchain table from its new module | It imports `TOOLCHAIN_GATES` from the definition module | REQ-001, REQ-006 / AC-1, AC-6 | The first import block lists `TOOLCHAIN_GATES` among names of the definition module; 23988 B of 24576 B (checked in Step 3) | `tests/tools/test_run_validation_gates.py` | Verified |
+| `tools/_validation_gate_toolchain.py` | Create the module that holds the toolchain table | The definition module cannot hold two more mappings; the toolchain block and its rule are about 4.7 KB (measured 20261118: 3377 B table plus 1363 B rule) | REQ-001, REQ-006 / AC-1, AC-6 | New file; `tools/` exists; the toolchain block uses only `Gate`, `MODE_FULL`, `SOURCE_TOOLCHAIN`, and `_BARE_EXCEPT_RULE` (checked in Step 3) | `tests/tools/test_run_validation_gates.py` | Verified |
+| `tools/_validation_gate_defs.py` | Remove the toolchain block; add the two manual mappings | Holds the toolchain table and is 24526 B of 24576 B (re-measured 20261118) | REQ-001, REQ-002, REQ-006 / AC-1, AC-2, AC-6 | `_BARE_EXCEPT_RULE` is defined here and used only inside the module; `TOOLCHAIN_GATES` is imported only by `tools/run_validation_gates.py`; `ROUTING_GATES` is the routing table (re-measured 20261118) | `tests/tools/test_run_validation_gates.py` | Verified |
+| `tools/run_validation_gates.py` | Import the toolchain table from its new module | It imports `TOOLCHAIN_GATES` from the definition module | REQ-001, REQ-006 / AC-1, AC-6 | The first import block lists `TOOLCHAIN_GATES` among names of the definition module; 23696 B of 24576 B (re-measured 20261118) | `tests/tools/test_run_validation_gates.py` | Verified |
 | `tests/tools/test_run_validation_gates.py` | Update the identity test and message; add mapping and parity tests | One test asserts that the orchestrator's `TOOLCHAIN_GATES` is the definition module's object, and a message names the definition module | REQ-001, REQ-002 / AC-1, AC-2 | `test_reexported_gate_definitions_are_the_same_objects` and the CI-lint-parity assertion message (checked in Step 3) | The file itself | Verified |
 | `routing.md` | Add the two rows | Neither tool has a row | REQ-003 / AC-3 | The "When to run which tool" table has no row naming either tool (checked in Step 3) | `tools/check_skills_references.py`; `uv run python tools/run_validation_gates.py drift` | Verified |
 | `skills/issue-to-plan/workflow.md` | Add the audit to Step 8b and the Toolchain paragraph | Step 8b freezes the table with a manual existence check and names no audit | REQ-004 / AC-4 | Step 8b and the Toolchain paragraph mention only `tools/check_plan_target_overlaps.py` (checked in Step 3) | `tools/check_skills_references.py`; `tools/check_skills_heading_cycles.py` | Verified |
 | `tools/TOOL_DESCRIPTIONS.md` | Correct the audit entry; add the new module; update the definition module row | The audit entry claims overlap and body-path reporting that the tool lacks; the module rows are stale after the move | REQ-005 / AC-5 | The audit row says it reports cross-plan overlaps; the tool source audits target paths only; the definition module row names both tables (checked in Step 3) | `tools/check_tool_descriptions_sync.py` | Verified |
+
+Revalidation (20261118, `plan-to-implementation-procedure` Step 2/3a): the cited sizes were re-measured and corrected — the definition module is 24526 B (50 B headroom, not 329 B), the runner is 23696 B (880 B headroom, not 588 B), and the toolchain block plus its rule measure about 4.7 KB (not about 3.9 KB). Row 2's evidence was corrected: `TOOLCHAIN_GATES` is imported by `tools/run_validation_gates.py`, so "used by no other module" was false. The UNK-01 procedure was found archived in `implementations/done/` with all rows `Completed`. All seven rows were re-checked against current source (audit and reconciliation tools' behavior, `routing.md` rows, Step 8b and Toolchain paragraphs, description rows, the identity test, and the gate-location message) and stay `Verified`; the section was re-frozen after this single correction cycle.
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified. Same
@@ -66,7 +68,7 @@ glob patterns, components, file groups, or vague phrases.
 - AC-3 (REQ-003): `uv run python tools/run_validation_gates.py drift` passes with both rows present.
 - AC-4 (REQ-004): Step 8b names the audit, the create-or-new rule, and the fallback; `tools/check_skills_references.py` and `tools/check_skills_heading_cycles.py` pass.
 - AC-5 (REQ-005): `tools/check_tool_descriptions_sync.py` passes and the audit entry matches the tool.
-- AC-6 (REQ-006): `uv run python tools/check_module_size.py --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt` passes, and the definition module is at least 2 KB smaller than 24247 B.
+- AC-6 (REQ-006): `uv run python tools/check_module_size.py --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt` passes, and the definition module is at least 2 KB smaller than 24526 B, its re-measured size on 20261118.
 
 ## Tests
 - `tests/tools/test_run_validation_gates.py`: the updated identity test, the toolchain parity tests that already exist, and new tests for the two manual mappings (ids, patterns, `requires_context`, never selected) (REQ-001, REQ-002).
@@ -86,7 +88,7 @@ N/A for `docs/*.md`: no file under `docs/` changes. `routing.md`, the issue-to-p
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Order against the open procedure `implementations/20261117-110514_04_tools_TOOL_DESCRIPTIONS.md.md`, the sibling Plans, and the other tooling issues that edit the same files | The procedure's target rows were not read | Read its target rows at implementation time; the edits are row-level and region-level, so land the earlier one first if regions coincide | False |
+| UNK-01 | Order against the archived procedure `implementations/done/20261117-110514_04_tools_TOOL_DESCRIPTIONS.md.md` (found archived 20261118 with all rows `Completed`, so no pending edit from it), the sibling Plans, and the other tooling issues that edit the same files | The sibling Plans' procedure docs and their regions were not read | Read their target rows at implementation time; the edits are row-level and region-level, so land the earlier one first if regions coincide | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -110,7 +112,7 @@ separate scope-of-record.
 - **Dependency graphing**: the definition module is imported by `tools/run_validation_gates.py` and the test module (one test uses it directly); `rules/toolchain.md`, `routing.md`, and `prompts/08_document-sync.md` name the runner only as a command. The bare-except rule is used only by the toolchain block.
 - **Historical**: `routing.md` and `skills/issue-to-plan/workflow.md` change often, so the edits are two rows and two sentences; every target has one author.
 - **Operational**: no port, database, dependency, or lock is involved; the persisted-schema check does not apply.
-- **Decision 1, how to make room**: the issue's constraint forbids growing the runner and the definition module has 329 B of headroom, while two mappings need about 600 B. Alternatives: (a) skip the routing rows and name the tools only in workflow steps, which fails the issue's Required Changes; (b) put the mappings in the runner, which has 588 B and should not hold tables; (c) move the routing table out, which also relocates the row that `plans/20261117-124139_wftool001_gate-workitem-structure.md` edits and creates an ordering conflict. Chosen: move the toolchain table, which is independent of both Plans.
+- **Decision 1, how to make room**: the issue's constraint forbids growing the runner and the definition module has 50 B of headroom (re-measured 20261118), while two mappings need about 600 B. Alternatives: (a) skip the routing rows and name the tools only in workflow steps, which fails the issue's Required Changes; (b) put the mappings in the runner, which has 880 B of headroom (re-measured 20261118) and should not hold tables; (c) move the routing table out, which also relocates the row that `plans/20261117-124139_wftool001_gate-workitem-structure.md` edits and creates an ordering conflict. Chosen: move the toolchain table, which is independent of both Plans.
 - **Decision 2, mapping kind**: manual (no patterns, placeholder arguments), because blocking on the audit is out of scope and a patternless mapping is never selected, so it adds no gate-output row.
 - **Decision 3, Step 8b**: the audit runs before `Frozen`, read-only, and a not-yet-existing file must say create or new in its `Change Responsibility`, the column the tool reads. Fallback: the manual existence check that Step 8b already requires.
 - **Decision 4, `code-implementation`**: no edit; the workflow already carries the trigger and command, and the routing row cites it.
@@ -170,11 +172,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Move the toolchain gate table into a new module | Pending | — | — | |
-| 2 | Routing rows, manual mappings, and tests | Pending | — | — | |
-| 3 | Step 8b audit in the issue-to-plan workflow | Pending | — | — | |
-| 4 | Tool description rows | Pending | — | — | |
-| 5 | Verification: validation sequence, drift, size gates, checkers | Pending | — | — | |
+| 1 | Move the toolchain gate table into a new module | In Progress | — | — |  |
+| 2 | Routing rows, manual mappings, and tests | In Progress | — | — |  |
+| 3 | Step 8b audit in the issue-to-plan workflow | In Progress | — | — |  |
+| 4 | Tool description rows | In Progress | — | — |  |
+| 5 | Verification: validation sequence, drift, size gates, checkers | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -184,7 +186,13 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-043152_01_tools__validation_gate_toolchain.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-043152_02_tools__validation_gate_defs.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261118-043152_03_tools_run_validation_gates.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-043152_04_tests_tools_test_run_validation_gates.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261118-043152_05_routing.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-043152_06_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-043152_07_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -209,3 +217,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-005 | Target Files (`tools/TOOL_DESCRIPTIONS.md`); description mismatch found in Step 3 | `tools/TOOL_DESCRIPTIONS.md` | Phase 4 | AC-5 | `tools/check_tool_descriptions_sync.py` | Confirmed by repository evidence |
 | REQ-006 | Constraints (module-size gate) | `tools/_validation_gate_defs.py` | Phase 5 | AC-6 | `tools/check_module_size.py` (tools scope) | Confirmed by repository evidence |
 | REQ-006 | Constraints (module-size gate) | `tools/_validation_gate_toolchain.py` | Phase 5 | AC-6 | `tools/check_module_size.py` (tools scope) | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-043152 -->

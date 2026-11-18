@@ -7,7 +7,7 @@ Medium
 ## Scope
 - **In-Scope**: (1) `tools/mark_procedure_new_symbols.py` accepts several procedure paths in `list` and `mark`; (2) its test module gains the migrated cases and multi-path tests; (3) `tools/fix_procedure_new_markers.py` and its test are removed; (4) the two workflows name the remaining tool; (5) `tools/TOOL_DESCRIPTIONS.md` drops the retired tool, adds the remaining one to the dry-run list, and replaces a hard-coded count.
 - **Out-of-Scope**: changing `tools/stale_detector.py`; marking symbols in archived procedures; editing the `Done`-status writer (a sibling Plan); an alias or wrapper for the removed tool.
-- **Dependencies**: `tools/TOOL_DESCRIPTIONS.md` is also edited by the other tooling issues of this batch, by the Frozen Plans `plans/20261117-124139_wftool001_gate-workitem-structure.md` and `plans/20261117-124614_wftool002_status-vocabulary-unify.md`, and by the open procedure `implementations/20261117-110514_04_tools_TOOL_DESCRIPTIONS.md.md`. The first Plan edits other rows; the second edits the same two sentences of the convention paragraph (see Assumptions and the dependency below).
+- **Dependencies**: `tools/TOOL_DESCRIPTIONS.md` is also edited by the other tooling issues of this batch, by the Frozen Plans `plans/20261117-124139_wftool001_gate-workitem-structure.md` and `plans/20261117-124614_wftool002_status-vocabulary-unify.md`, and by the procedure `implementations/20261117-110514_04_tools_TOOL_DESCRIPTIONS.md.md` (archived in `implementations/done/` at revalidation). The first Plan edits other rows; the second edits the same two sentences of the convention paragraph (see Assumptions and the dependency below).
   - **Depends on**: plans/20261117-124614_wftool002_status-vocabulary-unify.md | phase 4 | both Plans edit the dry-run and atomic-write writer lists of the convention paragraph in `tools/TOOL_DESCRIPTIONS.md`; the writer-list wording here is final only after that Plan's edit
 
 ## Background
@@ -27,7 +27,7 @@ Keep the guarded tool, because its refusal rule protects the staleness check; re
 - `REQ-002`: The test module of the kept tool covers multi-path `list` and `mark`, validation of all paths before a write, and the cases migrated from the retired tool's tests (a real run writes UTF-8, a dry run leaves files unchanged and prints the diff, an already-marked name is left alone, a missing file is an error); the existing refusal test stays.
 - `REQ-003`: `tools/fix_procedure_new_markers.py` and `tests/tools/test_fix_procedure_new_markers.py` are removed; no alias, wrapper, or history note remains; no file outside the `done/` archives names the retired tool.
 - `REQ-004`: `skills/plan-to-implementation-procedure/workflow.md` and `skills/code-implementation/workflow.md` name `tools/mark_procedure_new_symbols.py` where `symbol_missing` is handled, and `code-implementation` keeps its abort-and-report rule.
-- `REQ-005`: `tools/TOOL_DESCRIPTIONS.md` has no entry or list item for the retired tool, lists the kept tool among the `--dry-run` writers, describes its multi-path form, and replaces the hard-coded "the six above" count with a reference that does not count.
+- `REQ-005`: `tools/TOOL_DESCRIPTIONS.md` has no entry or list item for the retired tool, lists the kept tool among the `--dry-run` writers, describes its multi-path form, and replaces the hard-coded "the seven above" count with a reference that does not count.
 
 ## Implementation Target Files
 **Freeze status**: Frozen
@@ -45,7 +45,9 @@ table — no other file may be treated as a modification target.
 | `tests/tools/test_fix_procedure_new_markers.py` | Remove the retired tool's test | The tested module is removed; useful cases are migrated | REQ-003 / AC-4 | The module imports `tools.fix_procedure_new_markers` and holds four tests (checked in Step 3) | N/A: removed | Verified |
 | `skills/plan-to-implementation-procedure/workflow.md` | Name the kept tool in the stale-detector handling | Case (1) says to add `(new)` without naming a tool | REQ-004 / AC-5 | The Step 3 text lists cases (1) to (3) for each detector mismatch (checked in Step 3) | `tools/check_skills_references.py` | Verified |
 | `skills/code-implementation/workflow.md` | Name the kept tool in the stale-detector result handling | The result handling names no remedy tool for a missing created symbol | REQ-004 / AC-5 | "Stale detection result handling" states the abort rule and the ways forward (checked in Step 3) | `tools/check_skills_references.py` | Verified |
-| `tools/TOOL_DESCRIPTIONS.md` | Drop the retired tool, update the kept tool, remove a count | Rows and lists still name the retired tool, the dry-run list omits the kept tool, and a sentence counts "the six above" | REQ-005 / AC-6 | Rows for both tools exist; the dry-run list names the retired tool; the atomic-write sentence ends with "and the six above" (checked in Step 3) | `tools/check_tool_descriptions_sync.py` | Verified |
+| `tools/TOOL_DESCRIPTIONS.md` | Drop the retired tool, update the kept tool, remove a count | Rows and lists still name the retired tool, the dry-run list omits the kept tool, and a sentence counts "the seven above" | REQ-005 / AC-6 | Rows for both tools exist; the dry-run list names the retired tool; the atomic-write sentence ends with "and the seven above" (re-verified 20261118; the count is stale against the current eight-entry writer list) | `tools/check_tool_descriptions_sync.py` | Verified |
+
+Revalidation (20261118, `plan-to-implementation-procedure` Step 2/3a): the row 7 evidence was corrected — the sentence reads "and the seven above", not "and the six above", and that count is already stale against the current eight-entry `--dry-run` writer list. UNK-02's procedure was found archived in `implementations/done/`. All seven rows were re-checked against current source (paths, sizes, test classes, guard behavior, workflow sections) and stay `Verified`; the section was re-frozen after this single correction cycle.
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified. Same
@@ -64,7 +66,7 @@ glob patterns, components, file groups, or vague phrases.
 - AC-3 (REQ-002): The migrated and new cases pass, and the refusal test still passes.
 - AC-4 (REQ-003): `rg -n fix_procedure_new_markers` finds no file outside `issues/done/` and `plans/done/` and `implementations/done/`; both removed files are absent.
 - AC-5 (REQ-004): Both workflows name `tools/mark_procedure_new_symbols.py`; `code-implementation` still states abort and report; `tools/check_skills_references.py` and `tools/check_skills_heading_cycles.py` pass.
-- AC-6 (REQ-005): `tools/check_tool_descriptions_sync.py` passes; the description has no retired-tool mention, lists the kept tool among the dry-run writers, and contains no "the six above" count.
+- AC-6 (REQ-005): `tools/check_tool_descriptions_sync.py` passes; the description has no retired-tool mention, lists the kept tool among the dry-run writers, and contains no "the seven above" count.
 
 ## Tests
 - `tests/tools/test_mark_procedure_new_symbols.py`: multi-path `list` and `mark`, per-path guard, all-paths validation before a write, aggregated exit code, and the migrated cases (REQ-001, REQ-002).
@@ -85,7 +87,7 @@ N/A for `docs/*.md`: no file under `docs/` changes. The two workflow documents a
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
 | UNK-01 | Whether an operator script outside the repository calls the retired tool by path | The repository search cannot see external scripts | Confirm at plan review; the multi-file capability is preserved in the kept tool either way | False |
-| UNK-02 | Order against the open procedure `implementations/20261117-110514_04_tools_TOOL_DESCRIPTIONS.md.md` and the sibling tooling issues that edit `tools/TOOL_DESCRIPTIONS.md` | The procedure's target rows were not read | Read its target rows at implementation time; the edits are row-level, so land the earlier one first if rows coincide | False |
+| UNK-02 | Order against the open procedure `implementations/20261117-110514_04_tools_TOOL_DESCRIPTIONS.md.md` and the sibling tooling issues that edit `tools/TOOL_DESCRIPTIONS.md` | The procedure's target rows were not read | Read its target rows at implementation time; the edits are row-level, so land the earlier one first if rows coincide. Resolved at revalidation 20261118: the procedure is archived in `implementations/done/` and its description edits are already applied | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -112,7 +114,7 @@ separate scope-of-record.
 - **Decision 1, which tool stays**: the guarded one, as the issue directs. The retired tool's `--symbols` free-form call is the exact path that could mark an existing symbol as new.
 - **Decision 2, multi-path semantics**: validate every path first (exit `2` if any is unusable), then apply the guard per path, so one refused name does not block the others. Exit `1` when a path had nothing to mark keeps the existing meaning.
 - **Decision 3, workflows**: `plan-to-implementation-procedure` Step 3, case (1), names the tool as the way to apply the marker. `code-implementation` keeps abort-and-report; its "ways forward" bullet that covers an approved correction names the tool for a name the procedure creates. No workflow step starts correcting a procedure on its own.
-- **Decision 4, documentation count**: the sentence "and the six above" breaks when the dry-run list changes (this Plan removes one entry and adds one; the sibling Plan adds another), so it becomes a reference to the writers named in the `--dry-run` paragraph, without a count.
+- **Decision 4, documentation count**: the sentence "and the seven above" breaks when the dry-run list changes (this Plan removes one entry and adds one; the sibling Plan adds another), so it becomes a reference to the writers named in the `--dry-run` paragraph, without a count.
 - **Baseline**: `radon` reports no function of grade C or worse in the kept tool; `vulture` and `bandit` findings under `scripts/` are pre-existing and outside the targets; `diff-cover` has no baseline because the tree equals `master`, and the 90% threshold applies at implementation.
 
 ## Implementation steps
@@ -166,11 +168,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Zero-caller check and tests first | Pending | — | — | |
-| 2 | Multi-path support in the kept tool | Pending | — | — | |
-| 3 | Retire the old tool and its test | Pending | — | — | |
-| 4 | Workflows and tool description | Pending | — | — | |
-| 5 | Verification: validation sequence, checkers, smoke run | Pending | — | — | |
+| 1 | Zero-caller check and tests first | In Progress | — | — |  |
+| 2 | Multi-path support in the kept tool | In Progress | — | — |  |
+| 3 | Retire the old tool and its test | In Progress | — | — |  |
+| 4 | Workflows and tool description | In Progress | — | — |  |
+| 5 | Verification: validation sequence, checkers, smoke run | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -180,7 +182,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-041553_01_tools_mark_procedure_new_symbols.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261118-041553_03_tools_fix_procedure_new_markers.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-041553_05_skills_plan-to-implementation-procedure_workflow.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-041553_06_skills_code-implementation_workflow.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-041553_07_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -201,3 +207,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-004 | Required Changes (name the tool in the two workflows) | `skills/plan-to-implementation-procedure/workflow.md` | Phase 4 | AC-5 | `tools/check_skills_references.py` | Explicit in issue |
 | REQ-004 | Required Changes (name the tool in the two workflows) | `skills/code-implementation/workflow.md` | Phase 4 | AC-5 | `tools/check_skills_heading_cycles.py` | Explicit in issue |
 | REQ-005 | Required Changes (remove mentions); Problem (option-name mismatch); the count sentence found in Step 3 | `tools/TOOL_DESCRIPTIONS.md` | Phase 4 | AC-6 | `tools/check_tool_descriptions_sync.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-041553 -->
