@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
-from shared.config_utils import get_str
+from shared.config_utils import get_str, get_typed
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +37,15 @@ class CicdConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
         return cls(
             auth_token=get_str(d, "auth_token"),
-            repo_allowlist=list(d.get("repo_allowlist", [])),
-            workflow_allowlist=list(d.get("workflow_allowlist", [])),
-            max_log_size_kb=int(d.get("max_log_size_kb", 256)),
+            repo_allowlist=list(
+                get_typed(d, "repo_allowlist", list, "a list", default=[])
+            ),
+            workflow_allowlist=list(
+                get_typed(d, "workflow_allowlist", list, "a list", default=[])
+            ),
+            max_log_size_kb=get_typed(
+                d, "max_log_size_kb", int, "an integer", default=256
+            ),
             github_token=get_str(d, "github_token"),
         )
 

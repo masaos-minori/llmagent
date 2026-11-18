@@ -13,7 +13,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
-from mcp_servers.github.github_models_config import GitHubConfig
+from mcp_servers.github.github_models_config import DEFAULT_PER_PAGE, GitHubConfig
 
 _REPO = Path(__file__).resolve().parents[3]
 _SCRIPTS = _REPO / "scripts"
@@ -117,3 +117,22 @@ class TestGitHubConfigAuthToken:
         assert tomllib.loads(text)["auth_token"] == "${ENV:" + _ENV_VAR + "}"
         agent = (_REPO / "config" / "agent.toml").read_text(encoding="utf-8")
         assert "${ENV:" + _ENV_VAR + "}" in agent
+
+
+class TestGitHubConfigFromDictTypeValidation:
+    def test_missing_keys_return_defaults(self) -> None:
+        cfg = GitHubConfig.from_dict({})
+        assert cfg.allowed_repos == []
+        assert cfg.path_denylist == []
+        assert cfg.protected_branches == []
+        assert cfg.max_file_size_kb == 0
+        assert cfg.default_per_page == DEFAULT_PER_PAGE
+        assert cfg.max_per_page == 100
+
+    def test_wrong_type_max_file_size_kb_raises(self) -> None:
+        with pytest.raises(ValueError):
+            GitHubConfig.from_dict({"max_file_size_kb": "not-an-int"})
+
+    def test_wrong_type_allowed_repos_raises(self) -> None:
+        with pytest.raises(ValueError):
+            GitHubConfig.from_dict({"allowed_repos": "o/r"})

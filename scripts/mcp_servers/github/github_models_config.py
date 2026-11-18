@@ -13,7 +13,7 @@ import logging
 from typing import Any
 
 from shared.config_loader import ConfigLoader
-from shared.config_utils import get_str
+from shared.config_utils import get_str, get_typed
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +45,25 @@ class GitHubConfig:
     def from_dict(cls, d: dict[str, Any]) -> GitHubConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
         return cls(
-            allowed_repos=list(d.get("allowed_repos", [])),
-            path_denylist=list(d.get("path_denylist", [])),
-            protected_branches=list(d.get("protected_branches", [])),
-            max_file_size_kb=int(d.get("max_file_size_kb", 0)),
+            allowed_repos=list(
+                get_typed(d, "allowed_repos", list, "a list", default=[])
+            ),
+            path_denylist=list(
+                get_typed(d, "path_denylist", list, "a list", default=[])
+            ),
+            protected_branches=list(
+                get_typed(d, "protected_branches", list, "a list", default=[])
+            ),
+            max_file_size_kb=get_typed(
+                d, "max_file_size_kb", int, "an integer", default=0
+            ),
             audit_log_path=get_str(d, "audit_log_path"),
             allow_force_push=bool(d.get("allow_force_push", False)),
             require_pr_review=bool(d.get("require_pr_review", True)),
-            default_per_page=int(d.get("default_per_page", DEFAULT_PER_PAGE)),
-            max_per_page=int(d.get("max_per_page", 100)),
+            default_per_page=get_typed(
+                d, "default_per_page", int, "an integer", default=DEFAULT_PER_PAGE
+            ),
+            max_per_page=get_typed(d, "max_per_page", int, "an integer", default=100),
             llm_url=get_str(d, "llm_url"),
             auth_token=get_str(d, "auth_token"),
         )

@@ -16,7 +16,7 @@ from typing import Any, TypedDict, cast
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
-from shared.config_utils import get_str
+from shared.config_utils import get_str, get_typed
 from shared.config_validator import RagConfigValidator
 from shared.types import RagConfig
 
@@ -72,24 +72,36 @@ class RagPipelineConfig:
             embed_url=str(d.get("embed_url", "")),
             rag_db_path=str(d.get("rag_db_path", "")),
             sqlite_vec_so=str(d.get("sqlite_vec_so", "")),
-            sqlite_timeout=int(d.get("sqlite_timeout", 30)),
-            sqlite_busy_timeout_ms=int(d.get("sqlite_busy_timeout_ms", 30000)),
-            mqe_n_queries=int(d.get("mqe_n_queries", 3)),
+            sqlite_timeout=get_typed(
+                d, "sqlite_timeout", int, "an integer", default=30
+            ),
+            sqlite_busy_timeout_ms=get_typed(
+                d, "sqlite_busy_timeout_ms", int, "an integer", default=30000
+            ),
+            mqe_n_queries=get_typed(d, "mqe_n_queries", int, "an integer", default=3),
             mqe_prompt_template=str(d.get("mqe_prompt_template", "")),
             rerank_prompt_template=str(d.get("rerank_prompt_template", "")),
             use_mqe=bool(d.get("use_mqe", True)),
             use_rrf=bool(d.get("use_rrf", True)),
-            rrf_k=int(d.get("rrf_k", 60)),
+            rrf_k=get_typed(d, "rrf_k", int, "an integer", default=60),
             use_rerank=bool(d.get("use_rerank", True)),
             use_refiner=bool(d.get("use_refiner", False)),
-            top_k_search=int(d.get("top_k_search", 20)),
-            top_k_rerank=int(d.get("top_k_rerank", 15)),
-            rag_top_k=int(d.get("rag_top_k", 5)),
-            rag_min_score=float(d.get("rag_min_score", 2.0)),
-            max_chunks_per_doc=int(d.get("max_chunks_per_doc", 3)),
-            refiner_max_tokens=int(d.get("refiner_max_tokens", 512)),
-            refiner_max_chars_per_chunk=int(d.get("refiner_max_chars_per_chunk", 300)),
-            refiner_timeout=float(d.get("refiner_timeout", 30.0)),
+            top_k_search=get_typed(d, "top_k_search", int, "an integer", default=20),
+            top_k_rerank=get_typed(d, "top_k_rerank", int, "an integer", default=15),
+            rag_top_k=get_typed(d, "rag_top_k", int, "an integer", default=5),
+            rag_min_score=get_typed(d, "rag_min_score", float, "a float", default=2.0),
+            max_chunks_per_doc=get_typed(
+                d, "max_chunks_per_doc", int, "an integer", default=3
+            ),
+            refiner_max_tokens=get_typed(
+                d, "refiner_max_tokens", int, "an integer", default=512
+            ),
+            refiner_max_chars_per_chunk=get_typed(
+                d, "refiner_max_chars_per_chunk", int, "an integer", default=300
+            ),
+            refiner_timeout=get_typed(
+                d, "refiner_timeout", float, "a float", default=30.0
+            ),
             auth_token=get_str(d, "auth_token"),
         )
 
@@ -161,18 +173,18 @@ def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> RagConfig:
         SimpleNamespace(
             use_mqe=bool(cfg.use_mqe),
             use_rrf=bool(cfg.use_rrf),
-            rrf_k=int(cfg.rrf_k),
+            rrf_k=cfg.rrf_k,
             use_rerank=bool(cfg.use_rerank),
             use_refiner=bool(cfg.use_refiner),
             use_search=True,  # always True in MCP mode; checked in augment()
-            top_k_search=int(cfg.top_k_search),
-            top_k_rerank=int(cfg.top_k_rerank),
-            rag_top_k=int(cfg.rag_top_k),
-            rag_min_score=float(cfg.rag_min_score),
-            max_chunks_per_doc=int(cfg.max_chunks_per_doc),
-            refiner_max_tokens=int(cfg.refiner_max_tokens),
-            refiner_max_chars_per_chunk=int(cfg.refiner_max_chars_per_chunk),
-            refiner_timeout=float(cfg.refiner_timeout),
+            top_k_search=cfg.top_k_search,
+            top_k_rerank=cfg.top_k_rerank,
+            rag_top_k=cfg.rag_top_k,
+            rag_min_score=cfg.rag_min_score,
+            max_chunks_per_doc=cfg.max_chunks_per_doc,
+            refiner_max_tokens=cfg.refiner_max_tokens,
+            refiner_max_chars_per_chunk=cfg.refiner_max_chars_per_chunk,
+            refiner_timeout=cfg.refiner_timeout,
             llm_url=cfg.llm_url,
             embed_url=cfg.embed_url,
         ),

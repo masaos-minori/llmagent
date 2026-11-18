@@ -216,11 +216,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Core Logic — `CicdConfig.from_dict` (`scripts/mcp_servers/cicd/cicd_models.py`) | In Progress | — | — | REQ-001 |
-| 2 | Core Logic — `GitHubConfig.from_dict` (`scripts/mcp_servers/github/github_models_config.py`) | In Progress | — | — | REQ-002 |
-| 3 | Core Logic — `RagPipelineConfig.from_dict` + `build_rag_cfg_adapter` (`scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py`) | In Progress | — | — | REQ-003, REQ-004 |
-| 4 | Tests (companion test files) | In Progress | — | — | REQ-005 |
-| 5 | Deployment & Verification | Pending | — | — | REQ-005 |
+| 1 | Core Logic — `CicdConfig.from_dict` (`scripts/mcp_servers/cicd/cicd_models.py`) | Completed | — | 20261118-082722 | REQ-001 |
+| 2 | Core Logic — `GitHubConfig.from_dict` (`scripts/mcp_servers/github/github_models_config.py`) | Completed | — | 20261118-082722 | REQ-002 |
+| 3 | Core Logic — `RagPipelineConfig.from_dict` + `build_rag_cfg_adapter` (`scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py`) | Completed | — | 20261118-082722 | REQ-003, REQ-004 |
+| 4 | Tests (companion test files) | Completed | 20261118-082800 | 20261118-082800 | REQ-005 |
+| 5 | Deployment & Verification | Completed | 20261118-082800 | 20261118-082800 | REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -230,9 +230,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-070059_01_scripts_mcp_servers_cicd_cicd_models.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-070059_02_scripts_mcp_servers_github_github_models_config.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-070059_03_scripts_mcp_servers_rag_pipeline_rag_pipeline_models.py.md | 3, 4 | Procedure | Pending | — | — |
+| implementations/20261118-070059_01_scripts_mcp_servers_cicd_cicd_models.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-070059_02_scripts_mcp_servers_github_github_models_config.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-070059_03_scripts_mcp_servers_rag_pipeline_rag_pipeline_models.py.md | 3, 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

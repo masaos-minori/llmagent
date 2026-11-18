@@ -60,10 +60,10 @@ Replace the bare `int()` / `list()` coercions in `CicdConfig.from_dict` with `ge
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-082539 | 20261118-082539 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261118-082539 | 20261118-082539 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-082539 | 20261118-082539 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261118-082539 | 20261118-082539 | N/A: no docs/00_index.md task-scope mapping for changed config-loader files |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

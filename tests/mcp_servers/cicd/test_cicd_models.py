@@ -170,6 +170,21 @@ def test_cicd_config_from_dict_populated() -> None:
     assert config.github_token == "ghtok"
 
 
+def test_cicd_config_from_dict_rejects_non_integer_max_log_size_kb() -> None:
+    with pytest.raises(ValueError):
+        CicdConfig.from_dict({"max_log_size_kb": 1.5})
+
+
+def test_cicd_config_from_dict_rejects_bool_max_log_size_kb() -> None:
+    with pytest.raises(ValueError):
+        CicdConfig.from_dict({"max_log_size_kb": True})
+
+
+def test_cicd_config_from_dict_rejects_non_list_repo_allowlist() -> None:
+    with pytest.raises(ValueError):
+        CicdConfig.from_dict({"repo_allowlist": "o/r"})
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Domain exceptions — type hierarchy relied upon by callers
 # ──────────────────────────────────────────────────────────────────────────────

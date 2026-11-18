@@ -86,21 +86,18 @@ class TestRagPipelineConfigFromDict:
     def test_auth_token_defaults_to_empty(self) -> None:
         assert RagPipelineConfig.from_dict({}).auth_token == ""
 
-    def test_numeric_string_values_are_coerced(self) -> None:
-        """from_dict wraps numeric fields in int()/float(); TOML round-trips
-        or manually-built dicts may hand it stringly-typed numbers."""
-        cfg = RagPipelineConfig.from_dict(
-            {
-                "sqlite_timeout": "45",
-                "rrf_k": "90",
-                "rag_min_score": "1.5",
-                "refiner_timeout": "20.0",
-            }
-        )
-        assert cfg.sqlite_timeout == 45
-        assert cfg.rrf_k == 90
-        assert cfg.rag_min_score == 1.5
-        assert cfg.refiner_timeout == 20.0
+    def test_numeric_string_values_are_rejected(self) -> None:
+        """from_dict uses get_typed-style validation: stringly-typed numbers
+        are rejected with ValueError rather than silently coerced."""
+        with pytest.raises(ValueError):
+            RagPipelineConfig.from_dict(
+                {
+                    "sqlite_timeout": "45",
+                    "rrf_k": "90",
+                    "rag_min_score": "1.5",
+                    "refiner_timeout": "20.0",
+                }
+            )
 
     def test_falsy_present_values_are_not_treated_as_missing(self) -> None:
         """d.get(key, default) only falls back on a missing key, not a falsy
@@ -110,7 +107,7 @@ class TestRagPipelineConfigFromDict:
             {
                 "sqlite_timeout": 0,
                 "use_mqe": False,
-                "rag_min_score": 0,
+                "rag_min_score": 0.0,
             }
         )
         assert cfg.sqlite_timeout == 0
@@ -121,6 +118,27 @@ class TestRagPipelineConfigFromDict:
         cfg = RagPipelineConfig.from_dict({"not_a_real_field": "x", "llm_url": "u"})
         assert cfg.llm_url == "u"
         assert not hasattr(cfg, "not_a_real_field")
+
+
+class TestRagPipelineConfigTypeValidation:
+    def test_missing_keys_return_defaults(self) -> None:
+        cfg = RagPipelineConfig.from_dict({})
+        assert cfg.sqlite_timeout == 30
+        assert cfg.rrf_k == 60
+        assert cfg.rag_min_score == 2.0
+        assert cfg.refiner_timeout == 30.0
+
+    def test_wrong_type_int_field_raises(self) -> None:
+        with pytest.raises(ValueError):
+            RagPipelineConfig.from_dict({"sqlite_timeout": "not-an-int"})
+
+    def test_wrong_type_float_field_raises(self) -> None:
+        with pytest.raises(ValueError):
+            RagPipelineConfig.from_dict({"refiner_timeout": "slow"})
+
+    def test_int_for_float_field_raises(self) -> None:
+        with pytest.raises(ValueError):
+            RagPipelineConfig.from_dict({"rag_min_score": 0})
 
 
 class TestRagPipelineConfigLoad:
