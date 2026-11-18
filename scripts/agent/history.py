@@ -375,18 +375,43 @@ class HistoryManager:
         history: list[LLMMessage],
         drop_candidates: list[list[LLMMessage]],
     ) -> list[LLMMessage]:
-        """Drop whole candidate units while over limit, never emptying the history."""
-        new_history = list(history)
+        """Drop whole candidate units while over limit, never emptying the history.
+
+        The decision of which units to drop is unchanged from the nested-scan
+        version: units are consumed in importance order and dropped while over
+        limit and dropping the unit leaves at least one message, breaking at the
+        first unit that fails either condition. Only the removal is replaced: the
+        drop-id set is accumulated under that gate and the result is built in a
+        single comprehension over ``history`` keeping messages whose ``id()`` is
+        outside the drop set.
+
+        Correctness rests on additivity: ``count_chars`` and ``count_tokens`` sum
+        per-message contributions, so the running totals equal the totals of the
+        history at each iteration step. The selected unit prefix — and therefore
+        the drop-id set — is identical to the nested scan's, so the returned list
+        is identical by identity and order. System messages are never candidates,
+        so their contribution stays in the running totals as it stays in the
+        rebuilt history.
+        """
+        drop_ids: set[int] = set()
+        remaining_chars = self.count_chars(history)
+        remaining_tokens = self.count_tokens(history)
+        remaining_len = len(history)
         for unit in drop_candidates:
-            if (
-                self._is_over_any_limit(new_history)
-                and len(new_history) - len(unit) >= 1
-            ):
+            over_limit = (
+                self._char_limit > 0 and remaining_chars > self._char_limit
+            ) or (self._token_limit > 0 and remaining_tokens > self._token_limit)
+            if over_limit and remaining_len - len(unit) >= 1:
                 for m in unit:
-                    new_history = [x for x in new_history if x is not m]
+                    drop_ids.add(id(m))
+                remaining_chars -= self.count_chars(unit)
+                remaining_tokens -= self.count_tokens(unit)
+                remaining_len -= len(unit)
             else:
                 break
-        return new_history
+        if drop_ids:
+            return [x for x in history if id(x) not in drop_ids]
+        return list(history)
 
     def _build_protected_ids(self, history: list[LLMMessage]) -> set[int]:
         """Return IDs of messages protected from truncation.

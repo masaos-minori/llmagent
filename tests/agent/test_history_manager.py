@@ -1148,6 +1148,139 @@ class TestFallbackTruncate:
         assert cr.is_fallback is True
         assert len(result) < len(h)
 
+    @staticmethod
+    def _reference_apply_unit_drops(
+        mgr: HistoryManager,
+        history: list[LLMMessage],
+        drop_candidates: list[list[LLMMessage]],
+    ) -> list[LLMMessage]:
+        """Reference nested-scan implementation of `_apply_unit_drops`.
+
+        Mirrors the pre-refactor body exactly; the single-pass rewrite is
+        asserted identical against it by identity and order.
+        """
+        new_history = list(history)
+        for unit in drop_candidates:
+            if (
+                mgr._is_over_any_limit(new_history)
+                and len(new_history) - len(unit) >= 1
+            ):
+                for m in unit:
+                    new_history = [x for x in new_history if x is not m]
+            else:
+                break
+        return new_history
+
+    @staticmethod
+    def _turn(i: int) -> list[LLMMessage]:
+        """A single turn: user question + assistant answer (one grouped unit)."""
+        return [
+            {"role": "user", "content": f"question {i} " + "q" * 20},
+            {"role": "assistant", "content": f"answer {i} " + "a" * 20},
+        ]
+
+    def test_apply_unit_drops_matches_reference_nested_scan(self) -> None:
+        # The single-pass rewrite must produce byte-, identity-, and order-
+        # identical output to the nested scan across every scenario, including
+        # heavy truncation where most units are dropped.
+        scenarios: list[tuple[int, int, int, list[LLMMessage]]] = [
+            # (char_limit, token_limit, protect_turns, history)
+            (
+                20,
+                0,
+                0,
+                [
+                    m
+                    for p in (TestFallbackTruncate._turn(i) for i in range(8))
+                    for m in p
+                ],
+            ),
+            (
+                10,
+                0,
+                0,
+                [self._msg("system", "system instructions here")]
+                + [
+                    m
+                    for p in (TestFallbackTruncate._turn(i) for i in range(6))
+                    for m in p
+                ],
+            ),
+            (
+                999999,
+                3,
+                0,
+                [
+                    m
+                    for p in (TestFallbackTruncate._turn(i) for i in range(6))
+                    for m in p
+                ],
+            ),
+            (
+                20,
+                0,
+                1,
+                [
+                    m
+                    for p in (TestFallbackTruncate._turn(i) for i in range(6))
+                    for m in p
+                ],
+            ),
+            (
+                1_000_000,
+                0,
+                0,
+                [
+                    m
+                    for p in (TestFallbackTruncate._turn(i) for i in range(6))
+                    for m in p
+                ],
+            ),
+            (
+                20,
+                0,
+                0,
+                [self._msg("tool", "tool result " + "t" * 30)]
+                + [
+                    m
+                    for p in (TestFallbackTruncate._turn(i) for i in range(5))
+                    for m in p
+                ],
+            ),
+        ]
+
+        for char_limit, token_limit, protect_turns, h in scenarios:
+            mgr = _make_manager(
+                char_limit=char_limit,
+                token_limit=token_limit,
+                protect_turns=protect_turns,
+            )
+            protected_ids = mgr._build_protected_ids(h)
+            drop_candidates = mgr._drop_candidate_units(h, protected_ids)
+            got = mgr._apply_unit_drops(h, drop_candidates)
+            ref = self._reference_apply_unit_drops(mgr, h, drop_candidates)
+            # Same length, same order, same identities.
+            assert len(got) == len(ref)
+            assert got == ref
+            assert all(a is b for a, b in zip(got, ref))
+            # Never emptied (the never-empty guard).
+            assert len(got) >= 1
+
+    @pytest.mark.asyncio
+    async def test_apply_unit_drops_heavy_truncation_keeps_minimal_floor(
+        self,
+    ) -> None:
+        # A scenario where nearly every unit drops: the result must still be a
+        # non-empty prefix-preserving subset matching the reference.
+        h = [m for p in (TestFallbackTruncate._turn(i) for i in range(8)) for m in p]
+        mgr = _make_manager(char_limit=15, token_limit=0, protect_turns=0)
+        drop_candidates = mgr._drop_candidate_units(h, mgr._build_protected_ids(h))
+        got = mgr._apply_unit_drops(h, drop_candidates)
+        ref = self._reference_apply_unit_drops(mgr, h, drop_candidates)
+        assert got == ref
+        assert len(got) >= 1
+        assert len(got) < len(h)
+
 
 # ── summary contract (REQ-005, REQ-007) ────────────────────────────────────
 

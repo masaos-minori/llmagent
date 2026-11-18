@@ -125,17 +125,31 @@ separate scope-of-record.
 ## Design
 Path A (small task): affects one source file plus one test file, touches only private
 methods (`_apply_unit_drops`, called solely by `_fallback_truncate`), changes no public or
-runtime-facing interface, and modifies no schema. The single-pass partition computes the
-drop-id set once and builds the result in one comprehension over `history`, keeping only
-messages whose `id()` is outside the drop set. Because the candidate units and protected
-tail are produced by the unchanged `_drop_candidate_units`/`_build_protected_ids`, the
-partition yields the identical list the nested scan produced; the only difference is the
-number of full-list scans (one per dropped message) replaced by a single linear pass.
+runtime-facing interface, and modifies no schema.
+
+The decision of WHICH candidate units to drop is unchanged: units are consumed in
+importance order and dropped while `_is_over_any_limit(new_history)` holds and dropping the
+unit leaves at least one message (`len(new_history) - len(unit) >= 1`), breaking at the
+first unit that fails either condition. The single-pass optimization replaces only the
+REMOVAL: instead of rebuilding `new_history` once per message in each dropped unit
+(`[x for x in new_history if x is not m]`, O(k\u00b7N) per unit), the drop-id set is
+accumulated for the units selected by that gate and the result is built in ONE
+comprehension over `history` keeping messages whose `id()` is outside the drop set.
+
+Because `count_chars` and `estimate_tokens` are additive over messages, the over-limit gate
+can be evaluated on running totals (`total - sum(dropped-unit contributions)`) that
+reproduce `_is_over_any_limit(new_history)` exactly for every prefix of dropped units, so
+the selected prefix — and therefore the drop-id set — is identical to the nested scan's.
+The result is the identical list, computed in a single linear pass over `history` instead
+of a per-message full-list scan. The drop-id set is determined by that gate, NOT by
+unconditionally dropping every candidate: dropping all candidates would ignore the early
+break and the never-empty guard and diverge from the current output.
 
 The whole-unit-drop guard (`_is_over_any_limit(new_history)` and the `len(new_history) -
-len(unit) >= 1` never-empty check) stays at the loop level in `_fallback_truncate`'s
-caller contract; `_apply_unit_drops` keeps its "drop whole candidate units, never empty"
-responsibility but no longer rescans the list per message.
+len(unit) >= 1` never-empty check) stays inside `_apply_unit_drops` as it always was; it
+now drives accumulation into the drop-id set under the same early-break rather than a
+per-message list rebuild, so `_fallback_truncate`'s contract is unchanged and no guard
+moves to the caller.
 
 ## Implementation steps
 Each step description MUST cite the exact file path(s) it touches by referencing rows
@@ -215,3 +229,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 |---|---|---|---|---|---|---|
 | REQ-001 | Problem / Implementation Intent / AI Implementation Instruction | `scripts/agent/history.py` | Step 1 | Identical output; single linear pass; invariants held | ruff, mypy, `pytest tests/agent/test_history_manager.py` | Confirmed by repository evidence |
 | REQ-002 | Required Changes / Testing Expectations | `tests/agent/test_history_manager.py` | Step 2 | Equivalence test covers heavy truncation | new equivalence test | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-163938 -->
