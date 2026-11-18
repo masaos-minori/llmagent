@@ -173,7 +173,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 | 1 | Remove the EventBus DDL accessor (code) | Completed | — | 20261118-190945 |  |
 | 2 | Reconcile adrrev005 | Completed | — | 20261118-190945 |  |
 | 3 | Reconcile adrrev002 | Completed | — | 20261118-190945 |  |
-| 4 | Verification and deploy hand-off | Pending | — | — |  |
+| 4 | Verification and deploy hand-off | Completed | 20261118-203933 | 20261118-203933 | Batch verification (20261118): pytest tests/ -n logical --cov=scripts -m 'not integration and not production_paths_allowed and not repo_scan' -> 12810 passed, 7 skipped; coverage xml + diff-cover --compare-branch=master --fail-under=90 -> exit 0; run_validation_gates --verbose -> all gates Pass; check_workitem_structure --archived-status -> No findings. Deploy hand-off: preconditions recorded in adrrev005 Phase 7 and adrrev002 Phase 6 bullets; commit and push done (5d6437cf6); deploy execution deferred per REQ-003: AAL-025/AAL-026 approvals Not recorded, UNK-02/UNK-03 open, user decision. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
