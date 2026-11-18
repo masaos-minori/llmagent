@@ -201,9 +201,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite `_apply_unit_drops` to a single-pass partition (`scripts/agent/history.py`, REQ-001) | Pending | — | — | |
-| 2 | Add equivalence test (`tests/agent/test_history_manager.py`, REQ-002) | Pending | — | — | |
-| 3 | Format/lint/type-check and run history tests | Pending | — | — | |
+| 1 | Rewrite `_apply_unit_drops` to a single-pass partition (`scripts/agent/history.py`, REQ-001) | Completed | — | 20261118-181038 |  |
+| 2 | Add equivalence test (`tests/agent/test_history_manager.py`, REQ-002) | Completed | — | 20261118-181038 |  |
+| 3 | Format/lint/type-check and run history tests | Completed | — | 20261118-181038 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
