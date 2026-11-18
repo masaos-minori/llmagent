@@ -182,8 +182,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: no-decision wording fixes in `docs/10_adr/adr_02_03_017_mcp-authentication.md`, `docs/10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md`, `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | Pending | — | — |  |
-| 2 | Phase 2: gated proposal — `AAL-030` in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` and pending bullet in `docs/10_adr/adr_02_01_002_platform-config-isolation.md` | Pending | — | — | Gated on user acknowledgement of the scope amendment and maintainer authorization |
+| 1 | Phase 1: no-decision wording fixes in `docs/10_adr/adr_02_03_017_mcp-authentication.md`, `docs/10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md`, `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | In Progress | — | — |  |
+| 2 | Phase 2: gated proposal — `AAL-030` in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` and pending bullet in `docs/10_adr/adr_02_01_002_platform-config-isolation.md` | In Progress | — | — | Gated on user acknowledgement of the scope amendment and maintainer authorization |
 | 3 | Phase 3: validation and hand-off — full validation plan run, no deploy step (`N/A`: no `scripts/` or `config/` change) | Pending | — | — |  |
 
 ### Blocker Log
@@ -194,7 +194,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-212828_01_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-212828_02_docs_10_adr_adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-212828_03_docs_10_adr_adr_02_03_017_mcp-authentication.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-212828_04_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-212828_05_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -215,3 +219,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-005 | Required Changes "(decision) Amend ADR-002 INV-04"; Constraints; AI Implementation Instruction | `docs/10_adr/adr_02_01_002_platform-config-isolation.md` | Phase 2 (gated) | AC-001, AC-005 | `tools/check_adr_structure.py` pending-bullet/ledger citation rule | Verified (form and ledger mechanics confirmed in governance_01/governance_03 this cycle) |
 | REQ-005 | Same as above (ledger entry half of the form) | `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | Phase 2 (gated) | AC-005 | `tools/check_adr_structure.py` | Verified (AAL-001..AAL-029 present; next ID AAL-030, checked in Step 2) |
 | REQ-006 | Testing Expectations; Acceptance Criteria (checker pass) | `docs/10_adr/adr_02_01_002_platform-config-isolation.md`; `docs/10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md`; `docs/10_adr/adr_02_03_017_mcp-authentication.md`; `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`; `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | Phase 3 | AC-006 | `tools/check_adr_authority.py`, `tools/check_adr_reference.py`, `tools/check_adr_structure.py`, `tools/check_adr_invariant_matrix.py`, docs checkers per `routing.md` | Verified (all tools exist and are named in `routing.md` Tools, checked in Step 2) |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-212828 -->
