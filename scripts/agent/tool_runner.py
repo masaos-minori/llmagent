@@ -547,6 +547,8 @@ async def execute_all_tool_calls(
                 force_serial=ctx.cfg.tool.serial_tool_calls,
                 dispatched=state.dispatched_ids,
             )
+    except asyncio.CancelledError:
+        raise
     except BaseException:
         try:
             await finish(ToolCallStopReason.ROUND_NOT_COMPLETED)

@@ -41,19 +41,38 @@ must be fast pays the full round-completion cost, and the exception-replacement 
 makes debugging the true origin harder. Non-blocking; the fix is optional and gated.
 
 ## Implementation Intent
-Guard the completion call so it only runs when the task is not already cancelled, e.g.
-`if not asyncio.current_task().cancelled(): await finish(...)`. This preserves the
-best-effort persistence for a genuine mid-round failure while skipping the write when the
-task is being cancelled. Alternatively bound `finish()` with `asyncio.wait_for` and a short
-timeout. Preserve the final bare `raise` so the original unwinding exception still
-propagates. Do not change the per-call `Exception`-to-error-row conversion or the
-`CancelledError` propagation contract (AC-5).
+Distinguish cancellation from a genuine failure by the exception being handled, and skip
+best-effort completion only for cancellation. Add an `except asyncio.CancelledError: raise`
+clause BEFORE the existing `except BaseException:` clause in `execute_all_tool_calls`, so a
+cancellation re-raises immediately without awaiting `finish()`, while any other
+`BaseException` still runs best-effort completion:
+
+    except asyncio.CancelledError:
+        raise
+    except BaseException:
+        try:
+            await finish(ToolCallStopReason.ROUND_NOT_COMPLETED)
+        except Exception:  # noqa: BLE001 — completion must never replace the round's own exception
+            logger.exception("tool round completion failed")
+        raise
+
+This preserves best-effort persistence for a genuine mid-round failure while skipping the
+write when the task is being cancelled. Preserve the final bare `raise` so the original
+unwinding exception still propagates. Do not change the per-call `Exception`-to-error-row
+conversion or the `CancelledError` propagation contract (AC-5).
+
+Note: the originally proposed `if not asyncio.current_task().cancelled():` guard was
+rejected during adversarial verification — `Task.cancelled()` is only `True` once the
+`CancelledError` has propagated out of the coroutine, so inside the internal `except
+BaseException` handler it is still `False` and the guard would run `finish()` even during a
+cancellation (a no-op for the goal). Exception-type branching is the mechanism that
+actually distinguishes the two cases.
 
 ## Requirements
 - `REQ-001`: On a genuine mid-round failure (not a cancellation), the round is still
   completed best-effort (`REQ-001` via AC-1).
-- `REQ-002`: On cancellation (`asyncio.current_task().cancelled()` True), `finish()` is
-  skipped or time-bounded and the original `CancelledError` propagates unchanged
+- `REQ-002`: On cancellation (a `CancelledError` reaches the handler), `finish()` is
+  skipped and the original `CancelledError` propagates unchanged
   (`REQ-002` via AC-2).
 - `REQ-003`: The final bare `raise` still re-raises the original unwinding exception after
   the guarded completion; AC-5 (a `CancelledError`/`BaseException` propagates out of
@@ -71,7 +90,7 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/agent/tool_runner.py` | Modify | In `execute_all_tool_calls`, wrap the `await finish(ToolCallStopReason.ROUND_NOT_COMPLETED)` call in the `except BaseException` branch (line 550-555) with a cancellation guard `if not asyncio.current_task().cancelled():` (or bound it with `asyncio.wait_for`); keep the final bare `raise` (line 555). | REQ-001, REQ-002, REQ-003 | Observed: `except BaseException` at line 550, `try: await finish(...)` / `except Exception` at lines 551-554 (does not catch `BaseException`), bare `raise` at line 555; `asyncio` imported at line 14 (`checked in Step 2/3`) | `tests/agent/test_tool_runner.py` | Verified |
+| `scripts/agent/tool_runner.py` | Modify | In `execute_all_tool_calls`, add `except asyncio.CancelledError: raise` BEFORE the existing `except BaseException` branch (line 550-555) so a cancellation re-raises immediately without awaiting `finish()`; any other `BaseException` still runs `await finish(ToolCallStopReason.ROUND_NOT_COMPLETED)`; keep the final bare `raise` (line 555). Predicate is exception type, NOT `asyncio.current_task().cancelled()` (it is `False` inside the handler during an in-flight cancellation). | REQ-001, REQ-002, REQ-003 | Observed: `except BaseException` at line 550, `try: await finish(...)` / `except Exception` at lines 551-554 (does not catch `BaseException`), bare `raise` at line 555; `asyncio` imported at line 14 (`checked in Step 2/3`) | `tests/agent/test_tool_runner.py` | Verified |
 | `tests/agent/test_tool_runner.py` | Modify | Add a test asserting a round interrupted by `CancelledError` skips/bounds `finish()` and re-raises the same exception type; assert a round interrupted by a plain `Exception` still attempts best-effort completion. | REQ-002, REQ-003, REQ-004 | Existing `execute_all_tool_calls` tests exercise the completion path (`checked in Step 3`) | `tests/agent/test_tool_runner.py` | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
@@ -98,8 +117,8 @@ glob patterns, components, file groups, or vague phrases.
 ## Acceptance Criteria
 - On a real mid-round failure (not a cancellation), the round is still completed
   best-effort (`REQ-001`, AC-1).
-- On cancellation, `finish()` is skipped or bounded and the original `CancelledError`
-  propagates unchanged (`REQ-002`, AC-2).
+- On cancellation (a `CancelledError` reaches the handler), `finish()` is skipped and
+  the original `CancelledError` propagates unchanged (`REQ-002`, AC-2).
 - The final bare `raise` still re-raises the original unwinding exception; AC-5 holds
   (`REQ-003`).
 - The per-call `Exception`-to-error-row conversion and `CancelledError` propagation contract
@@ -122,12 +141,14 @@ tool-execution / DAG-scheduling prose per `docs/00_index.md`), note the guarded 
 (drives REQ-002). Not required unless such a doc exists and names the contract.
 
 ## Assumptions
-- When a `CancelledError` reaches the `except BaseException` handler,
-  `asyncio.current_task().cancelled()` is already `True` (the task's cancellation flag is
-  set when `cancel()` is called, before the error is raised at the await point), so the
-  guard reliably distinguishes cancellation from a genuine failure.
-- A genuine (non-cancellation) `BaseException` leaves `current_task().cancelled()` `False`,
-  so best-effort completion still runs for it; only true cancellations are skipped.
+- Cancellation is detected by the exception type, not `Task.cancelled()`: a `CancelledError`
+  reaching the handler is caught by the dedicated `except asyncio.CancelledError` clause and
+  skips completion, while any other `BaseException` falls through to the `except BaseException`
+  clause and runs best-effort completion.
+- `Task.cancelled()` is NOT used as the predicate: it is only `True` once the `CancelledError`
+  has propagated out of the coroutine, so inside the internal handler it is still `False` and
+  could not distinguish the two cases (this is why the `current_task().cancelled()` guard was
+  rejected in favor of exception-type branching).
 - Skipping `finish()` on cancellation does not leave an inconsistent session state that a
   later restore would misread; stale-pending cleanup is explicitly out of scope.
 
@@ -156,25 +177,31 @@ touched.
 
 Responsibility and control flow. The handler currently unconditionally runs
 `await finish(ToolCallStopReason.ROUND_NOT_COMPLETED)` (best-effort `complete_round`) before
-the bare `raise`. The design narrows this with a cancellation guard:
+the bare `raise`. The design narrows this by handling cancellation separately, so completion
+is skipped only for a `CancelledError`:
 
-```
-except BaseException:
-    try:
-        if not asyncio.current_task().cancelled():
+    except asyncio.CancelledError:
+        raise
+    except BaseException:
+        try:
             await finish(ToolCallStopReason.ROUND_NOT_COMPLETED)
-    except Exception:  # noqa: BLE001 — unchanged: completion must never replace the round's own exception
-        logger.exception("tool round completion failed")
-    raise
-```
+        except Exception:  # noqa: BLE001 — unchanged: completion must never replace the round's own exception
+            logger.exception("tool round completion failed")
+        raise
 
 Rationale for each element:
-- `asyncio.current_task().cancelled()` is the single predicate distinguishing a genuine
-  mid-round failure (returns `False` → completion runs, preserving best-effort persistence)
-  from a task cancellation (returns `True` → completion skipped, shrinking the shutdown
-  window and avoiding a second `CancelledError` escaping the `except Exception` guard).
+- The dedicated `except asyncio.CancelledError: raise` clause (placed BEFORE `except
+  BaseException`, which also matches `CancelledError`) catches a cancellation first and
+  re-raises immediately without awaiting `finish()`, shrinking the shutdown window and
+  avoiding a second `CancelledError` escaping the `except Exception` guard. Any other
+  `BaseException` falls through to the `except BaseException` clause, where best-effort
+  completion still runs (preserving persistence for a genuine mid-round failure).
+- Exception-type branching is used instead of `asyncio.current_task().cancelled()` because
+  `Task.cancelled()` is only `True` once the `CancelledError` has propagated out of the
+  coroutine; inside the internal handler it is still `False`, so a `cancelled()` guard would
+  run `finish()` even during a cancellation and fail to achieve the goal.
 - The final bare `raise` is kept verbatim, so the original unwinding exception propagates
-  unchanged and AC-5 holds regardless of the guard branch.
+  unchanged and AC-5 holds regardless of the branch taken.
 - The existing `except Exception` guard around `finish()` is left intact; it still contains
   ordinary completion failures and still does not (and must not) catch a second
   `BaseException`.
@@ -202,12 +229,13 @@ one line per unit, `**Unit**: {name} | **Phases**: {N, N} | **Reason**: {why the
 validated alone}`. Phases that land together in one commit cannot be validated alone: declare them
 as a unit; `N/A` is only for a Plan whose every phase passes validation alone.
 
-1. **Phase 1: Guard the round completion on cancellation (REQ-002, REQ-003; `scripts/agent/tool_runner.py`)**
-   - [ ] In `execute_all_tool_calls`, wrap `await finish(ToolCallStopReason.ROUND_NOT_COMPLETED)` in the `except BaseException` handler with `if not asyncio.current_task().cancelled():`.
-   - [ ] Keep the surrounding `try:` / `except Exception` guard (line 553) and the final bare `raise` (line 555) unchanged so the original unwinding exception still propagates (AC-5).
+1. **Phase 1: Skip round completion on cancellation (REQ-002, REQ-003; `scripts/agent/tool_runner.py`)**
+   - [ ] In `execute_all_tool_calls`, add `except asyncio.CancelledError: raise` BEFORE the existing `except BaseException:` handler so a cancellation re-raises immediately without awaiting `finish()` (skip best-effort completion); any other `BaseException` still runs `finish(ToolCallStopReason.ROUND_NOT_COMPLETED)`. Do NOT use `asyncio.current_task().cancelled()` as the predicate (it is `False` inside the handler during an in-flight cancellation and cannot distinguish the two cases).
+   - [ ] Keep the surrounding `try:` / `except Exception` guard and the final bare `raise` unchanged so the original unwinding exception still propagates (AC-5).
 2. **Phase 2: Tests for cancelled and non-cancellation paths (REQ-001..REQ-004; `tests/agent/test_tool_runner.py`)**
    - [ ] Add a test interrupting a round with `asyncio.CancelledError`: assert `complete_round`/`finish` is not awaited and the same `CancelledError` type propagates out of `execute_all_tool_calls`.
    - [ ] Add a test interrupting a round with a plain `Exception`: assert best-effort completion is still attempted and `_recorded_call`'s per-call conversion is unchanged.
+   - [ ] Update the two existing cancellation tests that assert synthesized rows written during a cancelled round (`test_call_in_flight_at_cancellation_gets_the_outcome_unknown_hint`, `test_cancellation_before_any_dispatch_answers_all_as_not_executed`): under this plan completion is skipped on cancellation, so no 'not executed'/'outcome unknown' row is written — assert completion was skipped and the `CancelledError` propagated instead of asserting saved synthesized text.
 3. **Phase 3: Deployment & Verification (REQ-001..REQ-004; `scripts/agent/tool_runner.py`, `tests/agent/test_tool_runner.py`)**
    - [ ] Run `uv run ruff format` and `uv run ruff check` on `scripts/agent/tool_runner.py`.
    - [ ] Run `uv run mypy --no-namespace-packages scripts/agent/tool_runner.py`.
@@ -243,9 +271,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Guard `finish()` on cancellation in `execute_all_tool_calls` (`scripts/agent/tool_runner.py`, REQ-002, REQ-003) | Pending | — | — | |
-| 2 | Cancelled/non-cancellation unit tests (`tests/agent/test_tool_runner.py`, REQ-001..REQ-004) | Pending | — | — | |
-| 3 | Format/lint/type-check and run tool-execution tests | Pending | — | — | |
+| 1 | Skip `finish()` on cancellation in `execute_all_tool_calls` (exception-type branch) (`scripts/agent/tool_runner.py`, REQ-002, REQ-003) | Completed | 20261118-162059 | 20261118-162059 |  |
+| 2 | Cancelled/non-cancellation unit tests (`tests/agent/test_tool_runner.py`, REQ-001..REQ-004) | Completed | 20261118-162059 | 20261118-162059 |  |
+| 3 | Format/lint/type-check and run tool-execution tests | Completed | 20261118-162059 | 20261118-162059 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -273,3 +301,5 @@ N/A: no release unit
 | REQ-002 | Problem / Required Changes / AC-2 | `scripts/agent/tool_runner.py` | Step 1 | cancellation skips/bounds `finish()`; original `CancelledError` propagates | `asyncio.CancelledError` interrupt test | Confirmed by repository evidence |
 | REQ-003 | Constraints / AC-5 | `scripts/agent/tool_runner.py` | Step 1 | final bare `raise` re-raises original unwinding exception; AC-5 holds | propagation-contract test | Confirmed by repository evidence |
 | REQ-004 | Constraints / AC-4 | `scripts/agent/tool_runner.py` | Step 2 | per-call `Exception`-to-error-row conversion unchanged | `_recorded_call` behavior test | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-160208 -->

@@ -926,6 +926,31 @@ class TestBatchFailureTotality:
         ctx.services_required.tools.execute.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_plain_exception_still_attempts_best_effort_completion(self) -> None:
+        ctx = _make_ctx()
+        with (
+            patch(
+                "agent.tool_runner.complete_round",
+                new_callable=AsyncMock,
+            ) as complete_round,
+            patch(
+                "agent.tool_approval.run_approval_checks",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("approval down"),
+            ),
+        ):
+            with pytest.raises(RuntimeError, match="approval down"):
+                await execute_all_tool_calls(
+                    ctx,
+                    _declared("read_text_file", "list_directory"),
+                    0,
+                    guard=ToolLoopGuard(ctx),
+                )
+
+        # A non-cancellation BaseException still best-effort completes the round.
+        complete_round.assert_awaited_once()
+
+    @pytest.mark.asyncio
     async def test_a_failing_completion_still_raises(self) -> None:
         ctx = _make_ctx()
         ctx.services_required.tools = None
@@ -1043,9 +1068,7 @@ class TestCancellationDispatchState:
     """
 
     @pytest.mark.asyncio
-    async def test_call_in_flight_at_cancellation_gets_the_outcome_unknown_hint(
-        self,
-    ) -> None:
+    async def test_cancellation_skips_completion_no_synthesized_rows(self) -> None:
         ctx = _make_ctx(_cfg(serial_tool_calls=True))
         started = asyncio.Event()
         block = asyncio.Event()
@@ -1069,17 +1092,8 @@ class TestCancellationDispatchState:
             with pytest.raises(asyncio.CancelledError):
                 await task
 
-        # c0 was dispatched before the cancel: outcome unknown, the transport
-        # state is not observable from the agent side.
-        assert "may have run on the server" in _saved_text(ctx, "c0")
-        assert _saved_text(ctx, "c0") != (
-            "Tool call not executed: the tool round did not complete."
-        )
-        # c1 was never dispatched (serial group, execution had not reached it).
-        assert _saved_text(ctx, "c1") == (
-            "Tool call not executed: the tool round did not complete."
-        )
-        assert _saved_tool_ids(ctx) == ["c0", "c1"]
+        # Completion is skipped on cancellation: nothing is persisted or synthesized.
+        ctx.turn.persistence_boundary.save_phase_grouped.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_completed_round_keeps_real_results_and_synthesizes_nothing(
@@ -1099,9 +1113,7 @@ class TestCancellationDispatchState:
         assert _saved_tool_ids(ctx) == ["c0", "c1"]
 
     @pytest.mark.asyncio
-    async def test_cancellation_before_any_dispatch_answers_all_as_not_executed(
-        self,
-    ) -> None:
+    async def test_cancellation_before_any_dispatch_skips_completion(self) -> None:
         ctx = _make_ctx(_cfg())
         approval_started = asyncio.Event()
         block = asyncio.Event()
@@ -1126,11 +1138,42 @@ class TestCancellationDispatchState:
             with pytest.raises(asyncio.CancelledError):
                 await task
 
-        # No call reached execution: every row is the provable "not executed".
-        not_executed = "Tool call not executed: the tool round did not complete."
-        assert _saved_text(ctx, "c0") == not_executed
-        assert _saved_text(ctx, "c1") == not_executed
-        assert _saved_tool_ids(ctx) == ["c0", "c1"]
+        # No completion runs on cancellation: nothing is persisted or synthesized.
+        ctx.turn.persistence_boundary.save_phase_grouped.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_cancellation_skips_best_effort_completion(self) -> None:
+        ctx = _make_ctx(_cfg(serial_tool_calls=True))
+        started = asyncio.Event()
+        block = asyncio.Event()
+
+        async def blocking_execute(name: str, args: dict) -> ToolCallResult:
+            started.set()
+            await block.wait()  # never set: the round is cancelled while here
+            return _ok("never-reached")
+
+        ctx.services_required.tools.execute = blocking_execute
+        calls = [
+            {"id": "c0", "function": {"name": "read_text_file", "arguments": "{}"}},
+            {"id": "c1", "function": {"name": "read_text_file", "arguments": "{}"}},
+        ]
+        with (
+            patch(
+                "agent.tool_runner.complete_round",
+                new_callable=AsyncMock,
+            ) as complete_round,
+            _approve_all(),
+        ):
+            task = asyncio.create_task(
+                execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
+            )
+            await started.wait()
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+        # Completion is skipped on cancellation: complete_round is not awaited.
+        complete_round.assert_not_awaited()
 
 
 class TestStatsForRealVsSynthesizedRows:
