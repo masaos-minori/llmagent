@@ -58,9 +58,9 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the governance definition and the maintainer sign-off exist | Pending | — | — | Stop and ask if absent |
-| 2 | Add ledger IDs (AAL-018) to the pending bullets | Pending | — | — |  |
-| 3 | Run the ADR and documentation checkers listed in Validation plan | Pending | — | — |  |
+| 1 | Confirm the governance definition and the maintainer sign-off exist | Completed | 20261118-103845 | 20261118-103845 | Governance definition and ledger exist (procedures 01 and 04); maintainer sign-off D1/D2 recorded in session 2026-11-18 |
+| 2 | Add ledger IDs (AAL-018) to the pending bullets | Completed | 20261118-103845 | 20261118-103845 | Ledger IDs AAL-018 added; the phrase naming the ledger was replaced by the entry ID; the review reference (adrrev012) was dropped with the phrase; body section name not reverted |
+| 3 | Run the ADR and documentation checkers listed in Validation plan | Completed | 20261118-103845 | 20261118-103845 | adr_structure, authority, invariant_matrix, reference, registry, known_deviation_sync, docs checkers: pass; check_adr_preservation Approval-section report reviewed (wording-only) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

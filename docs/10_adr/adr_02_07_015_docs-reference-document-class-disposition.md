@@ -155,7 +155,7 @@ Not applicable
 - **Approval Date**: 2026-09-19
 - **Approval Reference**: Reviewed and approved by the repository owner via chat, content presented in full (Summary, Context, Decision, Alternatives Considered, Consequences) before approval
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-08; individual reviewer names are not recorded.
-- **Current Decision Approval (pending)**: The correction of the manifest status (the `component_mandatoriness` manifest is produced, the `adr_authority` manifest is undecided) and the addition of `agent_08_04` to the generated-document list are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and they are tracked by the ADR approval ledger. No approval is recorded here.
+- **Current Decision Approval (pending)**: The correction of the manifest status (the `component_mandatoriness` manifest is produced, the `adr_authority` manifest is undecided) and the addition of `agent_08_04` to the generated-document list are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and they are tracked by AAL-017. No approval is recorded here.
 
 This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`) — not the task-level fallback path.
 

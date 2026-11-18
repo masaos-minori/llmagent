@@ -221,38 +221,39 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Registration that needs no decision: inventory, ADR-004 Exceptions, CSC-001 reference | In Progress | — | — |  |
-| 2 | Maintainer decision gate and governance proposal | In Progress | — | — |  |
-| 3 | Apply the forms to the ADRs | In Progress | — | — |  |
-| 4 | Checker enforcement and sync | In Progress | — | — |  |
+| 1 | Registration that needs no decision: inventory, ADR-004 Exceptions, CSC-001 reference | Completed | — | 20261118-105447 |  |
+| 2 | Maintainer decision gate and governance proposal | Completed | — | 20261118-105447 |  |
+| 3 | Apply the forms to the ADRs | Completed | — | 20261118-105447 |  |
+| 4 | Checker enforcement and sync | Completed | — | 20261118-110752 |  |
 | 5 | Validation and hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 2 | Maintainer decisions D1 (ledger in governance_03 Part 5), D2 (pending form, Status line stays Accepted), D3 (governed Withdrawn), D4 (reviewer mapping with Security Reviewer as a recorded gap) | Yes: recorded by the maintainer's answers in session 2026-11-18 | 20261118 |
+| 4 | governance_04 exceeds its per-file ceiling in tools/check_docs_structure.py (outside the Plan's target files); the maintainer chose to stop that procedure | Yes: the owner raised the docs size limit to 32768 B and instructed the procedure to proceed | 20261118 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-093859_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261118-093859_02_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261118-093859_03_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261118-093859_04_docs_00_governance_governance_01_documentation-policy.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-093859_05_docs_00_governance_governance_02_documentation-metadata.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-093859_06_docs_00_governance_governance_05_change-impact-and-dependency-graphs.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-093859_07_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-093859_08_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-093859_09_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-093859_10_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-093859_11_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-093859_12_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-093859_13_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-093859_14_docs_10_adr_adr_02_07_015_docs-reference-document-class-disposition.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-093859_15_docs_10_adr_adr_02_07_016_adr-authority-model.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-093859_16_tools_check_adr_structure.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261118-093859_18_docs_00_governance_governance_04_documentation-checks.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261118-093859_19_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-093859_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261118-093859_02_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261118-093859_03_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261118-093859_04_docs_00_governance_governance_01_documentation-policy.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-093859_05_docs_00_governance_governance_02_documentation-metadata.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-093859_06_docs_00_governance_governance_05_change-impact-and-dependency-graphs.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-093859_07_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-093859_08_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-093859_09_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-093859_10_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-093859_11_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-093859_12_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-093859_13_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-093859_14_docs_10_adr_adr_02_07_015_docs-reference-document-class-disposition.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-093859_15_docs_10_adr_adr_02_07_016_adr-authority-model.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-093859_16_tools_check_adr_structure.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261118-093859_18_docs_00_governance_governance_04_documentation-checks.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261118-093859_19_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

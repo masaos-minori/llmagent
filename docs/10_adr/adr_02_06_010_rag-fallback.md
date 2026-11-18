@@ -27,7 +27,7 @@ related:
 
 Withdrawn
 
-RAG is reached only through the rag-pipeline MCP server over the common MCP transport, and no remote delegation or fallback to another execution path exists. The text below remains as the record of the withdrawn decision.
+RAG is reached only through the rag-pipeline MCP server over the common MCP transport, and no remote delegation or fallback to another execution path exists. The text below remains as the record of the withdrawn decision. The present-tense wording that survives in Decision Detail 11 and in the failure-outcome table row `Identity unverifiable (either identity absent)` is tracked as CSC-001 in `governance_03_issue-and-uncertainty-management.md`.
 
 ## Summary
 
@@ -286,6 +286,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Withdrawn By**: Pending maintainer statement (the maintainer's approval of the withdrawal has not been given; it is not written by the implementer)
 - **Withdrawal Date**: Pending maintainer statement
 - **Withdrawal Reference**: ADR-004 Decision Group 10 (Fallback prohibited without exception)
+- **Withdrawal Ledger**: AAL-013
 
 The `Withdrawn` status takes effect for this repository's documents with this change, and the record above is completed when the maintainer states the decision.
 

@@ -60,10 +60,10 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the two Known Issue entries to Part 1 (REQ-002) | Pending | — | — |  |
-| 2 | Confirm the maintainer sign-off for the ledger definition | Pending | — | — | Stop and ask if absent |
-| 3 | Add the ledger part and the pending entries (REQ-004) | Pending | — | — |  |
-| 4 | Run the checkers listed in Validation plan | Pending | — | — |  |
+| 1 | Add the two Known Issue entries to Part 1 (REQ-002) | Completed | 20261118-103349 | 20261118-103349 | MCP-001 and MCP-002 added before SHARED-001; observed-implementation claims checked in dispatch.py and mcp_dedup.py |
+| 2 | Confirm the maintainer sign-off for the ledger definition | Completed | 20261118-103349 | 20261118-103349 | Maintainer sign-off D1 (governance_03 Part 5) recorded in session 2026-11-18 via AskUserQuestion |
+| 3 | Add the ledger part and the pending entries (REQ-004) | Completed | 20261118-103349 | 20261118-103349 | Part 5 ledger with 18 pending entries; 23841 B under the 24576 B docs gate; check_issue_inventory_conformance reads the part as Part 4 (6 fields each, no Status field) - coupling noted |
+| 4 | Run the checkers listed in Validation plan | Completed | 20261118-103349 | 20261118-103349 | docs quality/structure/content-policy/japanese, known-deviation-sync, NC inventory, inventory conformance: pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

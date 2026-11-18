@@ -87,6 +87,19 @@ Governance: `@governance-lead`, accountable to `@executive`, consulted `@all-are
 
 `@lead` is the repository owner: the accountable party named in `## Merge Conditions` and `### ADR Acceptance Evidence Standard` of [Documentation Policy](governance_01_documentation-policy.md). "RACI approval" is approval by that role.
 
+### Required Reviewer Roles
+
+The `### Required Reviewers` section of an ADR uses the names below. Each name maps to a role of the RACI Model above.
+
+| Required Reviewer | RACI role |
+|---|---|
+| Architecture Owner | `@architect` |
+| Affected Component Owner | `<area-lead>` of the ADR's area |
+| Operations Reviewer, Ops Reviewer | `@devops` |
+| Data Owner | `@db-admin` for DB data, `@data-eng` for RAG data |
+| Documentation Governance Owner | `@governance-lead` |
+| Security Reviewer | No RACI role of the same function is defined; the maintainer assigns it |
+
 ## Software Runtime Dependency Graph
 
 Node set: Agent, MCP, RAG, EventBus, Shared/DB. Governance, Overview, and

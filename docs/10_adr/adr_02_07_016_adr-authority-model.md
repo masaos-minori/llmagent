@@ -162,7 +162,7 @@ Not applicable
 - **Approval Date**: 2026-10-29
 - **Approval Reference**: Reviewed and approved by the repository owner; the model design was reviewed during the issue-to-plan phase and the owner decision of 2026-10-29 (model home: a new ADR in `docs/10_adr`) was recorded before implementation began.
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text; individual reviewer names are not recorded.
-- **Current Decision Approval (pending)**: Renaming the generated index section `Reference Graph` to `ADR Dependency Graph` in Decision Detail 6 and the Implementation Notes, and updating the intentional pair count from six to seven in the Summary and Problem sections, are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger (adrrev012). No approval is recorded here.
+- **Current Decision Approval (pending)**: Renaming the generated index section `Reference Graph` to `ADR Dependency Graph` in Decision Detail 6 and the Implementation Notes, and updating the intentional pair count from six to seven in the Summary and Problem sections, are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-018. No approval is recorded here.
 
 This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`) — not the task-level fallback path.
 

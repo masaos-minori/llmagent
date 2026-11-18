@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_adr_structure.py — Structural checks for docs/10_adr/*.md.
 
-Four checks, all operating over docs/10_adr/*.md:
+Six checks, all operating over docs/10_adr/*.md:
 
 (a) `## Known Deviations` heading presence (ERROR). Every ADR must carry this
     heading per docs/00_governance/governance_04_documentation-checks.md's "ADR Section
@@ -22,6 +22,11 @@ Four checks, all operating over docs/10_adr/*.md:
 (d) Template instruction text and global invariant IDs (ERROR): an ADR body must
     not contain template instructions (for example "Briefly describe") or a
     global `INV-NNN` invariant ID (invariant IDs are ADR-local, `INV-NN`).
+(e) `## Status` value (ERROR): the first non-empty line after the heading must be
+    one of the values "ADR Status Definitions" in governance_01 defines.
+(f) Pending approval bullets (ERROR): a `Current Decision Approval (pending)`
+    bullet under `### Approval Record` must cite an `AAL-NNN` entry that exists
+    in the ADR approval ledger (Part 5 of governance_03).
 
 Usage:
     python tools/check_adr_structure.py
@@ -173,6 +178,19 @@ _TEMPLATE_RESIDUE_RE = re.compile(
 _GLOBAL_INV_RE = re.compile(r"\bINV-\d{3}\b")
 _ADR_FILE_RE = re.compile(r"^adr_02_\d{2}_\d{3}_.*\.md$")
 
+# "ADR Status Definitions" (governance_01); a test pins the two lists together.
+_ALLOWED_STATUSES = ("Proposed", "Accepted", "Withdrawn")
+_APPROVAL_RECORD_RE = re.compile(r"^### Approval Record\s*$")
+_PENDING_BULLET_RE = re.compile(r"^- \*\*Current Decision Approval \(pending\)\*\*:")
+_LEDGER_ID_RE = re.compile(r"\bAAL-\d{3}\b")
+_LEDGER_HEADING_RE = re.compile(r"^#### (AAL-\d{3})\s*$")
+_LEDGER_DOC = (
+    REPO_ROOT
+    / "docs"
+    / "00_governance"
+    / "governance_03_issue-and-uncertainty-management.md"
+)
+
 
 def _top_level_headings(lines: list[str]) -> list[tuple[int, str]]:
     """`## ` headings outside fenced code blocks, as (line number, title)."""
@@ -258,6 +276,97 @@ def check_template_residue(docs: list[DocFile]) -> list[Issue]:
     return issues
 
 
+def _status_value(lines: list[str]) -> tuple[int, str] | None:
+    """(line number, value) of the first non-empty line after `## Status`.
+
+    The value is empty when the next non-empty line is another heading. None
+    means the document has no `## Status` heading.
+    """
+    for line_no, title in _top_level_headings(lines):
+        if title != "Status":
+            continue
+        for index in range(line_no, len(lines)):
+            value = lines[index].strip()
+            if value:
+                return (index + 1, "" if value.startswith("#") else value)
+        return (line_no, "")
+    return None
+
+
+def check_status_values(docs: list[DocFile]) -> list[Issue]:
+    """Flag (ERROR) an ADR whose `## Status` value is not an allowed one."""
+    issues: list[Issue] = []
+    for doc in docs:
+        if not _ADR_FILE_RE.match(Path(doc.rel_path).name):
+            continue
+        found = _status_value(doc.lines)
+        if found is None:
+            continue
+        line_no, value = found
+        if not value:
+            message = "'## Status' has no value"
+        elif value not in _ALLOWED_STATUSES:
+            message = f"Status '{value}' is not one of: {', '.join(_ALLOWED_STATUSES)}"
+        else:
+            continue
+        issues.append(
+            Issue(file=doc.rel_path, line_no=line_no, severity="ERROR", message=message)
+        )
+    return issues
+
+
+def check_pending_approval_form(
+    docs: list[DocFile], ledger_ids: frozenset[str]
+) -> list[Issue]:
+    """Flag (ERROR) a pending approval bullet without a resolving ledger ID."""
+    issues: list[Issue] = []
+    for doc in docs:
+        if not _ADR_FILE_RE.match(Path(doc.rel_path).name):
+            continue
+        in_record = False
+        in_fence = False
+        for line_no, line in enumerate(doc.lines, start=1):
+            if line.startswith("```"):
+                in_fence = not in_fence
+            elif in_fence:
+                continue
+            elif line.startswith("#"):
+                in_record = bool(_APPROVAL_RECORD_RE.match(line))
+            elif in_record and _PENDING_BULLET_RE.match(line):
+                cited = _LEDGER_ID_RE.findall(line)
+                if not cited:
+                    issues.append(
+                        Issue(
+                            file=doc.rel_path,
+                            line_no=line_no,
+                            severity="ERROR",
+                            message="pending approval bullet cites no AAL-NNN ledger ID",
+                        )
+                    )
+                issues.extend(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=line_no,
+                        severity="ERROR",
+                        message=f"ledger ID {ledger_id} has no entry in the ledger",
+                    )
+                    for ledger_id in cited
+                    if ledger_id not in ledger_ids
+                )
+    return issues
+
+
+def _ledger_ids_from_lines(lines: list[str]) -> frozenset[str]:
+    """IDs of every `#### AAL-NNN` entry heading."""
+    return frozenset(
+        match.group(1) for line in lines if (match := _LEDGER_HEADING_RE.match(line))
+    )
+
+
+def _load_ledger_ids() -> frozenset[str]:
+    return _ledger_ids_from_lines(_LEDGER_DOC.read_text(encoding="utf-8").splitlines())
+
+
 def collect_issues() -> list[Issue]:
     docs = discover_md_files(ADR_DIR, prefix="")
     return (
@@ -265,6 +374,8 @@ def collect_issues() -> list[Issue]:
         + check_notes_references_drift(docs)
         + check_section_headings(docs)
         + check_template_residue(docs)
+        + check_status_values(docs)
+        + check_pending_approval_form(docs, _load_ledger_ids())
     )
 
 
@@ -285,8 +396,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Check docs/10_adr/*.md for a missing '## Known Deviations' heading "
-            "(ERROR) and Implementation Notes vs Implementation References "
-            "file/symbol drift (WARNING)."
+            "(ERROR), Implementation Notes vs Implementation References "
+            "file/symbol drift (WARNING), an unknown Status value (ERROR), and "
+            "a pending approval bullet without a resolving ledger ID (ERROR)."
         )
     )
     parser.add_argument(

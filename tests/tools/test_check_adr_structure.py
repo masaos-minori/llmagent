@@ -15,11 +15,17 @@ from pathlib import Path
 from tools._docs_consistency_lib import DocFile
 from tools.check_adr_structure import (
     _ADR_FILE_RE,
+    _ALLOWED_STATUSES,
     _HEADING_ORDER,
+    _LEDGER_DOC,
     _REQUIRED_HEADINGS,
+    _ledger_ids_from_lines,
+    _load_ledger_ids,
     check_known_deviations_heading,
     check_notes_references_drift,
+    check_pending_approval_form,
     check_section_headings,
+    check_status_values,
     check_template_residue,
 )
 
@@ -188,3 +194,130 @@ class TestAdrFileNamePattern:
         doc = _doc("# ADR-999", "", "## Context")
         issues = check_section_headings([doc])
         assert issues, "check_section_headings skipped a new-shape ADR file"
+
+
+class TestCheckStatusValues:
+    def test_every_allowed_value_is_accepted(self) -> None:
+        for value in _ALLOWED_STATUSES:
+            doc = _doc("## Status", "", value, "", "## Summary")
+            assert check_status_values([doc]) == []
+
+    def test_unknown_value_is_reported(self) -> None:
+        issues = check_status_values([_doc("## Status", "", "Draft", "", "## Summary")])
+        assert [(i.severity, i.line_no) for i in issues] == [("ERROR", 3)]
+        assert "Draft" in issues[0].message
+
+    def test_value_followed_by_a_paragraph_is_accepted(self) -> None:
+        doc = _doc("## Status", "", "Withdrawn", "", "The text below is a record.")
+        assert check_status_values([doc]) == []
+
+    def test_status_without_a_value_is_reported(self) -> None:
+        issues = check_status_values([_doc("## Status", "", "## Summary")])
+        assert [i.message for i in issues] == ["'## Status' has no value"]
+
+    def test_missing_status_heading_is_left_to_the_heading_check(self) -> None:
+        assert check_status_values([_doc("## Summary", "", "Accepted")]) == []
+
+    def test_non_adr_files_are_ignored(self) -> None:
+        doc = DocFile(
+            path=Path("adr_01_index.md"),
+            rel_path="adr_01_index.md",
+            lines=["## Status", "", "Draft"],
+        )
+        assert check_status_values([doc]) == []
+
+    def test_allowed_values_match_the_policy_document(self) -> None:
+        policy = (
+            Path(__file__).resolve().parents[2]
+            / "docs"
+            / "00_governance"
+            / "governance_01_documentation-policy.md"
+        ).read_text(encoding="utf-8")
+        section = policy.split("## ADR Status Definitions", 1)[1].split("\n#", 1)[0]
+        defined = {
+            line.split("`")[1]
+            for line in section.splitlines()
+            if line.startswith("- `")
+        }
+        assert defined == set(_ALLOWED_STATUSES)
+
+
+_PENDING = (
+    "- **Current Decision Approval (pending)**: Changed text awaits approval; "
+    "it is tracked by AAL-001. No approval is recorded here."
+)
+
+
+def _approval_doc(*bullets: str) -> DocFile:
+    return _doc(
+        "## Approval",
+        "",
+        "### Required Reviewers",
+        "",
+        "### Approval Record",
+        "",
+        *bullets,
+        "",
+        "## Related ADRs",
+    )
+
+
+class TestCheckPendingApprovalForm:
+    def test_resolving_id_is_accepted(self) -> None:
+        issues = check_pending_approval_form(
+            [_approval_doc(_PENDING)], frozenset({"AAL-001"})
+        )
+        assert issues == []
+
+    def test_bullet_without_an_id_is_reported(self) -> None:
+        bullet = "- **Current Decision Approval (pending)**: Changed text."
+        issues = check_pending_approval_form([_approval_doc(bullet)], frozenset())
+        assert [i.severity for i in issues] == ["ERROR"]
+        assert "cites no" in issues[0].message
+
+    def test_unresolved_id_is_reported(self) -> None:
+        issues = check_pending_approval_form(
+            [_approval_doc(_PENDING)], frozenset({"AAL-002"})
+        )
+        assert len(issues) == 1
+        assert "AAL-001" in issues[0].message
+
+    def test_withdrawal_record_is_not_checked(self) -> None:
+        doc = _doc(
+            "### Withdrawal Approval Record",
+            "",
+            "- **Current Decision Approval (pending)**: no ID here",
+        )
+        assert check_pending_approval_form([doc], frozenset()) == []
+
+    def test_bullet_outside_the_approval_record_is_ignored(self) -> None:
+        doc = _doc("## Summary", "", _PENDING)
+        assert check_pending_approval_form([doc], frozenset()) == []
+
+    def test_fenced_bullet_is_ignored(self) -> None:
+        doc = _doc("### Approval Record", "```", _PENDING, "```")
+        assert check_pending_approval_form([doc], frozenset()) == []
+
+    def test_non_adr_files_are_ignored(self) -> None:
+        doc = DocFile(
+            path=Path("adr_01_index.md"),
+            rel_path="adr_01_index.md",
+            lines=["### Approval Record", _PENDING],
+        )
+        assert check_pending_approval_form([doc], frozenset()) == []
+
+
+class TestLedgerIds:
+    def test_entry_headings_are_collected(self) -> None:
+        lines = [
+            "#### AAL-001",
+            "- **ID:** AAL-001",
+            "#### AAL-014",
+            "#### SHARED-001",
+            "### Rules",
+        ]
+        assert _ledger_ids_from_lines(lines) == frozenset({"AAL-001", "AAL-014"})
+
+    def test_ledger_document_exists_and_lists_entries(self) -> None:
+        assert _LEDGER_DOC.is_file()
+        assert _load_ledger_ids()

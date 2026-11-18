@@ -281,8 +281,8 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Current Decision Approval (pending)**: Approver not recorded; date not recorded; scope: the Decision 10 remediation for `orphan_vec_count > 0`, the Decision 11 shared-helper sentence, and the startup-check bullet reword under Fail-Open or Degraded Conditions. Pending maintainer approval; no approval or reviewer name is recorded here.
-- **Current Decision Approval (pending)**: Rewriting Decision 8 and the `RagMaintenanceService.rebuild_fts()` Implementation Note to reference ADR-009 (INV-03, INV-07) instead of restating the text-selection expression is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
+- **Current Decision Approval (pending)**: Approver not recorded; date not recorded; scope: the Decision 10 remediation for `orphan_vec_count > 0`, the Decision 11 shared-helper sentence, and the startup-check bullet reword under Fail-Open or Degraded Conditions. Pending maintainer approval, tracked by AAL-004; no approval or reviewer name is recorded here.
+- **Current Decision Approval (pending)**: Rewriting Decision 8 and the `RagMaintenanceService.rebuild_fts()` Implementation Note to reference ADR-009 (INV-03, INV-07) instead of restating the text-selection expression is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-005. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

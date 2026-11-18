@@ -171,6 +171,8 @@ Validates `docs/10_adr/*.md` structure:
   skipped if Notes cites zero such paths)
 - Section headings: only the headings of the ADR Section Header Standardization, in that order (Error)
 - Template instruction text and global `INV-NNN` invariant ids in an ADR body (Error)
+- `## Status` value must be one the ADR Status Definitions of the policy document allow (Error)
+- A `Current Decision Approval (pending)` bullet under `### Approval Record` must cite an ADR approval ledger ID that has an entry in the ledger (Error)
 
 ### 11. Known Deviation Sync Check (`check_known_deviation_sync.py`)
 

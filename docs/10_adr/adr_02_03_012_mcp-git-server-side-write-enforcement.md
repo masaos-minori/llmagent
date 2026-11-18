@@ -198,8 +198,8 @@ Not applicable
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-08; individual reviewer names are not recorded.
-- **Current Decision Approval (pending)**: Defining the documented safe exception (`dry_run`) and the Detached HEAD policy in Decision Detail #5 is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
-- **Current Decision Approval (pending)**: Defining Stages 1 to 3 (repository path validation, write guard, authorization) in Decision Detail #9 is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
+- **Current Decision Approval (pending)**: Defining the documented safe exception (`dry_run`) and the Detached HEAD policy in Decision Detail #5 is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-014. No approval is recorded here.
+- **Current Decision Approval (pending)**: Defining Stages 1 to 3 (repository path validation, write guard, authorization) in Decision Detail #9 is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-015. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

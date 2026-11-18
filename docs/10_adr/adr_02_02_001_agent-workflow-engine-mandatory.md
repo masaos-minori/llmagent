@@ -261,7 +261,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-14; individual reviewer names are not recorded.
-- **Current Decision Approval (pending)**: Changing the INV-02 verification row from Blocking to Non-Blocking, because no automated test verifies it, is a decision-text change awaiting maintainer approval (the maintainer may instead supply a test and keep the row Blocking); the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
+- **Current Decision Approval (pending)**: Changing the INV-02 verification row from Blocking to Non-Blocking, because no automated test verifies it, is a decision-text change awaiting maintainer approval (the maintainer may instead supply a test and keep the row Blocking); the approver, date, and scope are not recorded, and it is tracked by AAL-001. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

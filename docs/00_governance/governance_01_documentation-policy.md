@@ -270,6 +270,11 @@ Whether a change also requires RACI approval, by change type, is defined in `gov
   Accepted.
 - `Accepted`: Adopted and currently valid. An Accepted ADR is the current
   architectural specification for its decision.
+- `Withdrawn`: The decision no longer applies and the ADR is kept only as a record. The first line of
+  its `## Status` MUST be exactly `Withdrawn`, it MUST carry a `### Withdrawal Approval Record`, and
+  present-tense decision wording that survives in it is tracked as a Canonical Source Conflict.
+
+No other Status value is allowed; `tools/check_adr_structure.py` rejects one.
 
 ### ADR Acceptance Evidence Standard
 
@@ -289,6 +294,23 @@ say so explicitly. It must not use `pending` for `Approved By` / `Approval Date`
 `Approval Reference` (`pending` asserts that acceptance evidence is still outstanding,
 which is false once a task-level decision has been made), and must not fabricate a
 reviewer name, date, or reference that was never given. Approval records identify people by role (for example `repository owner`), never by personal name.
+
+### ADR Pending Amendment Form
+
+Decision text that is already in an ADR and awaits the maintainer's approval MUST be shown only in this
+form: a bullet under `### Approval Record` that starts with `- **Current Decision Approval (pending)**:`,
+states the changed text, and cites its entry of the ADR approval ledger (`AAL-NNN`, defined in
+[Issue and Uncertainty Management](governance_03_issue-and-uncertainty-management.md) Part 5).
+
+- The ADR `## Status` line MUST stay `Accepted`.
+- The bullet and its ledger entry are removed when the approval is recorded in the Approval Record or the
+  pending text is reverted.
+- An implementer MUST NOT write approval text or a ledger entry for a past approval.
+- The form does not replace the approval record that a new decision change needs in the same change
+  (ADR Change Protocol).
+- Required Reviewer names map to RACI roles in
+  [Change Impact and Dependency Graphs](governance_05_change-impact-and-dependency-graphs.md).
+- `tools/check_adr_structure.py` rejects a pending bullet that cites no ledger entry that exists.
 
 ## ADR Change Protocol
 

@@ -64,7 +64,7 @@ Environment names must not change startup validation or Fail-Fast/Fail-Closed bo
 2. Target environments: every environment where the system runs.
 3. Environment names change none of: startup validation, auth/authz, Allowlist enforcement, approval control, Tool ownership, Routing, resource-scope validation, DB integrity, Workflow requirements, Fail-Fast/Fail-Closed conditions.
 
-Registered exception (empty `path_denylist`, GitHub server): an empty `path_denylist` in the GitHub server configuration remains permitted at config load and denies no paths, although this group requires identical Allowlist enforcement in every environment and every other GitHub boundary control is fail-closed. This exception is recorded here as the only permitted empty-safety-list relaxation in the platform. Its rationale is pending from the maintainer and must be written into this section before the exception is treated as settled: PENDING (Needs confirmation).
+Registered exception (empty `path_denylist`, GitHub server): an empty `path_denylist` in the GitHub server configuration remains permitted at config load and denies no paths, although this group requires identical Allowlist enforcement in every environment and every other GitHub boundary control is fail-closed. This exception is recorded here as the only permitted empty-safety-list relaxation in the platform. Its rationale is pending from the maintainer and must be written into this section before the exception is treated as settled: PENDING (Needs confirmation; NC-001).
 ### Group 2: Failure Classification
 
 4. Failures classified into two kinds: "safety/integrity failures" and "availability failures". Used to decide impact boundary; not used to relax safety/integrity requirements.
@@ -243,9 +243,9 @@ The unconditional startup checks enforce INV-01 and INV-02 at startup time:
 
 ## Exceptions
 
-- An Agent-launched MCP subprocess that fails to start after its single retry aborts startup regardless of `required`. This exception holds only while every MCP server with `startup_mode = "subprocess"` is classified required; startup validation rejects a configuration in which such a server sets `required = false`. Before any subprocess server is reclassified non-required, the spawn path must apply `required` to spawn failures, and this exception must be removed.
-- **Retryable fail-open (overlay-only `store_error`).** For a *retryable* dispatch-capable MCP tool whose `mcp_dedup.sqlite` is unavailable, lost, or freshly recreated, the shared MCP dispatcher proceeds overlay-only with a `store_error` marker instead of failing closed. Registered exception with rationale: a retryable tool is safely replayable on recovery, so a fail-open that records `store_error` and allows the call to replay preserves availability without risking a silent, unreplayable duplicate effect; the non-retryable counterpart fails closed (see ADR-008). Applies to the empty-store and lookup-exception paths (`scripts/mcp_servers/dispatch.py`). Maintainer approval record: written by a maintainer; not fabricated here.
-- **Post-open write-failure warning-only (retryable).** For a *retryable* tool, a failed write to `mcp_dedup.sqlite` after a successful open (e.g. a failed `record_pending`) is warning-only rather than fail-closed. Registered exception with rationale: the pending record for a retryable call is not authoritative — the call is replayable, so a warning-only failure does not risk a silent unreplayable duplicate; the non-retryable counterpart fails closed (`scripts/shared/mcp_dedup.py` `_write()` / `scripts/mcp_servers/dispatch.py` `_store_op`). Maintainer approval record: written by a maintainer; not fabricated here.
+- An Agent-launched MCP subprocess that fails to start after its single retry aborts startup regardless of `required`. This exception holds only while every MCP server with `startup_mode = "subprocess"` is classified required; startup validation rejects a configuration in which such a server sets `required = false`. Before any subprocess server is reclassified non-required, the spawn path must apply `required` to spawn failures, and this exception must be removed. Approval: `### Approval Record`.
+- **Retryable fail-open (overlay-only `store_error`).** For a *retryable* dispatch-capable MCP tool whose `mcp_dedup.sqlite` is unavailable, lost, or freshly recreated, the shared MCP dispatcher proceeds overlay-only with a `store_error` marker instead of failing closed. Registered exception with rationale: a retryable tool is safely replayable on recovery, so a fail-open that records `store_error` and allows the call to replay preserves availability without risking a silent, unreplayable duplicate effect; the non-retryable counterpart fails closed (see ADR-008). Applies to the empty-store and lookup-exception paths (`scripts/mcp_servers/dispatch.py`). (MCP-001)
+- **Post-open write-failure warning-only (retryable).** For a *retryable* tool, a failed write to `mcp_dedup.sqlite` after a successful open (e.g. a failed `record_pending`) is warning-only rather than fail-closed. Registered exception with rationale: the pending record for a retryable call is not authoritative — the call is replayable, so a warning-only failure does not risk a silent unreplayable duplicate; the non-retryable counterpart fails closed (`scripts/shared/mcp_dedup.py` `_write()` / `scripts/mcp_servers/dispatch.py` `_store_op`). (MCP-002)
 
 ## Verification
 
@@ -309,7 +309,8 @@ The unconditional startup checks enforce INV-01 and INV-02 at startup time:
 
 ## Known Deviations
 
-Not applicable
+- MCP-001
+- MCP-002
 
 ## Review Triggers
 
@@ -342,9 +343,10 @@ Re-evaluate when:
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names not recorded)
 - **Approval Date**: Not recorded (individual approval dates not recorded for task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-13, except Decision Group 10 ("Fallback prohibited without exception"), whose amendment is Pending maintainer statement; individual reviewer names are not recorded.
+- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-13, except Decision Group 10 (see AAL-002); individual reviewer names are not recorded.
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) of 2026-11-10 (option B) covers the Group 7/INV-09 applicability statement added here; individual reviewer names are not recorded.
-- **Current Decision Approval (pending)**: The INV-14 verification text that cites the startup-abort and registry tests is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
+- **Current Decision Approval (pending)**: The Decision Group 10 ("Fallback prohibited without exception") amendment awaits maintainer approval; it is tracked by AAL-002.
+- **Current Decision Approval (pending)**: The INV-14 verification text that cites the startup-abort and registry tests is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-003. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

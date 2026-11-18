@@ -52,7 +52,9 @@ Two optional metadata fields beyond the four required fields in "Existing Metada
 
 Current state of the document. Optional — defaults to `stable` when absent. A
 document that would otherwise need `deprecated` or `superseded` is removed from
-the active set rather than marked with a historical status.
+the active set rather than marked with a historical status. The `## Status` values of an ADR are
+defined in [Documentation Policy](governance_01_documentation-policy.md) (ADR Status Definitions) and are
+independent of this field.
 
 - Allowed values: `stable` (default), `draft`
 - Example:

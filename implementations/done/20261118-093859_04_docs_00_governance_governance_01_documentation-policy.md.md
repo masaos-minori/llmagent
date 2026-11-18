@@ -56,9 +56,9 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the maintainer sign-off for D2 and D3 | Pending | — | — | Stop and ask if absent |
-| 2 | Edit ADR Status Definitions and add the pending amendment form | Pending | — | — |  |
-| 3 | Run the documentation checkers listed in Validation plan | Pending | — | — |  |
+| 1 | Confirm the maintainer sign-off for D2 and D3 | Completed | 20261118-103727 | 20261118-103727 | Maintainer sign-off D2 (pending form, Status line stays Accepted) and D3 (governed Withdrawn) recorded in session 2026-11-18 via AskUserQuestion |
+| 2 | Edit ADR Status Definitions and add the pending amendment form | Completed | 20261118-103727 | 20261118-103727 | Withdrawn added to ADR Status Definitions; ADR Pending Amendment Form subsection added after the Acceptance Evidence Standard; 23721 B under the 24576 B gate |
+| 3 | Run the documentation checkers listed in Validation plan | Completed | 20261118-103727 | 20261118-103727 | docs quality/structure/content-policy/japanese, canonical-source registry/conflicts, adr_structure, known_deviation_sync: pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

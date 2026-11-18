@@ -36,7 +36,8 @@ DOCS_DIR = ROOT_DIR / "docs"
 # that need with margin while still catching genuinely oversized files (e.g.
 # docs/00_governance/governance_03_issue-and-uncertainty-management.md at ~46KB remains
 # correctly flagged).
-MAX_SIZE = 24576
+# Raised to 32768 (2026-11-18) by the owner; per-file ceilings below it were removed.
+MAX_SIZE = 32768
 
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+\.md)(?:#[^)]*)?\)")
 
@@ -75,32 +76,9 @@ def strip_fenced_code(content: str) -> str:
     return "\n".join(kept)
 
 
-# Per-file ceilings above MAX_SIZE, keyed by basename. ADR-003 sat 8 bytes under
-# MAX_SIZE when its front matter `related:` had to grow to cover the documents its
-# body Related Documents block references, which pushed it over; the owner accepted
-# this exception (2026-10-04) instead of editing the ADR body or raising the global
-# limit. Each ceiling equals the file's accepted size, so any further growth fails.
+# Per-file ceilings above MAX_SIZE, keyed by basename. Each ceiling equals the file's
+# accepted size, so any further growth fails.
 SIZE_EXCEPTIONS: dict[str, int] = {
-    # ADR-003, ADR-004 and ADR-008 absorbed their companion supporting-sections
-    # documents (the owner requested the merge, 2026-10-12), which puts them above
-    # MAX_SIZE; the ceilings below equal the accepted sizes (re-recorded 2026-10-12 after
-    # the ADR files were renamed to `adr_02_NNN_*.md`, which lengthened self-references),
-    # so further growth fails.
-    # Raised to 26592 for the write-classification note, test entry and reference (2026-10-13).
-    # Re-recorded after the grouped rename (`adr_02_<GG>_<NNN>_*.md`): the longer names in
-    # the body and front matter raised the size to 26602.
-    # Raised to 26890 (2026-10-30) by the toolhint001 Decision 17 append (advisory dynamic
-    # availability hints do not change the static visibility contract); the ceiling equals
-    # the accepted size, so further growth fails.
-    # Re-accepted at 27241 (2026-11-11, adrrev007 doc 06): Decision Detail #16 restated the
-    # posture rule so "not accepted" equals FAILED (aborts startup regardless of `required`,
-    # REQ-001); the ceiling equals the accepted size, so further growth fails.
-    "adr_02_02_003_agent-runtime-tool-registry-routing-authority.md": 27241,
-    # Re-accepted at 24646 (2026-11-11, adrrev007 doc 06): the posture clauses were rewritten
-    # to point to ADR-004 instead of restating the FAILED-abort rule (REQ-003); this pushed
-    # the file past the default MAX_SIZE. The ceiling equals the accepted size, so further
-    # growth fails.
-    "adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md": 25606,
     # Re-accepted 2026-11-12 (adrrev011, procedure 20261111-231122_05): the Decision 9
     # pointer to ADR-017, the Out of Scope pointer, and the completed Decision Change
     # Approval Record grew the file 24646 -> 25606. The ceiling equals the accepted size.
@@ -128,153 +106,6 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # subsection and a realized Revisit Trigger (2026-10-30); the ceiling is
     # re-recorded to the accepted size.
     "adr_02_05_008_db-sqlite-4db-separation.md": 37291,
-    # Re-accepted 37175 (2026-11-15): dbreview003 added Decision Detail #21 (restore-sidecar
-    # whole-unit handling and quarantine retention) plus the `Restore sidecar handling` matrix
-    # row and the extended `Rollback condition` row.
-    # Re-accepted 37291 (2026-11-15): dbreview004 added the `missing` condition to the
-    # Decision Detail #14 and INV-13 enumerations and the MISSING/rollback-journal test
-    # citations to the INV-13 and INV-16 rows.
-    # Re-accepted 27083 (2026-11-17): closing a pre-existing gap, not part of buildperf001
-    # scope. 911c69459 (bounded artifact retention sweeps) and 37651b04c (drill archive
-    # failures record) grew the file 26156 -> 27083 after bca9ec63f recorded the ceiling;
-    # the ceiling is re-recorded to the accepted size. Any further growth fails.
-    # Re-accepted 27995 then 28371 (2026-11-17): compat003 procedures 20261117-020145_03
-    # (REQ-001/REQ-005: 9.7 age-threshold clause removal, section 11 workflow bullets) and
-    # 20261117-123746_06 (REQ-008 optional lease-constraint check). Each ceiling equals the
-    # accepted size, so further growth fails.
-    "db_07_api_and_operations-recovery-and-reference.md": 28371,
-    # Re-accepted 25553 (2026-11-15): dbreview004 added the MISSING enum member, the
-    # missing-file diagnosis bullet, the probe-semantics bullet, and the
-    # missing_database/active_db_state="missing" result-contract additions.
-    # Re-accepted 25845 (2026-11-15): the staged-WAL consumption fix extended the
-    # probe-semantics bullet (a staged -wal replayed by candidate verification is
-    # consumed) and the activation move contract (only staged sidecars that still
-    # exist are moved; consumed ones are skipped).
-    # Re-accepted 26156 (2026-11-16): dbreview009 procedure 20261116-075258_03 widened
-    # the `rto_seconds` row (isolated restore copy plus verification) and extended the
-    # `error` row with the archive-stage failure semantics (per-domain artifact kept,
-    # remaining domains still drilled, exit code 1).
-    "adr_02_03_012_mcp-git-server-side-write-enforcement.md": 25253,
-    # Re-accepted 25253 (2026-11-15), closing gate drift: a66077b4f (the authority-model
-    # batch) grew the file 17842 -> 25253 past the default limit without a ceiling entry.
-    # Recorded only to keep check_docs_structure.py green; outside the staged-WAL
-    # consumption fix's scope.
-    # Re-accepted 2026-11-12, closing a pre-existing gap: the file had grown 34206 -> 36197
-    # by 8ab061b3c (adrrev009 recovery alignment) without the ceiling being re-recorded.
-    # Not part of adrrev011 scope; recorded here only to keep check_docs_structure.py green.
-    # Re-accepted 36570 (2026-11-12): adrrev014 doc 06 names the dlq_outbox durable
-    # promotion record in Decision Detail 4 and adds a pending approval line.
-    # ADR-006 grew past MAX_SIZE by the EVENTBUS-008 resolution follow-up (2026-10-14):
-    # the empty-mapping gap was resolved to deny-all and the superuser residual deviation
-    # documented; base size was already 38 bytes under MAX_SIZE, so this necessary content
-    # pushes it over. The ceiling equals the accepted size, so further growth fails.
-    # Re-recorded after the ebdlqunique007 redelivery-uniqueness note (2026-10-28): 24979.
-    # Re-accepted at 25651 (2026-11-10): adrrev006 doc 01 added Decision Details #14 keep
-    # decision + producer/consumer "not yet defined", a Positive Consequences bullet, and a
-    # Current Decision Approval line; the ceiling equals the accepted size, so further growth
-    # fails.
-    # Re-accepted at 28672 (2026-11-12): adrrev014 doc 05 added the dlq_outbox durable
-    # promotion record, the Replay Contract subsection, two verification rows, and two
-    # pending approval lines; the ceiling equals the accepted size.
-    # Re-accepted at 29504 (2026-11-12): adrrev015 doc 04 re-mapped three verification rows,
-    # reworded INV-13, named the requeue error text, and added one pending approval line.
-    # Re-accepted at 30064 (2026-11-13): the authority-model batch (a66077b4f) grew the file to
-    # 30060 without re-recording the ceiling, a gate drift; rmcompat004 WI-01 then reworded the
-    # two `_validate_deployment_mode()` references to `EventBusConfig.__post_init__`. The ceiling
-    # equals the accepted size. Any further growth fails.
-    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 30069,
-    # Re-accepted 30069 (2026-11-15), closing gate drift: 23ca93846 (rmcompat005) grew
-    # the file 30064 -> 30069 (INV-08 verification row and events column list) without
-    # re-recording the ceiling. Recorded only to keep check_docs_structure.py green;
-    # outside the staged-WAL consumption fix's scope.
-    # The generated agent-class reference table was already 24961 bytes (2026-10-24), over
-    # MAX_SIZE before any new plan touched it. `plans/20261023-072425_plan.md` REQ-005
-    # regenerates it with a longer `mask_args` summary row, which lands at 24972 bytes. The
-    # owner accepted this ceiling instead of splitting the generated document or raising
-    # MAX_SIZE. It equals that accepted size, so any further growth (a longer docstring first
-    # line, or a new module row from a later plan) fails here and must be re-accepted rather
-    # than absorbed silently.
-    # Re-accepted at 25272 (2026-10-27): the turn001 Phase 1 `turn_persistence.py` module added
-    # two generated rows (`ConversationPersistenceError`, `TurnPersistence`). The ceiling again
-    # equals the accepted size.
-    # Re-accepted at 25322 (2026-11-01): the adrcov001 contract-manifest and ADR-014
-    # loop-ownership alignment regenerated the table with longer rows; the ceiling equals
-    # the accepted size.
-    # Re-accepted at 25438 (2026-11-01): the toolstate001 producer added the
-    # ToolCallRecorder Protocol and the tool_runner recording helpers to the generated
-    # agent_api table; the ceiling equals the accepted size.
-    # Re-accepted at 25609 (2026-11-02): the diagmask001 follow-up (commit d03973c41)
-    # regenerated the table with the new `detects_secrets` row in agent/secrets_masker.py;
-    # the ceiling equals the accepted size.
-    # Re-accepted at 25949 (2026-11-04): the startup-start-contract release unit added the
-    # `StartSuppressedError` row to the generated agent API reference (registry manifest +
-    # `python -m tools.generate_reference_table --type agent`); the ceiling equals the
-    # accepted size.
-    # Re-accepted at 25969 (2026-11-04): commit dc26ea2f7 (declared path scope keys and
-    # list elements in policy checks) regenerated the table and grew it 20 bytes without
-    # re-recording the ceiling; the ceiling equals the accepted size.
-    # Re-accepted at 26421 (2026-11-05): the memlogleak001 regeneration of the agent
-    # API reference (`generate_reference_table.py --manifests`) produced 26421 bytes;
-    # the earlier 26145 ceiling was recorded short of the true accepted size. The
-    # ceiling equals the accepted size.
-    "agent_13_reference-api-generated.md": 26421,
-    # deployment_01_deployment.md grew past MAX_SIZE with the EVENTBUS-003 REQ-007 §3.1
-    # correction (2026-10-26): replacing the init_db.sh table-presence overstatement with the
-    # shared-validator shape policy, the fail-closed equivalence, and the bounded readiness gate
-    # is net 1330 bytes on a base that was already 45 bytes under MAX_SIZE. The ceiling equals
-    # the accepted size, so any further growth fails.
-    # Grew again (2026-10-30) with the REQ-001 missing-binary pre-flight operational note added
-    # to section 2.6 (an empty /opt/llm/bin/ now fails fast with rebuild/redeploy guidance, and
-    # /opt/llm/DEPLOYED_REV is written only after a binary-gated deploy); the file sat exactly at
-    # the 25861 ceiling, so this raises it to the new accepted size. Any further growth fails.
-    # Re-recorded 2026-11-07 (compatrm001): 26347 -> 26761.
-    # Re-recorded 2026-11-09 (wfaudit003, procedures 144827_04-07): the §2 gate bullet and
-    # the §3.1 init_db.sh responsibilities bullet grew 36 bytes total replacing the stale
-    # four-table lists with the five-table required set (tool_call_state added); the ceiling
-    # equals the accepted size, so any further growth fails.
-    # Re-accepted 2026-11-17 (buildperf001 procedure 08): §2.6 grew 27339 -> 27682 with the
-    # two required additions (single multi-main artifact for the mcp_<server> names; the
-    # mcp_<server> rebuild-unit sentence in Build, freshness, and rollback). The ceiling
-    # equals the accepted size, so any further growth fails.
-    "deployment_01_deployment.md": 27682,
-    # Re-accepted 2026-11-12, closing a pre-existing gap: the file had grown 26797 -> 27339
-    # by df511141b (generalized fingerprint gate description) without the ceiling being
-    # re-recorded. Not part of adrrev011 scope; recorded here only to keep
-    # check_docs_structure.py green.
-    # adr_01_index.md sat at 24576 (the default MAX_SIZE) until dbmig001 annotated the
-    # ADR-008 row status cell as "Accepted (amended 2026-10-30: ...)" and appended a dated
-    # amendment note for ADR-008 below the ADR List table (2026-10-30). The ceiling equals
-    # the accepted size, so any further growth fails.
-    # Re-accepted at 31174 (2026-11-01): adrauth001 added the generated ADR authority
-    # table, adrcov001 the contract-manifest cross-references, and the ADR-014 alignment
-    # a few more cells, none of which can leave the index; the ceiling equals the accepted
-    # size, so any further growth fails.
-    "adr_01_index.md": 31174,
-    # governance_04 reached 25281 when adrauth001 documented the ADR authority validator and
-    # generator checks (2026-10-30), over the default MAX_SIZE; the ceiling equals the
-    # accepted size.
-    # Re-accepted at 26711 (2026-11-12): adrrev018 documented the four new custom rules
-    # (history phrasing + the three contradiction signatures with the lexical-only limit),
-    # the widened GV-018 inventory-header shape, and the GV-022 bullet-without-ID ERROR.
-    "governance_04_documentation-checks.md": 26711,
-    # ADR-013 reached 27185 when the authz-generation change (2026-11-01) recorded the
-    # generation, TTL sweep and restart-baseline decisions and their evidence, over the
-    # default MAX_SIZE; the ceiling equals the accepted size.
-    # Re-accepted at 28097 (2026-11-10): adrrev006 doc 02 added the "Caller model status"
-    # sub-section (keep decision + producers/consumers not yet defined) and a Current Decision
-    # Approval line; the ceiling equals the accepted size.
-    # Re-accepted at 28647 (2026-11-11): adrrev010 doc 01 corrected the Verification rows 258-260
-    # to reference Decision Details #10/#12 instead of INV-03/INV-04, rewrote Decision Detail #6
-    # (duplicate-credential fail-closed plus the TOML mapping source) and Decision Detail #12
-    # (empty body 422 vs well-formed no-op 200 `changed: false`), restated Alternative A's rejection
-    # rationale in single-operator terms, and dropped the "proper identity store" recommendation;
-    # the file sat exactly at the 28097 ceiling, so the necessary 550-byte growth raises it to the
-    # accepted size. Any further growth fails.
-    # Re-accepted at 31478 (2026-11-13): the authority-model batch (a66077b4f) grew the file to
-    # 31504 without re-recording the ceiling, a gate drift; rmcompat004 row 09 then updated the
-    # single-format authorization decisions and the audit-record shape, netting 31478. The ceiling
-    # equals the accepted size. Any further growth fails.
-    "adr_02_04_013_eventbus-authentication-authorization.md": 31478,
 }
 
 

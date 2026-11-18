@@ -59,9 +59,9 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit Exceptions and Known Deviations (Phase 1, REQ-002) | Pending | — | — | Needs the Known Issue IDs of procedure 01 |
-| 2 | Confirm the ledger exists, then restate Group 10 as a pending bullet and add AAL-002 and AAL-003 (REQ-008) | Pending | — | — | Stop if the ledger is absent |
-| 3 | Run the checkers listed in Validation plan | Pending | — | — |  |
+| 1 | Edit Exceptions and Known Deviations (Phase 1, REQ-002) | Completed | 20261118-103600 | 20261118-103600 | Exceptions carry (MCP-001)/(MCP-002) and an Approval pointer for the spawn-failure exception, NC-001 cited at the path_denylist marker, Known Deviations lists MCP-001 and MCP-002. Wording shortened to stay under the 34555 B per-file ceiling of tools/check_docs_structure.py (34551 B) |
+| 2 | Confirm the ledger exists, then restate Group 10 as a pending bullet and add AAL-002 and AAL-003 (REQ-008) | Completed | 20261118-103600 | 20261118-103600 | Ledger exists (procedure 01). Group 10 restated as its own pending bullet (AAL-002); approved bullet keeps its Group 10 exclusion; INV-14 bullet cites AAL-003. check_adr_preservation reports Known Deviations/Approval ERRORs and a Decision WARNING (NC-001 reference): reviewed, decision text unchanged |
+| 3 | Run the checkers listed in Validation plan | Completed | 20261118-103600 | 20261118-103600 | adr_structure, known_deviation_sync, NC inventory, canonical_source_registry, authority, invariant_matrix, reference, docs quality/structure/content-policy/japanese: pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

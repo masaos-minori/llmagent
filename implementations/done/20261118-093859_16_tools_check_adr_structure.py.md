@@ -69,10 +69,10 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the Status value check and the pending-form check to the checker (REQ-009, REQ-010) | Pending | — | — |  |
-| 2 | Add the tests to the companion test file | Pending | — | — |  |
-| 3 | Run the validation sequence listed in Validation plan | Pending | — | — |  |
-| 4 | Hand the documentation sync to the procedures for the check documentation and the tool descriptions | Pending | — | — |  |
+| 1 | Add the Status value check and the pending-form check to the checker (REQ-009, REQ-010) | Completed | 20261118-103916 | 20261118-105353 | Status value and pending-form checks added with helpers; changed: tools/check_adr_structure.py |
+| 2 | Add the tests to the companion test file | Completed | 20261118-105353 | 20261118-105353 | Companion tests added (32 new cases, 34 total pass); changed: tests/tools/test_check_adr_structure.py. A first run of the policy-parity test failed on its own section extraction (it also read bullets of the later subsection); fixed the extraction, expectation unchanged |
+| 3 | Run the validation sequence listed in Validation plan | Completed | 20261118-105353 | 20261118-105353 | ruff format/check, mypy, bandit, module size (15087 B), live run: pass. Targeted: testmon-forceselect stopped (no usable selection, full-size run), fell back to the module's own test file. End-of-batch full suite: 12704 passed, 1 failed (tests/mcp_servers/git/test_mcp_git.py::test_check_repo_path_equivalence, Hypothesis FailedHealthCheck input generation slow under parallel load; passes alone; unrelated to this change, recorded). diff-cover: N/A (no scripts/ change) |
+| 4 | Hand the documentation sync to the procedures for the check documentation and the tool descriptions | Completed | 20261118-105353 | 20261118-105353 | Documentation sync handled by procedure 19 (tool descriptions); procedure 18 (governance_04) is Blocked on a size ceiling outside scope, follow-up issue filed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

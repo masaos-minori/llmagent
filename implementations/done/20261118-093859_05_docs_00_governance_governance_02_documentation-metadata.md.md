@@ -48,9 +48,9 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the maintainer sign-off for D3 | Pending | — | — | Stop and ask if absent |
-| 2 | Add the sentence under `### status` | Pending | — | — |  |
-| 3 | Run the documentation checkers listed in Validation plan | Pending | — | — |  |
+| 1 | Confirm the maintainer sign-off for D3 | Completed | 20261118-103727 | 20261118-103727 | Maintainer sign-off D3 recorded in session 2026-11-18 |
+| 2 | Add the sentence under `### status` | Completed | 20261118-103727 | 20261118-103727 | One sentence added under ### status |
+| 3 | Run the documentation checkers listed in Validation plan | Completed | 20261118-103727 | 20261118-103727 | docs checkers: pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

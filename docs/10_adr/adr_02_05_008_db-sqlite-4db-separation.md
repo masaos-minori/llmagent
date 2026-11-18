@@ -381,9 +381,9 @@ See Implementation References for the current file/symbol list.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-19, including the amendment of the sqlite-vec scope to `rag.sqlite` and `session.sqlite`; individual reviewer names are not recorded.
-- **Current Decision Approval (pending)**: Naming the `dlq_outbox` durable promotion record among the `eventbus.sqlite` contents in Decision Detail 4 is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
+- **Current Decision Approval (pending)**: Naming the `dlq_outbox` durable promotion record among the `eventbus.sqlite` contents in Decision Detail 4 is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-010. No approval is recorded here.
 - **Amendment Approval Mapping**: no per-amendment approval record exists for this ADR beyond the ADR index entry and the task-level decision above; amendment history stays in version control.
-- **Current Decision Approval (pending)**: Appending `rag-pipeline-mcp` to the Target components is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
+- **Current Decision Approval (pending)**: Appending `rag-pipeline-mcp` to the Target components is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-011. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

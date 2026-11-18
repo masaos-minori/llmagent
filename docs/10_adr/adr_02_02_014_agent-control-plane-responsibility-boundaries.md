@@ -195,7 +195,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-14; individual reviewer names are not recorded.
-- **Current Decision Approval (pending)**: The INV-02 wording that names the `Orchestrator` as the single creator of the `LlmTurnExecutor` instance is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by the ADR approval ledger. No approval is recorded here.
+- **Current Decision Approval (pending)**: The INV-02 wording that names the `Orchestrator` as the single creator of the `LlmTurnExecutor` instance is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-016. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

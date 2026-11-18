@@ -1,9 +1,9 @@
 ## Goal
-Cite the ADR approval ledger entry on each pending approval bullet of ADR-015 so the pending amendment is shown in the defined form (REQ-008: apply the forms to every ADR in the inventory).
+Cite the ADR approval ledger entry on each pending approval bullet of ADR-012 so the pending amendment is shown in the defined form (REQ-008: apply the forms to every ADR in the inventory).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
-- Edit only the `### Approval Record` pending bullets of this ADR; ledger IDs: AAL-017.
+- Edit only the `### Approval Record` pending bullets of this ADR; ledger IDs: AAL-014, AAL-015.
 - The ADR decision text is not edited, reverted, or approved here.
 
 ## Assumptions
@@ -19,7 +19,7 @@ N/A: the form is fixed by the governance change; this row only applies it.
 
 ## Implementation
 ### Target file
-`docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md`
+`docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`
 ### Procedure
 1. Confirm the governance definition (ledger part and pending form) is merged and the sign-off exists.
 2. For each pending bullet below, add the ledger citation in the wording the pending-amendment form defines (default: replace the phrase naming the ledger with the entry ID, or append `Ledger: AAL-NNN.` when the bullet has no such phrase).
@@ -28,7 +28,8 @@ N/A: the form is fixed by the governance change; this row only applies it.
 Edit the existing bullets in place under `### Approval Record`; no new heading, no reordering.
 ### Details
 - Entries for this ADR:
-  - AAL-017: manifest status correction and the generated-document list addition
+  - AAL-014: safe exception and Detached HEAD policy in Decision Detail 5
+  - AAL-015: Stages 1 to 3 in Decision Detail 9
 
 ## Compatibility considerations
 N/A: wording-only edit to the Approval section; the decision text and the `Accepted` Status line are unchanged.
@@ -58,9 +59,9 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the governance definition and the maintainer sign-off exist | Pending | — | — | Stop and ask if absent |
-| 2 | Add ledger IDs (AAL-017) to the pending bullets | Pending | — | — |  |
-| 3 | Run the ADR and documentation checkers listed in Validation plan | Pending | — | — |  |
+| 1 | Confirm the governance definition and the maintainer sign-off exist | Completed | 20261118-103845 | 20261118-103845 | Governance definition and ledger exist (procedures 01 and 04); maintainer sign-off D1/D2 recorded in session 2026-11-18 |
+| 2 | Add ledger IDs (AAL-014, AAL-015) to the pending bullets | Completed | 20261118-103845 | 20261118-103845 | Ledger IDs AAL-014, AAL-015 added; the phrase naming the ledger was replaced by the entry ID; 25221 B under the 25253 B ceiling |
+| 3 | Run the ADR and documentation checkers listed in Validation plan | Completed | 20261118-103845 | 20261118-103845 | adr_structure, authority, invariant_matrix, reference, registry, known_deviation_sync, docs checkers: pass; check_adr_preservation Approval-section report reviewed (wording-only) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -80,4 +81,4 @@ N/A: revert the commit
 - **Source plan**: plans/20261118-092611_adrchk011_adr-approval-governance.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261118-093859
-- **Related target files**: `docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md`
+- **Related target files**: `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`

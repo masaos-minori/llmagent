@@ -91,6 +91,46 @@ Part 1 entries, Part 2 items, and "Proposed" ADRs are reviewed quarterly (`gover
 
 Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, AGENT-*, MCP-*, DEPLOY-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
+#### MCP-001
+
+- **ID:** MCP-001
+- **Title:** ADR-004 overlay-only fail-open exception has no maintainer approval reference
+- **Status**: open
+- **Severity:** Medium
+- **Area:** MCP
+- **Type:** missing-documentation
+- **Source:** `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` `## Exceptions`, retryable fail-open bullet
+- **Owner:** Repository owner
+- **First Found:** adrchk011 ADR approval governance re-verification
+- **Target:** `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`
+- **Related:** None
+- **Summary:** For a retryable tool whose dedup store is unavailable, lost, or recreated, the shared MCP dispatcher proceeds overlay-only with a `store_error` marker instead of failing closed, and the ADR records no maintainer approval for this exception.
+- **Current Description:** ADR-004 `## Exceptions` states a rationale and leaves the approval to a maintainer; the exception was added after the task-level approvals in `### Approval Record`, so none covers it.
+- **Observed Implementation:** `scripts/mcp_servers/dispatch.py` degrades to the overlay when the durable store is unavailable, as the ADR describes.
+- **Impact:** A relaxation of fail-closed handling stands without an approval record.
+- **Recommended Action:** The maintainer states the approval and the ADR records it, or the exception is removed; no approval is written here.
+- **Resolution Target:** maintainer approval in the ADR-004 `### Approval Record`, or removal of the exception
+
+#### MCP-002
+
+- **ID:** MCP-002
+- **Title:** ADR-004 post-open warning-only exception has no maintainer approval reference
+- **Status**: open
+- **Severity:** Medium
+- **Area:** MCP
+- **Type:** missing-documentation
+- **Source:** `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` `## Exceptions`, post-open write-failure bullet
+- **Owner:** Repository owner
+- **First Found:** adrchk011 ADR approval governance re-verification
+- **Target:** `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`
+- **Related:** MCP-001
+- **Summary:** For a retryable tool, a failed dedup store write after a successful open is warning-only instead of fail-closed, and the ADR records no maintainer approval for this exception.
+- **Current Description:** ADR-004 `## Exceptions` states a rationale and leaves the approval to a maintainer; the exception was added after the task-level approvals in `### Approval Record`, so none covers it.
+- **Observed Implementation:** `scripts/shared/mcp_dedup.py` `_write()` and `scripts/mcp_servers/dispatch.py` `_store_op` degrade a failed write to the overlay, as the ADR describes.
+- **Impact:** A relaxation of fail-closed handling stands without an approval record.
+- **Recommended Action:** The maintainer states the approval and the ADR records it, or the exception is removed; no approval is written here.
+- **Resolution Target:** maintainer approval in the ADR-004 `### Approval Record`, or removal of the exception
+
 #### SHARED-001
 
 - **ID:** SHARED-001
@@ -243,9 +283,189 @@ An item is removed from this active inventory once it is resolved (deployed and 
 
 No active Configuration Drift items remain.
 
+## Part 5: ADR Approval Ledger
+
+### Purpose
+
+A register of ADR decision-text changes that are written into an ADR but still await the maintainer's approval, so pending approvals are tracked and cited instead of being treated as approved.
+
+### Entry Fields
+
+Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Scope.
+
+### Rules
+
+- An entry ID is `AAL-NNN` (three digits, ascending). An ADR's `Current Decision Approval (pending)` bullet MUST cite its entry ID, and every cited ID MUST have an entry here (`tools/check_adr_structure.py`).
+- Approver and Date stay `Not recorded` until the maintainer states them. An implementer MUST NOT write approval text or an entry for a past approval.
+- An entry is removed once its approval is recorded in the ADR's `### Approval Record` or the pending change is reverted.
+
+### Active Items
+
+#### AAL-001
+
+- **ID:** AAL-001
+- **ADR:** ADR-001
+- **Decision:** INV-02 verification row set to Non-Blocking
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-02 verification row
+
+#### AAL-002
+
+- **ID:** AAL-002
+- **ADR:** ADR-004
+- **Decision:** Decision Group 10 amendment (fallback prohibited without exception)
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Group 10
+
+#### AAL-003
+
+- **ID:** AAL-003
+- **ADR:** ADR-004
+- **Decision:** INV-14 verification text citing the startup-abort and registry tests
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-14 verification text
+
+#### AAL-004
+
+- **ID:** AAL-004
+- **ADR:** ADR-005
+- **Decision:** Decision 10 remediation, Decision 11 helper sentence, startup-check bullet reword
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decisions 10 and 11, Fail-Open or Degraded Conditions
+
+#### AAL-005
+
+- **ID:** AAL-005
+- **ADR:** ADR-005
+- **Decision:** Decision 8 and the `rebuild_fts()` note reference ADR-009
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision 8, Implementation Notes
+
+#### AAL-006
+
+- **ID:** AAL-006
+- **ADR:** ADR-006
+- **Decision:** `dlq_outbox` promotion record added to Scope and Data Ownership
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Scope, Data Ownership
+
+#### AAL-007
+
+- **ID:** AAL-007
+- **ADR:** ADR-006
+- **Decision:** Replay Contract (`/replay` Operator-only, `/subscribe` start order)
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Replay Contract
+
+#### AAL-008
+
+- **ID:** AAL-008
+- **ADR:** ADR-006
+- **Decision:** INV-13 wording, INV-04, INV-06, and INV-07 verification re-mapping, requeue error text
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-04, INV-06, INV-07, INV-13
+
+#### AAL-009
+
+- **ID:** AAL-009
+- **ADR:** ADR-006
+- **Decision:** ADR-008 added to related ADRs; INV-15 states ADR-006 owns loopback binding
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Front matter `related`, Related ADRs, INV-15
+
+#### AAL-010
+
+- **ID:** AAL-010
+- **ADR:** ADR-008
+- **Decision:** `dlq_outbox` named among the `eventbus.sqlite` contents
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Detail 4
+
+#### AAL-011
+
+- **ID:** AAL-011
+- **ADR:** ADR-008
+- **Decision:** `rag-pipeline-mcp` appended to the Target components
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Target components
+
+#### AAL-012
+
+- **ID:** AAL-012
+- **ADR:** ADR-009
+- **Decision:** INV-09 folded into INV-04; Failure Conditions relabel and reword
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-04, INV-09, Failure Conditions
+
+#### AAL-013
+
+- **ID:** AAL-013
+- **ADR:** ADR-010
+- **Decision:** Withdrawal of the fallback decision
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Status, Withdrawal Approval Record
+
+#### AAL-014
+
+- **ID:** AAL-014
+- **ADR:** ADR-012
+- **Decision:** Safe exception (`dry_run`) and Detached HEAD policy
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Detail 5
+
+#### AAL-015
+
+- **ID:** AAL-015
+- **ADR:** ADR-012
+- **Decision:** Stages 1 to 3 (path validation, write guard, authorization)
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Detail 9
+
+#### AAL-016
+
+- **ID:** AAL-016
+- **ADR:** ADR-014
+- **Decision:** INV-02 names the Orchestrator as the single creator of the turn executor
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-02
+
+#### AAL-017
+
+- **ID:** AAL-017
+- **ADR:** ADR-015
+- **Decision:** Manifest status correction; `agent_08_04` added to the generated-document list
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Manifest status, generated-document list
+
+#### AAL-018
+
+- **ID:** AAL-018
+- **ADR:** ADR-016
+- **Decision:** Index section renamed to ADR Dependency Graph; pair count updated
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Detail 6, Implementation Notes, Summary, Problem
+
 ## Resolution Rules
 
-The following resolution criteria apply across all four parts of this document:
+The following resolution criteria apply across the parts of this document:
 
 - Known Issue resolved only when implementation and design agree, or design is formally changed
 - Configuration Drift resolved only when deployed and approved values agree, or approved value is formally changed

@@ -10,7 +10,7 @@ Map each Required Reviewer name used in ADRs to a RACI role (REQ-007).
 - UNK-03: the proposal maps only where a RACI role of the same function exists and records the gap otherwise; the maintainer fills the gap at the sign-off.
 
 ## Design decisions
-- Proposed mapping: Architecture Owner to `@architect`; Affected Component Owner to the `<area-lead>` of the ADR's area; Ops Reviewer and Operations Reviewer (both spellings occur in ADRs) to `@devops`; Data Owner to `@db-admin` (DB) or `@data-eng` (RAG); Security Reviewer: no RACI role of the same function (gap, not invented).
+- Proposed mapping: Architecture Owner to `@architect`; Affected Component Owner to the `<area-lead>` of the ADR's area; Ops Reviewer and Operations Reviewer (both spellings occur in ADRs) to `@devops`; Data Owner to `@db-admin` (DB) or `@data-eng` (RAG); Documentation Governance Owner (used by three ADRs, found in Step 3a) to `@governance-lead`; Security Reviewer: no RACI role of the same function (gap, not invented).
 
 ## Alternatives considered
 N/A: the roles come from the existing RACI Model.
@@ -49,9 +49,9 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the maintainer sign-off for D4 and UNK-03 | Pending | — | — | Stop and ask if absent |
-| 2 | Add the reviewer mapping subsection | Pending | — | — |  |
-| 3 | Run the documentation checkers listed in Validation plan | Pending | — | — |  |
+| 1 | Confirm the maintainer sign-off for D4 and UNK-03 | Completed | 20261118-103727 | 20261118-103727 | Maintainer sign-off D4 (Security Reviewer left as a recorded gap) recorded in session 2026-11-18 |
+| 2 | Add the reviewer mapping subsection | Completed | 20261118-103727 | 20261118-103727 | Required Reviewer Roles table added after the RACI table; Step 3a found Documentation Governance Owner (three ADRs) missing from the procedure and mapped it to @governance-lead; procedure corrected |
+| 3 | Run the documentation checkers listed in Validation plan | Completed | 20261118-103727 | 20261118-103727 | docs checkers: pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

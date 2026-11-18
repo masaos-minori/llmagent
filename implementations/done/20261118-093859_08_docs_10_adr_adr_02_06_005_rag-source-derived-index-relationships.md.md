@@ -1,15 +1,15 @@
 ## Goal
-Cite the ADR approval ledger entry on each pending approval bullet of ADR-001 so the pending amendment is shown in the defined form (REQ-008: apply the forms to every ADR in the inventory).
+Cite the ADR approval ledger entry on each pending approval bullet of ADR-005 so the pending amendment is shown in the defined form (REQ-008: apply the forms to every ADR in the inventory).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
-- Edit only the `### Approval Record` pending bullets of this ADR; ledger IDs: AAL-001.
+- Edit only the `### Approval Record` pending bullets of this ADR; ledger IDs: AAL-004, AAL-005.
 - The ADR decision text is not edited, reverted, or approved here.
 
 ## Assumptions
 - Confirm that the maintainer decision this document needs (D1 to D4 and UNK-01 to UNK-03 of the Source plan) is recorded as a maintainer comment on the Source plan; stop and ask when it is not. Write no approval text.
 - The ledger ID prefix `AAL-` and the ledger location (a new part of `docs/00_governance/governance_03_issue-and-uncertainty-management.md`) are the Source plan's proposed defaults (UNK-01); a different maintainer decision changes the cited IDs only.
-- The IDs follow the assignment rule of the procedure for the ledger part of the issue-management governance document: ADR number order, then bullet order in the file. Re-run `rg -n "Current Decision Approval \(pending\)" docs/10_adr/` first; if the bullets differ from this list, stop and report a Plan Gap. The INV-02 row already reads Non-Blocking in the body; do not revert it.
+- The IDs follow the assignment rule of the procedure for the ledger part of the issue-management governance document: ADR number order, then bullet order in the file. Re-run `rg -n "Current Decision Approval \(pending\)" docs/10_adr/` first; if the bullets differ from this list, stop and report a Plan Gap.
 
 ## Design decisions
 - Keep each bullet's description and add only the ledger citation required by the pending-amendment form in the policy governance document.
@@ -19,7 +19,7 @@ N/A: the form is fixed by the governance change; this row only applies it.
 
 ## Implementation
 ### Target file
-`docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`
+`docs/10_adr/adr_02_06_005_rag-source-derived-index-relationships.md`
 ### Procedure
 1. Confirm the governance definition (ledger part and pending form) is merged and the sign-off exists.
 2. For each pending bullet below, add the ledger citation in the wording the pending-amendment form defines (default: replace the phrase naming the ledger with the entry ID, or append `Ledger: AAL-NNN.` when the bullet has no such phrase).
@@ -28,7 +28,8 @@ N/A: the form is fixed by the governance change; this row only applies it.
 Edit the existing bullets in place under `### Approval Record`; no new heading, no reordering.
 ### Details
 - Entries for this ADR:
-  - AAL-001: INV-02 verification row Blocking to Non-Blocking
+  - AAL-004: Decision 10 remediation for orphan_vec_count
+  - AAL-005: Decision 8 rewrite referencing ADR-009
 
 ## Compatibility considerations
 N/A: wording-only edit to the Approval section; the decision text and the `Accepted` Status line are unchanged.
@@ -58,9 +59,9 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the governance definition and the maintainer sign-off exist | Pending | — | — | Stop and ask if absent |
-| 2 | Add ledger IDs (AAL-001) to the pending bullets | Pending | — | — |  |
-| 3 | Run the ADR and documentation checkers listed in Validation plan | Pending | — | — |  |
+| 1 | Confirm the governance definition and the maintainer sign-off exist | Completed | 20261118-103845 | 20261118-103845 | Governance definition and ledger exist (procedures 01 and 04); maintainer sign-off D1/D2 recorded in session 2026-11-18 |
+| 2 | Add ledger IDs (AAL-004, AAL-005) to the pending bullets | Completed | 20261118-103845 | 20261118-103845 | Ledger IDs AAL-004, AAL-005 added; the phrase naming the ledger was replaced by the entry ID |
+| 3 | Run the ADR and documentation checkers listed in Validation plan | Completed | 20261118-103845 | 20261118-103845 | adr_structure, authority, invariant_matrix, reference, registry, known_deviation_sync, docs checkers: pass; check_adr_preservation Approval-section report reviewed (wording-only) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -80,4 +81,4 @@ N/A: revert the commit
 - **Source plan**: plans/20261118-092611_adrchk011_adr-approval-governance.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261118-093859
-- **Related target files**: `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`
+- **Related target files**: `docs/10_adr/adr_02_06_005_rag-source-derived-index-relationships.md`
