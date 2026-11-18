@@ -168,37 +168,50 @@ class Orchestrator:
     async def _execute_turn(self, line: str) -> None:
         answer: str = ""
         error_kind: str | None = None
-        is_partial: bool = False
+        had_partial_text: bool = False
+        was_compensated: bool = False
         turn_started_at = time.perf_counter()
         boundary: TurnPersistence | None = None
         try:
             await self._audit_emitter.emit_turn_start()
             boundary = await self._ctx.session.turn_boundary(self._ctx.conv)
             self._ctx.turn.persistence_boundary = boundary
-            answer, error_kind, is_partial = await self._workflow_adapter.execute_turn(
+            (
+                answer,
+                error_kind,
+                returned_is_partial,
+            ) = await self._workflow_adapter.execute_turn(
                 line,
                 turn_started_at,
                 format_session_id(self._ctx.session.session_id),
             )
+            had_partial_text = returned_is_partial
         except ConversationPersistenceError:
             # boundary.fail_from_error() already compensated (deleted the turn's
             # partial DB rows) and restored history to its turn-start snapshot; the
             # narrow branch records a distinct error_kind so the REPL surfaces a
-            # dedicated message. Nothing was persisted, so is_partial stays
+            # dedicated message. Nothing was persisted, so both signals stay
             # False. Re-raise so the failure is observable end-to-end.
             error_kind = "persistence"
-            is_partial = False
+            had_partial_text = False
+            was_compensated = False
             raise
         except BaseException as exc:
             error_kind = exc.__class__.__name__
             if boundary is not None:
                 compensated = await boundary.rollback_partial_turn()
-                is_partial = bool(getattr(exc, "partial_text", "")) or compensated
+                had_partial_text = bool(getattr(exc, "partial_text", ""))
+                was_compensated = bool(compensated)
             raise
         finally:
             try:
                 await self._audit_emitter.emit_turn_end(
-                    line, answer, turn_started_at, error_kind, is_partial
+                    line,
+                    answer,
+                    turn_started_at,
+                    error_kind,
+                    had_partial_text,
+                    was_compensated,
                 )
             finally:
                 self._workflow_adapter.deactivate_workflow(self._ctx)

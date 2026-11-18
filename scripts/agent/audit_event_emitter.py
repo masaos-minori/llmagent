@@ -102,7 +102,8 @@ class AuditEventEmitter:
         self,
         elapsed_ms: float,
         error_kind: str | None,
-        is_partial: bool = False,
+        had_partial_text: bool = False,
+        was_compensated: bool = False,
     ) -> dict[str, int | float | str | None]:
         """Build turn_end audit log event dict."""
         ctx = self._ctx
@@ -113,7 +114,9 @@ class AuditEventEmitter:
             "input_tokens": ctx.stats.stat_input_tokens,
             "output_tokens": ctx.stats.stat_output_tokens,
             **self.build_turn_end_llm_stats(ctx.services_required.llm),
-            "partial_completion": is_partial,
+            "partial_completion": had_partial_text,
+            "had_partial_text": had_partial_text,
+            "was_compensated": was_compensated,
             "error_kind": error_kind,
         }
 
@@ -123,13 +126,16 @@ class AuditEventEmitter:
         answer: str,
         turn_started_at: float,
         error_kind: str | None,
-        is_partial: bool = False,
+        had_partial_text: bool = False,
+        was_compensated: bool = False,
     ) -> None:
         """Emit a turn_end audit event and clear the current turn ID."""
         ctx = self._ctx
         elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
         if ctx.services_required.audit_logger is not None:
-            event = self.build_turn_end_event(elapsed_ms, error_kind, is_partial)
+            event = self.build_turn_end_event(
+                elapsed_ms, error_kind, had_partial_text, was_compensated
+            )
             ctx.services_required.audit_logger.info(_json_dumps(event))
         if self._on_turn_end:
             self._on_turn_end()

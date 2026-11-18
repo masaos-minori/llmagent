@@ -1596,7 +1596,8 @@ class TestTurnEndBracket:
         self,
     ) -> None:
         # A non-sqlite3.Error escaping after a committed write is compensated via
-        # rollback_partial_turn(); is_partial reflects the compensation (REQ-002).
+        # rollback_partial_turn(); with no partial text, partial_completion is False
+        # and was_compensated is True (REQ-001). The combined signal is gone.
         ctx = _make_ctx()
         orch = _make_orchestrator(ctx)
         captured = self._install_audit_capture(ctx)
@@ -1618,7 +1619,36 @@ class TestTurnEndBracket:
         events = self._turn_end_events(captured)
         assert len(events) == 1
         assert events[0]["error_kind"] == "RuntimeError"
+        assert events[0]["partial_completion"] is False
+        assert events[0]["was_compensated"] is True
+
+    @pytest.mark.asyncio
+    async def test_committed_partial_text_reports_both_signals(self) -> None:
+        # A committed write followed by a partial-text exception reports both
+        # signals true: partial_completion (had_partial_text) and was_compensated
+        # independently (REQ-001, REQ-002).
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        captured = self._install_audit_capture(ctx)
+
+        boundary = _persistence_boundary_mock()
+        boundary.rollback_partial_turn = AsyncMock(return_value=True)
+        ctx.session.turn_boundary = AsyncMock(return_value=boundary)
+
+        engine = orch._workflow_adapter._workflow_engine
+
+        async def _raise_partial(task, plan_fn, execute_fn, verify_fn) -> None:
+            raise _make_err(kind="PREMATURE_EOF", partial_text="partial text here")
+
+        engine.run = AsyncMock(side_effect=_raise_partial)
+
+        with pytest.raises(LLMTransportError):
+            await orch.handle_turn("hello")
+
+        events = self._turn_end_events(captured)
+        assert len(events) == 1
         assert events[0]["partial_completion"] is True
+        assert events[0]["was_compensated"] is True
 
     @pytest.mark.asyncio
     async def test_non_persistence_exception_without_commit_keeps_is_partial_false(
