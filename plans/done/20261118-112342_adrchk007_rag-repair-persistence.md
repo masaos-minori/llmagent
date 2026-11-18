@@ -6,7 +6,7 @@ High
 
 ## Scope
 - **In-Scope**: commit and rollback behavior of `rebuild_vec` and `reconcile_url`; making both repairs run against the canonical schema (no `chunks.embedding`, rows read by column name); the `integrity_ok` mapping of `recover()`; the `SQLiteHelper` class docstring; persistence and contract tests; aligning the existing fake-helper tests with the real helper.
-- **Out-of-Scope**: choosing the RAG failure policy; changing repair action names or the consistency check messages; editing ADR or docs wording; `DbMaintenanceService.recover_session` (UNK-03); re-embedding chunks (UNK-01); `rebuild_fts` behavior.
+- **Out-of-Scope**: choosing the RAG failure policy; changing repair action names or the consistency check messages; editing ADR or docs wording; `DbMaintenanceService.recover_session` (UNK-03); re-embedding chunks (UNK-01); `rebuild_fts` behavior; repairing FTS entries that are indexed but stale.
 - **Dependencies**: N/A: none. This Plan has no prerequisite. It is a soft prerequisite of the issue adrchk006 (rag-failure-policy), which relies on `rebuild_vec` persisting before its repair actions are corrected; that issue is named by id and not by path because it does not gate this Plan.
 
 ## Background
@@ -15,6 +15,7 @@ The ADR review reported that `rebuild_vec` and `reconcile_url` write under `writ
 ## Problem
 - `SQLiteHelper.close()` closes without committing, so an uncommitted write is discarded at exit. `rebuild_fts` commits; `rebuild_vec` and `reconcile_url` do not.
 - On the canonical schema `rebuild_vec` raises `OperationalError: no such column: embedding` (the canonical `chunks` table has no `embedding` column; vectors exist only in `chunks_vec`), and `reconcile_url` raises `TypeError` because it reads rows by column name on a connection opened without `row_factory=True`. Reproduced in a scratch database with the canonical table shapes.
+- `reconcile_url` issues an FTS5 `'delete'` for every chunk of the URL, including entries that are not indexed; for an absent entry that raises `DatabaseError: database disk image is malformed` (reproduced on an external-content FTS5 table), so it cannot repair a gap, and on a consistent index it is a no-op.
 - The existing tests patch `SQLiteHelper` with a fake whose rows are `sqlite3.Row` and use a stand-in `chunks` table with an `embedding` column, so they pass.
 - `recover()` sets `integrity_ok=result.success`; a VACUUM failure after a passing integrity check returns `success=False` with `action="vacuum_failed"`, so a healthy database is reported as failed. `recover()` has no caller in `scripts/` and no test.
 - The `SQLiteHelper` class docstring says the pragmas apply to every connection; a read-only connection gets only `busy_timeout`.
@@ -26,14 +27,14 @@ The ADR review reported that `rebuild_vec` and `reconcile_url` write under `writ
 
 ## Implementation Intent
 - Every maintenance write commits at the end of a successful repair and rolls back completely when the repair fails (the connection closes uncommitted).
-- `rebuild_vec` removes vector rows that have no `chunks` row and keeps valid rows; `reconcile_url` rebuilds the URL's FTS rows and leaves vector rows untouched.
+- `rebuild_vec` removes vector rows that have no `chunks` row and keeps valid rows; `reconcile_url` inserts the URL's missing FTS entries and leaves indexed entries and vector rows untouched.
 - `integrity_ok` reflects the integrity check only; secondary steps (VACUUM) are reported separately through `action`.
 - Tests write first, fail first, and reopen the database with a new connection.
 
 ## Requirements
 - `REQ-001`: `rebuild_vec` and `reconcile_url` commit at the end of a successful repair, and a failure inside either leaves the database unchanged for a new connection.
 - `REQ-002`: `rebuild_vec` runs on the canonical schema: it removes `chunks_vec` rows whose `chunk_id` has no `chunks` row, preserves every valid row, and returns the number of `chunks_vec` rows remaining (UNK-01, UNK-02 defaults).
-- `REQ-003`: `reconcile_url` runs on the canonical schema: it reads rows by column name through `row_factory=True`, rebuilds only the URL's `chunks_fts` rows, leaves `chunks_vec` untouched, and keeps its return shape (`{"found": False}` or `{"found": True, "chunks": n}`).
+- `REQ-003`: `reconcile_url` runs on the canonical schema: it reads rows by column name through `row_factory=True`, inserts the `chunks_fts` entry of each of the URL's chunks that is absent from `chunks_fts_docsize` (the presence test `scripts/db/rag_consistency_queries.py` uses), never issues an FTS5 `'delete'` for an entry that is not indexed, leaves indexed entries and `chunks_vec` untouched, and keeps its return shape (`{"found": False}` or `{"found": True, "chunks": n}`).
 - `REQ-004`: `recover()` sets `integrity_ok` from the integrity outcome: `True` when the integrity check passed (including `action="vacuum_failed"`), and the existing values otherwise.
 - `REQ-005`: The `SQLiteHelper` class docstring states that read-only connections apply only `busy_timeout` and that leaving the context closes the connection without committing.
 - `REQ-006`: Persistence and `integrity_ok` tests run against a real database file, are written before the fix and fail on the pre-fix code, and the existing fake-helper tests honor the `row_factory` flag as the real helper does.
@@ -53,7 +54,7 @@ table — no other file may be treated as a modification target.
 | `tests/agent/services/test_rag_maintenance_persistence.py` | Persistence and `integrity_ok` tests | New file: tests that reopen a real database file after `rebuild_vec`, `reconcile_url`, and an injected failure, and that map `recover()` results (written first, failing before the fix) | REQ-001, REQ-002, REQ-003, REQ-004, REQ-006 / AC-1, AC-2, AC-3, AC-5 | New file; the directory `tests/agent/services/` exists and has no RAG maintenance test file; the failures reproduced in a scratch database with canonical table shapes (checked in Step 2) | `uv run pytest tests/agent/services/test_rag_maintenance_persistence.py` | Verified |
 | `tests/agent/services/test_rag_index_integrity.py` | Align the fake-helper tests | Route the patched helper's `open` through the fake's `open()` so `row_factory` is honored, and update the `rebuild_vec` and `reconcile_url` tests to the canonical contract | REQ-006 / AC-5 | Both tests patch `SQLiteHelper` with a mock whose `open().__enter__` returns the fake (rows stay `sqlite3.Row`) and use a stand-in `chunks` table with an `embedding` column (checked in Step 2) | `uv run pytest tests/agent/services/test_rag_index_integrity.py` | Verified |
 | `scripts/db/helper.py` | Class docstring | Replace "applied to every connection" with the real pragma behavior and add that exit closes without committing | REQ-005 / AC-4 | The class docstring says WAL/synchronous/busy_timeout apply to every connection; `apply_connection_pragmas(read_only=True)` applies only `busy_timeout` (checked in Step 2) | `tests/db/test_sqlite_helper.py` | Verified |
-| `scripts/agent/services/rag_maintenance_service.py` | Repair persistence and result mapping | Commit at the end of both repairs, make both run on the canonical schema, and set `integrity_ok` from the integrity outcome | REQ-001, REQ-002, REQ-003, REQ-004 / AC-1, AC-2, AC-3 | No `commit()` in `rebuild_vec` or `reconcile_url`; `rebuild_vec` selects `chunks.embedding`; `reconcile_url` reads `doc["doc_id"]` without `row_factory`; `integrity_ok=result.success` (checked in Step 2) | `tests/agent/services/test_rag_maintenance_persistence.py`, `tests/agent/services/test_rag_index_integrity.py` | Verified |
+| `scripts/agent/services/rag_maintenance_service.py` | Repair persistence and result mapping | Commit at the end of both repairs, make both run on the canonical schema, and set `integrity_ok` from the integrity outcome | REQ-001, REQ-002, REQ-003, REQ-004 / AC-1, AC-2, AC-3 | No `commit()` in `rebuild_vec` or `reconcile_url`; `rebuild_vec` selects `chunks.embedding`; `reconcile_url` reads `doc["doc_id"]` without `row_factory` and issues an FTS5 `'delete'` for unindexed entries (malformed index, reproduced in Step 3a of plan-to-implementation-procedure); `integrity_ok=result.success` (checked in Step 2) | `tests/agent/services/test_rag_maintenance_persistence.py`, `tests/agent/services/test_rag_index_integrity.py` | Verified |
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified. Same
@@ -63,6 +64,7 @@ glob patterns, components, file groups, or vague phrases.
 | File Path | Why It Must Be Read | Related Target File or Requirement |
 |---|---|---|
 | `scripts/db/recovery.py` | `RecoveryResult` and the `vacuum_failed` action that `recover()` maps | REQ-004 |
+| `scripts/db/rag_consistency_queries.py` | The `chunks_fts_docsize` presence pattern and the orphan vector query that the repairs mirror | REQ-002, REQ-003 |
 | `scripts/db/schema_sql.py` | Canonical `rag.sqlite` DDL: `chunks` has no `embedding` column and `chunks_vec` is a vec0 table | REQ-002 |
 | `scripts/rag/ingestion/transaction_commit.py` | Embeddings are written only to `chunks_vec` | REQ-002 |
 | `scripts/agent/services/models.py` | `DbRecoverResult` fields | REQ-004 |
@@ -75,7 +77,7 @@ glob patterns, components, file groups, or vague phrases.
 
 ## Acceptance Criteria
 - `AC-1` (REQ-001, REQ-002): After `rebuild_vec()`, a new connection sees no `chunks_vec` row without a `chunks` row and every valid row; an injected failure inside the repair leaves `chunks_vec` unchanged for a new connection.
-- `AC-2` (REQ-001, REQ-003): After `reconcile_url(url)`, a new connection sees the URL's chunks searchable through `chunks_fts` and `chunks_vec` unchanged; an unknown URL returns `{"found": False}`.
+- `AC-2` (REQ-001, REQ-003): After `reconcile_url(url)` on a URL whose FTS entry is missing, a new connection finds the chunk through `chunks_fts`, indexed entries and `chunks_vec` are unchanged, and the call raises nothing; an unknown URL returns `{"found": False}`.
 - `AC-3` (REQ-004): A VACUUM failure on a healthy database gives `integrity_ok=True` (test); a corruption that is not restored gives `integrity_ok=False`.
 - `AC-4` (REQ-005): The `SQLiteHelper` class docstring no longer claims the pragmas apply to read-only connections and states the no-commit-on-exit behavior.
 - `AC-5` (REQ-006, REQ-007): The persistence tests fail on the pre-fix code and pass after it; the helper contract test passes; the fake-helper tests honor `row_factory`.
@@ -94,6 +96,7 @@ N/A: the Issue requires no docs change beyond the `SQLiteHelper` docstring (REQ-
 - The repair contract of `rebuild_vec` on the canonical schema is the documented one: remove orphan vector rows, keep valid rows (UNK-01 default). The vector rows cannot be regenerated because the service has no embedder.
 - `rebuild_vec` returns the number of `chunks_vec` rows remaining, so `/session rag-rebuild-vec` keeps its message without editing `cmd_session.py` (UNK-02 default).
 - Commit follows `rebuild_fts`: one `db.commit()` at the end; the rollback on failure is the implicit rollback when the connection closes uncommitted, and a failure-injection test proves it. Alternative: `db.begin_immediate()` (BEGIN IMMEDIATE with explicit rollback); not chosen because the Issue and `rebuild_fts` use `commit()`.
+- The presence test for an FTS entry is `chunks_fts_docsize`, the shadow table `scripts/db/rag_consistency_queries.py` already queries for FTS gaps; the persistence test creates the gap with an FTS5 `'delete'` of an indexed row, which is a valid use of the command.
 - Tests use a plain `chunks_vec` table as the stand-in for the vec0 table (the sqlite-vec package is not installed in the dev environment), as the existing tests do; commit semantics do not depend on the table type.
 - The persistence tests must not touch production paths: they patch the `SQLiteHelper` constructor in `agent.services.rag_maintenance_service` to open a temporary file.
 
@@ -104,6 +107,7 @@ N/A: the Issue requires no docs change beyond the `SQLiteHelper` docstring (REQ-
 | UNK-02 | The return value of `rebuild_vec` (rows remaining, default) versus rows removed, which would need an edit to `cmd_session.py` outside the target files | Owner preference | The owner confirms with UNK-01; "rows removed" is a scope amendment | False |
 | UNK-03 | `DbMaintenanceService.recover_session` maps `integrity_ok=raw.success` the same way for the session database (used by `/session recover`) | Owner decision on scope | A follow-up issue or a scope amendment; this Plan does not edit it | False |
 | UNK-04 | `RagMaintenanceService.recover()` and `reconcile_url()` have no caller in `scripts/` | Whether they are reserved or dead (Unused Features rule) | The Plan fixes them as the Issue asks; the owner may instead remove them in a separate issue | False |
+| UNK-05 | Resolved in Step 3a of plan-to-implementation-procedure: the safe per-URL FTS repair is insert-if-absent using `chunks_fts_docsize`; a stale indexed entry cannot be detected per URL | None (experiment on an external-content FTS5 table and `scripts/db/rag_consistency_queries.py`) | None; stale entries remain a `rebuild_fts` concern | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -123,7 +127,7 @@ separate scope-of-record.
 - **Classification**: Path B (more than 3 files; changes the behavior of a public service API). Baseline: `radon cc` rates `reconcile_url` C (12) and every other method A; `vulture` and `bandit` report nothing on the two scripts targets; `lint-imports` keeps all contracts (checked in Step 3). Consumer scan for `rebuild_vec`, `reconcile_url`, and `integrity_ok`: the production consumer of `rebuild_vec` is `cmd_session.py` (a row count printed in a message); `reconcile_url` and `RagMaintenanceService.recover()` have no production caller; the other candidates are ADR and docs mentions and test citations recorded in `Reference Files` or `not affected: documentation or test citation only` (checked in Step 3). Persisted schema check: not applicable (no DDL, schema version, or migration change).
 - **D1 Commit**: `db.commit()` after the last write of a successful repair, inside the `with` block and before the `return`; a failing repair raises, the context closes the connection, and the uncommitted transaction is discarded.
 - **D2 `rebuild_vec`**: one statement removes `chunks_vec` rows whose `chunk_id` is not in `chunks`; the count of remaining rows is read after the delete. No embedding column is read. Alternative (UNK-01): re-embed from chunk text.
-- **D3 `reconcile_url`**: open with `row_factory=True`; keep the FTS delete-and-insert for the URL's chunks; drop the vector delete and re-insert. Complexity falls from C (12) because the vector branch goes.
+- **D3 `reconcile_url`**: open with `row_factory=True`; select the URL's chunks that are absent from `chunks_fts_docsize` (`SELECT chunk_id FROM chunks ... EXCEPT SELECT id FROM chunks_fts_docsize`, the pattern of `scripts/db/rag_consistency_queries.py`) and insert their FTS entries with `COALESCE(normalized_content, content)`; issue no `'delete'` and no vector statement. Complexity falls from C (12) because the delete and vector branches go.
 - **D4 `recover()`**: `integrity_ok = result.success or result.action == "vacuum_failed"`, with a one-line reason comment (the VACUUM runs only after a passing integrity check). `recovered` and `logical_ok` keep their mapping.
 - **D5 Tests**: real database file in `tmp_path`; the canonical table shapes with a plain `chunks_vec`; a factory patched over `SQLiteHelper` that returns `SQLiteHelper(db_path=...)` for the file; a reopen with `sqlite3.connect`. Tests are written before the fix and shown failing (REQ-006).
 - **D6 Docstring**: the class docstring names the connection modes: read-write connections get WAL, `synchronous=NORMAL`, and `busy_timeout`; read-only connections get only `busy_timeout`; leaving the context closes without committing, so callers commit.
@@ -155,7 +159,7 @@ separate scope-of-record.
 
 ## Risks
 - **Risk**: Changing `rebuild_vec` from a "rebuild" to an orphan removal conflicts with ADR-005 Decision 9 and the ADR-008 wording → **Mitigation**: UNK-01 records the decision for the owner before the edit; the ADR wording is not edited here because it needs an approval record.
-- **Risk**: Dropping the vector delete and re-insert from `reconcile_url` changes what it repairs → **Mitigation**: it never worked on the canonical schema (it raised), so no working behavior is lost; the Plan records the narrower contract (REQ-003) and the method has no production caller.
+- **Risk**: Dropping the vector statements and the FTS `'delete'` from `reconcile_url` changes what it repairs → **Mitigation**: it never worked on the canonical schema (it raised, and on an FTS gap the `'delete'` corrupts the index), so no working behavior is lost; the Plan records the narrower contract (REQ-003) and the method has no production caller. Stale indexed entries stay a `rebuild_fts` concern.
 - **Risk**: A commit placed before the last write would persist a partial repair → **Mitigation**: commit is the last statement before the return, and the failure-injection test asserts an unchanged database after a mid-repair failure.
 - **Risk**: A real-file test could touch production paths → **Mitigation**: the constructor patch points `SQLiteHelper` at a `tmp_path` file; `tests/conftest.py` isolation applies.
 - **Risk**: `scripts/db/helper.py` has a wide blast radius (every DB user) → **Mitigation**: the change is a docstring only; the full suite runs once.
@@ -171,9 +175,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Failing tests and evidence: helper contract test, persistence tests, fake-helper alignment | Pending | — | — | |
-| 2 | Fix: docstring, repair commits and canonical-schema repairs, `integrity_ok` mapping | Pending | — | — | |
-| 3 | Validation and hand-off | Pending | — | — | |
+| 1 | Failing tests and evidence: helper contract test, persistence tests, fake-helper alignment | In Progress | — | — |  |
+| 2 | Fix: docstring, repair commits and canonical-schema repairs, `integrity_ok` mapping | In Progress | — | — |  |
+| 3 | Validation and hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -183,7 +187,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-121341_02_tests_agent_services_test_rag_maintenance_persistence.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-121341_03_tests_agent_services_test_rag_index_integrity.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-121341_04_scripts_db_helper.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261118-121341_05_scripts_agent_services_rag_maintenance_service.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -209,3 +216,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-006 | Issue Testing Expectations; fake helper hides the defects (Step 2) | `tests/agent/services/test_rag_index_integrity.py` | Phase 1 | AC-5 | `uv run pytest tests/agent/services/test_rag_index_integrity.py` | Confirmed by repository evidence |
 | REQ-006 | Same | `tests/agent/services/test_rag_maintenance_persistence.py` | Phase 1 | AC-5 | the new persistence tests fail before the fix | Confirmed by repository evidence |
 | REQ-007 | Issue Required Changes (confirm no commit on exit) | `tests/db/test_sqlite_helper.py` | Phase 1 | AC-5 | `uv run pytest tests/db/test_sqlite_helper.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-121341 -->
