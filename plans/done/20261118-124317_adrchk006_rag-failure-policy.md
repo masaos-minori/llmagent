@@ -54,10 +54,10 @@ table — no other file may be treated as a modification target.
 | `tests/db/test_rag_consistency.py` | Prefix, severity, and repair-action tests | Add tests over the `_CHECKS` issue builders for prefix versus severity and for message versus `repair_action`, written before the fix | REQ-001, REQ-002 / AC-1, AC-2 | `_CHECKS` pairs a clean predicate with an issue builder; the file exists with 5 commits in 30 days (checked in Step 3) | `uv run pytest tests/db/test_rag_consistency.py` | Verified |
 | `scripts/db/rag_consistency.py` | Finding prefixes, repair actions, messages | Change the three DEGRADED `[CRITICAL]` prefixes, add the `reingest` repair action, and align the messages | REQ-001, REQ-002 / AC-1, AC-2 | FTS orphan, orphan vec, and chunks without vec are DEGRADED with `[CRITICAL]`; four findings set `rebuild_vec` and one `reconcile_url` while their messages say to re-ingest (checked in Step 2) | `tests/db/test_rag_consistency.py` | Verified |
 | `docs/21_rag/rag_05_07-rag-index-consistency-checks.md` | Repair table and startup section | Align the repair table with REQ-002; after the decision, align the Startup Warnings section | REQ-003, REQ-007 / AC-3, AC-7 | The table lists `rebuild_vec` for vector mismatch, chunks without vector rows, and documents without chunks, and `reconcile_url` for URL-level inconsistency; the Startup Warnings section describes warn-and-continue (checked in Step 2) | `tools/check_docs_quality.py`, `tools/check_docs_structure.py`, `tools/check_docs_content_policy.py` | Verified |
-| `docs/10_adr/adr_02_06_009_rag-fts5-text-separation.md` | Transaction boundary, numbering, Degraded condition | Correct `Transaction Boundary` to per document, state the invariant numbering, and after the decision align the Degraded condition | REQ-004, REQ-007 / AC-4, AC-7 | `Transaction Boundary: per chunk`; INV-01 to INV-08 listed, INV-10 and INV-11 only in Implementation Notes; `Degraded condition: fts_gap > 0` (checked in Step 2) | `tools/check_adr_structure.py`, `tools/check_adr_invariant_matrix.py`, `tools/check_docs_structure.py` | Verified |
 | `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | CSC-001 evidence and ledger entries | Correct the CSC-001 evidence and required action; after the decision add the pending ledger entries for the ADR amendments | REQ-005, REQ-007, REQ-009 / AC-5, AC-7, AC-8 | CSC-001 Validation evidence cites an issue path that is now archived; Part 5 holds the ledger (checked in Step 2) | `tools/check_known_deviation_sync.py`, `tools/check_needs_confirmation_inventory.py`, `tools/check_issue_inventory_conformance.py`, `tools/check_docs_structure.py` | Verified |
+| `docs/10_adr/adr_02_06_009_rag-fts5-text-separation.md` | Transaction boundary, numbering, Degraded condition | Correct `Transaction Boundary` to per document, state the invariant numbering, and after the decision align the Degraded condition | REQ-004, REQ-007 / AC-4, AC-7 | `Transaction Boundary: per chunk`; INV-01 to INV-08 listed, INV-10 and INV-11 only in Implementation Notes; `Degraded condition: fts_gap > 0` (checked in Step 2) | `tools/check_adr_structure.py`, `tools/check_adr_invariant_matrix.py`, `tools/check_docs_structure.py` | Verified |
 | `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` | Policy coverage of the RAG check | After the decision, state how the RAG consistency timeout, exception, and DEGRADED results are classified, in the pending-amendment form | REQ-007 / AC-7 | Decision Group 2 items 5 to 8 and Group 3 items 10 to 12 govern the classification; `## Exceptions` lists no RAG case; 34551 B against a 34555 B ceiling (checked in Step 2) | `tools/check_adr_structure.py`, `tools/check_adr_preservation.py`, `tools/check_docs_structure.py` | Verified |
-| `docs/10_adr/adr_02_06_005_rag-source-derived-index-relationships.md` | Fail-Open or Degraded wording | After the decision, align `Fail-Open or Degraded Conditions` and the Degraded condition with it, in the pending-amendment form | REQ-007 / AC-7 | The section says the post-ingestion check only logs warnings; the Degraded condition is `fts_gap > 0` or `orphan_vec_count > 0`; two pending ledger bullets exist (checked in Step 2) | `tools/check_adr_structure.py`, `tools/check_adr_preservation.py`, `tools/check_docs_structure.py` | Verified |
+| `docs/10_adr/adr_02_06_005_rag-source-derived-index-relationships.md` | Fail-Open or Degraded wording | After the decision, align `Fail-Open or Degraded Conditions` and the Degraded condition with it, in the pending-amendment form | REQ-007 / AC-7 | The section's first bullet delegates the startup policy and the timeout behavior to the RAG guide, its second says the post-ingestion check only logs warnings; the Degraded condition is `fts_gap > 0` or `orphan_vec_count > 0`; two pending ledger bullets exist (checked in Step 2 and Step 3a of plan-to-implementation-procedure) | `tools/check_adr_structure.py`, `tools/check_adr_preservation.py`, `tools/check_docs_structure.py` | Verified |
 | `scripts/agent/startup_validation.py` | Startup comment and branches | Correct the "fail-closed downstream" comment and apply the decision to the timeout and exception branches | REQ-008 / AC-7 | The timeout, exception, and DEGRADED branches add warnings and continue; the comment claims a downstream fail-closed behavior that no module implements (checked in Step 2) | `tests/agent/test_startup.py`, `tests/agent/test_startup_validation.py` | Verified |
 | `tools/check_docs_structure.py` | ADR-004 size ceiling (fallout) | Re-record the ADR-004 ceiling at the accepted size after the REQ-007 edit | REQ-010 / AC-9 | `SIZE_EXCEPTIONS` holds a ceiling of 34555 for ADR-004, whose size is 34551 (checked in Step 3) | `tests/tools/test_check_docs_structure.py` | Verified |
 
@@ -103,6 +103,7 @@ Yes. `docs/21_rag/rag_05_07-rag-index-consistency-checks.md` (REQ-003, REQ-007),
 - The ADR-009 `Transaction Boundary` correction aligns wording to the code and to ADR-005 and does not change a decision; if the maintainer treats it as a decision change, it moves to the pending-amendment form (UNK-05).
 - The ADR edits of Phase 4 are shown only in the pending-amendment form (`governance_01`), with ledger entries whose approver and date stay `Not recorded`; no approval text is written.
 - Phase 4 edits are gated: the maintainer's decision is recorded as a maintainer comment on this Plan before the first Phase 4 edit (`rules/coding.md` Explicit sign-off gates).
+- The `governance_03` row precedes the ADR rows, so the ledger entries that the pending bullets of ADR-004, ADR-005, and ADR-009 cite exist before the live `tools/check_adr_structure.py` run (new entry ids continue after the existing ones).
 - The ADR-004 size ceiling (34555) leaves no room for the Phase 4 edit, so REQ-010 re-records it, as `tools/check_docs_structure.py` does for other ADRs above the default limit.
 
 ## Unknowns
@@ -200,11 +201,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Failing diagnostics tests | Pending | — | — | |
-| 2 | Diagnostics fix and guide table | Pending | — | — | |
-| 3 | ADR-009 wording and CSC-001 evidence (no decision) | Pending | — | — | |
-| 4 | Decision gate and application | Pending | — | — | |
-| 5 | Validation and hand-off | Pending | — | — | |
+| 1 | Failing diagnostics tests | In Progress | — | — |  |
+| 2 | Diagnostics fix and guide table | In Progress | — | — |  |
+| 3 | ADR-009 wording and CSC-001 evidence (no decision) | In Progress | — | — |  |
+| 4 | Decision gate and application | In Progress | — | — |  |
+| 5 | Validation and hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -214,7 +215,15 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-124938_01_tests_db_test_rag_consistency.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-124938_02_scripts_db_rag_consistency.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-124938_03_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 2, 4 | Procedure | Pending | — | — |
+| implementations/20261118-124938_04_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 3, 4 | Procedure | Pending | — | — |
+| implementations/20261118-124938_05_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md | 3, 4 | Procedure | Pending | — | — |
+| implementations/20261118-124938_06_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-124938_07_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-124938_08_scripts_agent_startup_validation.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-124938_09_tools_check_docs_structure.py.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -244,3 +253,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-008 | Issue Required Changes (apply the decision to the timeout and exception branches); startup comment (Step 2) | `scripts/agent/startup_validation.py` | Phase 4 | AC-7 | `uv run pytest tests/agent/test_startup.py tests/agent/test_startup_validation.py` | Needs confirmation |
 | REQ-009 | Issue Required Changes (re-verify the archived issue files) and Unresolved Questions | `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | Phase 3 | AC-8 | `git status` shows no archived file changed | Needs confirmation |
 | REQ-010 | `SIZE_EXCEPTIONS` ceiling of ADR-004 (Step 3) | `tools/check_docs_structure.py` | Phase 4 | AC-9 | `uv run pytest tests/tools/test_check_docs_structure.py` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-124938 -->
