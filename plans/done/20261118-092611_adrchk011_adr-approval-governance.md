@@ -7,7 +7,7 @@ High
 ## Scope
 - **In-Scope**: inventory of pending approval markers; registration of the unapproved ADR-004 Exceptions; the CSC-001 reference from ADR-010; governance definitions (ledger, pending form, Withdrawn, reviewer mapping); application of the forms to the ADRs in the inventory; Status value validation and pending-form validation in `tools/check_adr_structure.py` with tests; the documentation and tool-description updates that keep those checks in sync.
 - **Out-of-Scope**: approving any pending decision; deciding the substance of the ADR-004 Exceptions; writing approval text; creating ledger entries for past approvals; editing archived files under `issues/done/`; the stale CSC-001 Validation evidence path (tracked as UNK-06).
-- **Dependencies**: This Plan blocks `issues/20261117-123001_adrchk001_mcp-auth-contract.md`, `issues/20261117-123005_adrchk005_startup-fail-closed.md`, `issues/20261117-123009_adrchk009_plan-code-reconcile.md`, and `issues/20261117-123013_adrchk013_invariant-matrix-checks.md`, which use the pending form. `issues/20261117-123006_adrchk006_rag-failure-policy.md` decides the substance of the RAG-related ADR-004 Exception; this Plan only fixes how that Exception is registered and approved. No other Plan or Issue has to land first. Other issues edit the same ADR files and `docs/10_adr/adr_01_index.md`; this Plan goes first and the order against them is the owner's call.
+- **Dependencies**: N/A: none. This Plan has no prerequisite; no other Plan or Issue has to land first. It is a prerequisite of the issues adrchk001 (mcp-auth-contract), adrchk005 (startup-fail-closed), adrchk009 (plan-code-reconcile), and adrchk013 (invariant-matrix-checks), which use the pending form; they are named by id and not by path because they do not gate this Plan. The issue adrchk006 (rag-failure-policy) decides the substance of the RAG-related ADR-004 Exception; this Plan only fixes how that Exception is registered and approved. Other issues edit the same ADR files and `docs/10_adr/adr_01_index.md`; this Plan goes first and the order against them is the owner's call.
 
 ## Background
 Governance defines only the `Proposed` and `Accepted` ADR statuses and the Merge Conditions that block an unapproved decision change. ADRs already carry pending amendments, a withdrawn ADR, and unapproved Exceptions that those rules do not describe, and ADR pending bullets cite an "ADR approval ledger" that no governance document defines. The Issue was filed from a consolidated ADR review (`memo-issue.md`, package `ADRCHK2-H11`) and re-verified in Step 2 of this cycle.
@@ -30,7 +30,7 @@ Governance defines only the `Proposed` and `Accepted` ADR statuses and the Merge
 
 ## Requirements
 - `REQ-001`: Inventory every pending approval marker in the ADRs and report the list with the change (no decision needed).
-- `REQ-002`: Register each ADR-004 Exception that lacks an approval reference or rationale: a Known Issue entry per exception in `governance_03` Part 1, a Known Deviations bullet citing it, and an approval reference or NC ID on each Exception (no decision needed).
+- `REQ-002`: Register the ADR-004 Exceptions that lack an approval reference: a Known Issue entry in `governance_03` Part 1 and a Known Deviations bullet citing it for each exception added after the task-level approvals (the overlay-only fail-open and the post-open warning-only exceptions, both added 2026-11-11), and an approval reference or NC ID on every Exception (the spawn-failure exception cites the task-level approval of 2026-10-13, `path_denylist` keeps NC-001) (no decision needed).
 - `REQ-003`: ADR-010 references CSC-001 without changing its Status line or its decision (no decision needed).
 - `REQ-004`: Governance defines the ADR approval ledger: location, entry fields (ID, ADR, decision, approver, date, scope), and the citation format (maintainer decision).
 - `REQ-005`: Governance defines the pending-amendment form without changing the ADR Status line (maintainer decision).
@@ -50,12 +50,12 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
+| `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | Known Issue entries, ledger part and entries | Add Known Issue entries for the ADR-004 Exceptions (REQ-002), a new ADR approval ledger part after Part 4, and a pending ledger entry per inventory item | REQ-002, REQ-004 / AC-2, AC-4 | Part 1 requires 17 fields and an ID-prefix convention; Part 2 holds only NC-001; no ledger exists (checked in Step 2) | `tools/check_known_deviation_sync.py`, `tools/check_needs_confirmation_inventory.py`, `tools/check_docs_quality.py` | Verified |
+| `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` | Exceptions, Known Deviations, pending bullets | Cite an approval reference or NC ID on each Exception, list the Known Issue IDs in `## Known Deviations`, restate the Decision Group 10 amendment as its own `(pending)` bullet (the approved bullet keeps its Group 10 exclusion and points to it), and add ledger IDs to the pending bullets | REQ-002, REQ-008 / AC-2, AC-5 | The two 2026-11-11 exceptions end with `not fabricated here` and no reference; `## Known Deviations` is `Not applicable`; one `(pending)` bullet (INV-14) plus a `Current Decision Approval` bullet that excludes Decision Group 10 with `Pending maintainer statement`; NC-001 at the Group 1 marker (checked in Step 2 and Step 3a) | `tools/check_adr_structure.py`, `tools/check_known_deviation_sync.py`, `tools/check_needs_confirmation_inventory.py` | Verified |
+| `docs/10_adr/adr_02_06_010_rag-fallback.md` | CSC-001 reference, withdrawal record form | Reference CSC-001 in the Status body (first Status line stays `Withdrawn`) and apply the defined form to `### Withdrawal Approval Record` | REQ-003, REQ-006, REQ-008 / AC-3, AC-5 | `## Status` is `Withdrawn`; the document has no CSC-001 reference; `### Withdrawal Approval Record` says `Pending maintainer statement` (checked in Step 2) | `tools/check_adr_structure.py`, `tools/check_canonical_source_registry.py` | Verified |
 | `docs/00_governance/governance_01_documentation-policy.md` | Status set, pending form, Withdrawn rules, ledger citation format | `## ADR Status Definitions` lists only Proposed and Accepted; add Withdrawn, the pending-amendment form, and the ledger citation format | REQ-004, REQ-005, REQ-006 / AC-4 | `## ADR Status Definitions` and `### ADR Acceptance Evidence Standard` define no pending form or ledger (checked in Step 2) | `tools/check_docs_quality.py`, `tools/check_docs_structure.py`, `tools/check_docs_content_policy.py` | Verified |
 | `docs/00_governance/governance_02_documentation-metadata.md` | Front matter `status` versus ADR Status | Add one sentence that front matter `status` (`stable`, `draft`) is independent of the ADR `## Status` values, so a Withdrawn ADR does not conflict with the no-historical-status rule | REQ-006 / AC-4 | `### status` allows `stable` and `draft` and removes deprecated or superseded documents from the active set (checked in Step 2) | `tools/check_docs_quality.py`, `tools/check_docs_structure.py` | Verified |
-| `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | Known Issue entries, ledger part and entries | Add Known Issue entries for the ADR-004 Exceptions (REQ-002), a new ADR approval ledger part after Part 4, and a pending ledger entry per inventory item | REQ-002, REQ-004 / AC-2, AC-4 | Part 1 requires 17 fields and an ID-prefix convention; Part 2 holds only NC-001; no ledger exists (checked in Step 2) | `tools/check_known_deviation_sync.py`, `tools/check_needs_confirmation_inventory.py`, `tools/check_docs_quality.py` | Verified |
 | `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` | Reviewer-to-RACI mapping | Add the mapping table to `## RACI Model` | REQ-007 / AC-4 | `## RACI Model` lists area-lead handles only; no Required Reviewer mapping exists (checked in Step 2) | `tools/check_docs_quality.py`, `tools/check_docs_structure.py` | Verified |
-| `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` | Exceptions, Known Deviations, pending bullet | Cite an approval reference or NC ID on each Exception, list the Known Issue IDs in `## Known Deviations`, and add the ledger ID to the pending bullets | REQ-002, REQ-008 / AC-2, AC-5 | `## Exceptions` ends with `not fabricated here` and no reference; `## Known Deviations` is `Not applicable`; two pending bullets; NC-001 at the Group 1 marker (checked in Step 2) | `tools/check_adr_structure.py`, `tools/check_known_deviation_sync.py`, `tools/check_needs_confirmation_inventory.py` | Verified |
-| `docs/10_adr/adr_02_06_010_rag-fallback.md` | CSC-001 reference, withdrawal record form | Reference CSC-001 in the Status body (first Status line stays `Withdrawn`) and apply the defined form to `### Withdrawal Approval Record` | REQ-003, REQ-006, REQ-008 / AC-3, AC-5 | `## Status` is `Withdrawn`; the document has no CSC-001 reference; `### Withdrawal Approval Record` says `Pending maintainer statement` (checked in Step 2) | `tools/check_adr_structure.py`, `tools/check_canonical_source_registry.py` | Verified |
 | `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md` | Pending form | Add the ledger ID to the INV-02 pending bullet | REQ-008 / AC-5 | `- **Current Decision Approval (pending)**:` bullet under `### Approval Record` for the INV-02 Blocking change (checked in Step 2) | `tools/check_adr_structure.py` | Verified |
 | `docs/10_adr/adr_02_06_005_rag-source-derived-index-relationships.md` | Pending form | Add ledger IDs to the pending bullets | REQ-008 / AC-5 | Two pending bullets under `### Approval Record` (Decision 10 remediation, Decision 8 rewrite) (checked in Step 2) | `tools/check_adr_structure.py` | Verified |
 | `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` | Pending form | Add ledger IDs to the pending bullets | REQ-008 / AC-5 | Four pending bullets under `### Approval Record` (dlq_outbox, Replay Contract, INV-13, ADR-008 relation) (checked in Step 2) | `tools/check_adr_structure.py` | Verified |
@@ -67,7 +67,7 @@ table — no other file may be treated as a modification target.
 | `docs/10_adr/adr_02_07_016_adr-authority-model.md` | Pending form | Add the ledger ID to the pending bullet | REQ-008 / AC-5 | One pending bullet (section rename to `ADR Dependency Graph`) (checked in Step 2) | `tools/check_adr_structure.py` | Verified |
 | `tools/check_adr_structure.py` | Status and pending-form checks | Add a Status value check (REQ-009) and a pending-form and ledger-ID resolution check (REQ-010) | REQ-009, REQ-010 / AC-6, AC-7 | `check_section_headings` verifies the `## Status` heading only; 10669 B against the 24576 B gate, no baseline entry (checked in Step 3) | `tests/tools/test_check_adr_structure.py` | Verified |
 | `tests/tools/test_check_adr_structure.py` | Tests for the new checks | Add tests for an unknown Status value, an allowed value with a trailing paragraph, a pending bullet without an ID, and an unresolved ID | REQ-009, REQ-010 / AC-6, AC-7 | The file tests `check_section_headings` with `omit="Status"` and no Status value case (checked in Step 3) | `uv run pytest tests/tools/test_check_adr_structure.py` | Verified |
-| `docs/00_governance/governance_04_documentation-checks.md` | Check documentation sync (fallout) | Update `### 10. ADR Structure Check` and the matching rule row so the new checks are listed; fallout of REQ-009 and REQ-010 (`AGENTS.md` Global Rule 9) | REQ-009, REQ-010 / AC-6, AC-7 | `### 10. ADR Structure Check` lists four checks and no Status or pending-form check (checked in Step 3) | `tools/check_docs_quality.py`, `tools/check_docs_structure.py` | Verified |
+| `docs/00_governance/governance_04_documentation-checks.md` | Check documentation sync (fallout) | Update `### 10. ADR Structure Check` so the new checks are listed (`### 18. ADR Section Header Compliance` covers only headings and needs no change); fallout of REQ-009 and REQ-010 (`AGENTS.md` Global Rule 9) | REQ-009, REQ-010 / AC-6, AC-7 | `### 10. ADR Structure Check` lists four checks and no Status or pending-form check (checked in Step 3) | `tools/check_docs_quality.py`, `tools/check_docs_structure.py` | Verified |
 | `tools/TOOL_DESCRIPTIONS.md` | Tool description sync (fallout) | Update the two `check_adr_structure.py` rows; fallout of REQ-009 and REQ-010 (`AGENTS.md` Global Rule 9) | REQ-009, REQ-010 / AC-6, AC-7 | Two rows describe `check_adr_structure.py` and list neither check (checked in Step 3) | `tools/check_tool_descriptions_sync.py` | Verified |
 
 ## Reference Files
@@ -118,7 +118,7 @@ Yes. Governance documents change (`REQ-004` to `REQ-007`) and each ADR in the in
 | UNK-01 | Ledger location, format, and ID prefix (Issue: `不明`) | Maintainer decision | Maintainer confirms or replaces the proposed default (new part of `governance_03`) at the Phase 2 gate; a different location is a Plan amendment (`tools/amend_plan.py`, scope change needs approval) | False |
 | UNK-02 | Whether ADR-010 stays a governed `Withdrawn` ADR or leaves the active set | Maintainer decision; `governance_02` and the Current-Specification-Only policy favor removal, CSC-001 and `adr_01_index.md` assume `Withdrawn` | Maintainer decision at the Phase 2 gate; removal is a Plan amendment (adds index and inbound-link rows) | False |
 | UNK-03 | Reviewer mapping content: `Security Reviewer` has no RACI role of the same function | Maintainer decision | The proposal maps only where a RACI role of the same function exists and records the gap otherwise; the maintainer fills it at the Phase 2 gate | False |
-| UNK-04 | Whether the spawn-failure, overlay-only fail-open, and warning-only exceptions of ADR-004 fall under the 2026-10-13 task-level approval | When each exception was added versus the approval date | `git log -S` on each exception text in `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` in Phase 1; a covered exception needs no Known Issue | False |
+| UNK-04 | Resolved in Step 3a: the overlay-only fail-open and post-open warning-only exceptions were added 2026-11-11 (after the task-level approvals of 2026-10-13 and 2026-11-10), so they need a Known Issue each; the spawn-failure exception was added 2026-10-13, the date the approval is stated "as of", and is treated as covered (same-day only, not proven beyond the date) | None (`git log -S` on the exception texts in ADR-004) | None; the owner may override the spawn-failure reading in Phase 1 | False |
 | UNK-05 | Whether an archived issue (`adrrev013`) may be corrected as the Issue asks | Archived files under `issues/done/` were not read (`rules/workflow-lifecycle.md` Target Validation) | Owner decides; the Plan does not target the file | False |
 | UNK-06 | CSC-001 Validation evidence cites `rmcompat003` under `issues/`; it exists only under `issues/done/` | Owner decision on the CSC-001 correction | Follow-up outside this Plan | False |
 | UNK-07 | Substance of the RAG-related ADR-004 Exception | Decision in `issues/20261117-123006_adrchk006_rag-failure-policy.md` (open) | That issue decides the substance; this Plan only registers and references it; it does not block this Plan | False |
@@ -164,7 +164,7 @@ separate scope-of-record.
 ## Implementation steps
 1. **Phase 1: Registration that needs no decision**
    - [ ] Re-run the inventory (`rg -n "Current Decision Approval \(pending\)|Withdrawn By" docs/10_adr/`), classify every hit, and report the list (REQ-001; all ADR rows of `Implementation Target Files`)
-   - [ ] Resolve UNK-04 with `git log -S` on each ADR-004 exception text, then add Known Issue entries in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` for the exceptions that lack approval (REQ-002)
+   - [ ] Add Known Issue entries in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` for the overlay-only fail-open and the post-open warning-only exceptions (UNK-04 is resolved) (REQ-002)
    - [ ] In `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`, list the Known Issue IDs in `## Known Deviations` and cite an approval reference or NC ID on each Exception (REQ-002)
    - [ ] In `docs/10_adr/adr_02_06_010_rag-fallback.md`, add the CSC-001 reference to the Status body (REQ-003)
 2. **Phase 2: Maintainer decision gate and governance proposal**
@@ -175,6 +175,7 @@ separate scope-of-record.
    - [ ] Edit `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` (reviewer mapping) (REQ-007)
    - [ ] Hold the merge until the maintainer approves the governance change; write no approval text
 3. **Phase 3: Apply the forms to the ADRs**
+   - [ ] In `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`, restate the Decision Group 10 amendment as its own `(pending)` bullet; the approved bullet keeps its Group 10 exclusion and points to the new bullet (REQ-008)
    - [ ] Add the ledger ID to every pending bullet in `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`, `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`, `docs/10_adr/adr_02_06_005_rag-source-derived-index-relationships.md`, `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`, `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`, `docs/10_adr/adr_02_06_009_rag-fts5-text-separation.md`, `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`, `docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md`, `docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md`, and `docs/10_adr/adr_02_07_016_adr-authority-model.md` (REQ-008)
    - [ ] Apply the defined form to `### Withdrawal Approval Record` in `docs/10_adr/adr_02_06_010_rag-fallback.md` (REQ-006, REQ-008)
 4. **Phase 4: Checker enforcement and sync**
@@ -220,11 +221,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Registration that needs no decision: inventory, ADR-004 Exceptions, CSC-001 reference | Pending | — | — | |
-| 2 | Maintainer decision gate and governance proposal | Pending | — | — | |
-| 3 | Apply the forms to the ADRs | Pending | — | — | |
-| 4 | Checker enforcement and sync | Pending | — | — | |
-| 5 | Validation and hand-off | Pending | — | — | |
+| 1 | Registration that needs no decision: inventory, ADR-004 Exceptions, CSC-001 reference | In Progress | — | — |  |
+| 2 | Maintainer decision gate and governance proposal | In Progress | — | — |  |
+| 3 | Apply the forms to the ADRs | In Progress | — | — |  |
+| 4 | Checker enforcement and sync | In Progress | — | — |  |
+| 5 | Validation and hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -234,7 +235,24 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-093859_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261118-093859_02_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261118-093859_03_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261118-093859_04_docs_00_governance_governance_01_documentation-policy.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-093859_05_docs_00_governance_governance_02_documentation-metadata.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-093859_06_docs_00_governance_governance_05_change-impact-and-dependency-graphs.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-093859_07_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-093859_08_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-093859_09_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-093859_10_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-093859_11_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-093859_12_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-093859_13_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-093859_14_docs_10_adr_adr_02_07_015_docs-reference-document-class-disposition.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-093859_15_docs_10_adr_adr_02_07_016_adr-authority-model.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-093859_16_tools_check_adr_structure.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-093859_18_docs_00_governance_governance_04_documentation-checks.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-093859_19_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -278,3 +296,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-010 | Same | `tests/tools/test_check_adr_structure.py` | Phase 4 | AC-7 | `uv run pytest tests/tools/test_check_adr_structure.py` | Derived from confirmed evidence |
 | REQ-010 | Same; `AGENTS.md` Global Rule 9 | `docs/00_governance/governance_04_documentation-checks.md` | Phase 4 | AC-7 | `tools/check_docs_quality.py` | Derived from confirmed evidence |
 | REQ-010 | Same; `AGENTS.md` Global Rule 9 | `tools/TOOL_DESCRIPTIONS.md` | Phase 4 | AC-7 | `tools/check_tool_descriptions_sync.py` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-093859 -->
