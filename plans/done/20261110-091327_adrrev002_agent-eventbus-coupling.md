@@ -255,6 +255,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
    - [ ] Reword the archive sentence that names rotate_eventbus_db() (REQ-008; `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`) — amendment 2026-11-10
 6. **Phase 6: Deployment and verification**
    - [ ] Run the full validation sequence in `rules/toolchain.md`. After the change is committed and pushed (the user's decision), hand off to `skills/deploy/SKILL.md`: `scripts/`, `config/agent.toml`, and `deploy/init_db.sh` changed, so deploy copies the new `agent.toml` without the key and runs `init_db.sh` on the existing databases (REQ-003, REQ-005; `deploy/init_db.sh`, `config/agent.toml`).
+   - Preconditions (adrchk009, 20261118), all open: (1) the data lifecycle decision text in ADR-008 Decision Details 22 and 23 is recorded, with its approval pending in AAL-025 and AAL-026; (2) UNK-02 and UNK-03 of the adrrev005 plan are resolved by the maintainer, because init_db.sh now applies its fingerprint gate to the existing databases; (3) each deployed database that fails the fingerprint is archived and recreated by the operator; (4) deployment stays the user's decision after commit and push, and no document edit runs it.
 
 ### Release units
 **Unit**: db-eventbus-removal | **Phases**: 3 | **Reason**: removing `DbConfig.eventbus_db_path`, `build_eventbus_schema_sql`, and `create_eventbus_schema` breaks every test and fixture that uses them until the matching test updates land in the same change; the sub-tasks of Phase 3 cannot be validated alone.
@@ -290,10 +291,10 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Add the EventBus-side tool (additive, no removal) | Completed | — | 20261110-122453 |  |
 | 2 | Switch deploy and the ADR-008 checker to the new owner | Completed | — | 20261110-122453 |  |
-| 3 | Remove Agent-side eventbus support and the config key | Completed | — | 20261110-122453 |  |
+| 3 | Remove Agent-side eventbus support and the config key | Completed | — | 20261110-122453 | AC-04 search returns no match (checked 20261118 after the EventBus DDL accessor was removed from scripts/db/) (adrchk009). |
 | 4 | Delete the unused client | Completed | — | 20261110-122453 |  |
 | 5 | Documentation | Completed | — | 20261110-122453 |  |
-| 6 | Deployment and verification | Pending | — | — |  |
+| 6 | Deployment and verification | Pending | — | — | Preconditions open: see Implementation steps Phase 6. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

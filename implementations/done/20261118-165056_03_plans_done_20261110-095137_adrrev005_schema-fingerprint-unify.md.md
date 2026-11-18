@@ -65,9 +65,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run the sync tool (dry-run, apply, dry-run again) | Pending | — | — | |
-| 2 | Edit the Execution Status notes, Phase 6 and Phase 7 bullets, and the `scripts/db/schema_sql.py` target row | Pending | — | — | |
-| 3 | Run the archived-plan checkers and read the edits back | Pending | — | — | |
+| 1 | Run the sync tool (dry-run, apply, dry-run again) | Completed | 20261118-190927 | 20261118-190927 | sync tool 35 rows applied, second dry-run 0 |
+| 2 | Edit the Execution Status notes, Phase 6 and Phase 7 bullets, and the `scripts/db/schema_sql.py` target row | Completed | 20261118-190927 | 20261118-190927 | — |
+| 3 | Run the archived-plan checkers and read the edits back | Completed | 20261118-190927 | 20261118-190927 | structure checker no findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

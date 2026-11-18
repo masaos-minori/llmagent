@@ -62,7 +62,7 @@ table — no other file may be treated as a modification target.
 | `scripts/shared/eventbus_schema_fingerprint.py` | Delete: Delete after its callers move to the generalized module | Delete after its callers move to the generalized module; no compatibility shim | REQ-002, REQ-004 / AC-02, AC-04 | `eventbus_schema_fingerprint.py:7,21,42,213-222` (version gate); importers `scripts/eventbus/schema.py`, `deploy/init_db.sh`, `tests/mcp_servers/mdq/test_mdq_rag_boundary.py:74` (checked in Step 3) | `tests/shared/test_schema_fingerprint.py` | Verified |
 | `scripts/eventbus/schema.py` | Modify: Validate an existing database with the generalized fingerprint only | Validate an existing database with the generalized fingerprint only; drop the `user_version` read and stamp comparison | REQ-003, REQ-004 / AC-03, AC-04 | `scripts/eventbus/schema.py:29-70` (checked in Step 3) | `tests/eventbus/test_eventbus_startup.py`, `tests/eventbus/test_eventbus_schema_version.py` | Verified |
 | `scripts/eventbus/schema.sql` | Modify: Remove the `PRAGMA user_version = 6` stamp and its comment (persisted-schema checklist applies | Remove the `PRAGMA user_version = 6` stamp and its comment (persisted-schema checklist applies; the DDL objects are unchanged) | REQ-004 / AC-04 | `scripts/eventbus/schema.sql:63-65` (checked in Step 3) | `tests/eventbus/test_eventbus_startup.py` | Verified |
-| `scripts/db/schema_sql.py` | Modify: Expose the canonical DDL of every database through one accessor family | Expose the canonical DDL of every database through one accessor family; remove the eventbus `user_version` reader (`eventbus_schema_version`, if plan 002 has not already removed it) | REQ-002, REQ-004 / AC-02, AC-04 | `scripts/db/schema_sql.py:250-264` (checked in Step 3) | `tests/db/test_create_schema.py` | Verified |
+| `scripts/db/schema_sql.py` | Modify: Expose the canonical DDL of the workflow, session, and rag databases through one accessor family; the EventBus DDL is owned by eventbus.db_tools | Expose the canonical DDL of the workflow, session, and rag databases through one accessor family; remove the eventbus `user_version` reader (`eventbus_schema_version`, if plan 002 has not already removed it) | REQ-002, REQ-004 / AC-02, AC-04 | `scripts/db/schema_sql.py:250-264` (checked in Step 3) | `tests/db/test_create_schema.py` | Verified |
 | `scripts/db/create_schema.py` | Modify: Validate-first for every database: a fresh file receives the canonical DDL, an existing one is checked by fingerprint and refused unchanged on any difference | Validate-first for every database: a fresh file receives the canonical DDL, an existing one is checked by fingerprint and refused unchanged on any difference | REQ-003, REQ-004 / AC-03, AC-04 | `scripts/db/create_schema.py:89-131` (checked in Step 3) | `tests/db/test_create_schema.py` | Verified |
 | `scripts/db/recovery_drill.py` | Modify: Replace the legacy marker-table detector with the fingerprint check for each domain | Replace the legacy marker-table detector with the fingerprint check for each domain | REQ-003, REQ-004 / AC-03, AC-04 | `scripts/db/recovery_drill.py:56-76,238` (checked in Step 3) | `tests/db/test_recovery_drill.py` | Verified |
 | `scripts/db/session_consistency.py` | Modify: Replace the existence-only `required_tables` checks with the fingerprint check for session.sqlite | Replace the existence-only `required_tables` checks with the fingerprint check for session.sqlite | REQ-003 / AC-03 | `scripts/db/session_consistency.py:58-117` (checked in Step 3) | `tests/db/test_create_schema.py` | Verified |
@@ -234,8 +234,10 @@ Files that must be read to implement the targets above, but MUST NOT be modified
    - [ ] Update `tools/generate_reference_table.py`, `tools/check_compat_shims.py`, and regenerate `registry/manifests/db_schema_versions.yaml` (REQ-004).
 6. **Phase 6: Documents**
    - [ ] Update ADR-001, ADR-008, and the DB, deployment, agent, EventBus, and MCP documents; register unconfirmed items through `governance_03` (REQ-006).
+   - Approval references (adrchk009, 20261118): ADR-001 lease-less clause removal (commit 5e8e89203): no ledger row; pending. ADR-008 drift-check wording (commit c3573341e): related ledger row AAL-025 (governance_03 Part 5); approval pending, approver and date Not recorded. ADR-006 version-stamp clause removal (commit 8f5c5825c): no ledger row (AAL-029 covers a different statement); pending. No approval is recorded here.
 7. **Phase 7: Deployment and verification**
    - [ ] Run the full validation sequence; after the change is committed and pushed (the user's decision), hand off to `skills/deploy/SKILL.md` noting UNK-03: the deployed databases must be archived and recreated first (REQ-007; `deploy/init_db.sh`, `deploy/setup_services.sh`).
+   - Preconditions (adrchk009, 20261118), all open: (1) the data lifecycle decision text in ADR-008 Decision Details 22 and 23 is recorded, with its approval pending in AAL-025 and AAL-026; (2) UNK-02 and UNK-03 of this plan are resolved by the maintainer; (3) each deployed database that fails the fingerprint is archived and recreated by the operator; (4) deployment stays the user's decision after commit and push, and no document edit runs it.
 
 ### Release units
 **Unit**: fingerprint-cutover | **Phases**: 2 | **Reason**: removing the eventbus module, the `schema.sql` stamp, and the generator's stamp requirement break the eventbus startup, the deploy gate, and the reference generator until the matching callers and tests change in the same change; the sub-tasks of Phase 2 cannot be validated alone.
@@ -267,13 +269,13 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Generalized fingerprint (additive) | Completed | 20261111-073000 | 20261111-082253 | Procedures 01 and 19 archived to implementations/done/ (20261111). Inventory re-verified in the adversarial verification pass. UNK-01 confirmed with the real extension (virtual bases name-only, shadows omitted, live virtual tables recorded name-only from sqlite_master text). Full validation gates --full all Pass once for both rows (shared coverage/diff-cover run at this boundary). |
+| 1 | Generalized fingerprint (additive) | Completed | 20261111-073000 | 20261111-082253 | Procedures 01 and 19 archived to implementations/done/ (20261111). Inventory re-verified in the adversarial verification pass. UNK-01 confirmed with the real extension (virtual bases name-only, shadows omitted, live virtual tables recorded name-only from sqlite_master text). Full validation gates --full all Pass once for both rows (shared coverage/diff-cover run at this boundary). Work Items Created: 35 Pending rows set Completed from the archived procedures (sync tool dry-run 35 rows, then applied; a second dry-run reports none) (adrchk009, 20261118). |
 | 2 | Eventbus and deploy gate on the new module | Completed | — | 20261111-102849 |  |
-| 3 | Remaining databases | Completed | — | 20261111-152738 | rag/session/workflow gates cutover (rows 09-11), dedup store gate (row 12), per-database validation tests (row 20); paired test rows 21/22/25/28-31 closed |
+| 3 | Remaining databases | Completed | — | 20261111-152738 | rag/session/workflow gates cutover (rows 09-11), dedup store gate (row 12), per-database validation tests (row 20); paired test rows 21/22/25/28-31 closed. AC-04 deviation (adrchk009, 20261118): the AC-04 search also returns scripts/eventbus/db_tools.py (schema_version() reads PRAGMA user_version) and comment mentions of the retired marker tables in scripts/agent/services/workflow_schema.py, deploy/init_db.sh, and deploy/setup_services.sh, besides the named scripts/shared/execution_snapshot.py header read; open, decision tracked as UNK-02 of the adrchk009 plan. |
 | 4 | Remove the lease-less legacy rule | Completed | — | 20261111-152738 | lease-less legacy rule removed (row 35 closed, ADR-001 clause deleted) |
 | 5 | Tooling and generated references | Completed | — | 20261111-152739 | tooling and generated references updated (rows 13-18, 32-34 closed) |
 | 6 | Documents | Completed | — | 20261111-152739 | all 14 document procedures (rows 35-48) closed; full suite 12097 passed 9 skipped; pre-commit --all-files green |
-| 7 | Deployment and verification | Pending | — | — |  |
+| 7 | Deployment and verification | Pending | — | — | Preconditions open: see Implementation steps Phase 7. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -283,54 +285,54 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261110-164906_01_scripts_shared_schema_fingerprint_py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261110-164906_01_scripts_shared_schema_fingerprint_py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_02_scripts_shared_eventbus_schema_fingerprint_py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_03_scripts_eventbus_schema_py.md` | 2 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_04_scripts_eventbus_schema_sql.md` | 2 | Procedure | Completed | — | — |
-| `implementations/20261110-164906_05_scripts_db_schema_sql_py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_06_scripts_db_create_schema_py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_07_scripts_db_recovery_drill_py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_08_scripts_db_session_consistency_py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_09_scripts_db_rag_consistency_queries_py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_10_scripts_agent_services_workflow_schema_py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_11_scripts_agent_workflow_state_store_py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_12_scripts_shared_mcp_dedup_py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_13_scripts_mcp_servers_mdq_db_schema_py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261110-164906_05_scripts_db_schema_sql_py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_06_scripts_db_create_schema_py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_07_scripts_db_recovery_drill_py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_08_scripts_db_session_consistency_py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_09_scripts_db_rag_consistency_queries_py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_10_scripts_agent_services_workflow_schema_py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_11_scripts_agent_workflow_state_store_py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_12_scripts_shared_mcp_dedup_py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_13_scripts_mcp_servers_mdq_db_schema_py.md` | 3 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_14_tools_generate_reference_table_py.md` | 5 | Procedure | Completed | — | — |
-| `implementations/20261110-164906_15_tools_check_compat_shims_py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261110-164906_15_tools_check_compat_shims_py.md` | 5 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_16_deploy_init_db_sh.md` | 2 | Procedure | Completed | — | — |
-| `implementations/20261110-164906_17_deploy_setup_services_sh.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261110-164906_17_deploy_setup_services_sh.md` | 3 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_18_registry_manifests_db_schema_versions_yaml.md` | 2,5 | Procedure | Completed | — | — |
-| `implementations/20261110-164906_19_tests_shared_test_schema_fingerprint_py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_20_tests_db_test_schema_validation_per_database_py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261110-164906_19_tests_shared_test_schema_fingerprint_py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_20_tests_db_test_schema_validation_per_database_py.md` | 3 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_21_tests_db_test_create_schema_py.md` | 3 | Procedure | Completed | — | — |
-| `implementations/20261110-164906_22_tests_agent_test_repl_health_py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261110-164906_22_tests_agent_test_repl_health_py.md` | 3 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_23_tests_eventbus_test_eventbus_schema_version_py.md` | 2 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_24_tests_eventbus_test_eventbus_startup_py.md` | 2 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_25_tests_deploy_test_required_workflow_tables_parity_py.md` | 3 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_26_tests_deploy_test_init_db_schema_gate_py.md` | 3 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_27_tests_deploy_test_init_db_eventbus_schema_py.md` | 3 | Procedure | Completed | — | — |
-| `implementations/20261110-164906_28_tests_db_test_recovery_drill_py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_29_tests_agent_workflow_test_workflow_state_store_py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_30_tests_agent_workflow_test_stale_recovery_lease_py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_31_tests_agent_test_startup_workflow_preflight_py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_32_tests_shared_test_mcp_dedup_py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_33_tests_mcp_servers_mdq_test_mdq_rag_boundary_py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261110-164906_28_tests_db_test_recovery_drill_py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_29_tests_agent_workflow_test_workflow_state_store_py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_30_tests_agent_workflow_test_stale_recovery_lease_py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_31_tests_agent_test_startup_workflow_preflight_py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_32_tests_shared_test_mcp_dedup_py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_33_tests_mcp_servers_mdq_test_mdq_rag_boundary_py.md` | 3 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_34_tests_tools_test_generate_reference_table_py.md` | 5 | Procedure | Completed | — | — |
-| `implementations/20261110-164906_35_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_36_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_37_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_38_docs_41_db_db_02_architecture_and_schema-schema-reference.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_39_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_40_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_41_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_42_docs_23_agent_agent_04_03_state-and-persistence-platform-databases.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_43_docs_23_agent_agent_10_04_operations-and-observability-validation-and-troubleshooting.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_44_docs_90_deployment_deployment_01_deployment.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_45_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_46_docs_24_eventbus_eventbus_07_configuration-and-operations.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_47_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261110-164906_48_docs_22_mcp_mcp_02_02_startup-modes-and-health.md.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261110-164906_35_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_36_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_37_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_38_docs_41_db_db_02_architecture_and_schema-schema-reference.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_39_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_40_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_41_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_42_docs_23_agent_agent_04_03_state-and-persistence-platform-databases.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_43_docs_23_agent_agent_10_04_operations-and-observability-validation-and-troubleshooting.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_44_docs_90_deployment_deployment_01_deployment.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_45_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_46_docs_24_eventbus_eventbus_07_configuration-and-operations.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_47_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261110-164906_48_docs_22_mcp_mcp_02_02_startup-modes-and-health.md.md` | 6 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_49_scripts_eventbus_db_tools_py.md` | 2 | Procedure | Completed | — | — |
 | `implementations/20261110-164906_50_tests_eventbus_test_eventbus_db_tools_py.md` | 2 | Procedure | Completed | — | — |
 

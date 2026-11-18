@@ -62,9 +62,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-run the `AC-04` search and keep the output | Pending | — | — | |
-| 2 | Edit the step 3 and step 6 Notes and add the Phase 6 preconditions bullet | Pending | — | — | |
-| 3 | Run the archived-plan checker and read the edits back | Pending | — | — | |
+| 1 | Re-run the `AC-04` search and keep the output | Completed | 20261118-190927 | 20261118-190927 | AC-04 search no match |
+| 2 | Edit the step 3 and step 6 Notes and add the Phase 6 preconditions bullet | Completed | 20261118-190927 | 20261118-190927 | — |
+| 3 | Run the archived-plan checker and read the edits back | Completed | 20261118-190927 | 20261118-190927 | structure checker no findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -170,9 +170,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the EventBus DDL accessor (code) | In Progress | — | — |  |
-| 2 | Reconcile adrrev005 | In Progress | — | — |  |
-| 3 | Reconcile adrrev002 | In Progress | — | — |  |
+| 1 | Remove the EventBus DDL accessor (code) | Completed | — | 20261118-190945 |  |
+| 2 | Reconcile adrrev005 | Completed | — | 20261118-190945 |  |
+| 3 | Reconcile adrrev002 | Completed | — | 20261118-190945 |  |
 | 4 | Verification and deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
@@ -183,9 +183,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261118-165056_01_scripts_db_schema_sql.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261118-165056_03_plans_done_20261110-095137_adrrev005_schema-fingerprint-unify.md.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261118-165056_04_plans_done_20261110-091327_adrrev002_agent-eventbus-coupling.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261118-165056_01_scripts_db_schema_sql.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261118-165056_03_plans_done_20261110-095137_adrrev005_schema-fingerprint-unify.md.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261118-165056_04_plans_done_20261110-091327_adrrev002_agent-eventbus-coupling.md.md` | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

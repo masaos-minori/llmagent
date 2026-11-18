@@ -70,9 +70,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-run the searches, then remove the accessor, constant, docstring entry, and `Path` import from `scripts/db/schema_sql.py` | Pending | — | — | |
-| 2 | Update the companion test file `tests/db/test_create_schema.py` (import and one test) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Re-run the searches, then remove the accessor, constant, docstring entry, and `Path` import from `scripts/db/schema_sql.py` | Completed | 20261118-190927 | 20261118-190927 | Stale check clean; pre-edit searches matched. Changed: scripts/db/schema_sql.py, tests/db/test_create_schema.py |
+| 2 | Update the companion test file `tests/db/test_create_schema.py` (import and one test) | Completed | 20261118-190927 | 20261118-190927 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-190927 | 20261118-190927 | ruff, mypy, lint-imports, db_separation pass; full suite 12804 passed (once per plan batch); diff-cover N/A; docs: N/A no docs/00_index.md mapping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
