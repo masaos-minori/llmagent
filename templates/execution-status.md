@@ -12,7 +12,7 @@ vary and must not be redefined locally.
 |------|-------------|--------|---------|-----------|-------|
 | 1 | {step-specific — see the consuming document for its default set} | Pending | — | — | |
 
-Status options: Pending / In Progress / Blocked / Completed / Superseded
+Status options: Pending / In Progress / Blocked / Completed / Superseded / N/A
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -51,6 +51,12 @@ Type options: Test / Code Change / Doc Change / Procedure / Issue
   row enters `implementations/done/` only this way; moving it by hand leaves `Pending`
   rows in the archive, which `tools/check_workitem_structure.py --archived-status`
   reports. `Superseded` is not `Completed`: the work was not done.
+- N/A (Execution Status rows): means "step not applicable". It is terminal and not done:
+  `close-implementation` batch handling accepts it (`tools/close_procedures_batch.py`) and
+  `tools/sync_plan_workitem_status.py` ignores such rows instead of counting them as
+  finished. The reason belongs in the Notes column — a Status cell of `N/A: {text}` is
+  rejected by `tools/check_workitem_structure.py` as outside the Status vocabulary. N/A
+  never marks a step finished.
 - Started/Completed (Execution Status) and Resolution Date (Blocker Log) record actual
   work execution/completion times. Use the same timestamp format as Traceability's
   "Generated at" (`templates/traceability.md`): determine it by running

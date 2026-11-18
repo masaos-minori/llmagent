@@ -4,6 +4,8 @@ Execution Status table logic of tools/manage_workitem_stage.py: parsing the
 `### Execution Status` table of a work item, rendering its rows, and rewriting the
 status of a row. Not a CLI; tools/manage_workitem_stage.py re-exports the public names.
 `COMPLETED_STATUS` is the completed-status name every status writer imports.
+`STATUS_VOCABULARY` is the one Execution Status vocabulary the template, the writers,
+and the consumers read; `TERMINAL_STATUSES` are the finished-or-not-applicable values.
 """
 
 from __future__ import annotations
@@ -298,10 +300,29 @@ EXECUTION_STATUS_HEADING = "### Execution Status"
 # The completed status every status writer imports; the vocabulary below contains it
 # by construction, so a writer cannot emit a status the parsers reject.
 COMPLETED_STATUS = "Completed"
+PENDING_STATUS = "Pending"
+IN_PROGRESS_STATUS = "In Progress"
+BLOCKED_STATUS = "Blocked"
+SUPERSEDED_STATUS = "Superseded"
+NOT_APPLICABLE_STATUS = "N/A"
 
-_VALID_STATUSES = frozenset(
-    {"Pending", "In Progress", "Blocked", COMPLETED_STATUS, "Superseded"}
+# The one Execution Status vocabulary: the template, the writers, and the consumers
+# read these six values and no other status string is valid in a Status cell.
+STATUS_VOCABULARY = frozenset(
+    {
+        PENDING_STATUS,
+        IN_PROGRESS_STATUS,
+        BLOCKED_STATUS,
+        COMPLETED_STATUS,
+        SUPERSEDED_STATUS,
+        NOT_APPLICABLE_STATUS,
+    }
 )
+# Terminal statuses: a row has reached its final state, but only COMPLETED marks the
+# work as done; N/A means the step was not applicable.
+TERMINAL_STATUSES = frozenset({COMPLETED_STATUS, NOT_APPLICABLE_STATUS})
+
+_VALID_STATUSES = STATUS_VOCABULARY
 # Alias mapping: camelCase / snake_case variants → canonical status string
 _STATUS_ALIASES = {
     "inprogress": "In Progress",

@@ -64,10 +64,10 @@ Revert the function and its companion test additions together; no other file dep
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261118-121420 | N/A rows dropped in procedure_outcome |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261118-121420 | 3 N/A outcome cases added, 15 pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-121420 | ruff/mypy/bandit/size OK |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | docs owned by sibling 10 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

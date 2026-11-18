@@ -198,12 +198,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: value rule, baseline, template equality, `N/A` outcome, terminal set | In Progress | — | — |  |
-| 2 | `N/A` decision and vocabulary constants, template, and two consumers | In Progress | — | — |  |
-| 3 | Active-file check: new rule module and the checker call | In Progress | — | — |  |
-| 4 | Archived check, baseline, and hook trigger | In Progress | — | — |  |
-| 5 | Documentation: routing rows and tool description | In Progress | — | — |  |
-| 6 | Verification: validation sequence, importer tests, live-set smoke runs | Pending | — | — |  |
+| 1 | Tests first: value rule, baseline, template equality, `N/A` outcome, terminal set | Completed | — | 20261118-124329 |  |
+| 2 | `N/A` decision and vocabulary constants, template, and two consumers | Completed | — | 20261118-124329 |  |
+| 3 | Active-file check: new rule module and the checker call | Completed | — | 20261118-124329 |  |
+| 4 | Archived check, baseline, and hook trigger | Completed | — | 20261118-124329 |  |
+| 5 | Documentation: routing rows and tool description | Completed | — | 20261118-124329 |  |
+| 6 | Verification: validation sequence, importer tests, live-set smoke runs | Completed | — | 20261118-124445 | batch-end gates: 12721 passed full suite, diff-cover exit 0 (tools/tests lines uninstrumented by --cov=scripts), both live scans and drift/reference/cycle/description-sync checks clean; deviation note: Phase 1 tests-first satisfied by companion tests landed with each code procedure, not a separate red phase |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -213,17 +213,17 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-050931_01_tools__workitem_status_table.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-050931_02_tools__workitem_status_check.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261118-050931_03_tools_check_workitem_structure.py.md | 3, 4 | Procedure | Pending | — | — |
-| implementations/20261118-050931_04_tools_sync_plan_workitem_status.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-050931_05_tools_close_procedures_batch.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-050931_06_templates_execution-status.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-050931_07_tools_check_status_value_baseline.txt.md | 4 | Procedure | Pending | — | — |
-| implementations/20261118-050931_08_.pre-commit-config.yaml.md | 4 | Procedure | Pending | — | — |
-| implementations/20261118-050931_09_routing.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261118-050931_10_tools_TOOL_DESCRIPTIONS.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261118-050931_11_tests_tools_test_check_workitem_structure.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-050931_01_tools__workitem_status_table.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-050931_02_tools__workitem_status_check.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261118-050931_03_tools_check_workitem_structure.py.md | 3, 4 | Procedure | Completed | — | — |
+| implementations/20261118-050931_04_tools_sync_plan_workitem_status.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-050931_05_tools_close_procedures_batch.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-050931_06_templates_execution-status.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-050931_07_tools_check_status_value_baseline.txt.md | 4 | Procedure | Completed | — | — |
+| implementations/20261118-050931_08_.pre-commit-config.yaml.md | 4 | Procedure | Completed | — | — |
+| implementations/20261118-050931_09_routing.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261118-050931_10_tools_TOOL_DESCRIPTIONS.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261118-050931_11_tests_tools_test_check_workitem_structure.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

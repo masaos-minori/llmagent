@@ -72,6 +72,9 @@ def _status_of(plan: Path, name: str) -> str:
         (["Completed", "Pending"], "Pending"),
         (["Completed", "In Progress"], "Pending"),
         (["Blocked"], "Pending"),
+        (["Completed", "N/A"], "Completed"),
+        (["Completed", "Superseded", "N/A"], "Superseded"),
+        (["N/A", "N/A"], "Pending"),
     ],
 )
 def test_row_follows_the_procedure_own_status(

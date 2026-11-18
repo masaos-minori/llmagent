@@ -11,6 +11,7 @@ Wire the new Status value rule into `tools/check_workitem_structure.py`: run it 
 
 ## Design decisions
 - Active scope: the rule runs for the plan and implementation kinds only (issues have no Execution Status table by contract). It is added to the same per-file collection the section and release-unit checks already use, so a finding exits 1 with the other categories.
+- Active scope excludes documents under a `done/` subdirectory in both `--file` and directory-scan modes (a path passed to `--file` may sit under `plans/done/` or `implementations/done/`, and `--include-done` adds them to the scan): archived files are judged only by `--archived-status` with its baseline, so applying the baseline-less active rule to them would report the 647 baselined paths.
 - Archived scope: `--archived-status` keeps its unfinished-row check over `implementations/done/` and its existing baseline file, and additionally runs the value rule over both `implementations/done/` and `plans/done/`, skipping the paths listed in the new baseline `tools/check_status_value_baseline.txt`.
 - The new baseline is a second constant beside the existing archived-status baseline constant; the existing `--baseline` flag keeps overriding only the unfinished-row baseline.
 
@@ -35,6 +36,7 @@ Calls only: the rule, the baseline loader, and the existing report rendering sta
 ### Details
 - The archived-status report currently names only unfinished rows; with values included, its detail strings keep the `category` key so CSV/JSON consumers sort as before.
 - A missing status-value baseline file means an empty baseline set (same loader behavior as the existing one), so a fresh checkout without the file reports every archived holder — the file lands in the Plan's Phase 4 (sibling procedure) together with this wiring.
+- Verification (2026-11-18, landed): the archived value scan is implemented as `find_archived_status_value_findings` so both new functions stay radon grade B or better; the pre-existing `find_release_unit_findings` C(17) is untouched (out of scope). The existing archived-status test that plants lowercase `pending` now expects both an `archived-status` and a `status-value` finding: under the exact-match vocabulary (Decision 4) a lowercase cell violates both rules, so the assertion change follows the Plan contract, it is not an expectations fix.
 
 ## Compatibility considerations
 - The `archived-procedure-status` hook runs this mode; widening its trigger to `plans/done/` is the sibling `.pre-commit-config.yaml` procedure.
@@ -65,10 +67,10 @@ Revert this file; the new module and baseline file become unreferenced and are r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261118-122749 | wired value rule; archived scan split for radon B; live scans exit 0 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261118-122749 | existing pending archived-status test adjusted to new contract; new tests owned by procedure 11 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-122749 | ruff/mypy/bandit/radon/size OK; 46 tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | routing/TOOL_DESCRIPTIONS owned by siblings 09/10 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

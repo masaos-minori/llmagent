@@ -55,10 +55,10 @@ Revert both edits together; reverting the vocabulary (sibling procedure) require
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261118-121714 | Status options line and N/A bullet added |
+| 2 | Add or update tests per Validation plan | N/A | — | — | template-equality test owned by procedure 11 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-121714 | skills reference/cycle checkers clean; work-item scan clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | docs rows owned by sibling 10 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

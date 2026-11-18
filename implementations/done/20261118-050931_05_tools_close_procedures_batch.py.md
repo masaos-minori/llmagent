@@ -60,10 +60,10 @@ Restore the literal and remove the import; revert the companion test addition in
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261118-121521 | TERMINAL_STATUSES_imported_from_shared_module |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261118-121521 | terminal-set equality test added; 41 pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-121521 | ruff/mypy/bandit/size OK |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | docs owned by sibling 10 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

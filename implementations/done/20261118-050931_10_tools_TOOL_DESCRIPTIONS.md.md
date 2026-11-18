@@ -54,10 +54,10 @@ Restore the two checker rows and delete the helper row together.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261118-123128 | summary row, detail entry, new shared-base row |
+| 2 | Add or update tests per Validation plan | N/A | — | — | no tests owned here; sync checker validates |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-123128 | check_tool_descriptions_sync clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | this is the documentation change itself |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

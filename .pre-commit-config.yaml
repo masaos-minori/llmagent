@@ -122,7 +122,7 @@ repos:
         entry: uv run python -m tools.check_workitem_structure --archived-status
         language: system
         pass_filenames: false
-        files: ^implementations/done/.*\.md$
+        files: ^(implementations|plans)/done/.*\.md$
       - id: workitem-structure
         name: Check structure of changed top-level work item documents
         entry: uv run python tools/check_workitem_structure.py --file

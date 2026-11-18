@@ -545,3 +545,14 @@ class TestWorkItems:
         text = (repo / PLAN_REL).read_text()
         assert f"| `{PROC_A}` | 1 | Procedure | Pending" in text
         assert f"| `{PROC_B}` | 1 | Procedure | Completed" in text
+
+
+def test_terminal_set_is_the_shared_vocabulary_constants() -> None:
+    """REQ-002 / AC-2: the tool's terminal set is the shared constants, not a literal."""
+    from tools import _workitem_status_table as table
+
+    assert cpb.TERMINAL_STATUSES is table.TERMINAL_STATUSES
+    assert cpb.TERMINAL_STATUSES == {
+        table.COMPLETED_STATUS,
+        table.NOT_APPLICABLE_STATUS,
+    }

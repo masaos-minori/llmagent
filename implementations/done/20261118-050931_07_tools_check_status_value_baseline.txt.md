@@ -6,7 +6,7 @@ Create `tools/check_status_value_baseline.txt`: the once-generated, never-grown 
 
 ## Assumptions
 - The value rule and its wiring exist (`implementations/20261118-050931_02_tools__workitem_status_check.py.md` and `implementations/20261118-050931_03_tools_check_workitem_structure.py.md` land first, same phase).
-- The Plan's 2026-11-18 revalidation measured 637 archived procedures and 10 archived plans holding such rows (647 paths); the number is confirmed again by the generator at execution time and the file holds exactly that set.
+- The Plan's 2026-11-18 revalidation measured 637 archived procedures and 10 archived plans holding such rows (647 paths); the number is confirmed again by the generator at execution time and the file holds exactly that set. Confirmed at execution (2026-11-18): the generator produced 423 paths (413 procedures + 10 plans). The Plan's 647 was computed against the old five-value vocabulary; Decision 1 makes `N/A` a vocabulary member, and 229 of the 652 then-measured holders had only bare `N/A` rows and are no longer holders. The generated set is authoritative.
 
 ## Design decisions
 - The generator is a one-shot run of the shared parser over `implementations/done/*.md` and `plans/done/*.md`, writing the sorted repository-relative paths of every file with at least one out-of-vocabulary row; the file is committed once and only shrinks afterwards (a path is removed when its holder is rewritten or superseded), mirroring the rules of `tools/check_archived_status_baseline.txt`.
@@ -56,10 +56,10 @@ Delete the file; the checker then reports every current holder, which is the pre
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261118-122749 | generator produced 423 paths (413 procedures + 10 plans) |
+| 2 | Add or update tests per Validation plan | N/A | — | — | loader tests owned by procedure 11 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-122749 | --archived-status exits 0 on live archived sets |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | docs owned by sibling 10 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

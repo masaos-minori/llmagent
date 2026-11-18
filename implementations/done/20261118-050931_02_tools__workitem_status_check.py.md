@@ -61,10 +61,10 @@ Delete the file and remove the checker calls (sibling procedure); nothing else r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261118-121802 | find_status_value_findings implemented |
+| 2 | Add or update tests per Validation plan | N/A | — | — | tests owned by procedure 11 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-121802 | ruff/mypy/bandit/radon/size OK |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | TOOL_DESCRIPTIONS row owned by sibling 10 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

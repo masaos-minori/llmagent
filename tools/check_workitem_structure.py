@@ -52,10 +52,12 @@ way to distinguish from a genuinely incomplete document) never block a
 
 `--archived-status [--baseline PATH]` checks a different property: no procedure under
 `implementations/done/` keeps an unfinished (`Pending`, `In Progress`, `Blocked`)
-Execution Status row. A procedure that was not implemented is archived with
+Execution Status row, and no archived procedure or plan holds a Status value outside
+the vocabulary. A procedure that was not implemented is archived with
 `close-implementation --superseded --reason`, which marks its rows `Superseded`. The
-archive predates the rule, so the paths that already violated it are listed in
-`tools/check_archived_status_baseline.txt` and are not reported.
+archives predate these rules, so the paths that already violated them are listed in
+`tools/check_archived_status_baseline.txt` (unfinished rows) and
+`tools/check_status_value_baseline.txt` (vocabulary values) and are not reported.
 
 Exit code: 0 when no finding is reported; 1 otherwise.
 """
@@ -76,9 +78,11 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if __package__ in (None, ""):
     sys.path.insert(0, str(ROOT_DIR))
 
+from tools._workitem_status_check import find_status_value_findings
 from tools._workitem_status_table import parse_execution_status_rows
 
 ARCHIVED_STATUS_BASELINE = ROOT_DIR / "tools" / "check_archived_status_baseline.txt"
+STATUS_VALUE_BASELINE = ROOT_DIR / "tools" / "check_status_value_baseline.txt"
 _UNFINISHED_PREFIXES = ("pending", "in progress", "in_progress", "blocked")
 
 _FENCE_RE = re.compile(r"```markdown\n(.*?)\n```", re.DOTALL)
@@ -319,10 +323,70 @@ def load_archived_status_baseline(path: Path = ARCHIVED_STATUS_BASELINE) -> set[
     }
 
 
-def find_archived_status_findings(
-    baseline: set[str] | None = None, done_dir: Path | None = None
+def find_archived_status_value_findings(
+    value_dirs: tuple[Path, ...] | None = None,
+    value_baseline: set[str] | None = None,
 ) -> list[dict[str, str]]:
-    """Archived procedures that still hold an unfinished Execution Status row."""
+    """Archived procedures and plans holding an out-of-vocabulary Status value."""
+    directories = (
+        value_dirs
+        if value_dirs is not None
+        else (ROOT_DIR / "implementations" / "done", ROOT_DIR / "plans" / "done")
+    )
+    allowed = (
+        load_archived_status_baseline(STATUS_VALUE_BASELINE)
+        if value_baseline is None
+        else value_baseline
+    )
+    findings: list[dict[str, str]] = []
+    for value_dir in directories:
+        if not value_dir.is_dir():
+            continue
+        for doc in sorted(value_dir.glob("*.md")):
+            rel_path = doc.relative_to(ROOT_DIR).as_posix()
+            if rel_path in allowed:
+                continue
+            findings.extend(
+                find_status_value_findings(doc.read_text(encoding="utf-8"), rel_path)
+            )
+    return findings
+
+
+def _archived_unfinished_finding(doc: Path, rel_path: str) -> dict[str, str] | None:
+    """One archived document's unfinished-row finding, or None when it has none."""
+    rows = parse_execution_status_rows(doc.read_text(encoding="utf-8")) or []
+    steps = [
+        row.get("Step", "?")
+        for row in rows
+        if row.get("Status", "").strip().lower().startswith(_UNFINISHED_PREFIXES)
+    ]
+    if not steps:
+        return None
+    return {
+        "category": "archived-status",
+        "file": rel_path,
+        "detail": (
+            f"archived with unfinished Execution Status row(s) (Step "
+            f"{', '.join(steps)}); archive a procedure that was not "
+            "implemented with `close-implementation --superseded --reason`"
+        ),
+    }
+
+
+def find_archived_status_findings(
+    baseline: set[str] | None = None,
+    done_dir: Path | None = None,
+    value_dirs: tuple[Path, ...] | None = None,
+    value_baseline: set[str] | None = None,
+) -> list[dict[str, str]]:
+    """Archived unfinished rows and archived out-of-vocabulary Status values.
+
+    The unfinished-row scan covers `implementations/done/` with the
+    `check_archived_status_baseline.txt` grandfathering; the value scan covers
+    `implementations/done/` and `plans/done/` with the
+    `check_status_value_baseline.txt` grandfathering (see
+    `find_archived_status_value_findings`).
+    """
     directory = (
         done_dir if done_dir is not None else ROOT_DIR / "implementations" / "done"
     )
@@ -332,24 +396,15 @@ def find_archived_status_findings(
         rel_path = doc.relative_to(ROOT_DIR).as_posix()
         if rel_path in allowed:
             continue
-        rows = parse_execution_status_rows(doc.read_text(encoding="utf-8")) or []
-        steps = [
-            row.get("Step", "?")
-            for row in rows
-            if row.get("Status", "").strip().lower().startswith(_UNFINISHED_PREFIXES)
-        ]
-        if steps:
-            findings.append(
-                {
-                    "category": "archived-status",
-                    "file": rel_path,
-                    "detail": (
-                        f"archived with unfinished Execution Status row(s) (Step "
-                        f"{', '.join(steps)}); archive a procedure that was not "
-                        "implemented with `close-implementation --superseded --reason`"
-                    ),
-                }
-            )
+        finding = _archived_unfinished_finding(doc, rel_path)
+        if finding is not None:
+            findings.append(finding)
+    value_directories = value_dirs
+    if value_directories is None and done_dir is not None:
+        value_directories = (done_dir,)
+    findings.extend(
+        find_archived_status_value_findings(value_directories, value_baseline)
+    )
     return findings
 
 
@@ -366,6 +421,18 @@ def infer_kind(doc_path: Path) -> str | None:
     if not parts:
         return None
     return _DIR_TO_KIND.get(parts[0])
+
+
+def _is_archived(doc_path: Path) -> bool:
+    """True for a `<dir>/done/` document: the archived-status rules judge those."""
+    parts = doc_path.resolve().relative_to(ROOT_DIR).parts
+    return len(parts) >= 2 and parts[1] == "done"
+
+
+def _status_value_findings(doc_path: Path) -> list[dict[str, str]]:
+    """Active-document Status value rule for a plan or procedure document."""
+    rel_path = doc_path.relative_to(ROOT_DIR).as_posix()
+    return find_status_value_findings(doc_path.read_text(encoding="utf-8"), rel_path)
 
 
 def collect_single_file_findings(doc_path: Path) -> list[dict[str, str]]:
@@ -391,6 +458,8 @@ def collect_single_file_findings(doc_path: Path) -> list[dict[str, str]]:
         findings.extend(find_release_unit_findings(doc_path))
     if kind == "issue":
         findings.extend(find_template_leftovers(doc_path))
+    if kind in ("plan", "implementation") and not _is_archived(doc_path):
+        findings.extend(_status_value_findings(doc_path))
     return findings
 
 
@@ -407,6 +476,8 @@ def collect_findings(kinds: set[str], include_done: bool) -> list[dict[str, str]
             findings.extend(find_release_unit_findings(doc_path))
         if kind == "issue":
             findings.extend(find_template_leftovers(doc_path, leftover_rule))
+        if kind in ("plan", "implementation") and not _is_archived(doc_path):
+            findings.extend(_status_value_findings(doc_path))
     return findings
 
 
@@ -479,8 +550,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--archived-status",
         action="store_true",
         help="Check that no procedure under implementations/done/ has an unfinished "
-        "Execution Status row (paths in the baseline file are skipped); ignores the "
-        "other selection options",
+        "Execution Status row and no archived procedure or plan holds a Status value "
+        "outside the vocabulary (paths in the two baseline files are skipped); ignores "
+        "the other selection options",
     )
     parser.add_argument(
         "--baseline",

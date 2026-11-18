@@ -15,6 +15,14 @@ Covers:
   issue and brace-containing own content are not; plans and procedures stay out.
 - Multi-path ``--file``: several documents aggregate; a single path keeps the
   pre-change output.
+- Status value rule on active plan and procedure documents: Status cells outside the
+  shared vocabulary are reported (``status-value``), vocabulary members are not, and
+  archived ``done/`` documents stay out of the active rule.
+- Archived value scan: holders under both ``done/`` directories are reported, paths
+  listed in the status-value baseline are skipped, and the default baseline loader
+  behaves like the archived-status one.
+- Live repository checks: the active document set holds no value violation, and the
+  ``templates/execution-status.md`` options line equals the shared vocabulary.
 
 The tool reads ``ROOT_DIR`` (a module constant) to locate templates and to build
 relative file paths, so every test that exercises path handling monkeypatches
@@ -31,6 +39,7 @@ from pathlib import Path
 import pytest
 
 import tools.check_workitem_structure as cwis
+from tools._workitem_status_table import STATUS_VOCABULARY
 
 _SRC_ROOT = Path(__file__).resolve().parent.parent.parent
 _TEMPLATE_NAMES = ("issue.md", "plan.md", "implementation-procedure.md")
@@ -310,10 +319,14 @@ def test_archived_status_reports_an_unfinished_row(done_dir: Path, status: str) 
 
     findings = cwis.find_archived_status_findings(baseline=set(), done_dir=done_dir)
 
-    assert [f["category"] for f in findings] == ["archived-status"]
-    assert findings[0]["file"] == "implementations/done/a.md"
-    assert "Step 2" in findings[0]["detail"]
-    assert "--superseded" in findings[0]["detail"]
+    unfinished = [f for f in findings if f["category"] == "archived-status"]
+    assert [f["file"] for f in unfinished] == ["implementations/done/a.md"]
+    assert "Step 2" in unfinished[0]["detail"]
+    assert "--superseded" in unfinished[0]["detail"]
+    # A lowercase cell is also outside the exact-match vocabulary (Decision 4), so the
+    # value rule reports it beside the unfinished-row finding.
+    values = [f for f in findings if f["category"] == "status-value"]
+    assert bool(values) == (status == "pending")
 
 
 def test_archived_status_skips_baseline_paths_only(done_dir: Path) -> None:
@@ -514,3 +527,193 @@ def test_file_flag_accepts_several_paths_and_keeps_single_path_output(
     assert "bad_plan.md" in multi
     assert "good_plan.md" not in multi
     assert cwis.main(["--file", str(good), str(good)]) == 0
+
+
+# --- status-value rule on active plan and procedure documents (REQ-003) -------------
+
+
+_STATUS_VALUE_CASES: list[tuple[list[str], bool]] = [
+    (["Completed", "Pending", "In Progress", "Blocked", "Superseded", "N/A"], False),
+    (["N/A"], False),
+    (["Done"], True),
+    (["N/A: not relevant"], True),
+    (["pending"], True),
+    ([""], True),
+]
+
+
+def _active_doc(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    dir_name: str,
+    kind: str,
+    statuses: list[str],
+    *,
+    filename: str = "20260106-000000_doc.md",
+) -> Path:
+    """A plan or procedure document: full template skeleton plus a status table."""
+    _install_templates(tmp_path)
+    monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
+    spec = cwis.load_template_specs()[kind]
+    body = "\n".join(f"## {h}\nbody\n" for h in spec.required_headings)
+    return _write(tmp_path / dir_name, filename, f"{body}\n{_procedure_with(statuses)}")
+
+
+@pytest.mark.parametrize(
+    ("dir_name", "kind"), [("plans", "plan"), ("implementations", "implementation")]
+)
+@pytest.mark.parametrize(("statuses", "reported"), _STATUS_VALUE_CASES)
+def test_active_value_rule_reports_only_out_of_vocabulary_statuses(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    dir_name: str,
+    kind: str,
+    statuses: list[str],
+    reported: bool,
+) -> None:
+    doc = _active_doc(tmp_path, monkeypatch, dir_name, kind, statuses)
+
+    values = [
+        f
+        for f in cwis.collect_single_file_findings(doc)
+        if f["category"] == "status-value"
+    ]
+    assert bool(values) == reported
+    if reported:
+        assert values[0]["file"] == f"{dir_name}/20260106-000000_doc.md"
+        assert "outside the vocabulary" in values[0]["detail"]
+
+
+def test_multi_path_file_flag_aggregates_status_value_findings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    good = _active_doc(
+        tmp_path, monkeypatch, "plans", "plan", ["Completed"], filename="good_plan.md"
+    )
+    bad = _active_doc(
+        tmp_path,
+        monkeypatch,
+        "implementations",
+        "implementation",
+        ["Done"],
+        filename="bad_procedure.md",
+    )
+
+    assert cwis.main(["--file", str(good), str(bad)]) == 1
+    out = capsys.readouterr().out
+    assert "outside the vocabulary" in out
+    assert "implementations/bad_procedure.md" in out
+    assert "plans/good_plan.md" not in out
+
+
+def test_directory_scan_value_rule_skips_archived_documents(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _active_doc(
+        tmp_path, monkeypatch, "plans", "plan", ["Completed"], filename="good_plan.md"
+    )
+    _active_doc(
+        tmp_path,
+        monkeypatch,
+        "implementations",
+        "implementation",
+        ["Done"],
+        filename="bad_procedure.md",
+    )
+    _active_doc(
+        tmp_path,
+        monkeypatch,
+        "plans/done",
+        "plan",
+        ["Done"],
+        filename="archived_plan.md",
+    )
+
+    findings = cwis.collect_findings({"plan", "implementation"}, include_done=True)
+    values = [f for f in findings if f["category"] == "status-value"]
+    assert [f["file"] for f in values] == ["implementations/bad_procedure.md"]
+
+
+# --- archived status-value scan: baseline grandfathering (REQ-004) ------------------
+
+
+def test_archived_value_scan_skips_baseline_listed_paths(
+    done_dir: Path, tmp_path: Path
+) -> None:
+    plans_done = tmp_path / "plans" / "done"
+    _write(done_dir, "a.md", _procedure_with(["Done"]))
+    _write(plans_done, "p.md", _procedure_with(["Complete"]))
+
+    findings = cwis.find_archived_status_value_findings(
+        (done_dir, plans_done), value_baseline={"implementations/done/a.md"}
+    )
+
+    assert [(f["category"], f["file"]) for f in findings] == [
+        ("status-value", "plans/done/p.md")
+    ]
+
+
+def test_archived_value_scan_default_baseline_missing_file_reports_every_holder(
+    done_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cwis, "STATUS_VALUE_BASELINE", tmp_path / "missing.txt")
+    _write(done_dir, "a.md", _procedure_with(["Skipped"]))
+
+    findings = cwis.find_archived_status_value_findings((done_dir,))
+
+    assert [f["file"] for f in findings] == ["implementations/done/a.md"]
+
+
+def test_archived_value_scan_default_baseline_file_skips_listed_paths(
+    done_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    baseline = tmp_path / "baseline.txt"
+    baseline.write_text("# comment\nimplementations/done/a.md\n\n", encoding="utf-8")
+    monkeypatch.setattr(cwis, "STATUS_VALUE_BASELINE", baseline)
+    _write(done_dir, "a.md", _procedure_with(["Done"]))
+    _write(done_dir, "b.md", _procedure_with(["Complete", "Deferred"]))
+
+    findings = cwis.find_archived_status_value_findings((done_dir,))
+
+    assert [f["file"] for f in findings] == ["implementations/done/b.md"]
+
+
+def test_archived_status_cli_reports_value_findings(
+    done_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cwis, "STATUS_VALUE_BASELINE", tmp_path / "missing.txt")
+    _write(done_dir, "a.md", _procedure_with(["Completed", "Done"]))
+
+    assert cwis.main(["--archived-status"]) == 1
+    out = capsys.readouterr().out
+    assert "outside the vocabulary" in out
+    assert (
+        "Step 2" not in out
+    )  # 'Done' is not an unfinished row: no archived-status finding
+
+
+def test_the_committed_archived_value_baseline_covers_the_live_archive() -> None:
+    """A new archived holder outside the committed baseline fails here."""
+    assert cwis.find_archived_status_value_findings() == []
+
+
+# --- live repository state and template equality (REQ-005) --------------------------
+
+
+def test_the_live_active_documents_hold_no_status_value_violation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cwis, "ROOT_DIR", _SRC_ROOT)
+    findings = cwis.collect_findings({"plan", "implementation"}, include_done=False)
+    assert [f for f in findings if f["category"] == "status-value"] == []
+
+
+def test_execution_status_template_options_equal_the_shared_vocabulary() -> None:
+    text = (_SRC_ROOT / "templates" / "execution-status.md").read_text(encoding="utf-8")
+    lines = [line for line in text.splitlines() if line.startswith("Status options:")]
+    assert len(lines) == 1
+    options = {part.strip() for part in lines[0].split(":", 1)[1].split(" / ")}
+    assert options == set(STATUS_VOCABULARY)

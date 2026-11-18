@@ -7,7 +7,9 @@ table then still shows the procedure row as `Pending`. This tool reconciles the 
 the archived procedure's own Execution Status, not from where the file is: a `Pending` row
 whose Item ID names a procedure under `implementations/done/` becomes `Completed` when
 every row of that procedure is `Completed`, and `Superseded` when every unfinished row was
-marked `Superseded`. A procedure that still has a `Pending`, `In Progress`, or `Blocked`
+marked `Superseded`. `N/A` rows are ignored: they mark a step not applicable, neither
+open nor done, so a `Completed`/`N/A` procedure reconciles to `Completed` and an all-`N/A`
+procedure stays unreconciled. A procedure that still has a `Pending`, `In Progress`, or `Blocked`
 row, or whose table cannot be read, is reported and left `Pending`. Rows for files still
 under `implementations/` are untouched. No other column is written.
 
@@ -28,17 +30,24 @@ DONE_DIR = REPO / "implementations" / "done"
 if __package__ in (None, ""):
     sys.path.insert(0, str(REPO))
 
-from tools._workitem_status_table import parse_execution_status_rows
+from tools._workitem_status_table import (
+    NOT_APPLICABLE_STATUS,
+    parse_execution_status_rows,
+)
 
 WORK_ITEMS_HEADING = "### Work Items Created"
 
 
 def procedure_outcome(procedure: Path) -> str | None:
-    """`Completed` or `Superseded` for a finished procedure; None while any row is open."""
+    """`Completed` or `Superseded` for a finished procedure; None while any row is open.
+
+    `N/A` rows are ignored: a step marked not applicable is neither open nor done, and a
+    procedure whose rows are all `N/A` executed nothing and stays unreconciled.
+    """
     rows = parse_execution_status_rows(procedure.read_text(encoding="utf-8"))
     if not rows:
         return None
-    statuses = {row.get("Status", "").strip() for row in rows}
+    statuses = {row.get("Status", "").strip() for row in rows} - {NOT_APPLICABLE_STATUS}
     if statuses == {"Completed"}:
         return "Completed"
     if statuses <= {"Completed", "Superseded"} and "Superseded" in statuses:

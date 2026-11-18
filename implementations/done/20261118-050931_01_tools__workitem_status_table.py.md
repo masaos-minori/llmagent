@@ -34,11 +34,11 @@ Constant block plus a one-token change in the frozenset the function already rea
 
 ### Details
 - The module docstring names COMPLETED_STATUS as "the completed-status name every status writer imports"; extend it to name the vocabulary and terminal constants too.
-- `tools/manage_workitem_stage.py` re-exports the public names of this module; the new constants become available to `tools/amend_plan.py`, `tools/close_procedures_batch.py`, and `tools/plan_dependency_order.py` through it. `tools/plan_dependency_order.py` keeps its own `_OPEN_STATUSES` literal (Pending, In Progress, Blocked); N/A is not an open status and that file is not a target.
+- `tools/manage_workitem_stage.py` re-exports a selected list of this module's names (line 86), not all public names; no new re-export is in scope — the sibling procedures import the new constants directly from this module. `tools/plan_dependency_order.py` keeps its own `_OPEN_STATUSES` literal (Pending, In Progress, Blocked); N/A is not an open status and that file is not a target.
 - Status strings are compared trimmed; `_normalize_status` itself does not trim the caller's cell whitespace — consumers trim before calling, as today.
 
 ## Compatibility considerations
-- Importers (`tools/_detect_unexecuted_archive.py`, `tools/_workitem_stage_parser.py`, `tools/check_workitem_structure.py`, `tools/manage_workitem_stage.py`, `tools/sync_plan_workitem_status.py`) see new names only; no removed or renamed public name.
+- Importers (`tools/_detect_unexecuted_archive.py`, `tools/_workitem_stage_parser.py`, `tools/check_workitem_structure.py`, `tools/manage_workitem_stage.py`, `tools/sync_plan_workitem_status.py`, `tools/complete_doc_procedure.py`) see new names only; no removed or renamed public name. `complete_doc_procedure.py` imports `COMPLETED_STATUS` alone (line 44) and is unaffected.
 - `set-status` begins accepting the literal N/A. Nothing writes it yet; the template note (sibling procedure) documents the meaning.
 - `tools/check_workitem_structure.py --archived-status` does not read `_VALID_STATUSES`, so the archived-status gate behavior is unchanged by this document.
 
@@ -66,10 +66,10 @@ Revert the file; the added constants are read only by the sibling procedures' co
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261118-121300 | vocabulary constants landed; importer tests 241 pass |
+| 2 | Add or update tests per Validation plan | N/A | — | — | vocabulary tests owned by procedure 11 (Plan Phase 1 row) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-121300 | ruff/mypy/bandit/size gate OK |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | docs rows owned by sibling procedures 09/10 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

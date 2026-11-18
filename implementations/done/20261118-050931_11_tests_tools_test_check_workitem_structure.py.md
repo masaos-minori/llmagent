@@ -17,7 +17,7 @@ Add the Status value tests to `tests/tools/test_check_workitem_structure.py`: va
 
 ## Alternatives considered
 - Testing the rule module in its own new test file: rejected by the Plan's target table — the row owner is the existing checker test file, which already hosts the archived-status tests the new ones sit beside.
-- Snapshot-counting the live archived baseline size in a test: rejected; 647 today, it only shrinks, and a size assertion would break on every legitimate shrink.
+- Snapshot-counting the live archived baseline size in a test: rejected; 423 today (the generator's 2026-11-18 count; the Plan's earlier 647 predated `N/A` entering the vocabulary), it only shrinks, and a size assertion would break on every legitimate shrink.
 
 ## Implementation
 ### Target file
@@ -60,10 +60,10 @@ Delete the added test functions; the code procedures remain independently revert
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261118-123729 | five test groups added (value rule, --file/scan wiring, archived baseline scan+loader, live active set, template equality) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261118-123729 | this procedure is the test change; 67 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261118-123729 | ruff/mypy clean; 67 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | test-only change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -59,6 +59,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tools._atomic_write import atomic_write_text
+from tools._workitem_status_table import TERMINAL_STATUSES
 from tools.manage_workitem_stage import (
     MoveResult,
     move_to_done,
@@ -69,7 +70,6 @@ from tools.set_execution_status import ExecutionStatusError, update_document
 
 IMPL_DIR = Path("implementations")
 PLAN_DIRS = (Path("plans"), Path("plans/done"))
-TERMINAL_STATUSES = frozenset({"Completed", "N/A"})
 WORK_ITEMS_HEADING = "### Work Items Created"
 GATED_PREFIX = "Gated:"
 
