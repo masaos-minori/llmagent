@@ -109,6 +109,7 @@ Yes. ADR-008, ADR-006, ADR-001 (terminology), `agent_09_01`, `db_03`, `db_08`, `
 - Known Issue SHARED-002 stays open in `governance_03` Part 1 until the memory classification is approved (a documentation-only edit cannot close it, `governance_03` Resolution Rules); its closure is a follow-up.
 - Production state (evidence only, read-only `immutable=1`, WAL content not read): workflow and eventbus will be refused by the fingerprint gate at the next deployment; the operator runs the archive-and-recreate runbook (`db_03` section 8e). No production file is changed by this Plan.
 - No overlap with another Frozen Plan (checked in Step 8b).
+- Step 3a of plan-to-implementation-procedure found that ADR-008 contains statements that are correct only for the four `DbTarget` databases (INV-01 to INV-08, Implementation Notes, the boundary Verification row); REQ-004 therefore means the title, Summary, Scope, Matrix, and ARCH-003 name the same six databases, and does not rewrite those four-database statements.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -139,7 +140,7 @@ Yes. ADR-008, ADR-006, ADR-001 (terminology), `agent_09_01`, `db_03`, `db_08`, `
 Path B (more than 3 target files). Analyses were run once each (checked in Step 3 and Step 5): `lint-imports` is unaffected (no Python import changes); the only Python edit is a comment; `tools/check_db_separation.py` reports no violation at baseline; `tools/generate_adr_authority.py --check` reports no drift at baseline; the consumer scan found the ADR-008 title in `adr_01_index.md`, `db_08_active_databases.md`, and ADR-006 (the file name is referenced by about 30 documents and stays); churn is in the Affected areas table; the production databases were read read-only with `immutable=1` and nothing was changed.
 
 Decisions (made by the maintainer in this cycle; the Plan only records them):
-1. Scope: six databases; title "Separating SQLite into Six Databases"; Matrix gets an `mdq` column; the "Derived Stores Outside the Four Domains" section becomes part of the main scope; Out of Scope drops `mdq.sqlite` and keeps its schema details out of this ADR. Alternative (four plus outside stores) not chosen.
+1. Scope: six databases, as four platform-domain databases (`DbTarget`: `rag`, `session`, `workflow`, `eventbus`) plus two non-domain stores (`mcp_dedup`, `mdq`); the technical statements that are true only of the four domain databases (Constraints on `SQLiteHelper` targets, INV-01 to INV-08, Implementation Notes, the four-database boundary check row) keep their four-database wording; title "Separating SQLite into Six Databases"; Matrix gets an `mdq` column; the "Derived Stores Outside the Four Domains" section becomes part of the main scope; Out of Scope drops `mdq.sqlite` and keeps its schema details out of this ADR. Alternative (four plus outside stores) not chosen.
 2. Mismatch rule: for every database the gate refuses a non-matching file and the operator archives and recreates it (rag, session: current create-only shape; workflow, eventbus: shared fingerprint; mdq: shared fingerprint on every start; mcp_dedup: recreated empty). Preconditions: session needs `/session export` and the JSONL archive for memory; workflow and eventbus data are not carried over. Alternative (drain then recreate) not chosen.
 3. Retention: EventBus `events`, `consumer_delivery`, `dlq_outbox` grow without bound, recorded as an accepted risk against INV-09 and tied to the ADR-006 Review Trigger "Automatic event retention or pruning becomes necessary". Others: current purge or rebuild behavior.
 4. Memory: SQLite `memories` and `memory_links` canonical; `memories_fts`, `memories_vec` derived; JSONL is an append-only archive with delete and pin change events, replayed by `/memory rebuild`.
@@ -194,15 +195,15 @@ Decisions (made by the maintainer in this cycle; the Plan only records them):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add ledger rows AAL-024 to AAL-029 in governance_03 | Pending | — | — | |
-| 2 | Phase 2: ADR-008 scope, inventory, mismatch, retention, memory, references | Pending | — | — | |
-| 3 | Phase 3: ADR-008 size ceiling in check_docs_structure.py | Pending | — | — | |
-| 4 | Phase 4: ADR-006 conditional no-loss, retention risk, title | Pending | — | — | |
-| 5 | Phase 5: ADR-001 terminology | Pending | — | — | |
-| 6 | Phase 6: session guide, migration guide, active-databases guide, ADR index | Pending | — | — | |
-| 7 | Phase 7: ARCH-003 in adr_authority.toml | Pending | — | — | |
-| 8 | Phase 8: schema comments in schema_sql.py and schema.sql | Pending | — | — | |
-| 9 | Phase 9: full validation and deploy hand-off | Pending | — | — | |
+| 1 | Phase 1: add ledger rows AAL-024 to AAL-029 in governance_03 | In Progress | — | — |  |
+| 2 | Phase 2: ADR-008 scope, inventory, mismatch, retention, memory, references | In Progress | — | — |  |
+| 3 | Phase 3: ADR-008 size ceiling in check_docs_structure.py | In Progress | — | — |  |
+| 4 | Phase 4: ADR-006 conditional no-loss, retention risk, title | In Progress | — | — |  |
+| 5 | Phase 5: ADR-001 terminology | In Progress | — | — |  |
+| 6 | Phase 6: session guide, migration guide, active-databases guide, ADR index | In Progress | — | — |  |
+| 7 | Phase 7: ARCH-003 in adr_authority.toml | In Progress | — | — |  |
+| 8 | Phase 8: schema comments in schema_sql.py and schema.sql | In Progress | — | — |  |
+| 9 | Phase 9: full validation and deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -212,7 +213,18 @@ Decisions (made by the maintainer in this cycle; the Plan only records them):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261118-143801_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261118-143801_02_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261118-143801_03_tools_check_docs_structure.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261118-143801_04_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-143801_05_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261118-143801_06_docs_23_agent_agent_09_01_data-layer-session-db.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261118-143801_07_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261118-143801_08_docs_41_db_db_08_active_databases.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261118-143801_09_docs_10_adr_adr_01_index.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261118-143801_10_config_adr_authority.toml.md | 7 | Procedure | Pending | — | — |
+| implementations/20261118-143801_11_scripts_db_schema_sql.py.md | 8 | Procedure | Pending | — | — |
+| implementations/20261118-143801_12_scripts_eventbus_schema.sql.md | 8 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -251,3 +263,5 @@ Decisions (made by the maintainer in this cycle; the Plan only records them):
 | REQ-008 | Constraints (approval record, no approval text) | `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` | 4 | AC-8 | `tools/check_adr_structure.py` | Explicit in issue |
 | REQ-008 | Pending bullets cite existing ledger ids | `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | 1 | AC-8 | `tools/check_adr_structure.py` | Derived from confirmed evidence |
 | REQ-008 | ADR-008 size ceiling | `tools/check_docs_structure.py` | 3 | AC-8 | `uv run pytest tests/tools/test_check_docs_structure.py` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261118-143801 -->
