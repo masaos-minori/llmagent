@@ -14,6 +14,7 @@ Describe in the tool documentation that the structure checker's leftover cover n
 
 - The checker's command-line surface is unchanged by this Plan, so `check_tool_descriptions_sync.py` compares option text only; the edits are prose and one new table row. (Verified 20261118 against the current rows.)
 - The helper-module table already carries `_workitem_*` and other `_`-prefixed shared base rows, so the new row follows the same three-column shape (`| module | Shared base | role |`). (Verified 20261118.)
+- Verification (20261118-133100, pre-execution stale detection passed): the summary row for `check_workitem_structure.py` is at line 116 and the detailed reference-table row at line 187 of the current file; the helper table holds the `_workitem_status_check.py` and `_workitem_status_table.py` rows (lines 75–76, added by the landed status-value Plan), so the new `_workitem_leftover_rules.py` row slots in next to them. Per the sibling document's relocation amendment, the helper row names all three kinds' rules: the issue verbatim-line rule (relocated from the checker, behavior unchanged) and the plan/procedure structural rules.
 
 ## Design decisions
 
@@ -77,10 +78,10 @@ Targeted cell edits; read the current rows first (sibling Plans may have moved n
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-140604 | 20261118-140604 | 20261118: verified, implemented, all validation gates pass; corpus re-measure zero reports on active and newest sets |
+| 2 | Add or update tests per Validation plan | Completed | 20261118-140604 | 20261118-140604 | 20261118: verified, implemented, all validation gates pass; corpus re-measure zero reports on active and newest sets |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-140604 | 20261118-140604 | 20261118: verified, implemented, all validation gates pass; corpus re-measure zero reports on active and newest sets |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261118-140604 | 20261118-140604 | 20261118: verified, implemented, all validation gates pass; corpus re-measure zero reports on active and newest sets |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

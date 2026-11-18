@@ -11,8 +11,10 @@ Covers:
   as missing whenever casing differs.
 - Genuinely missing sections are still reported with the correct detail.
 - Kind inference from the top-level directory (including ``done/``).
-- Issue template-leftover detection: an unfilled scaffold is reported, a filled
-  issue and brace-containing own content are not; plans and procedures stay out.
+- Template-leftover detection for all three kinds: an unfilled issue, plan, or
+  procedure scaffold is reported; filled documents and brace-containing own
+  content are not; plan and procedure scaffolds are reported (the reversed
+  clean-skeleton assertion), archived ``done/`` documents stay out.
 - Multi-path ``--file``: several documents aggregate; a single path keeps the
   pre-change output.
 - Status value rule on active plan and procedure documents: Status cells outside the
@@ -21,7 +23,8 @@ Covers:
 - Archived value scan: holders under both ``done/`` directories are reported, paths
   listed in the status-value baseline are skipped, and the default baseline loader
   behaves like the archived-status one.
-- Live repository checks: the active document set holds no value violation, and the
+- Live repository checks: the active document set holds no value violation or
+  template leftover, and the
   ``templates/execution-status.md`` options line equals the shared vocabulary.
 
 The tool reads ``ROOT_DIR`` (a module constant) to locate templates and to build
@@ -39,6 +42,7 @@ from pathlib import Path
 import pytest
 
 import tools.check_workitem_structure as cwis
+from tools import _workitem_leftover_rules as wlr
 from tools._workitem_status_table import STATUS_VOCABULARY
 
 _SRC_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -485,10 +489,10 @@ def test_directory_scan_reports_issue_scaffold_leftover(issue_root: Path) -> Non
         ("implementations", "implementation-procedure.md"),
     ],
 )
-def test_plan_and_procedure_skeletons_get_no_leftover_rule(
+def test_plan_and_procedure_skeletons_are_reported_as_leftovers(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dir_name: str, template_name: str
 ) -> None:
-    """Plans and procedures stay out of the leftover rule (plan UNK-01)."""
+    """An unfilled plan or procedure scaffold is reported (reversed assertion)."""
     _install_templates(tmp_path)
     monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
     fence = cwis._FENCE_RE.search(
@@ -497,7 +501,14 @@ def test_plan_and_procedure_skeletons_get_no_leftover_rule(
     assert fence is not None
     doc = _write(tmp_path / dir_name, "20260105-000000_doc.md", fence.group(1))
     findings = cwis.collect_single_file_findings(doc)
-    assert [f for f in findings if f["category"] == "template-leftover"] == []
+    leftovers = [f for f in findings if f["category"] == "template-leftover"]
+    assert leftovers
+    details = " ".join(f["detail"] for f in leftovers)
+    assert "unfilled Traceability value" in details
+    if template_name == "plan.md":
+        assert "all-empty table row" in details
+        assert "bracket line" in details
+    assert cwis.main(["--file", str(doc)]) == 1
 
 
 def test_file_flag_accepts_several_paths_and_keeps_single_path_output(
@@ -717,3 +728,248 @@ def test_execution_status_template_options_equal_the_shared_vocabulary() -> None
     assert len(lines) == 1
     options = {part.strip() for part in lines[0].split(":", 1)[1].split(" / ")}
     assert options == set(STATUS_VOCABULARY)
+
+
+# --- plan and procedure scaffold leftovers (REQ-001 to REQ-004) ---------------------
+
+
+def _scaffold(template_name: str) -> str:
+    """The raw fenced example of a real template: an unfilled scaffold."""
+    text = (_SRC_ROOT / "templates" / template_name).read_text(encoding="utf-8")
+    fence = cwis._FENCE_RE.search(text)
+    assert fence is not None
+    return fence.group(1)
+
+
+_PLAN_BRACKET_LINE = "[Why this requirement exists]"
+
+_EXECUTION_TABLES = (
+    "### Execution Status\n"
+    "| Step | Description | Status | Started | Completed | Notes |\n"
+    "|------|-------------|--------|---------|-----------|-------|\n"
+    "| 1 | Land the change | Pending | — | — | |\n\n"
+    "### Blocker Log\n"
+    "| Step | Blocker Description | Resolved | Resolution Date |\n"
+    "|------|---------------------|----------|-----------------|\n"
+    "| — | — | — | — |\n\n"
+    "### Work Items Created\n"
+    "| Item ID | Related Step | Type | Status | Owner | Due Date |\n"
+    "|---------|--------------|------|--------|-------|----------|\n"
+    "| — | — | — | — | — | — |"
+)
+
+
+def _filled_body(kind: str) -> str:
+    """A filled document body: every required heading, no scaffold line kept.
+
+    Body prose carries `{inline}` braces (own content, not a scaffold line),
+    the Execution Status family keeps the dash placeholder rows of
+    `templates/execution-status.md`, and the plan Goal holds the template's
+    verbatim Freeze paragraph (the rules never compare prose).
+    """
+    freeze = "\n".join(
+        line
+        for line in (_SRC_ROOT / "templates" / "plan.md")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.startswith("**Freeze status**")
+    )
+    traceability = (
+        "- **Workflow phase**: `plan-to-implementation-procedure`\n"
+        "- **Requirement ID**: REQ-001\n"
+        "- **Source issue**: issues/20260105-000000_gate-gap.md\n"
+        "- **Source plan**: plans/20260105-000001_gate-gap.md\n"
+        "- **Generated at**: 20260105-000002\n"
+        "- **Related target files**: tools/foo.py"
+    )
+    bodies: dict[str, str] = {}
+    for heading in cwis.load_template_specs()[kind].required_headings:
+        if heading == "Execution Status":
+            bodies[heading] = _EXECUTION_TABLES
+        elif heading == "Traceability":
+            bodies[heading] = traceability
+        elif heading == "Implementation steps":
+            bodies[heading] = "1. **Phase 1: Landing (REQ-001)**\n   - Land the change."
+        elif heading == "Goal" and kind == "plan":
+            bodies[heading] = freeze
+        else:
+            bodies[heading] = "Filled prose with {inline} braces."
+    return "\n".join(f"## {heading}\n{bodies[heading]}\n" for heading in bodies)
+
+
+@pytest.fixture
+def doc_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    _install_templates(tmp_path)
+    monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
+    return tmp_path
+
+
+def _leftovers_of(doc: Path) -> list[dict[str, str]]:
+    return [
+        f
+        for f in cwis.collect_single_file_findings(doc)
+        if f["category"] == "template-leftover"
+    ]
+
+
+def test_filled_plan_and_procedure_report_no_leftovers(doc_root: Path) -> None:
+    plan = _write(doc_root / "plans", "20260105-000010_plan.md", _filled_body("plan"))
+    proc = _write(
+        doc_root / "implementations",
+        "20260105-000011_procedure.md",
+        _filled_body("implementation"),
+    )
+    assert _leftovers_of(plan) == []
+    assert cwis.collect_single_file_findings(plan) == []
+    assert _leftovers_of(proc) == []
+    assert cwis.collect_single_file_findings(proc) == []
+
+
+def test_plan_scaffold_leftovers_name_line_number_and_text(doc_root: Path) -> None:
+    doc = _write(doc_root / "plans", "20260105-000012_plan.md", _scaffold("plan.md"))
+    leftovers = _leftovers_of(doc)
+    assert all(f["file"] == "plans/20260105-000012_plan.md" for f in leftovers)
+    assert all("line" in f["detail"] for f in leftovers)
+    assert any(_PLAN_BRACKET_LINE in f["detail"] for f in leftovers)
+    assert any("- **Generated at**: {timestamp}" in f["detail"] for f in leftovers)
+    assert any(f["detail"].startswith("all-empty table row") for f in leftovers)
+
+
+@pytest.mark.parametrize(
+    ("dir_name", "kind", "reported"),
+    [("plans", "plan", True), ("implementations", "implementation", False)],
+)
+def test_bracket_rule_is_plan_only(
+    doc_root: Path, dir_name: str, kind: str, reported: bool
+) -> None:
+    body = _filled_body(kind).replace(
+        "Filled prose with {inline} braces.",
+        f"Filled prose.\n{_PLAN_BRACKET_LINE}\n",
+        1,
+    )
+    doc = _write(doc_root / dir_name, f"20260105-000013_{kind}.md", body)
+    bracket = [f for f in _leftovers_of(doc) if "bracket line" in f["detail"]]
+    assert bool(bracket) == reported
+
+
+def test_bracket_findings_follow_a_rewritten_fence(doc_root: Path) -> None:
+    """The bracket set is derived from the template fence at run time."""
+    template = doc_root / "templates" / "plan.md"
+    template.write_text(
+        template.read_text(encoding="utf-8").replace(
+            _PLAN_BRACKET_LINE, "[A replacement placeholder]"
+        ),
+        encoding="utf-8",
+    )
+    old = _write(
+        doc_root / "plans",
+        "20260105-000014_plan.md",
+        _filled_body("plan").replace(
+            "Filled prose with {inline} braces.",
+            f"Filled prose.\n{_PLAN_BRACKET_LINE}\n",
+            1,
+        ),
+    )
+    new = _write(
+        doc_root / "plans",
+        "20260105-000015_plan.md",
+        _filled_body("plan").replace(
+            "Filled prose with {inline} braces.",
+            "Filled prose.\n[A replacement placeholder]\n",
+            1,
+        ),
+    )
+    assert not [f for f in _leftovers_of(old) if "bracket line" in f["detail"]]
+    assert [f for f in _leftovers_of(new) if "bracket line" in f["detail"]]
+
+
+def test_directory_scan_reports_plan_and_procedure_scaffolds(doc_root: Path) -> None:
+    _write(doc_root / "plans", "20260105-000016_plan.md", _scaffold("plan.md"))
+    _write(
+        doc_root / "implementations",
+        "20260105-000017_procedure.md",
+        _scaffold("implementation-procedure.md"),
+    )
+    findings = cwis.collect_findings({"plan", "implementation"}, include_done=False)
+    files = {f["file"] for f in findings if f["category"] == "template-leftover"}
+    assert files == {
+        "plans/20260105-000016_plan.md",
+        "implementations/20260105-000017_procedure.md",
+    }
+
+
+def test_multi_path_file_flag_aggregates_leftover_findings(
+    doc_root: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    filled = _write(doc_root / "plans", "filled_plan.md", _filled_body("plan"))
+    plan_scaffold = _write(doc_root / "plans", "scaffold_plan.md", _scaffold("plan.md"))
+    proc_scaffold = _write(
+        doc_root / "implementations",
+        "scaffold_procedure.md",
+        _scaffold("implementation-procedure.md"),
+    )
+    assert (
+        cwis.main(["--file", str(filled), str(plan_scaffold), str(proc_scaffold)]) == 1
+    )
+    out = capsys.readouterr().out
+    assert "scaffold_plan.md" in out
+    assert "scaffold_procedure.md" in out
+    assert "filled_plan.md" not in out
+
+
+@pytest.mark.parametrize("include_done", [False, True])
+def test_archived_scaffolds_are_not_scanned_for_leftovers(
+    doc_root: Path, include_done: bool
+) -> None:
+    _write(
+        doc_root / "plans" / "done",
+        "20260105-000018_plan.md",
+        _scaffold("plan.md"),
+    )
+    findings = cwis.collect_findings({"plan"}, include_done=include_done)
+    assert [f for f in findings if f["category"] == "template-leftover"] == []
+
+
+def test_the_live_active_documents_hold_no_template_leftover(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cwis, "ROOT_DIR", _SRC_ROOT)
+    findings = cwis.collect_findings({"plan", "implementation"}, include_done=False)
+    assert [f for f in findings if f["category"] == "template-leftover"] == []
+
+
+# --- rule module entry points without the checker layer (AC-1) ----------------------
+
+
+def test_rule_module_entry_points_report_scaffolds_not_filled(doc_root: Path) -> None:
+    """The rule module's entry points work without the checker layer (AC-1)."""
+    brackets = wlr.plan_bracket_lines(doc_root / "templates" / "plan.md")
+    assert _PLAN_BRACKET_LINE in brackets
+    plan_scaffold = _write(
+        doc_root / "plans", "20260105-000019_plan.md", _scaffold("plan.md")
+    )
+    filled_plan = _write(
+        doc_root / "plans", "20260105-000020_plan.md", _filled_body("plan")
+    )
+    proc_scaffold = _write(
+        doc_root / "implementations",
+        "20260105-000021_procedure.md",
+        _scaffold("implementation-procedure.md"),
+    )
+    filled_proc = _write(
+        doc_root / "implementations",
+        "20260105-000022_procedure.md",
+        _filled_body("implementation"),
+    )
+    issue_scaffold = _write(
+        doc_root / "issues", "20260105-000023_issue.md", _scaffold("issue.md")
+    )
+    filled_issue = _write(
+        doc_root / "issues", "20260105-000024_issue.md", _filled_issue()
+    )
+    assert wlr.find_plan_leftover_findings(plan_scaffold, doc_root, brackets)
+    assert wlr.find_plan_leftover_findings(filled_plan, doc_root, brackets) == []
+    assert wlr.find_procedure_leftover_findings(proc_scaffold, doc_root)
+    assert wlr.find_procedure_leftover_findings(filled_proc, doc_root) == []
+    assert wlr.find_issue_leftover_findings(issue_scaffold, doc_root)
+    assert wlr.find_issue_leftover_findings(filled_issue, doc_root) == []

@@ -32,7 +32,7 @@ Test the new plan and procedure leftover rules end to end through the checker, a
 
 ### Target file
 
-`tests/tools/test_check_workitem_structure.py` (exists, 20155 B)
+`tests/tools/test_check_workitem_structure.py` (exists, 27613 B as re-measured 20261118-133100; `tests/` is not under a size gate)
 
 ### Procedure
 
@@ -55,6 +55,7 @@ Targeted edits: extend the existing leftover test family (its fixtures and tmp_p
 ## Compatibility considerations
 
 - The reversed assertion is a deliberate characterization change declared in the Plan; the prerequisite Plan's documentation rows already say skeletons are clean only for issues, and the documentation procedure documents land the wording change.
+- Verification (20261118-133100, pre-execution stale detection passed): `test_plan_and_procedure_skeletons_get_no_leftover_rule` exists at line 488 of the current module; `_issue_scaffold` (line 383) and the issue leftover test family (lines 435–488) are the fixture model; tests drive the checker through direct `main(argv)` calls and never import `find_template_leftovers` by name, so the sibling document's relocation of the issue rule into `tools/_workitem_leftover_rules.py` (renamed `find_issue_leftover_findings`) does not touch the existing issue tests. Execution follows the Plan's Phase 1: these tests are landed and run red first, before the rule module and the wiring.
 - Tests keep the module's existing monkeypatch style, so the sibling status-value Plan's added tests (different family) merge cleanly.
 
 ## Security considerations
@@ -86,10 +87,10 @@ Targeted edits: extend the existing leftover test family (its fixtures and tmp_p
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — |  |
+| 2 | Add or update tests per Validation plan | Completed | — | — |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

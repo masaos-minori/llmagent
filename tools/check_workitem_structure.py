@@ -24,12 +24,15 @@ without the block is unaffected. A block that is an `N/A: ...` line is accepted 
 text says phases land together or in the same commit: phases that cannot be validated alone
 are a release unit and must be declared as one.
 
-For an issue, it additionally reports document lines kept verbatim from the
-canonical template's scaffold (`templates/issue.md`'s fenced example: the title
-line, bullets holding a `{...}` placeholder, and the instruction lines under
-each `## ` heading) as `template-leftover` findings — unfilled scaffold text
-that survived into a real document. The rule is read from the template at run
-time; braces in the document's own content are not reported.
+For an issue, plan, or procedure, it additionally reports document lines kept
+verbatim from the canonical templates' scaffolds as `template-leftover`
+findings — unfilled scaffold text that survived into a real document. Issues
+keep `templates/issue.md` lines (the title line, placeholder bullets, and
+instruction lines); plans report whole-value `{...}` Traceability fields,
+all-empty table rows, and verbatim bracket-wrapped lines of
+`templates/plan.md`; procedures report the first two. The rules live in
+`tools/_workitem_leftover_rules.py` and read the templates at run time;
+braces in the document's own content are not reported.
 
 Never writes, renames, moves, or deletes anything under `issues/`, `plans/`,
 or `implementations/`.
@@ -78,6 +81,13 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if __package__ in (None, ""):
     sys.path.insert(0, str(ROOT_DIR))
 
+from tools._workitem_leftover_rules import (
+    find_issue_leftover_findings,
+    find_plan_leftover_findings,
+    find_procedure_leftover_findings,
+    issue_template_leftover_lines,
+    plan_bracket_lines,
+)
 from tools._workitem_status_check import find_status_value_findings
 from tools._workitem_status_table import parse_execution_status_rows
 
@@ -95,9 +105,6 @@ _UNIT_ENTRY_RE = re.compile(
     r"^\*\*Unit\*\*:\s*(?P<name>.*?)\s*\|\s*\*\*Phases\*\*:\s*(?P<phases>.*?)"
     r"\s*\|\s*\*\*Reason\*\*:\s*(?P<reason>.*?)\s*$"
 )
-
-# A `{...}` placeholder kept verbatim from the issue template's scaffold bullets.
-_PLACEHOLDER_BRACE_RE = re.compile(r"\{[^{}]*\}")
 
 # An `N/A` release-unit line that describes phases landing together contradicts itself.
 _NA_CONTRADICTION_RE = re.compile(
@@ -262,56 +269,6 @@ def find_release_unit_findings(doc_path: Path) -> list[dict[str, str]]:
     return findings
 
 
-def _issue_template_leftover_lines(template_path: Path) -> frozenset[str]:
-    """Build the verbatim leftover rule from the issue template's fenced scaffold.
-
-    The rule is the scaffold an unfilled issue keeps verbatim: the `# <Issue
-    Title>` line, the bullets holding a `{...}` placeholder, and the
-    instruction lines under each `## ` heading. Section headings and table
-    rows stay out — a filled document legitimately repeats them.
-    """
-    fence_match = _FENCE_RE.search(template_path.read_text(encoding="utf-8"))
-    if fence_match is None:
-        return frozenset()
-    lines: list[str] = []
-    for raw in fence_match.group(1).splitlines():
-        stripped = raw.strip()
-        if not stripped or stripped.startswith("##") or stripped.startswith("|"):
-            continue
-        if stripped.startswith("# ") or not stripped.startswith(("- ", "* ")):
-            lines.append(stripped)
-        elif _PLACEHOLDER_BRACE_RE.search(stripped):
-            lines.append(stripped)
-    return frozenset(lines)
-
-
-def find_template_leftovers(
-    doc_path: Path, rule: frozenset[str] | None = None
-) -> list[dict[str, str]]:
-    """Report an issue document that keeps canonical-template lines verbatim.
-
-    ``rule`` lets a directory scan load the template once; pass None to read
-    it from ``templates/issue.md`` on the spot.
-    """
-    if rule is None:
-        rule = _issue_template_leftover_lines(ROOT_DIR / "templates" / "issue.md")
-    if not rule:
-        return []
-    rel_path = doc_path.relative_to(ROOT_DIR).as_posix()
-    findings: list[dict[str, str]] = []
-    for raw in doc_path.read_text(encoding="utf-8").splitlines():
-        stripped = raw.strip()
-        if stripped in rule:
-            findings.append(
-                {
-                    "category": "template-leftover",
-                    "file": rel_path,
-                    "detail": f"verbatim issue-template leftover: {stripped}",
-                }
-            )
-    return findings
-
-
 def load_archived_status_baseline(path: Path = ARCHIVED_STATUS_BASELINE) -> set[str]:
     """Repository-relative paths grandfathered by the archived-status rule."""
     if not path.is_file():
@@ -457,15 +414,20 @@ def collect_single_file_findings(doc_path: Path) -> list[dict[str, str]]:
     if kind == "plan":
         findings.extend(find_release_unit_findings(doc_path))
     if kind == "issue":
-        findings.extend(find_template_leftovers(doc_path))
+        findings.extend(find_issue_leftover_findings(doc_path, ROOT_DIR))
     if kind in ("plan", "implementation") and not _is_archived(doc_path):
         findings.extend(_status_value_findings(doc_path))
+        if kind == "plan":
+            findings.extend(find_plan_leftover_findings(doc_path, ROOT_DIR))
+        else:
+            findings.extend(find_procedure_leftover_findings(doc_path, ROOT_DIR))
     return findings
 
 
 def collect_findings(kinds: set[str], include_done: bool) -> list[dict[str, str]]:
     specs = load_template_specs()
-    leftover_rule = _issue_template_leftover_lines(ROOT_DIR / "templates" / "issue.md")
+    issue_rule = issue_template_leftover_lines(ROOT_DIR / "templates" / "issue.md")
+    plan_brackets = plan_bracket_lines(ROOT_DIR / "templates" / "plan.md")
     findings: list[dict[str, str]] = []
     for kind, doc_path in discover_documents(kinds, include_done):
         spec = specs[kind]
@@ -475,9 +437,17 @@ def collect_findings(kinds: set[str], include_done: bool) -> list[dict[str, str]
         if kind == "plan":
             findings.extend(find_release_unit_findings(doc_path))
         if kind == "issue":
-            findings.extend(find_template_leftovers(doc_path, leftover_rule))
+            findings.extend(
+                find_issue_leftover_findings(doc_path, ROOT_DIR, issue_rule)
+            )
         if kind in ("plan", "implementation") and not _is_archived(doc_path):
             findings.extend(_status_value_findings(doc_path))
+            if kind == "plan":
+                findings.extend(
+                    find_plan_leftover_findings(doc_path, ROOT_DIR, plan_brackets)
+                )
+            else:
+                findings.extend(find_procedure_leftover_findings(doc_path, ROOT_DIR))
     return findings
 
 

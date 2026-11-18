@@ -10,18 +10,20 @@ Wire the new leftover rule module into the structure checker so that top-level p
 - Import the rule module and call its plan and procedure entry points from the kind branching of `collect_single_file_findings`, next to the existing `issue` leftover call. (REQ-002)
 - Derive the plan bracket set once per directory scan and pass it into each plan call, mirroring the reusable `rule` parameter pattern of `find_template_leftovers`. (REQ-002)
 - Keep exit `1` on findings and keep `done/` out of the scan (existing `--include-done` boundary). (REQ-002)
+- Import the issue leftover rule from the rule module instead of defining it here, and delete the two moved functions (verification addition, 20261118-133100: this file measures 24275 B of the 24576 B gate — 301 B of headroom, below the ~600 B the wiring alone costs — so the issue rule's relocation per `implementations/20261118-072547_01_tools__workitem_leftover_rules.py.md` is what keeps this wiring landable; the moved code is verbatim, only its root becomes a call argument).
 
 ## Assumptions
 
 - The prerequisite Plan's infrastructure is in place (verified 20261118): `collect_single_file_findings` branches on kind, `find_template_leftovers` accepts a reusable `rule` parameter, and `--file` already accepts several paths.
-- The status-value Plan (sibling of this batch) also edits this checker and its test module; the edits touch different functions, and this procedure reads the then-current file before editing (UNK-03).
-- The checker is not in the `tools/` size baseline; its current size is 21266 B of the 24576 B gate (re-measured 20261118), so this wiring stays small: a kind branch and a per-scan cache, no new rule logic in this file.
+- The status-value Plan (sibling of this batch) also edits this checker and its test module; the edits touch different functions, and this procedure reads the then-current file before editing (UNK-03). Resolved 20261118-133100: the status-value Plan landed (commit `74a4e1f3a`) and its checker additions were re-read as part of this verification.
+- The checker is not in the `tools/` size baseline; its current size is 21266 B of the 24576 B gate (re-measured 20261118), so this wiring stays small: a kind branch and a per-scan cache, no new rule logic in this file. Corrected 20261118-133100: the file measures 24275 B (the status-value Plan grew it); the wiring plus the issue rule's departure keeps it back near 23 KB.
 
 ## Design decisions
 
 - Keep rule logic out of the checker (in `tools/_workitem_leftover_rules.py`, the sibling procedure document) so the checker grows by call sites only; this is the Plan's stated reason for the new module.
 - In a directory scan, load the bracket set once at scan start and pass it down, so thousands of plans do not re-read the template per file; in `--file` mode a single call may read the template on the spot (the rule module's default).
 - `find_release_unit_findings` (the existing grade C function) is not extended: the new calls are separate branches, keeping AC-6's "no new grade C or worse" and the Plan's baseline note.
+- Verification (20261118-133100, pre-execution stale detection passed): the infrastructure assumptions are current — `find_template_leftovers(doc_path, rule)` at line 288 with the reusable `rule` parameter, `_issue_template_leftover_lines` at line 265, `collect_single_file_findings` kind branching (plan: release-unit findings; issue: leftover call; plan/implementation: status-value findings), `collect_findings` loading the issue rule once per scan, `--file` accepting several paths, and `--include-done` skipping `done/` by default. The kind value for procedures is `implementation` (`_WORK_ITEM_KINDS`), so the new branches read `kind == "implementation"`. The docstring's issue-worded leftover paragraph is at lines 27–32.
 
 ## Alternatives considered
 
@@ -32,7 +34,7 @@ Wire the new leftover rule module into the structure checker so that top-level p
 
 ### Target file
 
-`tools/check_workitem_structure.py` (exists, 21266 B)
+`tools/check_workitem_structure.py` (exists, 24275 B as re-measured 20261118-133100)
 
 ### Procedure
 
@@ -86,10 +88,10 @@ Targeted edits to the two collection functions; no function extraction or reform
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-140604 | 20261118-140604 | 20261118: verified, implemented, all validation gates pass; corpus re-measure zero reports on active and newest sets |
+| 2 | Add or update tests per Validation plan | Completed | 20261118-140604 | 20261118-140604 | 20261118: verified, implemented, all validation gates pass; corpus re-measure zero reports on active and newest sets |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-140604 | 20261118-140604 | 20261118: verified, implemented, all validation gates pass; corpus re-measure zero reports on active and newest sets |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261118-140604 | 20261118-140604 | 20261118: verified, implemented, all validation gates pass; corpus re-measure zero reports on active and newest sets |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

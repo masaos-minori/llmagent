@@ -178,11 +178,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: scaffold, filled, Freeze rewrite, dash rows, fence derivation | In Progress | — | — |  |
-| 2 | The rule module and the checker call | In Progress | — | — |  |
-| 3 | Re-measure over the newest filled documents and the active set | In Progress | — | — |  |
-| 4 | Documentation: routing row and tool description | In Progress | — | — |  |
-| 5 | Verification: validation sequence, size gates, scaffold smoke runs | Pending | — | — |  |
+| 1 | Tests first: scaffold, filled, Freeze rewrite, dash rows, fence derivation | Completed | — | 20261118-140604 |  |
+| 2 | The rule module and the checker call | Completed | — | 20261118-140604 |  |
+| 3 | Re-measure over the newest filled documents and the active set | Completed | — | 20261118-140604 |  |
+| 4 | Documentation: routing row and tool description | Completed | — | 20261118-140604 |  |
+| 5 | Verification: validation sequence, size gates, scaffold smoke runs | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -192,11 +192,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261118-072547_01_tools__workitem_leftover_rules.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-072547_02_tools_check_workitem_structure.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261118-072547_03_tests_tools_test_check_workitem_structure.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261118-072547_04_routing.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261118-072547_05_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261118-072547_01_tools__workitem_leftover_rules.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-072547_02_tools_check_workitem_structure.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261118-072547_03_tests_tools_test_check_workitem_structure.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261118-072547_04_routing.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261118-072547_05_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

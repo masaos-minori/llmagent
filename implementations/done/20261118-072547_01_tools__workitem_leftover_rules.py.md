@@ -8,13 +8,14 @@ Create the rule module that reports an unfilled plan or procedure scaffold as le
 **Release unit**: N/A: not part of a release unit
 
 - New module with the three structural rules of the Plan's option D, one entry point per kind, each finding carrying the file, the line number, and the line text. (REQ-001)
+- Relocate the existing issue leftover rule (`find_template_leftovers` and `_issue_template_leftover_lines`) from the checker into this module verbatim — same detail wording, same `rule` parameter behavior — so the module hosts all three kinds' leftover rules (verification addition, 20261118-133100: the checker measures 24275 B of the 24576 B size gate, leaving 301 B — less than the wiring in the sibling procedure document costs — so the issue rule must move out for the wiring to land; the Plan's "new module so the checker stays under the size gate" rationale extended to the issue rule).
 - Run-time derivation of the bracket-line set from the plan template fence; no recorded line list. (REQ-001)
 - Keep every function under radon grade C and pass the `tools/` conventions. (REQ-006)
 
 ## Assumptions
 
-- Option D (structural rules) is the chosen design; the maintainer confirmation recorded as UNK-01 is outstanding and this module is not executed until that confirmation lands. (Plan Assumption)
-- The finding shape follows the checker's existing `template-leftover` findings (a dict with `category`, `file`, `detail`): the line number and line text go into `detail`, matching how `find_template_leftovers` already renders its text, so the report layer needs no new shape. (Checked 20261118 against `tools/check_workitem_structure.py`.)
+- Option D (structural rules) is the chosen design; the maintainer confirmation recorded as UNK-01 is outstanding and this module is not executed until that confirmation lands. Resolved 20261118-133100: the Plan was archived as a verified plan (commit `51c0497f6`) and the maintainer's `memo3.md` execution instruction directs this batch, so option D is confirmed and execution proceeds.
+- The finding shape follows the checker's existing `template-leftover` findings (a dict with `category`, `file`, `detail`): the line number and line text go into `detail` for the new plan and procedure rules; the relocated issue rule keeps its existing wording (`verbatim issue-template leftover: {stripped}`, no line number) unchanged so its pinned tests keep passing. (Checked 20261118 against `tools/check_workitem_structure.py`.)
 - The rule module imports only the standard library; it does not import the checker. The checker passes template paths or a pre-derived set in, mirroring how `find_template_leftovers` accepts a reusable `rule` parameter so a directory scan loads the template once. (Checked 20261118.)
 - Dash placeholder rows (`| — |`) are not empty rows: the empty-row rule matches cells with no characters at all after stripping. (Plan Risk mitigation; `templates/execution-status.md` states these rows stay in filled documents.)
 
@@ -25,6 +26,7 @@ Create the rule module that reports an unfilled plan or procedure scaffold as le
 - All-empty table row rule: a pipe row whose every cell is empty after stripping, skipping the `---` separator rows; this reports the generator's `| — | — |`-free empty scaffold rows but never the dash rows.
 - Bracket rule for plans only: the comparison set is derived at run time from the fenced blocks of `templates/plan.md`, keeping fence lines that are bracket-wrapped placeholder lines; option B measured 9 such lines and no procedure line, which is why procedures skip this rule. (Plan Design, option B kept as rule (c).)
 - The rules never compare the Freeze paragraph or other prose. (Plan Implementation Intent)
+- Verification (20261118-133100, pre-execution stale detection passed): `templates/plan.md` and `templates/implementation-procedure.md` fences exist and re-measured — plan scaffold: 2 whole-value `{...}` Traceability lines (`{path}`, `{timestamp}`) and 4 all-empty table rows, matching the Plan; procedure scaffold: 5 whole-value `{...}` Traceability lines, matching the Plan. The current plan fence holds 7 bracket-wrapped lines (the Plan measured 9; the set is derived at run time and no rule or test depends on the count). Checker structure confirmed current: `find_template_leftovers` with the reusable `rule` parameter at line 288, `_issue_template_leftover_lines` at line 265, the kind branching in `collect_single_file_findings`, and the checker at 24275 B (this document's sibling cites the stale 21266 B — the status-value Plan grew it), leaving 301 B under the 24576 B gate. UNK-03 resolved: the status-value Plan landed (commit `74a4e1f3a`), its checker additions are in place.
 
 ## Alternatives considered
 
@@ -45,6 +47,7 @@ Create the rule module that reports an unfilled plan or procedure scaffold as le
 3. Implement the bracket-set loader: read the plan template, extract the fenced blocks, and keep the bracket-wrapped placeholder lines; a caller may pass a pre-derived set so a directory scan reads the template once.
 4. Type hints throughout (`list[dict[str, str]]`, `frozenset[str] | None`), standard library only (`re`, `pathlib`).
 5. Keep each function small enough that `radon cc -n C` reports nothing for this module.
+6. Relocate the issue rule: move `find_template_leftovers` and `_issue_template_leftover_lines` from the checker into this module as-is (verification amendment to Scope), exposing them as `find_issue_leftover_findings` and `issue_template_leftover_lines` with the repository root passed in by the caller instead of the checker's `ROOT_DIR` global, mirroring how `find_status_value_findings` takes text and a relative path in from the checker.
 
 ### Method
 
@@ -86,7 +89,7 @@ Create the file, then validate; no other file is edited by this document (the ch
 
 ## Out of Scope
 
-- Issue leftover detection and the existing `find_template_leftovers` rule (untouched).
+- Issue leftover behavior (the verbatim issue-template rule keeps its wording and tests; only its code relocates into this module per the amended Scope bullet).
 - The checker's call sites (separate procedure document), the tests (separate document), and `routing.md` / `tools/TOOL_DESCRIPTIONS.md` (separate documents).
 - Empty-section detection (UNK-02) and any content-quality judgment.
 
@@ -95,10 +98,10 @@ Create the file, then validate; no other file is edited by this document (the ch
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261118-140604 | 20261118-140604 | 20261118: verified, implemented, all validation gates pass; corpus re-measure zero reports on active and newest sets |
+| 2 | Add or update tests per Validation plan | Completed | 20261118-140604 | 20261118-140604 | 20261118: verified, implemented, all validation gates pass; corpus re-measure zero reports on active and newest sets |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261118-140604 | 20261118-140604 | 20261118: verified, implemented, all validation gates pass; corpus re-measure zero reports on active and newest sets |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261118-140604 | 20261118-140604 | 20261118: verified, implemented, all validation gates pass; corpus re-measure zero reports on active and newest sets |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
