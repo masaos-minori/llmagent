@@ -370,6 +370,32 @@ class TestJapaneseMergeOversized:
         # Every input token survives somewhere.
         assert all(tok in " ".join(originals) for tok in sentence.split(" "))
 
+    def test_oversized_sentence_after_a_full_buffer_is_segmented(self) -> None:
+        """An oversized sentence that arrives after a min_chunk-long buffer must also
+        be segmented: emitting the buffered lead, then the split pieces."""
+        mixin = _make_ja_mixin(_max_chunk=500, _min_chunk=40, _chunk_overlap=0)
+        lead = "x" * 400  # already >= min_chunk, so it is emitted on its own
+        oversized = "あ" * 1200
+        chunks = mixin._merge_ja_sentence_pairs([(lead, None), (oversized, None)])
+        originals = [o for o, _ in chunks]
+        assert lead in originals  # ragc002: the lead is not dropped
+        assert all(o for o in originals)
+        assert all(len(o) <= 500 for o in originals), "no oversized pair allowed"
+        assert "".join(originals) == lead + oversized  # no source text dropped
+        assert all(n is None for _, n in chunks)
+
+    def test_short_final_sentence_merge_is_the_documented_max_chunk_exception(
+        self,
+    ) -> None:
+        """Documented REQ-002 exception: a final sentence shorter than min_chunk is
+        merged into the last chunk instead of dropped, and that merged chunk may
+        exceed max_chunk. Same rule as merge_text_items in chunk_utils."""
+        mixin = _make_ja_mixin(_max_chunk=500, _min_chunk=40, _chunk_overlap=0)
+        chunks = mixin._merge_ja_sentence_pairs([("x" * 499, None), ("う" * 10, None)])
+        originals = [o for o, _ in chunks]
+        assert [len(o) for o in originals] == [510]  # 499 + sep + 10, nothing dropped
+        assert "".join(originals).replace(" ", "") == "x" * 499 + "う" * 10
+
 
 # ── Helpers for fetched_at propagation tests ───────────────────────────────────
 _FAKE_EMBEDDING = [0.1] * 384
@@ -874,6 +900,49 @@ class TestProcessFileEndToEnd:
         assert stripped.startswith("日本語のテストページです。")
         assert stripped.endswith("これはテスト用の文章です。")
         assert stripped.count("。") >= content.count("。")
+
+    def test_process_file_end_to_end_japanese_oversized_first_sentence(
+        self, tmp_path: Path
+    ) -> None:
+        """ragcrv001: a document whose only sentence exceeds max_chunk writes a
+        contiguous series whose index-0 sentinel carries real content, so the next
+        force=False run skips the source instead of re-chunking it."""
+        import json
+
+        content = "あ" * 2500  # one sentence, no terminator: len > max_chunk
+        data = _make_crawl_json(
+            lang="ja",
+            content=content,
+            url="http://example.com/ja-oversized",
+        )
+        src = tmp_path / "ja-oversized.json"
+        src.write_text(json.dumps(data), encoding="utf-8")
+
+        chunk_dir = tmp_path / "chunk"
+        chunk_dir.mkdir(exist_ok=True)
+        chunker = ChunkSplitter(
+            config={
+                "rag_src_dir": str(tmp_path),
+                "min_chunk": 40,
+                "max_chunk": 500,
+                "en_stopwords": [],
+                "ja_stop_pos": [],
+            }
+        )
+
+        written = chunker.process_file(src, force=True)
+        assert written >= 5
+        outputs = sorted(chunk_dir.glob(f"{src.stem}-*.json"))
+        assert len(outputs) == written
+        for i, out_path in enumerate(outputs):
+            payload = read_chunk_json(out_path)
+            assert payload.chunk_index == i
+            assert payload.lang == "ja"
+            assert payload.content  # index 0 and every index carries real content
+        # The completeness sentinel is the index-0 file and must be consumable.
+        assert read_chunk_json(chunk_dir / f"{src.stem}-0000.json").content
+        # The loop symptom is gone: a rerun is skipped, not re-chunked.
+        assert chunker.process_file(src, force=False) == 0
 
 
 # ── ChunkSplitter dictionary resolver wiring (REQ-003) ───────────────────────

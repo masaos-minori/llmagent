@@ -79,7 +79,7 @@ class ChunkJapaneseMixin:
         self,
         pairs: list[tuple[str, str | None]],
     ) -> list[tuple[str, str | None]]:
-        """Accumulate (original, normalized) sentence pairs into chunk pairs by original text length; applies overlap from buffer tail when configured. Empty normalized results (None) are preserved and surfaced as NULL so downstream COALESCE falls back to the original text."""
+        """Accumulate (original, normalized) sentence pairs into chunk pairs by original text length; applies overlap from buffer tail when configured. A sentence longer than max_chunk is segmented by the shared _split_overlong rule and an empty buffer never emits. Empty normalized results (None) are preserved and surfaced as NULL so downstream COALESCE falls back to the original text."""
         if not pairs:
             return []
         result: list[tuple[str, str | None]] = []
@@ -87,31 +87,37 @@ class ChunkJapaneseMixin:
         self._norm_buf = ""
         for orig, norm in pairs:
             norm_str = norm if norm is not None else ""
-            if len(self._orig_buf) + len(orig) + 1 <= self._max_chunk:
-                self._append_to_buffer(orig, norm_str)
-            elif len(self._orig_buf) >= self._min_chunk:
-                self._emit_and_start_new(result, orig, norm_str)
-            else:
-                # Retain the short (< min_chunk) buffer instead of dropping it, then
-                # handle this sentence. Emit the retained lead first so it is never
-                # lost (ragc002); the empty-buffer guard also prevents emitting an
-                # empty pair (ragcrv001).
+            # An oversized sentence is segmented into pieces within max_chunk via the
+            # shared rule so no emitted pair exceeds max_chunk (ragcrv001). Detect it
+            # before the buffer branches: a buffered lead is flushed first so it is
+            # never dropped (ragc002), whatever its length, and the pieces are dumped
+            # directly without tail-merging them back into that lead.
+            if len(orig) > self._max_chunk:
                 if self._orig_buf:
                     result.append((self._orig_buf, self._norm_buf or None))
                     self._orig_buf = ""
                     self._norm_buf = ""
-                # An oversized sentence is segmented into pieces within max_chunk via
-                # the shared rule so no emitted pair exceeds max_chunk (ragcrv001).
-                # Dump the pieces directly (normalized surfaced as None) without
-                # tail-merging them back into the retained lead.
-                if len(orig) > self._max_chunk:
-                    result.extend(
-                        (piece, None)
-                        for piece in _split_overlong(orig, " ", self._max_chunk)
-                    )
-                else:
-                    self._orig_buf = orig
-                    self._norm_buf = norm_str
+                result.extend(
+                    (piece, None)
+                    for piece in _split_overlong(orig, " ", self._max_chunk)
+                )
+                continue
+            if len(self._orig_buf) + len(orig) + 1 <= self._max_chunk:
+                self._append_to_buffer(orig, norm_str)
+            elif len(self._orig_buf) >= self._min_chunk:
+                self._emit_and_start_new(result, orig, norm_str)
+            elif self._orig_buf:
+                # Retain the short (< min_chunk) buffer instead of dropping it: emit it
+                # as its own chunk, then start a fresh buffer from this sentence
+                # (ragc002).
+                result.append((self._orig_buf, self._norm_buf or None))
+                self._orig_buf = orig
+                self._norm_buf = norm_str
+            else:
+                # Empty buffer never emits a pair: start it fresh from this sentence
+                # (ragcrv001).
+                self._orig_buf = orig
+                self._norm_buf = norm_str
         if not self._orig_buf:
             return result
         if len(self._orig_buf) >= self._min_chunk:
