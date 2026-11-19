@@ -187,9 +187,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Decide shape and lock scope (owner decision on UNK-01) | Completed | 20261119-130500 | 20261119-130500 | UNK-01 resolved as Shape B (`NULL`); scope locked; Plan Frozen |
-| 2 | Restore original `content` for English (Shape B) | Pending | — | — | Depends on Phase 1 |
-| 3 | Tests, docs, and verification | Pending | — | — | Depends on Phase 2 |
+| 1 | Decide shape and lock scope (owner decision on UNK-01) | In Progress | 20261119-130500 | 20261119-130500 | UNK-01 resolved as Shape B (`NULL`); scope locked; Plan Frozen |
+| 2 | Restore original `content` for English (Shape B) | In Progress | — | — | Depends on Phase 1 |
+| 3 | Tests, docs, and verification | In Progress | — | — | Depends on Phase 2 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -199,7 +199,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261119-132013_01_scripts_rag_ingestion_chunk_english.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261119-132013_02_scripts_rag_ingestion_chunk_splitter.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261119-132013_03_tests_rag_ingestion_test_chunk_splitter.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261119-132013_04_docs_21_rag_rag_02_03_ingestion_pipeline-chunksplitter.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261119-132013_05_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md` | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -224,3 +228,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-006 | Testing Expectations | `tests/rag/ingestion/test_chunk_splitter.py` | Phase 3 | new test asserts both fields (AC-6) | New test | Explicit in issue |
 | REQ-007 | Documentation Impact | `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` | Phase 3 | doc states values (AC-7) | Docs review | Explicit in issue |
 | REQ-008 | Constraints; ADR approval pending | `docs/10_adr/adr_02_06_009_rag-fts5-text-separation.md` | Phase 1 | decision recorded as invariant/exception (AC-8) | ADR review | Confirmed (Shape B); ADR write is Phase 1 implementation |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261119-132013 -->
