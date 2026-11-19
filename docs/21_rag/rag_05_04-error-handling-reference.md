@@ -41,6 +41,26 @@ not reported when absent, so this error names only the keys proven to be missing
 **Note:** A size-rule discard is an observability event, not a failure: it never aborts the file and does not change the written chunk count semantics. The record shape and trigger are documented in
 [rag_05_03-logging.md](rag_05_03-logging.md).
 
+## Chunk-Stage Exit Status
+
+The chunk stage reports run-level success through its process exit code. `main()` drives
+`ChunkSplitter.run_all()` (`scripts/rag/ingestion/chunk_splitter.py`), which returns a
+`ChunkRunResult` aggregate exposing `processed`, `skipped`, and `failed` counts plus a
+`failures` map of each failed source path to its `IngestionFailureReason`. `main()`
+returns `1` when `failed > 0` and `0` otherwise, and `sys.exit(main())` therefore yields a
+non-zero exit code whenever one or more source files fail and `0` when only legitimate
+skips occurred.
+
+This exit contract composes with the per-file continue policy in the `ChunkSplitter`
+table above: a failure aborts just that file (logged `ERROR` with traceback) while the run
+continues to the next file, so a single bad source never stops the rest of the batch. Each
+failure maps to a fixed reason:
+
+- Write/publish `OSError` → `STORAGE_FAILED`
+- `ChunkFormatError` → `PARSE_FAILED`
+- `PipelineValidationError` → `VALIDATION_FAILED`
+- `TokenizationError` and any other exception → `UNEXPECTED_FAILURE`
+
 ## Pipeline Utils — Artifact Validation (`read_crawl_json()` / `read_chunk_json()`)
 
 Both canonical artifact readers (`scripts/rag/ingestion/pipeline_utils.py`) raise

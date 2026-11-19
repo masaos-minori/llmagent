@@ -68,10 +68,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-001859 | 20261120-001859 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261120-001859 | 20261120-001859 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-001859 | 20261120-001859 | uv run pytest tests/rag/ingestion/test_chunk_splitter.py 81 passed (+5 new TestRunAllAndMainExitStatus incl. regression anchor); ruff format/check, mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: no doc change in this procedure; docs owned by seq 03 and 04 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

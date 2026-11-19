@@ -1,6 +1,6 @@
 ## Goal
 
-Add the `ChunkRunResult` aggregate and a private per-file outcome iterator to `chunk_splitter.py`, narrow `process_all`'s `except` tuple to the specific classes each failure path raises, map failures to the existing `IngestionFailureReason` vocabulary, add a `run_all` entry point returning the aggregate, and switch `main()` to `run_all` with a non-zero exit code on failure (`REQ-001`, `REQ-002`, `REQ-003`, `REQ-004`, `REQ-006`).
+Add the `ChunkRunResult` (new) aggregate and a private per-file outcome iterator to `chunk_splitter.py`, narrow `process_all`'s `except` tuple to the specific classes each failure path raises, map failures to the existing `IngestionFailureReason` vocabulary, add a `run_all` (new) entry point returning the aggregate, and switch `main()` to `run_all` (new) with a non-zero exit code on failure (`REQ-001`, `REQ-002`, `REQ-003`, `REQ-004`, `REQ-006`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
@@ -17,8 +17,8 @@ Add the `ChunkRunResult` aggregate and a private per-file outcome iterator to `c
 - Refactor `process_all` to drive a private `_iter_file_outcomes(paths) -> Iterator[FileOutcome]` that classifies each file as `processed` (≥1 chunk written), `skipped` (returned 0 legitimately: already-chunked, unreadable, below-`min_chunk`), or `failed` (exception raised); on failure it maps the exception class to an `IngestionFailureReason` and logs the class distinctly via `logger.exception`.
 - `process_all` keeps summing the `processed` chunk counts from the iterator and returns the `int` total — signature and contract unchanged (`REQ-005`).
 - Add `run_all(self, target, force) -> ChunkRunResult` consuming the same iterator to build the aggregate and log a run-level summary line.
-- Define `ChunkRunResult` and `FileOutcome` as small dataclasses in `chunk_splitter.py` (importable; `UNK-01` resolved here to inline dataclasses).
-- `main()` calls `run_all`, returns `1` when `result.failed > 0` else `0`, and the `__main__` guard becomes `sys.exit(main())` (`REQ-003`).
+- Define `ChunkRunResult` (new) and `FileOutcome` (new) as small dataclasses in `chunk_splitter.py` (importable; `UNK-01` resolved here to inline dataclasses).
+- `main()` calls `run_all` (new), returns `1` when `result.failed > 0` else `0`, and the `__main__` guard becomes `sys.exit(main())` (`REQ-003`).
 
 ### Exception-class → reason mapping (UNK-03)
 | Exception reaching `process_all` | `IngestionFailureReason` |
@@ -29,24 +29,24 @@ Add the `ChunkRunResult` aggregate and a private per-file outcome iterator to `c
 | `TokenizationError` and any other | `UNEXPECTED_FAILURE` |
 
 ## Alternatives considered
-- Changing `process_all`'s return type directly (cleaner API) vs. a new `run_all` entry point: the plan sanctions either (`UNK-01`), but keeping the integer contract avoids rewriting the 12 existing test assertions (`REQ-005`); chosen.
-- Inline dataclasses vs. moving `ChunkRunResult` to `models_data.py`: the plan constrains only importability; `UNK-02` resolved to inline in `chunk_splitter.py`.
+- Changing `process_all`'s return type directly (cleaner API) vs. a new `run_all` (new) entry point: the plan sanctions either (`UNK-01`), but keeping the integer contract avoids rewriting the 12 existing test assertions (`REQ-005`); chosen.
+- Inline dataclasses vs. moving `ChunkRunResult` (new) to `models_data.py`: the plan constrains only importability; `UNK-02` resolved to inline in `chunk_splitter.py`.
 
 ## Implementation
 ### Target file
 `scripts/rag/ingestion/chunk_splitter.py`
 
 ### Procedure
-1. Add `FileOutcome` and `ChunkRunResult` dataclasses near the top (after imports) exposing `processed`/`skipped`/`failed` counts plus per-file reasons.
+1. Add `FileOutcome` (new) and `ChunkRunResult` (new) dataclasses near the top (after imports) exposing `processed`/`skipped`/`failed` counts plus per-file reasons.
 2. Add the private `_iter_file_outcomes(self, paths)` iterator: for each path, call `process_file`; on success classify `processed` with the returned count; on legitimate zero-return classify `skipped`; on exception map the class via the table above, record the reason, and `logger.exception(...)` with the class distinctly. Never raise out of the loop (continue policy, `REQ-004`).
 3. Rewrite `process_all` (lines 140–153) to iterate `_iter_file_outcomes(self._collect_targets(target))` and sum the `processed` counts; keep the `No source files` early return and the final `done` log line; keep the `int` return.
-4. Add `run_all(self, target=None, force=False) -> ChunkRunResult` building the aggregate from `_iter_file_outcomes` and logging a run-level summary.
+4. Add `run_all(self, target=None, force=False) -> ChunkRunResult` building the aggregate from `_iter_file_outcomes` (new) and logging a run-level summary.
 5. Change `main()` (lines 499–522): call `result = splitter.run_all(target, args.force)`, `return 1 if result.failed > 0 else 0`.
 6. Change the `__main__` guard (lines 525–527) to `sys.exit(main())` (ensure `import sys`).
 
 ### Method
-- Preserve `process_all`'s observable behavior byte-for-byte: same `logger.exception` call shape, same integer total, same continue-on-failure semantics. The iterator is shared so `process_all` and `run_all` cannot diverge.
-- Keep `ChunkSplitter`'s public API (`process_all`, `process_file`, …) unchanged; `run_all` is purely additive.
+- Preserve `process_all`'s observable behavior byte-for-byte: same `logger.exception` call shape, same integer total, same continue-on-failure semantics. The iterator is shared so `process_all` and `run_all` (new) cannot diverge.
+- Keep `ChunkSplitter`'s public API (`process_all`, `process_file`, …) unchanged; `run_all` (new) is purely additive.
 
 ### Details
 - Confirm `sys` is imported (add `import sys` if absent) before using `sys.exit`.
@@ -66,12 +66,12 @@ N/A: revert the commit.
 
 ## Validation plan
 - Regression: `uv run pytest tests/rag/ingestion/test_chunk_splitter.py` — existing `result == 0` (`test_process_all_logs_one_error_on_write_failure`) and `>= 1` assertions pass unchanged (`REQ-005`).
-- Unit: `run_all` with one failing + one valid file returns distinct `skipped`/`failed` counts; the failing file's logged exception class is asserted (`REQ-001`, `REQ-002`).
+- Unit: `run_all` (new) with one failing + one valid file returns distinct `skipped`/`failed` counts; the failing file's logged exception class is asserted (`REQ-001`, `REQ-002`).
 - Unit: `main` exit status for all-failed (non-zero) and all-skipped (`0`) via monkeypatched `sys.argv`/`ConfigLoader` (`REQ-003`).
 - Regression: whole `tests/rag/ingestion/` suite green (`REQ-004`).
 
 ## Completion criteria
-- `ChunkRunResult`/`FileOutcome` present; `process_all` narrowed to the specific raised classes and still returns the `int`; `run_all` returns the aggregate; `main` returns `1` on failure / `0` otherwise with `sys.exit(main())`; continue policy intact.
+- `ChunkRunResult` (new)/`FileOutcome` (new) present; `process_all` narrowed to the specific raised classes and still returns the `int`; `run_all` (new) returns the aggregate; `main` returns `1` on failure / `0` otherwise with `sys.exit(main())`; continue policy intact.
 
 ## Out of Scope
 - Editing `scripts/rag/exceptions.py` — `IngestionFailureReason` already supplies the values.
@@ -84,10 +84,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-000445 | 20261120-000445 |  |
+| 2 | Add or update tests per Validation plan | N/A | — | — | N/A: no test change in this procedure; run_all/main unit tests belong to seq 02 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-000445 | 20261120-000445 | ruff format/check, mypy, and tests/rag/ingestion/test_chunk_splitter.py (76 passed incl. test_process_all_logs_one_error_on_write_failure) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: no doc change in this procedure; docs owned by seq 03 and 04 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -101,7 +101,7 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-001` (`ChunkRunResult` + `run_all`), `REQ-002` (narrowed except), `REQ-003` (exit code), `REQ-004` (continue policy), `REQ-006` (`IngestionFailureReason` mapping)
+- **Requirement ID**: `REQ-001` (`ChunkRunResult` (new) + `run_all` (new)), `REQ-002` (narrowed except), `REQ-003` (exit code), `REQ-004` (continue policy), `REQ-006` (`IngestionFailureReason` mapping)
 - **Source issue**: `issues/20261119-112019_ragcrv007_chunk-failure-exit-reporting.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: `plans/20261119-191233_ragcrv007_chunk-failure-exit-reporting.md`

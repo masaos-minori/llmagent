@@ -43,6 +43,8 @@ uv run python scripts/rag/ingestion/chunk_splitter.py
 uv run python scripts/rag/ingestion/chunk_splitter.py --force
 ```
 
+> **Exit status:** A non-zero exit code from `chunk_splitter.py` means one or more source files failed; `run_all()` exposes the `processed`/`skipped`/`failed` aggregate and each failure maps to an `IngestionFailureReason` (see [rag_05_04-error-handling-reference.md](rag_05_04-error-handling-reference.md)). Because the stages run as separate commands, a non-zero chunk-stage exit does **not** stop `Step 3` from running: the ingester processes whatever chunks were produced and does not auto-abort, so inspect the exit code and the logged `ERROR` before proceeding.
+
 ## Step 3: Embedding and Storage
 
 ```bash

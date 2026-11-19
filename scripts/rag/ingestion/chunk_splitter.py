@@ -16,8 +16,11 @@ import argparse
 import logging
 import os
 import re
+import sys
+from collections.abc import Iterator
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 import orjson
 from shared.config_loader import ConfigLoader
@@ -25,7 +28,11 @@ from shared.logger import Logger
 from shared.runtime_paths import resolve_sudachi_dict_path
 from sudachipy import dictionary as sudachi_dict
 
-from rag.exceptions import ChunkFormatError, PipelineValidationError
+from rag.exceptions import (
+    ChunkFormatError,
+    IngestionFailureReason,
+    PipelineValidationError,
+)
 from rag.ingestion.chunk_english import ChunkEnglishMixin
 from rag.ingestion.chunk_japanese import ChunkJapaneseMixin, Tokenizer
 from rag.ingestion.chunk_utils import merge_text_items
@@ -42,6 +49,45 @@ MIN_HEADING_LINES_FOR_MARKDOWN = 2
 MARKDOWN_HEADING_RE = r"^#{1,6}"
 
 logger = Logger(__name__, "/opt/llm/logs/chunk.log", structured_log=True)
+
+
+@dataclass
+class FileOutcome:
+    """Per-file result of a chunk run: processed, skipped, or failed.
+
+    ``chunk_count`` carries the number of chunks written for a processed file;
+    ``reason`` carries the mapped ``IngestionFailureReason`` for a failed file.
+    """
+
+    path: Path
+    status: Literal["processed", "skipped", "failed"]
+    chunk_count: int = 0
+    reason: IngestionFailureReason | None = None
+
+
+@dataclass
+class ChunkRunResult:
+    """Aggregate chunk-run outcome: processed/skipped/failed counts and per-file reasons."""
+
+    processed: int = 0
+    skipped: int = 0
+    failed: int = 0
+    failures: dict[Path, IngestionFailureReason] = field(default_factory=dict)
+
+
+def _map_failure_class(exc: BaseException) -> IngestionFailureReason:
+    """Map a raised exception to its chunk-stage ``IngestionFailureReason``.
+
+    The failure-bearing paths map to their dedicated reason; ``TokenizationError``
+    and any other exception fall back to ``UNEXPECTED_FAILURE``.
+    """
+    if isinstance(exc, OSError):
+        return IngestionFailureReason.STORAGE_FAILED
+    if isinstance(exc, ChunkFormatError):
+        return IngestionFailureReason.PARSE_FAILED
+    if isinstance(exc, PipelineValidationError):
+        return IngestionFailureReason.VALIDATION_FAILED
+    return IngestionFailureReason.UNEXPECTED_FAILURE
 
 
 class ChunkMetadata(TypedDict, total=False):
@@ -143,6 +189,27 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     # ── Public interface ──────────────────────────────────────────────────────
 
+    def _iter_file_outcomes(
+        self, paths: list[Path], force: bool = False
+    ) -> Iterator[FileOutcome]:
+        """Yield one :class:`FileOutcome` per path, never raising out of the loop.
+
+        Each file is classified ``processed`` (>=1 chunk written), ``skipped``
+        (returned 0 legitimately), or ``failed`` (exception raised); on failure the
+        exception is mapped to an ``IngestionFailureReason`` and logged once.
+        """
+        for path in paths:
+            try:
+                count = self.process_file(path, force)
+            except Exception as e:
+                logger.exception("process_file failed: %s: %s", path, e)
+                yield FileOutcome(path, "failed", reason=_map_failure_class(e))
+                continue
+            if count > 0:
+                yield FileOutcome(path, "processed", chunk_count=count)
+            else:
+                yield FileOutcome(path, "skipped")
+
     def process_all(self, target: Path | None = None, force: bool = False) -> int:
         """Process all *.json files in rag-src/ (or a single target); returns total chunks written."""
         paths = self._collect_targets(target)
@@ -150,13 +217,38 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             logger.info("No source files to process")
             return 0
         total = 0
-        for path in paths:
-            try:
-                total += self.process_file(path, force)
-            except (OSError, RuntimeError, ValueError) as e:
-                logger.exception("process_file failed: %s: %s", path, e)
+        for outcome in self._iter_file_outcomes(paths, force):
+            if outcome.status == "processed":
+                total += outcome.chunk_count
         logger.info("=== done: %s chunks from %s files ===", total, len(paths))
         return total
+
+    def run_all(
+        self, target: Path | None = None, force: bool = False
+    ) -> ChunkRunResult:
+        """Run the chunk stage over all targets; returns the per-file outcome aggregate.
+
+        Consumes the same iterator as :meth:`process_all` so the two entry points
+        cannot diverge. Logs a run-level summary line.
+        """
+        paths = self._collect_targets(target)
+        result = ChunkRunResult()
+        for outcome in self._iter_file_outcomes(paths, force):
+            if outcome.status == "processed":
+                result.processed += 1
+            elif outcome.status == "skipped":
+                result.skipped += 1
+            else:
+                result.failed += 1
+                assert outcome.reason is not None  # guarded by _iter_file_outcomes
+                result.failures[outcome.path] = outcome.reason
+        logger.info(
+            "=== run done: %d processed, %d skipped, %d failed ===",
+            result.processed,
+            result.skipped,
+            result.failed,
+        )
+        return result
 
     def process_file(self, src_path: Path, force: bool = False) -> int:
         """Read a crawler JSON file, split into chunks, and write to chunk_dir; returns chunk count; skips already-chunked files when force=False."""
@@ -502,7 +594,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 # ──────────────────────────────────────────────────────────────────────────────
 # Entry point
 # ──────────────────────────────────────────────────────────────────────────────
-def main() -> None:
+def main() -> int:
     """CLI entry point for chunking rag-src JSON files into document chunks."""
     parser = argparse.ArgumentParser(
         description="Chunking: rag-src/*.json → rag-src/chunk/{stem}-{idx:04d}.json",
@@ -525,9 +617,10 @@ def main() -> None:
             parser.error(f"File does not exist: {target}")
 
     splitter = ChunkSplitter()
-    splitter.process_all(target, args.force)
+    result = splitter.run_all(target, args.force)
+    return 1 if result.failed > 0 else 0
 
 
 if __name__ == "__main__":
     ConfigLoader.restrict_to("chunk_splitter.toml")
-    main()
+    sys.exit(main())

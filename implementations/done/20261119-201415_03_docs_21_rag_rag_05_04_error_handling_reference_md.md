@@ -62,10 +62,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-002119 | 20261120-002119 |  |
+| 2 | Add or update tests per Validation plan | N/A | — | — | N/A: documentation-only procedure, no tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-002119 | 20261120-002119 | check_docs_quality.py (No issues); rag_05_04 canonical (referenced by 6+ docs; not in 00_index - pre-existing, out of scope) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261120-002119 | 20261120-002119 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

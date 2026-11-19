@@ -8,13 +8,14 @@ from __future__ import annotations
 import logging
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import orjson
 import pytest
-from rag.exceptions import PipelineValidationError
+from rag.exceptions import IngestionFailureReason, PipelineValidationError
 from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
 from rag.ingestion.chunk_splitter import ChunkSplitter
 from rag.ingestion.pipeline_utils import read_chunk_json
@@ -1755,3 +1756,122 @@ class TestDiscardLogging:
         assert self._int(rec, "discarded_count") >= 1
         assert self._int(rec, "discarded_chars") > 0
         assert "Tiny" not in rec.getMessage()
+
+
+class TestRunAllAndMainExitStatus:
+    """run_all aggregate counts, distinct-exception logging, main exit-status.
+
+    Covers ragcrv007 REQ-001 (run_all counts + reason mapping), REQ-002
+    (distinct exception class logged per failed file), REQ-003 (main exit
+    status) and REQ-004 (continue-after-failure policy).
+    """
+
+    _FIVE_CHUNKS: list[tuple[str, str, str | None]] = [
+        ("text", f"word{i} " * 40, "") for i in range(5)
+    ]
+
+    def test_run_all_counts_processed_and_failed_with_storage_reason(
+        self, tmp_path: Path
+    ) -> None:
+        # One valid file (processed) + one write-failing file (failed -> STORAGE_FAILED).
+        _write_prune_src(tmp_path, "ok", _LONG_SINGLE)
+        _write_prune_src(tmp_path, "boom", _LONG_SINGLE)
+        splitter = _make_prune_splitter(tmp_path)
+        mod = sys.modules[type(splitter).__module__]
+        handler = _CaptureHandler()
+        mod.logger.addHandler(handler)
+        try:
+            with patch.object(
+                splitter, "_build_chunk_list", return_value=list(self._FIVE_CHUNKS)
+            ):
+                with _patch_write_bytes(fail_on=3):
+                    result = splitter.run_all()
+        finally:
+            mod.logger.removeHandler(handler)
+        assert result.processed == 1
+        assert result.failed == 1
+        assert result.skipped == 0
+        failed_path = next(p for p in result.failures if p.name == "boom.json")
+        assert result.failures[failed_path] == IngestionFailureReason.STORAGE_FAILED
+        error_records = [r for r in handler.records if r.levelno == logging.ERROR]
+        assert len(error_records) == 1
+        assert error_records[0].exc_info is not None
+        assert error_records[0].exc_info[0] is OSError
+
+    def test_run_all_classifies_already_chunked_as_skipped(
+        self, tmp_path: Path
+    ) -> None:
+        # A file whose sentinel already exists is skipped under force=False.
+        _write_prune_src(tmp_path, "skipme", _LONG_SINGLE)
+        (tmp_path / "chunk").mkdir(exist_ok=True)
+        (tmp_path / "chunk" / "skipme-0000.json").write_bytes(orjson.dumps({}))
+        splitter = _make_prune_splitter(tmp_path)
+        result = splitter.run_all()
+        assert result.skipped == 1
+        assert result.processed == 0
+        assert result.failed == 0
+        assert result.failures == {}
+
+    def test_run_all_continues_after_one_failure(self, tmp_path: Path) -> None:
+        # AC: one failing file does not stop the remaining file from processing.
+        _write_prune_src(tmp_path, "ok", _LONG_SINGLE)
+        _write_prune_src(tmp_path, "boom", _LONG_SINGLE)
+        splitter = _make_prune_splitter(tmp_path)
+        with patch.object(
+            splitter, "_build_chunk_list", return_value=list(self._FIVE_CHUNKS)
+        ):
+            with _patch_write_bytes(fail_on=3):
+                result = splitter.run_all()
+        assert result.processed == 1
+        assert result.failed == 1
+        assert len(_chunk_series(tmp_path / "chunk", "ok")) == 5
+        assert _chunk_series(tmp_path / "chunk", "boom") == []
+
+    def test_main_returns_nonzero_when_any_file_fails(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import rag.ingestion.chunk_splitter as cs
+
+        monkeypatch.setattr(sys, "argv", ["chunk_splitter"])
+        monkeypatch.setattr(
+            cs.ConfigLoader,
+            "load",
+            lambda *names: {
+                "rag_src_dir": str(tmp_path),
+                "min_chunk": 40,
+                "max_chunk": 500,
+                "en_stopwords": [],
+                "ja_stop_pos": [],
+            },
+        )
+        _write_prune_src(tmp_path, "boom", _LONG_SINGLE)
+        with patch.object(
+            cs.ChunkSplitter,
+            "_build_chunk_list",
+            return_value=list(self._FIVE_CHUNKS),
+        ):
+            with patch.object(Path, "write_bytes", side_effect=OSError("disk down")):
+                exit_code = cs.main()
+        assert exit_code == 1
+
+    def test_main_returns_zero_when_all_skipped(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import rag.ingestion.chunk_splitter as cs
+
+        monkeypatch.setattr(sys, "argv", ["chunk_splitter"])
+        monkeypatch.setattr(
+            cs.ConfigLoader,
+            "load",
+            lambda *names: {
+                "rag_src_dir": str(tmp_path),
+                "min_chunk": 40,
+                "max_chunk": 500,
+                "en_stopwords": [],
+                "ja_stop_pos": [],
+            },
+        )
+        _write_prune_src(tmp_path, "skipme", _LONG_SINGLE)
+        (tmp_path / "chunk").mkdir(exist_ok=True)
+        (tmp_path / "chunk" / "skipme-0000.json").write_bytes(orjson.dumps({}))
+        assert cs.main() == 0

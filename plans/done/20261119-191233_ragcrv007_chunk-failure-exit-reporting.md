@@ -198,12 +198,12 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Aggregate + outcome iterator | In Progress | — | — | |
-| 2 | Phase 2: Narrow except + `run_all` | In Progress | — | — | |
-| 3 | Phase 3: Exit code | In Progress | — | — | |
-| 4 | Phase 4: Tests | In Progress | — | — | |
-| 5 | Phase 5: Docs | In Progress | — | — | |
-| 6 | Phase 6: Verify | In Progress | — | — | |
+| 1 | Phase 1: Aggregate + outcome iterator | Completed | — | 20261120-000541 |  |
+| 2 | Phase 2: Narrow except + `run_all` | Completed | 20261120-000554 | 20261120-000554 |  |
+| 3 | Phase 3: Exit code | Completed | 20261120-000554 | 20261120-000554 |  |
+| 4 | Phase 4: Tests | Completed | 20261120-001934 | 20261120-001934 |  |
+| 5 | Phase 5: Docs | Completed | — | 20261120-002333 |  |
+| 6 | Phase 6: Verify | Completed | 20261120-002420 | 20261120-002420 | ruff format/check, mypy clean; tests/rag/ingestion/ 395 passed (incl. test_process_all_logs_one_error_on_write_failure) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -213,10 +213,10 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261119-201415_01_scripts_rag_ingestion_chunk_splitter_py.md` | 1, 2 | Procedure | Pending | — | — |
-| `implementations/20261119-201415_02_tests_rag_ingestion_test_chunk_splitter_py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261119-201415_03_docs_21_rag_rag_05_04_error_handling_reference_md.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261119-201415_04_docs_21_rag_rag_05_02_execution_guide_md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261119-201415_01_scripts_rag_ingestion_chunk_splitter_py.md` | 1, 2 | Procedure | Completed | — | — |
+| `implementations/20261119-201415_02_tests_rag_ingestion_test_chunk_splitter_py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261119-201415_03_docs_21_rag_rag_05_04_error_handling_reference_md.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261119-201415_04_docs_21_rag_rag_05_02_execution_guide_md.md` | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
