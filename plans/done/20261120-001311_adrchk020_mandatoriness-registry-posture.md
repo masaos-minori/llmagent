@@ -27,8 +27,8 @@ Medium
 ## Problem
 All claims re-verified against current source (Step 2, 2026-11-20):
 - Backwards derivation: `registry/component_mandatoriness.yaml` lines 3–4 say it is "Derived from the table in docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md", while `agent_08_04` line 57 (guard block) says the table is "Generated from `registry/component_mandatoriness.yaml`" and ADR-004 item 13 says the same. A maintainer editing the table sees the edit overwritten on the next regeneration.
-- No assessment: all 9 registry entries carry `rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default` (lines 21, 33, 45, 57, 69, 81, 93, 105, 117, 129); `rg adrauth001 docs/00_governance` and `rg mandatoriness docs/00_governance/governance_03_issue-and-uncertainty-management.md` return nothing — the pending items are untracked.
-- Wrong role/category facts: `rag_pipeline` `safety_role` reads "RAG document ingestion; fail-closed prevents index corruption on posture failure" (line 97), but the server's published tools are `rag_run_pipeline` (search pipeline), `rag_debug_pipeline`, `rag_list_documents`, `rag_delete_document` — no ingestion tool (`scripts/mcp_servers/rag_pipeline/rag_pipeline_tools.py` TOOL_LIST). All 9 entries say `failure_category: safety-integrity`, while ADR-004 Group 2 item 7 (line 73) classes "unavailability of MCP server" as an availability failure.
+- No assessment: all 10 registry entries (cicd, file_delete, file_read, file_write, git, github, mdq, rag_pipeline, shell, web_search) carry `rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default` (lines 21, 33, 45, 57, 69, 81, 93, 105, 117, 129); `rg adrauth001 docs/00_governance` and `rg mandatoriness docs/00_governance/governance_03_issue-and-uncertainty-management.md` return nothing — the pending items are untracked.
+- Wrong role/category facts: `rag_pipeline` `safety_role` reads "RAG document ingestion; fail-closed prevents index corruption on posture failure" (line 97), but the server's published tools are `rag_run_pipeline` (search pipeline), `rag_debug_pipeline`, `rag_list_documents`, `rag_delete_document` — no ingestion tool (`scripts/mcp_servers/rag_pipeline/rag_pipeline_tools.py` TOOL_LIST). All 10 entries say `failure_category: safety-integrity`, while ADR-004 Group 2 item 7 (line 73) classes "unavailability of MCP server" as an availability failure.
 - MDQ duplicate auth check: `REQUIRED_CHECK_IDS["mdq"]` (`scripts/shared/security/posture_contract.py` lines 99–107) contains `server.auth_token_configured` (line 101) in addition to `common.auth_token`; no other server has a server-scoped auth check (all 10 `REQUIRED_CHECK_IDS` entries inspected). `scripts/mcp_servers/mdq/mdq_security_validation.py` builds it (`_auth_token_check`, lines 117–131). The issue's "unknown" MDQ posture builder is `scripts/mcp_servers/mdq/mdq_security_validation.py` (`build_mdq_posture`, line 267+; called by `mdq_server.py` line 104).
 
 ## Reason for Change
@@ -45,9 +45,9 @@ All claims re-verified against current source (Step 2, 2026-11-20):
 ## Requirements
 - `REQ-001`: The registry header must state the derivation in one direction only — the registry is the machine-readable source (ADR-004 Group 3 item 13) from which the `agent_08_04` table is generated — with no "Derived from the table" sentence and no "pending adrauth001 (U-1)" note; it instead cites the governance_03 IDs registered by REQ-003/REQ-004.
 - `REQ-002`: The `rag_pipeline` entry's `safety_role` must describe the server's actual published functions (retrieval pipeline execution/debug, document listing, document deletion) and must not claim document ingestion or index corruption; `classification`, `failure_category`, and `rationale` stay unchanged.
-- `REQ-003`: governance_03 Part 1 gains entry `MCP-003` recording that the ADR-004 Group 3 item 10 assessment has never been performed: all 9 rationales are "Not assessed", no approval record exists, and `agent_08_04`'s note that no server is classified non-required restates the unassessed status quo. Type `design-gap`, Area MCP.
+- `REQ-003`: governance_03 Part 1 gains entry `MCP-003` recording that the ADR-004 Group 3 item 10 assessment has never been performed: all 10 rationales are "Not assessed", no approval record exists, and `agent_08_04`'s note that no server is classified non-required restates the unassessed status quo. Type `design-gap`, Area MCP.
 - `REQ-004`: governance_03 Part 1 gains entry `MCP-004` recording the registry authority/placement reconciliation the header note carried: the registry home is fixed by ADR-004 item 13 and its canonical registration, while the remaining open piece is the pending owner-list approval for the `mcp.component-mandatoriness` row (prepared by the completed adrchk010 Plan, its REQ-017/UNK-02).
-- `REQ-005`: `MCP-003`'s Recommended Action records the `failure_category` re-evaluation as a proposal only: ADR-004 Group 2 item 7 classes MCP-server unavailability as an availability failure, so the uniform `safety-integrity` value across 9 entries awaits an owner classification decision. No `failure_category` value changes in this Plan.
+- `REQ-005`: `MCP-003`'s Recommended Action records the `failure_category` re-evaluation as a proposal only: ADR-004 Group 2 item 7 classes MCP-server unavailability as an availability failure, so the uniform `safety-integrity` value across 10 entries awaits an owner classification decision. No `failure_category` value changes in this Plan.
 - `REQ-006`: `REQUIRED_CHECK_IDS["mdq"]` must carry exactly one auth check — `common.auth_token` — like the other nine servers; `server.auth_token_configured` is removed from the contract.
 - `REQ-007`: MDQ self-validation must no longer build or emit the auth-token check: `validate_mdq_security()` returns the 5 remaining checks in contract order, and no unused import, reason constant, or helper remains after the removal.
 - `REQ-008`: Every generated artifact is regenerated from live sources via `tools/generate_reference_table.py` (never hand-edited): `registry/manifests/health_contracts.yaml` and `registry/manifests/component_mandatoriness.yaml`; all `--check` drift gates pass.
@@ -65,12 +65,12 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| registry/component_mandatoriness.yaml | registry edit | header single-direction derivation; `rag_pipeline` `safety_role` correction; ledger-ID citation | REQ-001, REQ-002; AC-01, AC-02 | header lines 3–7 contradict ADR-004 line 81 and agent_08_04 line 57 (checked in Step 2); line 97 claims ingestion/index corruption vs `rag_pipeline_tools.py` TOOL_LIST lines 11–104 (4 tools, no ingestion) | `tests/tools/test_check_component_mandatoriness.py`; `tools/check_component_mandatoriness.py` | Verified |
 | docs/00_governance/governance_03_issue-and-uncertainty-management.md | governance ledger entries | add Part 1 entries MCP-003 and MCP-004 (17 fields each) tracking the assessment gap, the `failure_category` proposal, and the placement reconciliation | REQ-003, REQ-004, REQ-005; AC-03, AC-04 | Part 1 active MCP group is only MCP-001 (line 94) and MCP-002 (line 114) (checked in Step 2); `rg adrauth001 docs/00_governance` empty | `tools/check_needs_confirmation_inventory.py`; docs checkers per `routing.md` | Verified |
+| registry/component_mandatoriness.yaml | registry edit | header single-direction derivation; `rag_pipeline` `safety_role` correction; ledger-ID citation | REQ-001, REQ-002; AC-01, AC-02 | header lines 3–7 contradict ADR-004 line 81 and agent_08_04 line 57 (checked in Step 2); line 97 claims ingestion/index corruption vs `rag_pipeline_tools.py` TOOL_LIST lines 11–104 (4 tools, no ingestion) | `tests/tools/test_check_component_mandatoriness.py`; `tools/check_component_mandatoriness.py` | Verified |
+| registry/manifests/component_mandatoriness.yaml | regenerate | manifest mirrors `safety_role`; must be regenerated after the registry edit | REQ-008; AC-07 | generator copies `safety_role`/`failure_category` (`tools/generate_reference_table.py` lines 955–956) (checked in Step 2); manifest already mirrors the entry `safety_role` values (lines 12–121) | `tools/generate_reference_table.py --check`; `tests/tools/test_generate_reference_table.py` | Verified |
 | scripts/shared/security/posture_contract.py | code fix | remove `"server.auth_token_configured"` from `REQUIRED_CHECK_IDS["mdq"]` | REQ-006; AC-05 | lines 99–107 contain the only server-scoped auth check among all 10 servers (checked in Step 2) | `tests/shared/test_security_posture_contract.py` | Verified |
 | scripts/mcp_servers/mdq/mdq_security_validation.py | code fix | delete `_auth_token_check()` and its call in `validate_mdq_security()`; drop imports that become unused | REQ-007; AC-06 | `_auth_token_check` lines 117–131; call at line 108 (checked in Step 2) | `tests/mcp_servers/mdq/test_mdq_security_validation.py` | Verified |
 | registry/manifests/health_contracts.yaml | regenerate | mdq check list must lose `server.auth_token_configured` after regeneration | REQ-008; AC-07 | entry lines 60–70 carry `server.auth_token_configured` at line 66 (checked in Step 2); generator source mapping `tools/generate_reference_table.py` line 498 | `tools/generate_reference_table.py --check`; `tests/tools/test_generate_reference_table.py` | Verified |
-| registry/manifests/component_mandatoriness.yaml | regenerate | manifest mirrors `safety_role`; must be regenerated after the registry edit | REQ-008; AC-07 | generator copies `safety_role`/`failure_category` (`tools/generate_reference_table.py` lines 955–956) (checked in Step 2) | `tools/generate_reference_table.py --check`; `tests/tools/test_generate_reference_table.py` | Verified |
 | tests/mcp_servers/mdq/test_mdq_security_validation.py | test update | `MDQ_CHECK_IDS` and the auth-check verdict tests must express the 5-check contract | REQ-009; AC-06, AC-08 | `MDQ_CHECK_IDS` includes `server.auth_token_configured` (lines 47–48); auth verdict tests at lines 173–186 (checked in Step 2) | this file | Verified |
 | tests/shared/test_security_posture_contract.py | test update | `SERVER_CHECK_IDS` mirror must drop the mdq auth id | REQ-009; AC-05, AC-08 | mirror dict starts line 33 and carries `server.auth_token_configured` at line 90 (checked in Step 2) | this file | Verified |
 
@@ -94,7 +94,7 @@ glob patterns, components, file groups, or vague phrases.
 |---|---|---|
 | docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md | The issue lists it as "(regenerated)"; its guard-block table (lines 56–71) renders only Server/Classification/Rationale, none of which this Plan changes, so regeneration must leave the file byte-identical and `generate_reference_table.py --check` must stay green | REQ-001, REQ-008; scope note in Design decision 4 |
 | docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md | Group 3 items 10/12/13 (lines 78–81) and Group 2 item 7 (line 73) are the normative basis for the header fix and the `failure_category` proposal; AAL-019 (line 350 / ledger) already tracks the pending RAG availability approval and must be cited as Related | REQ-001, REQ-003, REQ-005 |
-| scripts/shared/security/startup_flow.py | `check_auth_token_present` (lines 132–144) is the single surviving auth check with WARNING semantics (Plan UNK-06); it must not change | REQ-006 |
+| scripts/shared/security/startup_flow.py | `check_auth_token_present` (lines 132–144) is the single surviving auth check with WARNING semantics (verified in Step 2); it must not change | REQ-006 |
 | scripts/mcp_servers/mdq/mdq_server.py | Posture build entry (`build_mdq_posture` call, line 104) and the startup-time token rejection that `_auth_token_check`'s docstring references (line 118) | REQ-007 |
 | tools/check_component_mandatoriness.py | Three-way registry/table/config consistency checker that must stay exit-0 after the registry edit | REQ-001, REQ-008 |
 | config/documentation_canonical_sources.toml | Lines 66–71 show the registry is already the canonical source; MCP-004 text must state the placement state accurately against this row | REQ-004 |
@@ -103,7 +103,7 @@ glob patterns, components, file groups, or vague phrases.
 
 ## Acceptance Criteria
 - `AC-01` (REQ-001): `rg "Derived from" registry/component_mandatoriness.yaml` returns nothing; the header states the registry as the source cited to ADR-004 Group 3 item 13 and cites MCP-003/MCP-004; `uv run python tools/check_component_mandatoriness.py` exits 0.
-- `AC-02` (REQ-002): the `rag_pipeline` `safety_role` names retrieval/list/delete functions and contains neither "ingestion" nor "index corruption"; `classification`, `failure_category`, and `rationale` for all 9 entries are unchanged (diff shows no change on those fields).
+- `AC-02` (REQ-002): the `rag_pipeline` `safety_role` names retrieval/list/delete functions and contains neither "ingestion" nor "index corruption"; `classification`, `failure_category`, and `rationale` for all 10 entries are unchanged (diff shows no change on those fields).
 - `AC-03` (REQ-003, REQ-004): governance_03 Part 1 contains MCP-003 and MCP-004 with all 17 Part 1 fields; docs checkers listed in `routing.md` Tools pass.
 - `AC-04` (REQ-005): MCP-003 Recommended Action states the `failure_category` re-evaluation proposal citing ADR-004 Group 2 item 7, and no `failure_category` value changed in the registry.
 - `AC-05` (REQ-006): `rg "server.auth_token_configured" scripts/ registry/ tests/` returns nothing after regeneration and test updates; every entry of `REQUIRED_CHECK_IDS` contains `common.auth_token` exactly once and no server-scoped auth id.
@@ -122,7 +122,7 @@ glob patterns, components, file groups, or vague phrases.
 Yes. `docs/00_governance/governance_03_issue-and-uncertainty-management.md` gains two Part 1 entries (`REQ-003`–`REQ-005`), and `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`'s guard block is revalidated by regeneration (`REQ-008`; content unchanged, see Design decision 4). Both are rows of the frozen Implementation Target Files / Reference Files tables; after the `docs/` edit, run the checkers listed in `routing.md` Tools → "When to run which tool".
 
 ## Assumptions
-- `A-1`: Removing the MDQ server-scoped auth check is safe because `mdq_server.py` refuses to start without a token and `check_auth_token_present` (WARNING semantics, Plan UNK-06) remains the single auth posture fact (verified in Step 2).
+- `A-1`: Removing the MDQ server-scoped auth check is safe because `mdq_server.py` refuses to start without a token and `check_auth_token_present` (WARNING semantics, verified in Step 2) remains the single auth posture fact (verified in Step 2).
 - `A-2`: Rewriting `rag_pipeline`'s `safety_role` to match the published tool set is a factual correction, not a classification decision; the issue's "do not invent rationales" constraint is honored by leaving `rationale` and `classification` untouched and deriving the role text only from `TOOL_LIST` descriptions.
 - `A-3`: The header note "Authority/placement reconciliation pending adrauth001 (U-1)" is stale wording: both adrauth001 Plans are done (`plans/done/20261029-214650_...`, `plans/done/20261108-092627_...`) and ADR-004 item 13 already fixes the registry path; what remains open is the owner-list approval prepared by adrchk010 (its REQ-017/UNK-02), which MCP-004 records.
 - `A-4`: Ledger IDs `MCP-003`/`MCP-004` are free: the MCP group currently ends at MCP-002 (checked in Step 2); implementation re-checks before writing.
@@ -215,10 +215,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: governance_03 entries MCP-003/MCP-004 (REQ-003–REQ-005) | Pending | — | — | |
-| 2 | Phase 2: registry header + rag_pipeline safety_role edit, regenerate manifests (Unit: mandatoriness-registry-refresh) | Pending | — | — | |
-| 3 | Phase 3: MDQ auth-check removal, tests, regenerate health_contracts (Unit: mdq-auth-check-removal) | Pending | — | — | |
-| 4 | Phase 4: full validation sequence and deployment sync check | Pending | — | — | |
+| 1 | Phase 1: governance_03 entries MCP-003/MCP-004 (REQ-003–REQ-005) | In Progress | 2026-11-20 | — |  |
+| 2 | Phase 2: registry header + rag_pipeline safety_role edit, regenerate manifests (Unit: mandatoriness-registry-refresh) | In Progress | 2026-11-20 | — |  |
+| 3 | Phase 3: MDQ auth-check removal, tests, regenerate health_contracts (Unit: mdq-auth-check-removal) | In Progress | 2026-11-20 | — |  |
+| 4 | Phase 4: full validation sequence and deployment sync check | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -228,7 +228,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| 20261120-043919_01 | 1 | Procedure | Pending | Repository owner | — |
+| 20261120-043919_02 | 2 | Procedure | Pending | Repository owner | — |
+| 20261120-043919_03 | 2 | Procedure | Pending | Repository owner | — |
+| 20261120-043919_04 | 3 | Procedure | Pending | Repository owner | — |
+| 20261120-043919_05 | 3 | Procedure | Pending | Repository owner | — |
+| 20261120-043919_06 | 3 | Procedure | Pending | Repository owner | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -237,7 +242,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261120-001311
-- **Related target files**: `registry/component_mandatoriness.yaml`; `docs/00_governance/governance_03_issue-and-uncertainty-management.md`; `scripts/shared/security/posture_contract.py`; `scripts/mcp_servers/mdq/mdq_security_validation.py`; `registry/manifests/health_contracts.yaml`; `registry/manifests/component_mandatoriness.yaml`; `tests/mcp_servers/mdq/test_mdq_security_validation.py`; `tests/shared/test_security_posture_contract.py`
+- **Related target files**: `docs/00_governance/governance_03_issue-and-uncertainty-management.md`; `registry/component_mandatoriness.yaml`; `registry/manifests/component_mandatoriness.yaml`; `scripts/shared/security/posture_contract.py`; `scripts/mcp_servers/mdq/mdq_security_validation.py`; `registry/manifests/health_contracts.yaml`; `tests/mcp_servers/mdq/test_mdq_security_validation.py`; `tests/shared/test_security_posture_contract.py`
 
 ### Requirement Traceability
 
@@ -254,3 +259,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-008 | Constraints bullet 6 | registry/manifests/component_mandatoriness.yaml | Phase 2 | AC-07 | T03 | Derived from confirmed evidence |
 | REQ-009 | Testing Expectations (`rg auth_token_configured tests` hits) | tests/mcp_servers/mdq/test_mdq_security_validation.py | Phase 3 | AC-08 | T02, T05 | Confirmed by repository evidence |
 | REQ-009 | Testing Expectations | tests/shared/test_security_posture_contract.py | Phase 3 | AC-08 | T01, T05 | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261120-043919 -->
