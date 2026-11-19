@@ -42,7 +42,7 @@ table — no other file may be treated as a modification target.
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/rag/ingestion/chunk_splitter.py` | Modify | Add group validation + typed getters to `ChunkSplitter.__init__`; fail fast before Sudachi construction | REQ-001..REQ-004 | `ChunkSplitter.__init__` guards only `max_chunk <= 0` and uses bare `int()`/`bool()` coercion; runtime repro with `min_chunk > max_chunk` accepts the config with no error (Step 2) | `TestMaxChunkValidation` | Verified |
-| `tests/rag/ingestion/test_chunk_splitter.py` | Modify | Extend `TestMaxChunkValidation` with each rejected relation, wrong-type cases, and accepted-boundary parity | REQ-001..REQ-005 | `TestMaxChunkValidation` constructs via `ChunkSplitter(config=cfg)`; `_CRAWL_CONFIG` chunk-size keys satisfy all proposed relations (Step 2) | `TestMaxChunkValidation` | Verified |
+| `tests/rag/ingestion/test_chunk_splitter.py` | Modify | Extend `TestMaxChunkValidation` with each rejected relation, wrong-type cases, and accepted-boundary parity; update the two existing tests that rely on configs the new validation rejects | REQ-001..REQ-005 | `TestMaxChunkValidation` constructs via `ChunkSplitter(config=cfg)`; `_CRAWL_CONFIG` chunk-size keys satisfy all proposed relations (Step 2); `TestForceRechunkPrune.test_zero_chunk_forced_run_removes_old_series` builds `min_chunk=100000 > max_chunk=600` and `TestFetchedAtPropagation.test_md_heading_splits_have_matching_fetched_at` enables `md_index_enable` with `md_snippet_max_chars=600 > max_chunk=500`; both must be reworked to valid configs (Step 3a) | `TestMaxChunkValidation` | Verified |
 | `config/chunk_splitter.toml` | Modify | Document the required relations between the four chunk-size keys | REQ-006 | Current chunk-size keys satisfy `min_chunk ≤ max_chunk` and `chunk_overlap < max_chunk`; enabling `md_index_enable` would also require the `md_snippet_max_chars` relation (Step 2) | N/A: documentation only | Verified |
 | `docs/21_rag/rag_05_01-configuration-reference.md` | Modify | Record valid ranges, relations, and the error raised | REQ-007 | The `config/chunk_splitter.toml` section documents the keys semantically but not the required relations (Step 2) | N/A: documentation only | Verified |
 
@@ -83,6 +83,8 @@ glob patterns, components, file groups, or vague phrases.
 - Unit: `md_snippet_max_chars` out of range with `md_index_enable` set raises (`REQ-004`).
 - Unit: accepted boundary configurations produce the same chunk counts as before (`REQ-005`).
 - Regression: the whole `tests/rag/ingestion/test_chunk_splitter.py` suite stays green (`REQ-005`).
+- Regression: `TestForceRechunkPrune.test_zero_chunk_forced_run_removes_old_series` currently forces zero chunks by constructing an invalid config (`min_chunk=100000 > max_chunk=600`); the new validation rejects that at construction, so update that one test to force zero chunks through a valid config (raise `min_chunk` above the source content length while keeping `min_chunk <= max_chunk`).
+- Regression: `TestFetchedAtPropagation.test_md_heading_splits_have_matching_fetched_at` constructs with `md_index_enable=True` using `_CRAWL_CONFIG`, whose `md_snippet_max_chars=600` exceeds `max_chunk=500`; REQ-004 rejects that combination at construction, so update that one test to a valid `md_snippet_max_chars` (for example `400`, within `[min_chunk, max_chunk]`) while preserving the heading-split intent.
 
 ## Documentation Impact
 `docs/*.md` must be updated for `REQ-006`/`REQ-007`. The target doc is the RAG configuration reference (`rag_05_01-configuration-reference.md`), named via the `docs/21_rag` area's configuration-reference entry in `docs/00_index.md` "Document References by Task". The config file `config/chunk_splitter.toml` is a separate target row, not a `docs/*.md` update.
@@ -162,6 +164,8 @@ as a unit; `N/A` is only for a Plan whose every phase passes validation alone.
 - **Risk**: Validating `md_snippet_max_chars` breaks an existing `md_index_enable` deployment. → **Mitigation**: Check runs only when `md_index_enable` is set; the default config disables it, so the default deployment is unaffected.
 - **Risk**: Overlap with the sibling plan for `issues/20261119-112021_ragcrv009_chunk-test-construction-fragility.md` on `tests/rag/ingestion/test_chunk_splitter.py`. → **Mitigation**: Sequence this fix first (it defines the locked-down behaviors); the sibling's construction restructuring follows. Recorded as a compatible overlap in Assumptions.
 - **Risk**: Validation placed after Sudachi construction still loads the dictionary for a bad config. → **Mitigation**: Place validation ahead of Sudachi dictionary construction so a misconfigured run fails fast.
+- **Risk**: An existing test forces zero chunks by constructing an invalid config (`TestForceRechunkPrune.test_zero_chunk_forced_run_removes_old_series` sets `min_chunk=100000 > max_chunk=600`), which the new `min_chunk <= max_chunk` relation rejects at construction. → **Mitigation**: Update that one test to force zero chunks through a valid config (raise `min_chunk` above the source content length; `_chunk_english` already discards anything below `min_chunk`). It is covered by the test-file row (REQ-005), not a new target file.
+- **Risk**: `_CRAWL_CONFIG` has `md_snippet_max_chars=600` against `max_chunk=500`; the default config disables `md_index_enable` so this latent inconsistency is never checked in production, but `test_md_heading_splits_have_matching_fetched_at` enables it and would trip REQ-004. → **Mitigation**: REQ-004 correctly rejects the mismatch; update that one test to a valid `md_snippet_max_chars`. The production default (disabled) is unaffected, so this is a test-only fallout, not a deployment risk.
 
 ## Execution Status
 
@@ -172,9 +176,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Constructor validation in `ChunkSplitter.__init__` (typed getters + group relations) | Pending | — | — | Touches `scripts/rag/ingestion/chunk_splitter.py` (REQ-001..REQ-004) |
-| 2 | Regression tests for rejected relations, wrong-type cases, accepted-boundary parity | Pending | — | — | Touches `tests/rag/ingestion/test_chunk_splitter.py` (REQ-001..REQ-005) |
-| 3 | Document relations in config + configuration reference; run validation gate | Pending | — | — | Touches `config/chunk_splitter.toml` and `docs/21_rag/rag_05_01-configuration-reference.md` (REQ-006, REQ-007) |
+| 1 | Constructor validation in `ChunkSplitter.__init__` (typed getters + group relations) | In Progress | — | — | Touches `scripts/rag/ingestion/chunk_splitter.py` (REQ-001..REQ-004) |
+| 2 | Regression tests for rejected relations, wrong-type cases, accepted-boundary parity | In Progress | — | — | Touches `tests/rag/ingestion/test_chunk_splitter.py` (REQ-001..REQ-005) |
+| 3 | Document relations in config + configuration reference; run validation gate | In Progress | — | — | Touches `config/chunk_splitter.toml` and `docs/21_rag/rag_05_01-configuration-reference.md` (REQ-006, REQ-007) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -184,7 +188,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261119-151106_01_scripts_rag_ingestion_chunk_splitter.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261119-151106_02_tests_rag_ingestion_test_chunk_splitter.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261119-151106_03_config_chunk_splitter.toml.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261119-151106_04_docs_21_rag_rag_05_01-configuration-reference.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -210,3 +217,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-005 | Constraints | `tests/rag/ingestion/test_chunk_splitter.py` | 2 | AC: no valid config changes output | accepted-boundary parity | Confirmed by repository evidence |
 | REQ-006 | Documentation Impact | `config/chunk_splitter.toml` | 3 | Doc impact: document relations in config file | docs/config valid | Explicit in issue |
 | REQ-007 | Documentation Impact | `docs/21_rag/rag_05_01-configuration-reference.md` | 3 | Doc impact: record ranges/relations/error | docs structure valid | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261119-151106 -->
