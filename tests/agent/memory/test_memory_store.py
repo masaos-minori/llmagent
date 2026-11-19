@@ -23,6 +23,7 @@ from agent.memory.count_ops import (
     count_prunable,
     count_vec,
 )
+from agent.memory.jsonl_store import _emit_change_event
 from agent.memory.pin_ops import pin, unpin
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry
@@ -447,6 +448,56 @@ class TestDeleteArchiveRealLoader:
         payload = json.loads(lines[0])
         assert payload["event"] == "delete"
         assert payload["memory_id"] == "prune-id-xyz"
+
+
+class TestSharedEmitterRealLoader:
+    """Exercise the shared ``_emit_change_event`` via the real resolver.
+
+    Covers REQ-001 / REQ-004: the single module-level emitter resolves the archive
+    path through ``resolve_memory_jsonl_dir()`` and appends synchronously. Isolates
+    ``ConfigLoader`` to a temp root whose ``memory_jsonl_dir`` points under
+    ``tmp_path`` so the event lands on a throwaway archive.
+    """
+
+    def _isolate_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        archive_dir = tmp_path / "archive"
+        (tmp_path / "agent.toml").write_text(f'memory_jsonl_dir = "{archive_dir}"\n')
+        monkeypatch.setattr(
+            "shared.config_loader.resolve_config_dir",
+            lambda config_dir=None: tmp_path,
+        )
+        monkeypatch.setattr(ConfigLoader, "_allowed_files", None)
+        return archive_dir
+
+    def test_emitter_appends_to_resolved_archive(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        archive_dir = self._isolate_config(tmp_path, monkeypatch)
+        # Real resolver resolves the archive path; no KeyError on the flat config.
+        _emit_change_event("pin", "mem-42")
+        archive_file = archive_dir / "memories.jsonl"
+        lines = [
+            ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
+        ]
+        assert len(lines) == 1
+        payload = json.loads(lines[0])
+        assert payload["event"] == "pin"
+        assert payload["memory_id"] == "mem-42"
+        assert "at" in payload
+
+    def test_emitter_appends_are_accumulated(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        archive_dir = self._isolate_config(tmp_path, monkeypatch)
+        _emit_change_event("delete", "a")
+        _emit_change_event("unpin", "b")
+        archive_file = archive_dir / "memories.jsonl"
+        lines = [
+            ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
+        ]
+        assert len(lines) == 2
+        events = {json.loads(ln)["event"] for ln in lines}
+        assert events == {"delete", "unpin"}
 
 
 # ── search_by_type() ─────────────────────────────────────────────────────────

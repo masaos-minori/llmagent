@@ -253,6 +253,40 @@ class TestImportReplayFinalState:
         assert inserted == 1
         assert _ids(db_conn) == ["e2"]
 
+    def test_many_interleaved_delete_readd_final_state(
+        self,
+        tmp_path: Path,
+        import_ops_fake_helper: _FakeSQLiteHelper,
+        db_conn: sqlite3.Connection,
+    ) -> None:
+        # Stresses the delete-replay path with a large interleaving: ``n`` ids are
+        # added, deleted in a second pass, then a prefix is re-added. Replay must
+        # be O(n) in archive size and the final ordered state must equal the
+        # first-seen order of survivors (REQ-001 / REQ-003).
+        n = 400
+        ops: list[tuple[str, object, str]] = [
+            ("mem", _make_entry(f"e{i}"), "") for i in range(n)
+        ]
+        ops += [("event", "delete", f"e{i}") for i in range(n)]
+        ops += [("mem", _make_entry(f"e{i}"), "") for i in range(n // 2)]
+        store = _write_archive(tmp_path / "m.jsonl", ops=ops)
+
+        jsonl_count, inserted = import_from_jsonl(store)
+
+        # jsonl_count counts memory lines seen (adds + readds); deletes are events.
+        assert jsonl_count == n + n // 2
+        assert inserted == n // 2
+        # Insert set (REQ-003): survivors are exactly the re-added prefix.
+        assert set(_ids(db_conn)) == {f"e{i}" for i in range(n // 2)}
+        # Write order (REQ-003): rows written in first-seen order, not PK-sorted.
+        ordered = [
+            r[0]
+            for r in db_conn.execute(
+                "SELECT memory_id FROM memories ORDER BY rowid"
+            ).fetchall()
+        ]
+        assert ordered == [f"e{i}" for i in range(n // 2)]
+
     def test_pin_sets_and_unpin_clears_last_wins(
         self,
         tmp_path: Path,

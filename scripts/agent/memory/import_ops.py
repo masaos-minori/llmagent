@@ -49,7 +49,6 @@ def import_from_jsonl(
         raise TypeError(f"Expected JsonlMemoryStore, got {type(jsonl_store).__name__}")
 
     state: dict[str, MemoryEntry] = {}
-    order: list[str] = []
     memory_lines = 0
     skipped = 0
     for kind, data in jsonl_store.iter_records():
@@ -61,8 +60,6 @@ def import_from_jsonl(
             if data.get("event") == "delete":
                 if mid in state:
                     del state[mid]
-                    if mid in order:
-                        order.remove(mid)
             elif data.get("event") in ("pin", "unpin"):
                 if mid in state:
                     state[mid] = replace(state[mid], pinned=data["event"] == "pin")
@@ -72,8 +69,6 @@ def import_from_jsonl(
         entry = _entry_from_dict(data)  # reuse jsonl_store's deserializer
         memory_lines += 1
         state[entry.memory_id] = entry
-        if entry.memory_id not in order:
-            order.append(entry.memory_id)
     jsonl_count = memory_lines
 
     if dry_run:
@@ -94,10 +89,10 @@ def import_from_jsonl(
         db.execute("DELETE FROM memories_fts")
         db.execute("DELETE FROM memories")
         db.commit()
-        for mid in order:
+        for mid in state:
             add(state[mid], embed_dim=embed_dim)
 
-    inserted = len(order)
+    inserted = len(state)
     logger.info(
         "import_from_jsonl: inserted %d entries from %d JSONL memory lines",
         inserted,

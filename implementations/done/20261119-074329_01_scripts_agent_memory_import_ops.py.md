@@ -117,7 +117,7 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Make import replay order tracking O(1) in import_ops.py (`scripts/agent/memory/import_ops.py`, REQ-001–REQ-005) | Pending | — | — | |
+| 1 | Make import replay order tracking O(1) in import_ops.py (`scripts/agent/memory/import_ops.py`, REQ-001–REQ-005) | Completed | 20261119-110725 | 20261119-110725 | STEP 1: replaced order list with state key order; ruff/mypy/lint-imports/bandit/full-suite/diff-cover all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

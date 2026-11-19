@@ -85,8 +85,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add synchronous shared emitter to jsonl_store.py (`scripts/agent/memory/jsonl_store.py`, REQ-001, REQ-003, REQ-004) | Pending | — | — | |
-| 2 | Verify single implementation + sync/error propagation; run ruff/mypy/tests (`scripts/agent/memory/jsonl_store.py`, REQ-001–REQ-004) | Pending | — | — | |
+| 1 | Add synchronous shared emitter to jsonl_store.py (`scripts/agent/memory/jsonl_store.py`, REQ-001, REQ-003, REQ-004) | Completed | 20261119-110657 | 20261119-110657 | STEP 1: implemented shared emitter + routing; STEP 2: ruff/mypy/lint-imports/bandit/full-suite/diff-cover all pass |
+| 2 | Verify single implementation + sync/error propagation; run ruff/mypy/tests (`scripts/agent/memory/jsonl_store.py`, REQ-001–REQ-004) | Completed | 20261119-110657 | 20261119-110657 | STEP 1: implemented shared emitter + routing; STEP 2: ruff/mypy/lint-imports/bandit/full-suite/diff-cover all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -180,7 +180,7 @@ N/A: no release unit — the single phase passes validation alone.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Make import replay order tracking O(1) in import_ops.py | In Progress | — | — | impl doc: implementations/20261119-074329_01_scripts_agent_memory_import_ops.py.md |
+| 1 | Make import replay order tracking O(1) in import_ops.py | Completed | — | 20261119-110725 | impl doc: implementations/20261119-074329_01_scripts_agent_memory_import_ops.py.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -190,7 +190,7 @@ N/A: no release unit — the single phase passes validation alone.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261119-074329_01_scripts_agent_memory_import_ops.py.md | 1 | implementation-procedure | Pending | — | — |
+| implementations/20261119-074329_01_scripts_agent_memory_import_ops.py.md | 1 | implementation-procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

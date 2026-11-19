@@ -4,11 +4,8 @@
 from __future__ import annotations
 
 import sqlite3
-from pathlib import Path
 
 from shared.json_utils import now_iso
-
-from agent.memory.config_path import resolve_memory_jsonl_dir
 
 
 def _set_pinned(
@@ -66,7 +63,6 @@ def _emit_event(event: str, memory_id: str) -> None:
     The SQLite change stands even if the archive append fails; the error
     propagates so the caller can surface M-07. Mirrors ``write_ops._emit_delete_event``.
     """
-    from agent.memory.jsonl_store import JsonlMemoryStore
+    from agent.memory.jsonl_store import _emit_change_event
 
-    store = JsonlMemoryStore(Path(resolve_memory_jsonl_dir()) / "memories.jsonl")
-    store.append_event(event, memory_id)
+    _emit_change_event(event, memory_id)

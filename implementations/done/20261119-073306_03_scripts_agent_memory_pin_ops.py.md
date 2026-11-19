@@ -93,8 +93,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Route `_emit_event` through the shared emitter; remove unused imports (`scripts/agent/memory/pin_ops.py`, REQ-002) | Pending | — | — | |
-| 2 | Verify SQLite-first + error propagation; run ruff/mypy/tests (`scripts/agent/memory/pin_ops.py`, REQ-002, REQ-003) | Pending | — | — | |
+| 1 | Route `_emit_event` through the shared emitter; remove unused imports (`scripts/agent/memory/pin_ops.py`, REQ-002) | Completed | 20261119-110657 | 20261119-110657 | STEP 1: implemented shared emitter + routing; STEP 2: ruff/mypy/lint-imports/bandit/full-suite/diff-cover all pass |
+| 2 | Verify SQLite-first + error propagation; run ruff/mypy/tests (`scripts/agent/memory/pin_ops.py`, REQ-002, REQ-003) | Completed | 20261119-110657 | 20261119-110657 | STEP 1: implemented shared emitter + routing; STEP 2: ruff/mypy/lint-imports/bandit/full-suite/diff-cover all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -204,8 +204,8 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add synchronous shared emitter to jsonl_store.py | In Progress | — | — | impl doc: implementations/20261119-073306_01_scripts_agent_memory_jsonl_store.py.md |
-| 2 | Route write_ops._emit_delete_event and pin_ops._emit_event through the emitter | In Progress | — | — | impl docs: _01 write_ops _03 pin_ops |
+| 1 | Add synchronous shared emitter to jsonl_store.py | Completed | — | 20261119-110657 | impl doc: implementations/20261119-073306_01_scripts_agent_memory_jsonl_store.py.md |
+| 2 | Route write_ops._emit_delete_event and pin_ops._emit_event through the emitter | Completed | — | 20261119-110657 | impl docs: _01 write_ops _03 pin_ops |
 | 3 | Add archive-path test and run ruff/mypy/tests | In Progress | — | — | verification across all three impl docs |
 
 ### Blocker Log
@@ -216,9 +216,9 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261119-073306_01_scripts_agent_memory_jsonl_store.py.md | 1 | implementation-procedure | Pending | — | — |
-| implementations/20261119-073306_02_scripts_agent_memory_write_ops.py.md | 2 | implementation-procedure | Pending | — | — |
-| implementations/20261119-073306_03_scripts_agent_memory_pin_ops.py.md | 2 | implementation-procedure | Pending | — | — |
+| implementations/20261119-073306_01_scripts_agent_memory_jsonl_store.py.md | 1 | implementation-procedure | Completed | — | — |
+| implementations/20261119-073306_02_scripts_agent_memory_write_ops.py.md | 2 | implementation-procedure | Completed | — | — |
+| implementations/20261119-073306_03_scripts_agent_memory_pin_ops.py.md | 2 | implementation-procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

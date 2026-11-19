@@ -47,6 +47,19 @@ def _entry_from_dict(d: Mapping[str, object]) -> MemoryEntry:
     return row_to_entry(d)
 
 
+def _emit_change_event(event: str, memory_id: str) -> None:
+    """Append a change event to the JSONL archive after the SQLite write (SQLite-first).
+
+    Shared by ``write_ops._emit_delete_event`` and ``pin_ops._emit_event``.
+    Resolves the archive path via ``resolve_memory_jsonl_dir()`` and appends
+    synchronously; a failed append propagates so the caller can surface M-07.
+    """
+    from agent.memory.config_path import resolve_memory_jsonl_dir
+
+    store = JsonlMemoryStore(Path(resolve_memory_jsonl_dir()) / "memories.jsonl")
+    store.append_event(event, memory_id)
+
+
 class JsonlMemoryStore:
     """Append-only JSONL store.  Thread-unsafe — use from a single asyncio event loop."""
 

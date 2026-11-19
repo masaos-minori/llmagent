@@ -2,12 +2,10 @@
 """scripts/agent/memory/write_ops.py — Write operations for memory CRUD."""
 
 import logging
-from pathlib import Path
 
 from db.helper import SQLiteHelper
 from shared.json_utils import dumps, now_iso
 
-from agent.memory.config_path import resolve_memory_jsonl_dir
 from agent.memory.mapper import _floats_to_blob, _stamp_entry
 from agent.memory.sql_constants import _INSERT_SQL, _UPSERT_SQL
 from agent.memory.types import MemoryEntry
@@ -140,7 +138,6 @@ def _emit_delete_event(memory_id: str) -> None:
     The SQLite change stands even if the archive append fails; the error
     propagates so the caller can surface M-07.
     """
-    from agent.memory.jsonl_store import JsonlMemoryStore
+    from agent.memory.jsonl_store import _emit_change_event
 
-    store = JsonlMemoryStore(Path(resolve_memory_jsonl_dir()) / "memories.jsonl")
-    store.append_event("delete", memory_id)
+    _emit_change_event("delete", memory_id)
