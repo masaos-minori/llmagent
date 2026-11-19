@@ -275,11 +275,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Principal build once and dead 500 branch removal | In Progress | — | — |  |
-| 2 | Middleware rename and callers | In Progress | — | — |  |
-| 3 | TTL characterization tests | In Progress | — | — |  |
-| 4 | ADR-013 and DLQ guide documentation | In Progress | — | — |  |
-| 5 | Regenerate manifest and reference block | In Progress | — | — |  |
+| 1 | Principal build once and dead 500 branch removal | Completed | — | 20261119-102844 |  |
+| 2 | Middleware rename and callers | Completed | — | 20261119-102844 |  |
+| 3 | TTL characterization tests | Completed | — | 20261119-102844 |  |
+| 4 | ADR-013 and DLQ guide documentation | Completed | — | 20261119-102844 |  |
+| 5 | Regenerate manifest and reference block | Completed | — | 20261119-102844 |  |
 | 6 | Validation, commit, and deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
@@ -290,14 +290,14 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261119-094420_01_scripts_eventbus_auth.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261119-094420_02_scripts_eventbus_app.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261119-094420_04_scripts_mcp_servers_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261119-094420_05_tests_eventbus_test_authz_generation_ttl.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261119-094420_06_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261119-094420_07_docs_24_eventbus_eventbus_05_dlq_offsets_and_delivery_semantics.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261119-094420_08_registry_manifests_eventbus_api.yaml.md | 5 | Procedure | Pending | — | — |
-| implementations/20261119-094420_09_docs_24_eventbus_eventbus_08_reference_api.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261119-094420_01_scripts_eventbus_auth.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261119-094420_02_scripts_eventbus_app.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261119-094420_04_scripts_mcp_servers_server.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261119-094420_05_tests_eventbus_test_authz_generation_ttl.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261119-094420_06_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261119-094420_07_docs_24_eventbus_eventbus_05_dlq_offsets_and_delivery_semantics.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261119-094420_08_registry_manifests_eventbus_api.yaml.md | 5 | Procedure | Completed | — | — |
+| implementations/20261119-094420_09_docs_24_eventbus_eventbus_08_reference_api.md.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

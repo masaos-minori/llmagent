@@ -58,8 +58,8 @@ N/A: the middleware only injects X-Request-Id; authentication stays in the route
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename the import entry and the call | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rename the import entry and the call | Completed | 20261119-100101 | 20261119-100153 | Step 2 stale check clean; app.py clean at baseline Changed: scripts/eventbus/app.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261119-100153 | 20261119-102738 | ruff, mypy, lint-imports, bandit pass; 76 targeted tests pass; full suite once at end of unit End of unit: full suite 12898 passed 7 skipped (not integration/production_paths_allowed/repo_scan); diff-cover 100%; ADR-cited tests 52 passed; validation gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

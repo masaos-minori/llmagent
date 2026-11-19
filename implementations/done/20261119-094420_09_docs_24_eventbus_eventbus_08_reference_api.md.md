@@ -57,8 +57,8 @@ N/A: derived artifact.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify the regenerated block, re-run the generator only if it differs | Pending | — | — | |
-| 2 | Run the drift check and the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Verify the regenerated block, re-run the generator only if it differs | Completed | 20261119-100634 | 20261119-100634 | Changed: docs/24_eventbus/eventbus_08_reference_api.md (guarded block re-rendered by the seq 08 run; text outside the guard comments unchanged) |
+| 2 | Run the drift check and the documentation checkers named in `routing.md` Tools | Completed | 20261119-100634 | 20261119-100634 | Drift check and docs checkers pass: quality, structure, content-policy strict, japanese, consistency eventbus |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

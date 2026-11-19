@@ -84,9 +84,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit principal build, resolve_principal, get_auth_token, and the middleware function | Pending | — | — | |
-| 2 | Update the companion test import and call | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Edit principal build, resolve_principal, get_auth_token, and the middleware function | Completed | 20261119-095928 | 20261119-100050 | Step 2 stale check clean; baseline git status clean Changed: scripts/eventbus/auth.py, tests/eventbus/test_eventbus_auth.py |
+| 2 | Update the companion test import and call | Completed | 20261119-100050 | 20261119-100153 | Companion test import/call renamed. Allowed red (release unit): test_eventbus_auth.py errors at import because scripts/eventbus/app.py still imports the old name (seq 02 changes it); test_admin_token_grants_control_plane_roles_only passes After seq 02: test_eventbus_auth, app_isolation, startup pass (76 passed); the earlier red is resolved |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261119-100050 | 20261119-102738 | ruff, bandit, lint-imports pass; mypy: 1 allowed red in app.py attributed to seq 02. Full suite runs once at end of unit After seq 02: mypy clean (571 files) End of unit: full suite 12898 passed 7 skipped (not integration/production_paths_allowed/repo_scan); diff-cover 100%; ADR-cited tests 52 passed; validation gates pass; lint-imports 6 kept; bandit clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

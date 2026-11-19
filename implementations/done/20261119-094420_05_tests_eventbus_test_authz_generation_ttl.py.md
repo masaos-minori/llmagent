@@ -65,8 +65,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the three characterization tests | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the three characterization tests | Completed | 20261119-100257 | 20261119-100341 | Step 2 stale check clean; test file clean at baseline Changed: tests/eventbus/test_authz_generation_ttl.py (3 tests, +98 lines). Verified on unchanged code: (a) baseline hash ignores expiries; (b) carried-over pair keeps its expiry and ttl applies only to newly granted pairs; (c) sweep removes a re-granted baseline pair from runtime only and restart restores it with empty expiries. No defect found |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261119-100341 | 20261119-102738 | 12 passed (random and fixed order); ruff, mypy pass; full suite once at end of batch End of unit: full suite 12898 passed 7 skipped (not integration/production_paths_allowed/repo_scan); diff-cover 100%; ADR-cited tests 52 passed; validation gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

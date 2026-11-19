@@ -125,9 +125,9 @@ def attach_auth_middleware(
     with an empty auth_token before this middleware would ever run for a real
     Agent-managed server.
 
-    Unlike eventbus.auth.attach_auth_middleware, which injects only X-Request-Id and
-    performs no authentication, this function authenticates a Bearer token and fails
-    closed on an empty token.
+    Unlike eventbus.auth.attach_request_id_middleware, which injects only
+    X-Request-Id and performs no authentication, this function authenticates a
+    Bearer token and fails closed on an empty token.
     """
     from fastapi import Request  # noqa: F401 — used in closure type annotations below
     from fastapi.responses import JSONResponse

@@ -229,7 +229,7 @@ DLQ promotion is gated on the per-consumer `consumer_delivery_failure_count`. Pr
    - A fresh UUID v4 `event_id`
    - `redelivered_from` set to the original `event_id`
 
-The original row keeps its `dlq_at`, so only one requeue succeeds per original event; a second requeue returns HTTP 409. The requeue handler does not archive the DLQ JSON file and does not publish to `EventBroker`. Subscribers receive the new row through the existing `seq > since_seq` replay path in the subscribe endpoint.
+The original row keeps its `dlq_at`, so only one requeue succeeds per original event; a second requeue returns HTTP 409. The requeue handler does not archive the DLQ JSON file and does not publish to `EventBroker`. Subscribers receive the new row through the existing `seq > since_seq` replay path in the subscribe endpoint. A successful requeue response carries `"delivery": "replay"`, which states that the requeued row reaches consumers through the replay path and is not pushed through `EventBroker`; see `eventbus_09_publish_durability.md`, section "Requeue Delivery Semantics".
 
 ## Consumer Offset
 

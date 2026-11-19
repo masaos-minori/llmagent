@@ -59,7 +59,7 @@ def _make_test_app(
     from eventbus import app as eb_app
     from eventbus.auth import (
         Principal,
-        attach_auth_middleware,
+        attach_request_id_middleware,
         current_generation,
     )
     from eventbus.config import EventBusConfig
@@ -126,7 +126,7 @@ def _make_test_app(
             }
         )
 
-    attach_auth_middleware(local_app)
+    attach_request_id_middleware(local_app)
 
     from eventbus.ack_route import router as ack_router
     from eventbus.admin_route import router as admin_router

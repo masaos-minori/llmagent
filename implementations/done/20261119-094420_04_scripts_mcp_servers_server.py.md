@@ -55,8 +55,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update and re-wrap the docstring sentence | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update and re-wrap the docstring sentence | Completed | 20261119-100200 | 20261119-100222 | Step 2 stale check clean; server.py clean at baseline Changed: scripts/mcp_servers/server.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261119-100222 | 20261119-102738 | ruff pass; test_mcp_server_base passes; full suite once at end of unit End of unit: full suite 12898 passed 7 skipped (not integration/production_paths_allowed/repo_scan); diff-cover 100%; ADR-cited tests 52 passed; validation gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

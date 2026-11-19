@@ -64,13 +64,12 @@ Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` t
 |  | `build_and_publish_generation` | `def build_and_publish_generation(config) -> None` | Build the principals map and publish it as a new AuthzGeneration. |
 |  | `publish_generation` | `def publish_generation(new_generation) -> None` | Atomically publish a fully built AuthzGeneration. |
 |  | `current_generation` | `def current_generation() -> AuthzGeneration \| None` | Return the AuthzGeneration in force, or None before the baseline publishes. |
-|  | `get_auth_token` | `def get_auth_token(config) -> str` | Return the auth_token from EventBusConfig, or raise ValueError if missing. |
 |  | `resolve_principal` | `async def resolve_principal(request, credentials) -> Principal` | Resolve a bearer token to a Principal, or raise 401. |
 |  | `require_role` | `def require_role(role)` | FastAPI dependency factory: verify caller's principal has the required role. |
 |  | `authorize_consumer_access` | `def authorize_consumer_access(request, principal, consumer_id, topics) -> None` | Raise HTTP 403 unless every (consumer_id, topic) pair is granted. |
 |  | `effective_topics` | `def effective_topics(principal, consumer_id, requested) -> list[str]` | Return the requested topics, or the consumer's granted topics when none. |
 |  | `require_consumer_identity` | `async def require_consumer_identity(request, consumer_id, topics, principal) -> Principal` | FastAPI dependency: verify caller is authorized for consumer_id and topics. |
-|  | `attach_auth_middleware` | `def attach_auth_middleware(app) -> None` | Register X-Request-Id middleware on a FastAPI app. |
+|  | `attach_request_id_middleware` | `def attach_request_id_middleware(app) -> None` | Register X-Request-Id middleware on a FastAPI app. |
 | `scripts/eventbus/authz_ttl.py` | `sweep_expired_authorizations` | `def sweep_expired_authorizations(app, clock) -> AuthzGeneration \| None` | Run one expiry cycle; return the published removal generation, or None. |
 |  | `authz_sweep_loop` | `async def authz_sweep_loop(app, clock) -> None` | Periodically sweep expired authorization grants (mirrors _dlq_loop). |
 | `scripts/eventbus/broker.py` | `ConsumerAlreadyConnectedError` | `class ConsumerAlreadyConnectedError` | Raised when a second connection attempts the same non-empty consumer_id. |

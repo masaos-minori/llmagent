@@ -93,11 +93,6 @@ entries:
   signature: def current_generation() -> AuthzGeneration | None
   summary: Return the AuthzGeneration in force, or None before the baseline publishes.
 - file: scripts/eventbus/auth.py
-  kind: function
-  name: get_auth_token
-  signature: def get_auth_token(config) -> str
-  summary: Return the auth_token from EventBusConfig, or raise ValueError if missing.
-- file: scripts/eventbus/auth.py
   kind: async function
   name: resolve_principal
   signature: async def resolve_principal(request, credentials) -> Principal
@@ -127,8 +122,8 @@ entries:
   summary: 'FastAPI dependency: verify caller is authorized for consumer_id and topics.'
 - file: scripts/eventbus/auth.py
   kind: function
-  name: attach_auth_middleware
-  signature: def attach_auth_middleware(app) -> None
+  name: attach_request_id_middleware
+  signature: def attach_request_id_middleware(app) -> None
   summary: Register X-Request-Id middleware on a FastAPI app.
 - file: scripts/eventbus/authz_ttl.py
   kind: function

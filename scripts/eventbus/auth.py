@@ -102,7 +102,6 @@ _PER_ROLE_TOKEN_FIELDS: tuple[tuple[str, Role], ...] = (
     ("consumer_token", Role.CONSUMER),
     ("operator_token", Role.OPERATOR),
     ("monitoring_token", Role.MONITORING),
-    ("admin_token", Role.ADMIN),
 )
 
 
@@ -261,18 +260,6 @@ def current_generation() -> AuthzGeneration | None:
     return _CURRENT_GENERATION
 
 
-def get_auth_token(config: Any) -> str:
-    """Return the auth_token from EventBusConfig, or raise ValueError if missing."""
-    token = config.auth_token
-    if not token:
-        raise ValueError(
-            "auth_token is required but not configured. "
-            "Add auth_token to config/eventbus.toml before starting."
-        )
-    assert isinstance(token, str), f"Expected str, got {type(token).__name__}"
-    return token
-
-
 async def resolve_principal(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(HTTPBearerDep),
@@ -286,14 +273,6 @@ async def resolve_principal(
         )
 
     token = credentials.credentials
-    config = request.app.state.config
-
-    try:
-        get_auth_token(config)  # fail-closed: 500 if unconfigured
-    except ValueError:
-        raise HTTPException(
-            status_code=500, detail="Server misconfiguration: auth_token not configured"
-        )
 
     generation = current_generation()
     principals = generation.principals if generation is not None else {}
@@ -447,7 +426,7 @@ async def require_consumer_identity(
     return principal
 
 
-def attach_auth_middleware(app: Any) -> None:
+def attach_request_id_middleware(app: Any) -> None:
     """Register X-Request-Id middleware on a FastAPI app.
 
     Authentication is delegated to endpoint dependencies via resolve_principal().

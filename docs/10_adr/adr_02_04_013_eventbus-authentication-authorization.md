@@ -43,7 +43,7 @@ EventBus routes in `scripts/eventbus/` are intended to authenticate callers by B
 
 ### Current State
 
-`attach_auth_middleware(app)` (request-ID assignment only) is attached in `scripts/eventbus/app.py`. Each route is registered once, by its route module's router, with `Depends(require_role(...))` on that handler. Consumer routes (/subscribe, /ack, /nack) also authorize the `(consumer_id, topic)` pair: /subscribe in a dependency, /ack and /nack in the handler.
+`attach_request_id_middleware(app)` (request-ID assignment only) is attached in `scripts/eventbus/app.py`. Each route is registered once, by its route module's router, with `Depends(require_role(...))` on that handler. Consumer routes (/subscribe, /ack, /nack) also authorize the `(consumer_id, topic)` pair: /subscribe in a dependency, /ack and /nack in the handler.
 
 ### Constraints
 
@@ -66,7 +66,7 @@ The EventBus is intentionally kept in service (keep decision recorded in `adr_02
 
 ### Decision Details
 
-1. **Authentication mechanism**: Bearer token, resolved per route by FastAPI dependencies (`resolve_principal`, `require_role(...)`, `require_consumer_identity`): a missing or unknown token is rejected with 401, and a valid token that lacks the route's role or binding is rejected with 403. The HTTP middleware attached by `attach_auth_middleware()` only assigns `X-Request-Id`. Two kinds of token are accepted: the shared `auth_token` and `admin_token`, which hold only the control-plane roles Operator, Monitoring, and Admin (no Publisher role and no Consumer role), and per-role tokens (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role). A caller's roles are resolved from *which* configured token it presented (the token→principal map of the published generation snapshot in `scripts/eventbus/auth.py`, read via `current_generation()`), not merely from having presented *a* valid token. Server-side authorization does not depend on how tokens are distributed.
+1. **Authentication mechanism**: Bearer token, resolved per route by FastAPI dependencies (`resolve_principal`, `require_role(...)`, `require_consumer_identity`): a missing or unknown token is rejected with 401, and a valid token that lacks the route's role or binding is rejected with 403. The HTTP middleware attached by `attach_request_id_middleware()` only assigns `X-Request-Id`. Two kinds of token are accepted: the shared `auth_token` and `admin_token`, which hold only the control-plane roles Operator, Monitoring, and Admin (no Publisher role and no Consumer role), and per-role tokens (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role). A caller's roles are resolved from *which* configured token it presented (the token→principal map of the published generation snapshot in `scripts/eventbus/auth.py`, read via `current_generation()`), not merely from having presented *a* valid token. Server-side authorization does not depend on how tokens are distributed.
 2. **Authorization model**: Five roles — publisher, consumer, operator, monitoring, admin — each granted a fixed subset of routes:
    - Publisher: POST `/publish`
    - Consumer: GET `/subscribe`, POST `/events/{event_id}/ack`, POST `/nack`
@@ -114,8 +114,8 @@ The EventBus is intentionally kept in service (keep decision recorded in `adr_02
 
 ### Scope
 
-- **Components**: `scripts/eventbus/auth.py`, `scripts/eventbus/app.py`, `scripts/eventbus/subscribe_route.py`, `scripts/eventbus/ack_route.py`, `scripts/eventbus/dlq_route.py`, `scripts/eventbus/replay_route.py`, `scripts/eventbus/config.py`, `scripts/eventbus/audit.py`
-- **Tests**: `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`, `tests/eventbus/test_eventbus_consumer_authorization.py`
+- **Components**: `scripts/eventbus/auth.py`, `scripts/eventbus/app.py`, `scripts/eventbus/subscribe_route.py`, `scripts/eventbus/ack_route.py`, `scripts/eventbus/dlq_route.py`, `scripts/eventbus/replay_route.py`, `scripts/eventbus/config.py`, `scripts/eventbus/audit.py`, `scripts/eventbus/admin_route.py`, `scripts/eventbus/authz_ttl.py`
+- **Tests**: `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`, `tests/eventbus/test_eventbus_consumer_authorization.py`, `tests/eventbus/test_admin_topics_authorization.py`, `tests/eventbus/test_authz_generation_ttl.py`
 - **Documentation**: `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`, `docs/91_security/security_01_architecture-and-trust-boundaries.md`
 
 ### Out of Scope
@@ -267,6 +267,8 @@ See Implementation References for the current file/symbol list.
 
 A Consumer principal holds explicit (consumer_id, topic) grants built from `consumer_authorization`; a pair that is not listed is rejected with HTTP 403. A subscribe request without `topic` is narrowed to the topics granted to its `consumer_id`.
 
+TTL behavior is pinned by `tests/eventbus/test_authz_generation_ttl.py`. The baseline hash covers only the `(consumer_id, topic)` pairs, so expiries never change it. Expiries live only in the in-force generation, so a restart publishes the baseline with none. An update keeps the expiry of a pair it carries over, and `ttl_seconds` applies only to pairs it newly grants. The sweep changes runtime state only: a pair that `config/eventbus.toml` lists, removed and re-granted with a TTL, is removed at expiry and returns on restart.
+
 ## Known Deviations
 
 Not applicable
@@ -303,13 +305,15 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Implementation References
 
-- `scripts/eventbus/auth.py` — `attach_auth_middleware()`, `require_role()`, `require_consumer_identity()`
+- `scripts/eventbus/auth.py` — `attach_request_id_middleware()`, `require_role()`, `require_consumer_identity()`
 - `scripts/eventbus/audit.py` — `AuditRecord`, `AuthzChangeRecord`, `log_auth_failure()`, `log_privileged_action()`, `log_authorization_change()`
+- `scripts/eventbus/admin_route.py` — `update_topics_authorization()`
+- `scripts/eventbus/authz_ttl.py` — `sweep_expired_authorizations()`, `authz_sweep_loop()`
 - `scripts/mcp_servers/server.py` — `attach_auth_middleware()` (precedent pattern)
 - `scripts/mcp_servers/audit.py` — `AuditRecord` (precedent pattern)
 - `scripts/eventbus/app.py` — request-ID middleware registration and route dependencies
 - `scripts/eventbus/config.py` — fail-closed validation
-- Tests — `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`
+- Tests — `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`, `tests/eventbus/test_admin_topics_authorization.py`, `tests/eventbus/test_authz_generation_ttl.py`
 
 ## Completion Checklist
 

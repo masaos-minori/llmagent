@@ -68,8 +68,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the ADR sections listed in Procedure | Pending | — | — | |
-| 2 | Run the documentation and ADR checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Edit the ADR sections listed in Procedure | Completed | 20261119-100407 | 20261119-100524 | Step 2 stale check clean; ADR clean at baseline Changed: docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md. Decision-reference re-check: all 7 references resolve (UNK-08 not reproduced, no fix needed). TTL note trimmed to stay under the 32768-byte limit |
+| 2 | Run the documentation and ADR checkers named in `routing.md` Tools | Completed | 20261119-100524 | 20261119-102738 | Docs checkers pass (quality, structure, content-policy strict, japanese, consistency eventbus, adr structure/reference/matrix/authority). check_adr_preservation: only expected Implementation References findings plus a Decision wording warning from the symbol rename. ADR-cited tests run once at end of batch End of unit: full suite 12898 passed 7 skipped (not integration/production_paths_allowed/repo_scan); diff-cover 100%; ADR-cited tests 52 passed; validation gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

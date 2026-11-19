@@ -247,6 +247,31 @@ class TestTTLExpirySweep:
         assert eb_app.app.state.config is config_before
         assert current_principals() is map_before
 
+    def test_carried_over_pair_keeps_expiry(self, gen_client: TestClient) -> None:
+        """A pair an update carries over keeps its expiry; ttl_seconds applies
+        only to the pairs that update newly grants."""
+        first = post_topics_authorization(
+            gen_client,
+            {"consumer_authorization": {"c1": ["keep-a"]}},
+            ttl_seconds=3600,
+            headers=ADMIN_AUTH,
+        )
+        assert first.status_code == 200
+        granted = _require_generation()
+        (expiry_entry,) = granted.expiries
+        assert expiry_entry[:2] == ("c1", "keep-a")
+
+        second = post_topics_authorization(
+            gen_client,
+            {"consumer_authorization": {"c1": ["keep-a", "keep-b"]}},
+            headers=ADMIN_AUTH,
+        )
+        assert second.status_code == 200
+        updated = _require_generation()
+        assert updated.generation == granted.generation + 1
+        assert updated.expiries == frozenset({expiry_entry})
+        assert ("c1", "keep-b") in current_principals()[CONSUMER_TOKEN].consumer_grants
+
 
 class TestRestartBaselineAudit:
     def test_startup_emits_one_authz_baseline_record(
@@ -297,6 +322,54 @@ class TestRestartBaselineAudit:
             assert gen.baseline_hash == authorization_baseline_hash(cfg)
             assert gen.expiries == frozenset()
 
+    def test_runtime_only_removal_is_restored_by_restart(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The sweep changes runtime state only: a pair the TOML baseline lists,
+        removed and re-granted with a TTL, is gone after expiry and returns
+        with the baseline when the application restarts."""
+        from eventbus import app as eb_app
+
+        cfg = eventbus_test_config(tmp_path)
+        monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+        schema_path = (
+            Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+        )
+        monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
+        monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
+        baseline_pair = ("c1", "t")
+        assert baseline_pair[1] in cfg.consumer_authorization[baseline_pair[0]]
+
+        with TestClient(eb_app.app) as client:
+            removed = post_topics_authorization(
+                client,
+                {"consumer_authorization": {"c1": ["restore-other"]}},
+                headers=ADMIN_AUTH,
+            )
+            assert removed.status_code == 200
+            granted = post_topics_authorization(
+                client,
+                {"consumer_authorization": {"c1": ["restore-other", "t"]}},
+                ttl_seconds=3600,
+                headers=ADMIN_AUTH,
+            )
+            assert granted.status_code == 200
+            clock, advance = injectable_clock(start=granted.json()["effective_at"])
+            advance(3601)
+            assert sweep_expired_authorizations(client.app, clock) is not None
+
+            grants = current_principals()[CONSUMER_TOKEN].consumer_grants
+            assert baseline_pair not in grants
+            assert ("c1", "restore-other") in grants
+            assert "t" in cfg.consumer_authorization["c1"]
+
+        with TestClient(eb_app.app):
+            gen = _require_generation()
+            grants = current_principals()[CONSUMER_TOKEN].consumer_grants
+            assert baseline_pair in grants
+            assert ("c1", "restore-other") not in grants
+            assert gen.expiries == frozenset()
+
 
 class TestBaselineHashInvariance:
     def test_permuted_pair_sets_hash_equal(self, tmp_path: Path) -> None:
@@ -317,3 +390,28 @@ class TestBaselineHashInvariance:
         )
         assert authorization_baseline_hash(cfg_a) == authorization_baseline_hash(cfg_b)
         assert authorization_baseline_hash(cfg_a) == authorization_baseline_hash(cfg_c)
+
+    def test_ttl_expiries_do_not_change_baseline_hash(
+        self, gen_client: TestClient
+    ) -> None:
+        """The baseline hash covers the pairs only: the same pairs hash alike
+        whether the generation carries expiries or none."""
+        mapping = {"c1": ["hash-topic"]}
+        with_ttl = post_topics_authorization(
+            gen_client,
+            {"consumer_authorization": mapping},
+            ttl_seconds=3600,
+            headers=ADMIN_AUTH,
+        )
+        assert with_ttl.status_code == 200
+        ttl_generation = _require_generation()
+        assert ttl_generation.expiries
+
+        for step in ({"c1": ["other-topic"]}, mapping):
+            resp = post_topics_authorization(
+                gen_client, {"consumer_authorization": step}, headers=ADMIN_AUTH
+            )
+            assert resp.status_code == 200
+        plain_generation = _require_generation()
+        assert plain_generation.expiries == frozenset()
+        assert plain_generation.baseline_hash == ttl_generation.baseline_hash

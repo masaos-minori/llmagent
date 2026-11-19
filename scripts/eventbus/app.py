@@ -17,7 +17,7 @@ from eventbus.ack_route import router as ack_router
 from eventbus.admin_route import router as admin_router
 from eventbus.audit import log_privileged_action
 from eventbus.auth import (
-    attach_auth_middleware,  # noqa: PLC0415 — new module
+    attach_request_id_middleware,  # noqa: PLC0415 — new module
     build_and_publish_generation,  # noqa: PLC0415 — new module
     current_generation,
 )
@@ -223,7 +223,7 @@ async def _dlq_loop(app: FastAPI) -> None:
 
 
 app = FastAPI(lifespan=lifespan)
-attach_auth_middleware(app)
+attach_request_id_middleware(app)
 app.include_router(health_router)
 app.include_router(publish_router)
 app.include_router(replay_router)

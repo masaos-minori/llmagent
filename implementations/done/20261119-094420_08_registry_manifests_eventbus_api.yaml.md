@@ -60,8 +60,8 @@ N/A: derived artifact.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run the generator for the eventbus domain | Pending | — | — | |
-| 2 | Run the drift check and review the diff | Pending | — | — | |
+| 1 | Run the generator for the eventbus domain | Completed | 20261119-100555 | 20261119-100634 | Step 2 stale check clean; manifest and reference block clean at baseline; seq 01, 02, 04 applied Changed: registry/manifests/eventbus_api.yaml (generated with --type eventbus --manifests; eventbus_route_roles.yaml content unchanged) |
+| 2 | Run the drift check and review the diff | Completed | 20261119-100634 | 20261119-100634 | generate_reference_table.py --check: no drift; diff = get_auth_token entry removed, attach_auth_middleware renamed; only the two expected files changed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
