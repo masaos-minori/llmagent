@@ -5,13 +5,15 @@ baseline audit. Deterministic under the injected clock — no wall-clock sleeps.
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from eventbus.auth import AuthzGeneration, current_generation
-from eventbus.authz_ttl import sweep_expired_authorizations
+from eventbus.authz_ttl import authz_sweep_loop, sweep_expired_authorizations
 from eventbus.config import authorization_baseline_hash
 from fastapi.testclient import TestClient
 
@@ -288,7 +290,6 @@ class TestRestartBaselineAudit:
         schema_path = (
             Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
         )
-        monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
         monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
         with patch("eventbus.app.log_privileged_action") as mock_log:
@@ -335,7 +336,6 @@ class TestRestartBaselineAudit:
         schema_path = (
             Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
         )
-        monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
         monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
         baseline_pair = ("c1", "t")
         assert baseline_pair[1] in cfg.consumer_authorization[baseline_pair[0]]
@@ -415,3 +415,42 @@ class TestBaselineHashInvariance:
         plain_generation = _require_generation()
         assert plain_generation.expiries == frozenset()
         assert plain_generation.baseline_hash == ttl_generation.baseline_hash
+
+
+class TestSweepLoopState:
+    @staticmethod
+    def _run_one_cycle(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sweep: Any
+    ) -> Any:
+        """Run authz_sweep_loop for exactly one cycle and return its app state."""
+        app = SimpleNamespace(
+            state=SimpleNamespace(config=eventbus_test_config(tmp_path))
+        )
+
+        async def _end_after_one_cycle(_seconds: float) -> None:
+            raise asyncio.CancelledError
+
+        monkeypatch.setattr("eventbus.authz_ttl.sweep_expired_authorizations", sweep)
+        monkeypatch.setattr("eventbus.authz_ttl.asyncio.sleep", _end_after_one_cycle)
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(authz_sweep_loop(app))
+        return app.state
+
+    def test_sweep_loop_records_ok_result_and_time(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        state = self._run_one_cycle(tmp_path, monkeypatch, lambda app, clock=None: None)
+
+        assert state.last_authz_sweep_result == "ok"
+        assert state.last_authz_sweep_time.endswith("Z")
+
+    def test_sweep_loop_records_failed_result_on_oserror(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _failing(app: Any, clock: Any = None) -> None:
+            raise OSError("disk unavailable")
+
+        state = self._run_one_cycle(tmp_path, monkeypatch, _failing)
+
+        assert state.last_authz_sweep_result == "failed"
+        assert state.last_authz_sweep_time.endswith("Z")

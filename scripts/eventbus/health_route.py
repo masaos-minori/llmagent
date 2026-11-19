@@ -3,6 +3,7 @@
 
 import logging
 import sqlite3
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
@@ -25,6 +26,40 @@ from eventbus.route_helpers import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _task_running(task: Any) -> bool:
+    """Return True when a background task exists and has not finished."""
+    return task is not None and not task.done()
+
+
+def _sweep_state(request: Request) -> tuple[str, str, str | None]:
+    """Return the authorization sweep task state and its last cycle result and time.
+
+    A missing task reads as stopped and a missing cycle record as not_run, so a
+    request against an app whose lifespan did not create the sweep stays total.
+    """
+    state = request.app.state
+    task_status = (
+        "running"
+        if _task_running(getattr(state, "authz_sweep_task", None))
+        else "stopped"
+    )
+    return (
+        task_status,
+        getattr(state, "last_authz_sweep_result", "not_run"),
+        getattr(state, "last_authz_sweep_time", None),
+    )
+
+
+def _sweep_reasons(task_status: str, last_result: str) -> list[str]:
+    """Return the degraded reasons for the authorization sweep state."""
+    reasons: list[str] = []
+    if task_status != "running":
+        reasons.append("authz_sweep_task_stopped")
+    if last_result == "failed":
+        reasons.append("authz_sweep_failing")
+    return reasons
 
 
 def is_ready(liveness: bool, readiness: bool) -> bool:
@@ -55,13 +90,9 @@ async def health_check(
     db_status = "ok" if db_ok else "unavailable"
 
     dlq_task_status = (
-        "running"
-        if (
-            request.app.state.dlq_task is not None
-            and not request.app.state.dlq_task.done()
-        )
-        else "stopped"
+        "running" if _task_running(request.app.state.dlq_task) else "stopped"
     )
+    sweep_task_status, sweep_result, sweep_time = _sweep_state(request)
 
     # Broker health metrics
     active_subscribers = 0
@@ -123,9 +154,10 @@ async def health_check(
         degraded_reasons.append("dlq_outbox_failed")
     if last_result == "failed":
         degraded_reasons.append("dlq_sweep_failing")
+    degraded_reasons.extend(_sweep_reasons(sweep_task_status, sweep_result))
 
     # Tiered health checks: the deployment gate is is_ready(liveness, readiness)
-    liveness = dlq_task_status == "running"
+    liveness = dlq_task_status == "running" and sweep_task_status == "running"
     readiness = db_ok
 
     overall = "ok" if not degraded_reasons else "degraded"
@@ -135,8 +167,10 @@ async def health_check(
             "status": overall,
             "db": db_status,
             "dlq_task": dlq_task_status,
+            "authz_sweep_task": sweep_task_status,
             "terminal_failed_outbox": terminal_failed,
             "last_dlq_sweep": {"result": last_result, "time": last_time},
+            "last_authz_sweep": {"result": sweep_result, "time": sweep_time},
             "active_subscribers": active_subscribers,
             "max_queue_depth": max_queue_depth,
             "slow_consumers": slow_consumers,

@@ -42,8 +42,9 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
     offset               INTEGER NOT NULL DEFAULT 0
 );
 
--- DLQ promotion outbox (dlqbox001): durable generation record for DLQ->replay
--- promotion requests. The worker consumes 'pending' rows ordered by next_attempt_at;
+-- DLQ promotion outbox (dlqbox001): durable record of the requests to generate
+-- DLQ artifacts for events promoted into the DLQ. The worker consumes 'pending'
+-- rows ordered by next_attempt_at;
 -- 'done' rows are retained as the durable generation record for reconciliation.
 -- Retention: no row is deleted automatically; growth is an accepted risk
 -- (ADR-008 Decision Detail #23).

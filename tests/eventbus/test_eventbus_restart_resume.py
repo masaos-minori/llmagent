@@ -69,7 +69,6 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
     )
-    monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     # Initialize app.state before creating TestClient
@@ -128,7 +127,6 @@ def eventbus_two_lifecycle_clients(
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
     )
-    monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     snapshots: list[tuple[Any, Any]] = []

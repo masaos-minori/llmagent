@@ -31,7 +31,6 @@ def _make_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
     )
-    monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     # TestClient's context manager runs lifespan(), which is the single state

@@ -204,8 +204,8 @@ echo "  Event Bus PID: ${EB_PID}"
 
 # --- EventBus readiness gate (REQ-004) -------------------------------------
 # Ready only when the /health body reports liveness AND readiness, both true
-# (liveness: the DLQ task is running; readiness: the database is connectable; the
-# broker is not part of the gate).
+# (liveness: the DLQ task and the authorization sweep task are running; readiness:
+# the database is connectable; the broker is not part of the gate).
 # A 503 carrying only capacity-only degraded_reasons (lock_wait_high,
 # slow_consumers_detected, query_duration_high, broker_queue_backlog_high,
 # subscribers_at_capacity) still satisfies the predicate and does NOT fail

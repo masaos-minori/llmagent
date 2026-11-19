@@ -11,7 +11,7 @@ entries:
   in_agent_toml: true
   kind: db_path
   name: workflow.sqlite
-- content_hash: 2bc19f5537678d05775e358ce2731f123fc0e506d394859ba995bd0ba6960ef7
+- content_hash: fa92efd74258c7743b6376afe488eb1a152198acba1793267c1cec799bf363fb
   kind: schema
   name: eventbus
   source: scripts/eventbus/schema.sql

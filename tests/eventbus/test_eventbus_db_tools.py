@@ -74,7 +74,7 @@ class TestEnsure:
     def test_creates_fresh_database_and_accepts_current(self, db_path: Path) -> None:
         assert db_tools.ensure() == db_path
         version, rows = _state(db_path)
-        assert version == db_tools.schema_version()
+        assert version == 0
         assert any(r[0] == "table" for r in rows)
         db_tools.ensure()
         assert _state(db_path) == (version, rows)
@@ -166,13 +166,9 @@ class TestVerifyAndRotate:
 
 
 class TestCli:
-    def test_path_and_version(
-        self, db_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_path(self, db_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         assert db_tools.main(["path"]) == 0
         assert capsys.readouterr().out.strip() == str(db_path)
-        assert db_tools.main(["version"]) == 0
-        assert capsys.readouterr().out.strip() == str(db_tools.schema_version())
 
     def test_ensure_then_verify_then_rotate(
         self, db_path: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]

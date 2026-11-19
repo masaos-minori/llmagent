@@ -133,12 +133,6 @@ def _build_principal_map(config: Any) -> dict[str, Principal]:
     design with a single Principal-based lookup table.
     """
 
-    # Helper to compute token fingerprint for logging
-    def _fingerprint(token: str) -> str:
-        import hashlib
-
-        return hashlib.sha256(token.encode()).hexdigest()[:16]
-
     # Duplicate-non-empty-token guard: reject any two distinct token
     # fields that share a non-empty value before the principal map is built. Name
     # the colliding fields only; never interpolate or log the values.
@@ -173,7 +167,7 @@ def _build_principal_map(config: Any) -> dict[str, Principal]:
         new_map[config.auth_token] = Principal(
             roles=_CONTROL_PLANE_ROLES,
             consumer_grants=frozenset(),
-            token_fingerprint=_fingerprint(config.auth_token),
+            token_fingerprint=_derive_token_fingerprint(config.auth_token),
         )
 
     # consumer_authorization is expanded into explicit (consumer_id, topic)
@@ -205,7 +199,7 @@ def _build_principal_map(config: Any) -> dict[str, Principal]:
         new_map[token] = Principal(
             roles=frozenset({role}),
             consumer_grants=consumer_grants if role == Role.CONSUMER else frozenset(),
-            token_fingerprint=_fingerprint(token),
+            token_fingerprint=_derive_token_fingerprint(token),
         )
 
     # admin_token holds the same control-plane roles as auth_token and no Consumer role.
@@ -214,7 +208,7 @@ def _build_principal_map(config: Any) -> dict[str, Principal]:
         new_map[admin_token] = Principal(
             roles=_CONTROL_PLANE_ROLES,
             consumer_grants=frozenset(),
-            token_fingerprint=_fingerprint(admin_token),
+            token_fingerprint=_derive_token_fingerprint(admin_token),
         )
 
     return new_map

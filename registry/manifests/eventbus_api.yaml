@@ -222,11 +222,6 @@ entries:
   summary: Return the canonical DDL text of ``scripts/eventbus/schema.sql``.
 - file: scripts/eventbus/db_tools.py
   kind: function
-  name: schema_version
-  signature: def schema_version() -> int
-  summary: Return the ``PRAGMA user_version`` the canonical DDL produces.
-- file: scripts/eventbus/db_tools.py
-  kind: function
   name: ensure
   signature: def ensure(db_path) -> Path
   summary: Create the database when absent, or validate it when present.

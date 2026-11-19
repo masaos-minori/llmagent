@@ -264,10 +264,10 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 ### Runtime Monitoring
 
-- Health Check: DB connection state, DLQ task state, Broker queue backlog, Slow Consumer detection
+- Health Check: DB connection state, DLQ task state, authorization sweep task state, Broker queue backlog, Slow Consumer detection
 - Metrics: Event publish count, ACK count, NACK count, DLQ promotion count
 - Logs: Event publish events, ACK events, NACK events, DLQ events
-- Alert conditions: `db_unavailable`, `dlq_task_stopped`, `broker_queue_backlog_high`, `slow_consumers_detected`
+- Alert conditions: `db_unavailable`, `dlq_task_stopped`, `authz_sweep_task_stopped`, `authz_sweep_failing`, `broker_queue_backlog_high`, `slow_consumers_detected`
 - Degraded condition: failure of a dependency
 
 ### Manual Review

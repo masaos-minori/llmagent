@@ -22,6 +22,7 @@ from eventbus.auth import (
     publish_generation,
 )
 from eventbus.config import authorization_baseline_hash
+from eventbus.json_utils import now_iso
 from eventbus.route_helpers import app_get_config
 
 logger = logging.getLogger(__name__)
@@ -136,8 +137,11 @@ async def authz_sweep_loop(app: Any, clock: Callable[[], float] = time.time) -> 
             cfg = app_get_config(app)
             interval = cfg.authz_sweep_interval_seconds
             sweep_expired_authorizations(app, clock)
+            app.state.last_authz_sweep_result = "ok"
         except asyncio.CancelledError:
             raise
         except (OSError, ValueError) as exc:
             logger.warning("authz_sweep: cycle failed: %s", exc)
+            app.state.last_authz_sweep_result = "failed"
+        app.state.last_authz_sweep_time = now_iso()
         await asyncio.sleep(interval)

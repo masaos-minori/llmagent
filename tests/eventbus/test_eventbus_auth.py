@@ -91,7 +91,6 @@ def _make_test_app(
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
     )
-    eb_app._ENVELOPE_SCHEMA_PATH = schema_path
     eb_app.get_schema_path = lambda: schema_path
 
     local_app = FastAPI()

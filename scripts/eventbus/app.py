@@ -60,7 +60,6 @@ from eventbus.subscribe_route import router as subscribe_router
 logger = logging.getLogger(__name__)
 
 
-_ENVELOPE_SCHEMA_PATH = Path("/opt/llm/schemas/event_envelope.json")
 _DLQ_INTERVAL = 60.0
 _SHUTDOWN_DB_LOCK_TIMEOUT_SECONDS = 5.0
 
@@ -95,6 +94,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # /health request before the first cycle reads 'not_run' instead of failing.
     app.state.last_dlq_cycle_result = "not_run"
     app.state.last_dlq_cycle_time = None
+    # Last authorization sweep cycle outcome and time, reported by /health.
+    app.state.last_authz_sweep_result = "not_run"
+    app.state.last_authz_sweep_time = None
     app.state.dlq_task = asyncio.create_task(_dlq_loop(app))
     app.state.authz_sweep_task = asyncio.create_task(authz_sweep_loop(app))
     if _is_public_host(app.state.config.host):
@@ -111,6 +113,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     await _shutdown_lifespan(app)
 
 
+async def _stop_task(task: asyncio.Task[Any] | None, name: str) -> None:
+    """Cancel a background task and wait for it, whatever state it ended in.
+
+    A task that already ended with an exception re-raises it from the await; it
+    is logged here so shutdown still reaches the broker and database close.
+    """
+    if task is None:
+        return
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+    except Exception:  # noqa: BLE001 — log and continue so the broker and database still close
+        logger.exception("shutdown: %s ended with an error", name)
+
+
 async def _shutdown_lifespan(app: FastAPI) -> None:
     """Shared shutdown sequence: stop sweeps, await the in-flight sweep,
     prove exclusive ownership of the shared connection, then close it.
@@ -123,21 +142,10 @@ async def _shutdown_lifespan(app: FastAPI) -> None:
     # set_shutdown_flag() makes run_with_db_lock() refuse new DB work from
     # this point on (seq 03).
     set_shutdown_flag()
-    if app.state.dlq_task:
-        app.state.dlq_task.cancel()
-        try:
-            await app.state.dlq_task
-        except asyncio.CancelledError:
-            pass
+    await _stop_task(app.state.dlq_task, "dlq_task")
     # authz_sweep_task is set by lifespan(); tests that call this function with a
     # manually built app.state may not have it — getattr keeps shutdown total.
-    authz_sweep_task = getattr(app.state, "authz_sweep_task", None)
-    if authz_sweep_task:
-        authz_sweep_task.cancel()
-        try:
-            await authz_sweep_task
-        except asyncio.CancelledError:
-            pass
+    await _stop_task(getattr(app.state, "authz_sweep_task", None), "authz_sweep_task")
     # 2. Broker shutdown (unchanged order).
     if app.state.broker:
         app.state.broker.shutdown()

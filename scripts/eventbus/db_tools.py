@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from shared.schema_fingerprint import apply_ddl_in_memory, assert_matches
+from shared.schema_fingerprint import assert_matches
 
 from eventbus.config import get_config_path
 from eventbus.db_conn import open_db
@@ -53,20 +53,6 @@ def read_db_path() -> Path:
 def schema_sql() -> str:
     """Return the canonical DDL text of ``scripts/eventbus/schema.sql``."""
     return _SCHEMA_PATH.read_text(encoding="utf-8")
-
-
-def schema_version() -> int:
-    """Return the ``PRAGMA user_version`` the canonical DDL produces.
-
-    ``schema.sql`` no longer stamps a version, so the create path leaves a fresh
-    database at the SQLite default (0); the value is derived from an in-memory
-    apply of the DDL so it stays consistent with that path.
-    """
-    conn = apply_ddl_in_memory(schema_sql())
-    try:
-        return int(conn.execute("PRAGMA user_version").fetchone()[0])
-    finally:
-        conn.close()
 
 
 def ensure(db_path: Path | None = None) -> Path:
@@ -142,7 +128,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     rotate_parser = sub.add_parser("rotate", help="write a verified archive")
     rotate_parser.add_argument("--archive-dir", default=None)
     sub.add_parser("path", help="print the configured database path")
-    sub.add_parser("version", help="print the canonical schema version")
     args = parser.parse_args(sys.argv[1:] if argv is None else list(argv))
     try:
         if args.command == "ensure":
@@ -151,10 +136,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             sys.stdout.write(f"{verify()}\n")
         elif args.command == "rotate":
             sys.stdout.write(f"{rotate(args.archive_dir)}\n")
-        elif args.command == "path":
-            sys.stdout.write(f"{read_db_path()}\n")
         else:
-            sys.stdout.write(f"{schema_version()}\n")
+            sys.stdout.write(f"{read_db_path()}\n")
     except (ValueError, RuntimeError, OSError, sqlite3.Error) as exc:
         sys.stderr.write(f"eventbus.db_tools {args.command}: {exc}\n")
         return 1

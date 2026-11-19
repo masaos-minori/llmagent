@@ -37,7 +37,6 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
     )
-    monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     # The production lifespan starts the app and its shutdown sequence stops it.
@@ -72,6 +71,55 @@ def monitoring_client(
     monkeypatch.setattr(eb_app, "_dlq_loop", _idle_dlq_loop)
     with make_eventbus_client(tmp_path, monkeypatch, default_role="monitoring") as c:
         yield c
+
+
+@pytest.fixture
+def sweep_stub_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Return a factory for a client whose authorization sweep raises ``error``.
+
+    The stub is installed before the lifespan starts, so the first sweep cycle of
+    the production loop raises it.
+    """
+    from contextlib import contextmanager
+
+    from eventbus import app as eb_app
+    from eventbus.config import EventBusConfig
+
+    @contextmanager
+    def _start(error: Exception) -> Any:
+        def _raise(app: Any, clock: Any = None) -> None:
+            raise error
+
+        monkeypatch.setattr("eventbus.authz_ttl.sweep_expired_authorizations", _raise)
+        cfg = EventBusConfig(
+            port=8015,
+            db_path=str(tmp_path / "eventbus.sqlite"),
+            storage_dir=str(tmp_path / "storage"),
+            deadletter_dir=str(tmp_path / "deadletter"),
+            max_retry=3,
+            auth_token="test-token",
+        )
+        monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
+        schema_path = (
+            Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
+        )
+        monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
+        with TestClient(eb_app.app) as c:
+            c.headers["Authorization"] = "Bearer test-token"
+            yield c
+
+    return _start
+
+
+def _wait_for(client: TestClient, condition: Any, timeout: float = 5.0) -> None:
+    """Let the app's event loop run until ``condition()`` is true."""
+    import time
+
+    assert client.portal is not None
+    deadline = time.monotonic() + timeout
+    while not condition():
+        assert time.monotonic() < deadline, "condition not reached in time"
+        client.portal.call(asyncio.sleep, 0.01)
 
 
 def _insert_failed_outbox(db: Any) -> None:
@@ -357,6 +405,68 @@ class TestHealth:
             "/health", headers=eventbus_auth_headers("operator")
         )
         assert resp.status_code == 403
+
+
+class TestAuthzSweepHealth:
+    def test_health_reports_sweep_task_running(self, client: TestClient) -> None:
+        from eventbus import app as eb_app
+
+        _wait_for(
+            client,
+            lambda: (
+                getattr(eb_app.app.state, "last_authz_sweep_result", "not_run") == "ok"
+            ),
+        )
+        resp = client.get("/health")
+        body = resp.json()
+        assert resp.status_code == 200
+        assert body["authz_sweep_task"] == "running"
+        assert body["last_authz_sweep"]["result"] == "ok"
+        assert body["last_authz_sweep"]["time"].endswith("Z")
+        assert body["liveness"] is True
+
+    def test_health_503_when_sweep_task_stopped(self, sweep_stub_client: Any) -> None:
+        from eventbus import app as eb_app
+
+        with sweep_stub_client(RuntimeError("sweep crashed")) as c:
+            _wait_for(c, lambda: eb_app.app.state.authz_sweep_task.done())
+            resp = c.get("/health")
+            body = resp.json()
+
+        assert resp.status_code == 503
+        assert "authz_sweep_task_stopped" in body["degraded_reasons"]
+        assert body["authz_sweep_task"] == "stopped"
+        assert body["liveness"] is False
+
+    def test_health_503_when_sweep_cycle_failed(self, sweep_stub_client: Any) -> None:
+        from eventbus import app as eb_app
+
+        with sweep_stub_client(OSError("disk unavailable")) as c:
+            _wait_for(
+                c,
+                lambda: (
+                    getattr(eb_app.app.state, "last_authz_sweep_result", "not_run")
+                    != "not_run"
+                ),
+            )
+            resp = c.get("/health")
+            body = resp.json()
+
+        assert resp.status_code == 503
+        assert "authz_sweep_failing" in body["degraded_reasons"]
+        assert "authz_sweep_task_stopped" not in body["degraded_reasons"]
+        assert body["last_authz_sweep"]["result"] == "failed"
+        assert body["liveness"] is True
+
+    def test_shutdown_completes_when_sweep_task_failed(
+        self, sweep_stub_client: Any
+    ) -> None:
+        from eventbus import app as eb_app
+
+        with sweep_stub_client(RuntimeError("sweep crashed")) as c:
+            _wait_for(c, lambda: eb_app.app.state.authz_sweep_task.done())
+
+        assert eb_app.app.state.db is None
 
 
 class TestDlqLoopRecording:

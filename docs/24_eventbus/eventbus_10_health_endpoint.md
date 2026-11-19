@@ -11,7 +11,7 @@ related:
 
 ## Overview
 
-The `/health` endpoint provides real-time health status of the EventBus service, including database connectivity, broker state, and DLQ task status.
+The `/health` endpoint provides real-time health status of the EventBus service, including database connectivity, broker state, DLQ task status, and authorization sweep task status.
 
 ## Endpoint
 
@@ -33,7 +33,7 @@ Returned when all subsystems are healthy.
 
 ### Response Content
 
-The body reports overall `status` (`"ok"` or `"degraded"`), database and DLQ sweep task state, broker counters (active subscribers, maximum queue depth, slow consumers, overflow disconnects, duplicate connection rejections), `degraded_reasons` (empty when healthy) and lock-contention metrics under `metrics`. It also reports `terminal_failed_outbox` (the count of `dlq_outbox` rows in the terminal `failed` status, or `null` when the count query failed) and `last_dlq_sweep` (`{"result": "ok" | "failed" | "not_run", "time": <ISO-8601 string | null>}`), the outcome of the last background sweep cycle; the sweep state is kept in memory, so it reads `not_run` until the first cycle after a start. The exact schema is in `scripts/eventbus/health_route.py`.
+The body reports overall `status` (`"ok"` or `"degraded"`), database and DLQ sweep task state, broker counters (active subscribers, maximum queue depth, slow consumers, overflow disconnects, duplicate connection rejections), `degraded_reasons` (empty when healthy) and lock-contention metrics under `metrics`. It also reports `terminal_failed_outbox` (the count of `dlq_outbox` rows in the terminal `failed` status, or `null` when the count query failed) and `last_dlq_sweep` (`{"result": "ok" | "failed" | "not_run", "time": <ISO-8601 string | null>}`), the outcome of the last background sweep cycle; the sweep state is kept in memory, so it reads `not_run` until the first cycle after a start. The body also reports `authz_sweep_task` (`running` or `stopped`) and `last_authz_sweep` (the same `result` and `time` shape) for the authorization sweep that removes expired authorization grants, kept in memory in the same way. The exact schema is in `scripts/eventbus/health_route.py`.
 
 ## Degraded Response
 
@@ -45,7 +45,7 @@ Returned when one or more subsystems report degraded status.
 
 Same as success response, but with `status: "degraded"` and non-empty `degraded_reasons`.
 
-HTTP 503 is returned for any degraded reason, including the capacity-only reasons (`subscribers_at_capacity`, `lock_wait_high`, `query_duration_high`, `slow_consumers_detected`, `broker_queue_backlog_high`). A capacity-only 503 still has `liveness` and `readiness` true, so it satisfies the deployment readiness gate; `db_unavailable` and `dlq_task_stopped` do not.
+HTTP 503 is returned for any degraded reason, including the capacity-only reasons (`subscribers_at_capacity`, `lock_wait_high`, `query_duration_high`, `slow_consumers_detected`, `broker_queue_backlog_high`). A capacity-only 503 still has `liveness` and `readiness` true, so it satisfies the deployment readiness gate; `db_unavailable`, `dlq_task_stopped`, and `authz_sweep_task_stopped` do not.
 
 ### Possible Degraded Reasons
 
@@ -55,6 +55,8 @@ HTTP 503 is returned for any degraded reason, including the capacity-only reason
 | `dlq_task_stopped` | DLQ sweep background task has stopped |
 | `dlq_outbox_failed` | Terminal-failed `dlq_outbox` rows exist (`terminal_failed_outbox` is greater than zero) |
 | `dlq_sweep_failing` | The last background sweep cycle failed (`last_dlq_sweep.result` is `"failed"`) |
+| `authz_sweep_task_stopped` | The authorization sweep background task has stopped; expired authorization grants stay active until the service restarts |
+| `authz_sweep_failing` | The last authorization sweep cycle failed (`last_authz_sweep.result` is `"failed"`) |
 | `broker_unavailable` | The event broker is not initialized |
 | `broker_queue_backlog_high` | Queue backlog exceeds `backlog_health_threshold` |
 | `slow_consumers_detected` | One or more slow consumers detected |
@@ -68,10 +70,10 @@ The response includes two boolean health-tier fields:
 
 | Field | Meaning |
 |-------|---------|
-| `liveness` | The DLQ sweep task is running (EventBus-specific; not the MCP server process-state flag described in [mcp_02_02](mcp_02_02_startup-modes-and-health.md)) |
+| `liveness` | The DLQ sweep task and the authorization sweep task are both running (EventBus-specific; not the MCP server process-state flag described in [mcp_02_02](mcp_02_02_startup-modes-and-health.md)) |
 | `readiness` | The database is connectable (`check_db`) |
 
-`dlq_outbox_failed` and `dlq_sweep_failing` are real failures: each returns HTTP 503 like every other degraded reason, but neither changes `liveness` or `readiness`, so the readiness gate below still holds. They are not capacity-only reasons; they indicate stuck failed DLQ artifacts or a repeatedly failing sweep. A `null` `terminal_failed_outbox` adds no outbox reason; database connectivity is reported separately by `db_unavailable`.
+`dlq_outbox_failed`, `dlq_sweep_failing`, and `authz_sweep_failing` are real failures: each returns HTTP 503 like every other degraded reason, but none changes `liveness` or `readiness`, so the readiness gate below still holds. They are not capacity-only reasons; they indicate stuck failed DLQ artifacts or a repeatedly failing sweep. A `null` `terminal_failed_outbox` adds no outbox reason; database connectivity is reported separately by `db_unavailable`.
 
 The deployment readiness gate is `liveness and readiness` (`is_ready()` in `scripts/eventbus/health_route.py`); `deploy/setup_services.sh` reads exactly these two fields. The broker is not part of the gate. Schema integrity is checked at startup, not reported here.
 
