@@ -217,9 +217,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: rejection tests first (`tests/agent/services/test_config_reload.py`) | In Progress | — | — | Expected RED pre-change |
-| 2 | Phase 2: core wiring (`config_validators.py`, `config_field_registry.py`, `config_reload.py`, `config_section_reload.py`, fixtures in both reload test files) | In Progress | — | — | Release unit with Phase 1 |
-| 3 | Phase 3: manifest regeneration, ADR edits, full validation sequence | In Progress | — | — | After docs edits: routing.md Tools doc checkers |
+| 1 | Phase 1: rejection tests first (`tests/agent/services/test_config_reload.py`) | Completed | — | 20261119-112133 | Expected RED pre-change |
+| 2 | Phase 2: core wiring (`config_validators.py`, `config_field_registry.py`, `config_reload.py`, `config_section_reload.py`, fixtures in both reload test files) | Completed | — | 20261119-112133 | Release unit with Phase 1 |
+| 3 | Phase 3: manifest regeneration, ADR edits, full validation sequence | Completed | — | 20261119-112133 | After docs edits: routing.md Tools doc checkers |
 | 4 | Phase 4: deploy hand-off to `skills/deploy/SKILL.md` + `/reload` spot check | Pending | — | — | User decision gate; commit+push prerequisite |
 
 ### Blocker Log
@@ -230,15 +230,15 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261119-101805_01_scripts_agent_services_config_field_registry.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261119-101805_02_scripts_agent_services_config_validators.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261119-101805_03_scripts_agent_services_config_reload.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261119-101805_04_scripts_agent_services_config_section_reload.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261119-101805_05_registry_manifests_config_ownership.yaml.md | 3 | Procedure | Pending | — | — |
-| implementations/20261119-101805_06_tests_agent_services_test_config_reload.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261119-101805_07_tests_agent_commands_test_agent_cmd_config.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261119-101805_08_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261119-101805_09_docs_10_adr_adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261119-101805_01_scripts_agent_services_config_field_registry.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261119-101805_02_scripts_agent_services_config_validators.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261119-101805_03_scripts_agent_services_config_reload.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261119-101805_04_scripts_agent_services_config_section_reload.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261119-101805_05_registry_manifests_config_ownership.yaml.md | 3 | Procedure | Completed | — | — |
+| implementations/20261119-101805_06_tests_agent_services_test_config_reload.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261119-101805_07_tests_agent_commands_test_agent_cmd_config.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261119-101805_08_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261119-101805_09_docs_10_adr_adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

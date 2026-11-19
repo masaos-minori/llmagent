@@ -182,7 +182,7 @@ Do not implement authentication; prevent external exposure with Firewall restric
 ### Operational Consequences
 
 - A Health Check of each MCP server is evaluated at startup and its liveness state is tracked at runtime
-- A configuration change requires restarting the owning process
+- A configuration change requires restarting the owning process, except that fields which the config field registry (`registry/manifests/config_ownership.yaml`) lists as hot-reloadable are applied by the agent process's `/reload` without a restart; fields it lists as startup-only, and every change to an MCP server's configuration, still require restarting the owning process
 - Incident response starts from the MCP server's Health Check result and its configuration file
 
 ### Security Consequences

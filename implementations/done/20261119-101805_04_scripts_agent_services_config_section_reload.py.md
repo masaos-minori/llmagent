@@ -26,6 +26,7 @@ Update the path-split docstrings in this module so they describe `approval` as a
 3. `apply_validated_section` docstring `section_path` arg line (`:78-85`): include `approval` in the example list.
 4. `reload_validated_section` docstring and its `section_path` arg line (`:88-100`): include `approval`.
 5. `prepare_direct_section` docstring (`:115-119`) and its `section_path` arg line: `approval/memory/mcp` → `memory/mcp`.
+6. `apply_direct_section` (`section_path` arg line) and `reload_direct_fields` (docstring first line and `section_path` arg line) also list `approval` as a direct section and were missing from the original list: change `approval/memory/mcp` to `memory/mcp` and `"approval", "memory", "mcp"` to `"memory", "mcp"` there as well, so the Completion criteria hold.
 
 ### Method
 - Text-only edits; no line outside docstrings is touched.
@@ -59,8 +60,8 @@ Update the path-split docstrings in this module so they describe `approval` as a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the five docstring locations listed in Procedure | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update every docstring location listed in Procedure (items 1-6) | Completed | 20261119-105156 | 20261119-105232 | Step 2 stale check clean; Step 3b: added items for apply_direct_section and reload_direct_fields docstrings (missing from the original list); file clean at baseline Changed: scripts/agent/services/config_section_reload.py (docstrings only: 10 lines across module, prepare/apply/reload validated, prepare/apply/reload direct); diff verified docstring-only; no docstring lists approval as direct |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261119-105232 | 20261119-112102 | ruff, check_docstrings, check_module_size pass; services suite passes End of unit: full suite 12907 passed, 7 skipped, 1 unrelated failure (test_check_repo_path_equivalence: Hypothesis property test on PurePosixPath, passes alone 9/9 and in the git MCP module under xdist 418/418); diff-cover 100%; ADR-cited tests 52 passed; validation gates pass; ruff/mypy/lint-imports/bandit clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

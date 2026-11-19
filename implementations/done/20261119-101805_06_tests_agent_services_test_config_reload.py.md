@@ -14,7 +14,7 @@ Add the five rejection tests (written first, RED against current code) and conve
 
 ## Design decisions
 - Rejection tests assert all three of: `ConfigReloadValidationError` raised, the previous live value unchanged, and (for one test) an unchanged approval section survives an unrelated invalid reload (Plan Tests section).
-- The two existing dual-branch tests keep their structure; after the change they pass through their `except ConfigReloadValidationError` branch (`:663-712`), preserving the observable fail-closed assertion.
+- The two existing dual-branch tests keep their structure; after the change `test_reload_empty_allowed_root_fails_closed` passes through its `except ConfigReloadValidationError` branch (an empty root is rejected), while `test_reload_empty_allowed_tools_fails_closed` stays on its accept branch (an empty `allowed_tools` list is valid, DT-02 Option A); both keep their fail-closed assertion.
 
 ## Alternatives considered
 - Rewrite the dual-branch tests into pure rejection tests: rejected — the Plan keeps their accept-branch structure as the record of the old behavior, and the rejection branch already carries the new contract.
@@ -24,10 +24,10 @@ Add the five rejection tests (written first, RED against current code) and conve
 `tests/agent/services/test_config_reload.py`
 
 ### Procedure
-1. Phase 1 (before any code change): add to the class that owns the `svc_with_ctx` fixture five tests — `test_invalid_tool_safety_tier_rejected` (new), `test_invalid_approval_risk_level_rejected` (new), `test_empty_allowed_root_rejected` (new), `test_non_absolute_allowed_root_rejected` (new), `test_non_string_allowed_tools_entry_rejected` (new) — each: set a valid live value, call `svc.apply_config_dict` with the invalid new value, assert `ConfigReloadValidationError`, assert the live value is unchanged. `allowed_root` invalid inputs: `""` and `"/relative/path"`; `allowed_tools`: `["read_file", 42]`.
+1. Phase 1 (before any code change): add to the class that owns the `svc_with_ctx` fixture five tests — `test_invalid_tool_safety_tier_rejected` (new), `test_invalid_approval_risk_level_rejected` (new), `test_empty_allowed_root_rejected` (new), `test_non_absolute_allowed_root_rejected` (new), `test_non_string_allowed_tools_entry_rejected` (new) — each: set a valid live value, call `svc.apply_config_dict` with the invalid new value, assert `ConfigReloadValidationError`, assert the live value is unchanged. `allowed_root` invalid inputs: `""` and `"relative/path"` (a path starting with `/` is absolute, so `"/relative/path"` would not be rejected); `allowed_tools`: `["read_file", 42]`. Place the six tests in `TestConfigReloadAtomicity`, after `test_valid_reload_applies_everything`, because they assert the candidate-phase abort.
 2. Add one cross-section test — `test_unchanged_approval_survives_unrelated_invalid_reload` (new): an invalid `tool_safety_tiers` value aborts the reload while a separately changed, valid `tool`-section value is also not applied (candidate-phase abort, AC-001).
-3. Phase 2 (after seq 01/02/03 land): convert fixtures — in the module fixture builder replace `ctx.cfg.approval = MagicMock()` and its three attribute assignments (`:103-106`) with `ctx.cfg.approval = ApprovalConfig(tool_safety_tiers={}, require_approval_for=[], plan_mode_enabled=False)`; in `TestApprovalGitopsPushBlocked._make_svc` (`:718-744`) replace the `ctx.cfg.approval.*` attribute assignments with `ctx.cfg.approval = ApprovalConfig(gitops_push_blocked=gitops_push_blocked)`.
-4. Run the file: the five new tests plus `test_reload_empty_allowed_tools_fails_closed` and `test_reload_empty_allowed_root_fails_closed` (`:663-712`) pass through their rejection branches; `TestApprovalGitopsPushBlocked` (`:746-786`) still asserts application of `gitops_push_blocked` (`startup_only` report unchanged).
+3. Phase 2 (after seq 01/02/03 land): convert fixtures — in the module fixture builder replace `ctx.cfg.approval = MagicMock()` and its three attribute assignments (the `svc_with_ctx` builder) with `ctx.cfg.approval = ApprovalConfig()` — `require_approval_for` and `plan_mode_enabled` are not `ApprovalConfig` fields (a keyword argument for either raises `TypeError`) and nothing under `scripts/` reads them, so they are dropped, and `tool_safety_tiers` already defaults to `{}`; in `TestApprovalGitopsPushBlocked._make_svc` (`:718-744`) replace the `ctx.cfg.approval.*` attribute assignments with `ctx.cfg.approval = ApprovalConfig(gitops_push_blocked=gitops_push_blocked)`.
+4. Run the file: the five new tests pass, `test_reload_empty_allowed_root_fails_closed` passes through its rejection branch, and `test_reload_empty_allowed_tools_fails_closed` passes through its accept branch (an empty list is valid); `TestApprovalGitopsPushBlocked` (`:746-786`) still asserts application of `gitops_push_blocked` (`startup_only` report unchanged).
 
 ### Method
 - New tests reuse the existing `svc` / `svc_with_ctx` fixtures; no new fixture variants — the converted approval fixture serves both rejection and application tests.
@@ -54,7 +54,7 @@ Add the five rejection tests (written first, RED against current code) and conve
 | Gates | `rules/toolchain.md` sequence incl. diff-cover ≥ 90 % on the unit diff | Pass |
 
 ## Completion criteria
-- All five rejection tests and the cross-section test pass; both dual-branch tests pass via their rejection branch; `gitops_push_blocked` application tests pass with real fixtures; no test still models `ctx.cfg.approval` as a `MagicMock` while applying approval fields.
+- All five rejection tests and the cross-section test pass; the `allowed_root` dual-branch test passes via its rejection branch and the `allowed_tools` one via its accept branch; `gitops_push_blocked` application tests pass with real fixtures; no test still models `ctx.cfg.approval` as a `MagicMock` while applying approval fields.
 
 ## Out of Scope
 - Fixture conversion of `tests/agent/commands/test_agent_cmd_config.py` (seq 07 document); any production-code change.
@@ -64,10 +64,10 @@ Add the five rejection tests (written first, RED against current code) and conve
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the five rejection tests and the cross-section test (Phase 1, expect RED pre-wiring) | Pending | — | — | Must be written before seq 02/01/03 edits |
-| 2 | Convert approval fixtures to real `ApprovalConfig` (after seq 01-03 land) | Pending | — | — | REQ-006 fixture conversion |
-| 3 | Run `tests/agent/services/` and confirm rejection branches | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the five rejection tests and the cross-section test (Phase 1, expect RED pre-wiring) | Completed | 20261119-104837 | 20261119-104925 | Must be written before seq 02/01/03 edits Step 2 stale check clean. Step 3b corrections: (1) Phase 2 conversion is ApprovalConfig() - require_approval_for/plan_mode_enabled are not ApprovalConfig fields (TypeError) and have no readers; (2) allowed_tools dual-branch test stays on its accept branch (empty list valid); (3) non-absolute input is relative/path since /relative/path is absolute; (4) tests go in TestConfigReloadAtomicity. Baseline git status clean Changed: tests/agent/services/test_config_reload.py (6 tests added). Phase 1 RED confirmed: 6 failed with DID NOT RAISE ConfigReloadValidationError before any code change |
+| 2 | Convert approval fixtures to real `ApprovalConfig` (after seq 01-03 land) | Completed | 20261119-105156 | 20261119-105156 | REQ-006 fixture conversion Converted svc_with_ctx and TestApprovalGitopsPushBlocked._make_svc to real ApprovalConfig; svc fixture and the mcp-classification fixture keep MagicMock (no approval field is sent through them) |
+| 3 | Run `tests/agent/services/` and confirm rejection branches | Completed | 20261119-105156 | 20261119-105156 | test_config_reload.py 69 passed; tests/agent/services 325 passed. allowed_root dual-branch test via rejection branch, allowed_tools via accept branch |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261119-112102 | 20261119-112102 | End of unit: full suite 12907 passed, 7 skipped, 1 unrelated failure (test_check_repo_path_equivalence: Hypothesis property test on PurePosixPath, passes alone 9/9 and in the git MCP module under xdist 418/418); diff-cover 100%; ADR-cited tests 52 passed; validation gates pass; ruff/mypy/lint-imports/bandit clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

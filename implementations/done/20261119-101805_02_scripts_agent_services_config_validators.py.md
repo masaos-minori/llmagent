@@ -66,9 +66,9 @@ Add `validate_allowed_root` (new) and `validate_allowed_tools` (new) to the relo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `import os` and the two new validator functions | Pending | — | — | Lands with the release unit; seq 06 tests are written first |
-| 2 | Run the new rejection tests after seq 01/03 wiring lands | Pending | — | — | Pre-wiring they fail by design (Plan Phase 1) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `import os` and the two new validator functions | Completed | 20261119-104925 | 20261119-104950 | Lands with the release unit; seq 06 tests are written first Step 2 stale check clean; Step 3a: signatures, ApprovalConfig post-init, registry/consumer checks verified against current source; file clean at baseline Changed: scripts/agent/services/config_validators.py (import os, validate_allowed_tools, validate_allowed_root). Direct check: empty list ok; None/non-str rejected; empty/blank/relative root rejected, /opt/llm ok |
+| 2 | Run the new rejection tests after seq 01/03 wiring lands | Completed | 20261119-112102 | 20261119-112102 | Pre-wiring they fail by design (Plan Phase 1) Rejection tests pass after wiring (seq 01/03): test_config_reload.py 69 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261119-112102 | 20261119-112102 | End of unit: full suite 12907 passed, 7 skipped, 1 unrelated failure (test_check_repo_path_equivalence: Hypothesis property test on PurePosixPath, passes alone 9/9 and in the git MCP module under xdist 418/418); diff-cover 100%; ADR-cited tests 52 passed; validation gates pass; ruff/mypy/lint-imports/bandit clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -162,7 +162,7 @@ Because each process's configuration is managed independently, data corruption f
 ### Operational Consequences
 
 - The existence of each process's configuration file must be confirmed at startup
-- A configuration change requires restarting the owning process
+- A configuration change requires restarting the owning process, except that fields which the config field registry (`registry/manifests/config_ownership.yaml`) lists as hot-reloadable are applied by the agent process's `/reload` without a restart; fields it lists as startup-only, and every change to another process's configuration file, still require restarting the owning process
 - Incident response requires investigating configuration files
 
 ### Security Consequences

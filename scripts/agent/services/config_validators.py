@@ -9,6 +9,7 @@ runtime so the original API surface stays unchanged.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
@@ -140,6 +141,13 @@ def validate_progress_stagnation_window(cfg: ToolConfig) -> None:
     _require_non_negative("progress_stagnation_window", cfg.progress_stagnation_window)
 
 
+def validate_allowed_tools(cfg: ToolConfig) -> None:
+    """Validate that allowed_tools is a list of strings (an empty list is valid)."""
+    tools = cfg.allowed_tools
+    if not isinstance(tools, list) or not all(isinstance(t, str) for t in tools):
+        raise ValueError(f"allowed_tools must be a list of strings, got {tools!r}")
+
+
 def validate_memory_fts_limit(cfg: MemoryConfig) -> None:
     """Validate that memory_fts_limit is at least 1."""
     _require_at_least("memory_fts_limit", cfg.memory_fts_limit, 1)
@@ -229,6 +237,20 @@ def validate_tool_safety_tiers(cfg: ApprovalConfig) -> None:
             f"tool_safety_tiers: invalid tier values {bad_tiers};"
             " must be READ_ONLY, WRITE_SAFE, WRITE_DANGEROUS, or ADMIN"
         )
+
+
+def validate_allowed_root(cfg: ApprovalConfig) -> None:
+    """Validate that allowed_root is a non-empty absolute path.
+
+    An empty value would disable the path jail.
+    """
+    root = cfg.allowed_root
+    if not root.strip():
+        raise ValueError(
+            "allowed_root must not be empty; an empty value disables the path jail"
+        )
+    if not os.path.isabs(root):
+        raise ValueError(f"allowed_root must be an absolute path, got {root!r}")
 
 
 def validate_llm_http_timeout(cfg: LLMConfig) -> None:

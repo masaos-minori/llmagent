@@ -108,7 +108,7 @@ class ConfigReloadService:
 
         # ── Candidate phase: build + validate everything; no live mutation ──
         prepared: list[tuple[str, Any]] = []
-        for section_path in ("llm", "rag", "tool"):
+        for section_path in ("llm", "rag", "tool", "approval"):
             extra: dict[str, Any] | None = None
             if (
                 section_path == "tool"
@@ -123,7 +123,7 @@ class ConfigReloadService:
                 prepared.append((section_path, candidate))
 
         direct_changed: dict[str, dict[str, Any]] = {}
-        for section_path in ("approval", "memory", "mcp"):
+        for section_path in ("memory", "mcp"):
             changed_fields = prepare_direct_section(ctx, new_cfg, section_path)
             if changed_fields:
                 direct_changed[section_path] = changed_fields

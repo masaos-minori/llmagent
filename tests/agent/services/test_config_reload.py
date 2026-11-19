@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 from agent.config_dataclasses import (
     AgentConfig,
+    ApprovalConfig,
     LLMConfig,
     MemoryConfig,
     RAGConfig,
@@ -100,10 +101,7 @@ def svc_with_ctx() -> tuple[object, MagicMock]:
     ctx = MagicMock()
     ctx.cfg = AgentConfig(llm=llm_cfg, rag=rag_cfg, tool=tool_cfg)
     ctx.cfg.memory = MemoryConfig(memory_embed_enabled=False)
-    ctx.cfg.approval = MagicMock()
-    ctx.cfg.approval.tool_safety_tiers = {}
-    ctx.cfg.approval.require_approval_for = []
-    ctx.cfg.approval.plan_mode_enabled = False
+    ctx.cfg.approval = ApprovalConfig()
     ctx.cfg.mcp = MagicMock()
     ctx.cfg.mcp.mcp_servers = {}
     ctx.services_required = MagicMock()
@@ -294,6 +292,104 @@ class TestConfigReloadAtomicity:
         assert "rag" in outcome.applied
         assert "tool" in outcome.applied
         assert "approval" in outcome.applied
+
+    def test_invalid_tool_safety_tier_rejected(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+
+        svc, ctx = svc_with_ctx
+        before = {"read_file": "READ_ONLY"}
+        ctx.cfg.approval.tool_safety_tiers = dict(before)
+
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict(  # type: ignore[attr-defined]
+                {"tool_safety_tiers": {"read_file": "SUPERUSER"}}
+            )
+
+        assert ctx.cfg.approval.tool_safety_tiers == before
+
+    def test_invalid_approval_risk_level_rejected(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+
+        svc, ctx = svc_with_ctx
+        before = {"write_file": "high"}
+        ctx.cfg.approval.approval_risk_rules = dict(before)
+
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict(  # type: ignore[attr-defined]
+                {"approval_risk_rules": {"write_file": "extreme"}}
+            )
+
+        assert ctx.cfg.approval.approval_risk_rules == before
+
+    def test_empty_allowed_root_rejected(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+
+        svc, ctx = svc_with_ctx
+        ctx.cfg.approval.allowed_root = "/opt/llm"
+
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict({"allowed_root": ""})  # type: ignore[attr-defined]
+
+        assert ctx.cfg.approval.allowed_root == "/opt/llm"
+
+    def test_non_absolute_allowed_root_rejected(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+
+        svc, ctx = svc_with_ctx
+        ctx.cfg.approval.allowed_root = "/opt/llm"
+
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict(  # type: ignore[attr-defined]
+                {"allowed_root": "relative/path"}
+            )
+
+        assert ctx.cfg.approval.allowed_root == "/opt/llm"
+
+    def test_non_string_allowed_tools_entry_rejected(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+
+        svc, ctx = svc_with_ctx
+        ctx.cfg.tool.allowed_tools = ["read_file"]
+
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict(  # type: ignore[attr-defined]
+                {"allowed_tools": ["read_file", 42]}
+            )
+
+        assert ctx.cfg.tool.allowed_tools == ["read_file"]
+
+    def test_unchanged_approval_survives_unrelated_invalid_reload(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        """An invalid approval value aborts the whole reload in the candidate
+        phase, so a valid change to another section is not applied either."""
+        from agent.services.exceptions import ConfigReloadValidationError
+
+        svc, ctx = svc_with_ctx
+        tiers_before = {"read_file": "READ_ONLY"}
+        turns_before = ctx.cfg.tool.max_tool_turns
+        ctx.cfg.approval.tool_safety_tiers = dict(tiers_before)
+
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict(  # type: ignore[attr-defined]
+                {
+                    "max_tool_turns": turns_before + 3,
+                    "tool_safety_tiers": {"read_file": "SUPERUSER"},
+                }
+            )
+
+        assert ctx.cfg.tool.max_tool_turns == turns_before
+        assert ctx.cfg.approval.tool_safety_tiers == tiers_before
 
 
 class TestDiffMcpServerConfig:
@@ -719,7 +815,7 @@ class TestApprovalGitopsPushBlocked:
         from agent.services.config_reload import ConfigReloadService
 
         ctx = MagicMock()
-        ctx.cfg.approval.gitops_push_blocked = gitops_push_blocked
+        ctx.cfg.approval = ApprovalConfig(gitops_push_blocked=gitops_push_blocked)
         ctx.cfg.tool.system_prompts = {}
         ctx.cfg.tool.masked_fields = []
         ctx.cfg.llm.llm_url = ""
@@ -733,9 +829,6 @@ class TestApprovalGitopsPushBlocked:
         ctx.cfg.llm.sse_reconnect_max = 5
         ctx.cfg.llm.sse_reconnect_delay = 1.0
         ctx.cfg.llm.sse_malformed_retry = 1
-        ctx.cfg.approval.tool_safety_tiers = {}
-        ctx.cfg.approval.require_approval_for = []
-        ctx.cfg.approval.plan_mode_enabled = False
         ctx.cfg.mcp.mcp_servers = {}
         ctx.services_required.memory = None
         ctx.services_required.embedding = None

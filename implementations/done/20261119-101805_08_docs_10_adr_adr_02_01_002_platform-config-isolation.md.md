@@ -57,8 +57,8 @@ Add a clause to the Operational Consequences bullet so ADR-002 states which conf
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the one-bullet wording change | Pending | — | — | |
-| 2 | Run `tools/check_adr_structure.py` and the `routing.md` Tools docs checkers | Pending | — | — | |
+| 1 | Apply the one-bullet wording change | Completed | 20261119-105424 | 20261119-105509 | Step 2 stale check clean; Step 3a: bullet text verified; manifest regenerated (seq 05) so the cited canonical source exists; ADR clean at baseline Changed: docs/10_adr/adr_02_01_002_platform-config-isolation.md (one Operational Consequences bullet; original sentence kept, exception clause added; 1 line changed) |
+| 2 | Run `tools/check_adr_structure.py` and the `routing.md` Tools docs checkers | Completed | 20261119-105509 | 20261119-105509 | Checkers pass: adr structure, docs quality/structure/content-policy strict/japanese, consistency deployment; check_adr_preservation: no issues (Decision/Status/Approval unchanged) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

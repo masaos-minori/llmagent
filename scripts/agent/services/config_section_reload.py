@@ -1,4 +1,4 @@
-"""scripts/agent/services/config_section_reload.py — Section reload logic split into prepare (candidate build + validators / changed-field collection, no live mutation) and apply (setattr only) halves for the validated (llm/rag/tool) and direct (approval/memory/mcp) paths."""
+"""scripts/agent/services/config_section_reload.py — Section reload logic split into prepare (candidate build + validators / changed-field collection, no live mutation) and apply (setattr only) halves for the validated (llm/rag/tool/approval) and direct (memory/mcp) paths."""
 
 from __future__ import annotations
 
@@ -18,14 +18,14 @@ def prepare_validated_section(
     new_cfg: dict[str, Any],
     extra_changed_fields: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], Any]:
-    """Build the dataclasses.replace candidate for a validated section (llm/rag/tool) and run its validators.
+    """Build the dataclasses.replace candidate for a validated section (llm/rag/tool/approval) and run its validators.
 
     Performs no live mutation: the candidate is returned unapplied so callers
     can validate the whole config before committing.
 
     Args:
         ctx: AgentContext with cfg attribute.
-        section_path: Section identifier (e.g., "llm", "rag", "tool").
+        section_path: Section identifier (e.g., "llm", "rag", "tool", "approval").
         new_cfg: New configuration dictionary.
         extra_changed_fields: Optional fields merged into the changed set before
             candidate construction (e.g. masked_fields, which is not a registry
@@ -78,7 +78,7 @@ def apply_validated_section(
 
     Args:
         ctx: AgentContext with cfg attribute.
-        section_path: Section identifier (e.g., "llm", "rag", "tool").
+        section_path: Section identifier (e.g., "llm", "rag", "tool", "approval").
         candidate: Prepared section candidate from prepare_validated_section.
     """
     setattr(ctx.cfg, section_path, candidate)
@@ -89,11 +89,11 @@ def reload_validated_section(
     section_path: str,
     new_cfg: dict[str, Any],
 ) -> list[str]:
-    """Reload a validated section (llm/rag/tool) as a prepare-then-apply composition.
+    """Reload a validated section (llm/rag/tool/approval) as a prepare-then-apply composition.
 
     Args:
         ctx: AgentContext with cfg attribute.
-        section_path: Section identifier (e.g., "llm", "rag", "tool").
+        section_path: Section identifier (e.g., "llm", "rag", "tool", "approval").
         new_cfg: New configuration dictionary.
 
     Returns:
@@ -112,7 +112,7 @@ def prepare_direct_section(
     section_path: str,
     field_filter: set[str] | None = None,
 ) -> dict[str, Any]:
-    """Collect changed fields for a direct section (approval/memory/mcp).
+    """Collect changed fields for a direct section (memory/mcp).
 
     No validators run and no candidate is built: direct sections carry no
     registry validators, and their live objects are not guaranteed to be
@@ -121,7 +121,7 @@ def prepare_direct_section(
     Args:
         ctx: AgentContext with cfg attribute.
         new_cfg: New configuration dictionary.
-        section_path: Section identifier (e.g., "approval", "memory", "mcp").
+        section_path: Section identifier (e.g., "memory", "mcp").
         field_filter: Optional set of field names to process; processes all if None.
 
     Returns:
@@ -150,7 +150,7 @@ def apply_direct_section(
 
     Args:
         ctx: AgentContext with cfg attribute.
-        section_path: Section identifier (e.g., "approval", "memory", "mcp").
+        section_path: Section identifier (e.g., "memory", "mcp").
         changed_fields: Changed fields collected by prepare_direct_section.
     """
     cfg = getattr(ctx.cfg, section_path)
@@ -164,12 +164,12 @@ def reload_direct_fields(
     section_path: str,
     field_filter: set[str] | None = None,
 ) -> dict[str, Any]:
-    """Reload a direct section (approval/memory/mcp) as a prepare-then-apply composition.
+    """Reload a direct section (memory/mcp) as a prepare-then-apply composition.
 
     Args:
         ctx: AgentContext with cfg attribute.
         new_cfg: New configuration dictionary.
-        section_path: Section identifier (e.g., "approval", "memory", "mcp").
+        section_path: Section identifier (e.g., "memory", "mcp").
         field_filter: Optional set of field names to process; processes all if None.
 
     Returns:

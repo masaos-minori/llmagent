@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.command_defs_list import _COMMANDS
-from agent.config_dataclasses import LLMConfig
+from agent.config_dataclasses import ApprovalConfig, LLMConfig
 from agent.services.config_reload import ConfigReloadService
 
 # ── Test harness ──────────────────────────────────────────────────────────────
@@ -25,9 +25,11 @@ class _FakeCmd(_ConfigMixin):
 
 def _make_ctx() -> MagicMock:
     ctx = MagicMock()
-    # apply_config_dict() calls dataclasses.replace(ctx.cfg.llm, ...), which
-    # requires a real dataclass instance rather than an auto-generated MagicMock.
+    # apply_config_dict() calls dataclasses.replace(ctx.cfg.llm, ...) and
+    # dataclasses.replace(ctx.cfg.approval, ...), which require real dataclass
+    # instances rather than auto-generated MagicMocks.
     ctx.cfg.llm = LLMConfig()
+    ctx.cfg.approval = ApprovalConfig()
     ctx.stats.stat_turns = 5
     ctx.stats.stat_tool_calls = 10
     ctx.stats.stat_tool_errors = 2

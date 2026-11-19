@@ -57,8 +57,8 @@ Apply the same Operational Consequences clarification to ADR-007's identical rel
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the one-bullet wording change | Pending | — | — | |
-| 2 | Run `tools/check_adr_structure.py` and the `routing.md` Tools docs checkers | Pending | — | — | |
+| 1 | Apply the one-bullet wording change | Completed | 20261119-105509 | 20261119-105543 | Step 2 stale check clean; Step 3a: bullet byte-identical to ADR-002's; seq 08 wording pattern applies; ADR clean at baseline Changed: docs/10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md (one bullet, same pattern as seq 08; 1 line changed) |
+| 2 | Run `tools/check_adr_structure.py` and the `routing.md` Tools docs checkers | Completed | 20261119-105543 | 20261119-105543 | Checkers pass: adr structure/preservation/matrix/reference/authority, docs quality/structure/content-policy strict/japanese, consistency mcp |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

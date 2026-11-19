@@ -64,9 +64,9 @@ Move `"approval"` from the direct-section loop to the validated-section loop in 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Move `"approval"` between the section loops and adjust the docstring | Pending | — | — | Land together with seq 02/01 wiring |
-| 2 | Run the services suite after the seq 06/07 fixture conversions | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Move `"approval"` between the section loops and adjust the docstring | Completed | 20261119-105020 | 20261119-105156 | Land together with seq 02/01 wiring Step 2 stale check clean; Step 3a: loop tuples and apply_config_dict docstring verified (docstring does not name the section split); consumers read ctx.cfg.approval per call; file clean at baseline Changed: scripts/agent/services/config_reload.py (approval moved to the validated loop; apply_config_dict docstring does not name the section split, so unchanged) |
+| 2 | Run the services suite after the seq 06/07 fixture conversions | Completed | 20261119-105156 | 20261119-112102 | services suite 325 passed after seq 06 fixture conversion; test_agent_cmd_config awaits seq 07 services + commands suites 769 passed after seq 06/07 fixture conversions |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261119-112102 | 20261119-112102 | End of unit: full suite 12907 passed, 7 skipped, 1 unrelated failure (test_check_repo_path_equivalence: Hypothesis property test on PurePosixPath, passes alone 9/9 and in the git MCP module under xdist 418/418); diff-cover 100%; ADR-cited tests 52 passed; validation gates pass; ruff/mypy/lint-imports/bandit clean; radon apply_config_dict still C(16) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

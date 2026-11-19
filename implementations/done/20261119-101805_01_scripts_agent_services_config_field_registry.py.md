@@ -65,9 +65,9 @@ Wire the four security-relevant registry entries to their validators so the relo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the import block and wire the four entries | Pending | — | — | Requires the seq 02 functions to exist |
-| 2 | Run the registry assertions and related suite | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend the import block and wire the four entries | Completed | 20261119-104950 | 20261119-105020 | Requires the seq 02 functions to exist Step 2 stale check clean; Step 3a: entry line positions and import order verified; registry tests do not pin validator_fn is None; registry file clean at baseline Changed: scripts/agent/services/config_field_registry.py (4 entries wired; no other entry touched). Partial run: allowed_tools rejection test green; approval tests await seq 03 |
+| 2 | Run the registry assertions and related suite | Completed | 20261119-112102 | 20261119-112102 | test_config_reload.py 69 passed (registry assertions unchanged) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261119-112102 | 20261119-112102 | End of unit: full suite 12907 passed, 7 skipped, 1 unrelated failure (test_check_repo_path_equivalence: Hypothesis property test on PurePosixPath, passes alone 9/9 and in the git MCP module under xdist 418/418); diff-cover 100%; ADR-cited tests 52 passed; validation gates pass; ruff/mypy/lint-imports/bandit clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

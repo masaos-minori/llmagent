@@ -57,8 +57,8 @@ Regenerate the config-ownership fact manifest from the updated registry so the f
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run `tools/generate_reference_table.py --manifests` after seq 01-04 land | Pending | — | — | |
-| 2 | Run `--check` and inspect the four-row diff | Pending | — | — | |
+| 1 | Run `tools/generate_reference_table.py --manifests` after seq 01-04 land | Completed | 20261119-105359 | 20261119-105424 | Step 2 stale check clean; Step 3a: drift check shows only config_ownership.yaml stale; seq 01-04 and 06-07 applied Changed: registry/manifests/config_ownership.yaml (generated; only the four expected validator rows changed; other manifests rewritten with identical content) |
+| 2 | Run `--check` and inspect the four-row diff | Completed | 20261119-105424 | 20261119-105424 | generate_reference_table.py --check: no drift; diff = allowed_root, allowed_tools, approval_risk_rules, tool_safety_tiers gained validator names |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

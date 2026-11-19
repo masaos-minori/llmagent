@@ -59,9 +59,9 @@ Give `_make_ctx` a real `ApprovalConfig` for `ctx.cfg.approval` so the two appro
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Convert the `_make_ctx` approval fixture to a real `ApprovalConfig` | Pending | — | — | After seq 03 lands |
-| 2 | Run the file and resolve any mock-only approval attribute reliance | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Convert the `_make_ctx` approval fixture to a real `ApprovalConfig` | Completed | 20261119-105232 | 20261119-105345 | After seq 03 lands Step 2 stale check clean; Step 3a: only the two approval-applying tests send approval fields (lines near the approval_resource_keys/approval_dry_run_tools payloads); file clean at baseline Changed: tests/agent/commands/test_agent_cmd_config.py (_make_ctx real ApprovalConfig; import extended). Before the change the 2 approval tests failed with TypeError (replace on a mock); after: 34 passed |
+| 2 | Run the file and resolve any mock-only approval attribute reliance | Completed | 20261119-112102 | 20261119-112102 | test_agent_cmd_config.py 34 passed; no mock-only approval attribute reliance found |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261119-112102 | 20261119-112102 | End of unit: full suite 12907 passed, 7 skipped, 1 unrelated failure (test_check_repo_path_equivalence: Hypothesis property test on PurePosixPath, passes alone 9/9 and in the git MCP module under xdist 418/418); diff-cover 100%; ADR-cited tests 52 passed; validation gates pass; ruff/mypy/lint-imports/bandit clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
