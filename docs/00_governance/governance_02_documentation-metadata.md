@@ -77,8 +77,8 @@ class: Reference
 
 ## Front Matter Example
 
-Complete Front Matter block showing the four required fields plus the one
-optional field:
+Complete Front Matter block showing the four required fields plus the two
+optional fields (`status`, `class`):
 
 ```yaml
 ---
@@ -87,6 +87,7 @@ area: agent
 tags: [architecture, reorganization]
 related: [governance_01_documentation-policy.md]
 status: stable
+class: Reference
 ---
 ```
 

@@ -222,29 +222,29 @@ N/A: no release unit (every phase passes validation alone)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Registry checker fixes | In Progress | — | — |  |
-| 2 | Phase 2: Conflicts checker fixes | In Progress | — | — |  |
-| 3 | Phase 3: Registry config fixes and governance proposal | In Progress | — | — |  |
-| 4 | Phase 4: Governance documentation fix | In Progress | — | — |  |
-| 5 | Phase 5: Comment cleanup and verification | In Progress | — | — |  |
+| 1 | Phase 1: Registry checker fixes | Completed | 20261119-140000 | 20261119-173000 |  |
+| 2 | Phase 2: Conflicts checker fixes | Completed | 20261119-140000 | 20261119-173000 |  |
+| 3 | Phase 3: Registry config fixes and governance proposal | Completed | 20261119-140000 | 20261119-173000 | `REQ-014/015/016/019` rows applied and verified by T12; `REQ-017` proposal drafted only — procedure archived `Superseded` pending maintainer approval (see Blocker Log) |
+| 4 | Phase 4: Governance documentation fix | Completed | 20261119-140000 | 20261119-173000 |  |
+| 5 | Phase 5: Comment cleanup and verification | Completed | 20261119-140000 | 20261119-173000 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 3 | REQ-017 owner change requires maintainer approval before merge (UNK-02) | No | — |
+| 3 | REQ-017 owner change requires maintainer approval before merge (UNK-02) | No — proposal drafted (procedure 05, archived `Superseded`); adrchk011 scope checked 2026-11-19: no overlap; approval still pending | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261119-134855_01_tools_check_canonical_source_registry.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261119-134855_02_tools_check_canonical_source_conflicts.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261119-134855_03_config_documentation_canonical_sources.toml.md | 3 | Procedure | Pending | — | — |
-| implementations/20261119-134855_04_config_adr_authority.toml.md | 3 | Procedure | Pending | — | — |
-| implementations/20261119-134855_05_docs_00_governance_governance_01_documentation-policy.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261119-134855_06_docs_00_governance_governance_02_documentation-metadata.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261119-134855_07_tools_generate_reference_table.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261119-134855_08_tests_tools_test_check_canonical_source_registry.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261119-134855_09_tests_tools_test_check_canonical_source_conflicts.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261119-134855_01_tools_check_canonical_source_registry.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261119-134855_02_tools_check_canonical_source_conflicts.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261119-134855_03_config_documentation_canonical_sources.toml.md | 3 | Procedure | Completed | — | — |
+| implementations/20261119-134855_04_config_adr_authority.toml.md | 3 | Procedure | Completed | — | — |
+| implementations/20261119-134855_05_docs_00_governance_governance_01_documentation-policy.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261119-134855_06_docs_00_governance_governance_02_documentation-metadata.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261119-134855_07_tools_generate_reference_table.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261119-134855_08_tests_tools_test_check_canonical_source_registry.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261119-134855_09_tests_tools_test_check_canonical_source_conflicts.py.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

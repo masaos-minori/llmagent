@@ -14,10 +14,13 @@ those are covered by test_check_canonical_source_conflicts_routing.py.
 from __future__ import annotations
 
 import json
+import tomllib
 from pathlib import Path
 
 import pytest
 
+import tools.check_canonical_document_prose as prose_module
+import tools.check_canonical_source_registry as registry_module
 from tools.check_canonical_source_conflicts import (
     BlockingStatus,
     RegistryEntry,
@@ -39,6 +42,7 @@ from tools.check_canonical_source_conflicts import (
     detect_stale_non_canonical_document,
     detect_unrecognized_claim_type,
     detect_unregistered_authority_declaration,
+    main,
 )
 
 # ---------------------------------------------------------------------------
@@ -295,25 +299,11 @@ class TestIntegrationWithTempRegistry:
         # When HAS_REGISTRY_VALIDATOR is False, local detection returns CANONICAL-001
         assert any(c.code in ("CANONICAL-001", "CANONICAL-007") for c in conflicts)
 
-    @pytest.mark.skip(
-        reason=(
-            "blocked on seq 01 — CANONICAL-002 through CANONICAL-006/-009 (REQ-001)"
-        ),
-    )
-    def test_canonical_002_case(self, tmp_path: Path) -> None:
-        # TODO(seq 01): Implement after M-01-04 lands.
-        # Expected: when two entries share the same decision_target+claim_type
-        # but one has precedence=normative and the other does not,
-        # CANONICAL-002 should flag the conflict.
-        pass
-
-    @pytest.mark.skip(
-        reason=("blocked on seq 02 — CANONICAL-007 duplicate ADR ID (REQ-004)"),
-    )
-    def test_canonical_007_case(self, tmp_path: Path) -> None:
-        # TODO(seq 02): Implement after duplicate ADR ID check lands.
-        # Expected: duplicate ADR identifiers across docs/10_adr/*.md files.
-        pass
+    # Removed 2026-11-19 (plan adrchk010 seq 02): the "blocked on seq 01"/"blocked on
+    # seq 02" stubs test_canonical_002_case and test_canonical_007_case were deleted.
+    # The 002 stub assumed a precedence field removed by M-01-04; the 007 stub
+    # (duplicate ADR IDs across docs/10_adr) is out of this plan's scope. Both code
+    # classes are covered by the TestDetect* classes below and the seq 09 T08 fixture.
 
 
 # -----------------------------------------------------------------------
@@ -379,8 +369,9 @@ class TestDetectUnrecognizedClaimType:
         conflicts = detect_unrecognized_claim_type([entry])
         assert len(conflicts) == 1
         assert conflicts[0].code == "CANONICAL-004"
-        assert conflicts[0].severity == Severity.MEDIUM
-        assert conflicts[0].blocking_status == BlockingStatus.NON_BLOCKING
+        # Plan AC-07 (REQ-007): unrecognized claim_type is a GV-021 blocking class.
+        assert conflicts[0].severity == Severity.HIGH
+        assert conflicts[0].blocking_status == BlockingStatus.BLOCKING
 
     def test_valid_claim_type_passes(self) -> None:
         entry = _entry(claim_type="functional-requirement")
@@ -523,3 +514,364 @@ class TestWrapValidationErrorsCrossProduct:
             "scripts/db/schema_sql.py",
             "scripts/eventbus/db.py",
         ]
+
+
+# -----------------------------------------------------------------------
+# Plan adrchk010 seq 09 fixtures (T06-T09, T11, T12)
+# Written test-first per Plan Phase 2; each red before its seq 02/03 fix.
+# -----------------------------------------------------------------------
+
+
+def _fixture_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """Point the registry tool's repo-root anchor at tmp_path.
+
+    detect_all_conflicts keeps its public signature; validate_registry_schema
+    resolves the module-global REPO_ROOT at call time (REQ-002 anchoring), so
+    patching it lets tmp fixtures carry real source files under tmp_path.
+    """
+    monkeypatch.setattr(registry_module, "REPO_ROOT", tmp_path)
+    return tmp_path
+
+
+def _write_fixture_registry(tmp_path: Path, version: str, entries: list[dict]) -> Path:
+    """Write a fixture TOML registry under tmp_path and return its path."""
+    lines = [f'version = "{version}"', ""]
+    for entry in entries:
+        lines.append("[[canonical_sources]]")
+        for key, value in entry.items():
+            if isinstance(value, list):
+                rendered = ", ".join(f'"{v}"' for v in value)
+                lines.append(f"{key} = [{rendered}]")
+            else:
+                lines.append(f'{key} = "{value}"')
+        lines.append("")
+    path = tmp_path / "fixture_registry.toml"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+class TestMainPathDetectorsT06:
+    """T06 (AC-06, REQ-006): semantic findings appear without the fallback path."""
+
+    def test_semantic_finding_on_main_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        root = _fixture_root(monkeypatch, tmp_path)
+        (root / "guide.md").write_text("# area guide\n", encoding="utf-8")
+        (root / "spec.md").write_text("# spec\n", encoding="utf-8")
+        registry_path = _write_fixture_registry(
+            root,
+            "1",
+            [
+                {
+                    "decision_target": "t-guide",
+                    "claim_type": "documentation-metadata",
+                    "source_paths": ["guide.md"],
+                    "area": "Fixture",
+                },
+                {
+                    "decision_target": "t-guide",
+                    "claim_type": "functional-requirement",
+                    "source_paths": ["spec.md"],
+                    "area": "Fixture",
+                },
+            ],
+        )
+        conflicts = detect_all_conflicts(registry_path)
+        # No validation errors exist; only the semantic detectors can produce
+        # this finding (area guide vs functional-requirement for one target).
+        assert [c.code for c in conflicts] == ["CANONICAL-010"]
+
+
+class TestWrapperBlockingT07:
+    """T07 (AC-07, REQ-007): errors without decision_target text are still reported."""
+
+    def test_missing_path_and_invalid_claim_type_blocking(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        root = _fixture_root(monkeypatch, tmp_path)
+        registry_path = _write_fixture_registry(
+            root,
+            "1",
+            [
+                {
+                    "decision_target": "t-missing",
+                    "claim_type": "functional-requirement",
+                    "source_paths": ["missing/thing.md"],
+                    "area": "Fixture",
+                },
+                {
+                    "decision_target": "t-bogus",
+                    "claim_type": "bogus-type",
+                    "source_paths": ["missing/other.md"],
+                    "area": "Fixture",
+                },
+            ],
+        )
+        conflicts = detect_all_conflicts(registry_path)
+        assert sorted({c.code for c in conflicts}) == ["CANONICAL-004", "CANONICAL-013"]
+        # GV-021 severity model: both classes are blocking HIGH findings.
+        assert all(c.severity == Severity.HIGH for c in conflicts)
+        assert all(c.blocking_status == BlockingStatus.BLOCKING for c in conflicts)
+        missing_path = next(c for c in conflicts if c.code == "CANONICAL-013")
+        assert "missing/thing.md" in missing_path.description
+
+
+class TestWrapperDedupT08:
+    """T08 (AC-08, REQ-008): one registry error yields exactly one finding."""
+
+    def test_duplicate_pair_single_finding_per_code(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        root = _fixture_root(monkeypatch, tmp_path)
+        (root / "d1.md").write_text("1\n", encoding="utf-8")
+        (root / "d2.md").write_text("2\n", encoding="utf-8")
+        registry_path = _write_fixture_registry(
+            root,
+            "1",
+            [
+                {
+                    "decision_target": "t-dup",
+                    "claim_type": "runtime-behavior",
+                    "source_paths": ["d1.md"],
+                    "area": "Fixture",
+                },
+                {
+                    "decision_target": "t-dup",
+                    "claim_type": "runtime-behavior",
+                    "source_paths": ["d2.md"],
+                    "area": "Fixture",
+                },
+            ],
+        )
+        conflicts = detect_all_conflicts(registry_path)
+        wrapped = [c for c in conflicts if c.code == "CANONICAL-007"]
+        detected = [c for c in conflicts if c.code == "CANONICAL-001"]
+        assert len(wrapped) == 1
+        assert len(detected) == 1
+        # Both matching entries are preserved, deterministically ordered.
+        assert wrapped[0].affected_files == ["d1.md", "d2.md"]
+
+
+class TestCodeUniquenessT09:
+    """T09 (AC-09, REQ-009): every finding code is unique; version error = CANONICAL-012."""
+
+    def test_all_classes_unique_codes(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        root = _fixture_root(monkeypatch, tmp_path)
+        for name in (
+            "dup1.md",
+            "dup2.md",
+            "e0.md",
+            "e1.md",
+            "m1.md",
+            "m2.md",
+            "a0.md",
+            "n1.md",
+        ):
+            (root / name).write_text(f"fixture {name}\n", encoding="utf-8")
+        (root / "adr_proposed.md").write_text(
+            "# ADR fixture\n\n## Status\n\nProposed\n\nbody\n", encoding="utf-8"
+        )
+        registry_path = _write_fixture_registry(
+            root,
+            "2",
+            [
+                {
+                    "decision_target": "t-dup",
+                    "claim_type": "documentation-metadata",
+                    "source_paths": ["dup1.md"],
+                    "area": "Fixture",
+                },
+                {
+                    "decision_target": "t-dup",
+                    "claim_type": "documentation-metadata",
+                    "source_paths": ["dup2.md"],
+                    "area": "Fixture",
+                },
+                {
+                    "decision_target": "",
+                    "claim_type": "runtime-behavior",
+                    "source_paths": ["e0.md"],
+                    "area": "Fixture",
+                },
+                {
+                    "decision_target": "t-emptyclaim",
+                    "claim_type": "",
+                    "source_paths": ["e1.md"],
+                    "area": "Fixture",
+                },
+                {
+                    "decision_target": "t-emptypaths",
+                    "claim_type": "runtime-behavior",
+                    "source_paths": [],
+                    "area": "Fixture",
+                },
+                {
+                    "decision_target": "t-multipath",
+                    "claim_type": "database-schema",
+                    "source_paths": ["m1.md", "m2.md"],
+                    "area": "Fixture",
+                },
+                {
+                    "decision_target": "t-noarea",
+                    "claim_type": "runtime-behavior",
+                    "source_paths": ["a0.md"],
+                    "area": "",
+                },
+                {
+                    "decision_target": "t-adr",
+                    "claim_type": "architecture-decision",
+                    "source_paths": ["adr_proposed.md"],
+                    "area": "Fixture",
+                },
+                {
+                    "decision_target": "t-gone",
+                    "claim_type": "runtime-behavior",
+                    "source_paths": ["gone.md"],
+                    "area": "Fixture",
+                },
+                {
+                    "decision_target": "t-notes",
+                    "claim_type": "runtime-behavior",
+                    "source_paths": ["n1.md"],
+                    "area": "Fixture",
+                    "notes": "The authoritative source of truth for this target.",
+                },
+            ],
+        )
+        conflicts = detect_all_conflicts(registry_path)
+        codes = sorted(c.code for c in conflicts)
+        expected = sorted(
+            [
+                "CANONICAL-001",
+                "CANONICAL-002",
+                "CANONICAL-003",
+                "CANONICAL-004",
+                "CANONICAL-005",
+                "CANONICAL-006",
+                "CANONICAL-007",
+                "CANONICAL-009",
+                "CANONICAL-011",
+                "CANONICAL-012",
+                "CANONICAL-013",
+                "CANONICAL-W-05",
+            ]
+        )
+        assert codes == expected
+        # AC-09: no code appears twice in a run.
+        assert len(set(codes)) == len(codes)
+        version = [c for c in conflicts if c.code == "CANONICAL-012"]
+        assert len(version) == 1
+        assert version[0].severity == Severity.HIGH
+        assert version[0].blocking_status == BlockingStatus.BLOCKING
+        # AC-01: the non-Accepted ADR class yields exactly one conflicts-side
+        # warning finding (MEDIUM/NON_BLOCKING), not a second registry error.
+        adr = [c for c in conflicts if c.code == "CANONICAL-011"]
+        assert len(adr) == 1
+        assert adr[0].severity == Severity.MEDIUM
+        assert adr[0].blocking_status == BlockingStatus.NON_BLOCKING
+
+
+class TestHelpDefaultT11:
+    """T11 (AC-11, REQ-013): --help states the actual default registry path."""
+
+    def test_help_text_default_registry(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with pytest.raises(SystemExit) as exc_info:
+            main(["--help"])
+        assert exc_info.value.code == 0
+        assert "config/documentation_canonical_sources.toml" in capsys.readouterr().out
+
+
+class TestRegistryRowCorrectionsT12:
+    """T12 (AC-12, REQ-014/015/016/019): defective rows vs corrected repo rows."""
+
+    # The exact defective values probed 2026-11-19 from
+    # config/documentation_canonical_sources.toml (pre-seq-03).
+    DEFECTIVE_ROWS = [
+        {
+            "decision_target": "eventbus.persistence-schema.bootstrap-ddl",
+            "claim_type": "database-schema",
+            "source_paths": ["scripts/db/schema_sql.py"],
+            "area": "EventBus",
+            "notes": "Bootstrap DDL for eventbus.sqlite schema, backed by ADR-008.",
+        },
+        {
+            "decision_target": "overview.architecture-overview",
+            "claim_type": "documentation-metadata",
+            "source_paths": ["docs/01_overview/overview_01_01-arch-process.md"],
+            "area": "Overview",
+            "notes": "Architecture process overview; candidate replacement for docs/architecture.md.",
+        },
+        {
+            "decision_target": "governance.policy",
+            "claim_type": "documentation-metadata",
+            "source_paths": [
+                "docs/00_governance/governance_01_documentation-policy.md"
+            ],
+            "area": "Governance",
+            "notes": "Documentation policy is the governance authority.",
+        },
+        {
+            "decision_target": "agent.posture-failure-handling",
+            "claim_type": "architecture-decision",
+            "source_paths": [
+                "docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md"
+            ],
+            "area": "Agent",
+            "notes": "ADR-004 fixes the failure-handling policy per environment posture (fail-closed in production, fail-open in development).",
+        },
+    ]
+
+    def test_defective_rows_are_not_mechanically_detected(self, tmp_path: Path) -> None:
+        """Evidence for REQ-014-REQ-019: the four defective rows pass every
+        schema-level consumer, so the semantic defects must be fixed in config
+        (seq 03), not by the checkers. Runs against the real repo root (no tmp
+        repo-root patch): every source path exists and the ADR is Accepted."""
+        registry_path = _write_fixture_registry(tmp_path, "1", self.DEFECTIVE_ROWS)
+        assert registry_module.main(["--registry", str(registry_path)]) == 0
+        assert main(["--registry", str(registry_path)]) == 0
+
+    def test_corrected_repo_rows_match_governing_spec(self) -> None:
+        """Pins the seq 03 outcomes (REQ-014/015/016/019) once landed.
+        Red until seq 03 applies the row edits; UNK-04 freedom for the
+        REQ-016/REQ-019 chosen values is preserved by pinning the defective
+        values' removal, not one specific replacement."""
+        toml_path = (
+            Path(__file__).resolve().parent.parent.parent
+            / "config"
+            / "documentation_canonical_sources.toml"
+        )
+        rows = {
+            row["decision_target"]: row
+            for row in tomllib.loads(toml_path.read_text(encoding="utf-8"))[
+                "canonical_sources"
+            ]
+        }
+        # REQ-014: the DDL definition per the DB docs, not schema_sql.py.
+        assert rows["eventbus.persistence-schema.bootstrap-ddl"]["source_paths"] == [
+            "scripts/eventbus/schema.sql"
+        ]
+        # REQ-015 / ADR-004 Group 1 item 1: no environment-specific fail-open wording.
+        assert "fail-open" not in rows["agent.posture-failure-handling"]["notes"]
+        # REQ-016: the Matrix documentation-metadata row no longer contradicts.
+        gov = rows["governance.policy"]
+        assert gov["claim_type"] != "documentation-metadata" or not any(
+            "governance_01_documentation-policy" in p for p in gov["source_paths"]
+        )
+        # REQ-019: the registered claim kind no longer pairs the overview document
+        # with a claim type the Matrix does not authorize for it.
+        overview = rows["overview.architecture-overview"]
+        assert overview["claim_type"] != "documentation-metadata" or overview[
+            "source_paths"
+        ] != ["docs/01_overview/overview_01_01-arch-process.md"]
+
+    def test_all_three_consumers_exit_zero_on_repo_registry(self) -> None:
+        """AC-12 clean-run baseline: registry checker, conflicts checker and the
+        prose checker all exit 0 on the (corrected) repo registry."""
+        assert registry_module.main([]) == 0
+        assert main([]) == 0
+        assert prose_module.main([]) == 0

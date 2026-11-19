@@ -68,8 +68,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the "Transcribed 2026-10-30" note (lines 9–10) (`REQ-020`) | Pending | — | — | |
-| 2 | Run `generate_adr_authority.py --check` and `check_adr_authority.py` | Pending | — | — | |
+| 1 | Remove the "Transcribed 2026-10-30" note (lines 9–10) (`REQ-020`) | Completed | 2026-11-19 | 2026-11-19 | Both continuation lines removed per Design decisions (the ADR-016 Decision 2 citation rode the continuation line; the semantics stay normative in ADR-016 itself and `tools/check_adr_authority.py`); `git diff` shows comment lines only |
+| 2 | Run `generate_adr_authority.py --check` and `check_adr_authority.py` | Completed | 2026-11-19 | 2026-11-19 | `No drift found` exit 0; `Authority model OK: no findings.` exit 0; no generated artifact changed (`REQ-022`) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

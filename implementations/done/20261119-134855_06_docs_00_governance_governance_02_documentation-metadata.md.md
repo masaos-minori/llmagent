@@ -66,8 +66,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix the "one optional field" wording at lines 80–81 (`REQ-018`) | Pending | — | — | |
-| 2 | Run the doc lint gates | Pending | — | — | |
+| 1 | Fix the "one optional field" wording at lines 80–81 (`REQ-018`) | Completed | 2026-11-19 | 2026-11-19 | Verified before editing: the defective sentence and the `status`-only example block matched the doc's claims exactly. Wording now reads "the two optional fields (`status`, `class`)" and the block gained `class: Reference` (an allowed value per the `### class` section). `grep "optional field"` now returns only the corrected line 81; line 49 already correct |
+| 2 | Run the doc lint gates | Completed | 2026-11-19 | 2026-11-19 | `check_docs_quality.py` exit 0 (175 files); `check_docs_structure.py` on the edited file exit 0; the three canonical consumers (`check_canonical_document_prose.py`, `check_canonical_source_registry.py`, `check_canonical_source_conflicts.py`) all exit 0 — the edited file is the source path of the two `documentation-metadata` rows fixed in seq 03 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

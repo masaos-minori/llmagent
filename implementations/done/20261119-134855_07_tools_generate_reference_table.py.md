@@ -69,8 +69,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the stale comment at line 559 (`REQ-021`) | Pending | — | — | |
-| 2 | Run `generate_reference_table.py --check` and its tests | Pending | — | — | |
+| 1 | Replace the stale comment at line 559 (`REQ-021`) | Completed | 2026-11-19 | 2026-11-19 | All four claims verified against source before editing (line 559 stale text; index line 53 numbers the ADR as ADR-008; db_07 line 117 states the no-version-stamping policy; `grep ADR-02.05` unique in the repo). Wording deviation recorded: the first rewrite with the full `docs/41_db/...` path grew the tool 42776 B → 42855 B and failed the shrink-only `check_module_size.py --scripts-dir tools` gate; the comment was compressed to the original 2-line/116 B byte budget as "Stamp-less (ADR-008; db_07 no-version-stamping policy): schema.sql records \"unversioned\"." — short-citation style matches the file's existing `ADR-004 Decision #14` comment (line 711) |
+| 2 | Run `generate_reference_table.py --check` and its tests | Completed | 2026-11-19 | 2026-11-19 | `No drift found` exit 0 (`AC-16`, `T14`); 16 tests passed; module-size gate exit 0 and the tools baseline tightened via `--update-baseline` (conflicts checker 41349→39537 B from seq 02, this tool 42776→42762 B); ruff check/format clean; `git diff` shows comment lines only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -6,8 +6,6 @@
 version = "1"
 
 # --- Authority matrix (ADR-016 Decision 1: exactly one primary ADR per target) ---
-# Transcribed 2026-10-30 from the prose authorities in docs/10_adr/adr_01_index.md (ADR List)
-# and the cited ADR bodies. Supplemental entries state the authority limit (ADR-016 Decision 2).
 
 [[authority]]
 decision_target = "agent.workflow-control"

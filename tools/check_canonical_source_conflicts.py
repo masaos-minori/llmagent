@@ -32,6 +32,7 @@ Usage:
 
 from __future__ import annotations
 
+import re
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -45,7 +46,6 @@ if __package__ in (None, ""):
 
 try:
     from tools.check_canonical_source_registry import (
-        SUPPORTED_VERSIONS,
         VALID_CLAIM_TYPES,
         load_registry,
         validate_registry_schema,
@@ -55,7 +55,6 @@ try:
 except ImportError:
     HAS_REGISTRY_VALIDATOR = False
     VALID_CLAIM_TYPES = frozenset()
-    SUPPORTED_VERSIONS = frozenset()
 
 # SINGLE_SOURCE_EXEMPTIONS is always defined (either from import or fallback)
 if HAS_REGISTRY_VALIDATOR:
@@ -76,18 +75,6 @@ class Severity(Enum):
 
     def __str__(self) -> str:
         return self.name.capitalize()
-
-    @classmethod
-    def from_name(cls, name: str) -> Severity:
-        mapping = {"high": cls.HIGH, "medium": cls.MEDIUM, "low": cls.LOW}
-        result = mapping.get(name.lower())
-        if result is None:
-            raise ValueError(f"Unknown severity: {name!r}")
-        return result
-
-    @classmethod
-    def from_blocking(cls, blocking: bool) -> Severity:
-        return cls.HIGH if blocking else cls.MEDIUM
 
     def is_blocking(self) -> bool:
         return self == Severity.HIGH
@@ -125,59 +112,13 @@ class Severity(Enum):
 
 
 # ---------------------------------------------------------------------------
-# Claim types — aligned with M-01-04 VALID_CLAIM_TYPES
+# Claim types used by conflict detection (REQ-012 dead-code removal, plan
+# adrchk010: the remaining M-01-04 claim-type aliases were unused here —
+# VALID_CLAIM_TYPES from the registry tool is the single source of truth).
 # ---------------------------------------------------------------------------
 
-CLAIM_TYPE_ARCHITECTURE_DECISION = "architecture-decision"
-CLAIM_TYPE_RUNTIME_BEHAVIOR = "runtime-behavior"
-CLAIM_TYPE_DATABASE_SCHEMA = "database-schema"
 CLAIM_TYPE_FUNCTIONAL_REQUIREMENT = "functional-requirement"
-CLAIM_TYPE_API_CONTRACT = "api-contract"
-CLAIM_TYPE_VERIFICATION_CONTRACT = "verification-contract"
 CLAIM_TYPE_DOCUMENTATION_METADATA = "documentation-metadata"
-CLAIM_TYPE_EXTERNAL_BEHAVIOR = "external-behavior"
-CLAIM_TYPE_PRODUCTION_EFFECTIVE_VALUE = "production-effective-value"
-CLAIM_TYPE_CONFIGURATION_SCHEMA = "configuration-schema"
-CLAIM_TYPE_OPERATIONAL_PROCEDURE = "operational-procedure"
-CLAIM_TYPE_SECURITY_POLICY = "security-policy"
-CLAIM_TYPE_UNCONFIRMED_CLAIM = "unconfirmed-claim"
-
-# ---------------------------------------------------------------------------
-# Authority types — only those used by conflict detection
-# ---------------------------------------------------------------------------
-
-AUTHORITY_MITIGATING_CONTROL = "mitigating_control"
-AUTHORITY_ORIGINAL_SPECIFICATION = "original_specification"
-AUTHORITY_AREA_GUIDE = "area_guide"
-AUTHORITY_LEGACY_DOCUMENTATION = "legacy_documentation"
-AUTHORITY_INDUSTRY_STANDARD = "industry_standard"
-AUTHORITY_INTERNAL_POLICY = "internal_policy"
-AUTHORITY_REGULATORY_REQUIREMENT = "regulatory_requirement"
-AUTHORITY_VENDOR_SPECIFICATION = "vendor_specification"
-AUTHORITY_COMMUNITY_CONSENSUS = "community_consensus"
-AUTHORITY_RESEARCH_PAPER = "research_paper"
-AUTHORITY_IMPLEMENTATION_EXPERIENCE = "implementation_experience"
-AUTHORITY_SECURITY_ANALYSIS = "security_analysis"
-
-# ---------------------------------------------------------------------------
-# Blocking status
-# ---------------------------------------------------------------------------
-
-BLOCKING_SEVERITIES: frozenset[Severity] = frozenset({Severity.HIGH})
-NON_BLOCKING_SEVERITIES: frozenset[Severity] = frozenset(
-    {Severity.MEDIUM, Severity.LOW}
-)
-
-SEVERITY_THRESHOLD_HIGH = Severity.HIGH
-SEVERITY_THRESHOLD_MEDIUM = Severity.MEDIUM
-SEVERITY_THRESHOLD_LOW = Severity.LOW
-
-KNOWN_ISSUE = "known_issue"
-CANONICAL_CONFLICT = "canonical_conflict"
-CONFIG_DRIFT = "config_drift"
-NEEDS_CONFIRMATION = "needs_confirmation"
-GOVERNANCE_GAP = "governance_gap"
-DOC_CORRECTION = "doc_correction"
 
 
 class BlockingStatus(Enum):
@@ -186,15 +127,6 @@ class BlockingStatus(Enum):
     BLOCKING = "blocking"
     NON_BLOCKING = "non_blocking"
     WARNING = "warning"
-
-    @classmethod
-    def from_severity(cls, severity: Severity) -> BlockingStatus:
-        if severity == Severity.HIGH:
-            return cls.BLOCKING
-        elif severity == Severity.MEDIUM:
-            return cls.NON_BLOCKING
-        else:
-            return cls.WARNING
 
     def is_blocking(self) -> bool:
         return self == self.BLOCKING
@@ -408,6 +340,8 @@ def detect_duplicate_normative_sources(
             conflicts.append(
                 CanonicalConflict(
                     code="CANONICAL-001",
+                    # plan adrchk010 AC-09: attribution field for cross-source dedup.
+                    decision_target=key[0],
                     severity=Severity.HIGH,
                     blocking_status=BlockingStatus.BLOCKING,
                     description=(
@@ -445,6 +379,8 @@ def detect_multiple_canonical_specifications(
             conflicts.append(
                 CanonicalConflict(
                     code="CANONICAL-008",
+                    # plan adrchk010 AC-09: attribution field for cross-source dedup.
+                    decision_target=key[0],
                     severity=Severity.HIGH,
                     blocking_status=BlockingStatus.BLOCKING,
                     description=(
@@ -479,6 +415,8 @@ def detect_area_guide_contradiction(
                 conflicts.append(
                     CanonicalConflict(
                         code="CANONICAL-010",
+                        # plan adrchk010 AC-09: attribution field for cross-source dedup.
+                        decision_target=area.decision_target,
                         severity=Severity.MEDIUM,
                         blocking_status=BlockingStatus.NON_BLOCKING,
                         description=(
@@ -486,7 +424,9 @@ def detect_area_guide_contradiction(
                             f"'{spec.decision_target}' for decision_target "
                             f"'{area.decision_target}'"
                         ),
-                        affected_files=list(set(area.source_paths + spec.source_paths)),
+                        affected_files=sorted(
+                            set(area.source_paths + spec.source_paths)
+                        ),
                         recommendation=(
                             f"Review consistency between area guide '{area.area}' and "
                             f"specification '{spec.decision_target}' for "
@@ -507,6 +447,8 @@ def detect_empty_decision_target(
             conflicts.append(
                 CanonicalConflict(
                     code="CANONICAL-002",
+                    # plan adrchk010 AC-09: attribution field for cross-source dedup.
+                    decision_target=entry.decision_target,
                     severity=Severity.HIGH,
                     blocking_status=BlockingStatus.BLOCKING,
                     description=(
@@ -531,6 +473,8 @@ def detect_empty_claim_type(
             conflicts.append(
                 CanonicalConflict(
                     code="CANONICAL-003",
+                    # plan adrchk010 AC-09: attribution field for cross-source dedup.
+                    decision_target=entry.decision_target,
                     severity=Severity.HIGH,
                     blocking_status=BlockingStatus.BLOCKING,
                     description=(
@@ -555,8 +499,11 @@ def detect_unrecognized_claim_type(
             conflicts.append(
                 CanonicalConflict(
                     code="CANONICAL-004",
-                    severity=Severity.MEDIUM,
-                    blocking_status=BlockingStatus.NON_BLOCKING,
+                    # plan adrchk010 AC-09: attribution field for cross-source dedup.
+                    decision_target=entry.decision_target,
+                    # AC-07 (REQ-007): unrecognized claim_type is a GV-021 blocking class.
+                    severity=Severity.HIGH,
+                    blocking_status=BlockingStatus.BLOCKING,
                     description=(
                         f"Unrecognized claim_type '{entry.claim_type}' for entry "
                         f"targeting '{entry.decision_target}'; must be one of "
@@ -581,6 +528,8 @@ def detect_empty_source_paths(
             conflicts.append(
                 CanonicalConflict(
                     code="CANONICAL-005",
+                    # plan adrchk010 AC-09: attribution field for cross-source dedup.
+                    decision_target=entry.decision_target,
                     severity=Severity.HIGH,
                     blocking_status=BlockingStatus.BLOCKING,
                     description=(
@@ -608,6 +557,8 @@ def detect_multiple_source_paths_violation(
             conflicts.append(
                 CanonicalConflict(
                     code="CANONICAL-006",
+                    # plan adrchk010 AC-09: attribution field for cross-source dedup.
+                    decision_target=entry.decision_target,
                     severity=Severity.MEDIUM,
                     blocking_status=BlockingStatus.NON_BLOCKING,
                     description=(
@@ -635,6 +586,8 @@ def detect_empty_area(
             conflicts.append(
                 CanonicalConflict(
                     code="CANONICAL-009",
+                    # plan adrchk010 AC-09: attribution field for cross-source dedup.
+                    decision_target=entry.decision_target,
                     severity=Severity.HIGH,
                     blocking_status=BlockingStatus.BLOCKING,
                     description=(
@@ -721,184 +674,211 @@ def detect_authoritative_terms_in_non_canonical(
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class _ValidationRule:
+    """Maps a registry validation-error class to its finding attributes."""
+
+    substrings: tuple[str, ...]
+    code: str
+    severity: Severity
+    blocking_status: BlockingStatus
+    label: str
+
+
+# Plan adrchk010 REQ-007/REQ-008/REQ-009: the wrapper matches the registry
+# tool's real error strings; GV-021 classes (missing/invalid source,
+# unrecognized claim type, duplicates, version) are blocking HIGH. The
+# non-Accepted ADR class stays a single MEDIUM/NON_BLOCKING conflicts-side
+# warning per AC-01. The version error uses the new unique code CANONICAL-012;
+# invalid source paths use CANONICAL-013 (extension recorded in the procedure
+# doc); unmatched errors fall back to CANONICAL-001 so none is dropped.
+_VALIDATION_RULES: tuple[_ValidationRule, ...] = (
+    _ValidationRule(
+        ("unsupported registry version",),
+        "CANONICAL-012",
+        Severity.HIGH,
+        BlockingStatus.BLOCKING,
+        "Unsupported registry version",
+    ),
+    _ValidationRule(
+        ("duplicate entry for decision_target=",),
+        "CANONICAL-007",
+        Severity.HIGH,
+        BlockingStatus.BLOCKING,
+        "Duplicate registry entry",
+    ),
+    _ValidationRule(
+        ("empty decision_target",),
+        "CANONICAL-002",
+        Severity.HIGH,
+        BlockingStatus.BLOCKING,
+        "Empty decision_target",
+    ),
+    _ValidationRule(
+        ("empty claim_type",),
+        "CANONICAL-003",
+        Severity.HIGH,
+        BlockingStatus.BLOCKING,
+        "Empty claim_type",
+    ),
+    _ValidationRule(
+        ("unrecognized claim_type",),
+        "CANONICAL-004",
+        Severity.HIGH,
+        BlockingStatus.BLOCKING,
+        "Unrecognized claim_type",
+    ),
+    _ValidationRule(
+        ("empty source_paths",),
+        "CANONICAL-005",
+        Severity.HIGH,
+        BlockingStatus.BLOCKING,
+        "Empty source_paths",
+    ),
+    _ValidationRule(
+        (
+            "multiple source_paths",
+            "only 'runtime-behavior' allows multiple sources",
+        ),
+        "CANONICAL-006",
+        Severity.MEDIUM,
+        BlockingStatus.NON_BLOCKING,
+        "Multiple source_paths where only 'runtime-behavior' allows them",
+    ),
+    _ValidationRule(
+        ("empty area",),
+        "CANONICAL-009",
+        Severity.HIGH,
+        BlockingStatus.BLOCKING,
+        "Empty area",
+    ),
+    _ValidationRule(
+        ("ADR-sourced entry missing ## Status section",),
+        "CANONICAL-010",
+        Severity.MEDIUM,
+        BlockingStatus.NON_BLOCKING,
+        "ADR-sourced entry missing ## Status section",
+    ),
+    _ValidationRule(
+        ("ADR-sourced entry has non-Accepted status",),
+        "CANONICAL-011",
+        Severity.MEDIUM,
+        BlockingStatus.NON_BLOCKING,
+        "ADR-sourced entry has non-Accepted status",
+    ),
+    _ValidationRule(
+        ("source path does not exist",),
+        "CANONICAL-013",
+        Severity.HIGH,
+        BlockingStatus.BLOCKING,
+        "Source path does not exist",
+    ),
+    _ValidationRule(
+        ("cannot read ADR file",),
+        "CANONICAL-013",
+        Severity.HIGH,
+        BlockingStatus.BLOCKING,
+        "Cannot read ADR file",
+    ),
+)
+
+_FALLBACK_VALIDATION_RULE = _ValidationRule(
+    (),
+    "CANONICAL-001",
+    Severity.HIGH,
+    BlockingStatus.BLOCKING,
+    "Registry validation error",
+)
+
+_TARGET_QUOTE_RE = re.compile(r"(?:targeting|decision_target)\s*(?:=\s*)?'([^']*)'")
+
+
+def _match_validation_rule(error: str) -> _ValidationRule:
+    """Return the rule whose substrings all appear in the error text."""
+    for rule in _VALIDATION_RULES:
+        if all(sub in error for sub in rule.substrings):
+            return rule
+    return _FALLBACK_VALIDATION_RULE
+
+
+def _attributed_entries(
+    error: str, entries: Sequence[RegistryEntry]
+) -> list[RegistryEntry]:
+    """Match an error to its owning entries.
+
+    The registry tool quotes the owning decision_target ("... on entry
+    targeting 'x'", "duplicate entry for decision_target='x'"); when it does
+    not (missing source path, empty decision_target, version), fall back to
+    source-path mention, then to no attribution (registry-wide error).
+    """
+    match = _TARGET_QUOTE_RE.search(error)
+    if match:
+        target = match.group(1)
+        matched = [entry for entry in entries if entry.decision_target == target]
+        if matched:
+            return matched
+    return [entry for entry in entries if any(p in error for p in entry.source_paths)]
+
+
 def _wrap_validation_errors(
     errors: list[str], entries: Sequence[RegistryEntry]
 ) -> list[CanonicalConflict]:
-    """Convert M-01-04 validation errors into findings with CANONICAL-XXX codes.
+    """Convert registry validation errors into findings with CANONICAL-NNN codes.
 
-    Each validation error string carries the Decision Target of the entry that
-    caused it (e.g., "multiple source_paths (2) for claim_type 'database-schema'
-    on entry targeting 'eventbus.persistence-schema': only 'runtime-behavior'
-    allows multiple sources"). This function matches each error to its owning
-    entry by checking whether the error text contains the entry's decision_target.
-
-    Returns exactly one finding per (error, entry) pair where the error refers
-    to that specific entry — no cross-product duplication.
+    REQ-007 (plan adrchk010): every validation error produces a finding, even
+    when its text names no decision_target. Each error is attributed to its
+    owning entries; exactly one finding is emitted per (code, decision_target)
+    and registry-wide errors produce a single finding (REQ-008). The matched
+    entry decision targets are preserved in the finding detail, and every
+    output list is sorted for deterministic order (REQ-005).
     """
     conflicts: list[CanonicalConflict] = []
-    for entry in entries:
-        for err in errors:
-            # Skip errors that don't refer to this entry
-            if entry.decision_target and entry.decision_target not in err:
-                continue
-            if "empty decision_target" in err:
-                conflicts.append(
-                    CanonicalConflict(
-                        code="CANONICAL-002",
-                        severity=Severity.HIGH,
-                        blocking_status=BlockingStatus.BLOCKING,
-                        description=f"Empty decision_target in entry targeting '{entry.area}'",
-                        affected_files=list(entry.source_paths),
-                        recommendation=f"Populate decision_target for entry in area '{entry.area}'.",
-                    )
-                )
-            elif "empty claim_type" in err:
-                conflicts.append(
-                    CanonicalConflict(
-                        code="CANONICAL-003",
-                        severity=Severity.HIGH,
-                        blocking_status=BlockingStatus.BLOCKING,
-                        description=(
-                            f"Empty claim_type for entry targeting '{entry.decision_target}'"
-                        ),
-                        affected_files=list(entry.source_paths),
-                        recommendation=(
-                            f"Populate claim_type for entry targeting '{entry.decision_target}'."
-                        ),
-                    )
-                )
-            elif "unrecognized claim_type" in err:
-                conflicts.append(
-                    CanonicalConflict(
-                        code="CANONICAL-004",
-                        severity=Severity.MEDIUM,
-                        blocking_status=BlockingStatus.NON_BLOCKING,
-                        description=(
-                            f"Unrecognized claim_type '{entry.claim_type}' for entry "
-                            f"targeting '{entry.decision_target}'; must be one of "
-                            f"{sorted(VALID_CLAIM_TYPES)}"
-                        ),
-                        affected_files=list(entry.source_paths),
-                        recommendation=(
-                            f"Correct claim_type for entry targeting '{entry.decision_target}'."
-                        ),
-                    )
-                )
-            elif "empty source_paths" in err:
-                conflicts.append(
-                    CanonicalConflict(
-                        code="CANONICAL-005",
-                        severity=Severity.HIGH,
-                        blocking_status=BlockingStatus.BLOCKING,
-                        description=(
-                            f"Empty source_paths for entry targeting '{entry.decision_target}'"
-                        ),
-                        affected_files=[],
-                        recommendation=(
-                            f"Add source_paths for entry targeting '{entry.decision_target}'."
-                        ),
-                    )
-                )
-            elif "multiple source_paths" in err and "only 'runtime-behavior'" in err:
-                conflicts.append(
-                    CanonicalConflict(
-                        code="CANONICAL-006",
-                        severity=Severity.MEDIUM,
-                        blocking_status=BlockingStatus.NON_BLOCKING,
-                        description=(
-                            f"Multiple source_paths ({len(entry.source_paths)}) for claim_type "
-                            f"'{entry.claim_type}' on entry targeting '{entry.decision_target}': "
-                            f"only 'runtime-behavior' allows multiple sources"
-                        ),
-                        affected_files=list(entry.source_paths),
-                        recommendation=(
-                            f"Consolidate source_paths for entry targeting '{entry.decision_target}', "
-                            f"claim_type '{entry.claim_type}'."
-                        ),
-                    )
-                )
-            elif "empty area" in err:
-                conflicts.append(
-                    CanonicalConflict(
-                        code="CANONICAL-009",
-                        severity=Severity.HIGH,
-                        blocking_status=BlockingStatus.BLOCKING,
-                        description=(
-                            f"Empty area for entry targeting '{entry.decision_target}'"
-                        ),
-                        affected_files=list(entry.source_paths),
-                        recommendation=(
-                            f"Populate area for entry targeting '{entry.decision_target}'."
-                        ),
-                    )
-                )
-            elif "duplicate entry" in err:
-                key = err.split("'")[1]
-                conflicts.append(
-                    CanonicalConflict(
-                        code="CANONICAL-007",
-                        severity=Severity.HIGH,
-                        blocking_status=BlockingStatus.BLOCKING,
-                        description=(
-                            f"Duplicate entry for decision_target='{key}', "
-                            f"claim_type='{err.split("'")[3]}'"
-                        ),
-                        affected_files=list(
-                            set(p for e in entries for p in e.source_paths)
-                        ),
-                        recommendation=(
-                            f"Remove duplicate entry for decision_target='{key}'."
-                        ),
-                    )
-                )
-            elif "unsupported registry version" in err:
-                conflicts.append(
-                    CanonicalConflict(
-                        code="CANONICAL-008",
-                        severity=Severity.HIGH,
-                        blocking_status=BlockingStatus.BLOCKING,
-                        description=(
-                            f"Unsupported registry version; supported versions: {sorted(SUPPORTED_VERSIONS)}"
-                        ),
-                        affected_files=[],
-                        recommendation=(
-                            f"Update registry version to one of {sorted(SUPPORTED_VERSIONS)}."
-                        ),
-                    )
-                )
-            elif "ADR-sourced entry missing ## Status section" in err:
-                conflicts.append(
-                    CanonicalConflict(
-                        code="CANONICAL-010",
-                        severity=Severity.MEDIUM,
-                        blocking_status=BlockingStatus.NON_BLOCKING,
-                        description=f"ADR-sourced entry missing ## Status section: {err}",
-                        affected_files=[p for p in entry.source_paths if p in err],
-                        recommendation="Add ## Status section to ADR file.",
-                    )
-                )
-            elif "ADR-sourced entry has non-Accepted status" in err:
-                conflicts.append(
-                    CanonicalConflict(
-                        code="CANONICAL-011",
-                        severity=Severity.MEDIUM,
-                        blocking_status=BlockingStatus.NON_BLOCKING,
-                        description=f"ADR-sourced entry has non-Accepted status: {err}",
-                        affected_files=[p for p in entry.source_paths if p in err],
-                        recommendation="Update ADR status to Accepted.",
-                    )
-                )
+    seen: set[tuple[str, str]] = set()
+    for error in errors:
+        rule = _match_validation_rule(error)
+        matched = _attributed_entries(error, entries)
+        targets = sorted({entry.decision_target for entry in matched})
+        dedup_key = (rule.code, targets[0] if targets else "")
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
+        scope = f" entries: {targets}" if targets else " (registry-wide)"
+        conflicts.append(
+            CanonicalConflict(
+                code=rule.code,
+                severity=rule.severity,
+                blocking_status=rule.blocking_status,
+                description=f"{rule.label}:{scope} — {error}",
+                affected_files=sorted(
+                    {p for entry in matched for p in entry.source_paths}
+                ),
+                recommendation=f"Fix the registry entry causing: {error}",
+                decision_target=targets[0] if len(targets) == 1 else None,
+                claim_type=matched[0].claim_type if len(matched) == 1 else None,
+            )
+        )
     return conflicts
 
 
 def _run_detection_functions(
     entries: Sequence[RegistryEntry],
 ) -> list[CanonicalConflict]:
-    """Run all 9 pre-existing detection functions against entries."""
+    """Run all detection functions against entries (plan adrchk010 REQ-006/REQ-012).
+
+    Includes the six entry-level schema detectors so the TOML fallback path is
+    as complete as the validator path; on the main path their results merge
+    with the wrapper findings via the (code, decision_target) dedup key.
+    """
     conflicts: list[CanonicalConflict] = []
     conflicts.extend(detect_duplicate_normative_sources(entries))
     conflicts.extend(detect_multiple_canonical_specifications(entries))
     conflicts.extend(detect_area_guide_contradiction(entries))
+    conflicts.extend(detect_empty_decision_target(entries))
+    conflicts.extend(detect_empty_claim_type(entries))
+    conflicts.extend(detect_unrecognized_claim_type(entries))
+    conflicts.extend(detect_empty_source_paths(entries))
+    conflicts.extend(detect_multiple_source_paths_violation(entries))
+    conflicts.extend(detect_empty_area(entries))
     conflicts.extend(detect_legacy_precedence_reintroduction(entries))
     conflicts.extend(detect_non_canonical_reference_without_link(entries))
     conflicts.extend(detect_stale_non_canonical_document(entries))
@@ -932,16 +912,24 @@ def detect_all_conflicts(registry_path: Path | None = None) -> list[CanonicalCon
             local_entries: Sequence[RegistryEntry] = [
                 RegistryEntry.from_dict(e.to_dict()) for e in registry.entries
             ]
-            # Wrap validation errors as findings with CANONICAL-XXX codes
+            # Wrap validation errors as findings with CANONICAL-NNN codes
             conflicts = _wrap_validation_errors(validation_errors, local_entries)
+            # REQ-006 (plan adrchk010): semantic detectors run on the main path,
+            # not only in the fallback/except path. AC-09: a finding already
+            # reported for the same (code, decision_target) by the wrapper is
+            # not emitted twice by the detectors.
+            seen = {(c.code, c.decision_target or "") for c in conflicts}
+            for finding in _run_detection_functions(local_entries):
+                key = (finding.code, finding.decision_target or "")
+                if key not in seen:
+                    seen.add(key)
+                    conflicts.append(finding)
         except (ValueError, KeyError, TypeError):
             entries = _load_registry_toml(registry_path)
             conflicts = _run_detection_functions(entries)
     else:
         entries = _load_registry_toml(registry_path)
         conflicts = _run_detection_functions(entries)
-
-    return conflicts
 
     return conflicts
 
@@ -962,6 +950,9 @@ class FindingRoute(Enum):
     DOC_CORRECTION = "doc_correction"
 
 
+_NUMERIC_CANONICAL_CODE_RE = re.compile(r"^CANONICAL-\d{3}$")
+
+
 def classify_finding(code: str, severity: Severity) -> FindingRoute:
     """Classify a finding into one of the 8 REQ-001 destinations.
 
@@ -974,14 +965,16 @@ def classify_finding(code: str, severity: Severity) -> FindingRoute:
       6. missing canonical source -> design/governance gap
       7. multiple normative sources -> blocking Canonical Source Conflict
       8. stale non-canonical wording only -> documentation-correction task
+
+    REQ-010 (plan adrchk010): the real finding families produced by this tool
+    are routed: the numeric CANONICAL-NNN family (blocking classes HIGH/MEDIUM
+    -> Canonical Source Conflict, LOW -> documentation-correction task) and the
+    CANONICAL-W-NN warning family (documentation-correction task).
     """
-    if code.startswith("CANONICAL-C"):
-        if severity == Severity.HIGH:
+    if _NUMERIC_CANONICAL_CODE_RE.match(code):
+        if severity in (Severity.HIGH, Severity.MEDIUM):
             return FindingRoute.CANONICAL_CONFLICT
-        elif severity == Severity.MEDIUM:
-            return FindingRoute.CANONICAL_CONFLICT
-        else:
-            return FindingRoute.DOC_CORRECTION
+        return FindingRoute.DOC_CORRECTION
     elif code.startswith("CANONICAL-W"):
         return FindingRoute.DOC_CORRECTION
     elif code.startswith("CONFIG-"):
@@ -1036,7 +1029,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--registry",
         type=str,
-        help="Path to TOML registry file (default: config/canonical_source_registry.toml)",
+        help="Path to TOML registry file (default: config/documentation_canonical_sources.toml)",
     )
     parser.add_argument(
         "--json",

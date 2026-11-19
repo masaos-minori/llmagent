@@ -73,8 +73,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add T01–T05 failing-fixture tests (`REQ-001`–`REQ-005`) | Pending | — | — | Red before seq 01 |
-| 2 | Re-run after each seq 01 fix batch until green | Pending | — | — | |
+| 1 | Add T01–T05 failing-fixture tests (`REQ-001`–`REQ-005`) | Completed | 2026-11-19 | 2026-11-19 | Written test-first inline during the member 01 run (seq-order batch decision, recorded in the Final Report): red evidence captured before the seq 01 fixes (doc 01 Execution Status rows 1–2 cite T01/T02 red→green). Verification 2026-11-19: all five fixture classes present as specified — `TestSingleSeverityNonAcceptedAdr` (T01, Draft-ADR fixture `_T01_ADR_TEXT` with a `## Status` section, asserts exactly one error and `validate_all` warnings == []), `TestRepoRootAnchoring` (T02, foreign-cwd monkeypatch, absolute registry path), `TestUnknownOptionGuard` (T03, exit 2 behavior lock), `TestDeadCodeRemoved` (T04, attribute-absence guards + surviving-entry-points lock), `TestDeterministicOutput` (T05, byte-identical CLI and schema-validation runs) |
+| 2 | Re-run after each seq 01 fix batch until green | Completed | 2026-11-19 | 2026-11-19 | File re-run after each doc 01 removal batch (batch A/B/C gates in doc 01 row 3); final state 23 test functions green, the 13 baseline tests unchanged and green; no fixture files committed (in-memory / `tmp_path` only; `tests/fixtures/` does not exist) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

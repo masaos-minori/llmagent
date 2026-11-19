@@ -75,10 +75,14 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix `eventbus.persistence-schema.bootstrap-ddl` source path (`REQ-014`) | Pending | — | — | |
-| 2 | Fix `agent.posture-failure-handling` notes (`REQ-015`) | Pending | — | — | |
-| 3 | Fix `governance.policy` and `overview.architecture-overview` rows (`REQ-016`, `REQ-019`) | Pending | — | — | UNK-04 decision, pinned by seq 09 fixture |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Three consumer commands + suite |
+| 1 | Fix `eventbus.persistence-schema.bootstrap-ddl` source path (`REQ-014`) | Completed | 2026-11-19 | 2026-11-19 | `["scripts/eventbus/schema.sql"]` (2892 B, exists); three consumers re-run after the edit: all exit 0 |
+| 2 | Fix `agent.posture-failure-handling` notes (`REQ-015`) | Completed | 2026-11-19 | 2026-11-19 | Notes rewritten to ADR-004 Group 1 item 1 wording; environment-specific fail-open wording dropped; consumers re-run: all exit 0 |
+| 3 | Fix `governance.policy` and `overview.architecture-overview` rows (`REQ-016`, `REQ-019`) | Completed | 2026-11-19 | 2026-11-19 | UNK-04 decided (see record below); T12 corrected-rows test unskipped and passing |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-19 | 2026-11-19 | Three consumer commands exit 0; conflicts test file 201 passed / 0 skipped; TOML-only change (lint/type tools have no TOML scope; full suite runs at batch end) |
+
+### Decision record (UNK-04, 2026-11-19)
+- Chosen option for both disputed rows: re-point `source_paths` to `docs/00_governance/governance_02_documentation-metadata.md`, keeping `claim_type = "documentation-metadata"`. Chosen Matrix row: the Resolution Matrix `documentation-metadata` row (`governance_01_documentation-policy.md`, "Documentation Metadata … Canonical source kind `docs/00_governance/governance_02_documentation-metadata.md`"). The alternative (re-typing the claims) was rejected because no Matrix row names a canonical source kind that covers `governance_01_documentation-policy.md` or `docs/01_overview/overview_01_01-arch-process.md`; re-typing to `architecture-decision` would additionally require Accepted-ADR sources per the Matrix.
+- `git diff` confirms exactly four rows changed; lines 66–71 (`mcp.component-mandatoriness`) are byte-identical (`REQ-017` stays approval-gated for seq 05).
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

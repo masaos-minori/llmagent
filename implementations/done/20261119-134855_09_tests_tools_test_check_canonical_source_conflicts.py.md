@@ -76,8 +76,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add T06–T09, T11, T12 failing-fixture tests | Pending | — | — | Red before seq 02/03 |
-| 2 | Re-run after each seq 02/03 fix batch until green | Pending | — | — | Pins UNK-04 outcome via T12 |
+| 1 | Add T06–T09, T11, T12 failing-fixture tests | Completed | 2026-11-19 | 2026-11-19 | Written test-first inline during the member 02 run (seq-order batch decision, recorded in the Final Report): red evidence captured before the seq 02 fixes (doc 02 Design decisions / Execution Status). Verification 2026-11-19: all six fixture classes present as specified — `TestMainPathDetectorsT06`, `TestWrapperBlockingT07`, `TestWrapperDedupT08` (pins exactly one `007` + one `001` per duplicate pair), `TestCodeUniquenessT09` (no code repeats; version error carries `CANONICAL-012`; exact-12-codes assertion), `TestHelpDefaultT11`, `TestRegistryRowCorrectionsT12` (defective-rows half + corrected-rows half pinning the UNK-04 re-pointing values + clean-run exit 0). T07 note: the Plan's severity mapping materialized as `CANONICAL-013` HIGH/BLOCKING (doc 02 Design decisions) |
+| 2 | Re-run after each seq 02/03 fix batch until green | Completed | 2026-11-19 | 2026-11-19 | File re-run after each doc 02 fix batch and after the doc 03 row fixes (the T12 corrected-rows half was skip-marked "blocked on seq 03" during member 02 and unskipped by member 03); final state 45 tests green in this file, `CANONICAL-008` and `CANONICAL-009` baseline pins untouched, `uv run pytest tests/tools/` cross-file run green for the three checker test files |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

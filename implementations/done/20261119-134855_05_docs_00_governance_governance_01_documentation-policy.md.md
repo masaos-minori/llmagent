@@ -71,14 +71,14 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Draft the proposed `security-policy` Matrix row with citations (`REQ-017`) | Pending | — | — | |
-| 2 | Record the approval gate in the Blocker Log; reconcile with adrchk011's plan when it exists | Pending | — | — | UNK-01/UNK-02 |
-| 3 | Apply the edit only after maintainer approval, then re-run consumers | Blocked | — | — | Awaiting maintainer decision |
+| 1 | Draft the proposed `security-policy` Matrix row with citations (`REQ-017`) | Completed | 2026-11-19 | 2026-11-19 | Draft recorded in Details above; verified against source 2026-11-19: Matrix `security-policy` row confirmed at line 134, `documentation-metadata` at line 135; ADR-004 Group 3 item 13 (line 81) names `registry/component_mandatoriness.yaml`; `docs/10_adr/adr_02_03_017_mcp-authentication.md` exists |
+| 2 | Record the approval gate in the Blocker Log; reconcile with adrchk011's plan when it exists | Completed | 2026-11-19 | 2026-11-19 | UNK-01 RESOLVED: adrchk011 now has a completed plan (`plans/done/20261118-092611_adrchk011_adr-approval-governance.md`) and it contains no `security-policy`/`component-mandatoriness` references — it does not cover this Matrix row, so no proposal merge is needed and this proposal stands alone |
+| 3 | Apply the edit only after maintainer approval, then re-run consumers | Superseded | — | — | Awaiting maintainer decision (UNK-02, recorded in Blocker Log); the proposal phase is complete without any file edit Superseded: REQ-017 Matrix merge is approval-gated (UNK-02): proposal steps 1-2 are complete; the edit will be re-scoped as a new procedure if the maintainer approves. Plan adrchk010 keeps REQ-017 out of this batch's applied changes (AC-13). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 3 | `REQ-017` merge requires explicit maintainer approval (UNK-02); adrchk011 plan must be checked first (UNK-01) | No | — |
+| 3 | `REQ-017` merge requires explicit maintainer approval (UNK-02); adrchk011 plan must be checked first (UNK-01) | Partially — UNK-01 resolved 2026-11-19 (adrchk011 plan in `plans/done/` covers a different scope; no duplication). UNK-02 approval still pending | 2026-11-19 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

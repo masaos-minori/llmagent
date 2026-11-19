@@ -39,6 +39,10 @@ def _entry(
 class TestClassifyFinding:
     """Verify each of the 8 REQ-001 routing rules maps exactly one destination."""
 
+    # REQ-011 (plan adrchk010 seq 02 companion): parametrized on the real code
+    # families produced by tools/check_canonical_source_conflicts.py
+    # (CANONICAL-NNN numeric family, CANONICAL-W-NN warning family), replacing
+    # the synthetic CANONICAL-C001/CANONICAL-C002 literals.
     @pytest.mark.parametrize(
         ("code", "severity", "expected"),
         [
@@ -47,8 +51,11 @@ class TestClassifyFinding:
             ("KNOWN-001", Severity.MEDIUM, FindingRoute.KNOWN_ISSUE),
             ("KNOWN-001", Severity.LOW, FindingRoute.KNOWN_ISSUE),
             # Rule 3: Specification-vs-acceptance-test -> blocking Canonical Source Conflict
-            ("CANONICAL-C001", Severity.HIGH, FindingRoute.CANONICAL_CONFLICT),
-            ("CANONICAL-C001", Severity.MEDIUM, FindingRoute.CANONICAL_CONFLICT),
+            ("CANONICAL-001", Severity.HIGH, FindingRoute.CANONICAL_CONFLICT),
+            ("CANONICAL-004", Severity.HIGH, FindingRoute.CANONICAL_CONFLICT),
+            ("CANONICAL-007", Severity.HIGH, FindingRoute.CANONICAL_CONFLICT),
+            ("CANONICAL-012", Severity.HIGH, FindingRoute.CANONICAL_CONFLICT),
+            ("CANONICAL-013", Severity.HIGH, FindingRoute.CANONICAL_CONFLICT),
             # Rule 4: deployed-vs-approved config -> Configuration Drift
             ("CONFIG-001", Severity.HIGH, FindingRoute.CONFIG_DRIFT),
             ("CONFIG-001", Severity.MEDIUM, FindingRoute.CONFIG_DRIFT),
@@ -57,9 +64,14 @@ class TestClassifyFinding:
             # Rule 6: missing canonical source -> design/governance gap
             ("GOV-001", Severity.HIGH, FindingRoute.GOVERNANCE_GAP),
             # Rule 7: multiple normative sources -> blocking Canonical Source Conflict
-            ("CANONICAL-C002", Severity.HIGH, FindingRoute.CANONICAL_CONFLICT),
+            ("CANONICAL-006", Severity.MEDIUM, FindingRoute.CANONICAL_CONFLICT),
+            ("CANONICAL-010", Severity.MEDIUM, FindingRoute.CANONICAL_CONFLICT),
+            ("CANONICAL-011", Severity.MEDIUM, FindingRoute.CANONICAL_CONFLICT),
+            # Numeric family with LOW severity -> documentation-correction task
+            ("CANONICAL-012", Severity.LOW, FindingRoute.DOC_CORRECTION),
             # Rule 8: stale non-canonical wording only -> documentation-correction task
-            ("CANONICAL-W001", Severity.LOW, FindingRoute.DOC_CORRECTION),
+            ("CANONICAL-W-01", Severity.LOW, FindingRoute.DOC_CORRECTION),
+            ("CANONICAL-W-05", Severity.MEDIUM, FindingRoute.DOC_CORRECTION),
             # Unknown code falls back to Known Issue
             ("UNKNOWN-001", Severity.HIGH, FindingRoute.KNOWN_ISSUE),
         ],
