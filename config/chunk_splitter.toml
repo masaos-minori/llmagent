@@ -2,9 +2,16 @@
 
 rag_src_dir = "/opt/llm/rag-src"
 
-# Unvalidated heuristic, pending performance tuning — no recorded rationale found
-# via git history or originating issues. These three values interact as a group
-# (NC-034) and were set without measured justification.
+# Chunk-size group. Validated as a unit in ChunkSplitter.__init__
+# (scripts/rag/ingestion/chunk_splitter.py); a violation raises
+# PipelineValidationError at construction. Enforced relations:
+#   - min_chunk >= 0
+#   - min_chunk <= max_chunk
+#   - chunk_overlap >= 0 and chunk_overlap < max_chunk
+#   - when md_index_enable is true:
+#       min_chunk <= md_snippet_max_chars <= max_chunk
+# The values themselves remain an unvalidated heuristic (NC-034) with no
+# measured rationale; only the relations between them are enforced.
 min_chunk = 40
 max_chunk = 500
 chunk_overlap = 50

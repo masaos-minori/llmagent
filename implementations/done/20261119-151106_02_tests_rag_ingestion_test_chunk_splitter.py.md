@@ -173,10 +173,10 @@ def test_md_heading_splits_have_matching_fetched_at(self, tmp_path: Path) -> Non
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | code row 01 owns the implementation |
-| 2 | Add or update tests per Validation plan | Pending | — | — | add rejection/wrong-type/md-snapshot tests; rework 2 existing tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff + pytest on the rag ingestion suite |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs handled by rows 03/04 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261119-160924 | code row 01 owns the implementation |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261119-160924 | add rejection/wrong-type/md-snapshot tests; rework 2 existing tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261119-160924 | ruff + pytest on the rag ingestion suite |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261119-160924 | docs handled by rows 03/04 N/A: no docs edited for this member; relations documented in rows 03/04 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

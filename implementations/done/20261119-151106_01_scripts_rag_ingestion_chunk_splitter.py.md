@@ -128,10 +128,10 @@ Notes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement chunk-size group validation + typed getters in `ChunkSplitter.__init__` | Pending | — | — | REQ-001..REQ-004; fail-fast before Sudachi |
-| 2 | Add/update tests per Validation plan | Pending | — | — | companion row covers test changes |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff + pytest |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs handled by rows 03/04 |
+| 1 | Implement chunk-size group validation + typed getters in `ChunkSplitter.__init__` | Completed | — | 20261119-160924 | REQ-001..REQ-004; fail-fast before Sudachi |
+| 2 | Add/update tests per Validation plan | Completed | — | 20261119-160924 | companion row covers test changes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261119-160924 | ruff + pytest |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261119-160924 | docs handled by rows 03/04 N/A: no docs edited for this member; relations documented in rows 03/04 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

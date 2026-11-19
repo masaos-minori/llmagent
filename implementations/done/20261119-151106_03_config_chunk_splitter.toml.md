@@ -72,10 +72,10 @@ md_snippet_max_chars = 600
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | add relation comments above the four keys |
-| 2 | Add or update tests per Validation plan | Pending | — | — | docs/config change; no tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff + TOML parse check |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | — |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261119-161327 | add relation comments above the four keys |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261119-161327 | docs/config change; no tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261119-161327 | ruff + TOML parse check |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261119-161327 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -52,6 +52,75 @@ class TestMaxChunkValidation:
         with pytest.raises(PipelineValidationError):
             ChunkSplitter(config=cfg)
 
+    def test_min_chunk_greater_than_max_chunk_raises_at_construction(self) -> None:
+        cfg = dict(_CRAWL_CONFIG)
+        cfg["min_chunk"] = 600  # > max_chunk (500)
+        with pytest.raises(PipelineValidationError, match="min_chunk"):
+            ChunkSplitter(config=cfg)
+        with pytest.raises(PipelineValidationError, match="max_chunk"):
+            ChunkSplitter(config=cfg)
+
+    def test_negative_min_chunk_raises_at_construction(self) -> None:
+        cfg = dict(_CRAWL_CONFIG)
+        cfg["min_chunk"] = -1
+        with pytest.raises(PipelineValidationError, match="min_chunk"):
+            ChunkSplitter(config=cfg)
+
+    def test_chunk_overlap_at_max_chunk_raises_at_construction(self) -> None:
+        cfg = dict(_CRAWL_CONFIG)
+        cfg["chunk_overlap"] = 500  # == max_chunk
+        with pytest.raises(PipelineValidationError, match="chunk_overlap"):
+            ChunkSplitter(config=cfg)
+
+    def test_negative_chunk_overlap_raises_at_construction(self) -> None:
+        cfg = dict(_CRAWL_CONFIG)
+        cfg["chunk_overlap"] = -10
+        with pytest.raises(PipelineValidationError, match="chunk_overlap"):
+            ChunkSplitter(config=cfg)
+
+    def test_wrong_type_max_chunk_raises_pipeline_error(self) -> None:
+        cfg = dict(_CRAWL_CONFIG)
+        cfg["max_chunk"] = "abc"  # str, not int
+        with pytest.raises(PipelineValidationError, match="max_chunk"):
+            ChunkSplitter(config=cfg)
+
+    def test_wrong_type_float_min_chunk_raises_pipeline_error(self) -> None:
+        cfg = dict(_CRAWL_CONFIG)
+        cfg["min_chunk"] = 40.5  # float, not int
+        with pytest.raises(PipelineValidationError, match="min_chunk"):
+            ChunkSplitter(config=cfg)
+
+    def test_valid_tight_boundary_config_constructs(self) -> None:
+        cfg = dict(_CRAWL_CONFIG)
+        cfg["chunk_overlap"] = 499  # < max_chunk (500); tightest valid overlap
+        splitter = ChunkSplitter(config=cfg)  # must not raise
+        assert splitter._min_chunk == 40
+        assert splitter._max_chunk == 500
+        assert splitter._chunk_overlap == 499
+
+
+class TestMdSnippetValidation:
+    def test_md_snippet_above_max_chunk_raises_when_enabled(self) -> None:
+        cfg = dict(_CRAWL_CONFIG)
+        cfg["md_index_enable"] = True
+        cfg["md_snippet_max_chars"] = 600  # > max_chunk (500)
+        with pytest.raises(PipelineValidationError, match="md_snippet_max_chars"):
+            ChunkSplitter(config=cfg)
+
+    def test_md_snippet_within_range_constructs_when_enabled(self) -> None:
+        cfg = dict(_CRAWL_CONFIG)
+        cfg["md_index_enable"] = True
+        cfg["md_snippet_max_chars"] = 400  # within [40, 500]
+        splitter = ChunkSplitter(config=cfg)  # must not raise
+        assert splitter._md_index_enable is True
+        assert splitter._md_snippet_max_chars == 400
+
+    def test_md_snippet_not_checked_when_disabled(self) -> None:
+        cfg = dict(_CRAWL_CONFIG)
+        # md_index_enable absent -> False; the 600 vs 500 mismatch is unchecked.
+        splitter = ChunkSplitter(config=cfg)  # must not raise
+        assert splitter._md_index_enable is False
+
 
 class TestIsMarkdownSource:
     def test_md_extension_returns_true_regardless_of_flag(self) -> None:
@@ -717,7 +786,13 @@ class TestFetchedAtPropagation:
         assert data["fetched_at"] == expected
 
     def test_md_heading_splits_have_matching_fetched_at(self, tmp_path: Path) -> None:
-        splitter = _make_io_splitter(tmp_path, md_index_enable=True)
+        src_dir = tmp_path / "rag-src"
+        src_dir.mkdir(exist_ok=True)
+        cfg = dict(_CRAWL_CONFIG)
+        cfg["rag_src_dir"] = str(src_dir)
+        cfg["md_index_enable"] = True
+        cfg["md_snippet_max_chars"] = 400  # valid: within [min_chunk=40, max_chunk=500]
+        splitter = ChunkSplitter(config=cfg)
         self._write_crawl_json(tmp_path, _CRAWL_WITH_MD_HEADINGS)
         total = splitter.process_all(force=True)
         assert total >= 3
@@ -1168,7 +1243,7 @@ class TestForceRechunkPrune:
         )
         assert old_count >= 1
         new_count = _make_prune_splitter(
-            tmp_path, min_chunk=100000, max_chunk=600
+            tmp_path, min_chunk=100000, max_chunk=100001
         ).process_file(src, force=True)
         assert new_count == 0
         assert _chunk_series(tmp_path / "chunk", "page") == []

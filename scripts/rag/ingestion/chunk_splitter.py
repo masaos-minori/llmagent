@@ -61,6 +61,19 @@ class ChunkMetadata(TypedDict, total=False):
     chunking_strategy: str
 
 
+def _require_int(cfg: dict, key: str, *, default: int | None = None) -> int:
+    """Return ``cfg[key]`` as an int, rejecting bool/float/str with PipelineValidationError.
+
+    Falls back to ``default`` when the key is absent. A non-int ``default`` is a
+    code error, not a config error, so the literal default is assumed to be an int.
+    A ``bool`` is rejected explicitly because it subclasses ``int``.
+    """
+    raw = cfg[key] if key in cfg else default
+    if isinstance(raw, bool) or not isinstance(raw, int):
+        raise PipelineValidationError(f"{key} must be an integer, got {raw!r}")
+    return raw
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # ChunkSplitter class
 # ──────────────────────────────────────────────────────────────────────────────
@@ -72,19 +85,50 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         cfg: dict = config or ConfigLoader().load("chunk_splitter.toml")
         rag_src_dir = Path(cfg["rag_src_dir"])
         self._chunk_dir: Path = rag_src_dir / "chunk"
-        self._min_chunk: int = int(cfg["min_chunk"])
-        self._max_chunk: int = int(cfg["max_chunk"])
-        if self._max_chunk <= 0:
+        self._rag_src_dir: Path = rag_src_dir
+
+        # Chunk-size group validation + typed getters, before Sudachi construction.
+        min_chunk = _require_int(cfg, "min_chunk")
+        max_chunk = _require_int(cfg, "max_chunk")
+        chunk_overlap = _require_int(cfg, "chunk_overlap", default=50)
+
+        if min_chunk < 0:
+            raise PipelineValidationError(f"min_chunk must be >= 0, got {min_chunk}")
+        if min_chunk > max_chunk:
             raise PipelineValidationError(
-                f"max_chunk must be positive, got {self._max_chunk}"
+                f"min_chunk ({min_chunk}) must be <= max_chunk ({max_chunk})"
             )
+        if chunk_overlap < 0:
+            raise PipelineValidationError(
+                f"chunk_overlap must be >= 0, got {chunk_overlap}"
+            )
+        if chunk_overlap >= max_chunk:
+            raise PipelineValidationError(
+                f"chunk_overlap ({chunk_overlap}) must be < max_chunk ({max_chunk})"
+            )
+
+        self._min_chunk: int = min_chunk
+        self._max_chunk: int = max_chunk
+        self._chunk_overlap: int = chunk_overlap
+
         self._en_stopwords: frozenset[str] = frozenset(cfg["en_stopwords"])
         self._ja_stop_pos: frozenset[str] = frozenset(cfg["ja_stop_pos"])
-        self._chunk_overlap: int = int(cfg.get("chunk_overlap", 50))
-        # Markdown heading-based snippet mode: split on # / ## / ### boundaries
-        self._md_index_enable: bool = bool(cfg.get("md_index_enable", False))
-        self._md_snippet_max_chars: int = int(cfg.get("md_snippet_max_chars", 600))
-        self._rag_src_dir: Path = rag_src_dir
+
+        md_index_enable = cfg.get("md_index_enable", False)
+        if not isinstance(md_index_enable, bool):
+            raise PipelineValidationError(
+                f"md_index_enable must be a boolean, got {md_index_enable!r}"
+            )
+        self._md_index_enable: bool = md_index_enable
+        # Read once; range-check only when the feature is enabled (REQ-004).
+        md_snippet_max_chars = _require_int(cfg, "md_snippet_max_chars", default=600)
+        if md_index_enable and not (min_chunk <= md_snippet_max_chars <= max_chunk):
+            raise PipelineValidationError(
+                f"md_snippet_max_chars ({md_snippet_max_chars}) must be within "
+                f"[min_chunk={min_chunk}, max_chunk={max_chunk}]"
+            )
+        self._md_snippet_max_chars: int = md_snippet_max_chars
+
         # SplitMode.C: longest compound unit; optimal for NLP downstream tasks
         sd_dict = sudachi_dict.Dictionary(dict=resolve_sudachi_dict_path())
         self._sd_tkn = sd_dict.create()

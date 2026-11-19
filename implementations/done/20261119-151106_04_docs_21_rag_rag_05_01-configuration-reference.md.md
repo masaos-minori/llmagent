@@ -60,10 +60,10 @@ Insert this bullet immediately after the existing `md_index_enable` bullet (line
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | add relations bullet to config/chunk_splitter.toml section |
-| 2 | Add or update tests per Validation plan | Pending | — | — | docs change; no tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff + check_docs_quality.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | — |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261119-161408 | add relations bullet to config/chunk_splitter.toml section |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261119-161408 | docs change; no tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261119-161408 | ruff + check_docs_quality.py |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261119-161408 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -42,6 +42,7 @@ Used by: `chunk_splitter.py` only.
 
 - Keys cover the chunk input/output base directory, chunk size bounds (`min_chunk`, `max_chunk`), and `chunk_overlap` (characters carried from the previous chunk; zero disables overlap).
 - `md_index_enable` enables heading splitting for non-`.md` content with two or more heading lines; `.md`/`.markdown`/`.mdx` URLs always use heading splits. `md_snippet_max_chars` is the per-section limit above which a section falls back to text splitting.
+- The four chunk-size keys are validated as a unit in `ChunkSplitter.__init__` (`scripts/rag/ingestion/chunk_splitter.py`); a violation raises `PipelineValidationError` at construction. Enforced relations: `min_chunk >= 0`; `min_chunk <= max_chunk`; `chunk_overlap >= 0` and `chunk_overlap < max_chunk`; and, when `md_index_enable` is true, `min_chunk <= md_snippet_max_chars <= max_chunk`. The values themselves remain an unvalidated heuristic (NC-034) with no measured rationale; only the relations between them are enforced.
 - `en_stopwords` and `ja_stop_pos` are the stopwords excluded from FTS5 indexing and chunking; `ja_stop_pos` is a list of Japanese Sudachi part-of-speech names (not English labels).
 
 ## `config/ingester.toml`

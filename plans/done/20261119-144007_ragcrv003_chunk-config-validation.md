@@ -176,9 +176,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Constructor validation in `ChunkSplitter.__init__` (typed getters + group relations) | In Progress | — | — | Touches `scripts/rag/ingestion/chunk_splitter.py` (REQ-001..REQ-004) |
-| 2 | Regression tests for rejected relations, wrong-type cases, accepted-boundary parity | In Progress | — | — | Touches `tests/rag/ingestion/test_chunk_splitter.py` (REQ-001..REQ-005) |
-| 3 | Document relations in config + configuration reference; run validation gate | In Progress | — | — | Touches `config/chunk_splitter.toml` and `docs/21_rag/rag_05_01-configuration-reference.md` (REQ-006, REQ-007) |
+| 1 | Constructor validation in `ChunkSplitter.__init__` (typed getters + group relations) | Completed | — | 20261119-161000 | Touches `scripts/rag/ingestion/chunk_splitter.py` (REQ-001..REQ-004) |
+| 2 | Regression tests for rejected relations, wrong-type cases, accepted-boundary parity | Completed | — | 20261119-161000 | Touches `tests/rag/ingestion/test_chunk_splitter.py` (REQ-001..REQ-005) |
+| 3 | Document relations in config + configuration reference; run validation gate | Completed | — | 20261119-161421 | Touches `config/chunk_splitter.toml` and `docs/21_rag/rag_05_01-configuration-reference.md` (REQ-006, REQ-007) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -188,10 +188,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261119-151106_01_scripts_rag_ingestion_chunk_splitter.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261119-151106_02_tests_rag_ingestion_test_chunk_splitter.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261119-151106_03_config_chunk_splitter.toml.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261119-151106_04_docs_21_rag_rag_05_01-configuration-reference.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261119-151106_01_scripts_rag_ingestion_chunk_splitter.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261119-151106_02_tests_rag_ingestion_test_chunk_splitter.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261119-151106_03_config_chunk_splitter.toml.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261119-151106_04_docs_21_rag_rag_05_01-configuration-reference.md.md` | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
