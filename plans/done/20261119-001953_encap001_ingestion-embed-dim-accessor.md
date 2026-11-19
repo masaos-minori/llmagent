@@ -279,10 +279,10 @@ as a unit; `N/A` is only for a Plan whose every phase passes validation alone.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add public read-only `embed_dim` accessor to store.py | In Progress | — | — |  |
-| 2 | Route ingestion._persist_entry_with_embedding through the accessor | In Progress | — | — |  |
-| 3 | Update mock-based tests to expose `.embed_dim` | In Progress | — | — |  |
-| 4 | Add accessor assertion and run ruff/mypy/tests | In Progress | — | — |  |
+| 1 | Add public read-only `embed_dim` accessor to store.py | Completed | — | 20261119-104127 |  |
+| 2 | Route ingestion._persist_entry_with_embedding through the accessor | Completed | — | 20261119-104127 |  |
+| 3 | Update mock-based tests to expose `.embed_dim` | Completed | — | 20261119-104127 |  |
+| 4 | Add accessor assertion and run ruff/mypy/tests | Completed | — | 20261119-104127 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -292,11 +292,11 @@ as a unit; `N/A` is only for a Plan whose every phase passes validation alone.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261119-072739_01_scripts_agent_memory_store.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261119-072739_02_scripts_agent_memory_ingestion.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261119-072739_03_tests_agent_memory_test_memory_layer.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261119-072739_04_tests_integration_test_rag_llm_integration.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261119-072739_05_tests_agent_memory_test_memory_store.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261119-072739_01_scripts_agent_memory_store.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261119-072739_02_scripts_agent_memory_ingestion.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261119-072739_03_tests_agent_memory_test_memory_layer.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261119-072739_04_tests_integration_test_rag_llm_integration.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261119-072739_05_tests_agent_memory_test_memory_store.py.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

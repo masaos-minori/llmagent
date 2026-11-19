@@ -41,6 +41,11 @@ class MemoryStore:
         # When set, embeddings passed to add()/upsert() are validated against this dimension.
         self._embed_dim = embed_dim
 
+    @property
+    def embed_dim(self) -> int | None:
+        """The embedding dimension configured at construction, or None when unset."""
+        return self._embed_dim
+
     # ── Read-only API ────────────────────────────────────────────────────────
 
     def search_by_type(

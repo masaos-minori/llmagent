@@ -77,8 +77,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add public read-only `embed_dim` accessor to store.py (`scripts/agent/memory/store.py`, REQ-002) | Pending | — | — | Part of release unit accessor-and-caller (Phases 1+2) |
-| 2 | Verify accessor mirrors constructor dimension; run ruff/mypy/tests (`scripts/agent/memory/store.py`, REQ-002, REQ-003) | Pending | — | — | |
+| 1 | Add public read-only `embed_dim` accessor to store.py (`scripts/agent/memory/store.py`, REQ-002) | Completed | 20261119-104112 | 20261119-104112 | Part of release unit accessor-and-caller (Phases 1+2) |
+| 2 | Verify accessor mirrors constructor dimension; run ruff/mypy/tests (`scripts/agent/memory/store.py`, REQ-002, REQ-003) | Completed | 20261119-104112 | 20261119-104112 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -74,8 +74,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Route `ingestion._persist_entry_with_embedding` through the accessor (`scripts/agent/memory/ingestion.py`, REQ-001) | Pending | — | — | Part of release unit accessor-and-caller (Phases 1+2) |
-| 2 | Verify no private access remains; run ruff/mypy/tests (`scripts/agent/memory/ingestion.py`, REQ-001, REQ-003) | Pending | — | — | |
+| 1 | Route `ingestion._persist_entry_with_embedding` through the accessor (`scripts/agent/memory/ingestion.py`, REQ-001) | Completed | 20261119-104112 | 20261119-104112 | Part of release unit accessor-and-caller (Phases 1+2) |
+| 2 | Verify no private access remains; run ruff/mypy/tests (`scripts/agent/memory/ingestion.py`, REQ-001, REQ-003) | Completed | 20261119-104112 | 20261119-104112 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

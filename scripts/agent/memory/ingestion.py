@@ -139,7 +139,7 @@ class MemoryIngestionService:
     ) -> None:
         """Persist an entry to SQLite and JSONL with the given embedding result."""
         embedding = embed_result.embedding if embed_result.success else None
-        write_upsert(entry, embedding=embedding, embed_dim=self._store._embed_dim)
+        write_upsert(entry, embedding=embedding, embed_dim=self._store.embed_dim)
         try:
             await self._jsonl.write(entry)
         except OSError as e:

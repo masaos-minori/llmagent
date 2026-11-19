@@ -156,6 +156,11 @@ def store(db_conn: sqlite3.Connection) -> Generator[MemoryStore]:
         yield MemoryStore()
 
 
+def test_embed_dim_accessor_mirrors_constructor() -> None:
+    assert MemoryStore(embed_dim=768).embed_dim == 768
+    assert MemoryStore().embed_dim is None
+
+
 # ── add() ─────────────────────────────────────────────────────────────────────
 
 

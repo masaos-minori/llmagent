@@ -78,7 +78,7 @@ async def test_c03_embedding_failure_increments_stat_embed_skip():
     from agent.memory.store import MemoryStore
 
     store = MagicMock(spec=MemoryStore)
-    store._embed_dim = 0
+    store.embed_dim = 0
     jsonl = MagicMock(spec=JsonlMemoryStore)
     jsonl.write = AsyncMock()
     retriever = MagicMock(spec=HybridRetriever)

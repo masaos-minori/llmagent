@@ -73,7 +73,7 @@ def _make_ingestion_svc(
     dedup_threshold: float = 0.3,
 ) -> tuple[MemoryIngestionService, MagicMock, MagicMock, MagicMock]:
     mock_store = MagicMock()
-    mock_store._embed_dim = None
+    mock_store.embed_dim = None
     mock_retriever = MagicMock(spec=HybridRetriever)
     mock_jsonl = MagicMock(spec=JsonlMemoryStore)
     svc = MemoryIngestionService(
@@ -348,7 +348,7 @@ class TestEmbeddingInOnSessionStop:
     async def test_upsert_called_with_embedding_when_embed_enabled(self) -> None:
         """on_session_stop passes embedding to write_upsert when embed is enabled."""
         mock_store = MagicMock()
-        mock_store._embed_dim = None
+        mock_store.embed_dim = None
         mock_retriever = MagicMock(spec=HybridRetriever)
         mock_jsonl = MagicMock(spec=JsonlMemoryStore)
         fake_embedding = [0.1, 0.2, 0.3]
@@ -388,7 +388,7 @@ class TestEmbeddingInOnSessionStop:
     async def test_no_entry_when_embed_fails(self) -> None:
         """on_session_stop falls back gracefully when embed client returns failure."""
         mock_store = MagicMock(spec=MemoryStore)
-        mock_store._embed_dim = 768
+        mock_store.embed_dim = 768
         mock_retriever = MagicMock(spec=HybridRetriever)
         mock_jsonl = MagicMock(spec=JsonlMemoryStore)
 
@@ -624,7 +624,7 @@ class TestIngestionDedup:
     async def test_skip_new_skips_when_near_duplicate(self) -> None:
         """SKIP_NEW dedup policy prevents persisting when near-duplicate exists."""
         mock_store = MagicMock()
-        mock_store._embed_dim = None
+        mock_store.embed_dim = None
         mock_retriever = MagicMock(spec=HybridRetriever)
         mock_jsonl = MagicMock(spec=JsonlMemoryStore)
 
@@ -666,7 +666,7 @@ class TestIngestionDedup:
     async def test_skip_new_persists_when_no_duplicate(self) -> None:
         """SKIP_NEW dedup policy persists entry when no near-duplicate exists."""
         mock_store = MagicMock()
-        mock_store._embed_dim = None
+        mock_store.embed_dim = None
         mock_retriever = MagicMock(spec=HybridRetriever)
         mock_jsonl = MagicMock(spec=JsonlMemoryStore)
 
@@ -710,7 +710,7 @@ class TestLinkDuplicates:
     def test_link_called_when_embedding_present(self) -> None:
         """_link_duplicates invokes knn_search when embedding is provided."""
         mock_store = MagicMock(spec=MemoryStore)
-        mock_store._embed_dim = 768
+        mock_store.embed_dim = 768
         mock_retriever = MagicMock(spec=HybridRetriever)
         mock_jsonl = MagicMock(spec=JsonlMemoryStore)
 
@@ -730,7 +730,7 @@ class TestLinkDuplicates:
     def test_no_self_link(self) -> None:
         """_link_duplicates does not create a link from a memory to itself."""
         mock_store = MagicMock(spec=MemoryStore)
-        mock_store._embed_dim = 768
+        mock_store.embed_dim = 768
         mock_retriever = MagicMock(spec=HybridRetriever)
         mock_jsonl = MagicMock(spec=JsonlMemoryStore)
 
@@ -768,7 +768,7 @@ class TestStatEmbedSkip:
     async def test_increment_on_embed_failure_in_persist_entry_with_dedup(self) -> None:
         """_persist_entry_with_dedup increments stat_embed_skip when embed fails."""
         mock_store = MagicMock(spec=MemoryStore)
-        mock_store._embed_dim = 768
+        mock_store.embed_dim = 768
         mock_retriever = MagicMock(spec=HybridRetriever)
         mock_jsonl = MagicMock(spec=JsonlMemoryStore)
 
@@ -801,7 +801,7 @@ class TestStatEmbedSkip:
     async def test_no_increment_on_successful_embed(self) -> None:
         """stat_embed_skip stays 0 when embedding succeeds."""
         mock_store = MagicMock()
-        mock_store._embed_dim = None
+        mock_store.embed_dim = None
         mock_retriever = MagicMock(spec=HybridRetriever)
         mock_jsonl = MagicMock(spec=JsonlMemoryStore)
 
@@ -845,7 +845,7 @@ class TestStatEmbedSkip:
     async def test_summary_log_contains_count(self) -> None:
         """on_session_stop summary log includes embed_skipped count."""
         mock_store = MagicMock(spec=MemoryStore)
-        mock_store._embed_dim = 768
+        mock_store.embed_dim = 768
         mock_retriever = MagicMock(spec=HybridRetriever)
         mock_jsonl = MagicMock(spec=JsonlMemoryStore)
 

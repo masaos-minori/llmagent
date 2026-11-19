@@ -73,8 +73,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Set `store.embed_dim = 0` instead of `store._embed_dim` (`tests/integration/test_rag_llm_integration.py`, REQ-005) | Pending | — | — | |
-| 2 | Run integration test + ruff (`tests/integration/test_rag_llm_integration.py`, REQ-005) | Pending | — | — | |
+| 1 | Set `store.embed_dim = 0` instead of `store._embed_dim` (`tests/integration/test_rag_llm_integration.py`, REQ-005) | Completed | 20261119-104112 | 20261119-104112 | — |
+| 2 | Run integration test + ruff (`tests/integration/test_rag_llm_integration.py`, REQ-005) | Completed | 20261119-104112 | 20261119-104112 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

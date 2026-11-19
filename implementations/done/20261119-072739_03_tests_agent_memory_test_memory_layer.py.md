@@ -66,8 +66,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Set `mock_store.embed_dim` instead of `mock_store._embed_dim` (all occurrences) (`tests/agent/memory/test_memory_layer.py`, REQ-005) | Pending | — | — | |
-| 2 | Run memory-layer tests + ruff (`tests/agent/memory/test_memory_layer.py`, REQ-005) | Pending | — | — | |
+| 1 | Set `mock_store.embed_dim` instead of `mock_store._embed_dim` (all occurrences) (`tests/agent/memory/test_memory_layer.py`, REQ-005) | Completed | 20261119-104112 | 20261119-104112 | — |
+| 2 | Run memory-layer tests + ruff (`tests/agent/memory/test_memory_layer.py`, REQ-005) | Completed | 20261119-104112 | 20261119-104112 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

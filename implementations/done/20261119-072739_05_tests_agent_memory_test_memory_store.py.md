@@ -70,8 +70,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add accessor-mirror assertion (set + None cases) (`tests/agent/memory/test_memory_store.py`, REQ-006) | Pending | — | — | |
-| 2 | Run test + ruff (`tests/agent/memory/test_memory_store.py`, REQ-006) | Pending | — | — | |
+| 1 | Add accessor-mirror assertion (set + None cases) (`tests/agent/memory/test_memory_store.py`, REQ-006) | Completed | 20261119-104112 | 20261119-104112 | — |
+| 2 | Run test + ruff (`tests/agent/memory/test_memory_store.py`, REQ-006) | Completed | 20261119-104112 | 20261119-104112 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
