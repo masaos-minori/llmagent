@@ -12,12 +12,12 @@ def resolve_memory_jsonl_dir() -> str:
     """Return the flat ``memory_jsonl_dir`` path using the builder default.
 
     Reads the raw flat TOML dict and resolves the key through the same
-    ``_get_str_or_default`` helper that ``_build_memory_config`` uses, so the
+    ``get_str_or_default`` helper that ``_build_memory_config`` uses, so the
     returned value equals ``ctx.cfg.memory.memory_jsonl_dir`` for the same input.
     """
     from shared.config_loader import ConfigLoader
 
-    from agent.config_section_builders import _get_str_or_default
+    from agent.config_section_builders import get_str_or_default
 
     cfg = ConfigLoader().load("agent.toml")
-    return _get_str_or_default(cfg, "memory_jsonl_dir", "/opt/llm/memory")
+    return get_str_or_default(cfg, "memory_jsonl_dir", "/opt/llm/memory")

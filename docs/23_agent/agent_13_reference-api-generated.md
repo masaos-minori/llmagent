@@ -52,6 +52,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `DiagnosticsConfig` | `class DiagnosticsConfig` | Diagnostic storage encryption and retention settings. |
 |  | `MessageRoleConfig` | `class MessageRoleConfig` | Valid message roles for SessionMessageRepository. |
 |  | `AgentConfig` | `class AgentConfig` | Mutable runtime configuration shared by all agent components. |
+| `scripts/agent/config_section_builders.py` | `get_str_or_default` | `def get_str_or_default(cfg, key, default) -> str` | Public wrapper around ``_get_str_or_default`` for cross-module use. |
 | `scripts/agent/context.py` | `ConversationState` | `class ConversationState` | Per-session conversation fields. |
 |  | `TurnState` | `class TurnState` | Per-turn transient state; reset each turn by Orchestrator. |
 |  | `RuntimeStats` | `class RuntimeStats` | Accumulated session statistics. |

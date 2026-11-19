@@ -94,6 +94,11 @@ entries:
   name: AgentConfig
   signature: class AgentConfig
   summary: Mutable runtime configuration shared by all agent components.
+- file: scripts/agent/config_section_builders.py
+  kind: function
+  name: get_str_or_default
+  signature: def get_str_or_default(cfg, key, default) -> str
+  summary: Public wrapper around ``_get_str_or_default`` for cross-module use.
 - file: scripts/agent/context.py
   kind: class
   name: ConversationState

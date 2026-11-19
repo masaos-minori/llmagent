@@ -75,8 +75,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add public `get_str_or_default` to `config_section_builders` (`scripts/agent/config_section_builders.py`, REQ-002) | Pending | — | — | |
-| 2 | Verify accessor mirrors `_get_str_or_default`; run ruff/mypy/lint-imports (`scripts/agent/config_section_builders.py`, REQ-002) | Pending | — | — | |
+| 1 | Add public `get_str_or_default` to `config_section_builders` (`scripts/agent/config_section_builders.py`, REQ-002) | Completed | 20261119-102031 | 20261119-102031 | — |
+| 2 | Verify accessor mirrors `_get_str_or_default`; run ruff/mypy/lint-imports (`scripts/agent/config_section_builders.py`, REQ-002) | Completed | 20261119-102031 | 20261119-102031 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

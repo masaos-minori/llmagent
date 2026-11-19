@@ -85,6 +85,11 @@ def _get_str_or_default(cfg: dict[str, Any], key: str, default: str = "") -> str
     return _or_default(_get_str(cfg, key), default)
 
 
+def get_str_or_default(cfg: dict[str, Any], key: str, default: str = "") -> str:
+    """Public wrapper around ``_get_str_or_default`` for cross-module use."""
+    return _get_str_or_default(cfg, key, default)
+
+
 def _validate_dry_run_tools(tools: list[str]) -> list[str]:
     """Validate dry-run tools against known capabilities; warn on unsupported
     entries."""

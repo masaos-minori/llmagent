@@ -192,9 +192,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add public accessor to config_section_builders if none exists | In Progress | — | — |  |
-| 2 | Route resolve_memory_jsonl_dir() through the public accessor | In Progress | — | — |  |
-| 3 | Add test and run ruff/mypy/tests | In Progress | — | — |  |
+| 1 | Add public accessor to config_section_builders if none exists | Completed | — | 20261119-102153 |  |
+| 2 | Route resolve_memory_jsonl_dir() through the public accessor | Completed | — | 20261119-102153 |  |
+| 3 | Add test and run ruff/mypy/tests | Completed | — | 20261119-102153 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -204,8 +204,8 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261119-072220_01_scripts_agent_memory_config_path.py.md | 2, 3 | Procedure | Pending | — | — |
-| implementations/20261119-072220_02_scripts_agent_config_section_builders.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261119-072220_01_scripts_agent_memory_config_path.py.md | 2, 3 | Procedure | Completed | — | — |
+| implementations/20261119-072220_02_scripts_agent_config_section_builders.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

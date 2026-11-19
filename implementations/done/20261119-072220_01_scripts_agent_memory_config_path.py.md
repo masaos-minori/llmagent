@@ -85,8 +85,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Route `resolve_memory_jsonl_dir()` through the public accessor (`scripts/agent/memory/config_path.py`, REQ-001/002/003) | Pending | — | — | |
-| 2 | Add the typed-equality test and run ruff/mypy/tests (`scripts/agent/memory/config_path.py`, REQ-001/002/003) | Pending | — | — | |
+| 1 | Route `resolve_memory_jsonl_dir()` through the public accessor (`scripts/agent/memory/config_path.py`, REQ-001/002/003) | Completed | 20261119-102031 | 20261119-102031 | — |
+| 2 | Add the typed-equality test and run ruff/mypy/tests (`scripts/agent/memory/config_path.py`, REQ-001/002/003) | Completed | 20261119-102031 | 20261119-102031 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
