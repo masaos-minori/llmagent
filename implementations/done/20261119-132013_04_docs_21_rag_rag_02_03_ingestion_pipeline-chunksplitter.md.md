@@ -94,8 +94,8 @@ Revert the commit that edits the doc.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the doc per Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/toolchain.md`, `routing.md`) | Pending | — | — | |
+| 1 | Update the doc per Implementation > Procedure/Method/Details | Completed | 2026-11-19 | 2026-11-19 | Updated min_chunk discard basis + English payload shape (Shape B) |
+| 2 | Run the documentation checkers (`rules/toolchain.md`, `routing.md`) | Completed | 2026-11-19 | 2026-11-19 | check_docs_quality/structure/content_policy/consistency all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

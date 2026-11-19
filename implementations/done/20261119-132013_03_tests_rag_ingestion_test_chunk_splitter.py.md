@@ -106,10 +106,10 @@ Revert the single commit that adds the test.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-19 | 2026-11-19 | Added test_process_file_end_to_end_english_keeps_stopwords_shape_b |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-19 | 2026-11-19 | Non-empty en_stopwords asserts all present + normalized_content is None |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-19 | 2026-11-19 | pytest passes; ruff format+check clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-19 | 2026-11-19 | No doc change from this proc |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

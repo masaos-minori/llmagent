@@ -103,8 +103,8 @@ Revert the commit that edits the ADR.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the ADR per Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/toolchain.md`, `routing.md`) | Pending | — | — | |
+| 1 | Update the ADR per Implementation > Procedure/Method/Details | Completed | 2026-11-19 | 2026-11-19 | Added Shape B invariant restatement + approved entry (UNK-01) |
+| 2 | Run the documentation checkers (`rules/toolchain.md`, `routing.md`) | Completed | 2026-11-19 | 2026-11-19 | check_adr_authority/structure/reference/invariant_matrix/known_deviation_sync all pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

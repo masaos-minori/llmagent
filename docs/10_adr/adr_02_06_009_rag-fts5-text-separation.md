@@ -168,6 +168,21 @@ Keeping `content` as a separate, never-replaced field guarantees that every stor
 
 INV-09 is not used.
 
+### English Normalization Shape (Shape B)
+
+- **Decision.** For English, `chunks.normalized_content` is `NULL` and `chunks.content`
+  is the original crawled text region (every word retained, including stopwords).
+  English therefore follows INV-04 exactly; no exception is made.
+- **Basis.** Resolved by the owner on 2026-11-19 (UNK-01): INV-04 already dictates
+  `NULL` for English, so this restores the documented invariant without an exception.
+  Shape A — storing the stopword-stripped projection as `content` so FTS5 indexes the
+  stripped text — was considered and rejected because no FTS quality measurement favors
+  keeping the projection and it would require amending INV-04.
+- **Tradeoff.** Under Shape B, FTS5 indexes the original `content` via
+  `COALESCE(normalized_content, content)` (INV-03); search-time tokenization no longer
+  drops stopwords, which may change English BM25 ranking but preserves the
+  LLM-facing original.
+
 ## Failure Policy
 
 ### Failure Conditions
@@ -277,6 +292,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-08; individual reviewer names are not recorded.
 - **Current Decision Approval (pending)**: Approver not recorded; date not recorded; scope: folding INV-09 into INV-04 and the Failure Conditions relabel and normalization-failure and existing-chunk reword. Pending maintainer approval, tracked by AAL-012; no approval or reviewer name is recorded here.
+- **Current Decision Approval (Shape B, English normalization)**: Approved as of 2026-11-19 under the task-level approval decision (repository owner). Scope: English `chunks.normalized_content` is `NULL` and `chunks.content` is the original crawled text (Shape B); records the rejected Shape-A tradeoff. Individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

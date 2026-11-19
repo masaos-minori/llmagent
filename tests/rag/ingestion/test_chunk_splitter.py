@@ -862,6 +862,44 @@ class TestProcessFileEndToEnd:
             reassembled += payload["content"]
         assert "Hello world" in reassembled
 
+    def test_process_file_end_to_end_english_keeps_stopwords_shape_b(
+        self, tmp_path: Path
+    ) -> None:
+        """ragcrv002 (Shape B): a non-empty en_stopwords config must NOT strip words
+        from the stored English content, and normalized_content must be NULL."""
+        import json
+
+        stopwords = ["the", "a", "is", "and"]
+        content = "The cat is on the mat and a dog is here. " * 10
+        data = _make_crawl_json(lang="en", content=content)
+        src = tmp_path / "en-page-sw.json"
+        src.write_text(json.dumps(data), encoding="utf-8")
+
+        chunk_dir = tmp_path / "chunk"
+        chunk_dir.mkdir(exist_ok=True)
+        chunker = ChunkSplitter(
+            config={
+                "rag_src_dir": str(tmp_path),
+                "min_chunk": 10,
+                "max_chunk": 1000,
+                "en_stopwords": stopwords,
+                "ja_stop_pos": [],
+            }
+        )
+
+        result = chunker.process_file(src, force=True)
+        assert result >= 1
+
+        outputs = sorted(chunk_dir.glob(f"{src.stem}-*.json"))
+        assert len(outputs) == result
+        for out_path in outputs:
+            payload = json.loads(out_path.read_text(encoding="utf-8"))
+            assert payload["lang"] == "en"
+            lowered = payload["content"].lower()
+            for sw in stopwords:
+                assert sw in lowered, f"stopword '{sw}' was removed from content"
+            assert payload["normalized_content"] is None
+
     def test_process_file_end_to_end_japanese(self, tmp_path: Path) -> None:
         import json
 
@@ -1211,30 +1249,33 @@ _EN_MD_CHAR_CONTENT = (
 _EN_MD_CHAR_BASELINE: list[tuple[str, str, str | None]] = [
     (
         "text",
-        "# Alpha Section\n"
-        "This fitting section is comfortably longer than the minimum chunk size.",
+        "# Alpha Section\nThis fitting section is comfortably longer than the minimum "
+        "chunk size.",
         "",
     ),
     (
         "text",
-        "## Beta Oversized Section oversized section contains sentences exceeds snippet maximum. "
-        "oversized section contains sentences exceeds snippet maximum. "
-        "oversized section contains sentences exceeds snippet maximum. "
-        "oversized section contains sentences exceeds snippet maximum. "
-        "oversized section contains sentences exceeds snippet maximum.",
+        "## Beta Oversized Section\nThe oversized section contains many sentences so "
+        "that it exceeds the snippet maximum. The oversized section contains many "
+        "sentences so that it exceeds the snippet maximum. The oversized section "
+        "contains many sentences so that it exceeds the snippet maximum. The "
+        "oversized section contains many sentences so that it exceeds the snippet "
+        "maximum. The oversized section contains many sentences so that it exceeds "
+        "the snippet maximum.",
         "",
     ),
     (
         "text",
-        "oversized section contains sentences exceeds snippet maximum. "
-        "oversized section contains sentences exceeds snippet maximum. "
-        "oversized section contains sentences exceeds snippet maximum.",
+        "The oversized section contains many sentences so that it exceeds the "
+        "snippet maximum. The oversized section contains many sentences so that it "
+        "exceeds the snippet maximum. The oversized section contains many sentences "
+        "so that it exceeds the snippet maximum.",
         "",
     ),
     (
         "text",
-        "## Gamma Fit\n"
-        "Another fitting section that stays comfortably within the snippet maximum limit.",
+        "## Gamma Fit\nAnother fitting section that stays comfortably within the "
+        "snippet maximum limit.",
         "",
     ),
 ]

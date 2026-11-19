@@ -187,9 +187,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Decide shape and lock scope (owner decision on UNK-01) | In Progress | 20261119-130500 | 20261119-130500 | UNK-01 resolved as Shape B (`NULL`); scope locked; Plan Frozen |
-| 2 | Restore original `content` for English (Shape B) | In Progress | — | — | Depends on Phase 1 |
-| 3 | Tests, docs, and verification | In Progress | — | — | Depends on Phase 2 |
+| 1 | Decide shape and lock scope (owner decision on UNK-01) | Completed | 20261119-130500 | 2026-11-19 | UNK-01 resolved as Shape B (`NULL`); scope locked; Plan Frozen |
+| 2 | Restore original `content` for English (Shape B) | Completed | 2026-11-19 | 2026-11-19 | _chunk_english returns unfiltered content (Shape B); verified |
+| 3 | Tests, docs, and verification | Completed | 2026-11-19 | 2026-11-19 | new test + doc/ADR updates; ruff+pytest pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -199,11 +199,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261119-132013_01_scripts_rag_ingestion_chunk_english.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261119-132013_02_scripts_rag_ingestion_chunk_splitter.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261119-132013_03_tests_rag_ingestion_test_chunk_splitter.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261119-132013_04_docs_21_rag_rag_02_03_ingestion_pipeline-chunksplitter.md.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261119-132013_05_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261119-132013_01_scripts_rag_ingestion_chunk_english.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261119-132013_02_scripts_rag_ingestion_chunk_splitter.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261119-132013_03_tests_rag_ingestion_test_chunk_splitter.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261119-132013_04_docs_21_rag_rag_02_03_ingestion_pipeline-chunksplitter.md.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261119-132013_05_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md` | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -24,11 +24,17 @@ class ChunkEnglishMixin:
     _chunk_overlap: int
 
     def _chunk_english(self, text: str) -> list[str]:
-        """Split English text into chunks at paragraph/sentence boundaries; merges short paragraphs and discards chunks below min_chunk after stopword removal."""
+        """Split English text into chunks at paragraph/sentence boundaries; merges short paragraphs and discards chunks below min_chunk (measured on the post-filter length). Returns the UNFILTERED original regions as content; normalized_content is NULL."""
         paragraphs = re.split(r"\n{2,}", text.strip())
         raw_chunks = self._merge_paragraphs_en(paragraphs)
-        filtered = (self._filter_stopwords_en(r) for r in raw_chunks)
-        return [c for c in filtered if len(c) >= self._min_chunk]
+        # Discard basis preserved: measure len over the post-filter (stopword-stripped)
+        # string. Store the UNFILTERED original as content (Shape B, REQ-001/REQ-002).
+        filtered = [self._filter_stopwords_en(r) for r in raw_chunks]
+        return [
+            raw
+            for raw, stripped in zip(raw_chunks, filtered)
+            if len(stripped) >= self._min_chunk
+        ]
 
     def _merge_paragraphs_en(self, paragraphs: list[str]) -> list[str]:
         """Accumulate paragraphs into <=max_chunk chunks; split oversized paragraphs."""

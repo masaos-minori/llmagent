@@ -38,7 +38,7 @@ Current values are owned by `config/chunk_splitter.toml`. `md_index_enable` enab
 
 ### 3.1.2 Chunking Parameters (Shared with crawler)
 
-`min_chunk` and `max_chunk` bound chunk size in characters: text exceeding `max_chunk` is split, and a chunk that ends up shorter than `min_chunk` is treated as noise — dropped by the English and heading paths, retained by the Japanese merge (see the Japanese oversized-sentence rule below). `chunk_overlap` prepends that many trailing characters of the previous chunk to the next (zero disables it). `en_stopwords` and `ja_stop_pos` (Sudachi part-of-speech categories) define the stopwords excluded from chunking; see [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md).
+`min_chunk` and `max_chunk` bound chunk size in characters: text exceeding `max_chunk` is split, and a chunk that ends up shorter than `min_chunk` is treated as noise — dropped by the English and heading paths, retained by the Japanese merge (see the Japanese oversized-sentence rule below). The `min_chunk` discard is measured on the **post-filter (stopword-stripped) string length** — the same basis the code uses — even though the stored `content` keeps every word. `chunk_overlap` prepends that many trailing characters of the previous chunk to the next (zero disables it). `en_stopwords` and `ja_stop_pos` (Sudachi part-of-speech categories) define the stopwords considered for that discard measurement; they are **not** removed from the stored `content`; see [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md).
 
 ### 3.1.3 Markdown Source Detection Behavior
 
@@ -69,7 +69,8 @@ Text is split by Markdown headings (# through ######) in one pass over the whole
 | Code blocks | Empty line splitting (language independent); excluded from stopword removal or morphological analysis |
 
 - Japanese chunks: `content` = original text, `normalized_content` = normalized form via Sudachi
-- English/Code chunks: `normalized_content = null`
+- English chunks: `content` = the original crawled text region (every word retained, including stopwords); `normalized_content` = `null` (Shape B: stopword filtering is dropped, so English behaves like code/markdown under ADR-009 INV-04)
+- Code chunks: `content` = original code, `normalized_content` = `null`. FTS5 indexes the original `content` via `COALESCE(normalized_content, content)`
 - `chunk_type`: `"text"` or `"code"`
 - `chunking_strategy`: `"text"` or `"heading"`
 
