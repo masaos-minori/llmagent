@@ -191,12 +191,12 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Characterization / behavior lock | Pending | — | — | |
-| 2 | Phase 2: Extract the accumulation collaborator | Pending | — | — | |
-| 3 | Phase 3: Route the code path | Pending | — | — | |
-| 4 | Phase 4: Route the English path | Pending | — | — | |
-| 5 | Phase 5: Route the Japanese path | Pending | — | — | |
-| 6 | Phase 6: Verify behavior lock and document | Pending | — | — | |
+| 1 | Phase 1: Characterization / behavior lock | In Progress | — | — |  |
+| 2 | Phase 2: Extract the accumulation collaborator | In Progress | — | — |  |
+| 3 | Phase 3: Route the code path | In Progress | — | — |  |
+| 4 | Phase 4: Route the English path | In Progress | — | — |  |
+| 5 | Phase 5: Route the Japanese path | In Progress | — | — |  |
+| 6 | Phase 6: Verify behavior lock and document | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -206,7 +206,12 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261119-194357_01_scripts_rag_ingestion_chunk_utils_py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261119-194357_02_scripts_rag_ingestion_chunk_english_py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261119-194357_03_scripts_rag_ingestion_chunk_japanese_py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261119-194357_04_scripts_rag_ingestion_chunk_splitter_py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261119-194357_05_tests_rag_ingestion_test_chunk_utils_py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261119-194357_06_docs_21_rag_rag_02_07_ingestion_pipeline_utils_md.md` | 6 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

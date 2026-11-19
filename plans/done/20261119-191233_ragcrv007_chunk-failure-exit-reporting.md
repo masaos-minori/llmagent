@@ -198,12 +198,12 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Aggregate + outcome iterator | Pending | — | — | |
-| 2 | Phase 2: Narrow except + `run_all` | Pending | — | — | |
-| 3 | Phase 3: Exit code | Pending | — | — | |
-| 4 | Phase 4: Tests | Pending | — | — | |
-| 5 | Phase 5: Docs | Pending | — | — | |
-| 6 | Phase 6: Verify | Pending | — | — | |
+| 1 | Phase 1: Aggregate + outcome iterator | In Progress | — | — | |
+| 2 | Phase 2: Narrow except + `run_all` | In Progress | — | — | |
+| 3 | Phase 3: Exit code | In Progress | — | — | |
+| 4 | Phase 4: Tests | In Progress | — | — | |
+| 5 | Phase 5: Docs | In Progress | — | — | |
+| 6 | Phase 6: Verify | In Progress | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -213,7 +213,10 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261119-201415_01_scripts_rag_ingestion_chunk_splitter_py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261119-201415_02_tests_rag_ingestion_test_chunk_splitter_py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261119-201415_03_docs_21_rag_rag_05_04_error_handling_reference_md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261119-201415_04_docs_21_rag_rag_05_02_execution_guide_md.md` | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
