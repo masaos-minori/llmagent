@@ -90,8 +90,9 @@ def finalize_tool_call(db: SQLiteHelper, idempotency_key: str, state: str) -> No
 def pending_tool_calls(db: SQLiteHelper, task_id: str) -> list[ToolCallState]:
     """Return the task's pending tool-call rows, oldest first.
 
-    The only method the turn-entry detection path (workflow_engine) calls; kept cheap
-    via the ``idx_tool_call_state_task_state`` index.
+    Test-only helper: exercised by the workflow state-store tests. Kept cheap via
+    the ``idx_tool_call_state_task_state`` index. The turn-entry stale-detection
+    entry point is ``classify_stale_pending`` (``workflow_engine.py:180``).
     """
     rows = db.fetchall(
         "SELECT * FROM tool_call_state WHERE task_id=? AND state='pending'"

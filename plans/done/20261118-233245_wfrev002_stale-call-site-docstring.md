@@ -129,7 +129,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Rewrite the `pending_tool_calls` docstring (`scripts/agent/workflow/tool_call_state_ops.py`, REQ-001) | In Progress | — | — |  |
+| 1 | Phase 1: Rewrite the `pending_tool_calls` docstring (`scripts/agent/workflow/tool_call_state_ops.py`, REQ-001) | Completed | — | 20261119-095151 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -139,7 +139,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261119-071535_01_scripts_agent_workflow_tool_call_state_ops.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261119-071535_01_scripts_agent_workflow_tool_call_state_ops.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

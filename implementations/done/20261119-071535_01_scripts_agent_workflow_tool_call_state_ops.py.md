@@ -80,8 +80,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the `pending_tool_calls` docstring (`scripts/agent/workflow/tool_call_state_ops.py`, REQ-001) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rewrite the `pending_tool_calls` docstring (`scripts/agent/workflow/tool_call_state_ops.py`, REQ-001) | Completed | 20261119-095140 | 20261119-095140 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261119-095140 | 20261119-095140 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
