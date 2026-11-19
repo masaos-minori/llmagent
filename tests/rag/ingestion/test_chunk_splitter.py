@@ -18,14 +18,45 @@ from rag.exceptions import PipelineValidationError
 from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
 from rag.ingestion.chunk_splitter import ChunkSplitter
 from rag.ingestion.pipeline_utils import read_chunk_json
-from rag.models_data import ChunkDocument
+from rag.models_data import ChunkDocument, ChunkSettings
 from rag.utils import normalize_unicode
 
 
+class _StubToken:
+    """Minimal morpheme stand-in implementing the Tokenizer Protocol's token shape."""
+
+    def part_of_speech(self) -> list[str]:
+        return []
+
+    def normalized_form(self) -> str:
+        return ""
+
+
+class _StubTokenizer:
+    """Minimal Tokenizer Protocol implementation for unit tests (no Sudachi)."""
+
+    def tokenize(self, text: str, mode: object) -> list[_StubToken]:
+        return []
+
+
 def _make_splitter(md_index_enable: bool = False) -> ChunkSplitter:
-    splitter = object.__new__(ChunkSplitter)
-    splitter._md_index_enable = md_index_enable
-    return splitter
+    """Build a real ChunkSplitter (no object.__new__) seeded via config.
+
+    ragcrv006: construction seeds the shared ChunkSettings value object so the
+    settings-object contract holds; Sudachi resolves to the default 'core' dict.
+    """
+    return ChunkSplitter(
+        config={
+            "rag_src_dir": "",
+            "min_chunk": 40,
+            "max_chunk": 500,
+            "chunk_overlap": 50,
+            "en_stopwords": [],
+            "ja_stop_pos": [],
+            "md_index_enable": md_index_enable,
+            "md_snippet_max_chars": 400,
+        }
+    )
 
 
 def _make_chunk_doc(url: str, content: str = "", lang: str = "en") -> ChunkDocument:
@@ -95,9 +126,9 @@ class TestMaxChunkValidation:
         cfg = dict(_CRAWL_CONFIG)
         cfg["chunk_overlap"] = 499  # < max_chunk (500); tightest valid overlap
         splitter = ChunkSplitter(config=cfg)  # must not raise
-        assert splitter._min_chunk == 40
-        assert splitter._max_chunk == 500
-        assert splitter._chunk_overlap == 499
+        assert splitter._settings.min_chunk == 40
+        assert splitter._settings.max_chunk == 500
+        assert splitter._settings.chunk_overlap == 499
 
 
 class TestMdSnippetValidation:
@@ -113,14 +144,14 @@ class TestMdSnippetValidation:
         cfg["md_index_enable"] = True
         cfg["md_snippet_max_chars"] = 400  # within [40, 500]
         splitter = ChunkSplitter(config=cfg)  # must not raise
-        assert splitter._md_index_enable is True
-        assert splitter._md_snippet_max_chars == 400
+        assert splitter._settings.md_index_enable is True
+        assert splitter._settings.md_snippet_max_chars == 400
 
     def test_md_snippet_not_checked_when_disabled(self) -> None:
         cfg = dict(_CRAWL_CONFIG)
         # md_index_enable absent -> False; the 600 vs 500 mismatch is unchecked.
         splitter = ChunkSplitter(config=cfg)  # must not raise
-        assert splitter._md_index_enable is False
+        assert splitter._settings.md_index_enable is False
 
 
 class TestIsMarkdownSource:
@@ -159,13 +190,10 @@ class TestIsMarkdownSource:
 class TestCodeChunkSizeBound:
     def test_long_single_line_code_block_capped_to_max_chunk(self) -> None:
         splitter = _make_splitter()
-        splitter._min_chunk = 40
-        splitter._max_chunk = 500
-        splitter._chunk_overlap = 50
         code = "x" * 1200
         chunks = splitter._chunk_code(code)
         assert len(chunks) >= 2
-        assert all(len(chunk) <= splitter._max_chunk for chunk in chunks)
+        assert all(len(chunk) <= splitter._settings.max_chunk for chunk in chunks)
         assert "".join(chunks) == code
 
 
@@ -173,16 +201,19 @@ class TestCodeChunkSizeBound:
 
 
 def _make_ja_mixin(**kwargs: Any) -> ChunkJapaneseMixin:
-    """Create a ChunkJapaneseMixin with minimal attributes for direct testing."""
-    mixin = object.__new__(ChunkJapaneseMixin)
-    mixin._max_chunk = kwargs.get("_max_chunk", 500)
-    mixin._min_chunk = kwargs.get("_min_chunk", 10)
-    mixin._chunk_overlap = kwargs.get("_chunk_overlap", 10)
-    mixin._ja_stop_pos = frozenset()
-    mixin._sd_tkn = None
-    mixin._split_c = None
-    mixin._orig_buf = ""
-    mixin._norm_buf = ""
+    """Build a real ChunkJapaneseMixin seeded with a ChunkSettings value object and
+    a stub tokenizer for direct overlap testing (ragcrv006: no object.__new__)."""
+    mixin = ChunkJapaneseMixin()
+    mixin._settings = ChunkSettings(
+        min_chunk=kwargs.get("_min_chunk", 10),
+        max_chunk=kwargs.get("_max_chunk", 500),
+        chunk_overlap=kwargs.get("_chunk_overlap", 10),
+        md_snippet_max_chars=600,
+        md_index_enable=False,
+        en_stopwords=frozenset(),
+        ja_stop_pos=frozenset(),
+    )
+    mixin._tokenizer = _StubTokenizer()
     return mixin
 
 
@@ -421,7 +452,7 @@ class TestJapaneseMergeOversized:
         # No empty pair (the sentinel must carry real content).
         assert all(o for o in originals)
         # No pair exceeds max_chunk.
-        assert all(len(o) <= mixin._max_chunk for o in originals)
+        assert all(len(o) <= mixin._settings.max_chunk for o in originals)
         # No source text dropped.
         assert "".join(originals) == oversized
         # Split sub-parts surface normalized_content = None (COALESCE fallback).
@@ -453,7 +484,7 @@ class TestJapaneseMergeOversized:
         chunks = mixin._merge_ja_sentence_pairs([(sentence, None)])
         originals = [o for o, _ in chunks]
         assert all(o for o in originals)
-        assert all(len(o) <= mixin._max_chunk for o in originals)
+        assert all(len(o) <= mixin._settings.max_chunk for o in originals)
         # Every input token survives somewhere.
         assert all(tok in " ".join(originals) for tok in sentence.split(" "))
 

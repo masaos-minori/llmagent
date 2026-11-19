@@ -12,16 +12,14 @@ from __future__ import annotations
 import re
 
 from rag.ingestion.chunk_utils import accumulate_items, start_next_buf
+from rag.models_data import ChunkSettings
 
 
 class ChunkEnglishMixin:
     """English text chunking methods, mixed into ChunkSplitter."""
 
-    # Declared here so mypy sees them; values come from ChunkSplitter.__init__
-    _max_chunk: int
-    _min_chunk: int
-    _en_stopwords: frozenset[str]
-    _chunk_overlap: int
+    # Settings arrive via the shared ChunkSettings value object (ragcrv006).
+    _settings: ChunkSettings
 
     # Per-file size-rule discard accumulator. Reset at the start of
     # ChunkSplitter._build_chunk_list; written by the chunkers below and read by
@@ -40,7 +38,7 @@ class ChunkEnglishMixin:
         filtered = [self._filter_stopwords_en(r) for r in raw_chunks]
         kept: list[str] = []
         for raw, stripped in zip(raw_chunks, filtered):
-            if len(stripped) >= self._min_chunk:
+            if len(stripped) >= self._settings.min_chunk:
                 kept.append(raw)
             else:
                 self._discarded_count += 1
@@ -56,13 +54,13 @@ class ChunkEnglishMixin:
         non_empty = [p.strip() for p in paragraphs if p.strip()]
 
         def fits(buf: str, item: str) -> bool:
-            return len(buf) + len(item) + 1 <= self._max_chunk
+            return len(buf) + len(item) + 1 <= self._settings.max_chunk
 
         def append_item(buf: str, item: str) -> str:
             return (buf + "\n" + item).strip()
 
         def segment_oversized(buf: str, item: str) -> list[str] | None:
-            if len(item) > self._max_chunk:
+            if len(item) > self._settings.max_chunk:
                 return self._split_sentences_en(item)
             return None
 
@@ -78,7 +76,7 @@ class ChunkEnglishMixin:
 
         def emit_and_overlap(result: list[str], buf: str, item: str) -> str:
             result.append(buf)
-            return start_next_buf(buf, item, "\n", self._chunk_overlap)
+            return start_next_buf(buf, item, "\n", self._settings.chunk_overlap)
 
         def short_tail(result: list[str], buf: str, item: str) -> str:
             return item
@@ -90,9 +88,9 @@ class ChunkEnglishMixin:
         return accumulate_items(
             non_empty,
             "\n",
-            self._min_chunk,
-            self._max_chunk,
-            self._chunk_overlap,
+            self._settings.min_chunk,
+            self._settings.max_chunk,
+            self._settings.chunk_overlap,
             fits=fits,
             append_item=append_item,
             segment_oversized=segment_oversized,
@@ -110,7 +108,7 @@ class ChunkEnglishMixin:
         buf = ""
         chunks: list[str] = []
         for s in sentences:
-            if len(buf) + len(s) + 1 <= self._max_chunk:
+            if len(buf) + len(s) + 1 <= self._settings.max_chunk:
                 buf = (buf + " " + s).strip()
             else:
                 if buf:
@@ -123,5 +121,5 @@ class ChunkEnglishMixin:
     def _filter_stopwords_en(self, text: str) -> str:
         """Remove EN stopwords (case-insensitive) and return space-joined tokens."""
         words = re.split(r"\s+", text.strip())
-        kept = [w for w in words if w and w.lower() not in self._en_stopwords]
+        kept = [w for w in words if w and w.lower() not in self._settings.en_stopwords]
         return " ".join(kept)

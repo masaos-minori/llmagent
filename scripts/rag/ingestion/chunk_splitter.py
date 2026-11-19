@@ -24,18 +24,17 @@ from shared.config_loader import ConfigLoader
 from shared.logger import Logger
 from shared.runtime_paths import resolve_sudachi_dict_path
 from sudachipy import dictionary as sudachi_dict
-from sudachipy import tokenizer as sudachi_tok
 
 from rag.exceptions import ChunkFormatError, PipelineValidationError
 from rag.ingestion.chunk_english import ChunkEnglishMixin
-from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
+from rag.ingestion.chunk_japanese import ChunkJapaneseMixin, Tokenizer
 from rag.ingestion.chunk_utils import merge_text_items
 from rag.ingestion.pipeline_utils import (
     collect_source_files,
     is_already_processed,
     read_crawl_json,
 )
-from rag.models_data import ChunkDocument
+from rag.models_data import ChunkDocument, ChunkSettings
 from rag.utils import normalize_unicode
 
 # NOTE: unvalidated heuristic, pending performance tuning
@@ -108,19 +107,14 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
                 f"chunk_overlap ({chunk_overlap}) must be < max_chunk ({max_chunk})"
             )
 
-        self._min_chunk: int = min_chunk
-        self._max_chunk: int = max_chunk
-        self._chunk_overlap: int = chunk_overlap
-
-        self._en_stopwords: frozenset[str] = frozenset(cfg["en_stopwords"])
-        self._ja_stop_pos: frozenset[str] = frozenset(cfg["ja_stop_pos"])
+        en_stopwords = frozenset(cfg["en_stopwords"])
+        ja_stop_pos = frozenset(cfg["ja_stop_pos"])
 
         md_index_enable = cfg.get("md_index_enable", False)
         if not isinstance(md_index_enable, bool):
             raise PipelineValidationError(
                 f"md_index_enable must be a boolean, got {md_index_enable!r}"
             )
-        self._md_index_enable: bool = md_index_enable
         # Read once; range-check only when the feature is enabled (REQ-004).
         md_snippet_max_chars = _require_int(cfg, "md_snippet_max_chars", default=600)
         if md_index_enable and not (min_chunk <= md_snippet_max_chars <= max_chunk):
@@ -128,12 +122,24 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
                 f"md_snippet_max_chars ({md_snippet_max_chars}) must be within "
                 f"[min_chunk={min_chunk}, max_chunk={max_chunk}]"
             )
-        self._md_snippet_max_chars: int = md_snippet_max_chars
 
-        # SplitMode.C: longest compound unit; optimal for NLP downstream tasks
+        # Aggregate the validated settings into one immutable value object so the
+        # chunk mixins read a single collaborator instead of scattered host
+        # attributes (ragcrv006, REQ-001). Built once before the Sudachi build.
+        self._settings = ChunkSettings(
+            min_chunk=min_chunk,
+            max_chunk=max_chunk,
+            chunk_overlap=chunk_overlap,
+            md_snippet_max_chars=md_snippet_max_chars,
+            md_index_enable=md_index_enable,
+            en_stopwords=en_stopwords,
+            ja_stop_pos=ja_stop_pos,
+        )
+
+        # SplitMode.C: longest compound unit; optimal for NLP downstream tasks.
+        # Stored behind the local Tokenizer Protocol so no Any leaks into the path.
         sd_dict = sudachi_dict.Dictionary(dict=resolve_sudachi_dict_path())
-        self._sd_tkn = sd_dict.create()
-        self._split_c = sudachi_tok.Tokenizer.SplitMode.C
+        self._tokenizer: Tokenizer = sd_dict.create()
 
     # ── Public interface ──────────────────────────────────────────────────────
 
@@ -256,7 +262,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             return False
         if url.endswith((".md", ".markdown", ".mdx")):
             return True
-        if not self._md_index_enable:
+        if not self._settings.md_index_enable:
             return False
         content = data.content
         if not isinstance(content, str):
@@ -279,8 +285,8 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             section = section.strip()
             if not section:
                 continue
-            if len(section) <= self._md_snippet_max_chars:
-                if len(section) >= self._min_chunk:
+            if len(section) <= self._settings.md_snippet_max_chars:
+                if len(section) >= self._settings.min_chunk:
                     normalized: str | None = ""
                     if lang == "ja":
                         prepared = re.sub(
@@ -308,9 +314,9 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         chunks: list[str] = merge_text_items(
             blocks,
             "\n\n",
-            self._min_chunk,
-            self._max_chunk,
-            self._chunk_overlap,
+            self._settings.min_chunk,
+            self._settings.max_chunk,
+            self._settings.chunk_overlap,
         )
         # Measure size-rule discard by character difference. Merging only inserts
         # the separator (net-negative diff), so a positive diff means characters

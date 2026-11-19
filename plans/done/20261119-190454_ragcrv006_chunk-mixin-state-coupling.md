@@ -175,12 +175,12 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Settings value object | In Progress | — | — | |
-| 2 | Phase 2: Tokenizer `Protocol` | In Progress | — | — | |
-| 3 | Phase 3: Route the English mixin | In Progress | — | — | |
-| 4 | Phase 4: Route the Japanese mixin | In Progress | — | — | Depends on ragcrv005 |
-| 5 | Phase 5: Test construction seam | In Progress | — | — | |
-| 6 | Phase 6: Verify | In Progress | — | — | |
+| 1 | Phase 1: Settings value object | Completed | — | — | |
+| 2 | Phase 2: Tokenizer `Protocol` | Completed | — | — | |
+| 3 | Phase 3: Route the English mixin | Completed | — | — | |
+| 4 | Phase 4: Route the Japanese mixin | Completed | — | — | Depends on ragcrv005 |
+| 5 | Phase 5: Test construction seam | Completed | — | — | |
+| 6 | Phase 6: Verify | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -190,11 +190,11 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261119-200159_01_scripts_rag_models_data.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261119-200159_02_scripts_rag_ingestion_chunk_splitter_py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261119-200159_03_scripts_rag_ingestion_chunk_english_py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261119-200159_04_scripts_rag_ingestion_chunk_japanese_py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261119-200159_05_tests_rag_ingestion_test_chunk_splitter_py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261119-200159_01_scripts_rag_models_data.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261119-200159_02_scripts_rag_ingestion_chunk_splitter_py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261119-200159_03_scripts_rag_ingestion_chunk_english_py.md` | 3 | Procedure | Superseded | — | — |
+| `implementations/20261119-200159_04_scripts_rag_ingestion_chunk_japanese_py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261119-200159_05_tests_rag_ingestion_test_chunk_splitter_py.md` | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

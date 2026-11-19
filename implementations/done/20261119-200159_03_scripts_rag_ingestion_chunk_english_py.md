@@ -60,10 +60,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Superseded | — | — | Superseded: ragcrv005 (commit 57ee0494d, already merged) routed ChunkEnglishMixin._merge_paragraphs_en through the shared accumulate_items collaborator and removed the undeclared self._buf instance attribute; the work this procedure describes is fully subsumed. Re-implementing would violate minimal-scope (AGENTS.md Global Rule 5). |
+| 2 | Add or update tests per Validation plan | Superseded | — | — | Superseded: ragcrv005 (commit 57ee0494d, already merged) routed ChunkEnglishMixin._merge_paragraphs_en through the shared accumulate_items collaborator and removed the undeclared self._buf instance attribute; the work this procedure describes is fully subsumed. Re-implementing would violate minimal-scope (AGENTS.md Global Rule 5). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Superseded | — | — | Superseded: ragcrv005 (commit 57ee0494d, already merged) routed ChunkEnglishMixin._merge_paragraphs_en through the shared accumulate_items collaborator and removed the undeclared self._buf instance attribute; the work this procedure describes is fully subsumed. Re-implementing would violate minimal-scope (AGENTS.md Global Rule 5). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Superseded | — | — | Superseded: ragcrv005 (commit 57ee0494d, already merged) routed ChunkEnglishMixin._merge_paragraphs_en through the shared accumulate_items collaborator and removed the undeclared self._buf instance attribute; the work this procedure describes is fully subsumed. Re-implementing would violate minimal-scope (AGENTS.md Global Rule 5). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

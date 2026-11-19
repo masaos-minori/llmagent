@@ -77,6 +77,25 @@ class PreparedChunk:
 
 
 @dataclass(frozen=True)
+class ChunkSettings:
+    """Immutable chunking settings aggregated from ``chunk_splitter.toml``.
+
+    Constructed once in ``ChunkSplitter.__init__`` and shared with the English and
+    Japanese chunk mixins so they read one collaborator instead of reading the
+    scattered undeclared host attributes they previously depended on (ragcrv006,
+    REQ-001). Field order mirrors the inline assignments in ``__init__``.
+    """
+
+    min_chunk: int
+    max_chunk: int
+    chunk_overlap: int
+    md_snippet_max_chars: int
+    md_index_enable: bool
+    en_stopwords: frozenset[str]
+    ja_stop_pos: frozenset[str]
+
+
+@dataclass(frozen=True)
 class TwoStageFetchResult:
     """Typed result capturing reranked hits with applied filter/dedup parameters."""
 
