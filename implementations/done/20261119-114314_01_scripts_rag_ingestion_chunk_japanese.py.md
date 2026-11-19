@@ -13,8 +13,8 @@ Stop `ChunkJapaneseMixin._merge_ja_sentence_pairs` from emitting an empty chunk 
 - UNK-01 (whether production corpus actually contains such a sentence) does not block the defensive fix.
 
 ## Design decisions
-- **Segment before buffer logic.** At the top of the loop over `(orig, norm)`, detect `len(orig) > self._max_chunk` and replace the single sentence with the pieces from `_split_overlong(orig, " ", self._max_chunk)`, iterating each piece through the existing buffer logic. This makes an oversized first sentence fill the empty buffer normally instead of hitting the empty-emission bug, and caps every piece at `max_chunk`.
-- **Guard the retain branch.** In the `else` branch that retains a short buffer, emit the buffered pair only when `self._orig_buf` is non-empty; otherwise start the new buffer from the current piece without emitting. This is the defensive `REQ-001` guard independent of segmentation.
+- **Direct segment-and-emit (English-path pattern).** In the `else` branch of `_merge_ja_sentence_pairs` (reached when a sentence does not fit the current buffer), first emit any retained short lead and reset the buffer, then if `len(orig) > self._max_chunk` dump the pieces from `_split_overlong(orig, " ", self._max_chunk)` directly into `result` as `(piece, None)` tuples and leave the buffer empty. This mirrors `chunk_utils.merge_text_items`, which segments an oversized item and resets the buffer, so the remainder is never tail-merged back into the previous chunk (which would exceed `max_chunk`) and each piece stays within `max_chunk`.
+- **Empty-buffer / retention guard.** Emit the retained buffer only when `self._orig_buf` is non-empty; this is the defensive `REQ-001` guard and also satisfies the ragc002 retention requirement (a short lead before an oversized sentence is emitted, not dropped).
 
 ## Alternatives considered
 - Emitting the oversized sentence whole and letting `ChunkGroupingStrategy.group` quarantine it: rejected — reproduces the sentinel/quarantine loop this Plan removes.
@@ -29,14 +29,14 @@ Stop `ChunkJapaneseMixin._merge_ja_sentence_pairs` from emitting an empty chunk 
 2. Add the companion regression test (see Companion test files).
 
 ### Method
-In `_merge_ja_sentence_pairs`, wrap the per-sentence body so that when `len(orig) > self._max_chunk`, `orig` becomes `_split_overlong(orig, " ", self._max_chunk)` and `norm` becomes `None` for each piece; iterate the pieces with the same accumulation logic. Keep the `else` retain branch but emit only when `self._orig_buf` is truthy.
+In `_merge_ja_sentence_pairs`, in the `else` branch: emit the retained short buffer when non-empty (resetting it), then if the sentence exceeds `max_chunk` extend `result` with `(piece, None)` for each `_split_overlong` piece; otherwise seed the buffer from the sentence.
 
 ### Details
 - Import is already present: `from rag.ingestion.chunk_utils import start_next_buf`; add `_split_overlong` to that import.
-- The empty-buffer case that currently emits `("", None)` is reached when the first sentence is oversized and `min_chunk > 0`; pre-splitting removes that trigger, and the `if self._orig_buf:` guard removes it defensively for any residual empty buffer.
-- Each split piece is `<= max_chunk`, so the first piece fills an empty buffer via the normal append path; no emitted pair exceeds `max_chunk`.
-- `normalized_content` for split parts is `None` (`REQ-004`); COALESCE falls back to the original text.
-- Retention behavior is unchanged for the non-empty short-buffer case: the `else` branch still emits the buffered pair when non-empty, so `TestJapaneseMergeRetention.test_short_lead_before_oversized_is_retained` still passes.
+- The empty-buffer case that currently emits `("", None)` is reached when the first sentence is oversized and `min_chunk > 0`; segmenting and dumping pieces directly removes that trigger, and the `if self._orig_buf:` guard removes it defensively for any residual empty buffer.
+- Pieces are dumped directly (not fed through the buffer logic) so the last piece is not tail-merged into the previous chunk; each piece is `<= max_chunk`. (Feeding pieces through the buffer logic was rejected after a regression test showed the tail-merge produced a chunk exceeding `max_chunk` and `_emit_and_start_new` surfaced an empty-string normalized value for split parts.)
+- `normalized_content` for split parts is `None` (`REQ-004`), surfaced as `(piece, None)`; COALESCE falls back to the original text.
+- Retention behavior for the non-empty short-buffer case is preserved: the retained lead is emitted before the oversized sentence, so `TestJapaneseMergeRetention.test_short_lead_before_oversized_is_retained` still passes.
 
 ## Compatibility considerations
 - No change to the English (`merge_text_items`), code-block, or Markdown-heading chunk paths — they use the shared helper directly and are unaffected.
@@ -70,9 +70,9 @@ N/A: revert the commit that implements this procedure.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement oversized segmentation and empty-buffer guard in `_merge_ja_sentence_pairs` | Pending | — | — | REQ-001, REQ-002, REQ-003, REQ-004 |
-| 2 | Add/update companion regression test | Pending | — | — | `tests/rag/ingestion/test_chunk_splitter.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff + pytest |
+| 1 | Implement oversized segmentation and empty-buffer guard in `_merge_ja_sentence_pairs` | Completed | 20261119-121446 | 20261119-121446 | REQ-001, REQ-002, REQ-003, REQ-004 |
+| 2 | Add/update companion regression test | Completed | 20261119-121446 | 20261119-121446 | `tests/rag/ingestion/test_chunk_splitter.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261119-121446 | 20261119-121446 | ruff + pytest |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

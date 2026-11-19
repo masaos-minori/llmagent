@@ -56,6 +56,8 @@ Text is split by Markdown headings (# through ######) in one pass over the whole
 
 **Japanese content:** When `lang` is `"ja"`, Markdown sections follow Japanese chunking semantics: an oversized section is segmented by `_chunk_japanese` (Sudachi morphological analysis), and a whole in-section chunk carries a `normalized_content` produced by the same Sudachi normalization. Japanese chunks routed through heading chunking therefore carry non-empty `normalized_content`, same as the Japanese text path. Non-ja Markdown chunks still emit empty `normalized_content`; FTS5 indexes `COALESCE(normalized_content, content)`, so for those chunks the original `content` is indexed directly.
 
+**Japanese oversized-sentence rule and non-empty content.** In the Japanese text path, `_merge_ja_sentence_pairs` never emits a chunk whose original text is empty, so `{stem}-0000.json` (the completeness sentinel published last) always carries real content and a `force=False` rerun is not driven into a re-chunk loop. A single Japanese sentence longer than `max_chunk` is segmented into pieces each within `max_chunk` by the shared `chunk_utils._split_overlong` rule (the same character-level greedy fill the English and heading paths use), so no emitted Japanese chunk exceeds `max_chunk`; split sub-parts surface `normalized_content = None` and COALESCE falls back to the original text.
+
 ### 3.2 Splitting Strategies
 
 | Content Type | Strategy |

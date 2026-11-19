@@ -319,8 +319,59 @@ class TestJapaneseMergeRetention:
         assert all(n is None for _, n in chunks)
 
 
-# ── Helpers for fetched_at propagation tests ───────────────────────────────────
+# ── TestJapaneseMergeOversized (ragcrv001) ───────────────────────────────────
 
+
+class TestJapaneseMergeOversized:
+    """_merge_ja_sentence_pairs must never emit an empty chunk and must segment any
+    oversized sentence so no emitted pair exceeds max_chunk (ragcrv001)."""
+
+    def test_single_oversized_first_sentence_no_empty_no_oversized(self) -> None:
+        mixin = _make_ja_mixin(_max_chunk=500, _min_chunk=40, _chunk_overlap=0)
+        oversized = "あ" * 600  # exceeds max_chunk
+        chunks = mixin._merge_ja_sentence_pairs([(oversized, None)])
+        originals = [o for o, _ in chunks]
+        # No empty pair (the sentinel must carry real content).
+        assert all(o for o in originals)
+        # No pair exceeds max_chunk.
+        assert all(len(o) <= mixin._max_chunk for o in originals)
+        # No source text dropped.
+        assert "".join(originals) == oversized
+        # Split sub-parts surface normalized_content = None (COALESCE fallback).
+        assert all(n is None for _, n in chunks)
+
+    @pytest.mark.parametrize(
+        ("min_chunk",),
+        [(10,), (40,), (200,)],
+    )
+    def test_oversized_first_sentence_segmented_across_min_chunk(
+        self, min_chunk: int
+    ) -> None:
+        max_chunk = 500
+        mixin = _make_ja_mixin(
+            _max_chunk=max_chunk, _min_chunk=min_chunk, _chunk_overlap=0
+        )
+        oversized = "い" * (max_chunk + 120)
+        chunks = mixin._merge_ja_sentence_pairs([(oversized, None)])
+        originals = [o for o, _ in chunks]
+        assert originals  # at least one chunk produced
+        assert all(o for o in originals), "no empty pair allowed"
+        assert all(len(o) <= max_chunk for o in originals), "no oversized pair allowed"
+        assert "".join(originals) == oversized, "no source text dropped"
+
+    def test_oversized_sentence_with_space_breaks_keeps_words(self) -> None:
+        mixin = _make_ja_mixin(_max_chunk=20, _min_chunk=10, _chunk_overlap=0)
+        # Space-separated tokens total > max_chunk; greedy fill breaks at spaces.
+        sentence = " ".join("x" * 3 for _ in range(20))  # 20 * 3 + 19 spaces = 79 chars
+        chunks = mixin._merge_ja_sentence_pairs([(sentence, None)])
+        originals = [o for o, _ in chunks]
+        assert all(o for o in originals)
+        assert all(len(o) <= mixin._max_chunk for o in originals)
+        # Every input token survives somewhere.
+        assert all(tok in " ".join(originals) for tok in sentence.split(" "))
+
+
+# ── Helpers for fetched_at propagation tests ───────────────────────────────────
 _FAKE_EMBEDDING = [0.1] * 384
 
 _CRAWL_PAYLOAD_BASE = {

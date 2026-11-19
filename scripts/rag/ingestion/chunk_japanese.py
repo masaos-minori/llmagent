@@ -15,7 +15,7 @@ from typing import Any
 from shared.logger import Logger
 
 from rag.exceptions import TokenizationError
-from rag.ingestion.chunk_utils import start_next_buf
+from rag.ingestion.chunk_utils import _split_overlong, start_next_buf
 from rag.utils import normalize_unicode
 
 logger = Logger(__name__, "/opt/llm/logs/chunk.log")
@@ -92,11 +92,26 @@ class ChunkJapaneseMixin:
             elif len(self._orig_buf) >= self._min_chunk:
                 self._emit_and_start_new(result, orig, norm_str)
             else:
-                # Retain the short (< min_chunk) buffer instead of dropping it: emit it
-                # as its own chunk, then start a fresh buffer from this sentence.
-                result.append((self._orig_buf, self._norm_buf or None))
-                self._orig_buf = orig
-                self._norm_buf = norm_str
+                # Retain the short (< min_chunk) buffer instead of dropping it, then
+                # handle this sentence. Emit the retained lead first so it is never
+                # lost (ragc002); the empty-buffer guard also prevents emitting an
+                # empty pair (ragcrv001).
+                if self._orig_buf:
+                    result.append((self._orig_buf, self._norm_buf or None))
+                    self._orig_buf = ""
+                    self._norm_buf = ""
+                # An oversized sentence is segmented into pieces within max_chunk via
+                # the shared rule so no emitted pair exceeds max_chunk (ragcrv001).
+                # Dump the pieces directly (normalized surfaced as None) without
+                # tail-merging them back into the retained lead.
+                if len(orig) > self._max_chunk:
+                    result.extend(
+                        (piece, None)
+                        for piece in _split_overlong(orig, " ", self._max_chunk)
+                    )
+                else:
+                    self._orig_buf = orig
+                    self._norm_buf = norm_str
         if not self._orig_buf:
             return result
         if len(self._orig_buf) >= self._min_chunk:

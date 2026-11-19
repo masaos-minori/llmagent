@@ -174,10 +174,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Regression test (red) | In Progress | — | — | `tests/rag/ingestion/test_chunk_splitter.py` |
-| 2 | Phase 2: Empty-buffer emission guard | In Progress | — | — | `scripts/rag/ingestion/chunk_japanese.py` |
-| 3 | Phase 3: Oversized sentence segmentation | In Progress | — | — | `scripts/rag/ingestion/chunk_japanese.py`, `scripts/rag/ingestion/chunk_utils.py` |
-| 4 | Phase 4: Documentation | In Progress | — | — | `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` |
+| 1 | Phase 1: Regression test (red) | Completed | — | 20261119-121607 | `tests/rag/ingestion/test_chunk_splitter.py` |
+| 2 | Phase 2: Empty-buffer emission guard | Completed | — | 20261119-121607 | `scripts/rag/ingestion/chunk_japanese.py` |
+| 3 | Phase 3: Oversized sentence segmentation | Completed | 20261119-121446 | 20261119-121446 | `scripts/rag/ingestion/chunk_japanese.py`, `scripts/rag/ingestion/chunk_utils.py` |
+| 4 | Phase 4: Documentation | Completed | — | 20261119-121607 | `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` |
 | 5 | Phase 5: Deployment & Verification | Pending | — | — | all target files |
 
 ### Blocker Log
@@ -188,8 +188,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261119-114314_01_scripts_rag_ingestion_chunk_japanese.py.md` | 1, 2, 3 | Procedure | Pending | — | — |
-| `implementations/20261119-114314_03_docs_21_rag_rag_02_03_ingestion_pipeline-chunksplitter.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261119-114314_01_scripts_rag_ingestion_chunk_japanese.py.md` | 1, 2, 3 | Procedure | Completed | — | — |
+| `implementations/20261119-114314_03_docs_21_rag_rag_02_03_ingestion_pipeline-chunksplitter.md` | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
