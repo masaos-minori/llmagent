@@ -163,11 +163,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Track discard in English and Markdown paths | Pending | — | — | Touches `scripts/rag/ingestion/chunk_english.py`, `scripts/rag/ingestion/chunk_splitter.py` |
-| 2 | Measure code-path discard and aggregate per file | Pending | — | — | Touches `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/chunk_utils.py` (read) |
-| 3 | Log the per-file discard summary | Pending | — | — | Touches `scripts/rag/ingestion/chunk_splitter.py` |
-| 4 | Add logger-capture unit tests | Pending | — | — | Touches `tests/rag/ingestion/test_chunk_splitter.py` |
-| 5 | Update documentation | Pending | — | — | Touches `docs/21_rag/rag_05_03-logging.md`, `docs/21_rag/rag_05_04-error-handling-reference.md` |
+| 1 | Track discard in English and Markdown paths | In Progress | — | — | Touches `scripts/rag/ingestion/chunk_english.py`, `scripts/rag/ingestion/chunk_splitter.py` |
+| 2 | Measure code-path discard and aggregate per file | In Progress | — | — | Touches `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/chunk_utils.py` (read) |
+| 3 | Log the per-file discard summary | In Progress | — | — | Touches `scripts/rag/ingestion/chunk_splitter.py` |
+| 4 | Add logger-capture unit tests | In Progress | — | — | Touches `tests/rag/ingestion/test_chunk_splitter.py` |
+| 5 | Update documentation | In Progress | — | — | Touches `docs/21_rag/rag_05_03-logging.md`, `docs/21_rag/rag_05_04-error-handling-reference.md` |
 | 6 | Validation | Pending | — | — | ruff/mypy/bandit/pytest/diff-cover |
 
 ### Blocker Log
@@ -178,7 +178,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261119-170454_01_scripts_rag_ingestion_chunk_english_py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261119-170454_02_scripts_rag_ingestion_chunk_splitter_py.md | 1, 2, 3 | Procedure | Pending | — | — |
+| implementations/20261119-170454_03_tests_rag_ingestion_test_chunk_splitter_py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261119-170454_04_docs_21_rag_rag_05_03_logging_md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261119-170454_05_docs_21_rag_rag_05_04_error_handling_reference_md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

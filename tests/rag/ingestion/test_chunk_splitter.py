@@ -5,6 +5,7 @@ and fetched_at propagation across all written chunk files.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from pathlib import Path
@@ -1577,3 +1578,132 @@ class TestAtomicChunkWrite:
         for i, path in enumerate(series):
             assert orjson.loads(path.read_bytes())["chunk_index"] == i
         assert [p.name for p in tmp_path.glob("success-*.json.tmp")] == []
+
+
+class _CaptureHandler(logging.Handler):
+    """Capture LogRecords emitted on a module logger without caplog."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+
+class TestDiscardLogging:
+    """Size-rule discard is observable via a per-file log record (ragcrv004)."""
+
+    def _run_capture(
+        self,
+        tmp_path: Path,
+        *,
+        lang: str,
+        content: str,
+        url: str,
+        code_blocks: list[str] | None = None,
+        min_chunk: int = 100,
+        max_chunk: int = 1000,
+    ) -> tuple[int, list[logging.LogRecord]]:
+        import json
+
+        import rag.ingestion.chunk_splitter as chunk_splitter_module
+
+        data = _make_crawl_json(lang=lang, content=content, url=url)
+        data["code_blocks"] = code_blocks or []
+        src = tmp_path / "discard-src.json"
+        src.write_text(json.dumps(data), encoding="utf-8")
+        (tmp_path / "chunk").mkdir(exist_ok=True)
+        chunker = ChunkSplitter(
+            config={
+                "rag_src_dir": str(tmp_path),
+                "min_chunk": min_chunk,
+                "max_chunk": max_chunk,
+                "en_stopwords": [],
+                "ja_stop_pos": [],
+            }
+        )
+        handler = _CaptureHandler()
+        chunk_splitter_module.logger.addHandler(handler)
+        try:
+            written = chunker.process_file(src, force=True)
+        finally:
+            chunk_splitter_module.logger.removeHandler(handler)
+        return written, handler.records
+
+    @staticmethod
+    def _discards(records: list[logging.LogRecord]) -> list[logging.LogRecord]:
+        return [
+            r
+            for r in records
+            if getattr(r, "discard_reason", None) == "below_min_chunk"
+        ]
+
+    @staticmethod
+    def _int(record: logging.LogRecord, name: str, default: int = 0) -> int:
+        """Read a structured extra field set via logger extra= (not a LogRecord attr)."""
+        return getattr(record, name, default)
+
+    def test_T_001_below_min_chunk_english_logs_warning(self, tmp_path: Path) -> None:
+        written, records = self._run_capture(
+            tmp_path,
+            lang="en",
+            content="Short English note.",
+            url="http://example.com/en.txt",
+        )
+        assert written == 0
+        disc = self._discards(records)
+        assert len(disc) == 1
+        rec = disc[0]
+        assert rec.levelno == logging.WARNING
+        assert self._int(rec, "discarded_count") >= 1
+        assert self._int(rec, "discarded_chars") > 0
+        assert "discarded" in rec.getMessage()
+        # REQ-004: no document content in the message.
+        assert "Short English note." not in rec.getMessage()
+
+    def test_T_002_below_min_chunk_markdown_logs_warning(self, tmp_path: Path) -> None:
+        written, records = self._run_capture(
+            tmp_path,
+            lang="en",
+            content="# Heading\n\nTiny body.",
+            url="http://example.com/doc.md",
+        )
+        assert written == 0
+        disc = self._discards(records)
+        assert len(disc) == 1
+        rec = disc[0]
+        assert rec.levelno == logging.WARNING
+        assert self._int(rec, "discarded_chars") > 0
+        assert "Tiny body." not in rec.getMessage()
+
+    def test_T_003_short_code_block_logs_discard(self, tmp_path: Path) -> None:
+        written, records = self._run_capture(
+            tmp_path,
+            lang="en",
+            content="",
+            url="http://example.com/code.txt",
+            code_blocks=["x" * 10],
+        )
+        disc = self._discards(records)
+        assert len(disc) == 1
+        rec = disc[0]
+        assert self._int(rec, "discarded_count") >= 1
+        assert self._int(rec, "discarded_chars") > 0
+
+    def test_T_004_kept_and_discarded_logs_info(self, tmp_path: Path) -> None:
+        big = "A" * 200
+        written, records = self._run_capture(
+            tmp_path,
+            lang="en",
+            content=f"# Big\n\n{big}\n\n# Small\n\nTiny",
+            url="http://example.com/mixed.md",
+        )
+        assert written == 1
+        disc = self._discards(records)
+        assert len(disc) == 1
+        rec = disc[0]
+        assert rec.levelno == logging.INFO
+        assert self._int(rec, "discarded_count") >= 1
+        assert self._int(rec, "discarded_chars") > 0
+        assert "Tiny" not in rec.getMessage()

@@ -13,6 +13,7 @@ Pipeline position: crawler → chunk_splitter → ingester
 """
 
 import argparse
+import logging
 import os
 import re
 from pathlib import Path
@@ -182,6 +183,22 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             src_path.name,
             extra={"url": chunk_doc.url},
         )
+        if self._discarded_count > 0:
+            _discard_level = logging.WARNING if written == 0 else logging.INFO
+            logger.log(
+                _discard_level,
+                "discarded %s item(s) (%s chars) below min_chunk",
+                self._discarded_count,
+                self._discarded_chars,
+                extra={
+                    "url": chunk_doc.url,
+                    "source_type": "file",
+                    "stage_name": "chunk",
+                    "discard_reason": "below_min_chunk",
+                    "discarded_count": self._discarded_count,
+                    "discarded_chars": self._discarded_chars,
+                },
+            )
         return written
 
     def _prune_stale_chunk_files(self, stem: str) -> int:
@@ -271,6 +288,10 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
                         ).strip()
                         normalized = self._normalize_ja_sentence(prepared) or None
                     pairs.append((section, normalized))
+                else:
+                    # Within the snippet cap but below min_chunk: size-rule discard.
+                    self._discarded_count += 1
+                    self._discarded_chars += len(section)
             else:
                 # Section too large; fall back to language-appropriate chunking
                 if lang == "ja":
@@ -291,7 +312,34 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             self._max_chunk,
             self._chunk_overlap,
         )
+        # Measure size-rule discard by character difference. Merging only inserts
+        # the separator (net-negative diff), so a positive diff means characters
+        # were dropped below min_chunk. The character total is exact; the item
+        # count is a best-effort approximation (see _approx_discarded_block_count).
+        diff = sum(len(b) for b in blocks) - sum(len(c) for c in chunks)
+        if diff > 0:
+            self._discarded_chars += diff
+            self._discarded_count += self._approx_discarded_block_count(blocks, chunks)
         return chunks
+
+    def _approx_discarded_block_count(
+        self, blocks: list[str], chunks: list[str]
+    ) -> int:
+        """Best-effort count of input blocks whose stripped text did not survive into the output.
+
+        A block counts as discarded when its non-empty stripped text is not a
+        substring of the concatenated output chunks. Approximate by design: merging
+        can embed part of a block inside a larger chunk without an exact match, so
+        this over-counts slightly. The character total (discarded_chars) is exact;
+        this only estimates the discarded item count.
+        """
+        joined = "".join(chunks)
+        discarded = 0
+        for block in blocks:
+            stripped = block.strip()
+            if stripped and stripped not in joined:
+                discarded += 1
+        return discarded
 
     # ── File I/O ──────────────────────────────────────────────────────────────
 
@@ -308,6 +356,10 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
     ) -> list[tuple[str, str, str | None]]:
         """Extract content from a crawl record and split into (chunk_type, content, normalized_content) triples; normalized populated only for Japanese text."""
         lang = data.lang
+        # Reset the per-file size-rule discard accumulator before the fan-out so
+        # text + code discard from this one source file aggregate into one total.
+        self._discarded_count = 0
+        self._discarded_chars = 0
         content = data.content
         code_blocks = data.code_blocks
 

@@ -36,6 +36,10 @@ not reported when absent, so this error names only the keys proven to be missing
 | Sudachi tokenization error | `TokenizationError` propagates to `process_all()`; the entire file is aborted; `ERROR` (with traceback); continue to next file |
 | Failure at file level | `ERROR` (with traceback); continue to next file |
 | Existing chunks | Skip unless `--force` is specified |
+| Size-rule discard (content below `min_chunk`) | Not an error; emits a per-file `WARNING` (zero chunks) or `INFO` (kept + discarded) discard summary with `discard_reason="below_min_chunk"`; continue to next file |
+
+**Note:** A size-rule discard is an observability event, not a failure: it never aborts the file and does not change the written chunk count semantics. The record shape and trigger are documented in
+[rag_05_03-logging.md](rag_05_03-logging.md).
 
 ## Pipeline Utils — Artifact Validation (`read_crawl_json()` / `read_chunk_json()`)
 
