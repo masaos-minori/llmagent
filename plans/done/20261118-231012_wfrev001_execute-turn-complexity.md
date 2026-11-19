@@ -170,9 +170,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Extract turn-entry preparation into `_run_turn_entry` (`scripts/agent/workflow_engine_adapter.py`, REQ-001) | In Progress | — | — |  |
-| 2 | Phase 2: Narrow the per-attempt execute closure (`scripts/agent/workflow_engine_adapter.py`, REQ-002) | In Progress | — | — |  |
-| 3 | Phase 3: Collapse the `exit_reason` state machine and verify (`scripts/agent/workflow_engine_adapter.py`, `tests/agent/workflow/test_adapter_guards.py`, REQ-003/004/005) | In Progress | — | — |  |
+| 1 | Phase 1: Extract turn-entry preparation into `_run_turn_entry` (`scripts/agent/workflow_engine_adapter.py`, REQ-001) | Completed | — | 20261119-094600 |  |
+| 2 | Phase 2: Narrow the per-attempt execute closure (`scripts/agent/workflow_engine_adapter.py`, REQ-002) | Completed | — | 20261119-094600 |  |
+| 3 | Phase 3: Collapse the `exit_reason` state machine and verify (`scripts/agent/workflow_engine_adapter.py`, `tests/agent/workflow/test_adapter_guards.py`, REQ-003/004/005) | Completed | — | 20261119-094600 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -182,8 +182,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261119-070552_01_scripts_agent_workflow_engine_adapter.py.md | 1, 2, 3 | Procedure | Pending | — | — |
-| implementations/20261119-070552_02_tests_agent_workflow_test_adapter_guards.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261119-070552_01_scripts_agent_workflow_engine_adapter.py.md | 1, 2, 3 | Procedure | Completed | — | — |
+| implementations/20261119-070552_02_tests_agent_workflow_test_adapter_guards.py.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

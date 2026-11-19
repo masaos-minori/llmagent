@@ -12,7 +12,7 @@ import asyncio
 import logging
 import time
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
@@ -138,7 +138,6 @@ class WorkflowEngineAdapter:
                 self._ctx, session_id, existing_task_id, self._state_store
             )
             self._activate_workflow(self._ctx, task)
-            engine = self._workflow_engine
             exit_reason = "engine-started"
 
             async def plan_fn() -> str | None:
@@ -150,22 +149,12 @@ class WorkflowEngineAdapter:
                 # Per-attempt side-effect flag reset: TurnState is not
                 # recreated per attempt, so the adapter clears it at attempt start.
                 self._ctx.turn.attempt_side_effect = False
-                try:
-                    answer, error_kind, is_partial = await self._run_execute_stage(
-                        self._ctx,
-                        workflow_id,
-                        session_id,
-                        task.task_id,
-                        turn_started_at,
-                    )
-                except Exception as exc:
-                    if self._ctx.turn.attempt_side_effect:
-                        # A failed attempt that already attempted a side effect is
-                        # terminal regardless of retry_on (AC-6).
-                        raise WorkflowHaltError(
-                            "stage execute halted: side effect attempted"
-                        ) from exc
-                    raise
+                answer, error_kind, is_partial = await self._run_execute_attempt(
+                    workflow_id,
+                    session_id,
+                    task.task_id,
+                    turn_started_at,
+                )
                 if error_kind is not None:
                     # LLM-level failure results enter the engine as typed stage
                     # failures of kind llm_failure (AC-5).
@@ -182,23 +171,10 @@ class WorkflowEngineAdapter:
                 # moved to the Orchestrator's _execute_turn bracket (see its plan). No-op.
                 return None
 
-            with self._tool_override(self._allowed_tools):
-                try:
-                    await self._prepare_turn_input(line, self._ctx)
-                except (WorkflowHaltError, WorkflowTimeoutError):
-                    raise
-                except Exception as prepared_exc:
-                    # A turn-entry failure must surface exactly as a stage failure
-                    # does today: mark the task halted and route it
-                    # through the existing halt handler so on_error receives a
-                    # WorkflowHaltError — identical end state to a stage halt.
-                    if task is not None and task.task_id:
-                        self._state_store.update_task_status(task.task_id, "halted")
-                    raise WorkflowHaltError(
-                        f"Turn-entry preparation failed: {prepared_exc}"
-                    ) from prepared_exc
-                await engine.run(task, plan_fn, execute_fn, verify_fn)
-                exit_reason = "completed"
+            await self._run_turn_entry(
+                line, self._ctx, task, plan_fn, execute_fn, verify_fn
+            )
+            exit_reason = "completed"
         except WorkflowTimeoutError as exc:
             exit_reason = "halted"
             error_kind = "workflow_timeout"
@@ -224,6 +200,39 @@ class WorkflowEngineAdapter:
             self._owns_state_store = False
 
         return answer, error_kind, is_partial
+
+    async def _run_turn_entry(
+        self,
+        line: str,
+        ctx: AgentContext,
+        task: TaskRecord,
+        plan_fn: Callable[[], Awaitable[str | None]],
+        execute_fn: Callable[[], Awaitable[str | None]],
+        verify_fn: Callable[[], Awaitable[str | None]],
+    ) -> None:
+        """Turn-entry preparation plus the engine run inside one tool-override scope.
+
+        Owns the ``with self._tool_override`` scope that also wraps ``engine.run``,
+        calls ``_prepare_turn_input``, and reproduces the halt routing: passthrough
+        of ``WorkflowHaltError``/``WorkflowTimeoutError``; generic exception -> mark
+        the task ``halted`` -> raise ``WorkflowHaltError``.
+        """
+        with self._tool_override(self._allowed_tools):
+            try:
+                await self._prepare_turn_input(line, ctx)
+            except (WorkflowHaltError, WorkflowTimeoutError):
+                raise
+            except Exception as prepared_exc:
+                # A turn-entry failure must surface exactly as a stage failure
+                # does today: mark the task halted and route it through the
+                # existing halt handler so on_error receives a WorkflowHaltError
+                # — identical end state to a stage halt.
+                if task.task_id:
+                    self._state_store.update_task_status(task.task_id, "halted")
+                raise WorkflowHaltError(
+                    f"Turn-entry preparation failed: {prepared_exc}"
+                ) from prepared_exc
+            await self._workflow_engine.run(task, plan_fn, execute_fn, verify_fn)
 
     def _record_exit_status(self, exit_reason: str, task: TaskRecord | None) -> None:
         """Best-effort write of the status the adapter owns for this exit.
@@ -330,6 +339,36 @@ class WorkflowEngineAdapter:
         await classify_and_inject_mode(line, ctx)
         await self._conversation_manager.append_user_message(line)
         await self._conversation_manager.handle_history_compression()
+
+    async def _run_execute_attempt(
+        self,
+        workflow_id: str,
+        session_id: str,
+        task_id: str,
+        turn_started_at: float,
+    ) -> tuple[str, str | None, bool]:
+        """Perform one execute-stage attempt; a failed attempt that already
+        attempted a side effect is terminal regardless of retry_on (AC-6).
+
+        Groups the per-attempt ``execute_fn`` reset, the attempt body, and the
+        AC-6 terminal guard in one visually grouped helper.
+        """
+        try:
+            return await self._run_execute_stage(
+                self._ctx,
+                workflow_id,
+                session_id,
+                task_id,
+                turn_started_at,
+            )
+        except Exception as exc:
+            if self._ctx.turn.attempt_side_effect:
+                # A failed attempt that already attempted a side effect is
+                # terminal regardless of retry_on (AC-6).
+                raise WorkflowHaltError(
+                    "stage execute halted: side effect attempted"
+                ) from exc
+            raise
 
     async def _run_execute_stage(
         self,
