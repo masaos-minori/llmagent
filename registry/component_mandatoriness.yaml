@@ -1,10 +1,11 @@
 # Machine-readable component-mandatoriness registry (REQ-002).
 # Records the architecture-approved required/non-required classification of each
-# MCP server. Derived from the table in docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md;
-# criteria themselves remain solely in ADR-004 (Decision Group 3). config/agent.toml
+# MCP server. The table in docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md
+# is generated from this registry (ADR-004 Decision Group 3 item 13); the criteria
+# themselves remain solely in ADR-004 (Decision Group 3). config/agent.toml
 # `required` values are validated against this registry at startup (ADR-004 item 13).
-# Authority/placement reconciliation pending adrauth001 (U-1); loader reads one path
-# constant, so relocation is a one-file change.
+# Pending assessments and approvals are tracked as Known Issues MCP-003 and MCP-004 in
+# docs/00_governance/governance_03_issue-and-uncertainty-management.md.
 version: 1
 entries:
   - component_id: cicd
@@ -94,7 +95,7 @@ entries:
   - component_id: rag_pipeline
     classification: required
     failure_category: safety-integrity
-    safety_role: RAG document ingestion; fail-closed prevents index corruption on posture failure.
+    safety_role: RAG retrieval pipeline execution, debug, and document listing/deletion; fail-closed prevents retrieval work on posture failure.
     safely_disableable_functions: []
     startup_consequence: abort_startup
     observability:

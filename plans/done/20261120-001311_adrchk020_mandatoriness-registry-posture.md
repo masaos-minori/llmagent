@@ -215,9 +215,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: governance_03 entries MCP-003/MCP-004 (REQ-003–REQ-005) | In Progress | 2026-11-20 | — |  |
-| 2 | Phase 2: registry header + rag_pipeline safety_role edit, regenerate manifests (Unit: mandatoriness-registry-refresh) | In Progress | 2026-11-20 | — |  |
-| 3 | Phase 3: MDQ auth-check removal, tests, regenerate health_contracts (Unit: mdq-auth-check-removal) | In Progress | 2026-11-20 | — |  |
+| 1 | Phase 1: governance_03 entries MCP-003/MCP-004 (REQ-003–REQ-005) | Completed | 2026-11-20 | 20261120-072325 |  |
+| 2 | Phase 2: registry header + rag_pipeline safety_role edit, regenerate manifests (Unit: mandatoriness-registry-refresh) | Completed | 2026-11-20 | 20261120-072325 |  |
+| 3 | Phase 3: MDQ auth-check removal, tests, regenerate health_contracts (Unit: mdq-auth-check-removal) | Completed | 2026-11-20 | 20261120-072325 |  |
 | 4 | Phase 4: full validation sequence and deployment sync check | Pending | — | — |  |
 
 ### Blocker Log

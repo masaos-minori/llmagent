@@ -39,7 +39,7 @@ carried) — so the registry header can cite ledger IDs instead of an untracked 
 1. Insert two entries `#### MCP-003` and `#### MCP-004` into Part 1 `### Active Items` after
    the `MCP-002` entry, before the `#### SHARED-001` heading (line 134), keeping the
    ID-prefix group ordering (`MCP-*` ascending, then `SHARED-*`).
-2. Fill all 17 Part 1 fields per the Entry Template (line 47) for each entry.
+2. Fill all 17 Part 1 fields per the Entry Template (line 49) for each entry.
 
 ### Method
 - Common fields: `Status`: open; `Area`: MCP; `Owner`: Repository owner; `First Found:`
@@ -66,10 +66,14 @@ carried) — so the registry header can cite ledger IDs instead of an untracked 
   `Source`: the former header note in `registry/component_mandatoriness.yaml` (line 6,
   "Authority/placement reconciliation pending adrauth001 (U-1)"). `Target`:
   `docs/00_governance/governance_01_documentation-policy.md`. `Current Description`: the
-  registry home is fixed by ADR-004 item 13 and the registry is the canonical source for
-  `mcp.component-mandatoriness` (`config/documentation_canonical_sources.toml:66-71`). `Observed
-  Implementation`: the adrchk010 Plan's Resolution Matrix owner-list addition for this row
-  (its REQ-017/UNK-02) is prepared but pending maintainer approval. `Impact`: the pending
+  registry home is fixed by ADR-004 item 13 and `config/documentation_canonical_sources.toml:66-71`
+  registers `registry/component_mandatoriness.yaml` as the source for
+  `mcp.component-mandatoriness` (the literal "canonical source for" wording is rejected by
+  `tools/check_canonical_document_prose.py` CANONICAL-PROSE-001 as an unregistered canonical
+  claim). `Observed
+  Implementation`: the adrchk010 governance proposal adds the owner list for this row in the
+  governance_01 Resolution Matrix but is prepared and pending maintainer approval (a literal
+  `REQ-` id is rejected by `config/doc_quality_rules.json` `history_marker_in_active_doc`). `Impact`: the pending
   approval has no ledger entry. `Recommended Action`: maintainer approves or amends the
   governance_01 Resolution Matrix owner list for the `mcp.component-mandatoriness` row; no
   approval is written here (mirrors MCP-001/MCP-002 phrasing). `Resolution Target`: owner-list
@@ -116,8 +120,8 @@ carried) — so the registry header can cite ledger IDs instead of an untracked 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-scan for MCP-003/MCP-004 ID collisions, then insert both Part 1 entries after MCP-002 | Pending | — | — | |
-| 2 | Run the docs checkers (`check_docs_quality.py`, `check_docs_structure.py`, `check_needs_confirmation_inventory.py`) | Pending | — | — | |
+| 1 | Re-scan for MCP-003/MCP-004 ID collisions, then insert both Part 1 entries after MCP-002 | Completed | 2026-11-20 | 2026-11-20 | Inserted after MCP-002; no collisions |
+| 2 | Run the docs checkers (`check_docs_quality.py`, `check_docs_structure.py`, `check_needs_confirmation_inventory.py`) | Completed | 2026-11-20 | 2026-11-20 | All 3 checkers exit 0 after REQ-id wording fix canonical prose wording fix: CANONICAL-PROSE-001 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

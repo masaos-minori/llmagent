@@ -98,9 +98,9 @@ single auth posture fact (`common.auth_token`) as every other MCP server (REQ-00
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete _auth_token_check call, function, dead constant/imports | Pending | — | — | Release unit mdq-auth-check-removal |
-| 2 | Update companion test MDQ_CHECK_IDS and remove TestAuthTokenConfigured | Pending | — | — | Same commit |
-| 3 | Run tests/mcp_servers/mdq and full toolchain with the unit | Pending | — | — | |
+| 1 | Delete _auth_token_check call, function, dead constant/imports | Completed | 2026-11-20 | 2026-11-20 | Release unit mdq-auth-check-removal check fn + import removed; REASON_AUTH_TOKEN_MISSING kept in result_dto (startup_flow uses it) |
+| 2 | Update companion test MDQ_CHECK_IDS and remove TestAuthTokenConfigured | Completed | 2026-11-20 | 2026-11-20 | Same commit MDQ_CHECK_IDS 5 ids; class deleted |
+| 3 | Run tests/mcp_servers/mdq and full toolchain with the unit | Completed | 2026-11-20 | 2026-11-20 | tests/mcp_servers/mdq + ruff + mypy green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

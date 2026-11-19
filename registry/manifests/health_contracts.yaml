@@ -63,7 +63,6 @@ entries:
   - common.published_tools
   - server.allowed_dirs_configured
   - server.allowed_dirs_exist
-  - server.auth_token_configured
   - server.db_path_valid
   - server.index_available
   - server.schema_valid

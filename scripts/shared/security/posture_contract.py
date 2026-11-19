@@ -98,7 +98,6 @@ REQUIRED_CHECK_IDS: Mapping[str, tuple[str, ...]] = {
     ),
     "mdq": COMMON_CHECK_IDS
     + (
-        "server.auth_token_configured",
         "server.allowed_dirs_configured",
         "server.allowed_dirs_exist",
         "server.db_path_valid",

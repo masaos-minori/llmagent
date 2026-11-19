@@ -9,7 +9,7 @@ entry no longer lists `server.auth_token_configured` (REQ-008, AC-07).
 ## Assumptions
 
 - The manifest is a generated artifact produced from `scripts/shared/security/posture_contract.py`
-  (generator `_MANIFEST_SOURCES["health_contracts"]`, `tools/generate_reference_table.py:498`):
+  (generator `_MANIFEST_SOURCES["health_contracts"]`, `tools/generate_reference_table.py:497`):
   regeneration only, never hand-editing.
 
 ## Design decisions
@@ -30,11 +30,13 @@ entry no longer lists `server.auth_token_configured` (REQ-008, AC-07).
    `uv run python tools/generate_reference_table.py --manifests` (the health_contracts domain has
    no `--type` alias of its own; the shared manifests gate regenerates it).
 2. Confirm the diff contains only the mdq entry change (the `server.auth_token_configured` line
-   66 removed) and the manifest `generated:` header timestamp.
+   66 removed). The manifest has no timestamp header: its footer `generated_by:` (line 102) is
+   static.
 
 ### Method
-- Builder path: `_health_contract_entries()` (`tools/generate_reference_table.py:985`) reads
-  `REQUIRED_CHECK_IDS` live from the contract module.
+- Builder path: `_health_contract_entries()` (defined `tools/generate_reference_table.py:810`,
+  registered in `_MANIFEST_BUILDERS` at line 985) reads `REQUIRED_CHECK_IDS` live from the
+  contract module.
 
 ### Details
 - The mdq entry currently spans lines 60–70 with the auth id at line 66; every other server entry
@@ -79,8 +81,8 @@ entry no longer lists `server.auth_token_configured` (REQ-008, AC-07).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run generate_reference_table --manifests after procedures 04/05 | Pending | — | — | Same commit as the unit |
-| 2 | Run --check drift gate and generate_reference_table tests | Pending | — | — | |
+| 1 | Run generate_reference_table --manifests after procedures 04/05 | Completed | 2026-11-20 | 2026-11-20 | Same commit as the unit diff only auth-id line 66 |
+| 2 | Run --check drift gate and generate_reference_table tests | Completed | 2026-11-20 | 2026-11-20 | check exit 0; tests green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

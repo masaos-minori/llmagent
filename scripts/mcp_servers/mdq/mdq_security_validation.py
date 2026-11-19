@@ -18,7 +18,6 @@ from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import (
     REASON_ALLOWED_DIR_INVALID,
     REASON_ALLOWLIST_EMPTY,
-    REASON_AUTH_TOKEN_MISSING,
     REASON_DB_PATH_INVALID,
     REASON_DEPENDENCY_UNREACHABLE,
     REASON_NOT_APPLICABLE,
@@ -105,30 +104,12 @@ def validate_mdq_security(
     carries a database or directory path.
     """
     return [
-        _auth_token_check(mdq_cfg),
         _allowed_dirs_configured_check(mdq_cfg),
         _allowed_dirs_exist_check(mdq_cfg),
         _db_path_check(mdq_cfg, db_file_present),
         _schema_check(schema_error, schema_checked),
         _index_check(index_stats),
     ]
-
-
-def _auth_token_check(mdq_cfg: Mapping[str, object]) -> SecurityCheckResult:
-    """Presence only: mdq_server.py already refuses to start without a token."""
-    if mdq_cfg.get("auth_token"):
-        return SecurityCheckResult(
-            check_id="server.auth_token_configured",
-            status=SecurityCheckStatus.OK,
-            reason_code=REASON_OK,
-            message="auth_token is configured",
-        )
-    return SecurityCheckResult(
-        check_id="server.auth_token_configured",
-        status=SecurityCheckStatus.FAILED,
-        reason_code=REASON_AUTH_TOKEN_MISSING,
-        message="auth_token is empty",
-    )
 
 
 def _allowed_dirs_configured_check(

@@ -31,8 +31,9 @@ sibling procedure `implementations/20261120-043919_02_registry_component_mandato
 ### Procedure
 1. After the sibling registry edit (procedure 02) lands, run
    `uv run python tools/generate_reference_table.py --manifests --type mandatoriness`.
-2. Confirm the diff contains only the `rag_pipeline` `safety_role` line (manifest line 97) and
-   the manifest header timestamp (`generated:`, line 4).
+2. Confirm the diff contains only the `rag_pipeline` `safety_role` value lines (manifest
+   lines 101–102, the entry wraps at the writer's width). The manifest has no timestamp
+   header: its footer `generated_by:` (line 130) is static.
 
 ### Method
 - The generator path is `component_mandatoriness` domain → manifest builder
@@ -71,8 +72,8 @@ sibling procedure `implementations/20261120-043919_02_registry_component_mandato
 ## Completion criteria
 
 - The manifest's `rag_pipeline` entry mirrors the corrected registry `safety_role`; the drift
-  gate exits 0; the diff touches only the mirrored value and the generated header timestamp
-  (Plan AC-07).
+  gate exits 0; the diff touches only the mirrored value lines (no timestamp header exists in
+  the generated manifest) (Plan AC-07).
 
 ## Out of Scope
 
@@ -84,8 +85,8 @@ sibling procedure `implementations/20261120-043919_02_registry_component_mandato
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run generate_reference_table --manifests --type mandatoriness after procedure 02 | Pending | — | — | Same commit as procedure 02 |
-| 2 | Run --check drift gate and generate_reference_table tests | Pending | — | — | |
+| 1 | Run generate_reference_table --manifests --type mandatoriness after procedure 02 | Completed | 2026-11-20 | 2026-11-20 | Same commit as procedure 02; diff only rag_pipeline value lines 101-102 |
+| 2 | Run --check drift gate and generate_reference_table tests | Completed | 2026-11-20 | 2026-11-20 | check exit 0; tests 42 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

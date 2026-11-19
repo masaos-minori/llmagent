@@ -10,10 +10,12 @@ AC-05).
 
 ## Assumptions
 
-- `mdq_server.py` refuses to start without a token (`_load_auth_token()`, line 87 raises on
-  empty) and `check_auth_token_present` (`scripts/shared/security/startup_flow.py:132-144`,
-  WARNING semantics) remains the single auth posture fact — verified in Plan Step 2; neither may
-  change (Plan Out-of-Scope).
+- `mdq_server.py` refuses to start without a token (`require_auth_token("mdq-mcp", ...
+  _AUTH_TOKEN)` at line 484 raises `RuntimeError` on an empty token, independent of the
+  posture gate; `_load_auth_token()` at line 87 itself returns `""` on config failure) and
+  `check_auth_token_present` (`scripts/shared/security/startup_flow.py:132-144`,
+  WARNING semantics) remains the single auth posture fact — verified in Plan Step 2; neither
+  may change (Plan Out-of-Scope).
 - `common.auth_token` remains in `COMMON_CHECK_IDS` and therefore in MDQ's posture — the removal
   is server-scoped only.
 
@@ -46,7 +48,7 @@ AC-05).
 
 ### Details
 - `tools/generate_reference_table.py` derives `registry/manifests/health_contracts.yaml` from
-  this file (source mapping, line 498): the manifest regeneration is the sibling procedure
+  this file (source mapping, line 497): the manifest regeneration is the sibling procedure
   `implementations/20261120-043919_06_registry_manifests_health_contracts.yaml.md` in the same
   release unit.
 - MDQ's own self-validation consumes this contract (sibling procedure 05).
@@ -98,9 +100,9 @@ AC-05).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove server.auth_token_configured from REQUIRED_CHECK_IDS["mdq"] | Pending | — | — | Release unit mdq-auth-check-removal |
-| 2 | Update companion test mirror SERVER_CHECK_IDS | Pending | — | — | Same commit |
-| 3 | Run targeted tests + drift gate with procedures 05/06 | Pending | — | — | |
+| 1 | Remove server.auth_token_configured from REQUIRED_CHECK_IDS["mdq"] | Completed | 2026-11-20 | 2026-11-20 | Release unit mdq-auth-check-removal mdq tuple now 5 ids |
+| 2 | Update companion test mirror SERVER_CHECK_IDS | Completed | 2026-11-20 | 2026-11-20 | Same commit; mirror updated, rg empty |
+| 3 | Run targeted tests + drift gate with procedures 05/06 | Completed | 2026-11-20 | 2026-11-20 | 503 targeted passed; --check exit 0; full suite 13091 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

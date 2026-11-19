@@ -32,7 +32,6 @@ from shared.security.posture_contract import (
 from shared.security.result_dto import (
     REASON_ALLOWED_DIR_INVALID,
     REASON_ALLOWLIST_EMPTY,
-    REASON_AUTH_TOKEN_MISSING,
     REASON_DB_PATH_INVALID,
     REASON_DEPENDENCY_UNREACHABLE,
     REASON_NOT_APPLICABLE,
@@ -45,7 +44,6 @@ from shared.security.startup_flow import OWN_CONFIG_FILE_VIEW_KEY
 from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
 
 MDQ_CHECK_IDS = (
-    "server.auth_token_configured",
     "server.allowed_dirs_configured",
     "server.allowed_dirs_exist",
     "server.db_path_valid",
@@ -163,30 +161,6 @@ class TestCheckSet:
         published = {check.check_id for check in posture.checks}
         assert set(REQUIRED_CHECK_IDS["mdq"]) <= published
         assert set(COMMON_CHECK_IDS) <= published
-
-
-class TestAuthTokenConfigured:
-    """Presence only: the token value never reaches a result (REQ-002)."""
-
-    def test_empty_token_is_failed(self, tmp_path: Path) -> None:
-        result = _results(tmp_path, cfg=_cfg(tmp_path, auth_token=""))[
-            "server.auth_token_configured"
-        ]
-        assert result.status is SecurityCheckStatus.FAILED
-        assert result.reason_code == REASON_AUTH_TOKEN_MISSING
-
-    def test_missing_key_is_failed(self, tmp_path: Path) -> None:
-        cfg = _cfg(tmp_path)
-        del cfg["auth_token"]
-        result = _results(tmp_path, cfg=cfg)["server.auth_token_configured"]
-        assert result.status is SecurityCheckStatus.FAILED
-
-    def test_configured_token_is_ok_without_the_value(self, tmp_path: Path) -> None:
-        results = _results(tmp_path, cfg=_cfg(tmp_path, auth_token=SECRET_TOKEN))
-        result = results["server.auth_token_configured"]
-        assert result.status is SecurityCheckStatus.OK
-        assert result.reason_code == REASON_OK
-        assert SECRET_TOKEN not in result.message
 
 
 class TestAllowedDirsConfigured:

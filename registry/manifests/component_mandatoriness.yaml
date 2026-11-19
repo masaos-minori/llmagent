@@ -98,8 +98,8 @@ entries:
   owner: agent-architecture-owner
   rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
   safely_disableable_functions: []
-  safety_role: RAG document ingestion; fail-closed prevents index corruption on posture
-    failure.
+  safety_role: RAG retrieval pipeline execution, debug, and document listing/deletion;
+    fail-closed prevents retrieval work on posture failure.
   startup_consequence: abort_startup
 - authority_adr: ADR-004
   classification: required

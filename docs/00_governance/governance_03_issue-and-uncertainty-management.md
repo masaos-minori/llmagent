@@ -131,6 +131,46 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action:** The maintainer states the approval and the ADR records it, or the exception is removed; no approval is written here.
 - **Resolution Target:** maintainer approval in the ADR-004 `### Approval Record`, or removal of the exception
 
+#### MCP-003
+
+- **ID:** MCP-003
+- **Title:** ADR-004 Decision Group 3 item 10 mandatoriness assessment not performed for any MCP server
+- **Status**: open
+- **Severity:** Medium
+- **Area:** MCP
+- **Type:** design-gap
+- **Source:** `registry/component_mandatoriness.yaml` `rationale` lines (21, 33, 45, 57, 69, 81, 93, 105, 117, 129 — "Not assessed as satisfying Decision Group 3 item 10")
+- **Owner:** Repository owner
+- **First Found:** adrchk020 mandatoriness registry posture re-verification
+- **Target:** `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`
+- **Related:** AAL-019, `registry/component_mandatoriness.yaml`
+- **Summary:** All 10 registry entries carry the status-quo default rationale; the per-server approved classification required by ADR-004 Decision Group 3 item 13 has never been performed.
+- **Current Description:** ADR-004 item 13 requires an approved classification; all 10 entries carry the status-quo default and `agent_08_04` (lines 46–52) restates the criteria with no approval record.
+- **Observed Implementation:** every server is classified `required` with `startup_consequence: abort_startup`; no per-server item-10 assessment exists.
+- **Impact:** the approved-classification precondition of ADR-004 item 13 is unmet for all 10 servers.
+- **Recommended Action:** perform the per-server Group 3 item 10 assessment; additionally state whether `failure_category` should stay uniform `safety-integrity` or follow ADR-004 Group 2 item 7 (`docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md:73`, MCP-server unavailability classes as an availability failure) — proposal only, no value changes here.
+- **Resolution Target:** maintainer assessment recorded in the registry via an approved change
+
+#### MCP-004
+
+- **ID:** MCP-004
+- **Title:** component-mandatoriness registry authority/placement reconciliation has no ledger entry
+- **Status**: open
+- **Severity:** Low
+- **Area:** MCP
+- **Type:** design-gap
+- **Source:** the former header note in `registry/component_mandatoriness.yaml` (line 6, "Authority/placement reconciliation pending adrauth001 (U-1)")
+- **Owner:** Repository owner
+- **First Found:** adrchk020 mandatoriness registry posture re-verification
+- **Target:** `docs/00_governance/governance_01_documentation-policy.md`
+- **Related:** MCP-003, `config/documentation_canonical_sources.toml`
+- **Summary:** The registry authority/placement approval the header note carried has no tracked ledger entry.
+- **Current Description:** the registry home is fixed by ADR-004 item 13 and `config/documentation_canonical_sources.toml:66-71` registers `registry/component_mandatoriness.yaml` as the source for `mcp.component-mandatoriness`.
+- **Observed Implementation:** the adrchk010 governance proposal adds the owner list for this row in the governance_01 Resolution Matrix but is prepared and pending maintainer approval.
+- **Impact:** the pending approval has no ledger entry.
+- **Recommended Action:** maintainer approves or amends the governance_01 Resolution Matrix owner list for the `mcp.component-mandatoriness` row; no approval is written here.
+- **Resolution Target:** owner-list approval recorded in `governance_01_documentation-policy.md`
+
 #### SHARED-001
 
 - **ID:** SHARED-001

@@ -112,8 +112,8 @@ citations of the new governance_03 ledger IDs, and fix the factually wrong `rag_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite header comment block and `rag_pipeline` safety_role per Procedure | Pending | — | — | Land with the manifest regeneration (release unit) |
-| 2 | Run check_component_mandatoriness + regeneration/drift gate (with sibling 03) | Pending | — | — | |
+| 1 | Rewrite header comment block and `rag_pipeline` safety_role per Procedure | Completed | 2026-11-20 | 2026-11-20 | Land with the manifest regeneration (release unit); diff touched only header comments and the safety_role line |
+| 2 | Run check_component_mandatoriness + regeneration/drift gate (with sibling 03) | Completed | 2026-11-20 | 2026-11-20 | check_component_mandatoriness exit 0; rg Derived/adrauth001 empty |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

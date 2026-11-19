@@ -87,7 +87,6 @@ SERVER_CHECK_IDS: dict[str, tuple[str, ...]] = {
         "server.refiner_limits",
     ),
     "mdq": (
-        "server.auth_token_configured",
         "server.allowed_dirs_configured",
         "server.allowed_dirs_exist",
         "server.db_path_valid",
