@@ -150,9 +150,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: shared `splitter_config` fixture in `test_chunk_splitter.py` | Pending | — | — | |
-| 2 | Phase 2: route tests through fixture; correct `rag_02_03` section 3.1.4 | Pending | — | — | |
-| 3 | Phase 3: run chunk suite, confirm 126 pass, no isolation-guard failures | Pending | — | — | |
+| 1 | Phase 1: shared `splitter_config` fixture in `test_chunk_splitter.py` | In Progress | — | — |  |
+| 2 | Phase 2: route tests through fixture; correct `rag_02_03` section 3.1.4 | In Progress | — | — |  |
+| 3 | Phase 3: run chunk suite, confirm 126 pass, no isolation-guard failures | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -162,7 +162,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261120-071413_01_tests_rag_ingestion_test_chunk_splitter.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261120-071413_02_docs_21_rag_rag_02_03_ingestion_pipeline-chunksplitter.md.md | 2 | Procedure | Pending | — | — |
 
 Type options: Test / Task / Phase / Doc / Config / Infra / Other
 
@@ -182,3 +183,5 @@ Type options: Test / Task / Phase / Doc / Config / Infra / Other
 | REQ-001 | Required Changes (share one config-builder fixture) | `tests/rag/ingestion/test_chunk_splitter.py` | Phase 1, 2 | No inline splitter-`config` remains; assertions unchanged | chunk suite 126 pass; static `rg config` review | Planned |
 | REQ-002 | Documentation Impact | `docs/21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md` | Phase 2 | Undersized Markdown path records the discard warning | manual read vs `chunk_splitter` production | Planned |
 | REQ-003 | Constraints, Acceptance Criteria | `tests/rag/ingestion/test_chunk_splitter.py` | Phase 2, 3 | No `object.__new__`; no Sudachi reliance in unit tests | chunk suite runs green without Sudachi | Planned |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261120-071413 -->

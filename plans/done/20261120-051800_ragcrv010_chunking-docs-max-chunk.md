@@ -150,9 +150,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: lock English/heading size rule from source; resolve UNK-01 | Pending | — | — | |
-| 2 | Phase 2: correct `rag_02_03` section 3.1.4 English/heading size rule; remove false `_split_overlong` attribution | Pending | — | — | |
-| 3 | Phase 3: cross-read four paths; run doc checker; confirm protected statements unchanged | Pending | — | — | |
+| 1 | Phase 1: lock English/heading size rule from source; resolve UNK-01 | Pending | — | — |  |
+| 2 | Phase 2: correct `rag_02_03` section 3.1.4 English/heading size rule; remove false `_split_overlong` attribution | In Progress | — | — |  |
+| 3 | Phase 3: cross-read four paths; run doc checker; confirm protected statements unchanged | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -162,7 +162,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261120-073426_01_docs_21_rag_rag_02_03_ingestion_pipeline-chunksplitter.md.md | 2 | Procedure | Pending | — | — |
 
 Type options: Test / Task / Phase / Doc / Config / Infra / Other
 
@@ -178,3 +178,5 @@ Type options: Test / Task / Phase / Doc / Config / Infra / Other
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261120-073426 -->
