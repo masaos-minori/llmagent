@@ -17,12 +17,13 @@ High
   - Applying the Resolution Matrix owner change (ADR-017/ADR-004) without maintainer approval — proposal preparation only.
   - Renumbering GV-0xx gate rows in `docs/00_governance/governance_04_documentation-checks.md` — owned by the sibling adrchk011 governance work.
   - Changing GV-019/GV-020/GV-021 Blocking semantics — fixed behavior must match the existing gate definitions.
-- **Dependencies**: Fix order against the sibling adrchk011 issue (ADR approval governance): checker-code phases are independent; the governance Matrix change and the `CANONICAL-009` code allocation must be sequenced after adrchk011 is planned to avoid conflicting governance proposals and code collisions.
+- **Dependencies**: Fix order against the sibling adrchk011 issue (ADR approval governance): checker-code phases are independent; the governance Matrix change and the `CANONICAL-012` code allocation must be sequenced after adrchk011 is planned to avoid conflicting governance proposals and code collisions.
   - **Depends on**: issues/20261117-123011_adrchk011_adr-approval-governance.md | phase 3 | The `mcp.component-mandatoriness` owner expansion (REQ-017) and any GV-code renumbering overlap adrchk011's governance scope; phase 3 proposals and the REQ-009 code allocation must be reconciled with adrchk011's plan before merge decisions.
 
 ## Background
 - The Canonical Source Registry (`config/documentation_canonical_sources.toml`) declares, for each governed decision target, which documents are canonical. Two checker tools enforce it in CI as Blocking gates (`tools/_validation_gate_defs.py` GV-020/GV-019/GV-021; `docs/00_governance/governance_04_documentation-checks.md` section 13).
 - The source issue catalogued defects in both checkers and five defective registry rows. Adversarial verification (this Plan's Step 2) reproduced every claim against current source and with fixture runs; see Repository Evidence below.
+- Implementation-procedure-cycle re-verification (2026-11-19) confirmed every checker/registry claim against current source and corrected four anchors: `REQ-009` targets `CANONICAL-012` (`CANONICAL-009` already used by the empty-area detector); `REQ-005` re-scoped (the registry CLI has no `--diff` option; the verified set-ordering defects are at `tools/check_canonical_source_conflicts.py` lines 489/847); `REQ-003` is now a regression guard (both checkers already exit 2 on unknown options); the `governance_02` row evidence anchors swapped (the wrong count is at lines 80–81; line 49 already states "Two").
 
 ## Problem
 - `check_canonical_source_registry.py`: a non-Accepted ADR reference is reported as an error by `RegistryEntry.validate()` and again as a warning by `find_non_accepted_adr()` in `validate_all()` — the same defect with two severities. Default registry path and `repo_root = Path.cwd()` make findings cwd-dependent: from `/tmp/opencode` the tool reports "Registry file not found" (exit 1), and with an absolute `--registry` it reports 20 bogus "source path does not exist" errors. Dozens of unused methods/attributes (vulture: 98 items) remain.
@@ -40,13 +41,13 @@ High
 ## Requirements
 - `REQ-001`: A defect class (non-Accepted ADR reference) must have exactly one severity across both checkers, matching the gate definitions (registry error, conflicts warning) without contradicting itself inside `validate_all()`.
 - `REQ-002`: Default registry resolution and source-path existence checks must be anchored to the repository root (derived from the tool file location), not the current working directory; running from any cwd reports identical findings.
-- `REQ-003`: Unknown CLI options must fail with a usage error (exit code 2), not be silently accepted.
+- `REQ-003`: Unknown CLI options must fail with a usage error (exit code 2), not be silently accepted. Re-verified 2026-11-19 (live probe): both checkers already exit 2 via `argparse`; the requirement is retained as a regression guard.
 - `REQ-004`: Dead code in `check_canonical_source_registry.py` (unused public helpers, ~98 vulture items) must be removed or exercised by tests, without changing checker output.
-- `REQ-005`: `--diff` output and error lists must be deterministically ordered (byte-identical across repeated runs).
+- `REQ-005`: Checker output lists (validation error lists, finding order, `affected_files`) must be deterministically ordered (byte-identical across repeated runs). Re-verified 2026-11-19: the registry CLI has no `--diff` option and its error list is already order-stable; the verified non-determinism is the `list(set(...))` constructions in `tools/check_canonical_source_conflicts.py` (lines 489, 847), fixed in the Phase 2 dedup work.
 - `REQ-006`: `_run_detection_functions` must run on the main path of `detect_all_conflicts`, not only in the fallback/except path.
 - `REQ-007`: `_wrap_validation_errors` must report every validation error (missing source path, invalid claim type, Draft/Proposed normative source) as a blocking `CANONICAL-C0xx` finding regardless of whether the error text contains the entry's `decision_target`.
 - `REQ-008`: One validation error must produce exactly one finding (deduplicated across matching entries; entry list retained in the finding detail).
-- `REQ-009`: Every finding code must be unique; the version error must move from the reused `CANONICAL-008` to an unused code (target `CANONICAL-009`, checked against adrchk011 GV renumbering first).
+- `REQ-009`: Every finding code must be unique; the version error must move from the reused `CANONICAL-008` to an unused code (target `CANONICAL-012` — re-verified 2026-11-19: `CANONICAL-009` is already used by the empty-area detector at `tools/check_canonical_source_conflicts.py` lines 637/823 and pinned by `tests/tools/test_check_canonical_source_conflicts.py` lines 446–463; `CANONICAL-012` is confirmed unused in `tools/`, `tests/`, `config/`, `docs/`, `issues/`; checked against adrchk011 GV renumbering first).
 - `REQ-010`: `classify_finding` must route `CANONICAL-C0xx` codes to CANONICAL_CONFLICT and `CANONICAL-W0xx` codes to their routing-table destination; the duplicate `return conflicts` (lines 944/946) must be removed.
 - `REQ-011`: Routing tests must exercise the real `CANONICAL-C0xx`/`CANONICAL-W0xx` code prefixes, not the synthetic `CANONICAL-C001`-style literals only.
 - `REQ-012`: Dead code in `check_canonical_source_conflicts.py` (~47 vulture items) must be removed or exercised by tests.
@@ -60,6 +61,7 @@ High
 - `REQ-020`: `config/adr_authority.toml` must drop the history-style "Transcribed 2026-10-30" comment (the toml is the hand-maintained input model of `tools/generate_adr_authority.py`; guarded blocks are unaffected).
 - `REQ-021`: `tools/generate_reference_table.py` line 559 must cite the current normative ADR/requirement instead of the stale "ADR-02.05 REQ-004" comment.
 - `REQ-022`: No generated artifact (`registry/manifests/*.yaml`, guarded blocks in `docs/10_adr/adr_01_index.md`) may be hand-edited; drift gates (`tools/generate_reference_table.py --check`, `tools/generate_adr_authority.py --check`) must pass.
+- Terminology: `CANONICAL-C0xx` in `REQ-007`/`REQ-010`/`REQ-011` denotes the blocking numeric code family `CANONICAL-NNN` (currently `CANONICAL-001`–`CANONICAL-011`), and `CANONICAL-W0xx` denotes the warning family `CANONICAL-W-NN` (e.g. `CANONICAL-W-05`), as implemented in `tools/check_canonical_source_conflicts.py` (verified 2026-11-19).
 
 ## Implementation Target Files
 **Freeze status**: Frozen (Step 8 Implementation Target Files Validation passed
@@ -68,12 +70,12 @@ High
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| tools/check_canonical_source_registry.py | checker fix | severity consistency, cwd-anchored paths, CLI strictness, dead code, deterministic output | REQ-001, REQ-002, REQ-003, REQ-004, REQ-005; AC-01–AC-05 | `validate()` error + `find_non_accepted_adr()` warning duplication; fixture run 3 errors exit 1; `/tmp/opencode` run 20 bogus errors; vulture 98 items | tests/tools/test_check_canonical_source_registry.py | Verified |
-| tools/check_canonical_source_conflicts.py | checker fix | detector main-path, wrapper gate, dedup, code numbering, routing, dead code, help text | REQ-006–REQ-013; AC-06–AC-11 | `_wrap_validation_errors` gate drops errors; duplicate `CANONICAL-007` fixture findings; `CANONICAL-008` reuse; `return conflicts` lines 944/946; help default mismatch; vulture 47 items | tests/tools/test_check_canonical_source_conflicts.py; tests/tools/test_check_canonical_source_conflicts_routing.py | Verified |
-| config/documentation_canonical_sources.toml | config fix | align 5 defective rows with the ADR/governance specification | REQ-014, REQ-015, REQ-016, REQ-019; AC-12 | lines 10–15, 18–22, 31–36, 66–71, 73–78 vs docs db_02/db_03/db_08, ADR-004, Resolution Matrix lines 134–135 | tests/tools/test_check_canonical_source_registry.py; tests/tools/test_check_canonical_source_conflicts.py | Verified |
+| tools/check_canonical_source_registry.py | checker fix | severity consistency, cwd-anchored paths, CLI strictness, dead code, deterministic output | REQ-001, REQ-002, REQ-003, REQ-004, REQ-005; AC-01–AC-05 | `validate()` error + `find_non_accepted_adr()` warning duplication; fixture run 3 errors exit 1; `/tmp/opencode` run 20 bogus errors; vulture 98 items | `tests/tools/test_check_canonical_source_registry.py` | Verified |
+| tools/check_canonical_source_conflicts.py | checker fix | detector main-path, wrapper gate, dedup, code numbering, routing, dead code, help text | REQ-006–REQ-013; AC-06–AC-11 | `_wrap_validation_errors` gate drops errors; duplicate `CANONICAL-007` fixture findings; `CANONICAL-008` reuse; `return conflicts` lines 944/946; help default mismatch; vulture 47 items | `tests/tools/test_check_canonical_source_conflicts.py`; `tests/tools/test_check_canonical_source_conflicts_routing.py` | Verified |
+| config/documentation_canonical_sources.toml | config fix | align 5 defective rows with the ADR/governance specification | REQ-014, REQ-015, REQ-016, REQ-019; AC-12 | lines 10–15, 18–22, 31–36, 66–71, 73–78 vs docs db_02/db_03/db_08, ADR-004, Resolution Matrix lines 134–135 | `tests/tools/test_check_canonical_source_registry.py`; `tests/tools/test_check_canonical_source_conflicts.py` | Verified |
 | config/adr_authority.toml | comment cleanup | remove history-style "Transcribed 2026-10-30" note | REQ-020; AC-15 | line 9; generator docstring confirms the toml is the hand-maintained input model | N/A: comment-only change; drift gates `generate_adr_authority.py --check`, `check_adr_authority.py` | Verified |
 | docs/00_governance/governance_01_documentation-policy.md | governance proposal (apply only after approval) | Resolution Matrix owner-list change for `mcp.component-mandatoriness` | REQ-017; AC-13 | Matrix lines 134–135 vs registry row and ADR-004 Group 3 item 13 | N/A: proposal pending approval (UNK-02) | Verified |
-| docs/00_governance/governance_02_documentation-metadata.md | doc fix | correct optional-field miscount | REQ-018; AC-14 | line 49 "one optional field" vs lines 80–81 listing `status` and `class` | N/A: doc gates via CI lint | Verified |
+| docs/00_governance/governance_02_documentation-metadata.md | doc fix | correct optional-field miscount | REQ-018; AC-14 | lines 80–81 "the one optional field" vs line 49 "Two optional metadata fields" (`status`, `class`) | N/A: doc gates via CI lint | Verified |
 | tools/generate_reference_table.py | comment cleanup | replace stale "ADR-02.05 REQ-004" comment | REQ-021, REQ-022; AC-15, AC-16 | line 559 | N/A: comment-only change; drift gate `generate_reference_table.py --check` | Verified |
 | tests/tools/test_check_canonical_source_registry.py | test update | fixture regression tests for REQ-001–REQ-005 | REQ-001, REQ-002, REQ-003, REQ-004, REQ-005; AC-01–AC-05 | existing 273-line file, 77 tests passed baseline | — | Verified |
 | tests/tools/test_check_canonical_source_conflicts.py | test update | fixture regression tests for REQ-006–REQ-009, REQ-012, REQ-013 | REQ-006–REQ-009, REQ-012, REQ-013; AC-06–AC-11 | existing 525-line file, baseline passing | — | Verified |
@@ -97,11 +99,11 @@ High
 - `AC-02` (REQ-002): both checkers run from the repo root and from `/tmp/opencode` (absolute `--registry`) and report identical findings; the default registry resolves from any cwd.
 - `AC-03` (REQ-003): `--unknown-option` exits 2 with a usage message.
 - `AC-04` (REQ-004, REQ-012): no unused method or module-level constant flagged at ≥90 % confidence by vulture remains in either checker, and the three checker test files pass unchanged in behavior otherwise.
-- `AC-05` (REQ-005): two consecutive `--diff` runs produce byte-identical stdout.
+- `AC-05` (REQ-005): two consecutive validation runs produce byte-identical stdout, and finding/`affected_files` orderings are deterministic.
 - `AC-06` (REQ-006): on the fixture registry, semantic findings appear without triggering the fallback path (main-path execution proven by test).
 - `AC-07` (REQ-007): the fixture (missing source path + invalid claim type + Draft ADR source) produces all findings as blocking `CANONICAL-C0xx`, including the previously dropped missing-path error.
 - `AC-08` (REQ-008): the previously duplicated finding set yields exactly one `CANONICAL-C006`-class finding for one wrapped error.
-- `AC-09` (REQ-009): no finding code appears twice in any run; the version error carries the new unique code (`CANONICAL-009`, subject to the adrchk011 collision check).
+- `AC-09` (REQ-009): no finding code appears twice in any run; the version error carries the new unique code (`CANONICAL-012`, subject to the adrchk011 collision check).
 - `AC-10` (REQ-010, REQ-011): `classify_finding` routes real `CANONICAL-C0xx`/`CANONICAL-W0xx` codes to their routing-table destinations; routing tests parametrized on the real prefixes pass; only one `return conflicts` path remains.
 - `AC-11` (REQ-013): `--help` prints `config/documentation_canonical_sources.toml` as the default.
 - `AC-12` (REQ-014, REQ-015, REQ-016, REQ-019): after the config fixes, both checkers and `check_canonical_document_prose.py` exit 0 on the repo registry, and the four fixture-confirmed conflicts no longer appear.
@@ -115,11 +117,11 @@ High
 - `T02` (REQ-002): cwd-independence test — same findings from repo root and from a foreign cwd with absolute `--registry` (fixture evidence: 20 bogus errors before fix).
 - `T03` (REQ-003): unknown option → exit 2.
 - `T04` (REQ-004, REQ-012): vulture ≥90 % confidence count is 0 for both files after removal.
-- `T05` (REQ-005): repeated `--diff` byte-identical.
+- `T05` (REQ-005): repeated validation runs byte-identical; finding/`affected_files` orderings deterministic.
 - `T06` (REQ-006): fixture findings produced on the main path (no exception raised).
 - `T07` (REQ-007): missing-source-path, invalid-claim-type, and Draft-source errors all appear as blocking findings.
 - `T08` (REQ-008): one wrapped error → exactly one finding (no per-entry duplication).
-- `T09` (REQ-009): code-uniqueness assertion over all fixture findings; version error = `CANONICAL-009`.
+- `T09` (REQ-009): code-uniqueness assertion over all fixture findings; version error = `CANONICAL-012`.
 - `T10` (REQ-010, REQ-011): routing parametrization extended to real `CANONICAL-C0xx`/`CANONICAL-W0xx` codes.
 - `T11` (REQ-013): help-text default assertion.
 - `T12` (REQ-014–REQ-016, REQ-019): corrected registry passes both checkers and the prose checker with exit 0; the fixture registry fails with the exact expected finding set.
@@ -139,7 +141,7 @@ High
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Overlap with the still-open adrchk011 issue (ADR approval governance): its future plan may propose the same Matrix changes and GV-code renumbering | adrchk011 has no Plan yet | Process adrchk011 before applying REQ-017; check its plan before allocating `CANONICAL-009` | False |
+| UNK-01 | Overlap with the still-open adrchk011 issue (ADR approval governance): its future plan may propose the same Matrix changes and GV-code renumbering | adrchk011 has no Plan yet | Process adrchk011 before applying REQ-017; check its plan before allocating `CANONICAL-012` | False |
 | UNK-02 | Maintainer approval for adding ADR-017/ADR-004 to the `mcp.component-mandatoriness` owners | No approval record exists | REQ-017 is proposal-only; merge requires an explicit owner decision recorded in the Blocker Log | False |
 | UNK-03 | Exact dead-code removal list (vulture 98 + 47 items includes helpers referenced only by tests) | Per-helper usage audit not yet done | Enumerate removal candidates in the implementation procedure; keep anything a passing test imports | False |
 | UNK-04 | Final claim-type value for `overview.architecture-overview` and the exact `governance.policy` row correction (claim_type vs source path) | Matrix semantics require a line-by-line reading during implementation | Decide in the implementation procedure against the Matrix rows; fixture test pins the outcome | False |
@@ -175,13 +177,13 @@ High
    - [ ] Add failing fixture tests for REQ-001–REQ-005 to `tests/tools/test_check_canonical_source_registry.py` (REQ-001–REQ-005; tests/tools/test_check_canonical_source_registry.py)
    - [ ] Single severity source for non-Accepted ADR references in `tools/check_canonical_source_registry.py` (REQ-001; tools/check_canonical_source_registry.py)
    - [ ] Repo-root anchoring of `DEFAULT_REGISTRY_PATH` and `repo_root` in `tools/check_canonical_source_registry.py` (REQ-002; tools/check_canonical_source_registry.py)
-   - [ ] Strict unknown-option handling (exit 2) and deterministic `--diff`/error ordering in `tools/check_canonical_source_registry.py` (REQ-003, REQ-005; tools/check_canonical_source_registry.py)
+   - [ ] Unknown-option regression guard (exit 2; already the current `argparse` behavior, verified 2026-11-19) and deterministic error ordering in `tools/check_canonical_source_registry.py` (REQ-003, REQ-005; tools/check_canonical_source_registry.py)
    - [ ] Dead-code removal per the audited list in `tools/check_canonical_source_registry.py` (REQ-004; tools/check_canonical_source_registry.py)
 2. **Phase 2: Conflicts checker fixes**
    - [ ] Add failing fixture tests for REQ-006–REQ-009, REQ-012, REQ-013 to `tests/tools/test_check_canonical_source_conflicts.py` (REQ-006–REQ-009, REQ-012, REQ-013; tests/tools/test_check_canonical_source_conflicts.py)
    - [ ] Run `_run_detection_functions` on the main path in `tools/check_canonical_source_conflicts.py` (REQ-006; tools/check_canonical_source_conflicts.py)
    - [ ] Replace the `_wrap_validation_errors` substring gate with per-entry reporting and `(code, decision_target)` deduplication in `tools/check_canonical_source_conflicts.py` (REQ-007, REQ-008; tools/check_canonical_source_conflicts.py)
-   - [ ] Reunique finding codes — version error moves to the `CANONICAL-009` slot after the adrchk011 collision check (REQ-009; tools/check_canonical_source_conflicts.py)
+   - [ ] Reunique finding codes — version error moves to the `CANONICAL-012` slot (`CANONICAL-009` already taken by the empty-area detector; adrchk011 collision check still applies) in `tools/check_canonical_source_conflicts.py` (REQ-009; tools/check_canonical_source_conflicts.py)
    - [ ] Route real `CANONICAL-C0xx`/`CANONICAL-W0xx` prefixes in `classify_finding`, remove the duplicate `return conflicts`, fix `--registry` help text in `tools/check_canonical_source_conflicts.py` (REQ-010, REQ-013; tools/check_canonical_source_conflicts.py)
    - [ ] Extend routing parametrization to real code prefixes in `tests/tools/test_check_canonical_source_conflicts_routing.py` (REQ-011; tests/tools/test_check_canonical_source_conflicts_routing.py)
    - [ ] Dead-code removal per the audited list in `tools/check_canonical_source_conflicts.py` (REQ-012; tools/check_canonical_source_conflicts.py)
@@ -213,18 +215,18 @@ N/A: no release unit (every phase passes validation alone)
 - **Risk**: deduplication hides genuinely repeated conflicts across different entries → **Mitigation**: dedup key is `(code, decision_target)` with the affected entry list preserved in the finding detail (Design).
 - **Risk**: dead-code removal breaks helpers imported by the existing 77-test baseline → **Mitigation**: run the three checker test files after each removal batch; keep anything a passing test imports (UNK-03).
 - **Risk**: the REQ-017 proposal is rejected or conflicts with adrchk011's later plan → **Mitigation**: registry row stays untouched until approval; dependency bullet sequences phase 3 behind adrchk011; decision recorded in the Blocker Log.
-- **Risk**: `CANONICAL-009` collides with a future adrchk011 GV renumbering → **Mitigation**: collision check before allocation (UNK-01, REQ-009).
+- **Risk**: `CANONICAL-012` collides with a future adrchk011 GV renumbering → **Mitigation**: collision check before allocation (UNK-01, REQ-009).
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Registry checker fixes | Pending | — | — | |
-| 2 | Phase 2: Conflicts checker fixes | Pending | — | — | |
-| 3 | Phase 3: Registry config fixes and governance proposal | Pending | — | — | |
-| 4 | Phase 4: Governance documentation fix | Pending | — | — | |
-| 5 | Phase 5: Comment cleanup and verification | Pending | — | — | |
+| 1 | Phase 1: Registry checker fixes | In Progress | — | — |  |
+| 2 | Phase 2: Conflicts checker fixes | In Progress | — | — |  |
+| 3 | Phase 3: Registry config fixes and governance proposal | In Progress | — | — |  |
+| 4 | Phase 4: Governance documentation fix | In Progress | — | — |  |
+| 5 | Phase 5: Comment cleanup and verification | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -234,7 +236,15 @@ N/A: no release unit (every phase passes validation alone)
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261119-134855_01_tools_check_canonical_source_registry.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261119-134855_02_tools_check_canonical_source_conflicts.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261119-134855_03_config_documentation_canonical_sources.toml.md | 3 | Procedure | Pending | — | — |
+| implementations/20261119-134855_04_config_adr_authority.toml.md | 3 | Procedure | Pending | — | — |
+| implementations/20261119-134855_05_docs_00_governance_governance_01_documentation-policy.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261119-134855_06_docs_00_governance_governance_02_documentation-metadata.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261119-134855_07_tools_generate_reference_table.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261119-134855_08_tests_tools_test_check_canonical_source_registry.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261119-134855_09_tests_tools_test_check_canonical_source_conflicts.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -256,7 +266,7 @@ N/A: no release unit (every phase passes validation alone)
 | REQ-003 | Issue section 2 + `validate_all` unused-helper evidence | tests/tools/test_check_canonical_source_registry.py | Phase 1 | AC-03 | T03 | Derived from confirmed evidence |
 | REQ-004 | vulture 98 items (min-confidence 90) | tools/check_canonical_source_registry.py | Phase 1 | AC-04 | T04 | Confirmed by repository evidence |
 | REQ-004 | vulture 98 items (min-confidence 90) | tests/tools/test_check_canonical_source_registry.py | Phase 1 | AC-04 | T04 | Derived from confirmed evidence |
-| REQ-005 | Issue section 2 (`--diff` ordering) | tools/check_canonical_source_registry.py | Phase 1 | AC-05 | T05 | Explicit in issue |
+| REQ-005 | Issue section 2 (`--diff` ordering) | tools/check_canonical_source_registry.py | Phase 1 | AC-05 | T05 | Explicit in issue; re-scoped 2026-11-19: no `--diff` option in current source (see REQ-005) |
 | REQ-006 | `detect_all_conflicts` fallback-only `_run_detection_functions`; fixture main-path gap | tools/check_canonical_source_conflicts.py | Phase 2 | AC-06 | T06 | Confirmed by repository evidence |
 | REQ-006 | `detect_all_conflicts` fallback-only `_run_detection_functions`; fixture main-path gap | tests/tools/test_check_canonical_source_conflicts.py | Phase 2 | AC-06 | T06 | Derived from confirmed evidence |
 | REQ-007 | `_wrap_validation_errors` gate drops missing-path error (fixture) | tools/check_canonical_source_conflicts.py | Phase 2 | AC-07 | T07 | Confirmed by repository evidence |
@@ -279,3 +289,5 @@ N/A: no release unit (every phase passes validation alone)
 | REQ-020 | adr_authority.toml line 9 "Transcribed" note | config/adr_authority.toml | Phase 3 | AC-15 | T14 | Confirmed by repository evidence |
 | REQ-021 | generate_reference_table.py line 559 stale comment | tools/generate_reference_table.py | Phase 5 | AC-15 | T14 | Confirmed by repository evidence |
 | REQ-022 | Generated-file policy (registry/manifests, guarded blocks) | tools/generate_reference_table.py | Phase 5 | AC-16 | T14 | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261119-134855 -->
