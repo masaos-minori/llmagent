@@ -22,6 +22,7 @@ from agent.workflow import (
 )
 from agent.workflow.models import ArtifactRef, AttemptRecord, TaskRecord
 from agent.workflow.task_ops import (
+    _scalar_count,
     create_task,
     get_task_by_id,
     get_task_count,
@@ -185,9 +186,12 @@ class StateStore:
     # ── Diagnostic Queries ───────────────────────────────────────────────
 
     def _scalar_count(self, sql: str, params: tuple[object, ...]) -> int:
-        """Run a `COUNT(*) as cnt`-style query and return the scalar result."""
-        rows = self._db.fetchall(sql, params)
-        return int(rows[0]["cnt"]) if rows else 0
+        """Run a `COUNT(*) as cnt`-style query and return the scalar result.
+
+        Delegates to the canonical ``task_ops._scalar_count`` so the workflow
+        persistence scalar-count logic has a single definition.
+        """
+        return _scalar_count(self._db, sql, params)
 
     def get_task_count(self, session_id: str) -> int:
         """Return the number of tasks associated with a session."""

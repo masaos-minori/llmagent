@@ -141,8 +141,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Consolidate the two `_scalar_count` bodies (`scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, REQ-001) | In Progress | — | — |  |
-| 2 | Phase 2: Verify consolidation (`scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, REQ-002) | In Progress | — | — |  |
+| 1 | Phase 1: Consolidate the two `_scalar_count` bodies (`scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, REQ-001) | Completed | — | 20261119-102147 |  |
+| 2 | Phase 2: Verify consolidation (`scripts/agent/workflow/task_ops.py`, `scripts/agent/workflow/state_store.py`, REQ-002) | Completed | — | 20261119-102147 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -152,8 +152,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261119-071847_01_scripts_agent_workflow_task_ops.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261119-071847_02_scripts_agent_workflow_state_store.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261119-071847_01_scripts_agent_workflow_task_ops.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261119-071847_02_scripts_agent_workflow_state_store.py.md | 1, 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
