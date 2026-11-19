@@ -8,14 +8,17 @@ determinism, two-way drift) and the --check output contract.
 
 from __future__ import annotations
 
+import argparse
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from typing import Any
 
 import jsonschema
 import pytest
 
 import tools.generate_reference_table as grt
 from tools import _contract_manifests as cm
+from tools.check_docs_structure import MAX_SIZE
 from tools.generate_reference_table import (
     generate_agent_reference_table,
     generate_deployment_reference_table,
@@ -155,15 +158,25 @@ _FULL_SOURCES: dict[str, str] = {
     "scripts/mcp_servers/demo/demo.py": (
         'TOOL_LIST = [\n    {"name": "demo_run", "description": "x"},\n]\n'
     ),
-    "scripts/eventbus/auth.py": (
-        "from enum import StrEnum\n\n\n"
-        "class Role(StrEnum):\n"
-        '    ADMIN = "admin"\n'
-        '    CONSUMER = "consumer"\n\n\n'
-        "_ROUTE_ROLE_MAP: dict[str, set[Role]] = {\n"
-        '    "/publish": {Role.ADMIN},\n'
-        '    "/events": {Role.ADMIN, Role.CONSUMER},\n'
-        "}\n"
+    "scripts/eventbus/publish_route.py": (
+        "from eventbus.auth import Role, require_role\n"
+        "from fastapi import APIRouter, Depends\n\n"
+        "router = APIRouter()\n\n\n"
+        '@router.post("/publish")\n'
+        "async def publish_event(\n"
+        "    _principal=Depends(require_role(Role.PUBLISHER)),\n"
+        ") -> dict:\n"
+        '    return {"ok": True}\n'
+    ),
+    "scripts/eventbus/ack_route.py": (
+        "from eventbus.auth import Role, require_role\n"
+        "from fastapi import APIRouter, Depends\n\n"
+        "router = APIRouter()\n\n\n"
+        '@router.post("/events/{event_id}/ack")\n'
+        "async def ack_event(\n"
+        "    _principal=Depends(require_role(Role.CONSUMER)),\n"
+        ") -> dict:\n"
+        '    return {"ok": True}\n'
     ),
     "scripts/agent/services/config_field_registry.py": (
         "_FIELDS = [\n"
@@ -181,7 +194,7 @@ _FULL_SOURCES: dict[str, str] = {
     "docs/10_adr/adr_01_index.md": (
         "# ADR Index\n\n"
         "## ADR Invariant Verification Matrix\n\n"
-        "| ADR / Invariant | Invariant | Gate | Timing | Blocking | Verification Status |\n"
+        "| ADR / Invariant | Invariant | Type | Timing | Gate | Verification Status |\n"
         "|---|---|---|---|---|---|\n"
         "| ADR-001 INV-01 | gate must run | Unit Test | CI | Blocking | "
         "Confirmed (`tests/tools/test_fake.py::test_gate`, passing) |\n"
@@ -236,7 +249,12 @@ def _synthetic_repo(
         grt, "EVENTBUS_SCHEMA_SQL_SRC", tmp_path / "scripts" / "eventbus" / "schema.sql"
     )
     monkeypatch.setattr(
-        grt, "EVENTBUS_AUTH_SRC", tmp_path / "scripts" / "eventbus" / "auth.py"
+        grt,
+        "_EVENTBUS_ROUTE_MODULES",
+        tuple(
+            tmp_path / "scripts" / "eventbus" / name
+            for name in ("ack_route.py", "publish_route.py")
+        ),
     )
     monkeypatch.setattr(
         grt,
@@ -301,8 +319,12 @@ class TestManifestGeneration:
         }
         roles = grt.build_manifest("eventbus_route_roles")["entries"]
         assert roles == [
-            {"route": "/events", "roles": ["ADMIN", "CONSUMER"]},
-            {"route": "/publish", "roles": ["ADMIN"]},
+            {
+                "route": "/events/{event_id}/ack",
+                "method": "POST",
+                "roles": ["CONSUMER"],
+            },
+            {"route": "/publish", "method": "POST", "roles": ["PUBLISHER"]},
         ]
         db = grt.build_manifest("db_schema_versions")["entries"]
         assert [(e["kind"], e["name"]) for e in db] == [
@@ -324,7 +346,7 @@ class TestManifestGeneration:
             "check_perms",
             "check_proc",
         ]
-        assert health[0]["disposition"] == "fail-fast"
+        assert "disposition" not in health[0]
         coverage = grt.build_manifest("invariant_coverage")["entries"]
         assert [e["adr"] for e in coverage] == ["ADR-001", "ADR-002"]
         assert coverage[1]["exception"] == "exc-002"
@@ -440,3 +462,405 @@ class TestCheckDrift:
         doc.write_text("# no guard\n", encoding="utf-8")
         monkeypatch.setattr(grt, "DOMAIN_DOCS", {"deployment": doc})
         assert grt.check_drift(["deployment"]) == ["doc.md (guarded block missing)"]
+
+
+# ---------------------------------------------------------------------------
+# New derivations: gate/check_type mapping, schema rejection, route derivation,
+# source declarations, single mandatoriness check, removed disposition, and the
+# recursive symbol scan with the size-bounded document split
+# ---------------------------------------------------------------------------
+
+
+_COV_MATRIX_HEADER = (
+    "## ADR Invariant Verification Matrix\n\n"
+    "| ADR / Invariant | Invariant | Type | Timing | Gate | Verification Status |\n"
+    "|---|---|---|---|---|---|\n"
+)
+
+
+def _schema_branch(manifest_name: str) -> dict[str, Any]:
+    """Return the schema branch that constrains one manifest's entries."""
+    schema: dict[str, Any] = json.loads(
+        Path(cm.SCHEMA_PATH).read_text(encoding="utf-8")
+    )
+    for branch in schema["allOf"]:
+        const = (branch.get("if") or {}).get("properties", {}).get("manifest", {})
+        if const.get("const") == manifest_name:
+            items: dict[str, Any] = branch["then"]["properties"]["entries"]["items"]
+            return items
+    raise AssertionError(f"no schema branch for manifest {manifest_name!r}")
+
+
+def _coverage_entries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    check_type: str,
+    gate: str,
+) -> list[dict[str, Any]]:
+    """Build `invariant_coverage` from one matrix fixture row whose Type and Gate
+    cells hold different values, so a swapped column mapping cannot pass."""
+    row = (
+        f"| ADR-001 INV-01 | gate must run | {check_type} | CI | {gate} | "
+        "Confirmed (`tests/tools/test_fake.py::test_gate`, passing) |\n"
+    )
+    _synthetic_repo(
+        tmp_path,
+        monkeypatch,
+        {"docs/10_adr/adr_01_index.md": f"# ADR Index\n\n{_COV_MATRIX_HEADER}{row}"},
+    )
+    manifest: dict[str, Any] = grt.build_manifest("invariant_coverage")
+    entries: list[dict[str, Any]] = manifest["entries"]
+    return entries
+
+
+class TestInvariantCoverage:
+    """T-001/T-002 (REQ-001, REQ-003): each field reads its own matrix column."""
+
+    def test_gate_reads_gate_column(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        entries = _coverage_entries(
+            tmp_path, monkeypatch, check_type="Unit Test", gate="Blocking"
+        )
+        assert entries[0]["gate"] == "Blocking"
+        assert entries[0]["gate"] != entries[0]["check_type"]
+
+    def test_check_type_reads_type_column(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        entries = _coverage_entries(
+            tmp_path, monkeypatch, check_type="Startup Validation", gate="Non-Blocking"
+        )
+        assert entries[0]["check_type"] == "Startup Validation"
+        assert entries[0]["gate"] == "Non-Blocking"
+
+
+class TestManifestSchema:
+    """T-003/T-004 (REQ-002, REQ-005): the enumerated vocabulary and route pattern."""
+
+    def test_gate_rejects_a_type_column_value(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        gate_branch = _schema_branch("invariant_coverage")
+        assert gate_branch["properties"]["gate"]["enum"] == [
+            "Blocking",
+            "Deployment Blocking",
+            "Non-Blocking",
+        ]
+        assert "Unit Test" in gate_branch["properties"]["check_type"]["enum"]
+        with pytest.raises(cm.ManifestError, match="rejected by"):
+            _coverage_entries(
+                tmp_path, monkeypatch, check_type="Unit Test", gate="Unit Test"
+            )
+
+    def test_parameterized_route_path_is_accepted(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _route_repo(
+            tmp_path,
+            monkeypatch,
+            {
+                "dlq_route.py": _route_source(
+                    "post", "/dlq/{event_id}/requeue", "OPERATOR", "requeue_event"
+                )
+            },
+        )
+        manifest = grt.build_manifest("eventbus_route_roles")
+        assert manifest["entries"] == [
+            {
+                "route": "/dlq/{event_id}/requeue",
+                "method": "POST",
+                "roles": ["OPERATOR"],
+            }
+        ]
+        route_branch = _schema_branch("eventbus_route_roles")
+        assert route_branch["required"] == ["route", "method", "roles"]
+        assert route_branch["properties"]["method"]["enum"] == ["GET", "POST"]
+
+
+def _route_source(method: str, path: str, role: str, name: str) -> str:
+    """One synthetic EventBus route module: a router decorator plus a
+    `Depends(require_role(Role.X))` parameter default."""
+    return (
+        "from eventbus.auth import Role, require_role\n"
+        "from fastapi import APIRouter, Depends\n\n"
+        "router = APIRouter()\n\n\n"
+        f'@router.{method}("{path}")\n'
+        f"async def {name}(\n"
+        f"    _principal=Depends(require_role(Role.{role})),\n"
+        ") -> dict:\n"
+        '    return {"ok": True}\n'
+    )
+
+
+def _route_repo(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    modules: dict[str, str],
+) -> None:
+    """Write synthetic route modules and repoint the generator's module list."""
+    _synthetic_repo(
+        tmp_path,
+        monkeypatch,
+        {f"scripts/eventbus/{name}": text for name, text in modules.items()},
+    )
+    monkeypatch.setattr(
+        grt,
+        "_EVENTBUS_ROUTE_MODULES",
+        tuple(tmp_path / "scripts" / "eventbus" / name for name in modules),
+    )
+
+
+class TestRouteRoleEntries:
+    """T-005/T-006 (REQ-004, AC-003): entries come from the registered surface."""
+
+    def test_entries_come_from_decorators_and_role_dependency(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _route_repo(
+            tmp_path,
+            monkeypatch,
+            {
+                "ack_route.py": _route_source(
+                    "post", "/events/{event_id}/ack", "CONSUMER", "ack_event"
+                ),
+                "health_route.py": _route_source(
+                    "get", "/health", "MONITORING", "health_check"
+                ),
+                "subscribe_route.py": (
+                    "from eventbus.auth import Role, require_role\n"
+                    "from fastapi import APIRouter, Depends\n\n"
+                    "router = APIRouter()\n\n\n"
+                    '@router.get("/subscribe", dependencies=[Depends(require_role('
+                    "Role.CONSUMER))])\n"
+                    "async def subscribe() -> dict:\n"
+                    '    return {"ok": True}\n'
+                ),
+                "helpers.py": "def not_a_route() -> None:\n    return None\n",
+            },
+        )
+        assert grt._route_role_entries() == [
+            {
+                "route": "/events/{event_id}/ack",
+                "method": "POST",
+                "roles": ["CONSUMER"],
+            },
+            {"route": "/health", "method": "GET", "roles": ["MONITORING"]},
+            {"route": "/subscribe", "method": "GET", "roles": ["CONSUMER"]},
+        ]
+
+    def test_unregistered_route_entry_is_rejected(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A registered decorator with no role dependency: fail closed.
+        _route_repo(
+            tmp_path,
+            monkeypatch,
+            {
+                "publish_route.py": (
+                    "from fastapi import APIRouter\n\n"
+                    "router = APIRouter()\n\n\n"
+                    '@router.post("/publish")\n'
+                    "async def publish_event() -> dict:\n"
+                    '    return {"ok": True}\n'
+                )
+            },
+        )
+        with pytest.raises(cm.ManifestError, match="no Depends\\(require_role"):
+            grt.build_manifest("eventbus_route_roles")
+
+        # A non-literal path is not a readable registered route.
+        _route_repo(
+            tmp_path,
+            monkeypatch,
+            {
+                "publish_route.py": (
+                    "from eventbus.auth import Role, require_role\n"
+                    "from fastapi import APIRouter, Depends\n\n"
+                    "router = APIRouter()\n\n"
+                    'PATH = "/publish"\n\n\n'
+                    "@router.post(PATH)\n"
+                    "async def publish_event(\n"
+                    "    _principal=Depends(require_role(Role.PUBLISHER)),\n"
+                    ") -> dict:\n"
+                    '    return {"ok": True}\n'
+                )
+            },
+        )
+        with pytest.raises(cm.ManifestError, match="not a string literal"):
+            grt.build_manifest("eventbus_route_roles")
+
+        # A function that requires a role but carries no router decorator is not
+        # part of the registered surface, and an empty route manifest is rejected.
+        _route_repo(
+            tmp_path,
+            monkeypatch,
+            {
+                "admin_route.py": (
+                    "from eventbus.auth import Role, require_role\n"
+                    "from fastapi import Depends\n\n\n"
+                    "def removed_admin_endpoint(\n"
+                    "    _principal=Depends(require_role(Role.ADMIN)),\n"
+                    ") -> dict:\n"
+                    '    return {"ok": True}\n'
+                )
+            },
+        )
+        assert grt._route_role_entries() == []
+        with pytest.raises(cm.ManifestError, match="rejected by"):
+            grt.build_manifest("eventbus_route_roles")
+
+
+class TestManifestSources:
+    """T-009 (REQ-009): each manifest's declared sources are exactly what its
+    builder reads."""
+
+    def test_declared_sources_match_builder_reads(self, monkeypatch) -> None:
+        reads: list[Path] = []
+        real_text = Path.read_text
+        real_bytes = Path.read_bytes
+        real_open = Path.open
+
+        def spy_text(self: Path, *args: Any, **kwargs: Any) -> Any:
+            reads.append(self)
+            return real_text(self, *args, **kwargs)
+
+        def spy_bytes(self: Path, *args: Any, **kwargs: Any) -> Any:
+            reads.append(self)
+            return real_bytes(self, *args, **kwargs)
+
+        def spy_open(self: Path, *args: Any, **kwargs: Any) -> Any:
+            reads.append(self)
+            return real_open(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", spy_text)
+        monkeypatch.setattr(Path, "read_bytes", spy_bytes)
+        monkeypatch.setattr(Path, "open", spy_open)
+
+        for name, builder in grt._MANIFEST_BUILDERS.items():
+            declared = [PurePosixPath(src) for src in grt._MANIFEST_SOURCES[name]]
+            assert declared, name
+            reads.clear()
+            builder()
+            read_paths = []
+            for read in reads:
+                try:
+                    read_paths.append(PurePosixPath(read.relative_to(grt.REPO_ROOT)))
+                except ValueError:
+                    continue
+            uncovered = sorted(
+                str(path)
+                for path in read_paths
+                if not any(path == src or src in path.parents for src in declared)
+            )
+            unused = [
+                str(src)
+                for src in declared
+                if not any(path == src or src in path.parents for path in read_paths)
+            ]
+            assert uncovered == [], f"{name}: reads outside its declared sources"
+            assert unused == [], f"{name}: declared source never read: {unused}"
+
+
+class TestMandatorinessClassification:
+    """T-010 (REQ-010): one classification source, checked once per --check."""
+
+    def test_mandatoriness_is_drift_checked_once(self, monkeypatch) -> None:
+        bound = [
+            domain
+            for domain, names in grt.MANIFESTS_BY_DOMAIN.items()
+            if "component_mandatoriness" in names
+        ]
+        assert bound == ["mandatoriness"]
+        assert "component_mandatoriness" not in grt.UNBOUND_MANIFESTS
+
+        built: list[str] = []
+        real_build = grt.build_manifest
+
+        def counting(name: str) -> dict:
+            built.append(name)
+            return real_build(name)
+
+        monkeypatch.setattr(grt, "build_manifest", counting)
+        args = argparse.Namespace(check=True, manifests=False, dry_run=False, type=None)
+        assert grt._run_check(args) == 0
+        assert built.count("component_mandatoriness") == 1
+
+
+class TestSymbolEntries:
+    """T-011/T-015 (REQ-012, REQ-15): recursive scan and the document split."""
+
+    def test_recursive_scan_covers_agent_subpackages(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _synthetic_repo(
+            tmp_path,
+            monkeypatch,
+            {
+                rel: _FIXTURE_MODULE
+                for rel in (
+                    "scripts/agent/widget.py",
+                    "scripts/agent/commands/widget.py",
+                    "scripts/agent/services/widget.py",
+                    "scripts/agent/shared/widget.py",
+                    "scripts/agent/workflow/widget.py",
+                    "scripts/agent/workflow/stages/widget.py",
+                    "scripts/agent/memory/widget.py",
+                )
+            },
+        )
+        agent_files = sorted({e["file"] for e in grt._api_manifest_entries("agent")})
+        assert agent_files == [
+            "scripts/agent/commands/widget.py",
+            "scripts/agent/services/widget.py",
+            "scripts/agent/shared/widget.py",
+            "scripts/agent/widget.py",
+            "scripts/agent/workflow/stages/widget.py",
+            "scripts/agent/workflow/widget.py",
+        ]
+        # `scripts/agent/memory/` is owned by the memory_api manifest instead.
+        assert {e["file"] for e in grt._api_manifest_entries("memory")} == {
+            "scripts/agent/memory/widget.py"
+        }
+
+    def test_generated_agent_index_stays_within_the_document_ceiling(self) -> None:
+        entries = grt.build_manifest("agent_api")["entries"]
+        top = [e for e in entries if grt._agent_entry_is_top_level(e)]
+        subpackages = [e for e in entries if not grt._agent_entry_is_top_level(e)]
+        assert top and subpackages
+        tables = {
+            domain: grt._table_from_entries(domain, entries)
+            for domain in ("agent", "agent_subpackages")
+        }
+        rows = {domain: len(table.splitlines()) - 2 for domain, table in tables.items()}
+        assert rows["agent"] == len(top)
+        assert rows["agent_subpackages"] == len(subpackages)
+        assert sum(rows.values()) == len(entries)
+        for domain, doc in (
+            ("agent", grt.REFERENCE_DOC_AGENT),
+            ("agent_subpackages", grt.REFERENCE_DOC_AGENT_SUBPACKAGES),
+        ):
+            rendered = grt.render_updated_doc(domain, doc.read_text(encoding="utf-8"))
+            assert len(rendered.encode("utf-8")) < MAX_SIZE
+
+
+class TestHealthContracts:
+    """T-014 (REQ-008): no generator-constant `disposition` in health entries."""
+
+    def test_disposition_is_not_a_generator_constant(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _synthetic_repo(tmp_path, monkeypatch, _FULL_SOURCES)
+        entries = grt.build_manifest("health_contracts")["entries"]
+        assert entries
+        assert all(set(entry) == {"server", "checks"} for entry in entries)
+        leaked = [
+            name
+            for name in dir(grt)
+            if name.isupper() and getattr(grt, name, None) == "fail-fast"
+        ]
+        assert leaked == []
+        branch = _schema_branch("health_contracts")
+        assert "disposition" not in branch["properties"]
+        assert "disposition" not in branch["required"]

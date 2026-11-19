@@ -77,7 +77,7 @@ async def dlq_requeue(
         log_privileged_action(
             consumer_id="",
             request_id=request.state.request_id,
-            route="/dlq/requeue",
+            route="/dlq/{event_id}/requeue",
             target=event_id,
             detail="",
             actor=principal.token_fingerprint,

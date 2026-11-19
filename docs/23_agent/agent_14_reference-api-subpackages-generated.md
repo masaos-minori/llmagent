@@ -1,0 +1,241 @@
+---
+title: "Agent Reference API — Generated Subpackage Class/Function Index"
+area: agent
+class: Reference
+tags:
+  - agent
+  - api-reference
+  - generated
+related:
+  - agent_12_reference-api.md
+  - agent_13_reference-api-generated.md
+---
+
+# Agent Reference API — Generated Subpackage Class/Function Index
+
+## Purpose
+
+Generated index of every public top-level class/function under the
+`scripts/agent/` subpackages (`workflow/`, `services/`, `commands/`, `shared/`)
+(`tools/generate_reference_table.py --manifests`). Companion to
+[agent_12_reference-api.md](agent_12_reference-api.md) (hand-curated) and
+[agent_13_reference-api-generated.md](agent_13_reference-api-generated.md)
+(top-level `scripts/agent/*.py` symbols); split into its own file to stay under
+the per-document size threshold. `scripts/agent/memory/` symbols are covered by
+`agent_11_04_memory-module-reference-generated.md`, not by this index. Do not
+hand-edit between the guard comments — run the generator.
+
+## Keywords
+
+- agent
+- api-reference
+- generated
+
+## Subpackage Class/Function Reference (auto-generated)
+
+<!-- AUTO-GENERATED: generate_reference_table.py agent-subpackages-class-function-reference -->
+Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage symbols: `workflow/`, `services/`, `commands/`, `shared/`; the top-level symbols live in `docs/23_agent/agent_13_reference-api-generated.md`). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.
+
+| File | Class/Function | Signature | Summary |
+|---|---|---|---|
+| `scripts/agent/commands/cmd_memory.py` | `MemoryOpResult` | `class MemoryOpResult` | Structured result of a memory state-changing operation. |
+| `scripts/agent/commands/command_defs.py` | `ArgSpec` | `class ArgSpec` | One argument of a command or subcommand. |
+|  | `format_usage` | `def format_usage(command, subcommand, args) -> str` | Return the usage line, e.g. "/session list [n]". |
+|  | `SubcommandSpec` | `class SubcommandSpec` | Declarative metadata for one subcommand. |
+|  | `CommandDef` | `class CommandDef` | Declarative metadata for one slash command. |
+| `scripts/agent/commands/db_session_ops.py` | `DbSessionOps` | `class DbSessionOps` | Handles session database operations: health, checkpoint, vacuum, purge, recover. |
+| `scripts/agent/commands/enums.py` | `CommandKind` | `class CommandKind` | Categories of slash commands available in the agent REPL. |
+|  | `MemoryAction` | `class MemoryAction` | Actions available under the /memory command group. |
+|  | `DbAction` | `class DbAction` | Actions available under the /db command group. |
+|  | `McpAction` | `class McpAction` | Actions available under the /mcp command group. |
+|  | `SessionAction` | `class SessionAction` | Actions available under the /session command group. |
+| `scripts/agent/commands/exceptions.py` | `CommandParseError` | `class CommandParseError` | Raised when a command line cannot be parsed into a valid command. |
+|  | `CommandValidationError` | `class CommandValidationError` | Raised when parsed command arguments fail domain validation. |
+|  | `CommandDispatchError` | `class CommandDispatchError` | Raised when a command cannot be dispatched (e.g. unknown command name). |
+|  | `CommandRenderingError` | `class CommandRenderingError` | Raised when rendering a command result fails. |
+|  | `UnknownSubcommandError` | `class UnknownSubcommandError` | Raised when a slash-command subcommand name is not recognized. |
+|  | `UnknownPresetError` | `class UnknownPresetError` | Raised when a command preset name is not recognized. |
+|  | `UnknownTierError` | `class UnknownTierError` | Raised when a tool safety tier name is not recognized. |
+| `scripts/agent/commands/memory_data_ops.py` | `MemoryDataOps` | `class MemoryDataOps` | Handles memory data operations: list, search, show, pin, delete, prune. |
+| `scripts/agent/commands/memory_rebuild_ops.py` | `RebuildResult` | `class RebuildResult` | Result of a memory rebuild operation. |
+|  | `MemoryRebuildOps` | `class MemoryRebuildOps` | Handles memory rebuild/reindex operations (rebuild, reindex, check-consistency). |
+| `scripts/agent/commands/memory_status.py` | `MemoryStatus` | `class MemoryStatus` | Structured representation of memory layer status for display. |
+|  | `build_status_table` | `def build_status_table(status) -> list[list[str]]` | Build a table of rows for display. |
+|  | `build_memory_status` | `def build_memory_status(mem, cfg) -> MemoryStatus \| None` | Build a MemoryStatus from a MemoryServices instance. |
+| `scripts/agent/commands/mixin_base.py` | `reset_session_stats` | `def reset_session_stats(ctx) -> None` | Reset all per-session counters to zero. |
+|  | `refresh_session_correlation` | `def refresh_session_correlation(ctx) -> None` | Refresh the MCP transport correlation id after a session-id change. |
+|  | `MixinBase` | `class MixinBase` | Shared annotation base for CommandRegistry mixins. |
+| `scripts/agent/commands/models.py` | `LatencySnapshot` | `class LatencySnapshot` | Per-tool latency stats mapping tool_name to a list of elapsed-second samples. |
+|  | `MaskedArgs` | `class MaskedArgs` | Decoded and masked tool arguments for display (arg_name -> masked value). |
+|  | `StatsViewModel` | `class StatsViewModel` | Aggregated statistics from an active agent session. |
+| `scripts/agent/commands/output_port.py` | `OutputPort` | `class OutputPort` | Interface for writing structured output from slash commands. |
+|  | `CliOutputPort` | `class CliOutputPort` | Concrete OutputPort that writes to stdout via print(). |
+| `scripts/agent/commands/registry.py` | `CommandRegistry` | `class CommandRegistry` | Slash-command dispatcher for AgentREPL. |
+| `scripts/agent/commands/session_title.py` | `SessionTitleGen` | `class SessionTitleGen` | Handles session title generation (LLM-based with fallback). |
+| `scripts/agent/commands/token_display.py` | `TokenDisplay` | `class TokenDisplay` | Provides token count display methods. |
+| `scripts/agent/commands/utils.py` | `ParsedArgs` | `class ParsedArgs` | Structured result of command argument parsing. |
+|  | `parse_command_args` | `def parse_command_args(tokens) -> ParsedArgs` | Parse command tokens into a structured ParsedArgs. |
+|  | `parse_int_arg` | `def parse_int_arg(raw, *, usage, default, minimum, maximum) -> int \| None` | Parse a command argument into an int, raising on invalid or out-of-range input. |
+| `scripts/agent/services/config_field_registry.py` | `ConfigFieldRegistry` | `class ConfigFieldRegistry` | A single entry in CONFIG_FIELD_REGISTRY. |
+|  | `registry_for` | `def registry_for(section_path) -> list[ConfigFieldRegistry]` | Return all ConfigFieldRegistry entries matching the given section path. |
+| `scripts/agent/services/config_outcome_classification.py` | `classify_mcp_server_changes` | `def classify_mcp_server_changes(ctx, new_cfg) -> list[str]` | Classify MCP server definition changes as restart-required, field by field. |
+|  | `classify_startup_only_fields` | `def classify_startup_only_fields(ctx, new_cfg) -> list[str]` | Return names of startup-only fields that differ between new_cfg and running cfg. |
+|  | `detect_diagnostics_live_fields` | `def detect_diagnostics_live_fields(ctx, new_cfg) -> list[str]` | Return names of diagnostics.* fields that differ between new_cfg and running cfg. |
+| `scripts/agent/services/config_reload.py` | `ConfigReloadOutcome` | `class ConfigReloadOutcome` | Structured report of what changed after a /reload. |
+|  | `ConfigReloadService` | `class ConfigReloadService` | Propagate an updated config dict to live service instances. |
+| `scripts/agent/services/config_section_reload.py` | `prepare_validated_section` | `def prepare_validated_section(ctx, section_path, new_cfg, extra_changed_fields) -> tuple[dict[str, Any], Any]` | Build the dataclasses.replace candidate for a validated section (llm/rag/tool/approval) and run its validators. |
+|  | `apply_validated_section` | `def apply_validated_section(ctx, section_path, candidate) -> None` | Commit a prepared validated-section candidate onto ctx.cfg. |
+|  | `reload_validated_section` | `def reload_validated_section(ctx, section_path, new_cfg) -> list[str]` | Reload a validated section (llm/rag/tool/approval) as a prepare-then-apply composition. |
+|  | `prepare_direct_section` | `def prepare_direct_section(ctx, new_cfg, section_path, field_filter) -> dict[str, Any]` | Collect changed fields for a direct section (memory/mcp). |
+|  | `apply_direct_section` | `def apply_direct_section(ctx, section_path, changed_fields) -> None` | Commit prepared direct-section changes onto the live section object. |
+|  | `reload_direct_fields` | `def reload_direct_fields(ctx, new_cfg, section_path, field_filter) -> dict[str, Any]` | Reload a direct section (memory/mcp) as a prepare-then-apply composition. |
+| `scripts/agent/services/config_service_sync.py` | `SyncResult` | `class SyncResult` | Result of ServiceSyncer.sync_all(). |
+|  | `ServiceSyncer` | `class ServiceSyncer` | Propagates config changes to live service instances. |
+| `scripts/agent/services/config_validators.py` | `validate_llm_context_char_limit` | `def validate_llm_context_char_limit(cfg) -> None` | Validate that context_char_limit is non-negative. |
+|  | `validate_llm_budget_warn_ratio` | `def validate_llm_budget_warn_ratio(cfg) -> None` | Validate that budget_warn_ratio is in (0.0, 1.0]. |
+|  | `validate_llm_retry_base_delay` | `def validate_llm_retry_base_delay(cfg) -> None` | Validate that llm_retry_base_delay is positive. |
+|  | `validate_llm_temperature` | `def validate_llm_temperature(cfg) -> None` | Validate that llm_temperature is in [0.0, LLM_TEMPERATURE_MAX]. |
+|  | `validate_llm_max_tokens` | `def validate_llm_max_tokens(cfg) -> None` | Validate that llm_max_tokens is at least 1. |
+|  | `validate_llm_sse_heartbeat_timeout` | `def validate_llm_sse_heartbeat_timeout(cfg) -> None` | Validate that sse_heartbeat_timeout is non-negative. |
+|  | `validate_llm_sse_malformed_retry` | `def validate_llm_sse_malformed_retry(cfg) -> None` | Validate that sse_malformed_retry is non-negative. |
+|  | `validate_llm_sse_reconnect_max` | `def validate_llm_sse_reconnect_max(cfg) -> None` | Validate that sse_reconnect_max is non-negative. |
+|  | `check_agent_refiner_keys` | `def check_agent_refiner_keys(raw_cfg) -> list[str]` | Return an error when config/agent.toml still carries refiner keys. |
+|  | `validate_tool_dedup_max_repeats` | `def validate_tool_dedup_max_repeats(cfg) -> None` | Validate that tool_dedup_max_repeats is at least 1. |
+|  | `validate_tool_cycle_detect_window` | `def validate_tool_cycle_detect_window(cfg) -> None` | Validate that tool_cycle_detect_window is non-negative. |
+|  | `validate_tool_error_max_consecutive` | `def validate_tool_error_max_consecutive(cfg) -> None` | Validate that tool_error_max_consecutive is non-negative. |
+|  | `validate_tool_error_retry_max` | `def validate_tool_error_retry_max(cfg) -> None` | Validate that tool_error_retry_max is non-negative. |
+|  | `validate_progress_stagnation_window` | `def validate_progress_stagnation_window(cfg) -> None` | Validate that progress_stagnation_window is non-negative. |
+|  | `validate_allowed_tools` | `def validate_allowed_tools(cfg) -> None` | Validate that allowed_tools is a list of strings (an empty list is valid). |
+|  | `validate_memory_fts_limit` | `def validate_memory_fts_limit(cfg) -> None` | Validate that memory_fts_limit is at least 1. |
+|  | `validate_memory_rrf_k` | `def validate_memory_rrf_k(cfg) -> None` | Validate that memory_rrf_k is at least 1. |
+|  | `validate_memory_recency_days` | `def validate_memory_recency_days(cfg) -> None` | Validate that memory_recency_days is positive. |
+|  | `validate_memory_max_inject_semantic` | `def validate_memory_max_inject_semantic(cfg) -> None` | Validate that memory_max_inject_semantic is non-negative. |
+|  | `validate_memory_max_inject_episodic` | `def validate_memory_max_inject_episodic(cfg) -> None` | Validate that memory_max_inject_episodic is non-negative. |
+|  | `validate_memory_embed_timeout_sec` | `def validate_memory_embed_timeout_sec(cfg) -> None` | Validate that memory_embed_timeout_sec is positive. |
+|  | `validate_memory_retention_days` | `def validate_memory_retention_days(cfg) -> None` | Validate that memory_retention_days is at least 1. |
+|  | `validate_memory_max_pinned` | `def validate_memory_max_pinned(cfg) -> None` | Validate that memory_max_pinned is at least 1. |
+|  | `validate_diagnostics_encryption_key` | `def validate_diagnostics_encryption_key(cfg) -> None` | Validate encryption_key is a valid Fernet key when configured (empty = disabled). |
+|  | `validate_diagnostics_retention_days` | `def validate_diagnostics_retention_days(cfg) -> None` | Validate retention_days is an int (<= 0 disables purge; preserved per UNK-03). |
+|  | `validate_diagnostics_sensitive_fields` | `def validate_diagnostics_sensitive_fields(cfg) -> None` | Validate sensitive_fields is a frozenset of strings. |
+|  | `validate_approval_risk_rules` | `def validate_approval_risk_rules(cfg) -> None` | Validate that all approval_risk_rules values are valid. |
+|  | `validate_tool_safety_tiers` | `def validate_tool_safety_tiers(cfg) -> None` | Validate that all tool_safety_tiers values are valid. |
+|  | `validate_allowed_root` | `def validate_allowed_root(cfg) -> None` | Validate that allowed_root is a non-empty absolute path. |
+|  | `validate_llm_http_timeout` | `def validate_llm_http_timeout(cfg) -> None` | Validate that http_timeout is positive. |
+|  | `validate_llm_context_token_limit` | `def validate_llm_context_token_limit(cfg) -> None` | Validate that context_token_limit is non-negative. |
+|  | `validate_tool_max_tool_turns` | `def validate_tool_max_tool_turns(cfg) -> None` | Validate that max_tool_turns is positive. |
+|  | `validate_tool_result_max_llm_chars` | `def validate_tool_result_max_llm_chars(cfg) -> None` | Validate that tool_result_max_llm_chars is positive. |
+| `scripts/agent/services/context_view.py` | `budget_breakdown` | `def budget_breakdown(messages) -> ContextBudget` | Compute per-category character counts (system / history / tool_messages). |
+|  | `collect_context_state` | `def collect_context_state(ctx) -> ContextStateView` | Aggregate runtime context data for /context display. |
+| `scripts/agent/services/conversation_service.py` | `clear_conversation` | `def clear_conversation(ctx, *, new_session) -> ConversationActionResult` | Reset conversation history to system prompt only and clear session stats. |
+| `scripts/agent/services/db_maintenance_service.py` | `DbMaintenanceService` | `class DbMaintenanceService` | Wraps maintenance operations on session.sqlite only. |
+| `scripts/agent/services/enums.py` | `McpTier` | `class McpTier` | Security tier classification for MCP servers. |
+|  | `McpAvailability` | `class McpAvailability` | Runtime availability state of an MCP server. |
+|  | `ConversationActionType` | `class ConversationActionType` | Types of conversation-level actions that can be performed. |
+|  | `ExportFormat` | `class ExportFormat` | Supported export formats for agent session data. |
+| `scripts/agent/services/exceptions.py` | `McpProbeError` | `class McpProbeError` | Raised when an MCP server probe encounters an unrecoverable error. |
+|  | `SessionTitleGenerationError` | `class SessionTitleGenerationError` | Raised when LLM-based session title generation fails. |
+|  | `ConfigReloadValidationError` | `class ConfigReloadValidationError` | Raised when a config reload request contains invalid field types. |
+|  | `ContextStateBuildError` | `class ContextStateBuildError` | Raised when context state cannot be built (e.g. hist_mgr is None). |
+|  | `ExportWriteError` | `class ExportWriteError` | Raised when writing an export file fails. |
+|  | `ConversationStateError` | `class ConversationStateError` | Raised when a conversation state operation fails (e.g. unknown prompt preset). |
+|  | `DbMaintenanceError` | `class DbMaintenanceError` | Raised when a DB maintenance operation fails. |
+|  | `SessionNotFoundError` | `class SessionNotFoundError` | Raised when a requested session does not exist or has no messages. |
+|  | `SessionNoMessagesError` | `class SessionNoMessagesError` | Raised when a requested session exists but has no messages. |
+|  | `NothingToUndoError` | `class NothingToUndoError` | Raised when undo is requested but no user message is in history. |
+| `scripts/agent/services/export_formatter.py` | `render_history_md` | `def render_history_md(history) -> str` | Render conversation history as a Markdown export string. |
+|  | `render_export` | `def render_export(history, fmt) -> str` | Render conversation history to a string in the requested format. |
+|  | `write_export` | `def write_export(content, outfile, n_messages, out) -> None` | Write export content to stdout or a file. |
+| `scripts/agent/services/io_ports.py` | `ExportOutputPort` | `class ExportOutputPort` | Output abstraction for conversation export operations. |
+| `scripts/agent/services/mcp_health.py` | `ServerFailureClass` | `class ServerFailureClass` | Kind of MCP server failure. Availability is reachability; Safety and Integrity are posture. |
+|  | `PostureGate` | `class PostureGate` | One server's permission to serve tools, decided from the posture it published. |
+|  | `classify_server_failure` | `def classify_server_failure(gate) -> ServerFailureClass \| None` | Return the failure kind of one gate, or None when the gate is green. |
+|  | `collect_server_postures` | `async def collect_server_postures(ctx) -> dict[str, PostureGate]` | Probe every usable HTTP MCP server once and gate it on the posture it publishes. |
+|  | `allowed_server_keys` | `def allowed_server_keys(gates) -> set[str]` | Server keys whose gate is fully green, for RuntimeToolRegistry(allowed_servers=...). |
+|  | `check_service_health` | `async def check_service_health(ctx, *, gates) -> HealthCheckResult` | Probe LLM and Embed service health, then every MCP server posture, at startup. |
+|  | `check_readiness` | `async def check_readiness(ctx, *, gates) -> HealthCheckResult` | Probe required services at startup; raise RuntimeError on required-service failure. |
+| `scripts/agent/services/mcp_status.py` | `McpStatusService` | `class McpStatusService` | Probe all configured MCP servers and collect their health statuses. |
+| `scripts/agent/services/mcp_tool_discovery.py` | `DiscoveryResult` | `class DiscoveryResult` | Result of discovering tools across all configured MCP servers. |
+|  | `McpToolDiscoveryService` | `class McpToolDiscoveryService` | Discover live MCP tools and build a `RuntimeToolRegistry`. |
+| `scripts/agent/services/models.py` | `ProcessInfoSnapshot` | `class ProcessInfoSnapshot` | Read-only snapshot of an HTTP MCP subprocess's runtime state. |
+|  | `SessionTitleResult` | `class SessionTitleResult` | Result of generating a session title. |
+|  | `McpProbeResult` | `class McpProbeResult` | Result of probing a single MCP server's health status. |
+|  | `SessionRestoreResult` | `class SessionRestoreResult` | Result of restoring a session from the database. |
+|  | `DeletedRow` | `class DeletedRow` | A single deleted message row's identity, returned by the DB-side undo. |
+|  | `UndoResult` | `class UndoResult` | Result of undoing a conversation action. |
+|  | `ConversationActionResult` | `class ConversationActionResult` | Result of executing a conversation action. |
+|  | `ContextStateView` | `class ContextStateView` | Current context state view including character/token budgets and compression info. |
+|  | `DbStats` | `class DbStats` | Database statistics including document, chunk, session, and message counts. |
+|  | `DbHealth` | `class DbHealth` | Database health check result including integrity, WAL pages, and size. |
+|  | `DbCheckpointResult` | `class DbCheckpointResult` | Result of a database checkpoint operation. |
+|  | `DbPurgeResult` | `class DbPurgeResult` | Result of purging old sessions from the database. |
+|  | `DbRecoverResult` | `class DbRecoverResult` | Result of a database recovery attempt. |
+|  | `RagConsistencyResult` | `class RagConsistencyResult` | RAG consistency check result with issues, detailed report, and severity. |
+|  | `ExportResult` | `class ExportResult` | Result of exporting session data in a specific format. |
+|  | `ConfigReloadRequest` | `class ConfigReloadRequest` | Typed request for apply_config. All fields optional; missing fields are skipped. |
+|  | `SessionRow` | `class SessionRow` | One row from session.list_sessions(): session_id, title, created_at, is_current, message_count. |
+|  | `ContextBudget` | `class ContextBudget` | Per-category character and token counts for /context budget breakdown. |
+| `scripts/agent/services/posture_validator.py` | `PostureValidationResult` | `class PostureValidationResult` | One contract verdict the classification layer (row `18`) consumes. |
+|  | `parse_posture` | `def parse_posture(body, server_key) -> PostureValidationResult` | Read the `security` block out of a /health body and validate what it holds. |
+|  | `validate_posture` | `def validate_posture(posture, *, expected_server_key) -> PostureValidationResult` | Check a posture against the shared contract, in the fixed order the contract names. |
+|  | `compare_fingerprint` | `def compare_fingerprint(server_key, posture) -> PostureValidationResult` | Report whether a server's fingerprint changed since the last posture seen for that key. |
+|  | `reset_fingerprint_state` | `def reset_fingerprint_state() -> None` | Clear the process-local fingerprint map, for tests. |
+| `scripts/agent/services/rag_maintenance_service.py` | `RagMaintenanceService` | `class RagMaintenanceService` | Maintenance operations scoped exclusively to rag.sqlite. |
+| `scripts/agent/services/routing_drift.py` | `check_routing_drift` | `def check_routing_drift(ctx, *, strict) -> list[str]` | Check config tool_names against ToolRegistry at startup. |
+|  | `check_routing_safety_tiers` | `def check_routing_safety_tiers(ctx) -> list[str]` | Check that all registered tools have a declared safety tier. |
+| `scripts/agent/services/session_restore.py` | `repair_orphan_tool_calls` | `def repair_orphan_tool_calls(messages, session_id, *, boundary_index) -> tuple[list[LLMMessage], int]` | Pair assistant tool_calls rows with tool-result rows at load time. |
+|  | `restore_session` | `async def restore_session(ctx, session_id) -> SessionRestoreResult` | Restore session: rebuild history, switch session ID, reset stats. |
+| `scripts/agent/services/session_title.py` | `SessionTitleService` | `class SessionTitleService` | Generate a short LLM-based title for a session and persist it. |
+| `scripts/agent/services/tool_validation.py` | `check_tool_definitions_runtime` | `async def check_tool_definitions_runtime(ctx) -> HealthCheckResult` | Runtime validation: no raise, warnings only. |
+| `scripts/agent/services/undo_service.py` | `undo_last_turn` | `def undo_last_turn(ctx) -> UndoResult` | Roll back the last user+assistant turn, gated by the compression boundary. |
+| `scripts/agent/services/workflow_schema.py` | `check_workflow_definition` | `def check_workflow_definition(workflows_dir) -> None` | Raise RuntimeError if the workflow definition file is missing or invalid. |
+|  | `SchemaCheckResult` | `class SchemaCheckResult` | Result of a workflow schema check. |
+|  | `check_workflow_schema` | `def check_workflow_schema(db_path) -> SchemaCheckResult` | Return SchemaCheckResult indicating whether the workflow DB schema is valid. |
+| `scripts/agent/shared/health_models.py` | `ServiceWarning` | `class ServiceWarning` | A warning about a service during startup validation. |
+|  | `HealthCheckResult` | `class HealthCheckResult` | Aggregated health check results with warnings and errors. |
+|  | `McpHealthProbeResult` | `class McpHealthProbeResult` | Structured result of a single /health GET probe to an MCP server. |
+|  | `StartupCheckStatus` | `class StartupCheckStatus` | Status of a startup validation check. |
+|  | `StartupCheckOutcome` | `class StartupCheckOutcome` | Result of a single startup validation check. |
+|  | `StartupValidationResult` | `class StartupValidationResult` | Aggregated startup validation results across all checks. |
+|  | `HealthInterpretation` | `class HealthInterpretation` | Structured interpretation of a raw /health response body dict. |
+|  | `interpret_health_body` | `def interpret_health_body(body) -> HealthInterpretation` | Interpret a raw /health JSON body into structured fields. |
+|  | `extract_health_reason` | `def extract_health_reason(body) -> str \| None` | Extract a human-readable reason string from a /health body. |
+|  | `summarize_dependencies` | `def summarize_dependencies(deps) -> list[str]` | Summarise dependency statuses, returning only failed required ones. |
+|  | `summarize_details` | `def summarize_details(details) -> list[str]` | Summarise detail entries, truncating large payloads. |
+| `scripts/agent/shared/models.py` | `ToolApprovalEvent` | `class ToolApprovalEvent` | Structured audit event for tool_approval log entries. |
+|  | `ToolExecEvent` | `class ToolExecEvent` | Structured audit event for tool_exec log entries. |
+| `scripts/agent/shared/retry_helper.py` | `retry_once_with_delay` | `async def retry_once_with_delay(fn, delay, shutdown_event, interrupt_msg, *, skip_first_attempt, fatal_prefix) -> T` | Execute *fn* once; if it raises, wait *delay* seconds and retry once. |
+| `scripts/agent/workflow/artifact_ops.py` | `record_artifact` | `def record_artifact(db, task_id, stage_id, uri, workflow_id, attempt_number) -> ArtifactRef` | Insert an artifact reference into the database and return it. |
+| `scripts/agent/workflow/attempt_ops.py` | `get_owner_id` | `def get_owner_id() -> str` | Return this process's owner identity: hostname-pid-random. |
+|  | `lease_expires_from` | `def lease_expires_from(started_at, lease_duration_sec) -> str` | Derive the lease deadline from a production timestamp plus a duration. |
+|  | `finish_attempt` | `def finish_attempt(db, attempt_id, status, error_msg, error_kind, error_detail) -> None` | Mark an attempt as completed with the given status and optional error details. |
+| `scripts/agent/workflow/idempotency_ops.py` | `is_event_processed` | `def is_event_processed(db, event_id) -> bool` | Check whether an event has already been processed by looking up its ID. |
+|  | `begin_stage_if_new` | `def begin_stage_if_new(db, event_id, task_id, stage_id, lease_duration_sec, workflow_id) -> AttemptRecord \| None` | Atomically check event_id and start attempt if new. |
+| `scripts/agent/workflow/models.py` | `TaskRecord` | `class TaskRecord` | Database record for a workflow task execution. |
+|  | `AttemptRecord` | `class AttemptRecord` | Database record for a single stage attempt within a task. |
+|  | `ArtifactRef` | `class ArtifactRef` | Reference to an artifact produced by a stage execution. |
+|  | `StageDefinition` | `class StageDefinition` | A single stage in a workflow definition. |
+|  | `RetryPolicy` | `class RetryPolicy` | Retry policy configuration for a workflow. |
+|  | `WorkflowDef` | `class WorkflowDef` | Workflow definition with stages and retry configuration. |
+| `scripts/agent/workflow/state_store.py` | `RecoveryReport` | `class RecoveryReport` | Classification counts from the last ``recover_stale_attempts()`` run. |
+|  | `StateStore` | `class StateStore` | CRUD facade over workflow.sqlite. One instance per workflow engine lifecycle. |
+| `scripts/agent/workflow/task_ops.py` | `create_task` | `def create_task(db, session_id, turn_number, workflow_version, workflow_id) -> TaskRecord` | Create a new task record. |
+|  | `update_task_status` | `def update_task_status(db, task_id, status, *, commit) -> None` | Update the status of a task record in the database. |
+|  | `get_task_by_id` | `def get_task_by_id(db, task_id) -> TaskRecord \| None` | Return the task record for the given task_id, or None if absent. |
+|  | `get_task_count` | `def get_task_count(db, session_id) -> int` | Return the number of tasks associated with a session. |
+|  | `get_workflow_count` | `def get_workflow_count(db, session_id) -> int` | Return the number of distinct workflows for a session. |
+| `scripts/agent/workflow/tool_call_state_ops.py` | `ToolCallState` | `class ToolCallState` | Database record for one tool-call lifecycle row. |
+|  | `record_tool_call` | `def record_tool_call(db, task_id, idempotency_key, tool, retry_class) -> None` | Insert a tool-call row in state 'pending'. |
+|  | `finalize_tool_call` | `def finalize_tool_call(db, idempotency_key, state) -> None` | Move a tool-call row to its final state, bumping updated_at. |
+|  | `pending_tool_calls` | `def pending_tool_calls(db, task_id) -> list[ToolCallState]` | Return the task's pending tool-call rows, oldest first. |
+|  | `classify_stale_pending` | `def classify_stale_pending(db, task_id, timeout_seconds) -> list[ToolCallState]` | Mark this task's pending rows older than `timeout_seconds` as 'interrupted'. |
+|  | `get_tool_call_state` | `def get_tool_call_state(db, idempotency_key) -> ToolCallState \| None` | Return one tool-call row by key, or None if absent. |
+| `scripts/agent/workflow/validate.py` | `validate_path` | `def validate_path(path) -> WorkflowDef` | Return the loaded WorkflowDef, or raise WorkflowLoadError if invalid. |
+|  | `main` | `def main() -> int` | Validate a workflow definition JSON file against the schema. |
+| `scripts/agent/workflow/workflow_engine.py` | `WorkflowHaltError` | `class WorkflowHaltError` | Raised when a task exceeds max_attempts and is halted. |
+|  | `WorkflowTimeoutError` | `class WorkflowTimeoutError` | Raised when a stage exceeds its timeout_sec. |
+|  | `WorkflowStageFailure` | `class WorkflowStageFailure` | Raised when a stage callback reports a typed failure result (kind llm_failure). |
+|  | `WorkflowStageNotFoundError` | `class WorkflowStageNotFoundError` | Raised when a requested stage_id has no StageDefinition in the loaded workflow. |
+|  | `WorkflowEngine` | `class WorkflowEngine` | Runs a workflow definition against a set of stage callbacks. |
+| `scripts/agent/workflow/workflow_loader.py` | `WorkflowLoadError` | `class WorkflowLoadError` | Raised when a workflow JSON file cannot be loaded or fails validation. |
+|  | `WorkflowLoader` | `class WorkflowLoader` | Loads a WorkflowDef from a JSON file in config/workflows/. |
+<!-- END AUTO-GENERATED -->

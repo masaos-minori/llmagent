@@ -131,4 +131,4 @@ generated_by: tools/generate_reference_table.py
 manifest: component_mandatoriness
 sources:
 - registry/component_mandatoriness.yaml
-version: 1
+version: 2

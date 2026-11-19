@@ -53,7 +53,6 @@ _INGESTER_TOML = REPO_ROOT / "config" / "ingester.toml"
 
 MANIFEST_DIR = REPO_ROOT / "registry" / "manifests"
 EVENTBUS_SCHEMA_SQL_SRC = REPO_ROOT / "scripts" / "eventbus" / "schema.sql"
-EVENTBUS_AUTH_SRC = REPO_ROOT / "scripts" / "eventbus" / "auth.py"
 CONFIG_FIELD_REGISTRY_SRC = (
     REPO_ROOT / "scripts" / "agent" / "services" / "config_field_registry.py"
 )
@@ -70,7 +69,6 @@ _TOOL_LIST_NAME_RE = re.compile(r'\{\s*"name":\s*"([a-z][a-z0-9_]*)"')
 _DB_PATH_FIELD_RE = re.compile(
     r'^\s+(\w+_db_path):\s*str(?:\s*=\s*"([^"]*)")?', re.MULTILINE
 )
-_PRAGMA_USER_VERSION_RE = re.compile(r"PRAGMA user_version = (\d+)")
 
 CONFIG_PATHS = [
     _CRAWLER_TOML,
@@ -87,6 +85,7 @@ GUARD_START_DEPLOYMENT = (
     "<!-- AUTO-GENERATED: generate_reference_table.py db-path-reference -->"
 )
 GUARD_START_AGENT = "<!-- AUTO-GENERATED: generate_reference_table.py agent-class-function-reference -->"
+GUARD_START_AGENT_SUBPACKAGES = "<!-- AUTO-GENERATED: generate_reference_table.py agent-subpackages-class-function-reference -->"
 GUARD_START_EVENTBUS = "<!-- AUTO-GENERATED: generate_reference_table.py eventbus-class-function-reference -->"
 GUARD_START_MEMORY = "<!-- AUTO-GENERATED: generate_reference_table.py memory-class-function-reference -->"
 GUARD_START_MANDATORINESS = "<!-- AUTO-GENERATED: generate_reference_table.py component-mandatoriness-reference -->"
@@ -97,6 +96,9 @@ REFERENCE_DOC_DEPLOYMENT = (
 )
 REFERENCE_DOC_AGENT = (
     REPO_ROOT / "docs" / "23_agent" / "agent_13_reference-api-generated.md"
+)
+REFERENCE_DOC_AGENT_SUBPACKAGES = (
+    REPO_ROOT / "docs" / "23_agent" / "agent_14_reference-api-subpackages-generated.md"
 )
 REFERENCE_DOC_EVENTBUS = (
     REPO_ROOT / "docs" / "24_eventbus" / "eventbus_08_reference_api.md"
@@ -326,12 +328,18 @@ def _extract_public_top_level_symbols(path: Path) -> list[tuple[str, str, str]]:
     return rows
 
 
-def _symbol_entries(source_dir: Path) -> list[dict[str, Any]]:
+def _symbol_entries(
+    source_dir: Path, exclude: tuple[Path, ...] = ()
+) -> list[dict[str, Any]]:
     """Return symbol-manifest entries (file, name, kind, signature, summary)
-    for every public top-level class/function in *source_dir*'s
-    non-recursive `*.py` files, grouped by file in source order."""
+    for every public top-level class/function in *source_dir*'s recursive
+    `*.py` files, grouped by file in source order. Every directory in *exclude*
+    is skipped with its whole subtree (`agent_api` excludes `scripts/agent/memory/`,
+    which the `memory_api` manifest owns)."""
     entries: list[dict[str, Any]] = []
-    for path in sorted(source_dir.glob("*.py")):
+    for path in sorted(source_dir.rglob("*.py")):
+        if any(excluded in path.parents for excluded in exclude):
+            continue
         if path.name.startswith("_"):
             continue
         for name, signature, summary in _extract_public_top_level_symbols(path):
@@ -401,6 +409,10 @@ DOMAIN_GENERATORS = {
         "Agent module class/function reference table",
         generate_agent_reference_table,
     ),
+    "agent_subpackages": (
+        "Agent subpackage class/function reference table",
+        lambda: _domain_table("agent_subpackages"),
+    ),
     "eventbus": (
         "EventBus module class/function reference table",
         generate_eventbus_reference_table,
@@ -419,6 +431,7 @@ DOMAIN_DOCS = {
     "mcp": REFERENCE_DOC_MCP,
     "deployment": REFERENCE_DOC_DEPLOYMENT,
     "agent": REFERENCE_DOC_AGENT,
+    "agent_subpackages": REFERENCE_DOC_AGENT_SUBPACKAGES,
     "eventbus": REFERENCE_DOC_EVENTBUS,
     "memory": REFERENCE_DOC_MEMORY,
     "mandatoriness": REFERENCE_DOC_MANDATORINESS,
@@ -428,6 +441,7 @@ DOMAIN_GUARDS = {
     "mcp": (GUARD_START_MCP, GUARD_END),
     "deployment": (GUARD_START_DEPLOYMENT, GUARD_END),
     "agent": (GUARD_START_AGENT, GUARD_END),
+    "agent_subpackages": (GUARD_START_AGENT_SUBPACKAGES, GUARD_END),
     "eventbus": (GUARD_START_EVENTBUS, GUARD_END),
     "memory": (GUARD_START_MEMORY, GUARD_END),
     "mandatoriness": (GUARD_START_MANDATORINESS, GUARD_END),
@@ -436,9 +450,10 @@ DOMAIN_GUARDS = {
 DOMAIN_WELCOME_LINES = {
     "mcp": "Generated from `registry/manifests/mcp_endpoints.yaml` (`config/agent.toml` and `scripts/mcp_servers/**/*.py` TOOL_LIST definitions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.",
     "deployment": "Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type deployment` to refresh.",
-    "agent": "Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-level public classes and functions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.",
+    "agent": "Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-level public classes and functions; the subpackage symbols live in `docs/23_agent/agent_14_reference-api-subpackages-generated.md`). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.",
+    "agent_subpackages": "Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage symbols: `workflow/`, `services/`, `commands/`, `shared/`; the top-level symbols live in `docs/23_agent/agent_13_reference-api-generated.md`). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.",
     "eventbus": "Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` top-level public classes and functions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.",
-    "memory": "Generated from `scripts/agent/memory/*.py` top-level public classes and functions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type memory` to refresh.",
+    "memory": "Generated from `registry/manifests/memory_api.yaml` (`scripts/agent/memory/*.py` top-level public classes and functions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.",
     "mandatoriness": "Generated from `registry/component_mandatoriness.yaml`. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type mandatoriness` to refresh.",
 }
 
@@ -446,6 +461,7 @@ DOMAIN_HEADING = {
     "mcp": "## Server Port & Tool Reference (auto-generated)",
     "deployment": "### DB Path Reference (auto-generated)",
     "agent": "## Module Class/Function Reference (auto-generated)",
+    "agent_subpackages": "## Subpackage Class/Function Reference (auto-generated)",
     "memory": "## Module Class/Function Reference (auto-generated)",
     "eventbus": "## Module Class/Function Reference (auto-generated)",
 }
@@ -457,13 +473,25 @@ DOMAIN_HEADING = {
 # invariant_coverage) have no guard block of their own.
 # ---------------------------------------------------------------------------
 
+_EVENTBUS_ROUTE_MODULES: tuple[Path, ...] = (
+    EVENTBUS_DIR / "ack_route.py",
+    EVENTBUS_DIR / "admin_route.py",
+    EVENTBUS_DIR / "dlq_route.py",
+    EVENTBUS_DIR / "health_route.py",
+    EVENTBUS_DIR / "publish_route.py",
+    EVENTBUS_DIR / "replay_route.py",
+    EVENTBUS_DIR / "subscribe_route.py",
+)
+
 _MANIFEST_SOURCES: dict[str, list[str]] = {
     "tool_ownership": ["config/agent.toml", "scripts/mcp_servers"],
-    "mcp_endpoints": ["config/agent.toml"],
-    "eventbus_route_roles": ["scripts/eventbus/auth.py"],
+    "mcp_endpoints": ["config/agent.toml", "scripts/mcp_servers"],
+    "eventbus_route_roles": [
+        str(path.relative_to(REPO_ROOT)) for path in _EVENTBUS_ROUTE_MODULES
+    ],
     "db_schema_versions": [
         "scripts/db/config.py",
-        "scripts/db/schema_sql.py",
+        "config/agent.toml",
         "scripts/eventbus/schema.sql",
     ],
     "config_ownership": ["scripts/agent/services/config_field_registry.py"],
@@ -479,6 +507,9 @@ MANIFESTS_BY_DOMAIN: dict[str, tuple[str, ...]] = {
     "mcp": ("tool_ownership", "mcp_endpoints"),
     "deployment": ("db_schema_versions",),
     "agent": ("agent_api",),
+    # `agent_subpackages` renders its guarded block from the `agent_api`
+    # manifest; the manifest itself is drift-checked once, under `agent`.
+    "agent_subpackages": (),
     "eventbus": ("eventbus_api", "eventbus_route_roles"),
     "memory": ("memory_api",),
     "mandatoriness": ("component_mandatoriness",),
@@ -488,7 +519,6 @@ UNBOUND_MANIFESTS: tuple[str, ...] = (
     "config_ownership",
     "health_contracts",
     "invariant_coverage",
-    "component_mandatoriness",
 )
 
 # Manifest each domain's guarded table renders FROM. For `mcp` this is
@@ -499,6 +529,7 @@ _RENDER_MANIFEST: dict[str, str] = {
     "mcp": "mcp_endpoints",
     "deployment": "db_schema_versions",
     "agent": "agent_api",
+    "agent_subpackages": "agent_api",
     "eventbus": "eventbus_api",
     "memory": "memory_api",
     "mandatoriness": "component_mandatoriness",
@@ -557,42 +588,148 @@ def _schema_version_row(name: str, source: Path, version: int | str) -> dict[str
 
 def _db_schema_version_entries() -> list[dict[str, Any]]:
     # Stamp-less (ADR-008; db_07 no-version-stamping policy): schema.sql
-    # records "unversioned".
-    eventbus_text = EVENTBUS_SCHEMA_SQL_SRC.read_text(encoding="utf-8")
-    match = _PRAGMA_USER_VERSION_RE.search(eventbus_text)
-    version = int(match.group(1)) if match else "unversioned"
+    # records "unversioned"; content_hash is the fingerprint.
     entries = _db_path_entries()
-    entries.append(_schema_version_row("eventbus", EVENTBUS_SCHEMA_SQL_SRC, version))
+    entries.append(
+        _schema_version_row("eventbus", EVENTBUS_SCHEMA_SQL_SRC, "unversioned")
+    )
     entries.sort(key=lambda e: (e["kind"], e["name"]))
     return entries
 
 
+_HTTP_METHOD_DECORATORS = {
+    "get": "GET",
+    "post": "POST",
+    "put": "PUT",
+    "delete": "DELETE",
+    "patch": "PATCH",
+    "head": "HEAD",
+    "options": "OPTIONS",
+}
+
+
+def _route_roles_from_dependency(
+    func: ast.FunctionDef | ast.AsyncFunctionDef, route: str, module_name: str
+) -> list[str]:
+    """Return the sorted role names from the function's `Depends(require_role
+    (Role.X))` dependencies (parameter defaults or decorator `dependencies=`
+    arguments). Fail closed when no role dependency is readable."""
+    roles: set[str] = set()
+    search_roots: list[ast.expr] = [
+        default
+        for default in (*func.args.defaults, *func.args.kw_defaults)
+        if default is not None
+    ]
+    for decorator in func.decorator_list:
+        if isinstance(decorator, ast.Call):
+            search_roots.extend(decorator.args)
+            search_roots.extend(kw.value for kw in decorator.keywords)
+    for root in search_roots:
+        for node in ast.walk(root):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "Depends"
+                and len(node.args) == 1
+                and isinstance(node.args[0], ast.Call)
+            ):
+                inner = node.args[0]
+                inner_name: str | None
+                if isinstance(inner.func, ast.Name):
+                    inner_name = inner.func.id
+                elif isinstance(inner.func, ast.Attribute):
+                    inner_name = inner.func.attr
+                else:
+                    inner_name = None
+                if inner_name != "require_role":
+                    continue
+                if not inner.args:
+                    raise ManifestError(
+                        f"{module_name}: require_role() on route {route} "
+                        "has no role argument"
+                    )
+                role_arg = inner.args[0]
+                if (
+                    isinstance(role_arg, ast.Attribute)
+                    and isinstance(role_arg.value, ast.Name)
+                    and role_arg.value.id == "Role"
+                ):
+                    roles.add(role_arg.attr)
+                else:
+                    raise ManifestError(
+                        f"{module_name}: require_role argument on route {route} "
+                        "is not a Role.<NAME> expression"
+                    )
+    if not roles:
+        raise ManifestError(
+            f"{module_name}: route {route} has no Depends(require_role(...)) dependency"
+        )
+    return sorted(roles)
+
+
 def _route_role_entries() -> list[dict[str, Any]]:
-    tree = _module_ast(EVENTBUS_AUTH_SRC)
-    value = _assigned_value(tree, "_ROUTE_ROLE_MAP")
-    if not isinstance(value, ast.Dict):
-        raise ManifestError("_ROUTE_ROLE_MAP is not a dict literal")
+    """Derive `{route, method, roles}` from the EventBus route modules: the
+    `@router.<method>("<path>")` decorators and each route function's
+    `Depends(require_role(Role.X))` dependency (D-03).
+
+    Fail closed: an unparseable route module, a router decorator with a
+    non-literal or missing path, an unreadable HTTP method, a duplicate route
+    key, or a route function without a role dependency raises ManifestError,
+    so a partial or guessed entry is never emitted.
+    """
     entries: list[dict[str, Any]] = []
-    for key_node, roles_node in zip(value.keys, value.values):
-        if not isinstance(key_node, ast.Constant) or not isinstance(
-            key_node.value, str
-        ):
-            raise ManifestError("non-literal route key in _ROUTE_ROLE_MAP")
-        if not isinstance(roles_node, ast.Set):
+    seen: set[str] = set()
+    for module_path in _EVENTBUS_ROUTE_MODULES:
+        module_name = module_path.name
+        try:
+            tree = _module_ast(module_path)
+        except (OSError, SyntaxError) as exc:
             raise ManifestError(
-                f"roles for route {key_node.value} are not a set literal"
-            )
-        roles: set[str] = set()
-        for elt in roles_node.elts:
-            if isinstance(elt, ast.Attribute):
-                roles.add(elt.attr)
-            elif isinstance(elt, ast.Name):
-                roles.add(elt.id)
-            else:
-                raise ManifestError(
-                    f"unexpected role expression for route {key_node.value}"
+                f"cannot parse route module {module_name}: {exc}"
+            ) from exc
+        for func in tree.body:
+            if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for decorator in func.decorator_list:
+                if (
+                    not isinstance(decorator, ast.Call)
+                    or not isinstance(decorator.func, ast.Attribute)
+                    or not isinstance(decorator.func.value, ast.Name)
+                    or decorator.func.value.id != "router"
+                ):
+                    continue
+                method = _HTTP_METHOD_DECORATORS.get(decorator.func.attr)
+                if method is None:
+                    raise ManifestError(
+                        f"{module_name}: router.{decorator.func.attr} on "
+                        f"{func.name} is not a readable HTTP method"
+                    )
+                if not decorator.args:
+                    raise ManifestError(
+                        f"{module_name}: router.{decorator.func.attr} on "
+                        f"{func.name} has no path argument"
+                    )
+                path_node = decorator.args[0]
+                if not isinstance(path_node, ast.Constant) or not isinstance(
+                    path_node.value, str
+                ):
+                    raise ManifestError(
+                        f"{module_name}: route path for {func.name} "
+                        "is not a string literal"
+                    )
+                route = path_node.value
+                if route in seen:
+                    raise ManifestError(
+                        f"duplicate route key {route} in the EventBus surface"
+                    )
+                seen.add(route)
+                entries.append(
+                    {
+                        "route": route,
+                        "method": method,
+                        "roles": _route_roles_from_dependency(func, route, module_name),
+                    }
                 )
-        entries.append({"route": key_node.value, "roles": sorted(roles)})
     entries.sort(key=lambda e: e["route"])
     return entries
 
@@ -707,9 +844,6 @@ def _health_contract_entries() -> list[dict[str, Any]]:
             {
                 "server": key_node.value,
                 "checks": sorted(set(checks)),
-                # ADR-004 Decision #14: posture-check failure fails the server
-                # at startup; no shipped server degrades to partial posture.
-                "disposition": "fail-fast",
             }
         )
     entries.sort(key=lambda e: e["server"])
@@ -748,7 +882,8 @@ def _invariant_coverage_entries() -> list[dict[str, Any]]:
             raise ManifestError(
                 f"invariant matrix row has {len(cells)} columns: {row[:60]}"
             )
-        id_cell, _invariant_text, gate, timing, _blocking, status_cell = cells
+        # Matrix columns: Invariant | Statement | Type | Timing | Gate | Status
+        id_cell, _invariant_text, check_type, timing, gate, status_cell = cells
         status = next(
             (t for t in _MATRIX_STATUS_TOKENS if status_cell.startswith(t)), None
         )
@@ -758,6 +893,7 @@ def _invariant_coverage_entries() -> list[dict[str, Any]]:
             "invariant": match.group(2).strip(),
             "adr": match.group(1),
             "gate": gate,
+            "check_type": check_type,
             "timing": timing,
             "status": status,
         }
@@ -835,6 +971,8 @@ def _component_mandatoriness_entries() -> list[dict[str, Any]]:
 
 def _api_manifest_entries(domain: str) -> list[dict[str, Any]]:
     dirs = {"agent": AGENT_DIR, "eventbus": EVENTBUS_DIR, "memory": MEMORY_DIR}
+    if domain == "agent":
+        return _symbol_entries(AGENT_DIR, exclude=(MEMORY_DIR,))
     return _symbol_entries(dirs[domain])
 
 
@@ -858,6 +996,20 @@ def build_manifest(name: str) -> dict[str, Any]:
     return envelope(name, _MANIFEST_SOURCES[name], _MANIFEST_BUILDERS[name]())
 
 
+def _agent_entry_is_top_level(entry: dict[str, Any]) -> bool:
+    """True when an `agent_api` entry lives directly in `scripts/agent/`.
+
+    The same manifest renders two documents: top-level modules into
+    `agent_13_reference-api-generated.md`, subpackage modules (`workflow/`,
+    `services/`, `commands/`, `shared/`) into
+    `agent_14_reference-api-subpackages-generated.md`.
+    """
+    rel = str(entry["file"])
+    if not rel.startswith("scripts/agent/"):
+        return False
+    return "/" not in rel.removeprefix("scripts/agent/")
+
+
 def _table_from_entries(domain: str, entries: list[dict[str, Any]]) -> str:
     """Render the domain's guarded table markdown from manifest entries."""
     if domain == "mcp":
@@ -866,6 +1018,12 @@ def _table_from_entries(domain: str, entries: list[dict[str, Any]]) -> str:
         return _render_deployment_table([e for e in entries if e["kind"] == "db_path"])
     if domain == "mandatoriness":
         return _render_mandatoriness_table(entries)
+    if domain == "agent":
+        return render_symbol_table([e for e in entries if _agent_entry_is_top_level(e)])
+    if domain == "agent_subpackages":
+        return render_symbol_table(
+            [e for e in entries if not _agent_entry_is_top_level(e)]
+        )
     return render_symbol_table(entries)
 
 

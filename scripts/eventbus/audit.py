@@ -148,7 +148,8 @@ def log_privileged_action(
     Args:
         consumer_id: Caller's consumer identity (if available).
         request_id: Request identity for correlation.
-        route: Route being accessed.
+        route: Registered FastAPI route path template, or one of the documented
+            non-route internal identifiers ``ttl_sweep`` and ``startup``.
         target: Resource identifier (event_id, topic, etc.).
         detail: Optional key=value pairs (omit when empty).
         actor: Non-secret token fingerprint of the acting principal.
@@ -187,7 +188,8 @@ def log_authorization_change(
     Args:
         consumer_id: Caller's consumer identity (if available).
         request_id: Request identity for correlation.
-        route: Route being accessed.
+        route: Registered FastAPI route path template, or one of the documented
+            non-route internal identifiers ``ttl_sweep`` and ``startup``.
         target: Resource identifier (topic, etc.).
         detail: key=value pairs (omit when empty).
         actor: Non-secret token fingerprint of the acting principal.

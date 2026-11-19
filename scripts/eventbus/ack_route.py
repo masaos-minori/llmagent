@@ -60,7 +60,7 @@ async def _do_ack(
     request: Request,
     _principal: Principal | None = None,  # injected by the route dependency
 ) -> dict[str, Any]:
-    """Common ack logic shared by /ack and /events/{event_id}/ack."""
+    """Common ack logic backing the registered POST /events/{event_id}/ack route."""
     if not event_id:
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 

@@ -487,4 +487,4 @@ generated_by: tools/generate_reference_table.py
 manifest: eventbus_api
 sources:
 - scripts/eventbus
-version: 1
+version: 2

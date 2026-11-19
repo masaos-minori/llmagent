@@ -382,12 +382,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: manifest contract revision | In Progress | — | — | Unblocked 2026-11-19: owner decisions D-11, D-12, D-13 recorded in `## Unknowns` and `## Design` |
-| 2 | Phase 2: matrix column mapping and invariant coverage | In Progress | — | — | Depends on Phase 1 |
-| 3 | Phase 3: route-role derivation and `_ROUTE_ROLE_MAP` removal | In Progress | — | — | Characterization suites must stay green |
-| 4 | Phase 4: audit route vocabulary | In Progress | — | — | Blast radius measured: 4 call sites, 2 tests, 1 doc line |
-| 5 | Phase 5: sources, classification, completeness | In Progress | — | — | Skips the already-fixed workflow-schema-version sub-claim |
-| 6 | Phase 6: regeneration, docs, deployment verification | In Progress | — | — | Single commit with the generator, schema and all 11 manifests |
+| 1 | Phase 1: manifest contract revision | Completed | 20261119-233228 | 20261119-233228 | Unblocked 2026-11-19: owner decisions D-11, D-12, D-13 recorded in `## Unknowns` and `## Design` landed: schemas/contract_manifest.json gate enum, check_type enum, parameterized route pattern with method enum, stamp-less version description, health_contracts disposition removal; MANIFEST_VERSION 2 |
+| 2 | Phase 2: matrix column mapping and invariant coverage | Completed | 20261119-233228 | 20261119-233228 | Depends on Phase 1 Gate cell read into gate and Type cell into check_type; T-001 and T-002 pass; invariant_coverage.yaml regenerated with the true gate values 24 Blocking, 6 Deployment Blocking, 4 Non-Blocking |
+| 3 | Phase 3: route-role derivation and `_ROUTE_ROLE_MAP` removal | Completed | 20261119-233228 | 20261119-233228 | Characterization suites must stay green _ROUTE_ROLE_MAP deleted from scripts/eventbus/auth.py; roles derived from the seven scripts/eventbus/*_route.py modules; 9 registered routes with methods; T-005 to T-008 and T-012 pass; enforcement characterization suites green |
+| 4 | Phase 4: audit route vocabulary | Completed | 20261119-233228 | 20261119-233228 | Blast radius measured: 4 call sites, 2 tests, 1 doc line audit vocabulary: internal ids ttl_sweep and startup, registered template /dlq/{event_id}/requeue; T-012 and T-013 pass; docs/24_eventbus/eventbus_07 updated; check_docs_consistency --domain eventbus clean |
+| 5 | Phase 5: sources, classification, completeness | Completed | 20261119-233228 | 20261119-233228 | Skips the already-fixed workflow-schema-version sub-claim source declaration instrumentation reports uncovered=[] and unused_decl=[] for all 11 builders; agent_api 371 entries (171 top-level, 200 subpackage, none under scripts/agent/memory/); T-009 to T-011, T-014, T-015 pass |
+| 6 | Phase 6: regeneration, docs, deployment verification | Completed | 20261119-233228 | 20261119-233228 | Single commit with the generator, schema and all 11 manifests all 11 manifests regenerated at version 2 in this commit; agent_13 25931 B and agent_14 30498 B under MAX_SIZE 32768; tools baseline tightened to 49552 B; full suite 13079 passed and pre-commit all-files green; diff-cover reports no measurable diff lines because every scripts/ edit is a continuation line of a covered multi-line call; deploy.sh and EventBus restart verification deferred by owner decision 2026-11-19 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -399,39 +399,39 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261119-210556_01_tools_generate_reference_table.py.md | 2, 3, 5 | Procedure | Pending | — | — |
-| implementations/20261119-210556_02_tools__contract_manifests.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261119-210556_03_schemas_contract_manifest.json.md | 1 | Procedure | Pending | — | — |
-| implementations/20261119-210556_04_scripts_eventbus_auth.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261119-210556_05_scripts_eventbus_ack_route.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261119-210556_06_scripts_eventbus_dlq_route.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261119-210556_07_scripts_eventbus_authz_ttl.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261119-210556_08_scripts_eventbus_app.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261119-210556_09_scripts_eventbus_audit.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261119-210556_10_tests_tools_test_generate_reference_table.py.md | 2, 3, 5 | Procedure | Pending | — | — |
-| implementations/20261119-210556_11_tests_eventbus_test_eventbus_route_registry.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261119-210556_12_tests_eventbus_test_eventbus_dlq.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261119-210556_13_tests_eventbus_test_authz_generation_ttl.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261119-210556_14_docs_24_eventbus_eventbus_07_configuration-and-operations.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261119-210556_15_docs_23_agent_agent_13_reference-api-generated.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_16_docs_23_agent_agent_11_04_memory-module-reference-generated.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_17_docs_10_adr_adr_02_07_015_docs-reference-document-class-disposition.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_18_registry_manifests_invariant_coverage.yaml.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_19_registry_manifests_eventbus_route_roles.yaml.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_20_registry_manifests_health_contracts.yaml.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_21_registry_manifests_db_schema_versions.yaml.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_22_registry_manifests_agent_api.yaml.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_23_registry_manifests_component_mandatoriness.yaml.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_24_registry_manifests_config_ownership.yaml.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_25_registry_manifests_mcp_endpoints.yaml.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_26_registry_manifests_tool_ownership.yaml.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_27_registry_manifests_eventbus_api.yaml.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_28_registry_manifests_memory_api.yaml.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_29_tools_check_module_size_tools_baseline.txt.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_30_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 5, 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_31_docs_23_agent_agent_12_reference-api.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_32_docs_23_agent_agent_00_document-guide.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261119-210556_33_tools_check_docs_structure.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261119-210556_01_tools_generate_reference_table.py.md | 2, 3, 5 | Procedure | Completed | — | — |
+| implementations/20261119-210556_02_tools__contract_manifests.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261119-210556_03_schemas_contract_manifest.json.md | 1 | Procedure | Completed | — | — |
+| implementations/20261119-210556_04_scripts_eventbus_auth.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261119-210556_05_scripts_eventbus_ack_route.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261119-210556_06_scripts_eventbus_dlq_route.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261119-210556_07_scripts_eventbus_authz_ttl.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261119-210556_08_scripts_eventbus_app.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261119-210556_09_scripts_eventbus_audit.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261119-210556_10_tests_tools_test_generate_reference_table.py.md | 2, 3, 5 | Procedure | Completed | — | — |
+| implementations/20261119-210556_11_tests_eventbus_test_eventbus_route_registry.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261119-210556_12_tests_eventbus_test_eventbus_dlq.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261119-210556_13_tests_eventbus_test_authz_generation_ttl.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261119-210556_14_docs_24_eventbus_eventbus_07_configuration-and-operations.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261119-210556_15_docs_23_agent_agent_13_reference-api-generated.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_16_docs_23_agent_agent_11_04_memory-module-reference-generated.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_17_docs_10_adr_adr_02_07_015_docs-reference-document-class-disposition.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_18_registry_manifests_invariant_coverage.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_19_registry_manifests_eventbus_route_roles.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_20_registry_manifests_health_contracts.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_21_registry_manifests_db_schema_versions.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_22_registry_manifests_agent_api.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_23_registry_manifests_component_mandatoriness.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_24_registry_manifests_config_ownership.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_25_registry_manifests_mcp_endpoints.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_26_registry_manifests_tool_ownership.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_27_registry_manifests_eventbus_api.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_28_registry_manifests_memory_api.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_29_tools_check_module_size_tools_baseline.txt.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_30_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 5, 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_31_docs_23_agent_agent_12_reference-api.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_32_docs_23_agent_agent_00_document-guide.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261119-210556_33_tools_check_docs_structure.py.md | 6 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

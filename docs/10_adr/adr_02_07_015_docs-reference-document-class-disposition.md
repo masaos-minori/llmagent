@@ -119,7 +119,7 @@ Documents carrying a generated guarded block (Explicit in code — `tools/genera
 
 - `mcp` — `docs/22_mcp/mcp_01_tool_ownership_matrix.md`
 - `deployment` — `docs/90_deployment/deployment_01_deployment.md`
-- `agent` — `docs/23_agent/agent_13_reference-api-generated.md`
+- `agent` — `docs/23_agent/agent_13_reference-api-generated.md` (top-level `scripts/agent/*.py` symbols) and `docs/23_agent/agent_14_reference-api-subpackages-generated.md` (`scripts/agent/` subpackage symbols)
 - `eventbus` — `docs/24_eventbus/eventbus_08_reference_api.md`
 - `memory` — `docs/23_agent/agent_11_04_memory-module-reference-generated.md`
 - `mandatoriness` — `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`
@@ -134,6 +134,11 @@ See Implementation References for the tool list.
 - Rendering manifests for the symbol reference documents (`agent_api`, `eventbus_api`, `memory_api`) are internal to the class mechanism; they are inputs to the guarded blocks, not separate published outputs.
 - The `component_mandatoriness` manifest renders the component-mandatoriness table of `agent_08_04`; `adr_authority` has its source (`config/adr_authority.toml`) and no manifest, and whether one is produced is a maintainer decision.
 - The `architecture_assumptions` manifest is deferred until its source module lands; its absence is an explicit deferred-state, not a pipeline failure.
+- Entry field contract (manifest envelope `version: 2`):
+  - `invariant_coverage` entries carry `gate` read from the matrix Gate cell, enumerated as `Blocking`, `Deployment Blocking`, `Non-Blocking`, and `check_type` read from the matrix Type cell, enumerated as `Unit Test`, `Startup Validation`, `Manual Review`, `Integration Test`, `Static Check`, `Unit/Integration Test`.
+  - `eventbus_route_roles` entries carry `method` (`GET` or `POST`) beside `route` and `roles`, and `route` is a registered FastAPI path template including `{param}` segments.
+  - `health_contracts` entries carry no `disposition` field: the value it held was a generator constant, not a fact read from its source module.
+  - `db_schema_versions` `version` records `unversioned` for sources with no stamping mechanism, where `content_hash` carries the fingerprint (ADR-008).
 
 ## Known Deviations
 
@@ -156,6 +161,7 @@ Not applicable
 - **Approval Reference**: Reviewed and approved by the repository owner via chat, content presented in full (Summary, Context, Decision, Alternatives Considered, Consequences) before approval
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-08; individual reviewer names are not recorded.
 - **Current Decision Approval (pending)**: The correction of the manifest status (the `component_mandatoriness` manifest is produced, the `adr_authority` manifest is undecided) and the addition of `agent_08_04` to the generated-document list are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and they are tracked by AAL-017. No approval is recorded here.
+- **Current Decision Approval (2026-11-19)**: The entry field contract recorded in Implementation Notes (envelope `version: 2`, the enumerated `gate` values, the `check_type` field, the `eventbus_route_roles` `method` field, the removed `health_contracts` `disposition`) and the addition of `agent_14_reference-api-subpackages-generated.md` to the generated-document list were approved by the repository owner via chat on 2026-11-19 under plan `20261119-181257_adrchk014_contract-manifest-sources`; individual reviewer names are not recorded.
 
 This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`) — not the task-level fallback path.
 

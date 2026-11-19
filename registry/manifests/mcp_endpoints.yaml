@@ -97,4 +97,5 @@ generated_by: tools/generate_reference_table.py
 manifest: mcp_endpoints
 sources:
 - config/agent.toml
-version: 1
+- scripts/mcp_servers
+version: 2

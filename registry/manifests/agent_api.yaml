@@ -29,6 +29,199 @@ entries:
   name: CLIView
   signature: class CLIView
   summary: 'Manages terminal I/O: readline history, tab completion, multiline'
+- file: scripts/agent/commands/cmd_memory.py
+  kind: class
+  name: MemoryOpResult
+  signature: class MemoryOpResult
+  summary: Structured result of a memory state-changing operation.
+- file: scripts/agent/commands/command_defs.py
+  kind: class
+  name: ArgSpec
+  signature: class ArgSpec
+  summary: One argument of a command or subcommand.
+- file: scripts/agent/commands/command_defs.py
+  kind: function
+  name: format_usage
+  signature: def format_usage(command, subcommand, args) -> str
+  summary: Return the usage line, e.g. "/session list [n]".
+- file: scripts/agent/commands/command_defs.py
+  kind: class
+  name: SubcommandSpec
+  signature: class SubcommandSpec
+  summary: Declarative metadata for one subcommand.
+- file: scripts/agent/commands/command_defs.py
+  kind: class
+  name: CommandDef
+  signature: class CommandDef
+  summary: Declarative metadata for one slash command.
+- file: scripts/agent/commands/db_session_ops.py
+  kind: class
+  name: DbSessionOps
+  signature: class DbSessionOps
+  summary: 'Handles session database operations: health, checkpoint, vacuum, purge,
+    recover.'
+- file: scripts/agent/commands/enums.py
+  kind: class
+  name: CommandKind
+  signature: class CommandKind
+  summary: Categories of slash commands available in the agent REPL.
+- file: scripts/agent/commands/enums.py
+  kind: class
+  name: MemoryAction
+  signature: class MemoryAction
+  summary: Actions available under the /memory command group.
+- file: scripts/agent/commands/enums.py
+  kind: class
+  name: DbAction
+  signature: class DbAction
+  summary: Actions available under the /db command group.
+- file: scripts/agent/commands/enums.py
+  kind: class
+  name: McpAction
+  signature: class McpAction
+  summary: Actions available under the /mcp command group.
+- file: scripts/agent/commands/enums.py
+  kind: class
+  name: SessionAction
+  signature: class SessionAction
+  summary: Actions available under the /session command group.
+- file: scripts/agent/commands/exceptions.py
+  kind: class
+  name: CommandParseError
+  signature: class CommandParseError
+  summary: Raised when a command line cannot be parsed into a valid command.
+- file: scripts/agent/commands/exceptions.py
+  kind: class
+  name: CommandValidationError
+  signature: class CommandValidationError
+  summary: Raised when parsed command arguments fail domain validation.
+- file: scripts/agent/commands/exceptions.py
+  kind: class
+  name: CommandDispatchError
+  signature: class CommandDispatchError
+  summary: Raised when a command cannot be dispatched (e.g. unknown command name).
+- file: scripts/agent/commands/exceptions.py
+  kind: class
+  name: CommandRenderingError
+  signature: class CommandRenderingError
+  summary: Raised when rendering a command result fails.
+- file: scripts/agent/commands/exceptions.py
+  kind: class
+  name: UnknownSubcommandError
+  signature: class UnknownSubcommandError
+  summary: Raised when a slash-command subcommand name is not recognized.
+- file: scripts/agent/commands/exceptions.py
+  kind: class
+  name: UnknownPresetError
+  signature: class UnknownPresetError
+  summary: Raised when a command preset name is not recognized.
+- file: scripts/agent/commands/exceptions.py
+  kind: class
+  name: UnknownTierError
+  signature: class UnknownTierError
+  summary: Raised when a tool safety tier name is not recognized.
+- file: scripts/agent/commands/memory_data_ops.py
+  kind: class
+  name: MemoryDataOps
+  signature: class MemoryDataOps
+  summary: 'Handles memory data operations: list, search, show, pin, delete, prune.'
+- file: scripts/agent/commands/memory_rebuild_ops.py
+  kind: class
+  name: RebuildResult
+  signature: class RebuildResult
+  summary: Result of a memory rebuild operation.
+- file: scripts/agent/commands/memory_rebuild_ops.py
+  kind: class
+  name: MemoryRebuildOps
+  signature: class MemoryRebuildOps
+  summary: Handles memory rebuild/reindex operations (rebuild, reindex, check-consistency).
+- file: scripts/agent/commands/memory_status.py
+  kind: class
+  name: MemoryStatus
+  signature: class MemoryStatus
+  summary: Structured representation of memory layer status for display.
+- file: scripts/agent/commands/memory_status.py
+  kind: function
+  name: build_status_table
+  signature: def build_status_table(status) -> list[list[str]]
+  summary: Build a table of rows for display.
+- file: scripts/agent/commands/memory_status.py
+  kind: function
+  name: build_memory_status
+  signature: def build_memory_status(mem, cfg) -> MemoryStatus | None
+  summary: Build a MemoryStatus from a MemoryServices instance.
+- file: scripts/agent/commands/mixin_base.py
+  kind: function
+  name: reset_session_stats
+  signature: def reset_session_stats(ctx) -> None
+  summary: Reset all per-session counters to zero.
+- file: scripts/agent/commands/mixin_base.py
+  kind: function
+  name: refresh_session_correlation
+  signature: def refresh_session_correlation(ctx) -> None
+  summary: Refresh the MCP transport correlation id after a session-id change.
+- file: scripts/agent/commands/mixin_base.py
+  kind: class
+  name: MixinBase
+  signature: class MixinBase
+  summary: Shared annotation base for CommandRegistry mixins.
+- file: scripts/agent/commands/models.py
+  kind: class
+  name: LatencySnapshot
+  signature: class LatencySnapshot
+  summary: Per-tool latency stats mapping tool_name to a list of elapsed-second samples.
+- file: scripts/agent/commands/models.py
+  kind: class
+  name: MaskedArgs
+  signature: class MaskedArgs
+  summary: Decoded and masked tool arguments for display (arg_name -> masked value).
+- file: scripts/agent/commands/models.py
+  kind: class
+  name: StatsViewModel
+  signature: class StatsViewModel
+  summary: Aggregated statistics from an active agent session.
+- file: scripts/agent/commands/output_port.py
+  kind: class
+  name: OutputPort
+  signature: class OutputPort
+  summary: Interface for writing structured output from slash commands.
+- file: scripts/agent/commands/output_port.py
+  kind: class
+  name: CliOutputPort
+  signature: class CliOutputPort
+  summary: Concrete OutputPort that writes to stdout via print().
+- file: scripts/agent/commands/registry.py
+  kind: class
+  name: CommandRegistry
+  signature: class CommandRegistry
+  summary: Slash-command dispatcher for AgentREPL.
+- file: scripts/agent/commands/session_title.py
+  kind: class
+  name: SessionTitleGen
+  signature: class SessionTitleGen
+  summary: Handles session title generation (LLM-based with fallback).
+- file: scripts/agent/commands/token_display.py
+  kind: class
+  name: TokenDisplay
+  signature: class TokenDisplay
+  summary: Provides token count display methods.
+- file: scripts/agent/commands/utils.py
+  kind: class
+  name: ParsedArgs
+  signature: class ParsedArgs
+  summary: Structured result of command argument parsing.
+- file: scripts/agent/commands/utils.py
+  kind: function
+  name: parse_command_args
+  signature: def parse_command_args(tokens) -> ParsedArgs
+  summary: Parse command tokens into a structured ParsedArgs.
+- file: scripts/agent/commands/utils.py
+  kind: function
+  name: parse_int_arg
+  signature: def parse_int_arg(raw, *, usage, default, minimum, maximum) -> int |
+    None
+  summary: Parse a command argument into an int, raising on invalid or out-of-range
+    input.
 - file: scripts/agent/config_builders.py
   kind: function
   name: resolved_config_dir
@@ -433,6 +626,592 @@ entries:
   name: detects_secrets
   signature: def detects_secrets(text) -> bool
   summary: Return True when any SECRET_PATTERNS substitution would change the text.
+- file: scripts/agent/services/config_field_registry.py
+  kind: class
+  name: ConfigFieldRegistry
+  signature: class ConfigFieldRegistry
+  summary: A single entry in CONFIG_FIELD_REGISTRY.
+- file: scripts/agent/services/config_field_registry.py
+  kind: function
+  name: registry_for
+  signature: def registry_for(section_path) -> list[ConfigFieldRegistry]
+  summary: Return all ConfigFieldRegistry entries matching the given section path.
+- file: scripts/agent/services/config_outcome_classification.py
+  kind: function
+  name: classify_mcp_server_changes
+  signature: def classify_mcp_server_changes(ctx, new_cfg) -> list[str]
+  summary: Classify MCP server definition changes as restart-required, field by field.
+- file: scripts/agent/services/config_outcome_classification.py
+  kind: function
+  name: classify_startup_only_fields
+  signature: def classify_startup_only_fields(ctx, new_cfg) -> list[str]
+  summary: Return names of startup-only fields that differ between new_cfg and running
+    cfg.
+- file: scripts/agent/services/config_outcome_classification.py
+  kind: function
+  name: detect_diagnostics_live_fields
+  signature: def detect_diagnostics_live_fields(ctx, new_cfg) -> list[str]
+  summary: Return names of diagnostics.* fields that differ between new_cfg and running
+    cfg.
+- file: scripts/agent/services/config_reload.py
+  kind: class
+  name: ConfigReloadOutcome
+  signature: class ConfigReloadOutcome
+  summary: Structured report of what changed after a /reload.
+- file: scripts/agent/services/config_reload.py
+  kind: class
+  name: ConfigReloadService
+  signature: class ConfigReloadService
+  summary: Propagate an updated config dict to live service instances.
+- file: scripts/agent/services/config_section_reload.py
+  kind: function
+  name: prepare_validated_section
+  signature: def prepare_validated_section(ctx, section_path, new_cfg, extra_changed_fields)
+    -> tuple[dict[str, Any], Any]
+  summary: Build the dataclasses.replace candidate for a validated section (llm/rag/tool/approval)
+    and run its validators.
+- file: scripts/agent/services/config_section_reload.py
+  kind: function
+  name: apply_validated_section
+  signature: def apply_validated_section(ctx, section_path, candidate) -> None
+  summary: Commit a prepared validated-section candidate onto ctx.cfg.
+- file: scripts/agent/services/config_section_reload.py
+  kind: function
+  name: reload_validated_section
+  signature: def reload_validated_section(ctx, section_path, new_cfg) -> list[str]
+  summary: Reload a validated section (llm/rag/tool/approval) as a prepare-then-apply
+    composition.
+- file: scripts/agent/services/config_section_reload.py
+  kind: function
+  name: prepare_direct_section
+  signature: def prepare_direct_section(ctx, new_cfg, section_path, field_filter)
+    -> dict[str, Any]
+  summary: Collect changed fields for a direct section (memory/mcp).
+- file: scripts/agent/services/config_section_reload.py
+  kind: function
+  name: apply_direct_section
+  signature: def apply_direct_section(ctx, section_path, changed_fields) -> None
+  summary: Commit prepared direct-section changes onto the live section object.
+- file: scripts/agent/services/config_section_reload.py
+  kind: function
+  name: reload_direct_fields
+  signature: def reload_direct_fields(ctx, new_cfg, section_path, field_filter) ->
+    dict[str, Any]
+  summary: Reload a direct section (memory/mcp) as a prepare-then-apply composition.
+- file: scripts/agent/services/config_service_sync.py
+  kind: class
+  name: SyncResult
+  signature: class SyncResult
+  summary: Result of ServiceSyncer.sync_all().
+- file: scripts/agent/services/config_service_sync.py
+  kind: class
+  name: ServiceSyncer
+  signature: class ServiceSyncer
+  summary: Propagates config changes to live service instances.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_context_char_limit
+  signature: def validate_llm_context_char_limit(cfg) -> None
+  summary: Validate that context_char_limit is non-negative.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_budget_warn_ratio
+  signature: def validate_llm_budget_warn_ratio(cfg) -> None
+  summary: Validate that budget_warn_ratio is in (0.0, 1.0].
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_retry_base_delay
+  signature: def validate_llm_retry_base_delay(cfg) -> None
+  summary: Validate that llm_retry_base_delay is positive.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_temperature
+  signature: def validate_llm_temperature(cfg) -> None
+  summary: Validate that llm_temperature is in [0.0, LLM_TEMPERATURE_MAX].
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_max_tokens
+  signature: def validate_llm_max_tokens(cfg) -> None
+  summary: Validate that llm_max_tokens is at least 1.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_sse_heartbeat_timeout
+  signature: def validate_llm_sse_heartbeat_timeout(cfg) -> None
+  summary: Validate that sse_heartbeat_timeout is non-negative.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_sse_malformed_retry
+  signature: def validate_llm_sse_malformed_retry(cfg) -> None
+  summary: Validate that sse_malformed_retry is non-negative.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_sse_reconnect_max
+  signature: def validate_llm_sse_reconnect_max(cfg) -> None
+  summary: Validate that sse_reconnect_max is non-negative.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: check_agent_refiner_keys
+  signature: def check_agent_refiner_keys(raw_cfg) -> list[str]
+  summary: Return an error when config/agent.toml still carries refiner keys.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_tool_dedup_max_repeats
+  signature: def validate_tool_dedup_max_repeats(cfg) -> None
+  summary: Validate that tool_dedup_max_repeats is at least 1.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_tool_cycle_detect_window
+  signature: def validate_tool_cycle_detect_window(cfg) -> None
+  summary: Validate that tool_cycle_detect_window is non-negative.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_tool_error_max_consecutive
+  signature: def validate_tool_error_max_consecutive(cfg) -> None
+  summary: Validate that tool_error_max_consecutive is non-negative.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_tool_error_retry_max
+  signature: def validate_tool_error_retry_max(cfg) -> None
+  summary: Validate that tool_error_retry_max is non-negative.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_progress_stagnation_window
+  signature: def validate_progress_stagnation_window(cfg) -> None
+  summary: Validate that progress_stagnation_window is non-negative.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_allowed_tools
+  signature: def validate_allowed_tools(cfg) -> None
+  summary: Validate that allowed_tools is a list of strings (an empty list is valid).
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_memory_fts_limit
+  signature: def validate_memory_fts_limit(cfg) -> None
+  summary: Validate that memory_fts_limit is at least 1.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_memory_rrf_k
+  signature: def validate_memory_rrf_k(cfg) -> None
+  summary: Validate that memory_rrf_k is at least 1.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_memory_recency_days
+  signature: def validate_memory_recency_days(cfg) -> None
+  summary: Validate that memory_recency_days is positive.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_memory_max_inject_semantic
+  signature: def validate_memory_max_inject_semantic(cfg) -> None
+  summary: Validate that memory_max_inject_semantic is non-negative.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_memory_max_inject_episodic
+  signature: def validate_memory_max_inject_episodic(cfg) -> None
+  summary: Validate that memory_max_inject_episodic is non-negative.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_memory_embed_timeout_sec
+  signature: def validate_memory_embed_timeout_sec(cfg) -> None
+  summary: Validate that memory_embed_timeout_sec is positive.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_memory_retention_days
+  signature: def validate_memory_retention_days(cfg) -> None
+  summary: Validate that memory_retention_days is at least 1.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_memory_max_pinned
+  signature: def validate_memory_max_pinned(cfg) -> None
+  summary: Validate that memory_max_pinned is at least 1.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_diagnostics_encryption_key
+  signature: def validate_diagnostics_encryption_key(cfg) -> None
+  summary: Validate encryption_key is a valid Fernet key when configured (empty =
+    disabled).
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_diagnostics_retention_days
+  signature: def validate_diagnostics_retention_days(cfg) -> None
+  summary: Validate retention_days is an int (<= 0 disables purge; preserved per UNK-03).
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_diagnostics_sensitive_fields
+  signature: def validate_diagnostics_sensitive_fields(cfg) -> None
+  summary: Validate sensitive_fields is a frozenset of strings.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_approval_risk_rules
+  signature: def validate_approval_risk_rules(cfg) -> None
+  summary: Validate that all approval_risk_rules values are valid.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_tool_safety_tiers
+  signature: def validate_tool_safety_tiers(cfg) -> None
+  summary: Validate that all tool_safety_tiers values are valid.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_allowed_root
+  signature: def validate_allowed_root(cfg) -> None
+  summary: Validate that allowed_root is a non-empty absolute path.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_http_timeout
+  signature: def validate_llm_http_timeout(cfg) -> None
+  summary: Validate that http_timeout is positive.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_context_token_limit
+  signature: def validate_llm_context_token_limit(cfg) -> None
+  summary: Validate that context_token_limit is non-negative.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_tool_max_tool_turns
+  signature: def validate_tool_max_tool_turns(cfg) -> None
+  summary: Validate that max_tool_turns is positive.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_tool_result_max_llm_chars
+  signature: def validate_tool_result_max_llm_chars(cfg) -> None
+  summary: Validate that tool_result_max_llm_chars is positive.
+- file: scripts/agent/services/context_view.py
+  kind: function
+  name: budget_breakdown
+  signature: def budget_breakdown(messages) -> ContextBudget
+  summary: Compute per-category character counts (system / history / tool_messages).
+- file: scripts/agent/services/context_view.py
+  kind: function
+  name: collect_context_state
+  signature: def collect_context_state(ctx) -> ContextStateView
+  summary: Aggregate runtime context data for /context display.
+- file: scripts/agent/services/conversation_service.py
+  kind: function
+  name: clear_conversation
+  signature: def clear_conversation(ctx, *, new_session) -> ConversationActionResult
+  summary: Reset conversation history to system prompt only and clear session stats.
+- file: scripts/agent/services/db_maintenance_service.py
+  kind: class
+  name: DbMaintenanceService
+  signature: class DbMaintenanceService
+  summary: Wraps maintenance operations on session.sqlite only.
+- file: scripts/agent/services/enums.py
+  kind: class
+  name: McpTier
+  signature: class McpTier
+  summary: Security tier classification for MCP servers.
+- file: scripts/agent/services/enums.py
+  kind: class
+  name: McpAvailability
+  signature: class McpAvailability
+  summary: Runtime availability state of an MCP server.
+- file: scripts/agent/services/enums.py
+  kind: class
+  name: ConversationActionType
+  signature: class ConversationActionType
+  summary: Types of conversation-level actions that can be performed.
+- file: scripts/agent/services/enums.py
+  kind: class
+  name: ExportFormat
+  signature: class ExportFormat
+  summary: Supported export formats for agent session data.
+- file: scripts/agent/services/exceptions.py
+  kind: class
+  name: McpProbeError
+  signature: class McpProbeError
+  summary: Raised when an MCP server probe encounters an unrecoverable error.
+- file: scripts/agent/services/exceptions.py
+  kind: class
+  name: SessionTitleGenerationError
+  signature: class SessionTitleGenerationError
+  summary: Raised when LLM-based session title generation fails.
+- file: scripts/agent/services/exceptions.py
+  kind: class
+  name: ConfigReloadValidationError
+  signature: class ConfigReloadValidationError
+  summary: Raised when a config reload request contains invalid field types.
+- file: scripts/agent/services/exceptions.py
+  kind: class
+  name: ContextStateBuildError
+  signature: class ContextStateBuildError
+  summary: Raised when context state cannot be built (e.g. hist_mgr is None).
+- file: scripts/agent/services/exceptions.py
+  kind: class
+  name: ExportWriteError
+  signature: class ExportWriteError
+  summary: Raised when writing an export file fails.
+- file: scripts/agent/services/exceptions.py
+  kind: class
+  name: ConversationStateError
+  signature: class ConversationStateError
+  summary: Raised when a conversation state operation fails (e.g. unknown prompt preset).
+- file: scripts/agent/services/exceptions.py
+  kind: class
+  name: DbMaintenanceError
+  signature: class DbMaintenanceError
+  summary: Raised when a DB maintenance operation fails.
+- file: scripts/agent/services/exceptions.py
+  kind: class
+  name: SessionNotFoundError
+  signature: class SessionNotFoundError
+  summary: Raised when a requested session does not exist or has no messages.
+- file: scripts/agent/services/exceptions.py
+  kind: class
+  name: SessionNoMessagesError
+  signature: class SessionNoMessagesError
+  summary: Raised when a requested session exists but has no messages.
+- file: scripts/agent/services/exceptions.py
+  kind: class
+  name: NothingToUndoError
+  signature: class NothingToUndoError
+  summary: Raised when undo is requested but no user message is in history.
+- file: scripts/agent/services/export_formatter.py
+  kind: function
+  name: render_history_md
+  signature: def render_history_md(history) -> str
+  summary: Render conversation history as a Markdown export string.
+- file: scripts/agent/services/export_formatter.py
+  kind: function
+  name: render_export
+  signature: def render_export(history, fmt) -> str
+  summary: Render conversation history to a string in the requested format.
+- file: scripts/agent/services/export_formatter.py
+  kind: function
+  name: write_export
+  signature: def write_export(content, outfile, n_messages, out) -> None
+  summary: Write export content to stdout or a file.
+- file: scripts/agent/services/io_ports.py
+  kind: class
+  name: ExportOutputPort
+  signature: class ExportOutputPort
+  summary: Output abstraction for conversation export operations.
+- file: scripts/agent/services/mcp_health.py
+  kind: class
+  name: ServerFailureClass
+  signature: class ServerFailureClass
+  summary: Kind of MCP server failure. Availability is reachability; Safety and Integrity
+    are posture.
+- file: scripts/agent/services/mcp_health.py
+  kind: class
+  name: PostureGate
+  signature: class PostureGate
+  summary: One server's permission to serve tools, decided from the posture it published.
+- file: scripts/agent/services/mcp_health.py
+  kind: function
+  name: classify_server_failure
+  signature: def classify_server_failure(gate) -> ServerFailureClass | None
+  summary: Return the failure kind of one gate, or None when the gate is green.
+- file: scripts/agent/services/mcp_health.py
+  kind: async function
+  name: collect_server_postures
+  signature: async def collect_server_postures(ctx) -> dict[str, PostureGate]
+  summary: Probe every usable HTTP MCP server once and gate it on the posture it publishes.
+- file: scripts/agent/services/mcp_health.py
+  kind: function
+  name: allowed_server_keys
+  signature: def allowed_server_keys(gates) -> set[str]
+  summary: Server keys whose gate is fully green, for RuntimeToolRegistry(allowed_servers=...).
+- file: scripts/agent/services/mcp_health.py
+  kind: async function
+  name: check_service_health
+  signature: async def check_service_health(ctx, *, gates) -> HealthCheckResult
+  summary: Probe LLM and Embed service health, then every MCP server posture, at startup.
+- file: scripts/agent/services/mcp_health.py
+  kind: async function
+  name: check_readiness
+  signature: async def check_readiness(ctx, *, gates) -> HealthCheckResult
+  summary: Probe required services at startup; raise RuntimeError on required-service
+    failure.
+- file: scripts/agent/services/mcp_status.py
+  kind: class
+  name: McpStatusService
+  signature: class McpStatusService
+  summary: Probe all configured MCP servers and collect their health statuses.
+- file: scripts/agent/services/mcp_tool_discovery.py
+  kind: class
+  name: DiscoveryResult
+  signature: class DiscoveryResult
+  summary: Result of discovering tools across all configured MCP servers.
+- file: scripts/agent/services/mcp_tool_discovery.py
+  kind: class
+  name: McpToolDiscoveryService
+  signature: class McpToolDiscoveryService
+  summary: Discover live MCP tools and build a `RuntimeToolRegistry`.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: ProcessInfoSnapshot
+  signature: class ProcessInfoSnapshot
+  summary: Read-only snapshot of an HTTP MCP subprocess's runtime state.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: SessionTitleResult
+  signature: class SessionTitleResult
+  summary: Result of generating a session title.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: McpProbeResult
+  signature: class McpProbeResult
+  summary: Result of probing a single MCP server's health status.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: SessionRestoreResult
+  signature: class SessionRestoreResult
+  summary: Result of restoring a session from the database.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: DeletedRow
+  signature: class DeletedRow
+  summary: A single deleted message row's identity, returned by the DB-side undo.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: UndoResult
+  signature: class UndoResult
+  summary: Result of undoing a conversation action.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: ConversationActionResult
+  signature: class ConversationActionResult
+  summary: Result of executing a conversation action.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: ContextStateView
+  signature: class ContextStateView
+  summary: Current context state view including character/token budgets and compression
+    info.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: DbStats
+  signature: class DbStats
+  summary: Database statistics including document, chunk, session, and message counts.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: DbHealth
+  signature: class DbHealth
+  summary: Database health check result including integrity, WAL pages, and size.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: DbCheckpointResult
+  signature: class DbCheckpointResult
+  summary: Result of a database checkpoint operation.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: DbPurgeResult
+  signature: class DbPurgeResult
+  summary: Result of purging old sessions from the database.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: DbRecoverResult
+  signature: class DbRecoverResult
+  summary: Result of a database recovery attempt.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: RagConsistencyResult
+  signature: class RagConsistencyResult
+  summary: RAG consistency check result with issues, detailed report, and severity.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: ExportResult
+  signature: class ExportResult
+  summary: Result of exporting session data in a specific format.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: ConfigReloadRequest
+  signature: class ConfigReloadRequest
+  summary: Typed request for apply_config. All fields optional; missing fields are
+    skipped.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: SessionRow
+  signature: class SessionRow
+  summary: 'One row from session.list_sessions(): session_id, title, created_at, is_current,
+    message_count.'
+- file: scripts/agent/services/models.py
+  kind: class
+  name: ContextBudget
+  signature: class ContextBudget
+  summary: Per-category character and token counts for /context budget breakdown.
+- file: scripts/agent/services/posture_validator.py
+  kind: class
+  name: PostureValidationResult
+  signature: class PostureValidationResult
+  summary: One contract verdict the classification layer (row `18`) consumes.
+- file: scripts/agent/services/posture_validator.py
+  kind: function
+  name: parse_posture
+  signature: def parse_posture(body, server_key) -> PostureValidationResult
+  summary: Read the `security` block out of a /health body and validate what it holds.
+- file: scripts/agent/services/posture_validator.py
+  kind: function
+  name: validate_posture
+  signature: def validate_posture(posture, *, expected_server_key) -> PostureValidationResult
+  summary: Check a posture against the shared contract, in the fixed order the contract
+    names.
+- file: scripts/agent/services/posture_validator.py
+  kind: function
+  name: compare_fingerprint
+  signature: def compare_fingerprint(server_key, posture) -> PostureValidationResult
+  summary: Report whether a server's fingerprint changed since the last posture seen
+    for that key.
+- file: scripts/agent/services/posture_validator.py
+  kind: function
+  name: reset_fingerprint_state
+  signature: def reset_fingerprint_state() -> None
+  summary: Clear the process-local fingerprint map, for tests.
+- file: scripts/agent/services/rag_maintenance_service.py
+  kind: class
+  name: RagMaintenanceService
+  signature: class RagMaintenanceService
+  summary: Maintenance operations scoped exclusively to rag.sqlite.
+- file: scripts/agent/services/routing_drift.py
+  kind: function
+  name: check_routing_drift
+  signature: def check_routing_drift(ctx, *, strict) -> list[str]
+  summary: Check config tool_names against ToolRegistry at startup.
+- file: scripts/agent/services/routing_drift.py
+  kind: function
+  name: check_routing_safety_tiers
+  signature: def check_routing_safety_tiers(ctx) -> list[str]
+  summary: Check that all registered tools have a declared safety tier.
+- file: scripts/agent/services/session_restore.py
+  kind: function
+  name: repair_orphan_tool_calls
+  signature: def repair_orphan_tool_calls(messages, session_id, *, boundary_index)
+    -> tuple[list[LLMMessage], int]
+  summary: Pair assistant tool_calls rows with tool-result rows at load time.
+- file: scripts/agent/services/session_restore.py
+  kind: async function
+  name: restore_session
+  signature: async def restore_session(ctx, session_id) -> SessionRestoreResult
+  summary: 'Restore session: rebuild history, switch session ID, reset stats.'
+- file: scripts/agent/services/session_title.py
+  kind: class
+  name: SessionTitleService
+  signature: class SessionTitleService
+  summary: Generate a short LLM-based title for a session and persist it.
+- file: scripts/agent/services/tool_validation.py
+  kind: async function
+  name: check_tool_definitions_runtime
+  signature: async def check_tool_definitions_runtime(ctx) -> HealthCheckResult
+  summary: 'Runtime validation: no raise, warnings only.'
+- file: scripts/agent/services/undo_service.py
+  kind: function
+  name: undo_last_turn
+  signature: def undo_last_turn(ctx) -> UndoResult
+  summary: Roll back the last user+assistant turn, gated by the compression boundary.
+- file: scripts/agent/services/workflow_schema.py
+  kind: function
+  name: check_workflow_definition
+  signature: def check_workflow_definition(workflows_dir) -> None
+  summary: Raise RuntimeError if the workflow definition file is missing or invalid.
+- file: scripts/agent/services/workflow_schema.py
+  kind: class
+  name: SchemaCheckResult
+  signature: class SchemaCheckResult
+  summary: Result of a workflow schema check.
+- file: scripts/agent/services/workflow_schema.py
+  kind: function
+  name: check_workflow_schema
+  signature: def check_workflow_schema(db_path) -> SchemaCheckResult
+  summary: Return SchemaCheckResult indicating whether the workflow DB schema is valid.
 - file: scripts/agent/session.py
   kind: class
   name: SchemaMissingError
@@ -453,6 +1232,77 @@ entries:
   name: SessionPersister
   signature: class SessionPersister
   summary: Handles persistence of session-level data at shutdown.
+- file: scripts/agent/shared/health_models.py
+  kind: class
+  name: ServiceWarning
+  signature: class ServiceWarning
+  summary: A warning about a service during startup validation.
+- file: scripts/agent/shared/health_models.py
+  kind: class
+  name: HealthCheckResult
+  signature: class HealthCheckResult
+  summary: Aggregated health check results with warnings and errors.
+- file: scripts/agent/shared/health_models.py
+  kind: class
+  name: McpHealthProbeResult
+  signature: class McpHealthProbeResult
+  summary: Structured result of a single /health GET probe to an MCP server.
+- file: scripts/agent/shared/health_models.py
+  kind: class
+  name: StartupCheckStatus
+  signature: class StartupCheckStatus
+  summary: Status of a startup validation check.
+- file: scripts/agent/shared/health_models.py
+  kind: class
+  name: StartupCheckOutcome
+  signature: class StartupCheckOutcome
+  summary: Result of a single startup validation check.
+- file: scripts/agent/shared/health_models.py
+  kind: class
+  name: StartupValidationResult
+  signature: class StartupValidationResult
+  summary: Aggregated startup validation results across all checks.
+- file: scripts/agent/shared/health_models.py
+  kind: class
+  name: HealthInterpretation
+  signature: class HealthInterpretation
+  summary: Structured interpretation of a raw /health response body dict.
+- file: scripts/agent/shared/health_models.py
+  kind: function
+  name: interpret_health_body
+  signature: def interpret_health_body(body) -> HealthInterpretation
+  summary: Interpret a raw /health JSON body into structured fields.
+- file: scripts/agent/shared/health_models.py
+  kind: function
+  name: extract_health_reason
+  signature: def extract_health_reason(body) -> str | None
+  summary: Extract a human-readable reason string from a /health body.
+- file: scripts/agent/shared/health_models.py
+  kind: function
+  name: summarize_dependencies
+  signature: def summarize_dependencies(deps) -> list[str]
+  summary: Summarise dependency statuses, returning only failed required ones.
+- file: scripts/agent/shared/health_models.py
+  kind: function
+  name: summarize_details
+  signature: def summarize_details(details) -> list[str]
+  summary: Summarise detail entries, truncating large payloads.
+- file: scripts/agent/shared/models.py
+  kind: class
+  name: ToolApprovalEvent
+  signature: class ToolApprovalEvent
+  summary: Structured audit event for tool_approval log entries.
+- file: scripts/agent/shared/models.py
+  kind: class
+  name: ToolExecEvent
+  signature: class ToolExecEvent
+  summary: Structured audit event for tool_exec log entries.
+- file: scripts/agent/shared/retry_helper.py
+  kind: async function
+  name: retry_once_with_delay
+  signature: async def retry_once_with_delay(fn, delay, shutdown_event, interrupt_msg,
+    *, skip_first_attempt, fatal_prefix) -> T
+  summary: Execute *fn* once; if it raises, wait *delay* seconds and retry once.
 - file: scripts/agent/signal_handler.py
   kind: class
   name: SignalHandler
@@ -863,6 +1713,181 @@ entries:
   name: WalCheckpointManager
   signature: class WalCheckpointManager
   summary: WAL checkpoint and backup manager.
+- file: scripts/agent/workflow/artifact_ops.py
+  kind: function
+  name: record_artifact
+  signature: def record_artifact(db, task_id, stage_id, uri, workflow_id, attempt_number)
+    -> ArtifactRef
+  summary: Insert an artifact reference into the database and return it.
+- file: scripts/agent/workflow/attempt_ops.py
+  kind: function
+  name: get_owner_id
+  signature: def get_owner_id() -> str
+  summary: 'Return this process''s owner identity: hostname-pid-random.'
+- file: scripts/agent/workflow/attempt_ops.py
+  kind: function
+  name: lease_expires_from
+  signature: def lease_expires_from(started_at, lease_duration_sec) -> str
+  summary: Derive the lease deadline from a production timestamp plus a duration.
+- file: scripts/agent/workflow/attempt_ops.py
+  kind: function
+  name: finish_attempt
+  signature: def finish_attempt(db, attempt_id, status, error_msg, error_kind, error_detail)
+    -> None
+  summary: Mark an attempt as completed with the given status and optional error details.
+- file: scripts/agent/workflow/idempotency_ops.py
+  kind: function
+  name: is_event_processed
+  signature: def is_event_processed(db, event_id) -> bool
+  summary: Check whether an event has already been processed by looking up its ID.
+- file: scripts/agent/workflow/idempotency_ops.py
+  kind: function
+  name: begin_stage_if_new
+  signature: def begin_stage_if_new(db, event_id, task_id, stage_id, lease_duration_sec,
+    workflow_id) -> AttemptRecord | None
+  summary: Atomically check event_id and start attempt if new.
+- file: scripts/agent/workflow/models.py
+  kind: class
+  name: TaskRecord
+  signature: class TaskRecord
+  summary: Database record for a workflow task execution.
+- file: scripts/agent/workflow/models.py
+  kind: class
+  name: AttemptRecord
+  signature: class AttemptRecord
+  summary: Database record for a single stage attempt within a task.
+- file: scripts/agent/workflow/models.py
+  kind: class
+  name: ArtifactRef
+  signature: class ArtifactRef
+  summary: Reference to an artifact produced by a stage execution.
+- file: scripts/agent/workflow/models.py
+  kind: class
+  name: StageDefinition
+  signature: class StageDefinition
+  summary: A single stage in a workflow definition.
+- file: scripts/agent/workflow/models.py
+  kind: class
+  name: RetryPolicy
+  signature: class RetryPolicy
+  summary: Retry policy configuration for a workflow.
+- file: scripts/agent/workflow/models.py
+  kind: class
+  name: WorkflowDef
+  signature: class WorkflowDef
+  summary: Workflow definition with stages and retry configuration.
+- file: scripts/agent/workflow/state_store.py
+  kind: class
+  name: RecoveryReport
+  signature: class RecoveryReport
+  summary: Classification counts from the last ``recover_stale_attempts()`` run.
+- file: scripts/agent/workflow/state_store.py
+  kind: class
+  name: StateStore
+  signature: class StateStore
+  summary: CRUD facade over workflow.sqlite. One instance per workflow engine lifecycle.
+- file: scripts/agent/workflow/task_ops.py
+  kind: function
+  name: create_task
+  signature: def create_task(db, session_id, turn_number, workflow_version, workflow_id)
+    -> TaskRecord
+  summary: Create a new task record.
+- file: scripts/agent/workflow/task_ops.py
+  kind: function
+  name: update_task_status
+  signature: def update_task_status(db, task_id, status, *, commit) -> None
+  summary: Update the status of a task record in the database.
+- file: scripts/agent/workflow/task_ops.py
+  kind: function
+  name: get_task_by_id
+  signature: def get_task_by_id(db, task_id) -> TaskRecord | None
+  summary: Return the task record for the given task_id, or None if absent.
+- file: scripts/agent/workflow/task_ops.py
+  kind: function
+  name: get_task_count
+  signature: def get_task_count(db, session_id) -> int
+  summary: Return the number of tasks associated with a session.
+- file: scripts/agent/workflow/task_ops.py
+  kind: function
+  name: get_workflow_count
+  signature: def get_workflow_count(db, session_id) -> int
+  summary: Return the number of distinct workflows for a session.
+- file: scripts/agent/workflow/tool_call_state_ops.py
+  kind: class
+  name: ToolCallState
+  signature: class ToolCallState
+  summary: Database record for one tool-call lifecycle row.
+- file: scripts/agent/workflow/tool_call_state_ops.py
+  kind: function
+  name: record_tool_call
+  signature: def record_tool_call(db, task_id, idempotency_key, tool, retry_class)
+    -> None
+  summary: Insert a tool-call row in state 'pending'.
+- file: scripts/agent/workflow/tool_call_state_ops.py
+  kind: function
+  name: finalize_tool_call
+  signature: def finalize_tool_call(db, idempotency_key, state) -> None
+  summary: Move a tool-call row to its final state, bumping updated_at.
+- file: scripts/agent/workflow/tool_call_state_ops.py
+  kind: function
+  name: pending_tool_calls
+  signature: def pending_tool_calls(db, task_id) -> list[ToolCallState]
+  summary: Return the task's pending tool-call rows, oldest first.
+- file: scripts/agent/workflow/tool_call_state_ops.py
+  kind: function
+  name: classify_stale_pending
+  signature: def classify_stale_pending(db, task_id, timeout_seconds) -> list[ToolCallState]
+  summary: Mark this task's pending rows older than `timeout_seconds` as 'interrupted'.
+- file: scripts/agent/workflow/tool_call_state_ops.py
+  kind: function
+  name: get_tool_call_state
+  signature: def get_tool_call_state(db, idempotency_key) -> ToolCallState | None
+  summary: Return one tool-call row by key, or None if absent.
+- file: scripts/agent/workflow/validate.py
+  kind: function
+  name: validate_path
+  signature: def validate_path(path) -> WorkflowDef
+  summary: Return the loaded WorkflowDef, or raise WorkflowLoadError if invalid.
+- file: scripts/agent/workflow/validate.py
+  kind: function
+  name: main
+  signature: def main() -> int
+  summary: Validate a workflow definition JSON file against the schema.
+- file: scripts/agent/workflow/workflow_engine.py
+  kind: class
+  name: WorkflowHaltError
+  signature: class WorkflowHaltError
+  summary: Raised when a task exceeds max_attempts and is halted.
+- file: scripts/agent/workflow/workflow_engine.py
+  kind: class
+  name: WorkflowTimeoutError
+  signature: class WorkflowTimeoutError
+  summary: Raised when a stage exceeds its timeout_sec.
+- file: scripts/agent/workflow/workflow_engine.py
+  kind: class
+  name: WorkflowStageFailure
+  signature: class WorkflowStageFailure
+  summary: Raised when a stage callback reports a typed failure result (kind llm_failure).
+- file: scripts/agent/workflow/workflow_engine.py
+  kind: class
+  name: WorkflowStageNotFoundError
+  signature: class WorkflowStageNotFoundError
+  summary: Raised when a requested stage_id has no StageDefinition in the loaded workflow.
+- file: scripts/agent/workflow/workflow_engine.py
+  kind: class
+  name: WorkflowEngine
+  signature: class WorkflowEngine
+  summary: Runs a workflow definition against a set of stage callbacks.
+- file: scripts/agent/workflow/workflow_loader.py
+  kind: class
+  name: WorkflowLoadError
+  signature: class WorkflowLoadError
+  summary: Raised when a workflow JSON file cannot be loaded or fails validation.
+- file: scripts/agent/workflow/workflow_loader.py
+  kind: class
+  name: WorkflowLoader
+  signature: class WorkflowLoader
+  summary: Loads a WorkflowDef from a JSON file in config/workflows/.
 - file: scripts/agent/workflow_engine_adapter.py
   kind: class
   name: WorkflowEngineWiringError
@@ -883,4 +1908,4 @@ generated_by: tools/generate_reference_table.py
 manifest: agent_api
 sources:
 - scripts/agent
-version: 1
+version: 2

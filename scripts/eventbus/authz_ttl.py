@@ -109,7 +109,7 @@ def sweep_expired_authorizations(
     log_authorization_change(
         consumer_id="system",
         request_id="",
-        route="/ttl_sweep",
+        route="ttl_sweep",
         target="ttl_expiry",
         detail=";".join(detail_parts),
         actor="",

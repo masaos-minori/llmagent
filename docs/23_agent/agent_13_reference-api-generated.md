@@ -29,7 +29,7 @@ threshold. Do not hand-edit between the guard comments — run the generator.
 ## Module Class/Function Reference (auto-generated)
 
 <!-- AUTO-GENERATED: generate_reference_table.py agent-class-function-reference -->
-Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-level public classes and functions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.
+Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-level public classes and functions; the subpackage symbols live in `docs/23_agent/agent_14_reference-api-subpackages-generated.md`). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.
 
 | File | Class/Function | Signature | Summary |
 |---|---|---|---|

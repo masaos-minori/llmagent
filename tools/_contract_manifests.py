@@ -20,7 +20,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO_ROOT / "schemas" / "contract_manifest.json"
 
-MANIFEST_VERSION = 1
+MANIFEST_VERSION = 2
 GENERATED_BY = "tools/generate_reference_table.py"
 
 

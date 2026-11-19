@@ -34,7 +34,7 @@ listing. Do not hand-edit between the guard comments — run the generator.
 ## Module Class/Function Reference (auto-generated)
 
 <!-- AUTO-GENERATED: generate_reference_table.py memory-class-function-reference -->
-Generated from `scripts/agent/memory/*.py` top-level public classes and functions. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type memory` to refresh.
+Generated from `registry/manifests/memory_api.yaml` (`scripts/agent/memory/*.py` top-level public classes and functions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.
 
 | File | Class/Function | Signature | Summary |
 |---|---|---|---|

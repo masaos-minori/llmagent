@@ -87,14 +87,15 @@ Startup fails if the configuration file contains any key not defined in `EventBu
 Temporary authorization grants expire on their own; no operator action is required.
 
 - An admin update may attach a TTL to newly granted pairs, bounded by `authz_max_ttl_seconds`; carried-over pairs keep their previous expiry.
-- A periodic sweep (interval `authz_sweep_interval_seconds`) removes expired grants by publishing an atomic removal generation, and emits one `log_authorization_change` audit record with `target="ttl_expiry"` for each removal cycle that changed the authorization map.
+- A periodic sweep (interval `authz_sweep_interval_seconds`) removes expired grants by publishing an atomic removal generation, and emits one `log_authorization_change` audit record with `route="ttl_sweep"` and `target="ttl_expiry"` for each removal cycle that changed the authorization map.
 - Generation-changing audit records carry `previous_generation` and `new_generation` fields in the record itself, so an operator can read any sweep or admin update as an explicit generation transition.
 - A concurrent admin update that bumps the generation while a sweep cycle is building makes that cycle abort; the sweep retries on the next interval. No authorization state is lost and nothing is published twice.
+- `ttl_sweep` and `startup` are non-route internal identifiers for the sweep loop and the startup baseline; every other audit record carries one of the registered path templates as its `route` value (`/health`, `/publish`, `/subscribe`, `/replay`, `/dlq`, `/dlq/{event_id}/requeue`, `/events/{event_id}/ack`, `/nack`, `/admin/topics/authorization`).
 
 ### Restart and Authorization Baseline
 
 - Runtime authorization overrides (admin updates and their TTL grants) are never persisted. After a restart the authorization map is exactly the configured baseline from `config/eventbus.toml`.
-- Each startup publishes the baseline generation (generation 0; generation numbering restarts from the baseline after a restart — numbers are not carried over) and emits one `log_privileged_action` audit record with `consumer_id="system"`, `route="/startup"`, `target="authz_baseline"`, whose `detail` carries the loaded baseline hash. This record is a startup baseline marker, not a security event.
+- Each startup publishes the baseline generation (generation 0; generation numbering restarts from the baseline after a restart — numbers are not carried over) and emits one `log_privileged_action` audit record with `consumer_id="system"`, `route="startup"`, `target="authz_baseline"`, whose `detail` carries the loaded baseline hash. This record is a startup baseline marker, not a security event.
 - Audit records correlate across restarts through that baseline hash (the hash is an opaque fingerprint, not configuration content).
 
 ---

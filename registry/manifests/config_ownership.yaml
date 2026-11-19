@@ -151,4 +151,4 @@ generated_by: tools/generate_reference_table.py
 manifest: config_ownership
 sources:
 - scripts/agent/services/config_field_registry.py
-version: 1
+version: 2

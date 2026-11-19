@@ -1260,10 +1260,10 @@ def test_reconcile_audit_note_requeued_subdirectory_not_orphaned(
     assert reconciled["orphans"] == 0
 
 
-def test_requeue_audit_record_carries_actor_and_request_id(
+def test_requeue_audit_record_uses_registered_route(
     client: TestClient, tmp_path: Path
 ) -> None:
-    """A successful requeue emits one privileged record carrying the operator token fingerprint and the real request id."""
+    """T-012 (REQ-007/AC-005): a successful requeue emits one privileged record whose `route` is the registered path template `/dlq/{event_id}/requeue`, carrying the operator token fingerprint and the real request id."""
 
     ev = {
         "event_id": str(uuid.uuid4()),
@@ -1298,7 +1298,7 @@ def test_requeue_audit_record_carries_actor_and_request_id(
         assert resp.json()["requeued"] is True
         assert mock_log.call_count == 1
         kwargs = mock_log.call_args.kwargs
-        assert kwargs["route"] == "/dlq/requeue"
+        assert kwargs["route"] == "/dlq/{event_id}/requeue"
         assert kwargs["target"] == event_id
         assert kwargs["actor"] == _derive_token_fingerprint(
             eventbus_test_tokens("test-token")["operator_token"]

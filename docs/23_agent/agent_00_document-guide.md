@@ -11,6 +11,7 @@ related:
   - agent_02_runtime-architecture.md
   - agent_05_llm-and-streaming.md
   - agent_12_reference-api.md
+  - agent_14_reference-api-subpackages-generated.md
   - governance_03_issue-and-uncertainty-management.md
   - governance_01_documentation-policy.md
   - governance_02_documentation-metadata.md
@@ -59,7 +60,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 | Question | File |
 |---|---|
-| What is the agent? Major components/deps, function signatures | `agent_01` / `agent_02` / `agent_12` |
+| What is the agent? Major components/deps, function signatures | `agent_01` / `agent_02` / `agent_12` / `agent_13` / `agent_14` |
 | 1-user-turn flow, history compression, persistence vs memory state | `agent_03` / `agent_04` |
 | Session vs memory responsibility boundary (canonical) | `agent_04_01` / `agent_11_01` |
 | SSE streaming, retry, `LLMTransportError` | `agent_05` |
@@ -68,7 +69,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 | SQLite tables used, startup/validation/troubleshooting, audit log | `agent_09` / `agent_10` |
 | Adding a new MCP server | `mcp_06_12` |
 | Memory layer | `agent_11` |
-| Where is class X defined and who calls it | `agent_12` → `agent_02` |
+| Where is class X defined and who calls it | `agent_12` / `agent_13` / `agent_14` → `agent_02` |
 
 ### Consistency Checklist
 

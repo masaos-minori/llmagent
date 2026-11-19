@@ -20,6 +20,6 @@ generated_by: tools/generate_reference_table.py
 manifest: db_schema_versions
 sources:
 - scripts/db/config.py
-- scripts/db/schema_sql.py
+- config/agent.toml
 - scripts/eventbus/schema.sql
-version: 1
+version: 2

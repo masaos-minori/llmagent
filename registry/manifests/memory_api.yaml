@@ -334,4 +334,4 @@ generated_by: tools/generate_reference_table.py
 manifest: memory_api
 sources:
 - scripts/agent/memory
-version: 1
+version: 2

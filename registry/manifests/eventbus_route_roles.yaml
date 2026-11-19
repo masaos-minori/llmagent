@@ -1,36 +1,48 @@
 entries:
-- roles:
-  - CONSUMER
-  route: /ack
-- roles:
+- method: POST
+  roles:
   - ADMIN
-  route: /admin/*
-- roles:
+  route: /admin/topics/authorization
+- method: GET
+  roles:
   - OPERATOR
   route: /dlq
-- roles:
+- method: POST
+  roles:
   - OPERATOR
-  route: /dlq/requeue
-- roles:
+  route: /dlq/{event_id}/requeue
+- method: POST
+  roles:
   - CONSUMER
-  route: /events
-- roles:
+  route: /events/{event_id}/ack
+- method: GET
+  roles:
   - MONITORING
   route: /health
-- roles:
+- method: POST
+  roles:
   - CONSUMER
   route: /nack
-- roles:
+- method: POST
+  roles:
   - PUBLISHER
   route: /publish
-- roles:
+- method: GET
+  roles:
   - OPERATOR
   route: /replay
-- roles:
+- method: GET
+  roles:
   - CONSUMER
   route: /subscribe
 generated_by: tools/generate_reference_table.py
 manifest: eventbus_route_roles
 sources:
-- scripts/eventbus/auth.py
-version: 1
+- scripts/eventbus/ack_route.py
+- scripts/eventbus/admin_route.py
+- scripts/eventbus/dlq_route.py
+- scripts/eventbus/health_route.py
+- scripts/eventbus/publish_route.py
+- scripts/eventbus/replay_route.py
+- scripts/eventbus/subscribe_route.py
+version: 2

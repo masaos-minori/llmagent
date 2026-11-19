@@ -145,7 +145,7 @@ class TestTTLExpirySweep:
         call_args = mock_log.call_args
         assert call_args.kwargs["consumer_id"] == "system"
         assert call_args.kwargs["target"] == "ttl_expiry"
-        assert call_args.kwargs["route"] == "/ttl_sweep"
+        assert call_args.kwargs["route"] == "ttl_sweep"
         assert call_args.kwargs["previous_generation"] == granted.generation
         assert call_args.kwargs["new_generation"] == new_gen.generation
         assert before.generation <= granted.generation
@@ -303,7 +303,7 @@ class TestRestartBaselineAudit:
             assert len(startup_records) == 1
             record = startup_records[0].kwargs
             assert record["consumer_id"] == "system"
-            assert record["route"] == "/startup"
+            assert record["route"] == "startup"
             assert record["request_id"] == ""
             baseline_hash = authorization_baseline_hash(cfg)
             assert record["detail"] == (
@@ -454,3 +454,36 @@ class TestSweepLoopState:
 
         assert state.last_authz_sweep_result == "failed"
         assert state.last_authz_sweep_time.endswith("Z")
+
+
+def test_sweep_audit_record_uses_internal_identifier(gen_client: TestClient) -> None:
+    """T-013 (REQ-007/AC-005): the TTL sweep's audit record names the non-route
+    internal identifier `ttl_sweep`, which no committed route entry can match."""
+    from unittest.mock import patch
+
+    resp = post_topics_authorization(
+        gen_client,
+        {"consumer_authorization": {"c1": ["ttl-identifier-topic"]}},
+        ttl_seconds=3600,
+        headers=ADMIN_AUTH,
+    )
+    assert resp.status_code == 200
+    granted = _require_generation()
+    clock, advance = injectable_clock(start=resp.json()["effective_at"])
+    advance(3601)
+    with patch("eventbus.authz_ttl.log_authorization_change") as mock_log:
+        swept = sweep_expired_authorizations(gen_client.app, clock)
+
+    assert swept is not None
+    assert swept.generation == granted.generation + 1
+    assert mock_log.call_count == 1
+    route = mock_log.call_args.kwargs["route"]
+    assert route == "ttl_sweep"
+
+    # The identifier is not a route: every committed route-manifest key is a
+    # registered path template, so the sweep record can never be read as one.
+    import tools.generate_reference_table as grt
+
+    committed = grt.load_manifest("eventbus_route_roles", grt.MANIFEST_DIR)
+    assert committed is not None
+    assert route not in {entry["route"] for entry in committed["entries"]}

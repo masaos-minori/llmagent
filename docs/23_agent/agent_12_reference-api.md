@@ -7,6 +7,7 @@ tags:
 related:
   - agent_02_runtime-architecture.md
   - agent_13_reference-api-generated.md
+  - agent_14_reference-api-subpackages-generated.md
   - agent_00_document-guide.md
   - governance_01_documentation-policy.md
   - governance_03_issue-and-uncertainty-management.md
@@ -50,6 +51,7 @@ The API reference focuses on "what the API is" and "how it works." "Why this API
 - Calls from the REPL loop driver are always in `await` format.
 - Different fallback behaviors exist for different error types upon failure.
 - The memory layer is optional and designed to be safely guarded when `ctx.services.memory is None`.
+- The generated class and function index is split: top-level `scripts/agent/` symbols are listed in `agent_13_reference-api-generated.md`, `scripts/agent/` subpackage symbols in `agent_14_reference-api-subpackages-generated.md`.
 
 ## Known Limitations
 

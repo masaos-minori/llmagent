@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     log_privileged_action(
         consumer_id="system",
         request_id="",
-        route="/startup",
+        route="startup",
         target="authz_baseline",
         detail=(
             "baseline_hash:"

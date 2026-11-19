@@ -74,20 +74,6 @@ class AuthzGeneration:
     expiries: frozenset[tuple[str, str, float]] = frozenset()
 
 
-# Route-to-role mapping: which roles may access which route category
-_ROUTE_ROLE_MAP: dict[str, set[Role]] = {
-    "/health": {Role.MONITORING},
-    "/publish": {Role.PUBLISHER},
-    "/subscribe": {Role.CONSUMER},
-    "/events": {Role.CONSUMER},
-    "/ack": {Role.CONSUMER},
-    "/nack": {Role.CONSUMER},
-    "/dlq": {Role.OPERATOR},
-    "/dlq/requeue": {Role.OPERATOR},
-    "/replay": {Role.OPERATOR},
-    "/admin/*": {Role.ADMIN},
-}
-
 # The one AuthzGeneration in force; None until the lifespan publishes the baseline.
 _CURRENT_GENERATION: AuthzGeneration | None = None
 
