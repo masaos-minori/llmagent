@@ -40,7 +40,7 @@ Land the verified no-decision fixes as small revertable phases, pin the TTL base
 - `REQ-003`: The EventBus request-ID middleware function is renamed to `attach_request_id_middleware`, and every caller, test, docstring cross-reference, and ADR-013 mention of the EventBus function is updated; the MCP function of the same old name and its callers stay unchanged.
 - `REQ-004`: ADR-013 Scope (Components and Tests) and Implementation References list `admin_route.py`, `authz_ttl.py`, `test_admin_topics_authorization.py`, and `test_authz_generation_ttl.py`; Implementation Notes states the verified TTL baseline behavior; the decision-reference and formatting claims are re-checked and fixed only if reproduced; no Decision, Invariant, Blocking value, authority edge, or Approval text changes.
 - `REQ-005`: The DLQ semantics guide defines the `delivery: "replay"` value returned by the requeue endpoint.
-- `REQ-006`: Characterization tests pin the TTL baseline behavior (baseline hash ignores expiries, restart baseline carries no expiries, carried-over pairs keep their expiry, the sweep removes an expired pair from runtime config only) without changing behavior.
+- `REQ-006`: Characterization tests pin the TTL baseline behavior that no existing test pins (baseline hash ignores expiries, carried-over pairs keep their expiry, the sweep removes an expired pair from runtime config only and a restart restores a pair that the TOML baseline lists) without changing behavior. The restart baseline carrying no expiries is already pinned by `TestRestartBaselineAudit::test_startup_emits_one_authz_baseline_record` and is cited, not duplicated.
 - `REQ-007`: `registry/manifests/eventbus_api.yaml` and the guarded block in `docs/24_eventbus/eventbus_08_reference_api.md` are regenerated, not hand-edited, after REQ-002 and REQ-003.
 
 ## Implementation Target Files
@@ -106,7 +106,7 @@ glob patterns, components, file groups, or vague phrases.
 - AC-3 (REQ-003): `rg "attach_auth_middleware" scripts/eventbus tests/eventbus registry/manifests/eventbus_api.yaml docs/24_eventbus` finds nothing; the ADR-013 mentions of the MCP function remain; `scripts/mcp_servers/server.py` references the new EventBus name; every EventBus response still carries `X-Request-Id`.
 - AC-4 (REQ-004): ADR-013 Scope and Implementation References list the four files named in REQ-004; Implementation Notes states the TTL baseline behavior exactly as pinned by REQ-006; `tools/check_adr_preservation.py` reports no change to a Decision, Failure Policy, Invariant, Known Deviations, or Approval text; the decision-reference and formatting re-check outcome is recorded in the commit message.
 - AC-5 (REQ-005): The DLQ semantics guide defines `delivery: "replay"` and points to the publish durability guide.
-- AC-6 (REQ-006): The new tests pass against unchanged code; a test that exposes a defect stops the phase and is filed as an issue, not fixed here.
+- AC-6 (REQ-006): Three new tests (baseline hash independent of expiries, carried-over expiry kept, runtime-only removal restored by a restart) pass against unchanged code; no existing test is duplicated; a test that exposes a defect stops the phase and is filed as an issue, not fixed here.
 - AC-7 (REQ-007): `uv run python tools/generate_reference_table.py --check` exits 0.
 - Not covered by this Plan: the issue's criteria for per-consumer token 403, a config without a required-role token failing load, and the Invariant-to-test mapping of `admin_route.py` and `authz_ttl.py`; each depends on an owner decision (UNK-01, UNK-02, UNK-05).
 
@@ -114,7 +114,7 @@ glob patterns, components, file groups, or vague phrases.
 - REQ-001: existing `test_admin_token_grants_control_plane_roles_only` and `tests/eventbus/test_eventbus_auth.py` guard the refactor; no new test, because behavior does not change.
 - REQ-002: existing `test_load_config_rejects_empty_auth_token` guards the removal.
 - REQ-003: existing `tests/eventbus/test_eventbus_auth.py` (rename in the fixture builder) and the X-Request-Id assertions.
-- REQ-006: new characterization tests in `tests/eventbus/test_authz_generation_ttl.py`, written first and passing on unchanged code.
+- REQ-006: three new characterization tests in `tests/eventbus/test_authz_generation_ttl.py`, written first and passing on unchanged code; the restart baseline behavior is covered by the existing `TestRestartBaselineAudit`.
 - REQ-004, REQ-005, REQ-007: documentation and generated artifacts, verified by the checkers in the Validation plan.
 
 ## Documentation Impact
@@ -275,12 +275,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Principal build once and dead 500 branch removal | Pending | — | — | |
-| 2 | Middleware rename and callers | Pending | — | — | |
-| 3 | TTL characterization tests | Pending | — | — | |
-| 4 | ADR-013 and DLQ guide documentation | Pending | — | — | |
-| 5 | Regenerate manifest and reference block | Pending | — | — | |
-| 6 | Validation, commit, and deploy hand-off | Pending | — | — | |
+| 1 | Principal build once and dead 500 branch removal | In Progress | — | — |  |
+| 2 | Middleware rename and callers | In Progress | — | — |  |
+| 3 | TTL characterization tests | In Progress | — | — |  |
+| 4 | ADR-013 and DLQ guide documentation | In Progress | — | — |  |
+| 5 | Regenerate manifest and reference block | In Progress | — | — |  |
+| 6 | Validation, commit, and deploy hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -290,7 +290,14 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261119-094420_01_scripts_eventbus_auth.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261119-094420_02_scripts_eventbus_app.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261119-094420_04_scripts_mcp_servers_server.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261119-094420_05_tests_eventbus_test_authz_generation_ttl.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261119-094420_06_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261119-094420_07_docs_24_eventbus_eventbus_05_dlq_offsets_and_delivery_semantics.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261119-094420_08_registry_manifests_eventbus_api.yaml.md | 5 | Procedure | Pending | — | — |
+| implementations/20261119-094420_09_docs_24_eventbus_eventbus_08_reference_api.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
