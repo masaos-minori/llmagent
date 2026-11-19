@@ -15,7 +15,7 @@ from typing import Any
 from shared.logger import Logger
 
 from rag.exceptions import TokenizationError
-from rag.ingestion.chunk_utils import _split_overlong, start_next_buf
+from rag.ingestion.chunk_utils import _split_overlong, accumulate_items, start_next_buf
 from rag.utils import normalize_unicode
 
 logger = Logger(__name__, "/opt/llm/logs/chunk.log")
@@ -79,87 +79,102 @@ class ChunkJapaneseMixin:
         self,
         pairs: list[tuple[str, str | None]],
     ) -> list[tuple[str, str | None]]:
-        """Accumulate (original, normalized) sentence pairs into chunk pairs by original text length; applies overlap from buffer tail when configured. A sentence longer than max_chunk is segmented by the shared _split_overlong rule and an empty buffer never emits. Empty normalized results (None) are preserved and surfaced as NULL so downstream COALESCE falls back to the original text."""
-        if not pairs:
-            return []
-        result: list[tuple[str, str | None]] = []
-        self._orig_buf = ""
-        self._norm_buf = ""
-        for orig, norm in pairs:
-            norm_str = norm if norm is not None else ""
-            # An oversized sentence is segmented into pieces within max_chunk via the
-            # shared rule so no emitted pair exceeds max_chunk (ragcrv001). Detect it
-            # before the buffer branches: a buffered lead is flushed first so it is
-            # never dropped (ragc002), whatever its length, and the pieces are dumped
-            # directly without tail-merging them back into that lead.
-            if len(orig) > self._max_chunk:
-                if self._orig_buf:
-                    result.append((self._orig_buf, self._norm_buf or None))
-                    self._orig_buf = ""
-                    self._norm_buf = ""
-                result.extend(
-                    (piece, None)
-                    for piece in _split_overlong(orig, " ", self._max_chunk)
+        """Accumulate (original, normalized) sentence pairs into chunk pairs by original text length; applies overlap from buffer tail when configured. A sentence longer than max_chunk is segmented by the shared _split_overlong rule and an empty buffer never emits. Empty normalized results (None) are preserved and surfaced as NULL so downstream COALESCE falls back to the original text.
+
+        Delegates the accumulation loop to :func:`accumulate_items`; morphological normalization stays here.
+        """
+
+        def fits(buf: tuple[str, str | None], item: tuple[str, str | None]) -> bool:
+            return len(buf[0]) + len(item[0]) + 1 <= self._max_chunk
+
+        def append_item(
+            buf: tuple[str, str | None], item: tuple[str, str | None]
+        ) -> tuple[str, str | None]:
+            prev_norm = buf[1] if buf[1] is not None else ""
+            item_norm = item[1] if item[1] is not None else ""
+            new_orig = (buf[0] + " " + item[0]).strip()
+            new_norm = (prev_norm + " " + item_norm).strip()
+            return (new_orig, new_norm)
+
+        def segment_oversized(
+            buf: tuple[str, str | None], item: tuple[str, str | None]
+        ) -> list[str] | None:
+            # An oversized sentence is segmented within max_chunk; any buffered
+            # lead is flushed by place_oversized before the pieces are dumped.
+            del buf  # unused; oversized detection depends only on the item.
+            if len(item[0]) > self._max_chunk:
+                return _split_overlong(item[0], " ", self._max_chunk)
+            return None
+
+        def place_oversized(
+            buf: tuple[str, str | None],
+            item: tuple[str, str | None],
+            pieces: list[str],
+        ) -> tuple[list[tuple[str, str | None]], tuple[str, str | None]]:
+            # Flush any buffered lead, then dump split pieces with None norm.
+            del item  # unused; only the buffered lead is flushed.
+            appends: list[tuple[str, str | None]] = (
+                [(buf[0], buf[1] or None)] if buf[0] else []
+            )
+            wrapped: list[tuple[str, str | None]] = [(p, None) for p in pieces]
+            return (appends + wrapped, ("", ""))
+
+        def should_emit(buf: tuple[str, str | None]) -> bool:
+            return len(buf[0]) >= self._min_chunk
+
+        def emit_and_overlap(
+            result: list[tuple[str, str | None]],
+            buf: tuple[str, str | None],
+            item: tuple[str, str | None],
+        ) -> tuple[str, str | None]:
+            result.append((buf[0], buf[1]))
+            buf_norm = buf[1] if buf[1] is not None else ""
+            item_norm = item[1] if item[1] is not None else ""
+            new_orig = start_next_buf(buf[0], item[0], " ", self._chunk_overlap)
+            new_norm = start_next_buf(buf_norm, item_norm, " ", self._chunk_overlap)
+            return (new_orig, new_norm)
+
+        def short_tail(
+            result: list[tuple[str, str | None]],
+            buf: tuple[str, str | None],
+            item: tuple[str, str | None],
+        ) -> tuple[str, str | None]:
+            norm_str = item[1] if item[1] is not None else ""
+            # Retain the short (< min_chunk) buffer as its own chunk rather than
+            # dropping it; an empty buffer simply starts fresh from this sentence.
+            if buf[0]:
+                result.append((buf[0], buf[1] or None))
+            return (item[0], norm_str)
+
+        def finalize_buffer(
+            result: list[tuple[str, str | None]],
+            buf: tuple[str, str | None],
+        ) -> None:
+            if not buf[0]:
+                return
+            if len(buf[0]) >= self._min_chunk:
+                result.append((buf[0], buf[1] or None))
+            elif result:
+                buf_norm = buf[1] if buf[1] is not None else ""
+                last_o, last_n = result[-1]
+                result[-1] = (
+                    (last_o + " " + buf[0]).strip(),
+                    (last_n + " " + buf_norm).strip() if last_n is not None else None,
                 )
-                continue
-            if len(self._orig_buf) + len(orig) + 1 <= self._max_chunk:
-                self._append_to_buffer(orig, norm_str)
-            elif len(self._orig_buf) >= self._min_chunk:
-                self._emit_and_start_new(result, orig, norm_str)
-            elif self._orig_buf:
-                # Retain the short (< min_chunk) buffer instead of dropping it: emit it
-                # as its own chunk, then start a fresh buffer from this sentence
-                # (ragc002).
-                result.append((self._orig_buf, self._norm_buf or None))
-                self._orig_buf = orig
-                self._norm_buf = norm_str
-            else:
-                # Empty buffer never emits a pair: start it fresh from this sentence
-                # (ragcrv001).
-                self._orig_buf = orig
-                self._norm_buf = norm_str
-        if not self._orig_buf:
-            return result
-        if len(self._orig_buf) >= self._min_chunk:
-            norm_out = self._norm_buf or None
-            result.append((self._orig_buf, norm_out))
-        elif result:
-            self._merge_tail_into_last(result)
-        return result
 
-    def _append_to_buffer(self, orig: str, norm: str) -> None:
-        """Append sentence to the running buffer."""
-        self._orig_buf = (self._orig_buf + " " + orig).strip()
-        self._norm_buf = (self._norm_buf + " " + norm).strip()
-
-    def _emit_and_start_new(
-        self,
-        result: list[tuple[str, str | None]],
-        orig: str,
-        norm: str,
-    ) -> None:
-        """Emit buffer as chunk into *result* and start new buffer with overlap."""
-        result.append((self._orig_buf, self._norm_buf))
-        if self._chunk_overlap:
-            self._orig_buf = start_next_buf(
-                self._orig_buf, orig, " ", self._chunk_overlap
-            )
-            self._norm_buf = start_next_buf(
-                self._norm_buf, norm, " ", self._chunk_overlap
-            )
-        else:
-            self._orig_buf = orig
-            self._norm_buf = norm
-
-    def _reset_buffer(self, orig: str, norm: str) -> None:
-        """Discard buffer and start fresh from this sentence."""
-        self._orig_buf = orig
-        self._norm_buf = norm
-
-    def _merge_tail_into_last(self, result: list[tuple[str, str | None]]) -> None:
-        """Merge short tail into the last chunk of *result* to avoid losing content."""
-        last_o, last_n = result[-1]
-        result[-1] = (
-            (last_o + " " + self._orig_buf).strip(),
-            (last_n + " " + self._norm_buf).strip() if last_n is not None else None,
+        return accumulate_items(
+            pairs,
+            " ",
+            self._min_chunk,
+            self._max_chunk,
+            self._chunk_overlap,
+            fits=fits,
+            append_item=append_item,
+            segment_oversized=segment_oversized,
+            place_oversized=place_oversized,
+            should_emit=should_emit,
+            emit_and_overlap=emit_and_overlap,
+            short_tail=short_tail,
+            finalize_buffer=finalize_buffer,
+            initial_buffer=("", ""),
         )

@@ -53,7 +53,11 @@ For exhaustive signature and constant detail, see `crawler_utils.py`, `chunk_eng
 
 ### 7.1 Module Overview
 
-`chunk_utils.py` — Buffer helpers imported individually by `ChunkEnglishMixin` and `ChunkSplitter`. Provides management of trailing duplicate buffers and accumulation of items subject to min/max chunk size constraints. `ChunkJapaneseMixin` does not use it and keeps its own buffering implementation.
+`chunk_utils.py` — Shared buffer helpers imported individually by `ChunkEnglishMixin`, `ChunkJapaneseMixin`, and `ChunkSplitter`. Its two responsibilities are trailing duplicate-buffer management (`start_next_buf`) and the min/max/overlap accumulation loop (`accumulate_items`).
+
+`accumulate_items` owns the single greedy-accumulation loop for one chunking path. The three chunkers previously encoded the same min/max/overlap intent with divergent oversized-item, short-tail, and end-of-stream rules; the collaborator keeps one loop and takes each path's divergent decisions as explicit strategy callbacks (fits test, oversized-item segmentation and placement, emit threshold, overlap, short-tail handling, end-of-stream finalize), so no path re-implements the loop. `T` is the element type for the path — a plain `str` (code/English) or an `(original, normalized)` pair (Japanese), where an empty normalized value is preserved and surfaced so downstream `COALESCE` falls back to the original text.
+
+The three chunking paths route through it while keeping their language-specific splitting: `merge_text_items` (code), `_merge_paragraphs_en` (English), and `_merge_ja_sentence_pairs` (Japanese). Each path supplies its own oversized-item, short-tail, separator, and end-of-stream rules as strategy callbacks; oversized items are segmented by the path's own splitter — character-level `_split_overlong` for the code and Japanese paths, sentence-level `_split_sentences_en` for English — so the shared loop never re-implements either the splitting or the accumulation.
 
 ---
 

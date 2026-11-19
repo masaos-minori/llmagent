@@ -52,10 +52,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify/adjust the `_chunk_code` call site | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Verify/adjust the `_chunk_code` call site | Completed | — | 20261119-220006 | Verified _chunk_code call site unchanged (merge_text_items signature unchanged); no code change required. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261119-220006 | Verified _chunk_code call site unchanged (merge_text_items signature unchanged); no code change required. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261119-220006 | Verified _chunk_code call site unchanged (merge_text_items signature unchanged); no code change required. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

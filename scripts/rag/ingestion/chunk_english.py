@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 
-from rag.ingestion.chunk_utils import start_next_buf
+from rag.ingestion.chunk_utils import accumulate_items, start_next_buf
 
 
 class ChunkEnglishMixin:
@@ -48,38 +48,61 @@ class ChunkEnglishMixin:
         return kept
 
     def _merge_paragraphs_en(self, paragraphs: list[str]) -> list[str]:
-        """Accumulate paragraphs into <=max_chunk chunks; split oversized paragraphs."""
-        if not paragraphs:
-            return []
-        raw_chunks: list[str] = []
-        self._buf = ""
-        for para in paragraphs:
-            para = para.strip()
-            if not para:
-                continue
-            if len(para) > self._max_chunk:
-                self._flush_and_split(para, raw_chunks)
-            elif len(self._buf) + len(para) + 1 <= self._max_chunk:
-                self._buf = (self._buf + "\n" + para).strip()
-            elif self._buf:
-                self._flush_and_merge(self._buf, para, raw_chunks)
-            else:
-                self._buf = para
-        if self._buf:
-            raw_chunks.append(self._buf)
-        return raw_chunks
+        """Accumulate paragraphs into <=max_chunk chunks; split oversized paragraphs.
 
-    def _flush_and_split(self, para: str, chunks: list[str]) -> None:
-        """Flush buffer and split oversized paragraph."""
-        if buf := self._buf:
-            chunks.append(buf)
-            self._buf = ""
-        chunks.extend(self._split_sentences_en(para))
+        Delegates the accumulation loop to :func:`accumulate_items`; sentence
+        splitting stays in this mixin.
+        """
+        non_empty = [p.strip() for p in paragraphs if p.strip()]
 
-    def _flush_and_merge(self, buf: str, para: str, chunks: list[str]) -> None:
-        """Flush buffer and start new buffer with overlap."""
-        chunks.append(buf)
-        self._buf = start_next_buf(buf, para, "\n", self._chunk_overlap)
+        def fits(buf: str, item: str) -> bool:
+            return len(buf) + len(item) + 1 <= self._max_chunk
+
+        def append_item(buf: str, item: str) -> str:
+            return (buf + "\n" + item).strip()
+
+        def segment_oversized(buf: str, item: str) -> list[str] | None:
+            if len(item) > self._max_chunk:
+                return self._split_sentences_en(item)
+            return None
+
+        def place_oversized(
+            buf: str, item: str, pieces: list[str]
+        ) -> tuple[list[str], str]:
+            # Flush any buffered lead before dumping the split pieces.
+            appends: list[str] = [buf] if buf else []
+            return (appends + pieces, "")
+
+        def should_emit(buf: str) -> bool:
+            return bool(buf)
+
+        def emit_and_overlap(result: list[str], buf: str, item: str) -> str:
+            result.append(buf)
+            return start_next_buf(buf, item, "\n", self._chunk_overlap)
+
+        def short_tail(result: list[str], buf: str, item: str) -> str:
+            return item
+
+        def finalize_buffer(result: list[str], buf: str) -> None:
+            if buf:
+                result.append(buf)
+
+        return accumulate_items(
+            non_empty,
+            "\n",
+            self._min_chunk,
+            self._max_chunk,
+            self._chunk_overlap,
+            fits=fits,
+            append_item=append_item,
+            segment_oversized=segment_oversized,
+            place_oversized=place_oversized,
+            should_emit=should_emit,
+            emit_and_overlap=emit_and_overlap,
+            short_tail=short_tail,
+            finalize_buffer=finalize_buffer,
+            initial_buffer="",
+        )
 
     def _split_sentences_en(self, text: str) -> list[str]:
         """Split at sentence boundaries (. ! ?). Oversized sentences are kept as-is."""

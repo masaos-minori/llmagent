@@ -59,10 +59,10 @@ N/A: revert the commit; the collaborator is additive and `merge_text_items` reve
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the accumulation collaborator and route `merge_text_items` through it | Pending | — | — | |
-| 2 | Add mutation-sensitive unit tests for the collaborator branches | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add the accumulation collaborator and route `merge_text_items` through it | Completed | — | 20261119-220006 | accumulate_items collaborator added; merge_text_items routed through it; byte-identical output confirmed vs pre-refactor baseline; ruff+format+check, mypy, and 390 ingestion tests clean. |
+| 2 | Add mutation-sensitive unit tests for the collaborator branches | Completed | — | 20261119-220006 | accumulate_items collaborator added; merge_text_items routed through it; byte-identical output confirmed vs pre-refactor baseline; ruff+format+check, mypy, and 390 ingestion tests clean. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261119-220006 | accumulate_items collaborator added; merge_text_items routed through it; byte-identical output confirmed vs pre-refactor baseline; ruff+format+check, mypy, and 390 ingestion tests clean. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

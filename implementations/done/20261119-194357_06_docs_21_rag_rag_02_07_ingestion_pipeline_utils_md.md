@@ -53,8 +53,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 2 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261119-215140 | All rag docs checkers pass (quality/structure/content-policy --strict/consistency); wording aligned with ragcrv010. |
+| 2 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261119-215145 | Section 7.1 rewritten: single-collaborator ownership of accumulate_items loop + strategy-input contract; three routing functions documented; stale 'Japanese does not use it' claim corrected. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

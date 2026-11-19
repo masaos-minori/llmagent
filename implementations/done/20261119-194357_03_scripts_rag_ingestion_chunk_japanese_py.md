@@ -58,10 +58,10 @@ N/A: revert the commit; the loop body restores the prior inline implementation.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Route `_merge_ja_sentence_pairs` through the collaborator with paired companion input | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Route `_merge_ja_sentence_pairs` through the collaborator with paired companion input | Completed | — | 20261119-220006 | _merge_ja_sentence_pairs routed with paired-companion input; byte-identical output confirmed; ruff+mypy+tests clean. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261119-220006 | _merge_ja_sentence_pairs routed with paired-companion input; byte-identical output confirmed; ruff+mypy+tests clean. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261119-220006 | _merge_ja_sentence_pairs routed with paired-companion input; byte-identical output confirmed; ruff+mypy+tests clean. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
