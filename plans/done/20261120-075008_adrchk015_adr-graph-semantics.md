@@ -145,13 +145,14 @@ Yes. ADR-016 (semantics and count wording, gated), `docs/10_adr/adr_01_index.md`
 - Per the issue's own classification, checker semantics on existing data (status values, duplicate edges, host loopback, list entries backed by existing edges) need no maintainer decision; every change that alters an edge, a target, an ADR decision/invariant text, or a governance definition of semantics (REQ-019..REQ-025) is gated on an approval record citing the governance_03 Part 5 ledger.
 - `tools/TOOL_DESCRIPTIONS.md` updates are mandatory sync for tool behavior changes (`check_tool_descriptions_sync.py`) and do not need an approval record.
 - The AAL-018 pending bullet already covers the ADR-016 pair-count sentence; REQ-025 extends that pending scope rather than creating a competing edit.
+- Plan review 20261120-091749 (user decision): the scope amendment is confirmed, and UNK-01/UNK-03 are reclassified `Blocking? = False` — the Phase 3 approval gate is carried by Execution Status row 3 (`Blocked`), the Blocker Log, and the `Gated:` markers on Phase-3 procedure rows, mirroring the phase-gate form used by the closed adrchk011 plan.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Maintainer approval for REQ-019..REQ-025 (edge semantics definition, edge reversal, new targets, new Reference edges, ADR-016 count wording) | No approval record exists; ADR-016 line 165 shows the count wording itself is still pending (AAL-018) | Prepare the proposal text in the Design section; stop; implementation of those phases begins only when an approval record citing an AAL entry exists | True (for Phases 3 only; Phases 1-2 proceed) |
-| UNK-02 | Maintainer sign-off of the recorded scope amendment (generate_adr_authority.py + baseline file) | The issue constraint requires the amendment to be reported and accepted | Recorded in Assumptions and here; plan review confirms it | False (Phases 1-2 do not need it; REQ-014/REQ-015 steps wait for plan-review confirmation) |
-| UNK-03 | Whether REQ-025 merges under the existing AAL-018 entry or needs a new ledger entry | governance_03 Part 5 entry scope wording | Resolve at proposal review with the ledger owner | True (REQ-025 only) |
+| UNK-01 | Maintainer approval for REQ-019..REQ-025 (edge semantics definition, edge reversal, new targets, new Reference edges, ADR-016 count wording) | No approval record exists; ADR-016 line 165 shows the count wording itself is still pending (AAL-018) | Prepare the proposal text in the Design section; stop; implementation of those phases begins only when an approval record citing an AAL entry exists. Reclassified from `True` at plan review 20261120-091749 (user decision): the gate is Phase 3-only and is carried by Execution Status row 3 (`Blocked`), the Blocker Log, and the `Gated:` markers on Phase-3 procedure rows; Phases 1-2 proceed | False |
+| UNK-02 | Maintainer sign-off of the recorded scope amendment (generate_adr_authority.py + baseline file) | The issue constraint requires the amendment to be reported and accepted | Recorded in Assumptions and here; confirmed at plan review 20261120-091749 (user decision), so the REQ-014/REQ-015 steps proceed | False |
+| UNK-03 | Whether REQ-025 merges under the existing AAL-018 entry or needs a new ledger entry | governance_03 Part 5 entry scope wording | Resolve at proposal review with the ledger owner. Reclassified from `True` at plan review 20261120-091749 (user decision): REQ-025 stays inside the gated Phase 3 package and its procedure rows carry the `Gated:` marker | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -179,7 +180,7 @@ separate scope-of-record.
 - Generator: `generate_adr_authority.py` gains a second output target: the governance_01 guarded block `adr-section-header-list`, generated from the constant exported by `check_adr_structure.py` (import direction: generator imports the checker constant; the checker stays the normative source). `--check` verifies both the Index blocks and the governance_01 block. Generation refuses while any model finding (including `EDGE_DUPLICATE`, `ADR_STATUS_INVALID`) exists.
 - Approval-gated proposal text (prepared here; NOT implemented until an approval record exists):
   - P1 (REQ-019): "A dependency edge `A --T--> B` (T in Requires/Governs/Specializes/Extends/Exception-to) means A depends on, governs, specializes, extends, or exceptions the decision owned by B; B is the decision-owner endpoint. `Reference` is informational and carries no direction claim. A body reference is normative only when the referenced decision changes behavior of the citing ADR; normative references must appear as a model edge and in the citing ADR's front matter."
-  - P2 (REQ-021): reverse `ADR-001 --Requires--> ADR-004` to `ADR-004 --Requires--> ADR-001`; the pair's `ADR-004 --Reference--> ADR-001` stays intentional; ADR-001's front matter keeps both entries.
+  - P2 (REQ-021): reverse `ADR-001 --Requires--> ADR-004` to `ADR-004 --Requires--> ADR-001`; preserve the bidirectional pair as `ADR-001 --Reference (intentional)--> ADR-004` with the ownership-split note — the preserved `Reference` half flips sides together with the reversal, matching the REQ-021 text (aligned at procedure generation 20261120-092705); ADR-001's front matter keeps both entries.
   - P3 (REQ-022): add `decision_target = "platform.config-isolation"`, `primary_adr = "ADR-002"`, supplemental `ADR-004` limited to "failure classification of Config Isolation violations only".
   - P4 (REQ-023): add supplemental `{ adr = "ADR-001", limit = "workflow-level approval gate mandatoriness only; tool-level approval semantics stay under ADR-003" }` to `agent.tool-approval`.
   - P5 (REQ-024): add `ADR-004 -> ADR-006`, `ADR-004 -> ADR-008`, `ADR-005 -> ADR-009` `Reference` edges and matching front matter/Related ADRs entries.
@@ -204,7 +205,7 @@ as a unit; `N/A` is only for a Plan whose every phase passes validation alone.
    - [ ] ARCH-002 `config_keys`/`current_value` update (REQ-007; `config/adr_authority.toml`)
    - [ ] Fixture tests for the three failure classes and the absent-key pass (REQ-027; `tests/tools/test_adr_authority.py`)
    - [ ] Raise the module-size baseline row after the growth is measured (REQ-001/004/006 validation gate; `tools/check_module_size_tools_baseline.txt`)
-2. **Phase 2: Checker independence, single readable header list, ungated documentation (ungated; REQ-014/REQ-015 steps proceed only after the recorded scope amendment is confirmed at plan review)**
+2. **Phase 2: Checker independence, single readable header list, ungated documentation (ungated; the recorded scope amendment was confirmed at plan review 20261120-091749, so REQ-014/REQ-015 steps proceed)**
    - [ ] Run the front matter cross-check independently of the matrix result; fix the docstring citations (REQ-008, REQ-009; `tools/check_adr_reference.py`) + independence fixture (REQ-027; `tests/tools/test_check_adr_reference.py`)
    - [ ] Expose the normative heading constant; docstring states single-source role (REQ-013; `tools/check_adr_structure.py`)
    - [ ] Generate the governance_01 header-list guarded block and extend `--check` (REQ-014; `tools/generate_adr_authority.py`, `docs/00_governance/governance_01_documentation-policy.md`) + generator tests (REQ-027; `tests/tools/test_generate_adr_authority.py`)
@@ -249,21 +250,39 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: core validator extensions (REQ-001..REQ-007, REQ-027) | Pending | — | — | ungated |
-| 2 | Phase 2: independence + header list + ungated docs (REQ-008..REQ-018, REQ-027) | Pending | — | — | REQ-014/REQ-015 wait for scope-amendment confirmation |
+| 1 | Phase 1: core validator extensions (REQ-001..REQ-007, REQ-027) | In Progress | — | — | ungated procedures generated 20261120-092705 (rows 08,09,12,16 + companion tests) |
+| 2 | Phase 2: independence + header list + ungated docs (REQ-008..REQ-018, REQ-027) | In Progress | — | — | scope amendment confirmed 20261120-091749; procedures generated 20261120-092705 (rows 01,06,07,10,11,12,13,14,15 + companion tests) |
 | 3 | Phase 3: approval-gated proposals P1-P6 (REQ-019..REQ-025) | Blocked | — | — | STOP after proposal submission until an approval record exists (issue constraint) |
-| 4 | Phase 4: regeneration + full validation + deploy check (REQ-026, REQ-028) | Pending | — | — | same commit as any Phase 3 model change |
+| 4 | Phase 4: regeneration + full validation + deploy check (REQ-026, REQ-028) | In Progress | — | — | same commit as any Phase 3 model change procedures generated 20261120-092705; execution waits on Phase 3 approval for the model-regen commit |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | 3 | No maintainer approval record for edge/target/ADR-text changes (UNK-01); count wording itself pending under AAL-018 (UNK-03) | No | — |
-| 2 | Scope amendment (generate_adr_authority.py, baseline file) requires plan-review confirmation (UNK-02) | No | — |
+| 2 | Scope amendment (generate_adr_authority.py, baseline file) requires plan-review confirmation (UNK-02) | Yes | 20261120-091749 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261120-092705_01_docs_10_adr_adr_01_index.md.md` | 2, 3, 4 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_02_docs_10_adr_adr_02_07_016_adr-authority-model.md.md` | 1, 3 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_03_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_04_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_05_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_06_docs_10_adr_adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_07_docs_10_adr_adr_02_06_010_rag-fallback.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_08_config_adr_authority.toml.md` | 1, 3 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_09_tools__adr_authority_core.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_10_tools_check_adr_reference.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_11_tools_check_adr_structure.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_12_tools_generate_adr_authority.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_13_docs_00_governance_governance_01_documentation-policy.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_14_docs_00_governance_governance_04_documentation-checks.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_15_tools_TOOL_DESCRIPTIONS.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_16_tools_check_module_size_tools_baseline.txt.md` | 1 | Procedure | Pending | — | — |
+| `tests/tools/test_adr_authority.py` | 1 | Companion | Pending | — | — |
+| `tests/tools/test_check_adr_reference.py` | 2 | Companion | Pending | — | — |
+| `tests/tools/test_generate_adr_authority.py` | 1, 2 | Companion | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -312,3 +331,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-027 | Testing Expectations | `tests/tools/test_generate_adr_authority.py` | Phase 2 | AC-5 | governance block test | Explicit in issue |
 | REQ-028 | Testing Expectations / Validation sequence | `tools/check_module_size_tools_baseline.txt` | Phase 1 | AC-7 | CI module-size step | Derived from confirmed evidence |
 | REQ-028 | Validation sequence and deploy check | `docs/10_adr/adr_01_index.md` | Phase 4 | AC-7 | full validation run | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261120-092705 -->
