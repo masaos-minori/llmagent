@@ -121,7 +121,15 @@ class _ConfigDisplayMixin(MixinBase):
         if allowed_tools:
             pairs.append(("allowed_tools", ", ".join(allowed_tools)))
         else:
-            pairs.append(("allowed_tools", "(none: all tools denied)"))
+            if ctx.cfg.tool.tool_policy_mode == "discovered":
+                pairs.append(
+                    (
+                        "allowed_tools",
+                        "(none: discovered mode — base visibility applies)",
+                    )
+                )
+            else:
+                pairs.append(("allowed_tools", "(none: all tools denied)"))
         plan_blocked = ctx.cfg.tool.plan_blocked_tools
         plan_state = "ON" if ctx.conv.plan_mode else "OFF"
         pairs.append(("plan_mode", plan_state))

@@ -40,14 +40,12 @@ def test_strict_configuration_validation_via_real_startup() -> None:
 
     config = {
         "tool_safety_tiers": {"unknown_tool": "READ_ONLY"},
-        "allowed_tools": [],
     }
     result = ProductionConfigValidator().validate(config, known_tools={"real_tool"})
     assert result.errors, "the validator must reject all violations as errors"
     joined = "; ".join(result.errors)
     assert "unknown_tool" in joined
     assert "Unknown safety tier keys" in joined
-    assert "allowed_tools=[]" in joined
     assert not result.warnings, "the validator must not downgrade to warnings"
 
 

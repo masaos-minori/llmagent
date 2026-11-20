@@ -213,8 +213,12 @@ class ToolConfig:
     tool_definitions: list[dict] = field(default_factory=list)
     system_prompts: dict[str, str] = field(default_factory=dict)
     system_prompt_tool: str = ""
-    # Empty = all tools allowed; non-empty = only listed tools allowed
+    # Exposure contract is mode-dependent (tool_policy_mode): empty is valid and
+    # non-denying in discovered, but fatal in explicit_allowlist. Non-empty limits
+    # visibility to the listed tools in both modes.
     allowed_tools: list[str] = field(default_factory=list)
+    tool_policy_mode: str = "explicit_allowlist"
+    disabled_tools: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Validate tool configuration fields after initialization."""

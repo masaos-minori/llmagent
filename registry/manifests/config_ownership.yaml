@@ -47,6 +47,10 @@ entries:
   hot_reloadable: false
   section: llm
   validator: validate_llm_context_token_limit
+- field: disabled_tools
+  hot_reloadable: true
+  section: tool
+  validator: validate_disabled_tools
 - field: embed_url
   hot_reloadable: true
   section: rag
@@ -135,6 +139,10 @@ entries:
   hot_reloadable: true
   section: tool
   validator: null
+- field: tool_policy_mode
+  hot_reloadable: true
+  section: tool
+  validator: validate_tool_policy_mode
 - field: tool_result_max_llm_chars
   hot_reloadable: true
   section: tool

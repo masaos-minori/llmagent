@@ -106,6 +106,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `validate_tool_error_retry_max` | `def validate_tool_error_retry_max(cfg) -> None` | Validate that tool_error_retry_max is non-negative. |
 |  | `validate_progress_stagnation_window` | `def validate_progress_stagnation_window(cfg) -> None` | Validate that progress_stagnation_window is non-negative. |
 |  | `validate_allowed_tools` | `def validate_allowed_tools(cfg) -> None` | Validate that allowed_tools is a list of strings (an empty list is valid). |
+|  | `validate_tool_policy_mode` | `def validate_tool_policy_mode(cfg) -> None` | Validate that tool_policy_mode is one of the allowed enum values. |
+|  | `validate_disabled_tools` | `def validate_disabled_tools(cfg) -> None` | Validate that disabled_tools is a list of registered tool names. |
 |  | `validate_memory_fts_limit` | `def validate_memory_fts_limit(cfg) -> None` | Validate that memory_fts_limit is at least 1. |
 |  | `validate_memory_rrf_k` | `def validate_memory_rrf_k(cfg) -> None` | Validate that memory_rrf_k is at least 1. |
 |  | `validate_memory_recency_days` | `def validate_memory_recency_days(cfg) -> None` | Validate that memory_recency_days is positive. |

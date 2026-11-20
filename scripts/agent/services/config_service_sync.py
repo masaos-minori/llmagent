@@ -78,6 +78,8 @@ class ServiceSyncer:
                     Mapping[str, "AgentSafetyTier"], ctx.cfg.approval.tool_safety_tiers
                 ),
                 allowed_tools=ctx.cfg.tool.allowed_tools,
+                tool_policy_mode=ctx.cfg.tool.tool_policy_mode,
+                disabled_tools=ctx.cfg.tool.disabled_tools,
             )
             result.applied.append("runtime_tools")
 

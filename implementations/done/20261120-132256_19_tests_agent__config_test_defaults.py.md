@@ -51,8 +51,8 @@ Runtime enforcement (`runtime_tool_registry.py`) and production validation (`pro
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-191200 | 20261120-191200 | Rewrote the `ALL_TOOL_NAMES` comment (lines 86-89) in `tests/agent/_config_test_defaults.py`: removed the absolute claims that empty `allowed_tools` disables every tool unconditionally and that `ProductionConfigValidator` rejects `allowed_tools=[]`. New wording states emptiness is mode-dependent (denies in `explicit_allowlist`, valid in `discovered`). `ALL_TOOL_NAMES` value untouched. Verified via git diff against HEAD. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-191200 | 20261120-191200 | Comment-only; no behavior change. ruff format/check clean; project mypy success (573 files); 375 config/tool_policy/validator tests pass. No doc checker required (tests/ file, not docs/). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

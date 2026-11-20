@@ -52,9 +52,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-184225 | 20261120-184225 | DUPLICATE OF PROC 06: the `sync_all` caller update (adding `tool_policy_mode=` and `disabled_tools=` kwargs to the `apply_policy(...)` call) already landed in proc 06's same release-unit commit. Verified present at config_service_sync.py:76-83. No further edit needed. |
+| 2 | Add or update tests per Validation plan | Completed | 20261120-184225 | 20261120-184225 | Covered by proc 06: `test_config_reload.py::test_apply_policy_called_with_current_tier_map_and_allowed_tools` asserts both `tool_policy_mode=` and `disabled_tools=` reach `apply_policy`. Passes in the 1605-test sweep. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-184225 | 20261120-184225 | `tests/agent/services/test_config_reload.py` green (part of the 1605-pass sweep in proc 06). No new source touched by this proc. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

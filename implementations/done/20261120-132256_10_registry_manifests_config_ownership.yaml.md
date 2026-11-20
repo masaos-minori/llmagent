@@ -51,8 +51,8 @@ The `tool_policy_mode` field definition (`config_dataclasses.py`) that the manif
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-184830 | 20261120-184830 | Regeneration already reflected upstream: `registry/manifests/config_ownership.yaml` already lists `tool_policy_mode` under `[tool]` ownership (line 142), alongside `allowed_tools`/`disabled_tools`. No hand-edit needed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-184830 | 20261120-184830 | `tools/generate_reference_table.py --check` -> "No drift found" (exit 0): committed manifest and all doc-backed blocks are in sync with live sources, including `tool_policy_mode`. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

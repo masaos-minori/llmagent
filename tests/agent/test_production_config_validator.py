@@ -93,10 +93,10 @@ class TestProductionConfigValidatorRegistryLookupFailClosed:
 class TestProductionConfigValidatorAllowedTools:
     """Tests for allowed_tools=[] visibility check."""
 
-    def test_allowed_tools_empty_produces_error_in_production(self) -> None:
+    def test_allowed_tools_empty_no_production_error(self) -> None:
         config: dict[str, object] = {"allowed_tools": []}
         result = ProductionConfigValidator().validate(config)
-        assert any("allowed_tools" in err and "[]" in err for err in result.errors)
+        assert not any("allowed_tools" in err and "[]" in err for err in result.errors)
         assert result.warnings == []
 
     def test_allowed_tools_nonempty_no_issue(self) -> None:

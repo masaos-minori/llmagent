@@ -85,8 +85,8 @@ ALL_APPROVAL_RISK_RULES: dict[str, str] = {
 
 # Every registered tool name, so tests that don't care about allowlist
 # restriction aren't accidentally denied a tool call: an empty allowed_tools
-# now disables every tool at runtime (RuntimeToolRegistry.apply_policy) and
-# ProductionConfigValidator rejects allowed_tools=[].
+# now disables every tool at runtime (RuntimeToolRegistry.apply_policy) in
+# explicit_allowlist mode, and is mode-dependent (valid in discovered mode).
 ALL_TOOL_NAMES: list[str] = sorted(get_registry().get_all_tool_names())
 
 # A tier for every registered tool, mirroring config/agent.toml's

@@ -275,12 +275,6 @@ class ProductionConfigValidator:
             msg = f"Effective risk below HIGH for git tools: {tool_list}"
             self._record(errors, warnings, msg)
 
-        # allowed_tools visibility
-        allowed_tools = config.get("allowed_tools")
-        if isinstance(allowed_tools, (list, tuple)) and len(allowed_tools) == 0:
-            msg = "allowed_tools=[] (every tool is denied; list the tools to allow)"
-            self._record(errors, warnings, msg)
-
         # allowed_root: an empty or absent root would disable the path jail
         allowed_root = config.get("allowed_root")
         if not (isinstance(allowed_root, str) and allowed_root.strip()):

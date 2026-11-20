@@ -148,6 +148,37 @@ def validate_allowed_tools(cfg: ToolConfig) -> None:
         raise ValueError(f"allowed_tools must be a list of strings, got {tools!r}")
 
 
+def validate_tool_policy_mode(cfg: ToolConfig) -> None:
+    """Validate that tool_policy_mode is one of the allowed enum values."""
+    if cfg.tool_policy_mode not in {"discovered", "explicit_allowlist"}:
+        raise ValueError(
+            "tool_policy_mode must be 'discovered' or 'explicit_allowlist', "
+            f"got {cfg.tool_policy_mode!r}"
+        )
+
+
+def validate_disabled_tools(cfg: ToolConfig) -> None:
+    """Validate that disabled_tools is a list of registered tool names."""
+    tools = cfg.disabled_tools
+    if not isinstance(tools, list) or not all(isinstance(t, str) for t in tools):
+        raise ValueError(f"disabled_tools must be a list of strings, got {tools!r}")
+    try:
+        from shared.tool_registry import get_registry
+
+        known = set(get_registry().get_all_tool_names())
+    except ImportError as exc:
+        msg = (
+            "Tool registry resolution failed: cannot determine authoritative "
+            "tool set for disabled_tools validation"
+        )
+        raise ValueError(msg) from exc
+    unknown = [t for t in tools if t not in known]
+    if unknown:
+        raise ValueError(
+            f"disabled_tools references unregistered tool names: {unknown!r}"
+        )
+
+
 def validate_memory_fts_limit(cfg: MemoryConfig) -> None:
     """Validate that memory_fts_limit is at least 1."""
     _require_at_least("memory_fts_limit", cfg.memory_fts_limit, 1)

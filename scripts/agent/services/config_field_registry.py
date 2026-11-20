@@ -13,6 +13,7 @@ from agent.services.config_validators import (
     validate_allowed_root,
     validate_allowed_tools,
     validate_approval_risk_rules,
+    validate_disabled_tools,
     validate_llm_context_char_limit,
     validate_llm_context_token_limit,
     validate_llm_http_timeout,
@@ -23,6 +24,7 @@ from agent.services.config_validators import (
     validate_llm_sse_reconnect_max,
     validate_llm_temperature,
     validate_tool_max_tool_turns,
+    validate_tool_policy_mode,
     validate_tool_result_max_llm_chars,
     validate_tool_safety_tiers,
 )
@@ -81,6 +83,8 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
     ConfigFieldRegistry("system_prompts", "tool", True),
     ConfigFieldRegistry("tool_definitions", "tool", True),
     ConfigFieldRegistry("allowed_tools", "tool", True, validate_allowed_tools),
+    ConfigFieldRegistry("tool_policy_mode", "tool", True, validate_tool_policy_mode),
+    ConfigFieldRegistry("disabled_tools", "tool", True, validate_disabled_tools),
     # Approval section
     ConfigFieldRegistry(
         "approval_risk_rules", "approval", True, validate_approval_risk_rules

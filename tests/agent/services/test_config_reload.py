@@ -18,6 +18,7 @@ from agent.config_dataclasses import (
     ToolConfig,
 )
 from shared.mcp_config import StartupMode
+from shared.runtime_tool_registry import RuntimeToolRegistry
 
 
 @pytest.fixture()
@@ -428,9 +429,9 @@ class TestDiffMcpServerConfig:
             ("role", "changed_role"),
             ("call_timeout_sec", 999.0),
             ("startup_timeout_sec", 999),
-            ("tool_names", ["changed_tool"]),
             ("cmd", ["changed", "cmd"]),
             ("env", {"CHANGED": "1"}),
+            ("tool_names", ["changed_tool"]),
         ],
     )
     def test_single_field_change_detected(
@@ -631,6 +632,8 @@ class TestRuntimeToolPolicyReapplication:
         ctx = MagicMock()
         ctx.cfg.approval.tool_safety_tiers = {"delete_file": "ADMIN"}
         ctx.cfg.tool.allowed_tools = []
+        ctx.cfg.tool.tool_policy_mode = "explicit_allowlist"
+        ctx.cfg.tool.disabled_tools = []
         ctx.services_required.llm = None
         ctx.services_required.hist_mgr = None
         ctx.services_required.tools = None
@@ -643,6 +646,8 @@ class TestRuntimeToolPolicyReapplication:
         ctx.services_required.runtime_tools.apply_policy.assert_called_once_with(
             tier_map=ctx.cfg.approval.tool_safety_tiers,
             allowed_tools=ctx.cfg.tool.allowed_tools,
+            tool_policy_mode=ctx.cfg.tool.tool_policy_mode,
+            disabled_tools=ctx.cfg.tool.disabled_tools,
         )
 
     def test_runtime_tools_reported_in_applied(self) -> None:
@@ -806,6 +811,92 @@ class TestRuntimeToolPolicyReapplication:
         # Applied as an empty root: a path-carrying call is denied.
         assert ctx.cfg.approval.allowed_root == ""
         assert check_allowed_root(ctx.cfg, "write_file", {"path": "/tmp/x"}) is False
+
+    def _bound_registry(self, svc, ctx) -> RuntimeToolRegistry:
+        """Bind a real RuntimeToolRegistry to ctx.services_required.runtime_tools."""
+        from shared.runtime_tool import AgentSafetyTier
+        from shared.runtime_tool_registry import RuntimeToolRegistry
+
+        from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
+
+        tools = {
+            "read_text_file": build_fixture_runtime_tool(
+                name="read_text_file",
+                server_key="fs",
+                agent_safety_tier=cast(AgentSafetyTier, "READ_ONLY"),
+                llm_visibility_base=True,
+                enabled_for_llm=False,
+            ),
+            "delete_file": build_fixture_runtime_tool(
+                name="delete_file",
+                server_key="fs",
+                agent_safety_tier=cast(AgentSafetyTier, "WRITE_DANGEROUS"),
+                llm_visibility_base=True,
+                enabled_for_llm=False,
+            ),
+        }
+        registry = RuntimeToolRegistry(tools=tools, allowed_servers=frozenset({"fs"}))
+        ctx.services_required.runtime_tools = registry
+        return registry
+
+    def test_reload_discovered_mode_preserves_base_visibility_minus_denylist(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        """REQ-005/REQ-006: /reload with tool_policy_mode='discovered' re-applies
+        apply_policy so base visibility survives; disabled_tools is still a hard
+        denylist. An empty allowed_tools is valid in discovered mode."""
+        svc, ctx = svc_with_ctx
+        registry = self._bound_registry(svc, ctx)
+
+        outcome = svc.apply_config_dict(  # type: ignore[attr-defined]
+            {
+                "tool_policy_mode": "discovered",
+                "allowed_tools": [],
+                "disabled_tools": ["delete_file"],
+            }
+        )
+        assert "tool" in outcome.applied
+        assert "runtime_tools" in outcome.applied
+
+        # Base visibility applies to every registered tool in discovered mode...
+        assert registry.get("read_text_file").enabled_for_llm is True
+        # ...except the hard denylist entry.
+        assert registry.get("delete_file").enabled_for_llm is False
+
+    def test_reload_explicit_allowlist_preserves_allowlist_visibility(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        """REQ-005/REQ-006: /reload with tool_policy_mode='explicit_allowlist' and
+        a non-empty allowed_tools re-applies apply_policy so only allowlisted tools
+        stay visible."""
+        svc, ctx = svc_with_ctx
+        registry = self._bound_registry(svc, ctx)
+
+        outcome = svc.apply_config_dict(  # type: ignore[attr-defined]
+            {
+                "tool_policy_mode": "explicit_allowlist",
+                "allowed_tools": ["read_text_file"],
+            }
+        )
+        assert "runtime_tools" in outcome.applied
+
+        assert registry.get("read_text_file").enabled_for_llm is True
+        assert registry.get("delete_file").enabled_for_llm is False
+
+    def test_reload_unknown_mode_rejected_and_previous_survives(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        """REQ-006: an unknown tool_policy_mode is rejected by the typed validator;
+        the reload aborts atomically and the previous mode survives."""
+        from agent.services.exceptions import ConfigReloadValidationError
+
+        svc, ctx = svc_with_ctx
+        ctx.cfg.tool.tool_policy_mode = "explicit_allowlist"
+
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict({"tool_policy_mode": "bogus_mode"})  # type: ignore[attr-defined]
+
+        assert ctx.cfg.tool.tool_policy_mode == "explicit_allowlist"
 
 
 class TestApprovalGitopsPushBlocked:
@@ -1056,6 +1147,8 @@ class TestRegistryFieldClassification:
             "system_prompts",
             "tool_definitions",
             "allowed_tools",
+            "tool_policy_mode",
+            "disabled_tools",
         }
         assert set(tool_fields) == expected
 

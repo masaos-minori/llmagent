@@ -132,6 +132,7 @@ approval_shell_safe_prefixes = [
   "find",
   "grep",
 ]
+tool_policy_mode = "explicit_allowlist"
 allowed_tools = [
   "read_text_file",
   "list_directory",

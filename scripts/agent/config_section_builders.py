@@ -222,6 +222,10 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
         ),
         system_prompt_tool=system_prompt_tool,
         allowed_tools=_get_or_default(cfg, "allowed_tools", _get_list, []),
+        tool_policy_mode=_get_or_default(
+            cfg, "tool_policy_mode", _get_str, "explicit_allowlist"
+        ),
+        disabled_tools=_get_or_default(cfg, "disabled_tools", _get_list, []),
     )
 
 

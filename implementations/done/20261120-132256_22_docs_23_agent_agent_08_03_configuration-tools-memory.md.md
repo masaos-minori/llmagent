@@ -52,8 +52,8 @@ Runtime enforcement (`runtime_tool_registry.py`) and production validation (`pro
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-192500 | 20261120-192500 | Edited `docs/23_agent/agent_08_03_configuration-tools-memory.md`: line 34 config-reference bullet and line 87 Key Constraints note now state empty `allowed_tools` is valid/non-denying under `discovered` (base visibility) and fatal under `explicit_allowlist`; dropped the stale "rejected by the production validator at load" claim from both (verified absent from `production_config_validator.py`; `validate_allowed_tools` marks empty list valid). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-192500 | 20261120-192500 | Doc accuracy only; no behavior change. check_docs_quality/structure/content_policy(--strict) all pass; check_docs_consistency --domain agent reports only a pre-existing unrelated warning in agent_14 (not the edited file). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

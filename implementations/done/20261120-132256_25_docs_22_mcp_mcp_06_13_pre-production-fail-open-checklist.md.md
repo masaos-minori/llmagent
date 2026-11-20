@@ -50,8 +50,8 @@ Runtime enforcement (`runtime_tool_registry.py`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-193700 | 20261120-193700 | Edited `docs/22_mcp/mcp_06_13_pre-production-fail-open-checklist.md` line 20 checklist gate: qualified the empty-list check to `explicit_allowlist` (denies every tool at runtime, including after `/reload`) and added that an empty list is valid (base visibility) under `discovered`; dropped the stale "ProductionConfigValidator.validate() rejects allowed_tools=[]" claim (verified absent from `production_config_validator.py`; `validate_allowed_tools` accepts empty list). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-193700 | 20261120-193700 | Doc accuracy only; no behavior change. check_docs_quality/structure/content_policy(--strict) all pass; check_docs_consistency --domain mcp reports no issues. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

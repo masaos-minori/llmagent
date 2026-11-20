@@ -785,6 +785,16 @@ entries:
   summary: Validate that allowed_tools is a list of strings (an empty list is valid).
 - file: scripts/agent/services/config_validators.py
   kind: function
+  name: validate_tool_policy_mode
+  signature: def validate_tool_policy_mode(cfg) -> None
+  summary: Validate that tool_policy_mode is one of the allowed enum values.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_disabled_tools
+  signature: def validate_disabled_tools(cfg) -> None
+  summary: Validate that disabled_tools is a list of registered tool names.
+- file: scripts/agent/services/config_validators.py
+  kind: function
   name: validate_memory_fts_limit
   signature: def validate_memory_fts_limit(cfg) -> None
   summary: Validate that memory_fts_limit is at least 1.

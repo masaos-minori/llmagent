@@ -50,8 +50,8 @@ Runtime enforcement (`runtime_tool_registry.py`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: issues/20261119-145303_cliplc005_staged-reload-transaction.md phase all - same field registry, validators, and Memory reload validation; second to land re-verifies its tests; AND issues/20261120-114210_agentcfg002_tool-catalog-registry.md phase all - removes the tool lists explicit_allowlist mode depends on; second to land re-verifies its tests |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-192100 | 20261120-192100 | Edited `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md` line 33 whitelist rule: qualified the empty-list parenthetical to "(an empty list denies every tool under `explicit_allowlist`; valid under `discovered`)". Matches enforced behavior (empty list denies only under explicit_allowlist; base visibility applies under discovered). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-192100 | 20261120-192100 | Doc accuracy only; no behavior change. check_docs_quality/structure/content_policy(--strict) all pass; check_docs_consistency --domain agent reports only a pre-existing unrelated warning in agent_14 (not the edited file). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

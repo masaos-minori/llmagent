@@ -555,11 +555,23 @@ def check_preflight(
     Does nothing when all checks pass. The optional registry makes the registered
     tool's declared scope keys available to the root-jail check.
     """
-    if tool_name not in cfg.tool.allowed_tools:
-        raise PolicyViolationError(
-            "denied_allowed_tools",
-            f"{tool_name}: not in allowed_tools for this session",
+    if cfg.tool.tool_policy_mode == "explicit_allowlist":
+        if tool_name not in cfg.tool.allowed_tools:
+            raise PolicyViolationError(
+                "denied_allowed_tools",
+                f"{tool_name}: not in allowed_tools for this session",
+            )
+    else:  # discovered: allow registered tools not in the hard denylist
+        registered = (
+            {tool.name for tool in registry.all_tools()}
+            if registry is not None
+            else set()
         )
+        if tool_name not in registered or tool_name in cfg.tool.disabled_tools:
+            raise PolicyViolationError(
+                "denied_discovered",
+                f"{tool_name}: not a registered tool or is disabled",
+            )
     if not check_allowed_root(cfg, tool_name, args, registry):
         raise PolicyViolationError(
             "denied_root_jail",

@@ -207,6 +207,8 @@ class RuntimeToolRegistry:
         self,
         tier_map: Mapping[str, AgentSafetyTier],
         allowed_tools: Sequence[str],
+        tool_policy_mode: str = "explicit_allowlist",
+        disabled_tools: Sequence[str] = (),
     ) -> None:
         """Apply a tier/allowlist policy to all registered tools, in place.
 
@@ -214,13 +216,24 @@ class RuntimeToolRegistry:
         `tier_map` keep their current tier. `allowed_tools` is an allowlist of
         tool names; an empty sequence means no tool is allowed (fail closed,
         ADR-004: mirrors `tool_policy.check_preflight`).
+
+        `tool_policy_mode` selects the visibility model: `discovered` keeps each
+        tool's base visibility minus `disabled_tools`; `explicit_allowlist`
+        intersects with `allowed_tools` and fails closed on an empty list.
+        `disabled_tools` is a hard denylist applied in both modes.
         """
         new_tools: dict[str, RuntimeTool] = {}
+        explicit = tool_policy_mode == "explicit_allowlist"
         for name, tool in list(self._tools.items()):
             tier = tier_map.get(name, tool.agent_safety_tier)
             resolved_llm_visibility_base = _or_default(tool.llm_visibility_base, True)
-            allowed_alone = name in allowed_tools
-            if not resolved_llm_visibility_base and allowed_alone:
+            if explicit:
+                allowed_alone = name in allowed_tools
+            else:  # discovered: base visibility applies to every registered tool
+                allowed_alone = True
+            if name in disabled_tools:
+                allowed_alone = False
+            if explicit and not resolved_llm_visibility_base and allowed_alone:
                 logger.warning(
                     "tool %r hidden at discovery (llm_visibility_base=False);"
                     " reload's allowed_tools would otherwise have re-enabled it",
