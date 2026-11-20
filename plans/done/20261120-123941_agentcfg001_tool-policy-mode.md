@@ -263,11 +263,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Typed fields and validators | Pending | — | — | |
-| 2 | Mode-aware runtime policy (release unit) | Pending | — | — | `apply_policy` signature change lands with its callers/tests |
-| 3 | Config and manifest | Pending | — | — | |
-| 4 | Documentation | Pending | — | — | six `docs/*.md` |
-| 5 | Tests | Pending | — | — | |
+| 1 | Typed fields and validators | In Progress | — | — |  |
+| 2 | Mode-aware runtime policy (release unit) | In Progress | — | — | `apply_policy` signature change lands with its callers/tests |
+| 3 | Config and manifest | In Progress | — | — |  |
+| 4 | Documentation | In Progress | — | — | six `docs/*.md` |
+| 5 | Tests | In Progress | — | — |  |
 | 6 | Validation | Pending | — | — | full suite + doc checker |
 
 ### Blocker Log
@@ -278,7 +278,25 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261120-132256_01_scripts_agent_config_dataclasses.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_02_scripts_agent_config_section_builders.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_03_scripts_agent_services_config_validators.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_04_scripts_agent_services_config_field_registry.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_05_scripts_agent_tool_policy.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_06_scripts_shared_runtime_tool_registry.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_07_scripts_agent_services_config_service_sync.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_08_scripts_agent_production_config_validator.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_09_scripts_agent_commands_cmd_config_display.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_10_registry_manifests_config_ownership.yaml.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_11_config_agent.toml.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_16_tests_agent_services_test_config_reload.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_19_tests_agent__config_test_defaults.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_20_docs_23_agent_agent_06_03_tool-execution-and-approval-concurrency-safety.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_21_docs_23_agent_agent_06_02_tool-execution-and-approval-approval.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_22_docs_23_agent_agent_08_03_configuration-tools-memory.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_23_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_24_docs_91_security_security_01_architecture-and-trust-boundaries.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261120-132256_25_docs_22_mcp_mcp_06_13_pre-production-fail-open-checklist.md.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -303,3 +321,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-007 | Correct dataclass comment; update display | `scripts/agent/config_dataclasses.py`, `scripts/agent/commands/cmd_config_display.py` | Phase 1–2 | AC-06 | display test | Open |
 | REQ-008 | Regenerate ownership manifest; add mode to agent.toml | `registry/manifests/config_ownership.yaml`, `config/agent.toml` | Phase 3 | AC-07 | deterministic regen + startup test | Open |
 | REQ-009 | Contract tests for both modes, empty/unknown mode, unknown denylist name, reload preservation | tests | Phase 5 | AC-08 | dedicated contract test; full suite | Open |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261120-132256 -->
