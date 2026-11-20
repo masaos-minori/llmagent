@@ -64,8 +64,8 @@ Append exactly:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) |
-| 2 | Run the documentation checkers named in `routing.md` Tools (Validation plan) | Pending | — | — | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-20 | 2026-11-20 | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) Six items appended verbatim from Details; wording confirmed identical to sibling Accepted ADR checklist corpus |
+| 2 | Run the documentation checkers named in `routing.md` Tools (Validation plan) | Completed | 2026-11-20 | 2026-11-20 | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) check_adr_structure clean; test_check_adr_structure 34 passed; check_adr_reference/docs checkers green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -180,7 +180,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-Not applicable
+- **Known Issue**: MCP-005 — The destination (HEAD) protected-branch check applied to `git_add`/`git_commit` by `verify_authorization()` in `scripts/mcp_servers/git/repository_state.py` is enforced in code but mandated by no Invariant — INV-03 names only `git_checkout`/`git_pull`/`git_push` — and has no dedicated protected-branch test. Recorded pending a maintainer decision on an Invariant for the check; not resolved. See `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
 
 ## Review Triggers
 

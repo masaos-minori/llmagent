@@ -13,6 +13,7 @@ Align ADR-015 Scope with INV-01 by explicit attribution of `tools/generate_adr_a
 ## Design decisions
 - Attribution sentence placed after the Scope sentence in `## Decision` and mirrored in `## Related ADRs`; ADR-016 Decision 6 (L64) and INV-03 (L124) already govern these blocks, so no new normative obligation is created by this ADR.
 - Drift fix adds the exact cited token to `## Implementation References` (`tools/check_adr_structure.py` compares backticked `scripts/`/`tests/` path tokens between the two sections), keeping the Notes text intact.
+- Verification finding V3-1 (2026-11-20): the Related ADRs corpus form is plain `- ADR-NNN: description` (ADR-012 L210, ADR-014 L205, ADR-016 L176); a backticked `.md` basename would add a body document reference that `check_docs_structure.py` front-matter coverage would then require in `related:`. Details 2 uses the corpus form without a filename.
 
 ## Alternatives considered
 - N/A: the Scope-narrowing route was rejected by the owner (plan UNK-01); the rejected route stays recorded in the Plan.
@@ -32,7 +33,7 @@ Current-Specification-Only wording; no history comments. Keep INV-01 (L110) and 
 
 ### Details
 1. Scope attribution sentence: "Guard blocks produced by `tools/generate_adr_authority.py` are governed by ADR-016 (Decision 6 and INV-03); this ADR's INV-01 governs blocks produced by `tools/generate_reference_table.py`."
-2. Related ADRs entry: "- ADR-016 (`adr_02_07_016_adr-authority-model.md`): Decision 6 and INV-03 govern the `tools/generate_adr_authority.py` guarded sections of the ADR index."
+2. Related ADRs entry: "- ADR-016: Decision 6 and INV-03 govern the `tools/generate_adr_authority.py` guarded sections of the ADR index."
 3. Pending bullet: "- **Current Decision Approval (pending)**: Attributing the `tools/generate_adr_authority.py` guard blocks cited by this ADR's Scope to ADR-016 (Decision 6, INV-03) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-038. No approval is recorded here."
 4. Implementation References bullet: "- `scripts/agent/*.py` — symbol source of the `agent` and `agent-subpackages` guarded reference tables rendered by `tools/generate_reference_table.py`"
 
@@ -62,9 +63,9 @@ Current-Specification-Only wording; no history comments. Keep INV-01 (L110) and 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) |
-| 2 | Land row 04 (AAL-038 ledger entry) in the same commit (release unit ADR015-pending-amendment) | Pending | — | — | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) |
-| 3 | Run the documentation checkers named in `routing.md` Tools (Validation plan) | Pending | — | — | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-20 | 2026-11-20 | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) Implemented with V3-1 (Related ADRs corpus form, no filename backtick) |
+| 2 | Land row 04 (AAL-038 ledger entry) in the same commit (release unit ADR015-pending-amendment) | Completed | 2026-11-20 | 2026-11-20 | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) AAL-038 landed via procedure 04 edits in the same commit unit; joint validators green |
+| 3 | Run the documentation checkers named in `routing.md` Tools (Validation plan) | Completed | 2026-11-20 | 2026-11-20 | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) check_adr_structure: No issues found (L126 warning gone, AAL-038 resolves); gen --check pair clean; 116 tools tests passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

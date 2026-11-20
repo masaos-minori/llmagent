@@ -206,3 +206,9 @@ Acceptance conditions and their current state.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
+- [x] Each Invariant has a corresponding Verification
+- [x] Automatable verification does not rely only on Manual Review
+- [x] Discrepancies with the current implementation are registered as Known Issues
+- [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)
+- [x] Review Triggers are recorded
+- [x] The ADR is registered in the ADR index and the Document Guides of related areas

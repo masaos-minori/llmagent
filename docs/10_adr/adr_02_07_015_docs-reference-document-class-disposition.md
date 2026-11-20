@@ -62,7 +62,7 @@ Adopt **Option B**: Reference-class documents are treated as generated artifacts
 
 ### Scope
 
-Applies to every document that carries a generated guarded block (a `<!-- AUTO-GENERATED: <generator>.py <purpose> -->` comment). Such a document SHOULD also declare `class: Reference` in its front matter; the guarded block, not the class field, decides where this ADR applies.
+Applies to every document that carries a generated guarded block (a `<!-- AUTO-GENERATED: <generator>.py <purpose> -->` comment). Such a document SHOULD also declare `class: Reference` in its front matter; the guarded block, not the class field, decides where this ADR applies. Guard blocks produced by `tools/generate_adr_authority.py` are governed by ADR-016 (Decision 6 and INV-03); this ADR's INV-01 governs blocks produced by `tools/generate_reference_table.py`.
 
 ### Out of Scope
 
@@ -165,18 +165,20 @@ Not applicable
 - **Approval Reference**: Reviewed and approved by the repository owner via chat, content presented in full (Summary, Context, Decision, Alternatives Considered, Consequences) before approval
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-08; individual reviewer names are not recorded.
 - **Current Decision Approval (pending)**: The correction of the manifest status (the `component_mandatoriness` manifest is produced, the `adr_authority` manifest is undecided) and the addition of `agent_08_04` to the generated-document list are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and they are tracked by AAL-017. No approval is recorded here.
+- **Current Decision Approval (pending)**: Attributing the `tools/generate_adr_authority.py` guard blocks cited by this ADR's Scope to ADR-016 (Decision 6, INV-03) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-038. No approval is recorded here.
 - **Current Decision Approval (2026-11-19)**: The entry field contract recorded in Implementation Notes (envelope `version: 2`, the enumerated `gate` values, the `check_type` field, the `eventbus_route_roles` `method` field, the removed `health_contracts` `disposition`) and the addition of `agent_14_reference-api-subpackages-generated.md` to the generated-document list were approved by the repository owner via chat on 2026-11-19 under plan `20261119-181257_adrchk014_contract-manifest-sources`; individual reviewer names are not recorded.
 
 This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`) — not the task-level fallback path.
 
 ## Related ADRs
 
-Not applicable
+- ADR-016: Decision 6 and INV-03 govern the `tools/generate_adr_authority.py` guarded sections of the ADR index.
 
 ## Implementation References
 
 - `tools/generate_reference_table.py` — `DOMAIN_GENERATORS`, `--type <domain>`, `--dry-run`, guard comments (`<!-- AUTO-GENERATED: ... -->` / `<!-- END AUTO-GENERATED -->`)
 - `tools/check_docs_content_policy.py` — exemption of guarded auto-generated content (`GV-018`)
+- `scripts/agent/*.py` — symbol source of the `agent` and `agent-subpackages` guarded reference tables rendered by `tools/generate_reference_table.py`
 
 ## Completion Checklist
 

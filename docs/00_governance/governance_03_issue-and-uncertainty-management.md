@@ -171,6 +171,26 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action:** maintainer approves or amends the governance_01 Resolution Matrix owner list for the `mcp.component-mandatoriness` row; no approval is written here.
 - **Resolution Target:** owner-list approval recorded in `governance_01_documentation-policy.md`
 
+#### MCP-005
+
+- **ID:** MCP-005
+- **Title:** git_add/git_commit HEAD-destination protected-branch check is mandated by no Invariant and has no dedicated test
+- **Status**: open
+- **Severity:** Medium
+- **Area:** MCP
+- **Type:** design-gap
+- **Source:** adrchk021 ADR editorial defect re-verification, ADR-012 `## Known Deviations` gap scan
+- **Owner:** Repository owner
+- **First Found:** adrchk021 ADR editorial defect re-verification
+- **Target:** `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`
+- **Related:** None
+- **Summary:** `verify_authorization()` evaluates the protected-branch decision against the operation destination and protects the current HEAD for `git_add`/`git_commit`, but no Invariant mandates this and no dedicated protected-branch test covers those two tools.
+- **Current Description:** ADR-012 INV-03 names only `git_checkout`/`git_pull`/`git_push`; the Scope section describes the destination-based protection without an Invariant obligation for `git_add`/`git_commit`.
+- **Observed Implementation:** `scripts/mcp_servers/git/repository_state.py` `verify_authorization()` treats the current HEAD as the destination for `git_add`/`git_commit` and rejects it when it is a configured protected branch; the only `git_add`/`git_commit` tests are dirty-worktree reachability tests in `tests/mcp_servers/git/test_git_security_compliance.py`, not protected-branch tests.
+- **Impact:** A safety-relevant enforcement runs with no Invariant mandate and no regression test; it can drift or regress silently.
+- **Recommended Action:** the owner decides whether to add an Invariant for the HEAD-destination check (pending amendment via the ADR Approval Ledger) or record it as out of scope; protected-branch tests for `git_add`/`git_commit` follow whichever decision is recorded. No approval is written here.
+- **Resolution Target:** maintainer decision recorded in ADR-012 (Invariant plus pending amendment, or explicit out-of-scope statement) with matching test coverage
+
 #### SHARED-002
 
 - **ID:** SHARED-002
@@ -680,6 +700,15 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Approver:** Not recorded
 - **Date:** Not recorded
 - **Scope:** Decision Detail 9 and INV-07 delivery-guarantee text
+
+#### AAL-038
+
+- **ID:** AAL-038
+- **ADR:** ADR-015
+- **Decision:** Attributing the `tools/generate_adr_authority.py` guard blocks cited by ADR-015's Scope to ADR-016 (Decision 6 and INV-03) instead of extending ADR-015 INV-01
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** ADR-015 Decision Scope attribution sentence, Related ADRs entry, and the Approval Record pending bullet
 
 ## Resolution Rules
 

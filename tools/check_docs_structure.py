@@ -118,6 +118,13 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Partial rewrite, the dropped migration-window wording and the Pipeline Mapping
     # Summary update; the ceiling equals the accepted size.
     "adr_01_index.md": 36609,
+    # Re-accepted at 33915 (2026-11-20, adrchk021 procedure 20261120-174933_01): the
+    # MCP-005 Known Issue entry (git_add/git_commit protected-branch gap registration)
+    # grew the ledger 31908 -> 33915; the ceiling equals the accepted size.
+    # Re-accepted at 34313 (2026-11-20, adrchk021 procedure 20261120-174933_04): the
+    # AAL-038 ledger entry (ADR-015 pending amendment, release unit with procedure 03)
+    # grew the ledger 33915 -> 34313; the ceiling equals the accepted size.
+    "governance_03_issue-and-uncertainty-management.md": 34313,
 }
 
 

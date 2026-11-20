@@ -12,6 +12,7 @@ Extend the ADR-014 Workflow Engine responsibility bullet with the task-status vo
 ## Design decisions
 - Vocabulary is copied verbatim from the authoritative DDL (`tasks.status` CHECK constraint in `scripts/db/schema_sql.py` L171), not paraphrased.
 - Task status is stated as a second vocabulary distinct from the stage vocabulary; the existing `plan -> execute -> verify -> complete/failed` stage text stays unchanged.
+- Verification finding V2-1 (2026-11-20): the plan/procedure wording "`halted` is persisted when a task exceeds its `max_attempts`" is incomplete — `workflow_engine.py` writes `halted` on both `WorkflowHaltError` (retry stage exceeded `max_attempts`) and `WorkflowTimeoutError`. The Details sentence is widened to name both triggers so the authority text matches the code (Plan Design: single-source discipline).
 
 ## Alternatives considered
 - N/A: docs-only vocabulary sentence; no design surface beyond which authoritative source to copy (decided above).
@@ -29,7 +30,7 @@ State the task-status vocabulary as part of the same Workflow Engine responsibil
 ### Details
 Insert after `and retries`:
 
-task status (`pending`/`running`/`completed`/`failed`/`halted`, the `tasks.status` CHECK constraint values in `scripts/db/schema_sql.py`; `halted` is persisted when a task exceeds its `max_attempts`), distinct from the stage vocabulary above
+task status (`pending`/`running`/`completed`/`failed`/`halted`, the `tasks.status` CHECK constraint values in `scripts/db/schema_sql.py`; `halted` is persisted when a retryable stage exceeds its `max_attempts` or the task times out), distinct from the stage vocabulary above
 
 ## Compatibility considerations
 - N/A: docs-only; the vocabulary matches `scripts/agent/workflow/models.py` `TASK_STATUSES` (L16) and the DDL, both unchanged.
@@ -42,7 +43,7 @@ task status (`pending`/`running`/`completed`/`failed`/`halted`, the `tasks.statu
 
 ## Validation plan
 - `uv run python tools/check_adr_structure.py` — 0 errors, no new warning.
-- Vocabulary re-checked against `scripts/db/schema_sql.py` L171 (`pending`, `running`, `completed`, `failed`, `halted`) and `scripts/agent/workflow/workflow_engine.py` L233 (`halted` on max attempts).
+- Vocabulary re-checked against `scripts/db/schema_sql.py` L171 (`pending`, `running`, `completed`, `failed`, `halted`) and `scripts/agent/workflow/workflow_engine.py` (`halted` written on `WorkflowHaltError` — retry stage exceeded `max_attempts` — and on `WorkflowTimeoutError`).
 - `uv run pytest tests/db/test_create_schema.py -q` — DDL pins unchanged (no code edit expected).
 
 ## Completion criteria
@@ -56,8 +57,8 @@ task status (`pending`/`running`/`completed`/`failed`/`halted`, the `tasks.statu
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) |
-| 2 | Run the documentation checkers named in `routing.md` Tools (Validation plan) | Pending | — | — | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-20 | 2026-11-20 | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) Implemented with V2-1 (halted triggers widened to max_attempts and timeout per workflow_engine.py) |
+| 2 | Run the documentation checkers named in `routing.md` Tools (Validation plan) | Completed | 2026-11-20 | 2026-11-20 | Gated: issues/20261117-123022_adrchk022_history-comment-removal.md phase all - section-disjoint overlap on ADR-017; owner chose this Plan first (2026-11-20) check_adr_structure: pre-existing ADR-015 L126 warning only; test_create_schema 70 passed; docs checkers green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

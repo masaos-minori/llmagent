@@ -188,12 +188,12 @@ Release unit: **Unit**: ADR015-pending-amendment | **Phases**: 3, 4 | **Reason**
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: ADR-012 Known Deviations registration | In Progress | — | — |  |
-| 2 | Phase 2: ADR-014 task-status vocabulary | In Progress | — | — |  |
-| 3 | Phase 3: ADR-015 scope alignment (owner route: attribution to ADR-016) | In Progress | — | — |  |
-| 4 | Phase 4: governance_03 AAL-038 entry | In Progress | — | — | Same commit as Phase 3 |
-| 5 | Phase 5: ADR-017 checklist completion | In Progress | — | — |  |
-| 6 | Phase 6: verification checkers | Pending | — | — |  |
+| 1 | Phase 1: ADR-012 Known Deviations registration | Completed | 2026-11-20 | 2026-11-20 | V1-1: MCP-005 companion entry added to governance_03 Part 1 (frozen-table row 5 scope extension); V1-2: tools/check_docs_structure.py SIZE_EXCEPTIONS ceiling re-recorded 31908->33915 |
+| 2 | Phase 2: ADR-014 task-status vocabulary | Completed | 2026-11-20 | 2026-11-20 |  |
+| 3 | Phase 3: ADR-015 scope alignment (owner route: attribution to ADR-016) | Completed | 2026-11-20 | 2026-11-20 |  |
+| 4 | Phase 4: governance_03 AAL-038 entry | Completed | 2026-11-20 | 2026-11-20 | Same commit as Phase 3 V1-2 ceiling re-recorded 33915->34313 after AAL-038 entry |
+| 5 | Phase 5: ADR-017 checklist completion | Completed | 2026-11-20 | 2026-11-20 |  |
+| 6 | Phase 6: verification checkers | Completed | 2026-11-20 | 2026-11-20 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -203,11 +203,11 @@ Release unit: **Unit**: ADR015-pending-amendment | **Phases**: 3, 4 | **Reason**
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261120-174933_01_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261120-174933_02_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261120-174933_03_docs_10_adr_adr_02_07_015_docs-reference-document-class-disposition.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261120-174933_04_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261120-174933_05_docs_10_adr_adr_02_03_017_mcp-authentication.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261120-174933_01_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261120-174933_02_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261120-174933_03_docs_10_adr_adr_02_07_015_docs-reference-document-class-disposition.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261120-174933_04_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261120-174933_05_docs_10_adr_adr_02_03_017_mcp-authentication.md.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
