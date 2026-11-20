@@ -9,7 +9,7 @@ Replace age-only purge with retention that depends on the call state, and add co
 ## Background
 Source: consolidated MCP deduplication two-layer defense backlog (`memo-issue.md`, Issue 5).
 
-Evidence (`Explicit in code`, by reading): `scripts/shared/mcp_dedup.py` purges by age only (`purge_expired(retention_days)`, lines 399-424), with `retention_days = 14` in the shipped `config/mcp_dedup.toml`, and sets `PRAGMA journal_mode = WAL` (line 271). `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` cites ADR-008 Decision Detail 23 (unbounded growth accepted) as a constraint; re-verify it first. The absence of capacity, lock-wait, and lease monitoring is from the backlog and `Needs confirmation`.
+Evidence (`Explicit in code`, by reading): `scripts/shared/mcp_dedup.py` purges by age only (`purge_expired(retention_days)`, lines 399-424), with `retention_days = 14` in the shipped `config/mcp_dedup.toml`, and sets `PRAGMA journal_mode = WAL` (line 271). ADR-008 Decision Detail 23 (unbounded growth accepted) is recorded as a constraint in `issues/20261120-115841_mcpdl002_store-identity-continuity.md`; re-verify it first. The absence of capacity, lock-wait, and lease monitoring is from the backlog and `Needs confirmation`.
 
 ## Problem
 An execution ledger is safety evidence. Entries in an unknown, reconciliation-required, interrupted, or replay-unavailable state may be the only records that prevent a duplicate side effect, and age-based purge deletes them. Without monitoring, lock waits, stalled heartbeats, WAL growth, or incompatible settings can silently stop writes or weaken recovery.
@@ -50,11 +50,11 @@ Only resolved terminal evidence is eligible for automatic purge; unresolved call
 Yes. Retention rules per state, thresholds, and runbooks.
 
 ## Out of Scope
-- The ownership and lease redesign (`issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`); the store identity (issues/20261120-115841_mcpdl002_store-identity-continuity.md).
+- The ledger ownership, lease, and store identity (`issues/20261120-115841_mcpdl002_store-identity-continuity.md`); the dispatcher integration (`issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`); Agent-side database maintenance and the shutdown WAL checkpoint (`issues/20261119-145301_cliplc003_maintenance-job-framework.md`, `issues/20261119-145302_cliplc004_bounded-shutdown-machine.md`), which concern other stores.
 
 ## Dependencies
-- Depends on `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`, issues/20261120-115841_mcpdl002_store-identity-continuity.md, and issues/20261120-115843_mcpdl004_call-state-control-api.md. Blocks issues/20261120-115845_mcpdl006_two-layer-failure-verification.md.
-- Related: `issues/20261119-141105_mcpdd001_dedup-keyless-config-gate.md` bounds `retention_days`; issues/20261120-115842_mcpdl003_dedup-config-isolation.md moves the retention setting out of `config/mcp_dedup.toml`.
+- Depends on `issues/20261120-115841_mcpdl002_store-identity-continuity.md` and `issues/20261120-115843_mcpdl004_call-state-control-api.md`. Blocks `issues/20261120-115845_mcpdl006_two-layer-failure-verification.md`.
+- Related: `issues/20261119-141105_mcpdd001_dedup-keyless-config-gate.md` bounds `retention_days`; `issues/20261120-115842_mcpdl003_dedup-config-isolation.md` moves the retention setting out of `config/mcp_dedup.toml`.
 
 ## Unresolved Questions
 - `不明`: threshold values and the legal-hold mechanism.

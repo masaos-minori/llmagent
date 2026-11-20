@@ -30,7 +30,7 @@ Add authenticated control operations, authorized separately from ordinary tool c
 - Add authenticated, Agent-only call-state and reconciliation operations with their own authorization.
 - Define the reconciler contract: reuse completed evidence, never rerun an active, unknown, or ambiguous call, require operator review for multiple candidates or an unverifiable outcome, and record evidence and decision without raw sensitive payloads.
 - Store content hash, byte size, stable result code, external object id, full-result availability, and an optional secure reference; apply redaction before creating previews; define encryption, access control, and retention for stored full results.
-- Map MCP state into Agent states (`completed`, `in_progress`, `outcome_unknown`, `reconciliation_required`) in the Agent recovery service; remove internal idempotency keys from LLM-facing messages.
+- Map MCP state into the Agent states defined by `issues/20261120-115840_mcpdl001_approval-grant-intent.md` (`completed`, `in_progress`, `outcome_unknown`, `reconciliation_required`) in the Agent recovery service; this issue owns the authoritative Agent-to-MCP state mapping, which `issues/20261120-115845_mcpdl006_two-layer-failure-verification.md` verifies end to end.
 
 ## Constraints
 - A change to an ADR decision or invariant needs a maintainer approval record in the same change; do not write or simulate that approval.
@@ -52,15 +52,15 @@ Add authenticated control operations, authorized separately from ordinary tool c
 Yes. The control operations, the reconciler contract, the result classes, and the failure behavior.
 
 ## Out of Scope
-- The ledger ownership and lease redesign (`issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`); the Agent approval and intent states (issues/20261120-115840_mcpdl001_approval-grant-intent.md); retention (issues/20261120-115844_mcpdl005_retention-capacity-monitoring.md).
+- The ledger ownership, lease, and store identity (`issues/20261120-115841_mcpdl002_store-identity-continuity.md`); the dispatcher integration (`issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`); the logical call id and Agent approval and intent states (`issues/20261120-115840_mcpdl001_approval-grant-intent.md`); retention (`issues/20261120-115844_mcpdl005_retention-capacity-monitoring.md`).
 
 ## Dependencies
-- Depends on `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`, `issues/20261119-140511_mcpai004_logical-idempotency-key-replay.md`, and issues/20261120-115840_mcpdl001_approval-grant-intent.md. Blocks issues/20261120-115844_mcpdl005_retention-capacity-monitoring.md and issues/20261120-115845_mcpdl006_two-layer-failure-verification.md.
+- Depends on `issues/20261120-115840_mcpdl001_approval-grant-intent.md` and `issues/20261120-115841_mcpdl002_store-identity-continuity.md`. Blocks `issues/20261120-115844_mcpdl005_retention-capacity-monitoring.md` and `issues/20261120-115845_mcpdl006_two-layer-failure-verification.md`.
 - Related: `issues/20261119-140513_mcpai006_github-write-retry-policy.md` and `issues/20261119-141109_mcpci002_cicd-dispatch-reconciliation.md` implement tool-specific reconciliation on this contract; `issues/20261119-140515_mcpai008_git-postcondition-lifecycle.md` and `issues/20261119-140516_mcpai009_file-mcp-hardening.md` cover Git and file outcomes.
 
 ## Unresolved Questions
 - `不明`: where full results are stored and how they are encrypted.
-- `不明`: how `review_required` (mcpai001) and `replay_unavailable` are named in one vocabulary.
+- `不明`: how the result classes map to the state vocabulary decided in `issues/20261120-115841_mcpdl002_store-identity-continuity.md`.
 - `不明`: which tool classes get a reconciler.
 
 ## AI Implementation Instruction

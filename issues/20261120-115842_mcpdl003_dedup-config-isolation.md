@@ -32,6 +32,7 @@ The Agent reads only `agent.toml` for call policy. Each MCP process reads only i
 - Add a `[dedup]` section to each MCP server file that uses the store (enablement, database path, lease, retention, fail-closed behavior, identity requirement); define an immutable `DedupStoreConfig` and inject it at bootstrap.
 - Reject invalid types, booleans used as integers, unknown fields, unsafe paths, and a missing section for a write-capable server.
 - Remove directory discovery, TOML reading, and the module-level cache from `mcp_dedup.py`; remove `mcp_dedup.toml` and its deployment copy and mounts; enforce scope with `ConfigLoader.restrict_to()`.
+- Remove the `[retry_class]` mirror together with the file and drop its loader validation; `RETRYABLE_TOOLS` in `scripts/shared/tool_constants.py` stays the classification owner until `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md` moves it to RuntimeTool metadata.
 - Fingerprint only shared-store behavior (database identity, schema version, lease, retention, fail-closed policy, identity requirement) and reject startup on mismatch; process-local settings may differ.
 
 ## Constraints
@@ -53,15 +54,14 @@ The Agent reads only `agent.toml` for call policy. Each MCP process reads only i
 Yes. Configuration ownership of the dedup settings and the removed file.
 
 ## Out of Scope
-- RuntimeTool retry and reconciliation metadata (`issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`); the store identity (issues/20261120-115841_mcpdl002_store-identity-continuity.md).
+- RuntimeTool retry and reconciliation metadata (`issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`); the store identity (`issues/20261120-115841_mcpdl002_store-identity-continuity.md`).
 
 ## Dependencies
-- Depends on issues/20261120-115841_mcpdl002_store-identity-continuity.md for the fingerprint inputs.
-- Related: `issues/20261119-141105_mcpdd001_dedup-keyless-config-gate.md` and `issues/20261119-140513_mcpai006_github-write-retry-policy.md` edit `config/mcp_dedup.toml`, which this issue removes; whichever lands later moves the settings. `issues/20261120-114212_agentcfg004_config-ownership-split.md` changes the same ownership model for other settings.
+- Depends on `issues/20261120-115841_mcpdl002_store-identity-continuity.md` for the fingerprint inputs.
+- Related: `issues/20261119-141105_mcpdd001_dedup-keyless-config-gate.md` and `issues/20261119-140513_mcpai006_github-write-retry-policy.md` also touch `config/mcp_dedup.toml`; this issue is implemented first, so their settings go into the typed configuration and the classification constants instead (those issues were updated accordingly). `issues/20261120-114212_agentcfg004_config-ownership-split.md` changes the same ownership model for other settings.
 
 ## Unresolved Questions
 - `不明`: which MCP processes read `config/mcp_dedup.toml` today.
-- `不明`: how the retry-class mirror is retired (depends on the RuntimeTool policy authority).
 
 ## AI Implementation Instruction
 List readers of the file first and confirm them against source. Keep store behavior unchanged. Do not write ADR approval statements. Stop and report if a process still needs the removed file.

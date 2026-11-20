@@ -22,7 +22,7 @@ A test matrix shows that one logical call is traceable across both layers, a sid
 - Agent integration tests, MCP dispatcher and dedup integration tests, workflow recovery tests, multi-process SQLite tests, and deployment and config-isolation tests (exact files `Unknown`)
 
 ## Required Changes
-- Define the authoritative Agent-to-MCP state mapping.
+- Verify the authoritative Agent-to-MCP state mapping defined by `issues/20261120-115843_mcpdl004_call-state-control-api.md` (Agent states of `issues/20261120-115840_mcpdl001_approval-grant-intent.md`, ledger states of `issues/20261120-115841_mcpdl002_store-identity-continuity.md`) with a test for every transition.
 - Test pre-dispatch denial, dispatch started, response received, completed, failed before effect, outcome unknown, reconciliation required, and replay unavailable.
 - Inject an Agent crash before send, after send, and after MCP completion; inject an MCP crash before the handler, during it, after the effect, and before the response.
 - Test duplicate HTTP and direct dispatch, store loss, replacement, schema and configuration fingerprint mismatch, unavailable audit and state stores, approval argument tampering, and identical arguments for independent logical calls.
@@ -50,7 +50,7 @@ Yes. The authoritative state mapping and the list of proving tests, which `issue
 - Implementation of the contracts under test.
 
 ## Dependencies
-- Depends on issues/20261120-115840_mcpdl001_approval-grant-intent.md, issues/20261120-115841_mcpdl002_store-identity-continuity.md, issues/20261120-115842_mcpdl003_dedup-config-isolation.md, issues/20261120-115843_mcpdl004_call-state-control-api.md, and issues/20261120-115844_mcpdl005_retention-capacity-monitoring.md.
+- Depends on `issues/20261120-115840_mcpdl001_approval-grant-intent.md`, `issues/20261120-115841_mcpdl002_store-identity-continuity.md`, `issues/20261120-115842_mcpdl003_dedup-config-isolation.md`, `issues/20261120-115843_mcpdl004_call-state-control-api.md`, and `issues/20261120-115844_mcpdl005_retention-capacity-monitoring.md`.
 - Related: `issues/20261119-140517_mcpai010_github-http-contract-tests.md` covers GitHub HTTP contracts and should not be duplicated here.
 
 ## Unresolved Questions

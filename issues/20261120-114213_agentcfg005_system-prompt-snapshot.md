@@ -29,7 +29,7 @@ Maintainability and reload consistency once the field removals of the earlier is
 
 ## Required Changes
 - Remove `system_prompt_tool` from the dataclass, builder, reload registry, production valid-key set, TOML, and tests; make `system_prompts.default` the only default and apply its change safely to the conversation state on reload.
-- Remove each field deleted or moved by issues/20261120-114209_agentcfg001_tool-policy-mode.md to issues/20261120-114212_agentcfg004_config-ownership-split.md from the field registry, the startup-only classification, and service sync.
+- Remove each field deleted or moved by `issues/20261120-114209_agentcfg001_tool-policy-mode.md` to `issues/20261120-114212_agentcfg004_config-ownership-split.md` from the field registry, the startup-only classification, and service sync.
 - Add an effective-configuration snapshot of the standard `config/agent.toml` and a test that an explicit TOML value takes precedence over the code default.
 - Keep every explicit value that equals its code default.
 
@@ -56,7 +56,7 @@ Yes. The single default prompt and the removed key.
 - History-style comment cleanup (`issues/20261117-123022_adrchk022_history-comment-removal.md`); typed staged reload and rollback (`issues/20261119-145303_cliplc005_staged-reload-transaction.md`).
 
 ## Dependencies
-- Depends on issues/20261120-114209_agentcfg001_tool-policy-mode.md, issues/20261120-114210_agentcfg002_tool-catalog-registry.md, issues/20261120-114211_agentcfg003_runtime-tool-metadata.md, and issues/20261120-114212_agentcfg004_config-ownership-split.md for the fields to prune. Blocks issues/20261120-114214_agentcfg006_reduction-integration-verification.md.
+- Depends on `issues/20261120-114209_agentcfg001_tool-policy-mode.md`, `issues/20261120-114210_agentcfg002_tool-catalog-registry.md`, `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`, and `issues/20261120-114212_agentcfg004_config-ownership-split.md` for the fields to prune. Blocks `issues/20261120-114214_agentcfg006_reduction-integration-verification.md`.
 - Related: `issues/20261119-145303_cliplc005_staged-reload-transaction.md` provides the typed reload model that this issue prunes; it should land first.
 
 ## Unresolved Questions

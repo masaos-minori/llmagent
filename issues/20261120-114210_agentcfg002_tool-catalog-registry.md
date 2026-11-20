@@ -11,13 +11,13 @@ Source: consolidated `agent.toml` reduction backlog (`memo-issue.md`, Issue 2).
 
 Evidence (`Explicit in code`, by reading and `rg`): `scripts/agent/tool_preparation.py` states that it has no `ctx.cfg.tool.tool_definitions` fallback; `scripts/agent/services/tool_validation.py` (lines 106-186) compares `tool_definitions` with live server tool lists, and its warning text names `tools_definitions.toml`, a file that does not exist (the field is read from `agent.toml`); `McpServerConfig.tool_names` is defined and validated in `scripts/shared/mcp_config.py` (lines 70 and 171-179); `config/agent.toml` holds 63 `[[tool_definitions]]` blocks and 10 `tool_names` lines. The claims of a double `/v1/tools` fetch during discovery and of the required-server check using `tool_names` are from the backlog and `Needs confirmation`.
 
-Priority note: the backlog rated this High; by `workflow.md` Phase 7 the evidence supports maintainability and drift risk (Medium). It blocks issues/20261120-114211_agentcfg003_runtime-tool-metadata.md, which is ordered by Dependencies, not Priority.
+Priority note: the backlog rated this High; by `workflow.md` Phase 7 the evidence supports maintainability and drift risk (Medium). It blocks `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`, which is ordered by Dependencies, not Priority.
 
 ## Problem
 Tool names, descriptions, input schemas, and server ownership are kept in several places: the MCP servers, the static registries, `[[tool_definitions]]`, `tool_names`, the RuntimeToolRegistry, and test fixtures. The duplication produces schema and ownership drift and is the main reason `agent.toml` is large.
 
 ## Reason for Change
-Drift between copies can hide a missing or reassigned tool, and the wrong file name in the warning misleads an operator. It also blocks the metadata consolidation of issues/20261120-114211_agentcfg003_runtime-tool-metadata.md.
+Drift between copies can hide a missing or reassigned tool, and the wrong file name in the warning misleads an operator. It also blocks the metadata consolidation of `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`.
 
 ## Implementation Intent
 The RuntimeTool built from live `/v1/tools` is the runtime source of description, schema, capabilities, and server key. Static ownership and required-capability expectations move to a machine-readable registry that the drift check reads. The static checks stay fail-closed: duplicate tool names and routing drift remain fatal.
@@ -59,10 +59,10 @@ The RuntimeTool built from live `/v1/tools` is the runtime source of description
 Yes. The source of tool metadata, the required-capability model, and the removed configuration keys.
 
 ## Out of Scope
-- Safety, approval, preview, and resource metadata (issues/20261120-114211_agentcfg003_runtime-tool-metadata.md); the exposure policy (issues/20261120-114209_agentcfg001_tool-policy-mode.md).
+- Safety, approval, preview, and resource metadata (`issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`); the exposure policy (`issues/20261120-114209_agentcfg001_tool-policy-mode.md`).
 
 ## Dependencies
-- Depends on issues/20261120-114209_agentcfg001_tool-policy-mode.md. Blocks issues/20261120-114211_agentcfg003_runtime-tool-metadata.md.
+- Depends on `issues/20261120-114209_agentcfg001_tool-policy-mode.md`. Blocks `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`.
 - Related: `issues/20261119-145306_cliplc008_mcp-health-capability.md` defines required capability semantics and RuntimeTool diagnostics fields; the required-capability model here must use the same schema. `issues/20261119-145311_cliplc013_api-field-cleanup.md` decides the fate of other `McpServerConfig` fields.
 
 ## Unresolved Questions

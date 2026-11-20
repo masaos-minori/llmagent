@@ -61,7 +61,7 @@ Yes. Retry policy, timeout outcomes, and audit outcomes as failure behavior (ADR
 ## Dependencies
 - Depends on `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` (recovery-state semantics) and `issues/20261119-140511_mcpai004_logical-idempotency-key-replay.md` (stable call identity); `issues/20261119-140509_mcpai002_github-read-security-boundary.md` should be completed first for a consistent security boundary; `issues/20261119-140514_mcpai007_dedup-audit-observability.md` is recommended but not blocking.
 - Blocks `issues/20261119-140517_mcpai010_github-http-contract-tests.md`. Must land before automatic replay of GitHub writes is enabled.
-- Related: `issues/20261120-115842_mcpdl003_dedup-config-isolation.md` removes `config/mcp_dedup.toml`, which this issue lists as a target, and `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md` makes RuntimeTool the retry-policy authority; the retry-class mirror in the TOML is retired with them, so the classification here must land in the metadata that remains.
+- Related: `issues/20261120-115842_mcpdl003_dedup-config-isolation.md` (implemented first) removes `config/mcp_dedup.toml`, so the GitHub classification here is made in the `RETRYABLE_TOOLS` constants (the classification owner) and checked by the consistency test, not in a TOML mirror; `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md` later moves that owner to RuntimeTool metadata.
 
 ## Unresolved Questions
 - `不明`: which operations can get a reconciliation algorithm (versus staying non-retryable).

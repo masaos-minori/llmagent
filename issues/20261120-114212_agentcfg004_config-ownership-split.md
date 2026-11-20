@@ -56,10 +56,10 @@ Each setting has one owning process. The Agent owns Memory embedding settings in
 Yes. Configuration ownership per process and database; the moved keys.
 
 ## Out of Scope
-- Tool policy, tool catalog, and approval metadata (issues/20261120-114209_agentcfg001_tool-policy-mode.md, issues/20261120-114210_agentcfg002_tool-catalog-registry.md, issues/20261120-114211_agentcfg003_runtime-tool-metadata.md); changes to the database schema.
+- Tool policy, tool catalog, and approval metadata (`issues/20261120-114209_agentcfg001_tool-policy-mode.md`, `issues/20261120-114210_agentcfg002_tool-catalog-registry.md`, `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`); changes to the database schema.
 
 ## Dependencies
-- No prerequisite; can proceed in parallel with issues/20261120-114210_agentcfg002_tool-catalog-registry.md. Blocks issues/20261120-114213_agentcfg005_system-prompt-snapshot.md and issues/20261120-114214_agentcfg006_reduction-integration-verification.md.
+- No prerequisite; can proceed in parallel with `issues/20261120-114210_agentcfg002_tool-catalog-registry.md`. Blocks `issues/20261120-114213_agentcfg005_system-prompt-snapshot.md` and `issues/20261120-114214_agentcfg006_reduction-integration-verification.md`.
 - Related: `issues/20261119-145303_cliplc005_staged-reload-transaction.md` changes Memory reload validation; the Memory candidate validation here uses its typed model.
 
 ## Unresolved Questions

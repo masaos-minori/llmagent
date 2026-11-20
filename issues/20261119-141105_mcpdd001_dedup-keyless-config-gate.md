@@ -31,7 +31,7 @@ Fail closed at the dispatcher: a missing or empty key for any tool in `ALL_SIDE_
 
 ## Required Changes
 - Verify that missing and empty idempotency keys are rejected for every tool in `ALL_SIDE_EFFECTING_TOOLS` before the handler runs, on the HTTP path (the middleware in `scripts/mcp_servers/server.py`) and on the programmatic path (the key requirement of `issues/20261119-140512_mcpai005_structured-execution-context.md`); add only the cases not yet covered.
-- Add `trigger_workflow = "non_retryable"` explicitly and set `pending_timeout_minutes = 10` explicitly in `config/mcp_dedup.toml`.
+- Classify `trigger_workflow` explicitly as non-retryable in the classification owner (`RETRYABLE_TOOLS`) and set the pending timeout explicitly in the typed dedup configuration of `issues/20261120-115842_mcpdl003_dedup-config-isolation.md`; `config/mcp_dedup.toml` is removed by that issue.
 - Add range bounds for `retention_days` and `pending_timeout_minutes`.
 - Validate the distributed configuration against canonical tool names in CI (confirm what the existing loader and consistency tests already cover, and add only the gap).
 
@@ -44,7 +44,7 @@ Fail closed at the dispatcher: a missing or empty key for any tool in `ALL_SIDE_
 - [ ] The shipped dedup configuration loads in a test that reads the real file.
 - [ ] An unknown tool name in the distributed configuration fails CI.
 - [ ] Zero, negative, boolean, and oversized timing values are rejected.
-- [ ] `trigger_workflow` and `pending_timeout_minutes` are explicit in the shipped file.
+- [ ] `trigger_workflow` and `pending_timeout_minutes` are explicit in the shipped configuration.
 
 ## Testing Expectations
 - Missing, empty, valid, and reused-key tests for side-effecting tools.
@@ -62,7 +62,7 @@ Yes. Record the required-key rule for all side-effecting entry points and the ex
 - Depends on `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` for ordering: both change the dispatcher, so implement this after (or in the same plan stage as) it to avoid conflicting edits.
 - Blocks `issues/20261119-141109_mcpci002_cicd-dispatch-reconciliation.md` and the final state of `issues/20261119-141111_mcpci004_cicd-error-audit-coverage.md`.
 - Overlap note: `issues/20261119-140511_mcpai004_logical-idempotency-key-replay.md` rejects keyless calls on the Agent side; this issue is the server-side counterpart.
-- Related: `issues/20261120-115842_mcpdl003_dedup-config-isolation.md` removes `config/mcp_dedup.toml`; the explicit entries and the range bounds of this issue then belong in the typed `DedupStoreConfig` and its validation, so whichever issue lands later moves them. `issues/20261120-115844_mcpdl005_retention-capacity-monitoring.md` replaces age-only retention, so the `retention_days` bound must fit its rules.
+- Related: `issues/20261120-115842_mcpdl003_dedup-config-isolation.md` (implemented first) removes `config/mcp_dedup.toml`; the explicit entries and the range bounds of this issue go into the typed `DedupStoreConfig` and its validation, not into the removed file. `issues/20261120-115844_mcpdl005_retention-capacity-monitoring.md` (implemented first) replaces age-only retention, so the `retention_days` bound must fit its rules.
 - Depends on `issues/20261119-140512_mcpai005_structured-execution-context.md` for the keyless programmatic dispatch rule.
 
 ## Unresolved Questions

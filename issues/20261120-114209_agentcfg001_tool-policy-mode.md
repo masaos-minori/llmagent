@@ -57,10 +57,10 @@ Live discovery behind a passing Security Posture is the base of exposure. An env
 Yes. The Agent tool policy and configuration reference: modes, the meaning of each list, restart or reload behavior.
 
 ## Out of Scope
-- Removing tool definitions and per-server tool name lists (issues/20261120-114210_agentcfg002_tool-catalog-registry.md); safety and approval metadata (issues/20261120-114211_agentcfg003_runtime-tool-metadata.md).
+- Removing tool definitions and per-server tool name lists (`issues/20261120-114210_agentcfg002_tool-catalog-registry.md`); safety and approval metadata (`issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`).
 
 ## Dependencies
-- No prerequisite. Blocks issues/20261120-114210_agentcfg002_tool-catalog-registry.md and issues/20261120-114211_agentcfg003_runtime-tool-metadata.md.
+- No prerequisite. Blocks `issues/20261120-114210_agentcfg002_tool-catalog-registry.md` and `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`.
 - Related: `issues/20261119-145303_cliplc005_staged-reload-transaction.md` changes the same reload and field-registry code; either order works, but the second to land re-verifies its tests.
 
 ## Unresolved Questions

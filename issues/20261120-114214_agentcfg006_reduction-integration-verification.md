@@ -51,10 +51,10 @@ Quality is measured by the number of duplicated sources and ownership violations
 Yes. Configuration reference, migration table, and ownership; use the generated-reference tooling where a table is generated.
 
 ## Out of Scope
-- The individual reductions of issues/20261120-114209_agentcfg001_tool-policy-mode.md to issues/20261120-114213_agentcfg005_system-prompt-snapshot.md.
+- The individual reductions of `issues/20261120-114209_agentcfg001_tool-policy-mode.md` to `issues/20261120-114213_agentcfg005_system-prompt-snapshot.md`.
 
 ## Dependencies
-- Depends on issues/20261120-114209_agentcfg001_tool-policy-mode.md, issues/20261120-114210_agentcfg002_tool-catalog-registry.md, issues/20261120-114211_agentcfg003_runtime-tool-metadata.md, issues/20261120-114212_agentcfg004_config-ownership-split.md, and issues/20261120-114213_agentcfg005_system-prompt-snapshot.md.
+- Depends on `issues/20261120-114209_agentcfg001_tool-policy-mode.md`, `issues/20261120-114210_agentcfg002_tool-catalog-registry.md`, `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`, `issues/20261120-114212_agentcfg004_config-ownership-split.md`, and `issues/20261120-114213_agentcfg005_system-prompt-snapshot.md`.
 
 ## Unresolved Questions
 - `不明`: the location and generator of the configuration reference.

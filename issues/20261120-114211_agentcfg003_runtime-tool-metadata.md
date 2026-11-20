@@ -61,11 +61,11 @@ Tool-specific capability and structure belong to the RuntimeTool (base safety ti
 Yes. The metadata contract, the override rules, and the removed configuration keys.
 
 ## Out of Scope
-- The exposure policy (issues/20261120-114209_agentcfg001_tool-policy-mode.md); the tool catalog source (issues/20261120-114210_agentcfg002_tool-catalog-registry.md); MDQ-specific tier values (`issues/20261119-142129_mdqmcp007_mdq-approval-dry-run.md`).
+- The exposure policy (`issues/20261120-114209_agentcfg001_tool-policy-mode.md`); the tool catalog source (`issues/20261120-114210_agentcfg002_tool-catalog-registry.md`); MDQ-specific tier values (`issues/20261119-142129_mdqmcp007_mdq-approval-dry-run.md`).
 
 ## Dependencies
-- Depends on issues/20261120-114209_agentcfg001_tool-policy-mode.md and issues/20261120-114210_agentcfg002_tool-catalog-registry.md.
-- Related: `issues/20261119-142129_mdqmcp007_mdq-approval-dry-run.md` sets the MDQ write tiers in `config/agent.toml`; if this issue lands first, those tiers belong in the MDQ tool metadata, and if it lands later, the values are moved. `issues/20261119-140512_mcpai005_structured-execution-context.md` defines execution mode and result metadata; the preview capability fields here must use its names. `issues/20261119-145306_cliplc008_mcp-health-capability.md` also extends RuntimeTool metadata; share one discovery schema version. `issues/20261120-115842_mcpdl003_dedup-config-isolation.md` removes the shared dedup configuration file and relies on this issue for the retry-policy authority; the `[retry_class]` mirror in `config/mcp_dedup.toml` is retired by the later of the two.
+- Depends on `issues/20261120-114209_agentcfg001_tool-policy-mode.md` and `issues/20261120-114210_agentcfg002_tool-catalog-registry.md`.
+- Related: `issues/20261119-142129_mdqmcp007_mdq-approval-dry-run.md` sets the MDQ write tiers in `config/agent.toml`; if this issue lands first, those tiers belong in the MDQ tool metadata, and if it lands later, the values are moved. `issues/20261119-140512_mcpai005_structured-execution-context.md` defines execution mode and result metadata; the preview capability fields here must use its names. `issues/20261119-145306_cliplc008_mcp-health-capability.md` also extends RuntimeTool metadata; share one discovery schema version. `issues/20261120-115842_mcpdl003_dedup-config-isolation.md` (implemented first) removes the shared dedup configuration file and the `[retry_class]` mirror in it; the `RETRYABLE_TOOLS` constants remain the classification owner until this issue moves that ownership to RuntimeTool metadata.
 
 ## Unresolved Questions
 - `不明`: whether the MCP discovery schema can carry the new fields without a version change (needs the schema version definition).
