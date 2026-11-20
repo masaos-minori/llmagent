@@ -24,7 +24,7 @@ One transaction atomically acquires an attempt for a logical call; only the curr
 
 ## Target Files or Areas
 - `scripts/shared/mcp_dedup.py`, `scripts/shared/execution_snapshot.py`
-- The dedup DDL, the schema fingerprint module, and the database schema version entry (the `db_schema_versions.yaml` named by the earlier review is not a tracked file; `Needs confirmation`)
+- The dedup DDL, the schema fingerprint module, and the database schema version manifest (`registry/manifests/db_schema_versions.yaml`, a generated file: regenerate it with `tools/generate_reference_table.py` and never hand-edit; it holds no dedup entry today, and whether one is required is `Needs confirmation`)
 - Deployment initialization and operator-recovery scripts (`deploy/init_db.sh`, others `Unknown`)
 - `tests/shared/test_mcp_dedup.py` and new concurrency test files (they do not exist yet and are created here)
 
