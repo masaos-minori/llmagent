@@ -11,6 +11,8 @@ Source: consolidated CLI REPL and MCP lifecycle backlog (`memo-issue.md`, Issue 
 
 Evidence (`Explicit in code`, by reading): `scripts/agent/services/config_section_reload.py` documents a prepare half (candidate build and validators, no live mutation) and an apply half (`setattr`, lines 84 and 158), so part of the staging in the backlog may already exist; `scripts/agent/services/config_reload.py` converts requests with `list(...)` and applies service updates through `setattr` (lines 116-141). The claims about startup-only fields written to live state, Memory and MCP direct sections bypassing validators, missing rollback across LLM, HistoryManager, RuntimeToolRegistry, and MCP resources, removed-server live cleanup, and outcome states are from the backlog and `Needs confirmation`.
 
+Related backlog (the `agent.toml` reduction work, `memo-issue.md`, Issue 5): its reload-schema tasks (typed candidate validation for every section including Memory and MCP, restart-required MCP definition changes, and a rollback or an explicit fail-before-commit for service sync) are the same work as this issue and are carried here. Its pruning of removed fields and its snapshot test stay in `issues/20261120-114213_agentcfg005_system-prompt-snapshot.md`.
+
 ## Problem
 Fields marked startup-only may already be written to live configuration; Memory and MCP sections may skip typed candidate construction; coercive parsing can accept malformed values; commit mutates several live objects sequentially without rollback; removed MCP servers may be cleaned up live without terminating their processes; outcomes cannot express prepared, committed, rolled-back, or degraded states.
 
@@ -31,6 +33,8 @@ Startup and reload use identical typed validation. Startup-only changes stay pen
 - Filter non-hot-reloadable fields during candidate preparation, keep them out of `ctx.cfg` and service sync, report them as pending restart only.
 - Snapshot old config, conversation state, and service settings; add prepare APIs to live services; commit only after every prepare succeeds; roll back applied services in reverse order; move irreversible cleanup to the final stage; add outcomes `prepared`, `committed`, `rolled_back`, `degraded`; redact commit and rollback errors.
 - Classify added, changed, and removed MCP servers as `needs_restart`; do not call live cleanup from reload; do not mutate live MCP config or RuntimeToolRegistry; show pending changes in `/mcp status`; rebuild lifecycle, discovery, posture, and registry after restart.
+- When a configuration field is removed or moved (for example by the `agent.toml` reduction issues), delete it from the field registry, the startup-only classification, and service sync in the same change; a removed key is rejected as an unknown key and never ignored silently.
+- Where a live service cannot be made reversible, the commit stage may instead fail before any live mutation (fail-before-commit); the outcome states which path applied.
 
 ## Constraints
 - A change to an ADR decision or invariant needs a maintainer approval record in the same change (governance_01, governance_05); do not write or simulate that approval.
@@ -42,6 +46,7 @@ Startup and reload use identical typed validation. Startup-only changes stay pen
 - [ ] Any commit failure restores all reversible services.
 - [ ] A removed-server reload cannot orphan a process; RuntimeToolRegistry changes only after restart and rediscovery.
 - [ ] The CLI outcome matches the actual live state.
+- [ ] A removed or moved field is rejected as an unknown key and is absent from the registry, classification, and sync paths.
 
 ## Testing Expectations
 - Startup-only fields across LLM, context, approval, Memory, and GitOps; invalid Memory and MCP types and ranges.
@@ -56,13 +61,14 @@ Yes. Startup-only versus hot-reload behavior; transactional reload outcomes; MCP
 
 ## Dependencies
 - No dependency; can start immediately in parallel with `issues/20261119-145259_cliplc001_repl-input-controller.md` through `issues/20261119-145302_cliplc004_bounded-shutdown-machine.md`. Blocks `issues/20261119-145304_cliplc006_mcp-launch-spec-credentials.md`, `issues/20261119-145306_cliplc008_mcp-health-capability.md`, and `issues/20261119-145311_cliplc013_api-field-cleanup.md`.
+- Related: `issues/20261120-114209_agentcfg001_tool-policy-mode.md` and `issues/20261120-114212_agentcfg004_config-ownership-split.md` change the same field registry, validators, and Memory reload validation; either order works and the second to land re-verifies its tests. `issues/20261120-114213_agentcfg005_system-prompt-snapshot.md` prunes removed fields from the registries this issue makes typed and should land after it.
 
 ## Unresolved Questions
 - `不明`: which of the listed defects the archived config001 and adrchk004 work already fixed.
 - `不明`: whether LLM, HistoryManager, and RuntimeToolRegistry expose reversible apply operations.
 
 ## AI Implementation Instruction
-First re-verify each reported defect with a test against current source, since related fixes exist. Keep the change within configuration and reload code. Do not write ADR approval statements. Stop and report if a live service cannot be made reversible.
+First re-verify each reported defect with a test against current source, since related fixes exist. Keep the change within configuration and reload code. Do not write ADR approval statements. Stop and report if a live service can neither be made reversible nor placed behind a fail-before-commit gate.
 
 ## Traceability
 - **Workflow phase**: `issue-creator`

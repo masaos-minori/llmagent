@@ -12,6 +12,8 @@ Filed from the consolidated ADR review task list `memo-issue.md` (package `ADRCH
 ## Problem
 History text remains in ADR-017 (a commit reference), ADR-010 (a rename note), governance_05 (a removal note), `config/agent.toml` NOTE blocks (removal dates), and the canonical registry (a replacement note). Claims come from the review (`Documentation only`).
 
+The comment-cleanup part of the `agent.toml` reduction backlog (`memo-issue.md`, Issue 5) adds two confirmed items (`Explicit in code`, by `rg`): `config/agent.toml` carries a move note ("Moved from config/mcp_dedup.toml ...", line 28) and a search-result note ("grep for ... is empty", line 53), and `config/rag_pipeline_mcp_server.toml` carries a NOTE that names removed keys with a removal date and a re-add instruction (lines 24-30).
+
 ## Reason for Change
 - The Current-Specification-Only policy and the `check_docs_quality` rules forbid history in active documents.
 - History text makes readers think the old behavior still matters. Nothing makes the change time-sensitive.
@@ -24,10 +26,12 @@ History text remains in ADR-017 (a commit reference), ADR-010 (a rename note), g
 - `docs/10_adr/adr_02_06_010_rag-fallback.md`
 - `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`
 - `config/agent.toml`
+- `config/rag_pipeline_mcp_server.toml`
 - `config/documentation_canonical_sources.toml`
 
 ## Required Changes
 - Remove or rewrite each history statement as a statement of the current specification.
+- In both agent and RAG Pipeline MCP configuration files, delete removed-key names, removal dates, search results, past file names, and move history from comments; keep a short comment for each current field that states its purpose, unit, special values, security meaning, and restart requirement.
 
 ## Constraints
 - If ADR-010 is withdrawn or moved by the governance issue, skip that file.
@@ -35,6 +39,7 @@ History text remains in ADR-017 (a commit reference), ADR-010 (a rename note), g
 - Follow the Current-Specification-Only policy: no migrations, aliases, shims, tolerant fallbacks, or history-style comments such as removed on or formerly.
 - Change only the Target Files; if another file must change, stop and report it as a scope amendment.
 - Keep code comments, log text, and documentation in English.
+- Keep every configuration value, including values equal to the code default: they are the explicit deployment contract.
 - Before editing, re-run the searches named in Acceptance Criteria. Other plans edit the same files; if a defect is already gone, record the evidence and skip that task.
 - Do not edit generated files (`registry/manifests/*.yaml`, guarded blocks) by hand; regenerate with `tools/generate_reference_table.py` or `tools/generate_adr_authority.py`.
 
@@ -54,8 +59,10 @@ Yes. The listed documents and configuration comments.
 ## Dependencies
 - `issues/done/20261110-171040_rmcompat007_history-comment-sweep.md` covers overlapping text; re-verify against current source whether it already removed these statements before editing.
 - `issues/20261117-123011_adrchk011_adr-approval-governance.md` may withdraw ADR-010 (skip that file if so).
+- Related: `issues/20261120-114209_agentcfg001_tool-policy-mode.md`, `issues/20261120-114210_agentcfg002_tool-catalog-registry.md`, `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`, and `issues/20261120-114212_agentcfg004_config-ownership-split.md` edit `config/agent.toml`; there is no required order, and the later change re-runs the history searches.
 
 ## Unresolved Questions
+- `不明`: the reduction backlog proposed moving needed history to migration notes, release notes, or ADR amendments. This issue keeps history in git and plans only; guidance for removed keys belongs in the migration table of `issues/20261120-114214_agentcfg006_reduction-integration-verification.md`.
 - The memo says to coordinate with `rmcompat007` under `issues/`; it is archived under `issues/done/`, so whether it already removed these statements is `不明`.
 
 ## AI Implementation Instruction
@@ -68,4 +75,4 @@ Yes. The listed documents and configuration comments.
 - **Source plan**: N/A: not filed from a Plan
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261117-123022
-- **Related target files**: `docs/10_adr/adr_02_03_017_mcp-authentication.md`; `docs/10_adr/adr_02_06_010_rag-fallback.md`; `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`; `config/agent.toml`; `config/documentation_canonical_sources.toml`
+- **Related target files**: `docs/10_adr/adr_02_03_017_mcp-authentication.md`; `docs/10_adr/adr_02_06_010_rag-fallback.md`; `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`; `config/agent.toml`; `config/rag_pipeline_mcp_server.toml`; `config/documentation_canonical_sources.toml`

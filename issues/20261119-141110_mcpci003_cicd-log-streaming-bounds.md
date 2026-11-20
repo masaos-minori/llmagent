@@ -24,10 +24,10 @@ Stream with raw-download and decompressed limits, restrict redirects to document
 - `scripts/mcp_servers/cicd/cicd_service_github_actions_job.py`
 - CI/CD log response models and formatter; `config/cicd_mcp_server.toml`
 - `tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py` and log tests
-- Design documentation (`22_mcp_all.md` location `不明`)
+- `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md` (see the document map of `issues/20261119-140519_mcpai012_mcp-design-docs-update.md`)
 
 ## Required Changes
-- Use streaming retrieval; add raw and decompressed byte limits; restrict redirects to trusted GitHub hosts with a maximum count.
+- Use the shared bounded streaming helper of `issues/20261119-141107_mcpws001_websearch-fetch-network-boundary.md` for log retrieval, with a trusted-GitHub-host redirect policy and a maximum redirect count; the CI/CD-specific part is the per-job log byte budget.
 - One exact final-output budget including headers and truncation markers; stop adding jobs when the next header does not fit; preserve complete UTF-8 characters.
 - Return per-job status, included bytes, error code, truncation state; add `partial_success`; return a tool error when every job fails; never include raw transport exception text.
 - Return totals: jobs, included jobs, failed jobs, downloaded bytes, visible bytes, truncation reason.
@@ -53,7 +53,7 @@ Yes. Download, decompressed, selected-job, and returned-output limits; redirect 
 - Dispatch reconciliation (`issues/20261119-141109_mcpci002_cicd-dispatch-reconciliation.md`); error mapping (`issues/20261119-141111_mcpci004_cicd-error-audit-coverage.md`).
 
 ## Dependencies
-- Depends on `issues/20261119-141106_mcpci001_cicd-credential-config-contract.md`. Can run in parallel with `issues/20261119-141109_mcpci002_cicd-dispatch-reconciliation.md`.
+- Depends on `issues/20261119-141106_mcpci001_cicd-credential-config-contract.md` and on `issues/20261119-141107_mcpws001_websearch-fetch-network-boundary.md` (shared bounded streaming helper). Can run in parallel with `issues/20261119-141109_mcpci002_cicd-dispatch-reconciliation.md`.
 
 ## Unresolved Questions
 - `不明`: the list of trusted GitHub log hosts and the redirect maximum.

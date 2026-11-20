@@ -22,6 +22,7 @@ Every public field and parameter has one documented effect; duplicate helpers ar
 - `scripts/shared/mcp_config.py`, `scripts/agent/http_lifecycle*.py`, reload classification helpers, `scripts/shared/runtime_tool_registry.py`, `scripts/agent/session_persister.py`
 
 ## Required Changes
+- For `McpServerConfig.role`, `call_timeout_sec`, `startup_timeout_sec`, `startup_stagger_delay_sec`, `max_stderr_log_size_mb`, `max_stderr_log_files`, and `required`, decide whether each is kept in the launch or connection manifest or removed, and confirm each has one documented runtime effect (existence of the fields: `Explicit in code`, `scripts/shared/mcp_config.py`).
 - Remove or fully implement `McpServerConfig.fields`; use `health_timeout` consistently or remove obsolete helpers; wire stderr rotation settings to the logging manager; remove unused lifecycle and terminator parameters; consolidate duplicate reload classification helpers; correct stale docstrings; separate storage and display constants where appropriate.
 
 ## Constraints
@@ -43,6 +44,7 @@ Yes. Corrected docstrings and field descriptions.
 
 ## Dependencies
 - Depends on `issues/20261119-145303_cliplc005_staged-reload-transaction.md`, `issues/20261119-145304_cliplc006_mcp-launch-spec-credentials.md`, `issues/20261119-145305_cliplc007_mcp-process-ownership.md`, `issues/20261119-145306_cliplc008_mcp-health-capability.md`, and `issues/20261119-145307_cliplc009_redaction-stderr-diagnostics.md`.
+- Related: `issues/20261120-114210_agentcfg002_tool-catalog-registry.md` removes `McpServerConfig.tool_names`; this cleanup must not reintroduce it and takes the field list after that removal.
 
 ## Unresolved Questions
 - `不明`: which of the listed unused items still exist after the earlier issues land.

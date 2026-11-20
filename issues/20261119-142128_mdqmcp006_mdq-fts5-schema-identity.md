@@ -30,7 +30,7 @@ Ready only when the expected FTS5 definition exists and insert, update, and dele
 - Verify `chunks_fts` is an FTS5 virtual table; normalize and compare actual and canonical DDL including columns, tokenizer, prefix, content, detail, options, and trigger SQL; run functional insert, update, and delete probes.
 - Generate a canonical `mdq_schema_id` from tables, FTS5 DDL, indexes, constraints, foreign keys, and triggers; publish it via safe health or discovery metadata; include it in execution snapshots.
 - Define readiness states healthy, rebuild in progress, degraded, inconsistent, and failed; treat documents or chunks with an unexpectedly empty FTS index as not ready.
-- Choose one recovery sequence, specify handling of the database, `-wal`, and `-shm` files, re-index verification, and failure rollback; align ADR matrices, decision details, restart conditions, and the AAL references.
+- Reuse the recreation runbook defined by `issues/20261119-142126_mdqmcp004_mdq-file-identity-stale.md` and align it with the FTS5 identity and readiness states (rebuild in progress, failed); update the ADR matrices, decision details, restart conditions, and AAL references only where the FTS5 identity changes them.
 
 ## Constraints
 - Readiness exposes no unauthorized counts or paths (`issues/20261119-142123_mdqmcp001_mdq-server-boundary.md`).
@@ -54,6 +54,7 @@ Yes. Consolidate ADR-008 recovery wording; document actual readiness guarantees 
 
 ## Dependencies
 - Depends on `issues/20261119-142126_mdqmcp004_mdq-file-identity-stale.md` and `issues/20261119-142127_mdqmcp005_mdq-transaction-atomicity.md`. Blocks `issues/20261119-142130_mdqmcp008_mdq-schema-scope-consistency.md` and `issues/20261119-142132_mdqmcp010_mdq-release-readiness.md`.
+- FTS5 inconsistency uses the error classification of `issues/20261119-142124_mdqmcp002_mdq-search-query-boundary.md` and the readiness reporting of `issues/20261119-142123_mdqmcp001_mdq-server-boundary.md`.
 
 ## Unresolved Questions
 - `不明`: which document governs AAL-024 and AAL-025.

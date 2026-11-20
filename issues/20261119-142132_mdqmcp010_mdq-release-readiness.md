@@ -26,7 +26,7 @@ One release-readiness pass: tool descriptions match the parser, production statu
 ## Required Changes
 - Decide whether fenced code content is searchable, keep suppressing heading parsing inside fences, add golden tests for Python, JSON, shell, and Mermaid blocks, and document ATX and Setext headings, tables, HTML, code fences, and MDX support.
 - Define production criteria for integrity, recovery, security, observability, and performance; consider beta status for write tools until met; benchmark search, grep, index, refresh, rebuild, and recovery p50, p95, p99 by chunk count, database size, chunk length, and concurrency; publish verified scale and limits.
-- Add a characterization marker or directory; mark security and reliability contract tests as authoritative; reverse or remove unsafe legacy expectations as fixes land.
+- Apply the characterization-versus-authoritative convention defined by `issues/20261119-140517_mcpai010_github-http-contract-tests.md` to the MDQ tests; mark MDQ security and reliability contract tests as authoritative; reverse or remove unsafe legacy expectations as fixes land.
 - Identify internal DTOs and public result contracts; remove unused response models; use retained models consistently from service to audit and formatter; remove or define empty placeholders such as `IndexMetadata`.
 
 ## Constraints
@@ -51,7 +51,7 @@ Yes. Markdown semantics, production criteria and measured scale, test classifica
 - Behavior changes owned by `issues/20261119-142123_mdqmcp001_mdq-server-boundary.md` through `issues/20261119-142131_mdqmcp009_mdq-rag-boundary-rules.md`.
 
 ## Dependencies
-- Depends on `issues/20261119-142123_mdqmcp001_mdq-server-boundary.md`, `issues/20261119-142124_mdqmcp002_mdq-search-query-boundary.md`, `issues/20261119-142125_mdqmcp003_mdq-file-processing-outcomes.md`, `issues/20261119-142126_mdqmcp004_mdq-file-identity-stale.md`, `issues/20261119-142127_mdqmcp005_mdq-transaction-atomicity.md`, `issues/20261119-142128_mdqmcp006_mdq-fts5-schema-identity.md`, `issues/20261119-142129_mdqmcp007_mdq-approval-dry-run.md`, `issues/20261119-142130_mdqmcp008_mdq-schema-scope-consistency.md`, and `issues/20261119-142131_mdqmcp009_mdq-rag-boundary-rules.md`.
+- Depends on `issues/20261119-142123_mdqmcp001_mdq-server-boundary.md`, `issues/20261119-142124_mdqmcp002_mdq-search-query-boundary.md`, `issues/20261119-142125_mdqmcp003_mdq-file-processing-outcomes.md`, `issues/20261119-142126_mdqmcp004_mdq-file-identity-stale.md`, `issues/20261119-142127_mdqmcp005_mdq-transaction-atomicity.md`, `issues/20261119-142128_mdqmcp006_mdq-fts5-schema-identity.md`, `issues/20261119-142129_mdqmcp007_mdq-approval-dry-run.md`, `issues/20261119-142130_mdqmcp008_mdq-schema-scope-consistency.md`, and `issues/20261119-142131_mdqmcp009_mdq-rag-boundary-rules.md`; also on `issues/20261119-140517_mcpai010_github-http-contract-tests.md` (test convention).
 
 ## Unresolved Questions
 - `不明`: whether fenced code should be searchable.

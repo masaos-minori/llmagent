@@ -24,14 +24,14 @@ One centralized effective-token selection with documented precedence, used every
 - `scripts/mcp_servers/cicd/cicd_service_init.py`, `cicd_server.py`, `cicd_models.py`, `cicd_tools.py`, `cicd_service_guards.py`
 - CI/CD health and posture code; `config/cicd_mcp_server.toml`
 - `tests/mcp_servers/cicd/` model, schema, health, and lifecycle tests
-- The MCP design document (`22_mcp_all.md` is named by the backlog but is not a tracked file; location `不明`)
+- `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md` (the combined `22_mcp_all.md` named by the backlog is not tracked; see the document map of `issues/20261119-140519_mcpai012_mcp-design-docs-update.md`)
 
 ## Required Changes
 - Centralize effective-token selection and enforce documented environment-versus-configuration precedence for service, posture, and health; refuse startup for write-capable mode without a token.
 - Probe token validity and API reachability; distinguish Actions read permission from workflow-dispatch permission; report permission and rate-limit status without exposing the token.
-- Generate tool input schemas from Pydantic request models with `extra="forbid"`; publish `run_id >= 1`, `limit` 1 to 50, and non-empty repository, workflow, and ref.
+- Generate tool input schemas with the shared strict request base model and schema generator of `issues/20261119-140510_mcpai003_github-pydantic-schema-source.md` (`extra="forbid"`); the CI/CD-specific constraints are `run_id >= 1`, `limit` 1 to 50, and non-empty repository, workflow, and ref.
 - Define the workflow identifier as a validated file name or a positive numeric id; canonicalize request and allowlist values identically; URL-encode as one path segment.
-- Validate repository allowlist entries as non-empty `owner/repo`; reject blank, non-string, duplicate, wildcard, malformed, and oversized values; require `max_log_size_kb >= 1` with a hard maximum.
+- Validate repository allowlist entries with the shared `owner/repo` helper and normalization policy of `issues/20261119-140509_mcpai002_github-read-security-boundary.md`, adding wildcard and oversized-value rejection for CI/CD; require `max_log_size_kb >= 1` with a hard maximum using the shared strict numeric parsing of `issues/20261119-140509_mcpai002_github-read-security-boundary.md`.
 - Create and close `httpx.AsyncClient` in lifespan; remove import-time construction and keep test injection.
 
 ## Constraints
@@ -61,7 +61,7 @@ Yes. Credential precedence and required GitHub Actions permissions; empty allowl
 
 ## Dependencies
 - Blocks `issues/20261119-141109_mcpci002_cicd-dispatch-reconciliation.md`, `issues/20261119-141110_mcpci003_cicd-log-streaming-bounds.md`, and the final state of `issues/20261119-141111_mcpci004_cicd-error-audit-coverage.md`.
-- No dependency on other open issues; sibling check found no open issue or plan on the CI/CD files.
+- Depends on `issues/20261119-140509_mcpai002_github-read-security-boundary.md` (shared strict configuration helpers, `owner/repo` normalization) and `issues/20261119-140510_mcpai003_github-pydantic-schema-source.md` (shared schema generator). Sibling check found no open issue or plan on the CI/CD files.
 
 ## Unresolved Questions
 - `不明`: environment-versus-configuration precedence (which wins).

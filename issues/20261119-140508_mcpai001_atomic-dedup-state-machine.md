@@ -41,6 +41,10 @@ Guarantee one owner per logical execution through a single transactional acquire
 - Preserve terminal rows and original snapshots; add an attempt-history table.
 - Add the dedup schema fingerprint to execution compatibility data.
 - Expose the states `in_progress`, `interrupted`, `reconciliation_required`, and `review_required`.
+- Treat lease expiry only as a reconciliation trigger: an expired lease never grants retry permission by itself.
+- Remove the `force=True` path of `record_pending`, which resets a terminal row to pending (`scripts/shared/mcp_dedup.py`, lines 318-323), and remove content-derived key generation from production callers once the key is unified; do not hold a SQLite transaction open during handler execution.
+- Return a typed acquisition result that tells `acquired`, `completed`, `in_progress`, `outcome_unknown`, `reconciliation_required`, contract or snapshot mismatch, and `replay_unavailable` apart; one state vocabulary is shared with `issues/20261120-115843_mcpdl004_call-state-control-api.md`.
+- Define the shared dispatcher rule that a non-retryable side-effecting tool fails closed when the durable dedup store is unavailable (the registered ADR-004 overlay-only exception for retryable tools is unchanged); the GitHub, MDQ, and CI/CD issues classify their own tools and reuse this rule instead of redefining it.
 
 ## Constraints
 - Exactly-once ownership must hold across async callers, connections, and processes.
@@ -80,12 +84,15 @@ Yes. Document the ownership and lease state machine, the new states, and the rec
 - Blocks `issues/20261119-140511_mcpai004_logical-idempotency-key-replay.md`, `issues/20261119-140512_mcpai005_structured-execution-context.md`, `issues/20261119-140513_mcpai006_github-write-retry-policy.md`, `issues/20261119-140514_mcpai007_dedup-audit-observability.md`, `issues/20261119-140515_mcpai008_git-postcondition-lifecycle.md`, and `issues/20261119-140517_mcpai010_github-http-contract-tests.md`: they rely on the new states and result contract. Implement this issue first.
 - Related: `issues/20261119-141105_mcpdd001_dedup-keyless-config-gate.md` carries the server-side keyless rejection and shipped-configuration hardening; implement it after this issue.
 - No open dependency on other issues or plans (sibling check found no open issue or plan sharing the target files; `plans/` holds only adrchk010 and ragcrv002 plans).
+- Related: `issues/20261120-115841_mcpdl002_store-identity-continuity.md` adds the store identity and changes the same DDL, so the two share one schema change and rollout; `issues/20261120-115842_mcpdl003_dedup-config-isolation.md` removes `config/mcp_dedup.toml`, which this issue lists as a target, so lease values move with it; `issues/20261120-115843_mcpdl004_call-state-control-api.md` consumes the states defined here.
+- Also relied on by `issues/20261119-142127_mdqmcp005_mdq-transaction-atomicity.md` and `issues/20261119-141109_mcpci002_cicd-dispatch-reconciliation.md` for the shared fail-closed rule above.
 
 ## Unresolved Questions
 - `不明`: whether the new states and attempt-history table are consistent with the disposable-cache classification of `mcp_dedup.sqlite` (adrrev008); if immutable evidence must outlive the cache, an ADR-008 change with approval is needed.
 - `不明`: heartbeat interval and lease duration values.
 - `不明`: state name for a truncated stored result (`review_required` here; the later Web Search and CI/CD backlog calls it `replay_unavailable`); decide one name when planning.
 - `不明`: whether the current dispatcher already serializes acquisition in-process (the review claims it does not); confirm by the concurrency test before changing storage.
+- `不明`: the final state vocabulary (`review_required`, `replay_unavailable`, `outcome_unknown`), to be decided once together with `issues/20261120-115843_mcpdl004_call-state-control-api.md` and `issues/20261120-115845_mcpdl006_two-layer-failure-verification.md`.
 
 ## AI Implementation Instruction
 Write the 100-caller concurrency test first and confirm it fails on current code. Change storage and dispatcher together. Do not touch unrelated files, do not implement out-of-scope items, and do not write maintainer approval statements. Stop and report if the store contract conflicts with ADR-008.

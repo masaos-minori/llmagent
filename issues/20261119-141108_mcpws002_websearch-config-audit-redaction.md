@@ -24,14 +24,15 @@ Configuration errors fail at startup; discovery and runtime validation share one
 - `scripts/mcp_servers/web_search/web_search_models.py`, `web_search_tools.py`, `web_search_security_checks.py`, `web_search_server.py`
 - `scripts/mcp_servers/audit.py`; `config/web_search_mcp_server.toml`
 - `tests/mcp_servers/web_search/` schema, security-validation, server, audit, and health tests (`test_web_search_tool_schema.py`, `test_web_search_security_validation.py`, `test_web_search_audit.py`, `test_web_search_server.py`, `test_web_search_health.py`)
-- Shared audit and web search documentation (`22_mcp_all.md` location `不明`)
+- `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md` and `docs/22_mcp/mcp_04_01_web-search-file-read-github.md` (see the document map of `issues/20261119-140519_mcpai012_mcp-design-docs-update.md`)
 
 ## Required Changes
-- Generate both tool schemas from Pydantic request models; publish a non-empty URL constraint and the effective `max_response_kb` bounds; reject unknown fields; align the model maximum with the server maximum or expose clamping in the schema.
+- Generate both tool schemas with the shared strict request base model and schema generator of `issues/20261119-140510_mcpai003_github-pydantic-schema-source.md` (unknown fields rejected); the Web Search-specific constraints are a non-empty URL, the effective `max_response_kb` bounds, and aligning the model maximum with the server maximum or exposing clamping in the schema.
 - Validate every allowlist entry at load time: normalize lowercase, IDNA ASCII, trailing dot; reject scheme, path, query, fragment, user information, port, non-string, blank, malformed, and duplicate entries; allow an empty list only as an intentional `browser_fetch` disabled configuration.
 - Replace raw query targets with a normalized hash; remove query previews; strip URL query, fragment, and user information; keep scheme, normalized host, and a redacted path where needed; record only non-sensitive metadata (query length, host, result count, latency, status class, truncation flags).
 - Move request-context extraction before disabled-tool rejection; audit disabled, unknown-tool, validation, authorization, and other rejections exactly once; rejected calls must not change provider health failure counts.
 - Remove the plaintext query-preview example from shared audit documentation.
+- Define the shared audit-emission contract in `scripts/mcp_servers/audit.py`: exactly one audit event for every authenticated call (success, rejection, and failure), a shared redaction helper (hashing of query-like values, URL stripping), and no raw values in audit records; the CI/CD and MDQ issues reuse them, and the audit-record fields (session, request, and logical call identifiers) follow `issues/20261119-140513_mcpai006_github-write-retry-policy.md`.
 
 ## Constraints
 - An empty allowlist disables `browser_fetch` without weakening `search_web`.
@@ -58,6 +59,7 @@ Yes. Allowlist normalization and matching rules; search-result URLs are not auto
 
 ## Dependencies
 - No blocking dependency; can run in parallel with `issues/20261119-141107_mcpws001_websearch-fetch-network-boundary.md`. Archived `issues/done/20261026-220730_mcp006-web-search-broad-except-in-call-tool.md` touched the same call path; re-verify against current source.
+- Depends on `issues/20261119-140510_mcpai003_github-pydantic-schema-source.md` (shared schema generator) and `issues/20261119-140509_mcpai002_github-read-security-boundary.md` (shared strict configuration helpers). Blocks `issues/20261119-141111_mcpci004_cicd-error-audit-coverage.md` and `issues/20261119-142123_mdqmcp001_mdq-server-boundary.md`, which reuse the shared audit-emission contract and redaction helper.
 
 ## Unresolved Questions
 - `不明`: path redaction rule for URL audit targets.

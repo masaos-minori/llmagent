@@ -28,7 +28,7 @@ One caller or repository layer owns the connection and transaction. One file ope
 ## Required Changes
 - Remove internal commits from lower-level delete helpers; centralize connection and transaction ownership; include document, chunks, FTS5 trigger effects, and `index_state` in one file transaction; update state during forced refresh.
 - Delete state by exact canonical key; define directory deletion atomicity or structured partial success; check document, chunk, FTS5, and state postconditions before success.
-- Classify `index_paths` and `refresh_index` as non-retryable in the constants and the TOML together; fail closed when durable deduplication is unavailable; reconsider retryability only after operation-specific reconciliation is proven.
+- Classify `index_paths` and `refresh_index` as non-retryable in the constants and the TOML together; the fail-closed rule when durable deduplication is unavailable is the shared rule of `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`; reconsider retryability only after operation-specific reconciliation is proven.
 
 ## Constraints
 - Classification changes keep `RETRYABLE_TOOLS` and `config/mcp_dedup.toml` consistent (CI check). An ADR decision change needs a maintainer approval record (governance_01, governance_05); do not write or simulate it.
@@ -54,6 +54,7 @@ Yes. Transaction ownership and postconditions; the temporary non-retryable class
 ## Dependencies
 - Depends on `issues/20261119-142125_mdqmcp003_mdq-file-processing-outcomes.md` and `issues/20261119-142126_mdqmcp004_mdq-file-identity-stale.md`; related to `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` and `issues/20261119-141105_mcpdd001_dedup-keyless-config-gate.md` (shared dedup behavior this MDQ change relies on; implement MDQ transaction work independently of them).
 - Blocks `issues/20261119-142128_mdqmcp006_mdq-fts5-schema-identity.md`, `issues/20261119-142129_mdqmcp007_mdq-approval-dry-run.md`, and `issues/20261119-142130_mdqmcp008_mdq-schema-scope-consistency.md`.
+- The rule that `index_state` is updated only after commit is defined by `issues/20261119-142125_mdqmcp003_mdq-file-processing-outcomes.md`; this issue provides the transaction that makes it hold and does not redefine it.
 
 ## Unresolved Questions
 - `不明`: whether directory deletion should be one transaction or structured partial success.

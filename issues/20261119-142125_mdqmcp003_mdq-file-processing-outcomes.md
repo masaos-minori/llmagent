@@ -55,6 +55,7 @@ Yes. File-result statuses and counters; byte versus character limits; scan, syml
 
 ## Dependencies
 - Depends on `issues/20261119-142123_mdqmcp001_mdq-server-boundary.md`. Blocks `issues/20261119-142126_mdqmcp004_mdq-file-identity-stale.md`, `issues/20261119-142127_mdqmcp005_mdq-transaction-atomicity.md`, and `issues/20261119-142129_mdqmcp007_mdq-approval-dry-run.md`. Can run in parallel with `issues/20261119-142124_mdqmcp002_mdq-search-query-boundary.md`.
+- The rule that `index_state` is updated only after commit is defined here; `issues/20261119-142127_mdqmcp005_mdq-transaction-atomicity.md` provides the single file transaction that makes it hold and must not redefine it.
 
 ## Unresolved Questions
 - `不明`: the configuration migration for `max_file_chars`.

@@ -30,7 +30,7 @@ Every authenticated call: load one validated configuration, re-evaluate availabi
 - One availability function used by `/v1/tools` and `/v1/call_tool`; disable path-dependent tools when `allowed_dirs` is empty and `grep_docs` when `enable_grep=false`; reject disabled tools before the handler with code `tool_disabled`, re-evaluated at call time; correct `config_dependent` metadata.
 - Remove raw `index_state` from normal stats; restrict stats to canonical paths inside current `allowed_dirs`; reject stats when no roots are authorized; remove the absolute database path, global counts, and global timestamps from ordinary health; report readiness by non-sensitive state codes.
 - Define stable error codes (validation, authorization, disabled tool, not found, database unavailable, consistency, timeout, unexpected) with one documented transport policy and retry guidance; never return raw exception text, SQLite details, or paths.
-- Centralize audit emission; exception handlers only render transport; hash queries and regex patterns; remove previews; use authorized-root-relative identifiers or hashes for paths; persist path counts and root identities; one redaction helper for MDQ server and Agent audit.
+- Use the shared audit-emission contract and redaction helper of `issues/20261119-141108_mcpws002_websearch-config-audit-redaction.md` (central emission; exception handlers only render transport); the MDQ-specific parts are hashing queries and regex patterns, removing previews, authorized-root-relative identifiers or hashes for paths, and persisted path counts and root identities; keep the Agent audit redaction consistent with the same helper.
 - Load and validate production configuration once and share the result across service, authentication, health, and posture; missing production configuration is a pre-bind failure; defaults only in explicit development or test mode; strict booleans; no paths or secrets in startup errors.
 
 ## Constraints
@@ -60,6 +60,7 @@ Yes. The availability and execution contract; public health, authorized stats, a
 ## Dependencies
 - Blocks `issues/20261119-142124_mdqmcp002_mdq-search-query-boundary.md`, `issues/20261119-142125_mdqmcp003_mdq-file-processing-outcomes.md`, and `issues/20261119-142130_mdqmcp008_mdq-schema-scope-consistency.md`.
 - No open sibling issue or plan touches `scripts/mcp_servers/mdq/` (only archived work, listed above).
+- Depends on `issues/20261119-141108_mcpws002_websearch-config-audit-redaction.md` (shared audit-emission contract and redaction helper), `issues/20261119-140509_mcpai002_github-read-security-boundary.md` (shared strict configuration parsing), and `issues/20261119-141106_mcpci001_cicd-credential-config-contract.md` (the load-and-validate-once configuration pattern before bind); reuse the HTTP-level test fixture of `issues/20261119-140517_mcpai010_github-http-contract-tests.md`. The MDQ server contract is documented in `docs/22_mcp/mcp_04_04_mdq.md` (document map of `issues/20261119-140519_mcpai012_mcp-design-docs-update.md`).
 
 ## Unresolved Questions
 - `不明`: the transport policy for tool-domain failures (MCP tool error versus HTTP status).

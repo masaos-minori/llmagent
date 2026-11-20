@@ -27,7 +27,7 @@ Index and normal refresh require MEDIUM approval, forced refresh HIGH. Dry-run s
 
 ## Required Changes
 - Set index and normal refresh to MEDIUM and forced refresh to HIGH; apply a MEDIUM floor to write tools unless a reviewed exception exists; evaluate force and protected paths before NONE-risk short-circuits.
-- Add `dry_run` to write requests and public schemas; reuse scan, authorization, and decision logic without a write transaction; return planned add, update, delete, skip, warning, and failure counts; show common roots and representative paths without persisting every absolute path; add MDQ-specific approval formatting; keep approval display and persistent audit redaction separate.
+- Add `dry_run` to MDQ write requests and public schemas following the execution-mode contract of `issues/20261119-140512_mcpai005_structured-execution-context.md` (shared scan, authorization, and decision logic, no write transaction); return planned add, update, delete, skip, warning, and failure counts; show common roots and representative paths without persisting every absolute path; add MDQ-specific approval formatting; keep approval display and persistent audit redaction separate.
 
 ## Constraints
 - Dry-run performs no database or state mutation.
@@ -51,9 +51,11 @@ Yes. Safety tiers, approval rules, operator examples, preview fields, and filesy
 
 ## Dependencies
 - Depends on `issues/20261119-142125_mdqmcp003_mdq-file-processing-outcomes.md` and `issues/20261119-142127_mdqmcp005_mdq-transaction-atomicity.md`; related to `issues/20261119-140512_mcpai005_structured-execution-context.md`. Blocks `issues/20261119-142130_mdqmcp008_mdq-schema-scope-consistency.md`.
+- Related: `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md` moves the per-tool safety and approval maps out of `config/agent.toml` into RuntimeTool metadata. If it lands first, the MDQ tiers and risk values set here belong in the MDQ tool metadata; if this issue lands first, the values move later.
 
 ## Unresolved Questions
 - `不明`: whether a reviewed exception to the MEDIUM floor is needed for any write tool.
+- `不明`: whether the MDQ `index_paths` and `refresh_index` tiers are set in `config/agent.toml` or in tool metadata, which depends on the order against `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`.
 - `不明`: preview field names, which must follow the shared result metadata decided in the mcpai005 plan.
 
 ## AI Implementation Instruction

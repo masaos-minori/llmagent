@@ -23,6 +23,7 @@ Improve concurrency without weakening read/write conflict protection or reposito
 
 ## Required Changes
 - Evaluate branch scope for branch and file operations, issue scope for issue and comment operations, and pull request scope for update and merge; keep repository scope where shared state is affected; document cross-scope conflicts.
+- Define the scope key naming convention of the shared `scripts/shared/resource_scope.py` (`<kind>:<identity>`), which the MDQ database scope of `issues/20261119-142130_mdqmcp008_mdq-schema-scope-consistency.md` reuses.
 
 ## Constraints
 - No weakening of existing repository-level safety; optional if independence cannot be proven.

@@ -27,11 +27,11 @@ Fail closed with one schema and one authorization model: share validation betwee
 - Tests under `tests/mcp_servers/file/`
 
 ## Required Changes
-- Generate read, write, and delete tool schemas from strict Pydantic models, preserving constraints.
+- Generate read, write, and delete tool schemas with the shared strict request base model and schema generator of `issues/20261119-140510_mcpai003_github-pydantic-schema-source.md`; keep only File-specific constraints here.
 - Exclude symlinks by default during recursion or resolve and re-authorize every candidate; block escapes through directory symlinks; handle loops and broken links.
 - Add limits for tree nodes, scanned files, cumulative bytes, per-file bytes, and a deadline; return a structured truncation reason.
 - Move the allowed-root guard before the dry-run branch and share validation and authorization between dry-run and real deletion.
-- Write intent audit before destructive operations (fail closed); report completion-audit failure distinctly when deletion was applied; add session, request, and logical call identifiers to audit records.
+- Apply the shared write-audit contract of `issues/20261119-140513_mcpai006_github-write-retry-policy.md` (intent audit before destructive operations that fails closed, `applied_audit_failed`, and session, request, and logical call identifiers in audit records) to File destructive operations.
 - Enforce `supported_extensions` for write, edit, and move destination, or remove it from code, configuration, posture, tests, and documentation.
 - Reject empty edit lists and empty `old_text` unless an explicit insertion operation is designed.
 
@@ -61,6 +61,7 @@ Yes. File write and delete design statements (atomic write, size limits, root pr
 
 ## Dependencies
 - Depends on `issues/20261119-140511_mcpai004_logical-idempotency-key-replay.md` (logical-call ids in audit records) and `issues/20261119-140512_mcpai005_structured-execution-context.md` (structured dry-run semantics). Schema and traversal work may start in parallel; deletion audit and dry-run acceptance require both.
+- Also depends on `issues/20261119-140510_mcpai003_github-pydantic-schema-source.md` (shared schema generator) and `issues/20261119-140513_mcpai006_github-write-retry-policy.md` (shared write-audit contract).
 - Sibling check: archived `issues/done/20260816-160000_file_delete_models_validation_hardening.md` touched the delete models; re-verify against it.
 
 ## Unresolved Questions

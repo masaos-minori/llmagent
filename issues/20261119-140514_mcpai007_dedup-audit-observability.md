@@ -28,6 +28,7 @@ Make execution state and identifiers observable fields: parse `dedup_state` from
 - Add `dedup_state` to `ToolCallResult` and execution audit events; parse it from success and tool-level error responses.
 - Add `turn_id` to approval, decision, and execution audit events; populate `task_id` from workflow state and `turn_id` from turn state.
 - Keep logical key components consistent with audit fields; update downstream parsers and queries.
+- Record the logical call id in approval, workflow state, execution audit, and diagnostics, and keep raw arguments, credentials, signed URLs, and raw exceptions out of audit rows.
 
 ## Constraints
 - Missing optional fields must remain readable (backward compatibility documented).
@@ -37,6 +38,7 @@ Make execution state and identifiers observable fields: parse `dedup_state` from
 - [ ] Tool-level errors preserve dedup state.
 - [ ] Task and turn identifiers are both present and correct; request, session, call, task, and turn can be correlated directly.
 - [ ] Backward compatibility for missing optional fields is documented.
+- [ ] Approval, state, audit, and diagnostic records carry the same logical call id and no raw argument or credential.
 
 ## Testing Expectations
 - HTTP response parser tests for each dedup state; audit serialization tests for task and turn identifiers.
@@ -52,6 +54,7 @@ Yes. Audit event field definitions and the compatibility note (intent and bounda
 ## Dependencies
 - Depends on `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` (definitive dedup states) and `issues/20261119-140511_mcpai004_logical-idempotency-key-replay.md` (definitive correlation identifiers). DTO changes may start earlier; audit acceptance needs both.
 - Recommended, not blocking, for `issues/20261119-140513_mcpai006_github-write-retry-policy.md`.
+- Related: `issues/20261120-115840_mcpdl001_approval-grant-intent.md` makes audit and state persistence fail-closed for side-effecting calls; this issue defines the fields that persistence writes.
 
 ## Unresolved Questions
 - `不明`: downstream consumers of the audit schema that need updating (not enumerated in this session).

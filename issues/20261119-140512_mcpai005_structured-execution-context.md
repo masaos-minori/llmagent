@@ -59,10 +59,13 @@ Yes. Document the execution-context contract and failure behavior (final sweep i
 ## Dependencies
 - Depends on `issues/20261119-140510_mcpai003_github-pydantic-schema-source.md` (published `dry_run` schema), `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` (durable-state behavior), and `issues/20261119-140511_mcpai004_logical-idempotency-key-replay.md` (propagated key). Do not finalize programmatic side-effecting dispatch before the key contract exists.
 - Blocks `issues/20261119-140516_mcpai009_file-mcp-hardening.md` and `issues/20261119-140517_mcpai010_github-http-contract-tests.md`.
+- Related: `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md` replaces the Agent's `approval_dry_run_tools` list with typed preview capability fields in RuntimeTool metadata; the execution mode and preview names defined here are the shared vocabulary it must use.
+- Related: `issues/20261120-115840_mcpdl001_approval-grant-intent.md` carries execution mode in the Agent-side approval grant, and `issues/20261120-115843_mcpdl004_call-state-control-api.md` returns structured call state; the Agent-side and MCP-side execution context should use one set of field names.
 
 ## Unresolved Questions
 - `不明`: which programmatic dispatch callers exist today (not enumerated in this session).
 - `不明`: how a preview is represented across servers that do not support `dry_run`.
+- `不明`: whether tool-level preview support is published in the discovery schema, and under which field names (needed by `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md`).
 
 ## AI Implementation Instruction
 Replace marker detection rather than extending it. Keep formatter output untouched except where metadata is moved out. Write the formatter-wording regression test first; stop and report if a caller of programmatic dispatch cannot supply a key.

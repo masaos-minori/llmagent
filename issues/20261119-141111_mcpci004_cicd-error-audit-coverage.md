@@ -27,7 +27,7 @@ Truthful, machine-readable errors and one correlated, redacted audit event per a
 
 ## Required Changes
 - Map 5xx to `CicdUpstreamError`; add a distinct rate-limit error for 429; map DNS, TLS, connection, and timeout failures to upstream errors; map 409 to a conflict error; preserve safe `Retry-After` and reset metadata; bound and redact upstream error text.
-- Restructure `call_tool()` around `try/except/finally`; audit success, disabled, unknown tool, validation, authorization, upstream, dedup, and unexpected outcomes with `ok`, `error`, `rejected`; record session id, request id, logical call id, tool, normalized target, latency, and stable error code; never record tokens or workflow input values.
+- Apply the shared audit-emission contract of `issues/20261119-141108_mcpws002_websearch-config-audit-redaction.md` and the audit-record fields of `issues/20261119-140513_mcpai006_github-write-retry-policy.md` to `call_tool()` (one event per authenticated call across success, disabled, unknown tool, validation, authorization, upstream, dedup, and unexpected outcomes); the CI/CD-specific parts are the normalized target, the stable CI/CD error codes, and never recording tokens or workflow input values.
 - Remove the duplicate `requested_target` assignment in the shared audit helper; make audit failure follow the documented server policy.
 
 ## Constraints
@@ -51,6 +51,7 @@ Yes. An error mapping table; separate Agent audit log and MCP server application
 
 ## Dependencies
 - Depends on `issues/20261119-141105_mcpdd001_dedup-keyless-config-gate.md`, `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` (final state names), and `issues/20261119-141106_mcpci001_cicd-credential-config-contract.md` (credential metadata). Scaffolding may start earlier; finalization follows them.
+- Also depends on `issues/20261119-141108_mcpws002_websearch-config-audit-redaction.md` (shared audit-emission contract and redaction helper, which edits the same `scripts/mcp_servers/audit.py` first) and `issues/20261119-140513_mcpai006_github-write-retry-policy.md` (audit-record fields); reuse the HTTP-level test fixture of `issues/20261119-140517_mcpai010_github-http-contract-tests.md`.
 
 ## Unresolved Questions
 - `不明`: the documented audit-failure policy for the CI/CD server.

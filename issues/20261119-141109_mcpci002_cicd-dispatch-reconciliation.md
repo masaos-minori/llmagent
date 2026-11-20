@@ -22,12 +22,12 @@ Return structured states `accepted`, `confirmed`, `accepted_unconfirmed`, `outco
 - `scripts/mcp_servers/cicd/cicd_service_github_actions.py`, `cicd_service_github_actions_composite.py`
 - CI/CD dispatch response models and formatter; CI/CD dedup integration
 - Workflow-dispatch tests under `tests/mcp_servers/cicd/` (`test_cicd_mcp_service.py`, `test_service_github_actions_composite.py`, `test_service_github_actions_error_edges.py`)
-- Design documentation (location of `22_mcp_all.md` `不明`)
+- `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md` (see the document map of `issues/20261119-140519_mcpai012_mcp-design-docs-update.md`)
 
 ## Required Changes
 - Return `accepted` after the dispatch API succeeds; add a correlation marker to workflow inputs when the workflow contract allows it, with a fallback correlation on workflow identifier, ref, actor, and dispatch time.
 - Poll for the matching run with bounded timeout and interval; return `confirmed` (run id, URL, status, workflow, ref) on a unique match, `accepted_unconfirmed` when none is found, `reconciliation_required` for multiple candidates, `outcome_unknown` for response loss or timeout.
-- Search for an existing run before re-dispatching the same logical call; fail closed when durable deduplication is unavailable.
+- Search for an existing run before re-dispatching the same logical call; the fail-closed rule when durable deduplication is unavailable is the shared rule of `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`.
 - Redact workflow input values from previews and recovery output (keys and counts only).
 
 ## Constraints
@@ -53,6 +53,8 @@ Yes. The five states, the correlation and polling strategy, and why automatic re
 ## Dependencies
 - Depends on `issues/20261119-141105_mcpdd001_dedup-keyless-config-gate.md` (required keys), `issues/20261119-141106_mcpci001_cicd-credential-config-contract.md` (credential contract), `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` (recovery-state semantics), and `issues/20261119-140512_mcpai005_structured-execution-context.md` (structured execution result).
 - Can run in parallel with `issues/20261119-141110_mcpci003_cicd-log-streaming-bounds.md` once `issues/20261119-141106_mcpci001_cicd-credential-config-contract.md` is complete.
+- Related: `issues/20261120-115843_mcpdl004_call-state-control-api.md` defines the shared reconciler contract (reuse completed evidence, never rerun an active, unknown, or ambiguous call, record evidence without raw payloads); the run lookup here implements it for workflow dispatch.
+- Uses the shared write-outcome vocabulary (`outcome_unknown`) of `issues/20261119-140513_mcpai006_github-write-retry-policy.md`.
 
 ## Unresolved Questions
 - `不明`: whether target workflows can accept a correlation input.

@@ -23,7 +23,7 @@ Only allowlisted hostnames resolving to approved public addresses are fetched; e
 ## Target Files or Areas
 - `scripts/mcp_servers/web_search/search_provider.py`, `web_search_service.py`, response models, `formatters.py`
 - `tests/mcp_servers/web_search/test_web_search_provider.py`, `test_web_search_service.py`
-- MCP design document sections (location of `22_mcp_all.md` is `不明`; the file is not tracked)
+- `docs/22_mcp/mcp_04_01_web-search-file-read-github.md` (see the document map of `issues/20261119-140519_mcpai012_mcp-design-docs-update.md`; the combined `22_mcp_all.md` is not tracked)
 
 ## Required Changes
 - Resolve all A and AAAA addresses before connecting; reject loopback, private, link-local, reserved, multicast, unspecified, and IPv4-mapped prohibited IPv6 addresses; define a fail-closed policy for mixed answers.
@@ -33,6 +33,7 @@ Only allowlisted hostnames resolving to approved public addresses are fetched; e
 - Stream with separate limits for raw, decompressed, parser-input, and returned bytes; check `Content-Length` and still enforce cumulative limits.
 - Permit only `text/html` and approved `text/plain`; reject PDF, ZIP, image, and other binary types before parsing.
 - Return metadata distinguishing download truncation from extracted-text truncation; keep health and metrics aligned with result classification.
+- Implement the bounded streaming download as a reusable helper (raw, decompressed, parser-input, and returned byte limits; redirect hop count and per-hop host policy supplied by the caller) so that CI/CD log retrieval (`issues/20261119-141110_mcpci003_cicd-log-streaming-bounds.md`) reuses it with its own host policy.
 
 ## Constraints
 - Legitimate allowlisted public HTML pages remain fetchable.
@@ -59,6 +60,7 @@ Yes. DNS and redirect authorization, the four distinct limits, supported content
 
 ## Dependencies
 - No blocking dependency. Can run in parallel with `issues/20261119-141108_mcpws002_websearch-config-audit-redaction.md`. Archived `issues/done/20260816-160000_web_search_provider_typing_and_docstring.md` touched the provider; re-verify against current source.
+- Blocks `issues/20261119-141110_mcpci003_cicd-log-streaming-bounds.md` (shared bounded streaming helper).
 
 ## Unresolved Questions
 - `不明`: mixed-answer policy (reject all versus filter to public).

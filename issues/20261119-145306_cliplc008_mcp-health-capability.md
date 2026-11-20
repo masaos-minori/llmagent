@@ -28,6 +28,7 @@ Health responses report liveness, readiness, degraded reason codes, and capabili
 ## Required Changes
 - Apply the effective per-server health timeout to startup and periodic checks; cap request timeout by the remaining lifecycle deadline; define or remove zero-means-unlimited; choose a one-token or distinct-health-token design (if distinct, a server-specific `health_auth_token` with secret registration and redaction).
 - Add `liveness`, `ready`, degraded reason codes, and capabilities; distinguish optional from required dependency failure; do not treat `liveness=true` alone as readiness; fail startup when a required capability is missing; disable only the affected tools for optional capability loss.
+- Define required capabilities as the startup requirement of a required server, so that `McpServerConfig.tool_names` (a tool name list) is no longer needed; the field removal itself is tracked in `issues/20261120-114210_agentcfg002_tool-catalog-registry.md`.
 - Add explicit `config_dependent` and capability dependencies to `RuntimeTool`, parsed strictly from discovery; keep status, configuration dependency, and health capability separate; rebuild and atomically swap a candidate registry when availability changes, or explicitly require restart; generate `/mcp status` from explicit metadata.
 
 ## Constraints
@@ -52,11 +53,13 @@ Yes. Health schema, authentication, capability semantics, and timeout rules.
 
 ## Dependencies
 - Depends on `issues/20261119-145303_cliplc005_staged-reload-transaction.md`, `issues/20261119-145304_cliplc006_mcp-launch-spec-credentials.md`, and `issues/20261119-145305_cliplc007_mcp-process-ownership.md`. Blocks `issues/20261119-145307_cliplc009_redaction-stderr-diagnostics.md` and `issues/20261119-145311_cliplc013_api-field-cleanup.md`.
+- Related: `issues/20261120-114210_agentcfg002_tool-catalog-registry.md` consumes the required-capability model defined here, and `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md` adds safety, preview, and resource metadata to the same `RuntimeTool` and discovery schema; share one schema version and field naming.
 
 ## Unresolved Questions
 - `不明`: one-token versus distinct health token (owner decision).
 - `不明`: whether the registry will be swapped live or require restart.
 - `不明`: how `config_dependent` is derived today.
+- `不明`: whether the discovery schema can carry both the health and capability fields here and the safety and preview fields of `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md` under one version.
 
 ## AI Implementation Instruction
 Confirm how `config_dependent` is derived before changing it. Keep health semantics backward compatible where servers already report `liveness`. Stop and report the token-model decision instead of choosing silently.

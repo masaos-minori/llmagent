@@ -27,11 +27,12 @@ Use strict Pydantic models (`extra="forbid"`) as the authoritative contract for 
 
 ## Required Changes
 - Add a common strict request base model and generate every `inputSchema` from `model_json_schema()`, preserving `default`, `enum`, `pattern`, `minimum`, `maximum`, `minLength`, `minItems`, `$defs`, `$ref`, and `additionalProperties`; strip only presentation-only fields.
+- Place the strict request base model and the schema generator in a shared MCP module (not a GitHub-private one; location decided when planning) so File, CI/CD, Web Search, and MDQ reuse them without re-implementing; GitHub-specific schema content stays in the GitHub models.
 - Publish `dry_run` on all GitHub write tools.
 - Require non-empty owner, repository, branch, path, title, message, and other mandatory text; require issue and pull request numbers of at least 1; require at least one file in push-files; reject pull request updates with no actual update.
 - Add justified upper bounds for content, body, labels, assignees, and files per request.
-- Parse booleans strictly in GitHub configuration; require positive pagination values and `default_per_page <= max_per_page`; reject NaN and infinity.
-- Validate every allowlist entry as a non-empty `owner/repo` identifier; normalize and deduplicate deterministically.
+- Apply the shared strict configuration helpers of `issues/20261119-140509_mcpai002_github-read-security-boundary.md` to GitHub configuration (strict booleans, positive pagination values, rejection of NaN and infinity); the GitHub-specific rule is `default_per_page <= max_per_page`.
+- Validate every allowlist entry with the shared `owner/repo` helper and the case-normalization policy of `issues/20261119-140509_mcpai002_github-read-security-boundary.md`; deduplicate deterministically.
 
 ## Constraints
 - Schema generation must be deterministic.
@@ -61,7 +62,8 @@ Yes. Record that models are the schema source and the rejection rules (intent an
 
 ## Dependencies
 - Blocks `issues/20261119-140512_mcpai005_structured-execution-context.md` and `issues/20261119-140517_mcpai010_github-http-contract-tests.md`.
-- Independent of `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` and `issues/20261119-140509_mcpai002_github-read-security-boundary.md`; may be implemented in parallel. Configuration field additions in `issues/20261119-140509_mcpai002_github-read-security-boundary.md` should reuse the strict validators from this issue.
+- Depends on `issues/20261119-140509_mcpai002_github-read-security-boundary.md` for the shared strict configuration helpers and the `owner/repo` normalization policy. Independent of `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`.
+- Also blocks `issues/20261119-140516_mcpai009_file-mcp-hardening.md`, `issues/20261119-141106_mcpci001_cicd-credential-config-contract.md`, `issues/20261119-141108_mcpws002_websearch-config-audit-redaction.md`, and `issues/20261119-142130_mdqmcp008_mdq-schema-scope-consistency.md`, which reuse the shared schema generator.
 
 ## Unresolved Questions
 - `不明`: whether the Agent-side validator can consume `$defs` and `$ref` unflattened.

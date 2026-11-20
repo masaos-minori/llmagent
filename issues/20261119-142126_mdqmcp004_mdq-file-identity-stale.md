@@ -23,11 +23,12 @@ The database records what source content was indexed, what truncated content was
 ## Target Files or Areas
 - `scripts/mcp_servers/mdq/db_schema.py`, `index_write.py`, `mdq_models.py`, `mdq_service.py`, `health_check.py`
 - `tests/mcp_servers/mdq/test_db_schema.py`, `test_mdq_stale_detection.py`, `test_mdq_health_stale.py`, `test_mdq_outline_stale_helper.py`, `test_mdq_schema_migration.py`
+- `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` (runbook alignment)
 
 ## Required Changes
 - Add `source_content_hash` from source bytes; separate the path/mtime fingerprint; store section hash and stored chunk hash separately; store truncation flag, original and stored character counts, and indexed mtime and size.
 - Compare current mtime, size, and source hash on refresh; inspect the filesystem for outline freshness; define `fresh`, `stale`, `missing`, `unknown`, and `inconsistent`; treat chunks without a document row as inconsistent; redesign the database-only stale SQL.
-- Recreate the derived database according to the approved runbook.
+- Define the single derived-database recreation runbook (handling of the database, `-wal`, and `-shm` files, re-index verification, failure rollback, and alignment of the ADR matrices, decision details, restart conditions, and AAL references) and recreate the database according to it; every later MDQ schema change uses this runbook.
 
 ## Constraints
 - DDL changes force recreation (ADR-008 treats the MDQ database as derived; no migration). An ADR change needs a maintainer approval record (governance_01, governance_05); do not write or simulate it.
@@ -52,6 +53,7 @@ Yes. Define every persisted fingerprint and stale state; remove statements imply
 
 ## Dependencies
 - Depends on `issues/20261119-142125_mdqmcp003_mdq-file-processing-outcomes.md`. Blocks `issues/20261119-142127_mdqmcp005_mdq-transaction-atomicity.md` and `issues/20261119-142128_mdqmcp006_mdq-fts5-schema-identity.md`.
+- Health state codes extend the non-sensitive readiness reporting of `issues/20261119-142123_mdqmcp001_mdq-server-boundary.md`; the truncation fields defined here are reused by `issues/20261119-142130_mdqmcp008_mdq-schema-scope-consistency.md`.
 
 ## Unresolved Questions
 - `不明`: whether storing the full source hash requires reading files that exceed the size limit.

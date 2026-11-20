@@ -25,6 +25,7 @@ Keep characterization tests and security-contract tests clearly separated; run t
 ## Required Changes
 - Test out-of-allowlist reads, constrained global search, denied, oversized, and binary file reads, `/v1/tools` schemas including `dry_run`, unknown-argument rejection, `dedup_state` in responses, and same-key concurrent write executing once.
 - Cover authenticated and unauthenticated endpoint access; separate characterization from security-contract tests.
+- Provide the reusable HTTP-level MCP test fixture (real server boundary, mocked upstream client, authentication headers, `/v1/tools` schema assertions) and define the characterization-versus-authoritative-contract convention (marker or directory) for MCP tests; the CI/CD, Web Search, and MDQ issues reuse both instead of building their own.
 
 ## Constraints
 - Run after the unit tests of the dependent issues pass; do not weaken existing characterization tests.

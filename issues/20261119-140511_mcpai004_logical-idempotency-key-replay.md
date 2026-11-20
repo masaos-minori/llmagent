@@ -32,6 +32,9 @@ One key identifies one logical call: generate it once, carry it unchanged, never
 - Reject side-effecting calls when the key is absent.
 - Add `ReplayDirective` (original key, task id, original call id, tool name, canonical argument hash); match a reissued call during preparation and attach the original key; consume each directive once; fail with a structured ambiguity error when several directives match; create none for non-retryable or outcome-unknown operations.
 - Remove or deprecate the alternate `_state_key()` derivation after migration.
+- Generate the logical key once as an opaque value that is not derived from credentials, session identity, tool arguments, or content hashes (the later backlog proposes a UUIDv7); validate length, format, whitespace, and control characters; remove the transport-side derivation in `scripts/shared/http_transport.py`.
+- Carry one immutable execution context (logical call id, session, workflow, task, turn, and tool-call ids, tool name, server key, execution mode, canonical argument hash, tool-contract version) from preparation through gateway, executor, transport, audit, and recovery; require the same id for direct side-effecting dispatch.
+- Remove internal idempotency keys from LLM-facing recovery messages.
 
 ## Constraints
 - Fail closed on ambiguity and missing key.
@@ -61,9 +64,10 @@ Yes. Define the identifiers (workflow, task, turn, call, session, request, key) 
 - Depends on `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` for final ownership, attempt, and replay-state semantics; signature changes may start in parallel, end-to-end acceptance requires it.
 - Blocks `issues/20261119-140512_mcpai005_structured-execution-context.md`, `issues/20261119-140513_mcpai006_github-write-retry-policy.md`, `issues/20261119-140514_mcpai007_dedup-audit-observability.md`, `issues/20261119-140516_mcpai009_file-mcp-hardening.md`, and `issues/20261119-140517_mcpai010_github-http-contract-tests.md`: their acceptance uses the propagated key.
 - Re-verify against archived `issues/done/20261101-073823_idemaudit001_audit-idempotency-key-mismatch.md` before planning.
+- Related: `issues/20261120-115840_mcpdl001_approval-grant-intent.md` builds the approval grant and durable Agent intent on this logical call id and depends on this issue; `issues/20261120-115843_mcpdl004_call-state-control-api.md` reads the id for call-state queries.
 
 ## Unresolved Questions
-- `不明`: key composition (stable composite string versus UUID).
+- `不明`: key composition (stable composite string versus UUID); the later backlog proposes an opaque UUIDv7 not derived from content, and the choice must be made when planning.
 - `不明`: where replay directives are persisted so they survive restart (the review lists adapter and conversation-state files as needed reading).
 - `不明`: migration of existing `tool_call_state` rows keyed by the old derivation.
 

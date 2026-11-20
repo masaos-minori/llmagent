@@ -28,10 +28,12 @@ Only operations with a documented, tested reconciliation algorithm may be retrie
 
 ## Required Changes
 - Classify `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`, `github_merge_pull_request`, `github_delete_file`, `github_push_files`, and `github_create_branch` as non-retryable until reconciliation exists; define operation-specific reconciliation before making file update, branch creation, pull request update, or merge retryable.
-- Fail closed for non-retryable writes when the dedup store is unavailable.
+- Classify the GitHub writes under the shared fail-closed rule of `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` (a non-retryable write fails closed when the durable dedup store is unavailable); this issue adds only the GitHub-specific classification and tests.
 - Add strict connect and read timeouts; return `outcome_unknown` when a write may have succeeded; never retry it automatically.
 - Write intent audit before a high-risk operation (fail closed if it cannot be recorded) and completion audit after; return `applied_audit_failed` when the API write succeeded but completion audit failed.
 - Expose audit failures in health or metrics; keep the TOML and the constants synchronized through CI.
+- Implement each operation's reconciliation on the shared reconciler contract of `issues/20261120-115843_mcpdl004_call-state-control-api.md`: reuse completed evidence, never rerun an active, unknown, or ambiguous call, and record the evidence without raw payloads.
+- Define the shared write-outcome vocabulary (`outcome_unknown`, `applied_audit_failed`, and the rule that neither is retried automatically) and the shared write-audit contract (an intent audit before a high-risk or destructive write that fails closed, a completion audit after, and session, request, and logical call identifiers in every audit record); the Git, File, and CI/CD issues reuse both.
 
 ## Constraints
 - Do not infer non-application from a timeout.
@@ -59,6 +61,7 @@ Yes. Retry policy, timeout outcomes, and audit outcomes as failure behavior (ADR
 ## Dependencies
 - Depends on `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` (recovery-state semantics) and `issues/20261119-140511_mcpai004_logical-idempotency-key-replay.md` (stable call identity); `issues/20261119-140509_mcpai002_github-read-security-boundary.md` should be completed first for a consistent security boundary; `issues/20261119-140514_mcpai007_dedup-audit-observability.md` is recommended but not blocking.
 - Blocks `issues/20261119-140517_mcpai010_github-http-contract-tests.md`. Must land before automatic replay of GitHub writes is enabled.
+- Related: `issues/20261120-115842_mcpdl003_dedup-config-isolation.md` removes `config/mcp_dedup.toml`, which this issue lists as a target, and `issues/20261120-114211_agentcfg003_runtime-tool-metadata.md` makes RuntimeTool the retry-policy authority; the retry-class mirror in the TOML is retired with them, so the classification here must land in the metadata that remains.
 
 ## Unresolved Questions
 - `不明`: which operations can get a reconciliation algorithm (versus staying non-retryable).

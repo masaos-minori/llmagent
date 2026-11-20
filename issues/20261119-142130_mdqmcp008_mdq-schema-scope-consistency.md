@@ -26,8 +26,8 @@ Agent and direct calls accept and reject the same inputs; conflict identity matc
 - `tests/mcp_servers/mdq/test_mdq_tool_schema.py`, `test_mdq_tool_layer_consistency.py`, `test_mdq_get_chunk_behavior.py`
 
 ## Required Changes
-- `extra="forbid"` and `model_validate(args)` on request models; schemas generated from the models; strict booleans; non-empty string, array, and context bounds; decide `with_neighbors` (implement or remove from model, schema, description); structured truncation metadata from `get_chunk` instead of parsing output markers.
-- Replace path-derived scope keys with one stable `mdq_store:<db-identity>` scope; same write scope for index and refresh; decide whether reads share it; path order and duplication do not affect scope; distinguish multiple stores if supported.
+- Apply the shared strict request base model and schema generator of `issues/20261119-140510_mcpai003_github-pydantic-schema-source.md` (`extra="forbid"`, `model_validate(args)`, strict booleans) to the MDQ models; the MDQ-specific parts are non-empty string, array, and context bounds, the `with_neighbors` decision (implement or remove from model, schema, description), and structured truncation metadata from `get_chunk` using the truncation fields of `issues/20261119-142126_mdqmcp004_mdq-file-identity-stale.md` and the result metadata of `issues/20261119-140512_mcpai005_structured-execution-context.md` instead of parsing output markers.
+- Replace path-derived scope keys with one stable `mdq_store:<db-identity>` scope following the scope-key convention of `issues/20261119-140520_mcpai013_github-resource-scope-refine.md`; same write scope for index and refresh; decide whether reads share it; path order and duplication do not affect scope; distinguish multiple stores if supported.
 - Define old-generation, snapshot, blocking, or mixed-generation semantics during refresh; add `refresh_in_progress` and index-generation metadata applied to search, outline, chunk retrieval, and stats; consider atomic generation switching; remove warning-string dependence.
 
 ## Constraints
@@ -51,6 +51,7 @@ Yes. Request-validation parity, store identity, and read consistency.
 
 ## Dependencies
 - Depends on `issues/20261119-142123_mdqmcp001_mdq-server-boundary.md`, `issues/20261119-142127_mdqmcp005_mdq-transaction-atomicity.md`, `issues/20261119-142128_mdqmcp006_mdq-fts5-schema-identity.md`, and `issues/20261119-142129_mdqmcp007_mdq-approval-dry-run.md`. Blocks `issues/20261119-142132_mdqmcp010_mdq-release-readiness.md`.
+- Also depends on `issues/20261119-140510_mcpai003_github-pydantic-schema-source.md` (shared schema generator), `issues/20261119-140509_mcpai002_github-read-security-boundary.md` (shared strict configuration helpers), and `issues/20261119-140520_mcpai013_github-resource-scope-refine.md` (scope-key convention).
 
 ## Unresolved Questions
 - `不明`: read semantics during refresh (old generation, snapshot, blocking, or mixed).

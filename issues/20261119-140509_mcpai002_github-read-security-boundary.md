@@ -39,6 +39,7 @@ Make the common service boundary authoritative: the allowlist check runs inside 
 - Add a positive `max_file_read_size_kb`; check content metadata size before decoding.
 - Define binary-content behavior (default: reject) and replace silent invalid UTF-8 substitution with an explicit error or a declared lossy-decoding field.
 - Map each posture check to its runtime enforcement point.
+- Introduce the shared strict configuration parsing helpers (strict booleans, positive numerics, rejection of NaN and infinity) and the `owner/repo` case-normalization and validation helper in a shared MCP module (location decided when planning), and use them for `allow_global_search`, `max_file_read_size_kb`, and the allowlist here; GitHub schema generation, CI/CD, Web Search, and MDQ reuse them instead of re-implementing them.
 
 ## Constraints
 - Authorization runs before the first GitHub API access.
@@ -74,7 +75,7 @@ Yes. Update the GitHub security posture and design description: intent, boundari
 
 ## Dependencies
 - Blocks `issues/20261119-140513_mcpai006_github-write-retry-policy.md`, `issues/20261119-140517_mcpai010_github-http-contract-tests.md`, and `issues/20261119-140520_mcpai013_github-resource-scope-refine.md`.
-- Independent of `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` and `issues/20261119-140510_mcpai003_github-pydantic-schema-source.md`; may be implemented in parallel with them.
+- Independent of `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`; may be implemented in parallel with it. Also blocks `issues/20261119-140510_mcpai003_github-pydantic-schema-source.md`, `issues/20261119-141106_mcpci001_cicd-credential-config-contract.md`, and `issues/20261119-142123_mdqmcp001_mdq-server-boundary.md`, which reuse the shared strict configuration helpers and the `owner/repo` normalization defined here.
 - Sibling check: archived `issues/done/20261017-115004_mcp006_implement-missing-guard-layers-for-high-risk-tool-categories.md` touched the same security module; re-verify this issue's claims against current source before planning.
 
 ## Unresolved Questions

@@ -27,7 +27,7 @@ Make outcomes evidence-based and cancellable: a success needs fresh repository o
 ## Required Changes
 - Capture a fresh post-operation `RepositoryState`; verify add, commit, checkout, pull, and push by operation-specific postconditions (push by comparing the expected local commit with the remote ref).
 - Run pull and push in a cancellable subprocess; terminate the process group on timeout, then reconcile repository and remote state.
-- Return separate outcomes for confirmed-not-applied and outcome-unknown; never retry outcome-unknown automatically.
+- Return separate outcomes for confirmed-not-applied and `outcome_unknown` using the shared vocabulary of `issues/20261119-140513_mcpai006_github-write-retry-policy.md`; never retry `outcome_unknown` automatically.
 - Close repository handles on all paths.
 - Replace mocks that only simulate postcondition failure with integration tests on a real temporary repository and bare remote.
 
@@ -54,7 +54,7 @@ Yes. Per-operation postconditions and timeout outcomes (failure behavior), not a
 - Dedup state machine (`issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`); GitHub and File MCP behavior.
 
 ## Dependencies
-- Depends on `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` (outcome-unknown and retry/review semantics); otherwise independent.
+- Depends on `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md` (outcome-unknown and retry/review semantics) and on `issues/20261119-140513_mcpai006_github-write-retry-policy.md` (shared write-outcome vocabulary); otherwise independent.
 
 ## Unresolved Questions
 - `不明`: whether a subprocess-based pull and push is compatible with the current Git library usage.
