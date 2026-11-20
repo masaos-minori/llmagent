@@ -153,8 +153,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: re-run searches, then register the AGENT-001 design-gap entry | Pending | — | — | `docs/00_governance/governance_03_issue-and-uncertainty-management.md` |
-| 2 | Phase 2: update the adrrev002 UNK-02 Resolution Path cell | Pending | — | — | `plans/done/20261110-091327_adrrev002_agent-eventbus-coupling.md` |
+| 1 | Phase 1: re-run searches, then register the AGENT-001 design-gap entry | In Progress | — | — | `docs/00_governance/governance_03_issue-and-uncertainty-management.md` |
+| 2 | Phase 2: update the adrrev002 UNK-02 Resolution Path cell | In Progress | — | — | `plans/done/20261110-091327_adrrev002_agent-eventbus-coupling.md` |
 | 3 | Phase 3: validation gates and scope confirmation (no deploy) | Pending | — | — | Both Implementation Target Files |
 
 ### Blocker Log
@@ -165,7 +165,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261120-213832_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261120-213832_02_plans_done_20261110-091327_adrrev002_agent-eventbus-coupling.md.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -183,3 +184,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-002 | Acceptance Criteria + Dependencies note; adrrev002 Unknowns UNK-02 row text (checked in Step 2) | plans/done/20261110-091327_adrrev002_agent-eventbus-coupling.md | Phase 2 | AC-02 | check_workitem_structure.py --archived-status; rg UNK-02 read-back | Confirmed by repository evidence |
 | REQ-003 | Testing Expectations | docs/00_governance/governance_03_issue-and-uncertainty-management.md | Phase 3 | AC-03 | check_needs_confirmation_inventory.py; check_docs_structure.py; check_docs_content_policy.py | Explicit in issue |
 | REQ-003 | Testing Expectations | plans/done/20261110-091327_adrrev002_agent-eventbus-coupling.md | Phase 3 | AC-03 | check_workitem_structure.py --archived-status; git diff --name-only | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261120-213832 -->
