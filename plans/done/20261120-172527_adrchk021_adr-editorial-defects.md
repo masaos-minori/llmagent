@@ -18,7 +18,7 @@ Medium
   - Adding new automated tests (Issue Testing Expectations: Documentation-only). Adding an actual INV-11 to ADR-012 is deferred to the owner (see Unknowns).
   - Editing generated guard blocks (`docs/10_adr/adr_01_index.md`, `docs/00_governance/governance_01_documentation-policy.md`, `docs/13_api`-class reference docs, `registry/manifests/*.yaml`); the four target ADRs and the ledger contain no guard blocks.
 - **Dependencies**: ordering against sibling items editing the same ADRs; completed predecessors are applied (adrchk001 and adrchk011 have done plans; adrchk022 is still open and unplanned).
-  - **Depends on**: issues/20261117-123022_adrchk022_history-comment-removal.md | all | Both edit ADR-017. This Plan touches only the `Completion Checklist` section; adrchk022 targets ADR-017 history text. Fix the execution order with the owner; whichever runs second re-verifies the other's section before editing.
+  - **Depends on**: issues/20261117-123022_adrchk022_history-comment-removal.md | all | Both edit ADR-017. This Plan touches only the `Completion Checklist` section; adrchk022 targets ADR-017 history text — the overlap is section-disjoint. Owner decision (2026-11-20): this Plan runs first; adrchk022 re-verifies the `Completion Checklist` section when its Plan is created.
 
 ## Background
 The source Issue was filed from the consolidated ADR review package `ADRCHK2-M09` with every claim labeled `Documentation only` until re-verified. Since the Issue was filed (2026-11-17), completed predecessor plans (adrchk011 approval-governance ledger form, adrchk001 MCP auth contract, adrchk013 invariant-matrix mirroring, adrchk003 approval posture) have already rewritten parts of these ADRs, so the Issue's own constraint — "if a defect is already gone, record the evidence and skip that task" — applies to several claims.
@@ -29,7 +29,7 @@ Adversarial re-verification against current source (2026-11-20) result per claim
 | Issue claim | Verdict | Evidence |
 |---|---|---|
 | ADR-012 INV-09 wording contradicts pipeline construction | Already resolved | Decision Detail 9 already states "Stages 1 to 3 run before the pipeline is constructed"; INV-09 cites Decision Detail 9; the change is tracked as pending amendment AAL-015 (`## Approval`, ledger Part 5). |
-| ADR-012 protected-branch check for `git_add`/`git_commit` has no INV and no test | Confirmed | INV-03 names only `git_checkout`/`git_push`/`git_pull`; `verify_authorization()` protects the HEAD destination for `git_add`/`git_commit` (`scripts/mcp_servers/git/repository_state.py` L129-152); no protected-branch test for those two tools exists (only the dirty-worktree reachability test at `tests/mcp_servers/git/test_git_security_compliance.py` L1959); `Known Deviations` is "Not applicable". |
+| ADR-012 protected-branch check for `git_add`/`git_commit` has no INV and no test | Confirmed | INV-03 names only `git_checkout`/`git_push`/`git_pull` (file L132); `verify_authorization()` protects the HEAD destination for `git_add`/`git_commit` (`scripts/mcp_servers/git/repository_state.py` L129-152); no protected-branch test for those two tools exists (only the dirty-worktree reachability test at `tests/mcp_servers/git/test_git_security_compliance.py` L1959); `Known Deviations` is "Not applicable". |
 | ADR-012 cited ID `test_git_service_dispatch.py::test_rejected_remote_forms` lacks the class name and may fail to resolve | Already resolved | The malformed form appears nowhere in `docs/10_adr/adr_01_index.md` or the ADR-012 citation columns; the bare name survives only in prose without a `` `file.py::` `` wrapper, which the citation regex `` `([^`]+\.py)::([^`]+)` `` does not extract. Baseline run `uv run python .github/run_cited_adr_tests.py` on 2026-11-20: "All 70 cited ADR invariant tests passed." |
 | ADR-014 `tasks.status` allows `halted` but the stage transitions do not include it; complete and completed are both used | Partially invalid | ADR-014 never contained `halted` or `completed` (`git log -S` returns no commits; as-of-2026-11-17 and current file greps agree). The only vocabulary is the stage list `plan -> execute -> verify -> complete/failed`, which matches `scripts/agent/workflow/workflow_loader.py` `_REQUIRED_STAGES` and `workflow_engine.py`. The real gap: the ADR names no task-status vocabulary at all, although the Workflow Engine persists `halted` (`workflow_engine.py` L233). |
 | ADR-015 Scope covers all guard-commented documents but INV-01 and its verification cover only `generate_reference_table.py` | Confirmed | Scope: "Applies to every document that carries a generated guarded block"; INV-01 mandates only the `generate_reference_table.py --type <domain>` generator; `docs/00_governance/governance_01_documentation-policy.md` and `docs/10_adr/adr_01_index.md` carry `generate_adr_authority.py` guard blocks, governed instead by ADR-016 Decision 6 and INV-03. |
@@ -44,7 +44,7 @@ Documentation-only edits in four ADR files plus one ledger entry. Skipped claims
 ## Requirements
 - `REQ-001`: ADR-012 — register in `Known Deviations` that the destination (HEAD) protected-branch check applied to `git_add`/`git_commit` by `verify_authorization()` is mandated by no INV (INV-03 covers only `git_checkout`/`git_pull`/`git_push`) and has no dedicated protected-branch test; keep the existing Scope description unchanged. Skip the INV-09 reword and the test-ID fix with the evidence above (no edit needed).
 - `REQ-002`: ADR-014 — extend the Workflow Engine responsibility bullet to name both state vocabularies exactly as the code defines them: stage transitions (`plan -> execute -> verify -> complete/failed`) and task status (`pending`/`running`/`completed`/`failed`/`halted`, with `halted` persisted when max attempts is exceeded), taken from the `tasks.status` CHECK constraint in `scripts/db/schema_sql.py`. Skip the "complete vs completed" cleanup as invalid (only the stage term `complete` exists in the file).
-- `REQ-003`: ADR-015 — align Scope and INV-01: keep INV-01's obligation text unchanged and add an explicit attribution that guard blocks produced by `tools/generate_adr_authority.py` are governed by ADR-016 (Decision 6, INV-03), or narrow the Scope sentence to the `generate_reference_table.py` document class; the choice is the owner's (UNK-01). Record the chosen alignment as a `Current Decision Approval (pending)` bullet citing the new ledger ID; write no approval statement. Also resolve the `check_adr_structure.py` warning at ADR-015 L126 by aligning the `scripts/agent/*.py` phrasing between Implementation Notes and Implementation References.
+- `REQ-003`: ADR-015 — align Scope and INV-01 by attribution: keep the Scope sentence and INV-01's obligation text unchanged and add an explicit attribution that guard blocks produced by `tools/generate_adr_authority.py` are governed by ADR-016 (Decision 6, INV-03), recorded also in `Related ADRs` (owner decision 2026-11-20, see resolved UNK-01). Record the alignment as a `Current Decision Approval (pending)` bullet citing the new ledger ID; write no approval statement. Also resolve the `check_adr_structure.py` warning at ADR-015 L126 by aligning the `scripts/agent/*.py` phrasing between Implementation Notes and Implementation References.
 - `REQ-004`: ADR-017 — append the six missing canonical checklist items in canonical order after the existing eleven, each only if verified true against ADR-017's own sections (all six verified true during this analysis: every INV-01..05 has a Verification row; all rows are automated Unit/Regression checks; Known Deviations has no discrepancy to register; Required Reviewers and an Approval Record exist; Review Triggers are recorded; ADR-017 is registered in `docs/10_adr/adr_01_index.md` and referenced from `docs/22_mcp/mcp_02_02_startup-modes-and-health.md` and `docs/22_mcp/mcp_06_14_mcp-authentication-setup.md`). Introduce no new requirement text.
 - `REQ-005`: Governance ledger — append a new entry `AAL-038` to Part 5: ADR Approval Ledger in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` for the REQ-003 pending amendment (ADR, Decision, Approver: Not recorded, Date: Not recorded, Scope), following the existing AAL-036/AAL-037 entry format.
 
@@ -57,7 +57,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md | Known Deviations entry for the git_add/git_commit protected-branch INV/test gap | Confirmed coverage gap; INV-03 excludes git_add/git_commit; no dedicated test | REQ-001 / AC-001 | `scripts/mcp_servers/git/repository_state.py` L129-152; INV-03 text L112; `Known Deviations` currently "Not applicable" | None (documentation-only; cited suites re-run unchanged) | Verified |
+| docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md | Known Deviations entry for the git_add/git_commit protected-branch INV/test gap | Confirmed coverage gap; INV-03 excludes git_add/git_commit; no dedicated test | REQ-001 / AC-001 | `scripts/mcp_servers/git/repository_state.py` L129-152; INV-03 text L132; `Known Deviations` currently "Not applicable" | None (documentation-only; cited suites re-run unchanged) | Verified |
 | docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md | Add task-status vocabulary to the Workflow Engine bullet | ADR names no task status; code persists `halted` | REQ-002 / AC-002 | `scripts/db/schema_sql.py` L171; `scripts/agent/workflow/models.py` L16; `scripts/agent/workflow/workflow_engine.py` L233 | `tests/db/test_create_schema.py` (pins DDL, unchanged) | Verified |
 | docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md | Scope/INV-01 alignment (pending amendment) + Implementation Notes/References drift fix | Scope claims all guard blocks; INV-01 covers one generator; checker warning open | REQ-003 / AC-003 | ADR-015 Scope L65, INV-01 L110; ADR-016 Decision 6 L64, INV-03 L124; `check_adr_structure.py` warning at L126 | `tests/tools/test_check_adr_structure.py` | Verified |
 | docs/10_adr/adr_02_03_017_mcp-authentication.md | Append six canonical Completion Checklist items | Checklist shorter than the shared governed item set | REQ-004 / AC-004 | ADR-017 checklist (11 items) vs ADR-012/014/015 (17 items); truth of each item verified against ADR-017 sections | `tests/tools/test_check_adr_structure.py` | Verified |
@@ -125,9 +125,9 @@ Yes — the documentation files ARE the implementation targets (the four ADRs an
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | ADR-015 alignment route: extend INV-01 to every guard-block generator vs narrow Scope and attribute `generate_adr_authority.py` blocks to ADR-016 (owner decision; both are decision changes per the Issue constraint) | Maintainer preference; neither route is pre-approved | Ask the owner before Phase 3; the chosen route fixes the exact wording of the pending bullet and AAL-038 Scope | True |
+| UNK-01 | Resolved 2026-11-20 (owner): ADR-015 alignment route is the attribution route — keep Scope and INV-01, attribute `generate_adr_authority.py` guard blocks to ADR-016 (Decision 6, INV-03); the Scope-narrowing route was rejected | — (owner decision recorded in chat 2026-11-20) | Owner decision; wording fixed in REQ-003 and Phase 3 | False |
 | UNK-02 | Whether the owner prefers a new ADR-012 INV for the git_add/git_commit HEAD-destination protected check (decision change, pending amendment) instead of the Known Deviations registration chosen here | Maintainer preference | Owner decision; Known Deviations registration is a valid stand-alone outcome that satisfies the Issue's "or state why it is out of scope" branch | False |
-| UNK-03 | Execution order relative to adrchk022 (open Issue editing ADR-017 history text; not yet planned) | adrchk022 has no plan; overlap is section-disjoint (checklist vs history text) | Owner fixes ordering; each Plan re-verifies the other's section before editing | False |
+| UNK-03 | Resolved 2026-11-20 (owner): execution order against adrchk022 is fixed — this Plan runs first; adrchk022 re-verifies the ADR-017 `Completion Checklist` section when its Plan is created | — (owner decision recorded in chat 2026-11-20) | Owner decision; recorded in Scope Dependencies | False |
 
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
@@ -153,8 +153,8 @@ Release unit: **Unit**: ADR015-pending-amendment | **Phases**: 3, 4 | **Reason**
    - [ ] Replace "Not applicable" in `Known Deviations` with the gap entry: the destination-branch protected check applied to `git_add`/`git_commit` (HEAD destination) is not mandated by INV-03 and has no dedicated protected-branch test; scope statement already records the behavior. (REQ-001; docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md)
 2. **Phase 2: ADR-014 task-status vocabulary**
    - [ ] Extend the Workflow Engine bullet with the task-status vocabulary `pending`/`running`/`completed`/`failed`/`halted` from the `tasks.status` CHECK constraint, kept distinct from the stage vocabulary. (REQ-002; docs/10_adr/adr_02_02_014_agent-control-plane-responsibility-boundaries.md)
-3. **Phase 3: ADR-015 scope alignment (gated on UNK-01 owner decision)**
-   - [ ] Apply the owner-chosen alignment between Scope and INV-01, referencing ADR-016 for `generate_adr_authority.py` blocks. (REQ-003; docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md)
+3. **Phase 3: ADR-015 scope alignment (owner route recorded 2026-11-20: attribution to ADR-016)**
+   - [ ] Keep the Scope sentence and INV-01 obligation text unchanged; add the explicit attribution that `tools/generate_adr_authority.py` guard blocks are governed by ADR-016 (Decision 6, INV-03), plus the matching `Related ADRs` entry. (REQ-003; docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md)
    - [ ] Add the `Current Decision Approval (pending)` bullet citing AAL-038 (no approval statement text). (REQ-003; docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md)
    - [ ] Align the `scripts/agent/*.py` phrasing between Implementation Notes and Implementation References so the checker warning is gone. (REQ-003; docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md)
 4. **Phase 4: Governance ledger entry (same commit as Phase 3)**
@@ -188,12 +188,12 @@ Release unit: **Unit**: ADR015-pending-amendment | **Phases**: 3, 4 | **Reason**
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: ADR-012 Known Deviations registration | Pending | — | — | |
-| 2 | Phase 2: ADR-014 task-status vocabulary | Pending | — | — | |
-| 3 | Phase 3: ADR-015 scope alignment (gated on UNK-01) | Pending | — | — | |
-| 4 | Phase 4: governance_03 AAL-038 entry | Pending | — | — | Same commit as Phase 3 |
-| 5 | Phase 5: ADR-017 checklist completion | Pending | — | — | |
-| 6 | Phase 6: verification checkers | Pending | — | — | |
+| 1 | Phase 1: ADR-012 Known Deviations registration | In Progress | — | — |  |
+| 2 | Phase 2: ADR-014 task-status vocabulary | In Progress | — | — |  |
+| 3 | Phase 3: ADR-015 scope alignment (owner route: attribution to ADR-016) | In Progress | — | — |  |
+| 4 | Phase 4: governance_03 AAL-038 entry | In Progress | — | — | Same commit as Phase 3 |
+| 5 | Phase 5: ADR-017 checklist completion | In Progress | — | — |  |
+| 6 | Phase 6: verification checkers | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -203,7 +203,11 @@ Release unit: **Unit**: ADR015-pending-amendment | **Phases**: 3, 4 | **Reason**
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261120-174933_01_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261120-174933_02_docs_10_adr_adr_02_02_014_agent-control-plane-responsibility-boundaries.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261120-174933_03_docs_10_adr_adr_02_07_015_docs-reference-document-class-disposition.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261120-174933_04_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261120-174933_05_docs_10_adr_adr_02_03_017_mcp-authentication.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -224,3 +228,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-003 | Issue "Reason for Change" ADR-015 bullet; ADR-015 Scope L65/INV-01 L110; ADR-016 Decision 6/INV-03 | docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md | Phase 3 | AC-003 | check_adr_structure.py (warning gone), generator --check pair | Planned |
 | REQ-004 | Issue "Reason for Change" ADR-017 bullet; checklist item-count comparison | docs/10_adr/adr_02_03_017_mcp-authentication.md | Phase 5 | AC-004 | check_adr_structure.py, test_check_adr_structure.py | Planned |
 | REQ-005 | Issue "Constraints" pending-amendment rule; check_adr_structure ledger rule L324-359 | docs/00_governance/governance_03_issue-and-uncertainty-management.md | Phase 4 | AC-005 | check_adr_structure.py ledger load | Planned |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261120-174933 -->
