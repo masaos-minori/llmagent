@@ -53,11 +53,11 @@ Japanese BM25 search requires normalization by morphological analysis, but the c
 
 ## Assumptions
 
-- Target environment: a single host, a single SQLite database
+- Target environment: a single host; the RAG layer owns `rag.sqlite` under the repository's per-process SQLite database separation
 - Expected scale: limited concurrency
-- Trust boundary: privileges are granted only within SQLite
+- Trust boundary: privileges are granted only within the processes of the RAG layer, not within SQLite
 - External dependencies: none (SQLite is a local file)
-- Items to re-evaluate if the assumptions no longer hold: multi-DB configuration, distributed execution, integration with an external index store
+- Items to re-evaluate if the assumptions no longer hold: distributed execution, integration with an external index store
 
 ## Decision
 
@@ -150,7 +150,7 @@ Keeping `content` as a separate, never-replaced field guarantees that every stor
 
 ### Security Consequences
 
-- Trust boundary: privileges are granted only within SQLite
+- Trust boundary: privileges are granted only within the processes of the RAG layer, not within SQLite
 - Secret handling: follow the principle of minimal exposure
 
 ## Invariants

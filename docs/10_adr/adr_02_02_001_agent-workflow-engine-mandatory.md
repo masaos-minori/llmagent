@@ -82,7 +82,6 @@ This system executes tasks planned by the LLM. Some tools have side effects, som
 - Details of individual workflow stage definitions
 - Redesign of the tool-level approval policy (risk rules and safety tiers in `agent/tool_policy.py`)
 - Introduction of EventBus integration
-- Changes to runtime behavior
 - Schema design of the workflow definition file
 - Monitoring and metrics design
 - The overall production failure policy (handled by ADR-004)

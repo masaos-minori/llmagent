@@ -672,6 +672,15 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Date:** Not recorded
 - **Scope:** INV-04 verification row
 
+#### AAL-037
+
+- **ID:** AAL-037
+- **ADR:** ADR-006
+- **Decision:** Stating the start position of the At-Least-Once delivery guarantee as a start position the Consumer itself selected (`since_seq` greater than zero or a `Last-Event-ID` header)
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Detail 9 and INV-07 delivery-guarantee text
+
 ## Resolution Rules
 
 The following resolution criteria apply across the parts of this document:

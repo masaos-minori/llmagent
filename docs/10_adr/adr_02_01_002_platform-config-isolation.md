@@ -104,7 +104,6 @@ File isolation and key validation are separate. File isolation: every process ex
 - Details of individual configuration file schemas
 - Detailed Prefix/Allowlist design for environment variables
 - Details of how the EventBus integration loads its configuration
-- Changes to runtime behavior
 - Monitoring and metrics design (handled by a separate ADR)
 
 ## Rationale

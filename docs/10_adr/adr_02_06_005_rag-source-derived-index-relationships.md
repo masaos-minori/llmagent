@@ -47,7 +47,7 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
 
 ### Constraints
 
-- Multiple tables coexist in a single SQLite database
+- Multiple derived-index tables coexist in `rag.sqlite`
 - `chunks_fts` is an FTS5 virtual table and does not support standard FK constraints
 - `chunks_vec` is a sqlite-vec extension and does not support standard FK constraints
 - Because `chunks_vec` has no FK, explicit deletion is the primary mechanism on delete; the `chunks_vec_ad` trigger is only a backstop
@@ -55,11 +55,11 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
 
 ## Assumptions
 
-- Target environment: a single host, a single SQLite database
+- Target environment: a single host; the RAG layer owns `rag.sqlite` under the repository's per-process SQLite database separation
 - Expected scale: limited concurrency
-- Trust boundary: privileges are granted only within SQLite
+- Trust boundary: privileges are granted only within the processes of the RAG layer, not within SQLite
 - External dependencies: none (SQLite is a local file)
-- Items to re-evaluate if the assumptions no longer hold: multi-DB configuration, distributed execution, integration with an external index store
+- Items to re-evaluate if the assumptions no longer hold: distributed execution, integration with an external index store
 
 ## Decision
 
@@ -157,7 +157,7 @@ Because the indexes can be rebuilt even if FTS5 or the Vector Engine is replaced
 
 ### Security Consequences
 
-- Trust boundary: privileges are granted only within SQLite
+- Trust boundary: privileges are granted only within the processes of the RAG layer, not within SQLite
 - Secret handling: follow the principle of minimal exposure
 
 ## Invariants

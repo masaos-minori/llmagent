@@ -168,12 +168,12 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: ADR-006 INV-06 conflict and Alternative B wording | Pending | — | — | |
-| 2 | Phase 2: `since_seq` condition pending amendment + AAL-037 | Pending | — | — | |
-| 3 | Phase 3: boilerplate removal in ADR-006/005/009 | Pending | — | — | |
-| 4 | Phase 4: Out-of-Scope line removal in ADR-001/002/003 | Pending | — | — | |
-| 5 | Phase 5: Index matrix row wording | Pending | — | — | |
-| 6 | Phase 6: validation and preservation signal recording | Pending | — | — | |
+| 1 | Phase 1: ADR-006 INV-06 conflict and Alternative B wording | Completed | 20261120-155900 | 20261120-162500 | Manual Review now names INV-01 as the only invariant without a dedicated automated test and states that INV-06 has dedicated tests; Alternative B is rejected on backward offset movement and cites Decision Detail 13. The Completion Checklist gap lines are generic ("gaps: Verification > Manual Review") and name no invariant, so they needed no edit. |
+| 2 | Phase 2: `since_seq` condition pending amendment + AAL-037 | Completed | 20261120-155900 | 20261120-162000 | AAL-037 inserted after AAL-036 (max id re-confirmed first), Approver and Date "Not recorded". The pending bullet is in ADR-006's Approval Record: this governance document has no Pending Amendments section, and the precedent is ADR-005's Approval Record. The condition is stated in Decision Detail 9 and in INV-07, which restates it in the Invariants section; editing only one of the two would create a new conflict in the same file, so the AAL-037 Scope names both. |
+| 3 | Phase 3: boilerplate removal in ADR-006/005/009 | Completed | 20261120-155900 | 20261120-165000 | ADR-006 names ADR-008 and ADR-013, both already in its `related`. ADR-005 and ADR-009 wording stays ADR-number-free and uses the repository's existing trust-boundary phrasing pattern ("privileges are granted only within each process"): no HTTP authentication layer is documented for the RAG side, so the wording attributes privileges to the RAG layer's processes instead. |
+| 4 | Phase 4: Out-of-Scope line removal in ADR-001/002/003 | Completed | 20261120-155900 | 20261120-160000 | "Changes to runtime behavior" deleted from each Out of Scope list. |
+| 5 | Phase 5: Index matrix row wording | Completed | 20261120-155900 | 20261120-161500 | Row reworded to "EventBus offsets are non-decreasing (an equal or lower ACK offset leaves it unchanged)" in the hand-edited section; generated blocks untouched. The first wording pushed the file to 36641 bytes, over the 36609 ceiling in `tools/check_docs_structure.py`, so it was compacted; the neighbouring `ADR-006 INV-09` row already states that a lower-`seq` ACK leaves the offset unchanged. |
+| 6 | Phase 6: validation and preservation signal recording | Completed | 20261120-162500 | 20261120-165500 | `check_docs_structure.py` (after the size fix), `check_docs_quality.py`, `check_docs_content_policy.py`, `check_adr_invariant_matrix.py`, `check_adr_authority.py`, `check_adr_reference.py`, `check_metadata_field_policy.py`, `check_db_separation.py`, `check_needs_confirmation_inventory.py`, `check_known_deviation_sync.py`: no findings. `check_adr_structure.py`: one pre-existing warning in `adr_02_07_015_docs-reference-document-class-disposition.md`, a file this batch does not touch. `check_docs_consistency.py --domain eventbus` and `--domain rag`: no findings; `--domain agent`: one pre-existing warning in `agent_14_reference-api-subpackages-generated.md`, untouched by this batch. `tools/check_domain_dependencies.py` named in the Implementation steps does not exist in `tools/`. `run_validation_gates.py` fast mode: all mapped gates Pass after the Status-vocabulary fix below. `check_adr_preservation.py --base HEAD`: 2 errors and 5 warnings, each mapping to an intended edit — ADR-001/002/003 `Decision` sections are the deleted Out-of-Scope bullet; ADR-006 `Decision` is the Alternative B rewording plus the Decision Detail 9 condition, `Invariants` is the INV-07 condition, and `Approval` is the new pending bullet. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -183,7 +183,14 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261120-162706_01_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 1, 2, 3 | Procedure | Completed | — | — |
+| implementations/20261120-162706_02_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261120-162706_03_docs_10_adr_adr_01_index.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261120-162706_04_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261120-162706_05_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261120-162706_06_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261120-162706_07_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261120-162706_08_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -211,3 +218,5 @@ N/A: no release unit
 | REQ-007 | Problem; adr_001:85, adr_002:107, adr_003:112 vs their Decision Details (checked in Step 2) | docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md | 4 | AC7 | T1 grep | Confirmed by repository evidence |
 | REQ-007 | adr_002:107 vs 62-68 (checked in Step 2) | docs/10_adr/adr_02_01_002_platform-config-isolation.md | 4 | AC7 | T1 grep | Confirmed by repository evidence |
 | REQ-007 | adr_003:112 vs 71-77 (checked in Step 2) | docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md | 4 | AC7 | T1 grep | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261120-162706 -->

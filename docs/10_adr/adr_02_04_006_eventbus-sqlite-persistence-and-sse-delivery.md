@@ -47,7 +47,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive) with different rol
 
 ### Constraints
 
-- Events managed in a single SQLite database
+- EventBus events are managed in a dedicated SQLite database (`eventbus.sqlite`) under the ADR-008 per-process database separation
 - SSE delivery: real-time only to connected Subscribers
 - JSONL archive: secondary audit log, not Primary Store
 - Consumer IDs: client-specified, not server-generated
@@ -55,11 +55,11 @@ The EventBus has multiple data stores (SQLite, JSONL archive) with different rol
 
 ## Assumptions
 
-- Single host, single SQLite database
+- Single host; the EventBus owns `eventbus.sqlite` among the six per-process SQLite databases defined by ADR-008
 - Limited concurrency
-- Privileges granted only within SQLite
+- Privileges are enforced at the EventBus HTTP authentication layer defined by ADR-013, not within SQLite
 - No external dependencies (SQLite is local)
-- Items to re-evaluate if the assumptions no longer hold: multi-DB configuration, distributed execution, integration with an external event store
+- Items to re-evaluate if the assumptions no longer hold: distributed execution, integration with an external event store
 
 ## Decision
 
@@ -73,7 +73,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive) with different rol
 6. Consumer IDs stay fixed across restarts, and ACK Offsets are persisted.
 7. Moving an ACKed Offset backward is not permitted.
 8. Event IDs are assigned so that Consumers can process idempotently.
-9. At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not, except for events that are not carried over when the database is archived and recreated under the ADR-008 schema-mismatch rule (Decision Detail #22).
+9. At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not. The guarantee holds when the Consumer initiates delivery from a start position the Consumer itself selected, either a `since_seq` greater than zero or a `Last-Event-ID` header. Events that are not carried over when the database is archived and recreated under the ADR-008 schema-mismatch rule are outside the guarantee (Decision Detail #22).
 10. The state, count, and history of NAK, Retry, DLQ, and Requeue are persisted.
 11. The following delivery rules apply:
     - 11a. An ACK with `new_offset <= current_offset` is accepted, offset unchanged (Monotonicity Invariant); enforced atomically in SQL on the per-consumer offset table.
@@ -132,10 +132,10 @@ Guaranteeing Offset monotonicity prevents offsets from moving backward through a
 
 ### Alternative B: No offset monotonicity guarantee
 
-- **Description:** Permit ACKed Offsets to move backward so that Consumers can ACK in any order.
+- **Description:** Permit ACKed Offsets to move backward.
 - **Advantages:** More flexible Consumer implementation; Parallel ACKs are possible
 - **Disadvantages:** Unpredictable movement of Offsets; Risk of data loss; Reduced reproducibility
-- **Reason for Rejection:** Data Integrity prevents data loss from backward-moving offsets.
+- **Reason for Rejection:** Data Integrity prevents data loss from backward-moving offsets. Out-of-order ACKs are already permitted without backward offset movement (Decision Detail 13).
 - **Reconsideration Conditions:** Consumers implement fully idempotent processing; Parallel ACKs become necessary
 
 ### Alternative C: No consumer ID conflict detection
@@ -173,7 +173,7 @@ Guaranteeing Offset monotonicity prevents offsets from moving backward through a
 
 ### Security Consequences
 
-- Trust boundary: privileges are granted only within SQLite
+- Trust boundary: privileges are enforced at the EventBus HTTP authentication layer defined by ADR-013, not within SQLite
 - Secret handling: follow the principle of minimal exposure
 
 ## Invariants
@@ -184,7 +184,7 @@ Guaranteeing Offset monotonicity prevents offsets from moving backward through a
 - INV-04: Consumer IDs stay fixed across restarts, and ACK Offsets are persisted.
 - INV-05: Moving an ACKed Offset backward is not permitted.
 - INV-06: Event IDs are assigned so that Consumers can process idempotently.
-- INV-07: At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not, except for events that are not carried over when the database is archived and recreated under the ADR-008 schema-mismatch rule (Decision Detail #22).
+- INV-07: At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not. The guarantee holds when the Consumer initiates delivery from a start position the Consumer itself selected, either a `since_seq` greater than zero or a `Last-Event-ID` header. Events that are not carried over when the database is archived and recreated under the ADR-008 schema-mismatch rule are outside the guarantee (Decision Detail #22).
 - INV-08: The state, count, and history of NAK, Retry, DLQ, and Requeue are persisted.
 - INV-09: An ACK with `new_offset <= current_offset` never updates the offset.
 - INV-10: A non-empty Consumer ID has at most one active `GET /subscribe` connection. On Subscribe, ACK, and NACK, a caller may use only the `consumer_id` and topic values explicitly bound to its authenticated Consumer principal; no superuser bypass exists (ADR-013 INV-02).
@@ -275,7 +275,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 - Investigation of DLQ promotions
 - DB Schema verification before deployment
 - INV-10 connection exclusivity is verified for `GET /subscribe`; its consumer binding is governed by ADR-013 INV-02 and verified by the ADR-013 Verification tests
-- INV-01 and INV-06 have no dedicated automated test (INV-01 is exercised indirectly by every persistence test; INV-06 is bounded by the envelope schema's `event_id` format check in `tests/eventbus/test_eventbus_publish_contract.py::TestPublishEnvelopeSchemaContract`)
+- INV-01 has no dedicated automated test (it is exercised indirectly by every persistence test); INV-06 has dedicated tests in the Automated Tests table and is bounded by the envelope schema's `event_id` format check in `tests/eventbus/test_eventbus_publish_contract.py::TestPublishEnvelopeSchemaContract`
 
 ## Implementation Notes
 
@@ -328,6 +328,7 @@ Not applicable
 - **Current Decision Approval (pending)**: The INV-13 wording (`>= max_retry`), the re-mapping of the INV-04, INV-06, and INV-07 verification rows, and the requeue error text are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and they are tracked by AAL-008. No approval is recorded here.
 - **Current Decision Approval (pending)**: Adding ADR-008 to the front matter `related` and Related ADRs and stating in INV-15 that ADR-006 owns the loopback-binding decision (ADR-013 layers authentication on top) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-009. No approval is recorded here.
 - **Current Decision Approval (pending)**: Stating the no-loss claims (Decision Detail 9, INV-07, and the Rationale and Consequences statements) as holding under the ADR-008 schema-mismatch rule, and recording the missing EventBus retention as an accepted risk, are decision-text changes awaiting maintainer approval; the approver, date, and scope are not recorded, and they are tracked by AAL-029. No approval is recorded here.
+- **Current Decision Approval (pending)**: Stating the start position of the At-Least-Once delivery guarantee as a start position the Consumer itself selected (`since_seq` greater than zero or a `Last-Event-ID` header) in Decision Detail 9 and INV-07 is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-037. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

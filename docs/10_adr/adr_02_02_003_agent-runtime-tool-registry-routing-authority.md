@@ -109,7 +109,6 @@ Being Discoverable or Owned alone does not mean the Tool is always Executable. I
 - Per-MCP-server mandatoriness and failure policy (handled by a separate ADR)
 - Implementation details of how each MCP server computes static availability (the responsibility of each MCP server itself; only referenced in this ADR)
 - Redesign of the Approval Policy itself (owned by `tool_policy.py`/`tool_approval.py`; only referenced in this ADR)
-- Changes to runtime behavior
 - Adoption of Rediscovery through Hot Reload (Policy B) (an option that a future ADR may address; this ADR defines only the current policy, Discovery updates through a full restart)
 - Monitoring and metrics design (handled by a separate ADR)
 
