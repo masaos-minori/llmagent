@@ -27,6 +27,8 @@ related:
 
 Withdrawn
 
+ADR-010 contributes no authority target and no edge in `config/adr_authority.toml`, so it intentionally has no node in the generated graph sections of `adr_01_index.md` (ADR-016 status rules: a Withdrawn ADR owns no decision target or non-`Reference` edge).
+
 RAG is reached only through the rag-pipeline MCP server over the common MCP transport, and no remote delegation or fallback to another execution path exists. The text below remains as the record of the withdrawn decision. The present-tense wording that survives in Decision Detail 11 and in the failure-outcome table row `Identity unverifiable (either identity absent)` is tracked as CSC-001 in `governance_03_issue-and-uncertainty-management.md`.
 
 ## Summary

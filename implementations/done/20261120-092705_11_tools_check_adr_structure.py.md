@@ -22,7 +22,7 @@
 ### Target file
 `tools/check_adr_structure.py`
 ### Procedure
-- Expose the heading constant for import by the generator (public name or accessor; keep one definition site) (REQ-013).
+- Expose the heading constant for import by the generator, keeping the existing name `_REQUIRED_HEADINGS` unchanged (the companion test module imports it directly — see Compatibility; a rename would force a test-file edit, which is out of bounds for this row) (REQ-013).
 - Reword docstring check (c) and the constant's source comment so the file states it is the single normative source and governance_01's block is generated from it (REQ-013).
 ### Method
 - Naming/visibility change plus docstring wording; enforcement logic (headers, order, required set) unchanged.
@@ -30,7 +30,7 @@
 - Downstream consumers of the derived slices (`_REQUIRED_HEADINGS[: index("Verification")]` at lines 170-172) stay unchanged; the generator consumes the same tuple.
 
 ## Compatibility considerations
-- `tests/tools/test_check_adr_structure.py` imports must keep working; if the constant is renamed, update only within this file (the test file imports check functions, not the private constant — verified by reading the test file before renaming, and any import breakage is reported, not patched in the test).
+- Verification finding (20261120 adversarial re-check): `tests/tools/test_check_adr_structure.py` imports `_REQUIRED_HEADINGS` directly (line 21, used at lines 124, 151, 163) — the constant name must NOT change; the generator row imports the same name. Any import breakage is reported, not patched in the test.
 - All live ADRs must keep passing `check_adr_structure.py` (AC-5 precondition).
 
 ## Security considerations
@@ -55,8 +55,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Expose the heading constant and reword the single-source wording (REQ-013) | Pending | — | — | |
-| 2 | Run `check_adr_structure.py`, its test module, and the static checks | Pending | — | — | |
+| 1 | Expose the heading constant and reword the single-source wording (REQ-013) | Completed | 20261120 | 20261120 | — |
+| 2 | Run `check_adr_structure.py`, its test module, and the static checks | Completed | 20261120 | 20261120 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

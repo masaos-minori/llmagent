@@ -53,9 +53,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix the §17 -> §18 reference and the mirror wording (REQ-011) | Pending | — | — | |
-| 2 | Insert the `adr-section-header-list` guard block and populate it via the generator (REQ-014) | Pending | — | — | same commit as the generator row |
-| 3 | Run `generate_adr_authority.py --check` and the docs checkers named in `routing.md` | Pending | — | — | |
+| 1 | Fix the §17 -> §18 reference and the mirror wording (REQ-011) | Completed | 20261120 | 20261120 | — |
+| 2 | Insert the `adr-section-header-list` guard block and populate it via the generator (REQ-014) | Completed | 20261120 | 20261120 | same commit as the generator row |
+| 3 | Run `generate_adr_authority.py --check` and the docs checkers named in `routing.md` | Completed | 20261120 | 20261120 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -22,6 +22,7 @@ related:
   - adr_02_02_014_agent-control-plane-responsibility-boundaries.md
   - adr_02_07_015_docs-reference-document-class-disposition.md
   - adr_02_07_016_adr-authority-model.md
+  - adr_02_03_017_mcp-authentication.md
   - governance_03_issue-and-uncertainty-management.md
   - governance_05_change-impact-and-dependency-graphs.md
 ---

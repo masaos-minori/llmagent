@@ -25,7 +25,7 @@
 ### Method
 - Single-row edit preserving the tab-separated `name<TAB>bytes` format and the file's row ordering.
 ### Details
-- Measure with the same command the CI step uses (`tools/check_module_size.sh` reads this file); record the measured value, not a padded ceiling.
+- Measure with the same command the CI step uses (`ci.yml` runs `uv run python tools/check_module_size.py --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt` — corrected by 20261120 adversarial re-check; `tools/check_module_size.sh` does not exist); record the measured value, not a padded ceiling.
 
 ## Compatibility considerations
 - The raise must be in the same commit as the growth: a pre-emptive raise with no growth, or growth with a stale baseline, fails the CI module-size step.
@@ -37,7 +37,7 @@
 - N/A: revert the commit (the baseline reverts with the core change).
 
 ## Validation plan
-- `tools/check_module_size.sh` CI step (invoked locally the same way CI does) — exit 0 with the new value.
+- `uv run python tools/check_module_size.py --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt` (the CI module-size step, invoked locally the same way CI does) — exit 0 with the new value.
 
 ## Completion criteria
 - The row equals the post-change file size and the module-size check passes (AC-7 precondition for Phase 1's tool suite).
@@ -50,8 +50,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Measure the grown core file and update its baseline row in the same commit | Pending | — | — | |
-| 2 | Run the module-size check | Pending | — | — | |
+| 1 | Measure the grown core file and update its baseline row in the same commit | Completed | 20261120 | 20261120 | — |
+| 2 | Run the module-size check | Completed | 20261120 | 20261120 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

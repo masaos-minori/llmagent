@@ -10,7 +10,7 @@
 ## Assumptions
 - Verified current source: `_check_config_key` (line 496) fail-closes on any pattern other than `LOOPBACK_PATTERN` (line 52); `by_pair` (line 407) silently overwrites duplicate `(from, to)` pairs; `validate_model` (line 651) never inspects `## Status`; `adr_files_by_id` (line 244) maps ADR ids to files; `check_assumptions`/`validate_model` already take a `config_path` override (lines 457, 655) that the new EventBus path override mirrors.
 - The three new finding codes must land in the same commit as `config/adr_authority.toml` ARCH-002's `eventbus.host` key (its own procedure document), or the core fail-closes on the unknown pattern (Plan Risk mitigation).
-- Status-set single source: the core parses the ADR-016 canonical sentence and cross-checks `governance_01` "ADR Status Definitions"; verified equality today is `Proposed` / `Accepted` / `Withdrawn` (Plan Assumption).
+- Status-set single source (corrected by 20261120 adversarial re-check): ADR-016 has no canonical allowed-status sentence — its only "Status" occurrence is the `## Status` heading (line 25, value `Accepted`). The allowed set must be parsed from `governance_01` "ADR Status Definitions" (`docs/00_governance/governance_01_documentation-policy.md` line 266, bullets `Proposed` / `Accepted` / `Withdrawn`); `tools/check_adr_structure.py` already pins a hard-coded `_ALLOWED_STATUSES` tuple to that section via a test, and the core's parse must stay equal to the same section. Live-status scan: every `adr_02_*.md` is `Accepted` except ADR-010 (`Withdrawn`, referenced by no model row), so the new validator leaves all live checkers exit 0.
 - `tools/check_adr_authority.py` is a frozen-table Reference File, not a target: its wiring exercises the core's `validate_model`, so no edit is expected; if its imports or finding-code docstring turn out to require an edit, that is an additional-target-file discovery to report, not a change to make here.
 
 ## Design decisions
@@ -33,7 +33,7 @@
 - Extend the existing validator functions in place; `Finding` shape unchanged (recorded in the Plan: `tests/tools/test_tool_report_output.py` is unaffected).
 ### Details
 - Duplicate grouping keyed on `(edge.from_adr, edge.to_adr)` with `location` values taken from the existing model-load location tracking.
-- Allowed-set parsing target: the ADR-016 canonical allowed-values sentence; a parse failure reports `ADR_STATUS_INVALID` (new) fail-closed rather than skipping the check.
+- Allowed-set parsing target: the `## ADR Status Definitions` bullets in `docs/00_governance/governance_01_documentation-policy.md` (ADR-016 has no such sentence — verified); a parse failure reports `ADR_STATUS_INVALID` (new) fail-closed rather than skipping the check.
 - Loopback test reuses the existing loopback host logic already applied to `mcp_servers.*.url` values.
 
 ### Companion test files
@@ -67,11 +67,11 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `EDGE_DUPLICATE` (new) detection at model load (REQ-001) | Pending | — | — | |
-| 2 | Implement status-set parsing and status/ownership validation (REQ-004, REQ-005) | Pending | — | — | same Phase 1 commit as steps 1 and 3 |
-| 3 | Implement the `eventbus.host` loopback validator with path override (REQ-006) | Pending | — | — | same Phase 1 commit as the ARCH-002 config row |
-| 4 | Add the companion fixtures per Validation plan (REQ-027) | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) plus `check_adr_authority.py` | Pending | — | — | |
+| 1 | Implement `EDGE_DUPLICATE` (new) detection at model load (REQ-001) | Completed | 20261120 | 20261120 | — |
+| 2 | Implement status-set parsing and status/ownership validation (REQ-004, REQ-005) | Completed | 20261120 | 20261120 | same Phase 1 commit as steps 1 and 3 |
+| 3 | Implement the `eventbus.host` loopback validator with path override (REQ-006) | Completed | 20261120 | 20261120 | same Phase 1 commit as the ARCH-002 config row |
+| 4 | Add the companion fixtures per Validation plan (REQ-027) | Completed | 20261120 | 20261120 | — |
+| 5 | Run the validation sequence (`rules/toolchain.md`) plus `check_adr_authority.py` | Completed | 20261120 | 20261120 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

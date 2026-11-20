@@ -19,6 +19,7 @@ related:
   - mcp_06_12_new-mcp-server-addition-checklist.md
   - governance_03_issue-and-uncertainty-management.md
   - adr_02_01_004_platform-environment-failure-handling-policy.md
+  - adr_02_03_017_mcp-authentication.md
   - governance_01_documentation-policy.md
   - mcp_05_05_mdq-enforcement-and-lockdown.md
 ---
@@ -344,6 +345,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
 - ADR-004: Failure Handling Policy Across Environments
+- ADR-017: MCP Bearer Authentication
 
 ## Implementation References
 

@@ -329,11 +329,42 @@ Content moves out of an ADR only when a maintenance benefit is demonstrated and 
 
 ## ADR Section Header Standardization
 
-The authoritative list of required top-level (`##`) headings, their order, conditional markers,
-template-instruction residue, and global `INV-NNN` id rules is defined and enforced once by
-`check_adr_structure.py` (see governance_04 §17 "ADR Section Header Compliance"). This Policy
-section does not re-enumerate them, to avoid a second normative source. No other top-level
-heading is allowed: additional material goes under a subsection of the section it belongs to.
+The authoritative list of required top-level (`##`) headings, their order, and conditional markers is
+defined and enforced once by the `_REQUIRED_HEADINGS`/`_CONDITIONAL_HEADINGS` constants of
+`check_adr_structure.py` (see governance_04 §18 "ADR Section Header Compliance"); the readable list
+below is a generated mirror of that constant, not a second normative source — it is rewritten only by
+`python tools/generate_adr_authority.py`. Template-instruction
+residue and global `INV-NNN` id rules are enforced by the same checker. No other top-level heading is
+allowed: additional material goes under a subsection of the section it belongs to.
+
+<!-- AUTO-GENERATED: generate_adr_authority.py adr-section-header-list -->
+Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`. Do not hand-edit between the guard comments; run `python tools/generate_adr_authority.py` to refresh.
+
+Required top-level (`## `) headings, in order:
+
+1. `Keywords`
+2. `Status`
+3. `Summary`
+4. `Context`
+5. `Assumptions`
+6. `Decision`
+7. `Rationale`
+8. `Alternatives Considered`
+9. `Consequences`
+10. `Invariants`
+
+Conditional headings, allowed only between `Invariants` and `Verification`:
+`Exceptions`, `Failure Policy`, `Data Ownership and Persistence`
+
+11. `Verification`
+12. `Implementation Notes`
+13. `Known Deviations`
+14. `Review Triggers`
+15. `Approval`
+16. `Related ADRs`
+17. `Implementation References`
+18. `Completion Checklist`
+<!-- END AUTO-GENERATED -->
 
 Duplicate notes shared across all ADRs:
 - This chapter is not a basis for design decisions.

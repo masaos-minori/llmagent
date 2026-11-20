@@ -52,8 +52,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the three tool rows after their code rows land (REQ-015) | Pending | — | — | |
-| 2 | Run `check_tool_descriptions_sync.py` | Pending | — | — | |
+| 1 | Update the three tool rows after their code rows land (REQ-015) | Completed | 20261120 | 20261120 | — |
+| 2 | Run `check_tool_descriptions_sync.py` | Completed | 20261120 | 20261120 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

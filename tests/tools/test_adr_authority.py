@@ -9,8 +9,9 @@ through main()'s return value and capsys output. The live repository model is
 not re-validated here as a unit test — CI runs the real files (row 11).
 
 Every finding code has a failing fixture: DUP_PRIMARY, DANGLING_ADR,
-AUTHORITY_CYCLE, ASSUMPTION_DRIFT, EDGE_UNKNOWN_TYPE, FRONTMATTER_DIVERGENCE.
-Mutation spot-checks assert the exact finding code, not just a nonzero exit.
+AUTHORITY_CYCLE, ASSUMPTION_DRIFT, EDGE_UNKNOWN_TYPE, FRONTMATTER_DIVERGENCE,
+EDGE_DUPLICATE, ADR_STATUS_INVALID. Mutation spot-checks assert the exact
+finding code, not just a nonzero exit.
 """
 
 from __future__ import annotations
@@ -22,9 +23,11 @@ import pytest
 
 from tools._adr_authority_core import (
     AuthorityModelError,
+    check_adr_statuses,
     check_assumptions,
     check_authority_cycles,
     check_dangling_adrs,
+    check_duplicate_edges,
     check_duplicate_primaries,
     check_edge_types,
     check_frontmatter_consistency,
@@ -113,7 +116,8 @@ def _adr_dir(tmp_path: Path, related: dict[str, list[str]] | None = None) -> Pat
         entries = (related or {}).get(name, [])
         related_block = "\n".join(f"  - {entry}" for entry in entries) or "  []"
         (directory / name).write_text(
-            f"---\ntitle: {name}\nrelated:\n{related_block}\n---\n# body\n",
+            f"---\ntitle: {name}\nrelated:\n{related_block}\n---\n# body\n\n"
+            "## Status\nAccepted\n",
             encoding="utf-8",
         )
     return directory
@@ -203,6 +207,153 @@ def test_dangling_adr_fails(tmp_path: Path) -> None:
     findings = check_dangling_adrs(model, _adr_dir(tmp_path))
     assert [f.code for f in findings] == ["DANGLING_ADR"]
     assert "ADR-099" in findings[0].message
+
+
+# ---------------------------------------------------------------------------
+# EDGE_DUPLICATE (plan adrchk015 REQ-001: pair-keyed consumers must not
+# silently overwrite a duplicate [[adr_edge]] row)
+# ---------------------------------------------------------------------------
+
+DUPLICATE_EDGE_MODEL = (
+    CLEAN_MODEL
+    + """
+[[adr_edge]]
+from = "ADR-001"
+to = "ADR-003"
+edge_type = "Reference"
+"""
+)
+
+
+def test_duplicate_edge_pair_fails(tmp_path: Path) -> None:
+    model = load_model(_write_model(tmp_path, DUPLICATE_EDGE_MODEL))
+    findings = check_duplicate_edges(model)
+    assert [f.code for f in findings] == ["EDGE_DUPLICATE"]
+    assert "ADR-001 -> ADR-003 appears 2 times" in findings[0].message
+    assert "(from, to) pairs must be unique" in findings[0].message
+
+
+def test_duplicate_edge_surfaces_in_validate_model(tmp_path: Path) -> None:
+    assert _validate(tmp_path, DUPLICATE_EDGE_MODEL) == ["EDGE_DUPLICATE"]
+
+
+# ---------------------------------------------------------------------------
+# ADR_STATUS_INVALID (plan adrchk015 REQ-004/REQ-005: model-referenced ADRs
+# must carry a governance_01 status; Withdrawn owns nothing, Proposed is not
+# primary)
+# ---------------------------------------------------------------------------
+
+GOVERNANCE_STATUS_TEXT = """\
+## ADR Status Definitions
+
+- `Accepted`: the decision is in force.
+- `Proposed`: the decision is not yet accepted.
+- `Withdrawn`: the ADR no longer makes any decision.
+
+## Invariants Governing These Documents
+
+Invariant fixture text.
+"""
+
+ALL_ACCEPTED = {
+    "adr_02_01_001_alpha.md": "Accepted",
+    "adr_02_01_002_beta.md": "Accepted",
+    "adr_02_01_003_gamma.md": "Accepted",
+}
+
+
+def _governance(tmp_path: Path, text: str = GOVERNANCE_STATUS_TEXT) -> Path:
+    path = tmp_path / "governance_01_fixture.md"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def _status_adr_dir(tmp_path: Path, statuses: dict[str, str]) -> Path:
+    directory = tmp_path / "adr-status"
+    directory.mkdir(exist_ok=True)
+    for name, status in statuses.items():
+        (directory / name).write_text(
+            f"---\ntitle: {name}\nrelated: []\n---\n# body\n\n## Status\n{status}\n",
+            encoding="utf-8",
+        )
+    return directory
+
+
+def test_accepted_statuses_pass(tmp_path: Path) -> None:
+    model = load_model(_write_model(tmp_path, CLEAN_MODEL))
+    findings = check_adr_statuses(
+        model, _status_adr_dir(tmp_path, ALL_ACCEPTED), _governance(tmp_path)
+    )
+    assert findings == []
+
+
+def test_status_outside_allowed_set_fails(tmp_path: Path) -> None:
+    statuses = ALL_ACCEPTED | {"adr_02_01_002_beta.md": "Deprecated"}
+    model = load_model(_write_model(tmp_path, CLEAN_MODEL))
+    findings = check_adr_statuses(
+        model, _status_adr_dir(tmp_path, statuses), _governance(tmp_path)
+    )
+    assert [f.code for f in findings] == ["ADR_STATUS_INVALID"]
+    assert "Deprecated" in findings[0].message
+
+
+def test_status_without_value_fails(tmp_path: Path) -> None:
+    statuses = ALL_ACCEPTED | {"adr_02_01_001_alpha.md": ""}
+    model = load_model(_write_model(tmp_path, CLEAN_MODEL))
+    findings = check_adr_statuses(
+        model, _status_adr_dir(tmp_path, statuses), _governance(tmp_path)
+    )
+    assert [f.code for f in findings] == ["ADR_STATUS_INVALID"]
+    assert "carries no value" in findings[0].message
+
+
+def test_withdrawn_adr_owns_nothing_fails(tmp_path: Path) -> None:
+    statuses = ALL_ACCEPTED | {"adr_02_01_002_beta.md": "Withdrawn"}
+    model = load_model(_write_model(tmp_path, CLEAN_MODEL))
+    findings = check_adr_statuses(
+        model, _status_adr_dir(tmp_path, statuses), _governance(tmp_path)
+    )
+    assert all(f.code == "ADR_STATUS_INVALID" for f in findings)
+    text = "\n".join(f.message for f in findings)
+    assert "listed as primary_adr of decision_target 'beta.decision'" in text
+    assert "listed as supplemental of decision_target 'alpha.decision'" in text
+    assert "holds the Requires edge ADR-001 -> ADR-002" in text
+
+
+def test_withdrawn_adr_with_only_reference_edges_passes(tmp_path: Path) -> None:
+    statuses = ALL_ACCEPTED | {"adr_02_01_003_gamma.md": "Withdrawn"}
+    model = load_model(_write_model(tmp_path, CLEAN_MODEL))
+    findings = check_adr_statuses(
+        model, _status_adr_dir(tmp_path, statuses), _governance(tmp_path)
+    )
+    assert findings == []
+
+
+def test_proposed_adr_claiming_primary_fails(tmp_path: Path) -> None:
+    statuses = ALL_ACCEPTED | {"adr_02_01_001_alpha.md": "Proposed"}
+    model = load_model(_write_model(tmp_path, CLEAN_MODEL))
+    findings = check_adr_statuses(
+        model, _status_adr_dir(tmp_path, statuses), _governance(tmp_path)
+    )
+    assert [f.code for f in findings] == ["ADR_STATUS_INVALID"]
+    assert "claims primary_adr" in findings[0].message
+
+
+def test_unparseable_governance_fails_closed(tmp_path: Path) -> None:
+    model = load_model(_write_model(tmp_path, CLEAN_MODEL))
+    findings = check_adr_statuses(
+        model,
+        _status_adr_dir(tmp_path, ALL_ACCEPTED),
+        _governance(tmp_path, "# nope\n"),
+    )
+    assert [f.code for f in findings] == ["ADR_STATUS_INVALID"]
+    assert "could not parse" in findings[0].message
+
+
+def test_live_status_validation_passes() -> None:
+    # All live model-referenced ADRs are Accepted; ADR-010 (Withdrawn) is not
+    # referenced by the model and stays outside the scan.
+    assert check_adr_statuses(load_model()) == []
 
 
 # ---------------------------------------------------------------------------
@@ -351,6 +502,88 @@ def test_manual_review_assumption_is_not_policed(tmp_path: Path) -> None:
     )
     model = load_model(_write_model(tmp_path, mutated))
     assert check_assumptions(model, config) == []
+
+
+# ---------------------------------------------------------------------------
+# ASSUMPTION_DRIFT for eventbus.host (plan adrchk015 REQ-006, ARCH-002)
+# ---------------------------------------------------------------------------
+
+EVENTBUS_ASSUMPTION = """
+[[assumption]]
+id = "ARCH-903"
+name = "Loopback EventBus host"
+current_value = "The EventBus binds to 127.0.0.1 by default"
+applicable_adrs = ["ADR-001"]
+validation_method = "config-check"
+config_keys = ["eventbus.host"]
+owner = "test-owner"
+review_triggers = ["network topology change"]
+"""
+
+
+def _eventbus_config(tmp_path: Path, text: str) -> Path:
+    path = tmp_path / "eventbus.toml"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_eventbus_host_not_loopback_fails(tmp_path: Path) -> None:
+    model = load_model(_write_model(tmp_path, CLEAN_MODEL + EVENTBUS_ASSUMPTION))
+    findings = check_assumptions(
+        model, _config(tmp_path), _eventbus_config(tmp_path, 'host = "0.0.0.0"\n')
+    )
+    assert [f.code for f in findings] == ["ASSUMPTION_DRIFT"]
+    assert "eventbus.host" in findings[0].message
+
+
+def test_eventbus_localhost_host_passes(tmp_path: Path) -> None:
+    model = load_model(_write_model(tmp_path, CLEAN_MODEL + EVENTBUS_ASSUMPTION))
+    assert (
+        check_assumptions(
+            model, _config(tmp_path), _eventbus_config(tmp_path, 'host = "localhost"\n')
+        )
+        == []
+    )
+
+
+def test_eventbus_absent_host_asserts_documented_default(tmp_path: Path) -> None:
+    # config/eventbus.toml ships no host key: scripts/eventbus/config.py binds
+    # 127.0.0.1 by default, which is the asserted state.
+    model = load_model(_write_model(tmp_path, CLEAN_MODEL + EVENTBUS_ASSUMPTION))
+    assert (
+        check_assumptions(
+            model, _config(tmp_path), _eventbus_config(tmp_path, "[bus]\nport = 9100\n")
+        )
+        == []
+    )
+
+
+def test_eventbus_config_missing_fails_closed(tmp_path: Path) -> None:
+    model = load_model(_write_model(tmp_path, CLEAN_MODEL + EVENTBUS_ASSUMPTION))
+    findings = check_assumptions(model, _config(tmp_path), tmp_path / "missing.toml")
+    assert [f.code for f in findings] == ["ASSUMPTION_DRIFT"]
+    assert "fail-closed" in findings[0].message
+
+
+def test_eventbus_current_value_must_state_loopback(tmp_path: Path) -> None:
+    mutated = _mutate(
+        CLEAN_MODEL + EVENTBUS_ASSUMPTION,
+        'current_value = "The EventBus binds to 127.0.0.1 by default"',
+        'current_value = "The EventBus binds to the container bridge network"',
+    )
+    model = load_model(_write_model(tmp_path, mutated))
+    findings = check_assumptions(
+        model, _config(tmp_path), _eventbus_config(tmp_path, 'host = "127.0.0.1"\n')
+    )
+    assert [f.code for f in findings] == ["ASSUMPTION_DRIFT"]
+    assert "current_value" in findings[0].message
+
+
+def test_live_eventbus_assertion_passes() -> None:
+    # ARCH-002 now asserts eventbus.host against config/eventbus.toml; the
+    # absent key asserts the documented 127.0.0.1 default, so the live model
+    # stays clean.
+    assert check_assumptions(load_model()) == []
 
 
 # ---------------------------------------------------------------------------

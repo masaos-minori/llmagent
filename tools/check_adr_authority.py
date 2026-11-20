@@ -2,11 +2,13 @@
 """check_adr_authority.py — Validate the ADR authority model (ADR-016, plan adrauth001 REQ-004).
 
 Loads `config/adr_authority.toml` and runs every model validator from
-tools/_adr_authority_core.py: duplicate primaries (DUP_PRIMARY), dangling ADR
-IDs (DANGLING_ADR), authority-graph cycles and intentional-pair violations
-(AUTHORITY_CYCLE), unknown edge types (EDGE_UNKNOWN_TYPE), and config-check
-assumption drift (ASSUMPTION_DRIFT). Any finding exits 1 — a broken model
-file (unreadable TOML, missing fields) is also a fail-closed error.
+tools/_adr_authority_core.py: duplicate primaries (DUP_PRIMARY), duplicate
+(from, to) edge pairs (EDGE_DUPLICATE), dangling ADR IDs (DANGLING_ADR), ADR
+status semantics (ADR_STATUS_INVALID), authority-graph cycles and
+intentional-pair violations (AUTHORITY_CYCLE), unknown edge types
+(EDGE_UNKNOWN_TYPE), and config-check assumption drift (ASSUMPTION_DRIFT).
+Any finding exits 1 — a broken model file (unreadable TOML, missing fields)
+is also a fail-closed error.
 
 The front matter/model cross-check (FRONTMATTER_DIVERGENCE) is NOT run here;
 tools/check_adr_reference.py owns it (ADR-016 Verification section).

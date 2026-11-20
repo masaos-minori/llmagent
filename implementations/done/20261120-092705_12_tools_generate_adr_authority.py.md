@@ -64,11 +64,11 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `adr-section-header-list` renderer and guard wiring (REQ-014) | Pending | — | — | lands with the governance_01 row in one Phase 2 commit |
-| 2 | Extend `--check` and the write path to the governance_01 target (REQ-014) | Pending | — | — | |
-| 3 | Confirm/lock refusal on all model findings incl. new codes (REQ-003) | Pending | — | — | |
-| 4 | Add the companion tests per Validation plan (REQ-027) | Pending | — | — | |
-| 5 | Run the Validation plan commands | Pending | — | — | |
+| 1 | Add the `adr-section-header-list` renderer and guard wiring (REQ-014) | Completed | 20261120 | 20261120 | lands with the governance_01 row in one Phase 2 commit |
+| 2 | Extend `--check` and the write path to the governance_01 target (REQ-014) | Completed | 20261120 | 20261120 | — |
+| 3 | Confirm/lock refusal on all model findings incl. new codes (REQ-003) | Completed | 20261120 | 20261120 | — |
+| 4 | Add the companion tests per Validation plan (REQ-027) | Completed | 20261120 | 20261120 | — |
+| 5 | Run the Validation plan commands | Completed | 20261120 | 20261120 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

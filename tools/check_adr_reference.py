@@ -10,8 +10,8 @@ named in the row's `Invariant` cell: a comment that starts with `# ADR-NNN`
 (e.g. `# ADR-004: startup checks`). A prose mention in a docstring or a string
 does not count — so a reader opening the file finds which ADR it implements,
 and the check cannot be satisfied by an incidental mention (per
-docs/00_governance/governance_04_documentation-checks.md GV-012 Implementation
-intent §3: scoped to matrix-named files only).
+docs/00_governance/governance_04_documentation-checks.md §12 "ADR Invariant
+Matrix Checks" and matrix entry GV-012).
 
 The matrix is parsed by its header row (`Invariant` and `Verification Status`
 columns), not by fixed positions. When the matrix yields no source references
@@ -251,8 +251,14 @@ def collect_issues() -> list[Issue]:
             )
         ]
     refs = parse_matrix_source_refs(_read_lines(ADR_INDEX))
-    if not refs:
-        return [
+    # A vacuous matrix is an error on its own, but it must not suppress the
+    # front matter cross-check: the two findings lists are reported together
+    # so a broken table shape cannot hide model divergence (plan adrchk015
+    # REQ-008).
+    vacuity: list[Issue] = (
+        []
+        if refs
+        else [
             Issue(
                 file="adr_01_index.md",
                 line_no=0,
@@ -263,7 +269,12 @@ def collect_issues() -> list[Issue]:
                 ),
             )
         ]
-    return check_adr_reference(refs) + check_frontmatter_vs_model()
+    )
+    return (
+        vacuity
+        + check_adr_reference(refs)
+        + check_frontmatter_vs_model(ADR_DIR, MODEL_PATH)
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -16,9 +16,11 @@ Six checks, all operating over docs/10_adr/*.md:
     pointer sentence, not a violation.
 
 (c) Section headings of each `adr_02_GG_NNN_*.md` (ERROR): only the headings of the
-    "ADR Section Header Standardization" list in
-    docs/00_governance/governance_01_documentation-policy.md are allowed, in that
-    order; every non-conditional heading is required.
+    `_REQUIRED_HEADINGS` constant in this module are allowed, in that order; every
+    non-conditional heading is required. This constant is the single normative
+    source; governance_01's visible "ADR Section Header Standardization" block is
+    a generated mirror of it (tools/generate_adr_authority.py, plan adrchk015
+    REQ-013).
 (d) Template instruction text and global invariant IDs (ERROR): an ADR body must
     not contain template instructions (for example "Briefly describe") or a
     global `INV-NNN` invariant ID (invariant IDs are ADR-local, `INV-NN`).
@@ -139,8 +141,11 @@ def check_notes_references_drift(docs: list[DocFile]) -> list[Issue]:
     return issues
 
 
-# "ADR Section Header Standardization" (governance_01): required headings in order,
-# then the conditional ones (allowed only between Invariants and Verification).
+# Normative single source (plan adrchk015 REQ-013) for the "ADR Section Header
+# Standardization" list enforced by governance_04 §18 "ADR Section Header
+# Compliance": required headings in order, then the conditional ones (allowed
+# only between Invariants and Verification). governance_01's visible block is a
+# generated mirror imported from this constant by tools/generate_adr_authority.py.
 _REQUIRED_HEADINGS = (
     "Keywords",
     "Status",

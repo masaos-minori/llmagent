@@ -231,7 +231,7 @@ Notation: write the label in parentheses, optionally followed by an em dash and 
 
 ### 18. ADR Section Header Compliance
 
-The heading list, heading order, template-instruction residue and global `INV-NNN` ids are verified automatically by `check_adr_structure.py` (section ADR Structure Check above). The headings are defined in [Policy's ADR Section Header Standardization](governance_01_documentation-policy.md#adr-section-header-standardization), which also lists the duplicate notes shared across all ADRs. The review below covers what the tool cannot check.
+The heading list, heading order, template-instruction residue and global `INV-NNN` ids are verified automatically by `check_adr_structure.py` (section ADR Structure Check above). The single normative source of the headings is the `check_adr_structure.py` constants; the readable list in [Policy's ADR Section Header Standardization](governance_01_documentation-policy.md#adr-section-header-standardization) is a generated mirror of those constants written only by `generate_adr_authority.py` inside a guard block, with drift gated by `generate_adr_authority.py --check`. That Policy section also lists the duplicate notes shared across all ADRs. The review below covers what the tool cannot check.
 
 ### 19. Area Dependency Graph Validation
 
@@ -304,7 +304,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-021 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-022 | ADR Known Deviations stay in sync with the Known Issue inventory: no resolved-item bullets (Error), no top-level Known Deviations bullet without a Known Issue ID (Error), no Known Issue ID cited outside the ledger that lacks a ledger entry (Error; dangling ID in an ADR's Known Deviations: Warning), every Known Issue targeting an ADR is cited in that ADR's Known Deviations (Warning) | Iss | Auto | `check_known_deviation_sync.py` | PR | Blocking (Error) / Warning | Existing | None |
 | GV-023 | Agent command docs match `_COMMANDS` by name, subcommand, and argument | Chk | Auto | `check_docs_consistency.py --domain agent` | PR | Blocking | Existing | None |
-| GV-024 | ADR authority model: one primary ADR per governed decision target, resolvable ADR IDs, acyclic authority graph, intentional reference pairs flagged with ownership-split notes, `config-check` assumptions match live configuration | Adr | Auto | `check_adr_authority.py` | PR | Blocking | Existing | None |
+| GV-024 | ADR authority model: one primary ADR per governed decision target, resolvable ADR IDs, acyclic authority graph, intentional reference pairs flagged with ownership-split notes, `config-check` assumptions match live configuration | Adr | Auto | `check_adr_authority.py`, `check_adr_reference.py` | PR | Blocking | Existing | None |
 | GV-025 | ADR index graph sections match the generated output of `config/adr_authority.toml`; hand edits inside the guard comments are detected as drift | Adr | Auto | `generate_adr_authority.py --check` | PR | Blocking | Existing | None |
 
 ### Follow-up Work Needed

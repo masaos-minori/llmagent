@@ -51,8 +51,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add ADR-017 to the front matter and `## Related ADRs` lists (REQ-017) | Pending | — | — | |
-| 2 | Run `check_adr_reference.py` and the docs checkers named in `routing.md` | Pending | — | — | |
+| 1 | Add ADR-017 to the front matter and `## Related ADRs` lists (REQ-017) | Completed | 20261120 | 20261120 | — |
+| 2 | Run `check_adr_reference.py` and the docs checkers named in `routing.md` | Completed | 20261120 | 20261120 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

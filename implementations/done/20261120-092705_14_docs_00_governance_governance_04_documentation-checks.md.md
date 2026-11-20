@@ -52,9 +52,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `check_adr_reference.py` to the GV-024 Tool column (REQ-010) | Pending | — | — | |
-| 2 | Document the generated-list mechanism in §18 (REQ-012) | Pending | — | — | |
-| 3 | Run `check_tool_descriptions_sync.py` and the docs checkers named in `routing.md` | Pending | — | — | |
+| 1 | Add `check_adr_reference.py` to the GV-024 Tool column (REQ-010) | Completed | 20261120 | 20261120 | — |
+| 2 | Document the generated-list mechanism in §18 (REQ-012) | Completed | 20261120 | 20261120 | — |
+| 3 | Run `check_tool_descriptions_sync.py` and the docs checkers named in `routing.md` | Completed | 20261120 | 20261120 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

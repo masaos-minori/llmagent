@@ -15,6 +15,11 @@ Finding codes (ADR-016 Decision 4/7, plan adrauth001 REQ-004/REQ-005):
   EDGE_UNKNOWN_TYPE      an adr_edge edge_type outside the closed taxonomy
   FRONTMATTER_DIVERGENCE an ADR front matter related edge and a model edge
                          disagree (checked in both directions, ADR-016 Decision 7)
+  EDGE_DUPLICATE         two [[adr_edge]] rows carry the same (from, to) pair
+  ADR_STATUS_INVALID     a model-referenced ADR has a Status outside governance_01
+                         "ADR Status Definitions", a Withdrawn ADR owns a decision
+                         target or a non-Reference edge, or a Proposed ADR claims
+                         primary authority
 
 Not a check script itself — tools/check_adr_authority.py is the CLI.
 """
@@ -37,6 +42,10 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 MODEL_PATH = ROOT_DIR / "config" / "adr_authority.toml"
 ADR_DIR = ROOT_DIR / "docs" / "10_adr"
 AGENT_CONFIG_PATH = ROOT_DIR / "config" / "agent.toml"
+EVENTBUS_CONFIG_PATH = ROOT_DIR / "config" / "eventbus.toml"
+GOVERNANCE_01_PATH = (
+    ROOT_DIR / "docs" / "00_governance" / "governance_01_documentation-policy.md"
+)
 
 EDGE_TYPES: frozenset[str] = frozenset(
     ("Requires", "Governs", "Specializes", "Extends", "Exception-to", "Reference")
@@ -49,7 +58,9 @@ VALIDATION_METHODS: frozenset[str] = frozenset(("config-check", "manual-review")
 ADR_FILE_RE = re.compile(r"^adr_02_\d{2}_(\d{3})_.*\.md$")
 
 # Config key patterns this core can assert (ADR-016 Decision 5 config-check).
+# Any pattern outside this set fails closed in _check_config_key.
 LOOPBACK_PATTERN = "mcp_servers.*.url"
+EVENTBUS_HOST_PATTERN = "eventbus.host"
 LOOPBACK_HOSTS: frozenset[str] = frozenset({"127.0.0.1", "::1", "localhost"})
 
 
@@ -85,6 +96,9 @@ class AdrEdge:
     edge_type: str
     intentional: bool
     note: str
+    # Model-file row label recorded at load time (e.g. "[[adr_edge]] #3"); used
+    # by EDGE_DUPLICATE findings to name every duplicate row.
+    label: str = ""
 
 
 @dataclass(frozen=True)
@@ -181,6 +195,7 @@ def load_model(path: Path = MODEL_PATH) -> AuthorityModel:
                 edge_type=_require_str(entry, "edge_type", label),
                 intentional=intentional,
                 note=note,
+                label=label,
             )
         )
 
@@ -345,6 +360,29 @@ def check_edge_types(model: AuthorityModel) -> list[Finding]:
     ]
 
 
+def check_duplicate_edges(model: AuthorityModel) -> list[Finding]:
+    """Pair-based consumers key on (from, to) and would silently overwrite a
+    duplicate row; every duplicate pair must fail as EDGE_DUPLICATE, naming
+    each duplicate row location."""
+    groups: dict[tuple[str, str], list[str]] = {}
+    for edge in model.edges:
+        groups.setdefault((edge.from_adr, edge.to_adr), []).append(edge.label)
+    findings: list[Finding] = []
+    for (from_adr, to_adr), labels in sorted(groups.items()):
+        if len(labels) > 1:
+            findings.append(
+                Finding(
+                    code="EDGE_DUPLICATE",
+                    location="config/adr_authority.toml",
+                    message=(
+                        f"edge {from_adr} -> {to_adr} appears {len(labels)} times "
+                        f"({', '.join(labels)}); (from, to) pairs must be unique"
+                    ),
+                )
+            )
+    return findings
+
+
 def check_authority_cycles(model: AuthorityModel) -> list[Finding]:
     """INV-02: the authority graph (non-Reference edges) is acyclic, and each
     bidirectional pair is exactly one typed edge plus one intentional Reference
@@ -454,7 +492,9 @@ def _cycle_edge_types(
 
 
 def check_assumptions(
-    model: AuthorityModel, config_path: Path = AGENT_CONFIG_PATH
+    model: AuthorityModel,
+    config_path: Path = AGENT_CONFIG_PATH,
+    eventbus_config_path: Path = EVENTBUS_CONFIG_PATH,
 ) -> list[Finding]:
     """INV-05: config-check assumptions are asserted against live configuration;
     manual-review assumptions are not policed by this tool (ADR-016 Decision 5)."""
@@ -477,8 +517,13 @@ def check_assumptions(
             continue
         if config is None:
             config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        eventbus_config: dict | None = None
+        if EVENTBUS_HOST_PATTERN in assumption.config_keys:
+            eventbus_config = _load_toml(eventbus_config_path)
         for key_pattern in assumption.config_keys:
-            findings.extend(_check_config_key(assumption, key_pattern, config))
+            findings.extend(
+                _check_config_key(assumption, key_pattern, config, eventbus_config)
+            )
         if not assumption.config_keys:
             findings.append(
                 Finding(
@@ -490,23 +535,56 @@ def check_assumptions(
                     ),
                 )
             )
+        if any(
+            key_pattern in (LOOPBACK_PATTERN, EVENTBUS_HOST_PATTERN)
+            for key_pattern in assumption.config_keys
+        ) and not any(token in assumption.current_value for token in LOOPBACK_HOSTS):
+            findings.append(
+                Finding(
+                    code="ASSUMPTION_DRIFT",
+                    location="config/adr_authority.toml",
+                    message=(
+                        f"assumption {assumption.id}: current_value no longer states the "
+                        f"loopback binding asserted against {LOOPBACK_PATTERN} / "
+                        f"{EVENTBUS_HOST_PATTERN}"
+                    ),
+                )
+            )
     return findings
 
 
+def _load_toml(path: Path) -> dict | None:
+    """Read a TOML config file; None when missing or undecodable (the caller
+    reports the fail-closed finding)."""
+    try:
+        return tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+
+
 def _check_config_key(
-    assumption: Assumption, key_pattern: str, config: dict
+    assumption: Assumption,
+    key_pattern: str,
+    config: dict,
+    eventbus_config: dict | None,
 ) -> list[Finding]:
-    if key_pattern != LOOPBACK_PATTERN:
-        return [
-            Finding(
-                code="ASSUMPTION_DRIFT",
-                location="config/adr_authority.toml",
-                message=(
-                    f"assumption {assumption.id}: no validator assertion is implemented "
-                    f"for config key pattern {key_pattern!r} (fail-closed)"
-                ),
-            )
-        ]
+    if key_pattern == LOOPBACK_PATTERN:
+        return _check_mcp_loopback(assumption, config)
+    if key_pattern == EVENTBUS_HOST_PATTERN:
+        return _check_eventbus_host(assumption, eventbus_config)
+    return [
+        Finding(
+            code="ASSUMPTION_DRIFT",
+            location="config/adr_authority.toml",
+            message=(
+                f"assumption {assumption.id}: no validator assertion is implemented "
+                f"for config key pattern {key_pattern!r} (fail-closed)"
+            ),
+        )
+    ]
+
+
+def _check_mcp_loopback(assumption: Assumption, config: dict) -> list[Finding]:
     findings: list[Finding] = []
     servers = config.get("mcp_servers")
     if not isinstance(servers, dict) or not servers:
@@ -547,17 +625,183 @@ def _check_config_key(
                     ),
                 )
             )
-    if not any(token in assumption.current_value for token in LOOPBACK_HOSTS):
-        findings.append(
+    return findings
+
+
+def _check_eventbus_host(
+    assumption: Assumption, eventbus_config: dict | None
+) -> list[Finding]:
+    """REQ-006 (ARCH-002): `eventbus.host` asserts config/eventbus.toml binds
+    the EventBus to a loopback address; an absent key asserts the documented
+    127.0.0.1 default of scripts/eventbus/config.py."""
+    if eventbus_config is None:
+        return [
             Finding(
                 code="ASSUMPTION_DRIFT",
-                location="config/adr_authority.toml",
+                location="config/eventbus.toml",
                 message=(
-                    f"assumption {assumption.id}: current_value no longer states the "
-                    f"loopback binding asserted against {LOOPBACK_PATTERN}"
+                    f"assumption {assumption.id}: config/eventbus.toml is missing or "
+                    f"unreadable; cannot assert {EVENTBUS_HOST_PATTERN} (fail-closed)"
                 ),
             )
-        )
+        ]
+    host = eventbus_config.get("host")
+    if host is None:
+        return []  # absent key: the documented 127.0.0.1 default is asserted
+    if not isinstance(host, str) or host not in LOOPBACK_HOSTS:
+        return [
+            Finding(
+                code="ASSUMPTION_DRIFT",
+                location="config/eventbus.toml",
+                message=(
+                    f"assumption {assumption.id} ({assumption.name}): eventbus.host "
+                    f"{host!r} is not loopback ({', '.join(sorted(LOOPBACK_HOSTS))})"
+                ),
+            )
+        ]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# ADR status validation (governance_01 "ADR Status Definitions"; REQ-004/REQ-005)
+# ---------------------------------------------------------------------------
+
+_STATUS_SECTION_RE = re.compile(r"^## ADR Status Definitions[ \t]*$", re.MULTILINE)
+_STATUS_BULLET_RE = re.compile(r"^- `([A-Za-z-]+)`:", re.MULTILINE)
+
+
+def _allowed_statuses(governance_path: Path) -> tuple[str, ...] | None:
+    """Parse the allowed Status values from governance_01 "ADR Status
+    Definitions" bullets; None when the section or bullets cannot be parsed
+    (fail-closed caller contract). Must stay equal to
+    check_adr_structure._ALLOWED_STATUSES."""
+    try:
+        content = governance_path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    match = _STATUS_SECTION_RE.search(content)
+    if match is None:
+        return None
+    tail = content[match.end() :]
+    next_section = re.search(r"^## ", tail, re.MULTILINE)
+    section = tail if next_section is None else tail[: next_section.start()]
+    return tuple(_STATUS_BULLET_RE.findall(section)) or None
+
+
+def _adr_status(path: Path) -> str | None:
+    """First non-empty line after the `## Status` heading (the convention
+    check_adr_structure.py check (e) uses); None when no value follows."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for i, line in enumerate(lines):
+        if line.strip() == "## Status":
+            for following in lines[i + 1 :]:
+                if following.strip():
+                    return following.strip()
+            return None
+    return None
+
+
+def check_adr_statuses(
+    model: AuthorityModel,
+    adr_dir: Path = ADR_DIR,
+    governance_path: Path = GOVERNANCE_01_PATH,
+) -> list[Finding]:
+    """REQ-004/REQ-005: every model-referenced ADR must carry a Status value in
+    the parsed allowed set. A Withdrawn ADR owns no decision target and holds no
+    non-Reference edge; a Proposed ADR may not claim primary authority."""
+    allowed = _allowed_statuses(governance_path)
+    if allowed is None:
+        return [
+            Finding(
+                code="ADR_STATUS_INVALID",
+                location=f"docs/00_governance/{governance_path.name}",
+                message=(
+                    "could not parse the allowed Status set from 'ADR Status "
+                    "Definitions'; status validation fails closed "
+                    "(keep this section equal to check_adr_structure._ALLOWED_STATUSES)"
+                ),
+            )
+        ]
+    known = adr_files_by_id(adr_dir)
+    statuses: dict[str, str | None] = {}
+    for adr_id in sorted({adr_id for adr_id, _label in _model_adr_ids(model)}):
+        filename = known.get(adr_id)
+        if filename is None:
+            continue  # unresolved ids are reported by DANGLING_ADR
+        statuses[adr_id] = _adr_status(adr_dir / filename)
+
+    findings: list[Finding] = []
+    for adr_id, status in statuses.items():
+        if status is None:
+            findings.append(
+                Finding(
+                    code="ADR_STATUS_INVALID",
+                    location=f"docs/10_adr/{known[adr_id]}",
+                    message=(
+                        f"{adr_id} is referenced by the model but its '## Status' "
+                        "carries no value to validate"
+                    ),
+                )
+            )
+        elif status not in allowed:
+            findings.append(
+                Finding(
+                    code="ADR_STATUS_INVALID",
+                    location=f"docs/10_adr/{known[adr_id]}",
+                    message=(
+                        f"{adr_id} has Status {status!r}, outside the allowed set "
+                        f"({', '.join(allowed)}) from governance_01 "
+                        "'ADR Status Definitions'"
+                    ),
+                )
+            )
+
+    for entry in model.authorities:
+        claims: list[tuple[str, str]] = [(entry.primary_adr, "primary_adr")]
+        claims.extend((sup.adr, "supplemental") for sup in entry.supplemental_adrs)
+        for adr_id, role in claims:
+            status = statuses.get(adr_id)
+            if status == "Withdrawn":
+                findings.append(
+                    Finding(
+                        code="ADR_STATUS_INVALID",
+                        location="config/adr_authority.toml",
+                        message=(
+                            f"withdrawn ADR {adr_id} is listed as {role} of "
+                            f"decision_target {entry.decision_target!r}; a Withdrawn "
+                            "ADR owns no decision target"
+                        ),
+                    )
+                )
+            elif status == "Proposed" and role == "primary_adr":
+                findings.append(
+                    Finding(
+                        code="ADR_STATUS_INVALID",
+                        location="config/adr_authority.toml",
+                        message=(
+                            f"proposed ADR {adr_id} claims primary_adr of "
+                            f"decision_target {entry.decision_target!r}; primary "
+                            "authority requires an Accepted ADR"
+                        ),
+                    )
+                )
+
+    for edge in model.edges:
+        if edge.edge_type not in EDGE_TYPES or edge.edge_type == "Reference":
+            continue  # taxonomy errors belong to EDGE_UNKNOWN_TYPE
+        for adr_id in (edge.from_adr, edge.to_adr):
+            if statuses.get(adr_id) == "Withdrawn":
+                findings.append(
+                    Finding(
+                        code="ADR_STATUS_INVALID",
+                        location="config/adr_authority.toml",
+                        message=(
+                            f"withdrawn ADR {adr_id} holds the {edge.edge_type} "
+                            f"edge {edge.from_adr} -> {edge.to_adr}; a Withdrawn "
+                            "ADR carries no normative edge"
+                        ),
+                    )
+                )
     return findings
 
 
@@ -653,14 +897,18 @@ def validate_model(
     *,
     adr_dir: Path = ADR_DIR,
     config_path: Path = AGENT_CONFIG_PATH,
+    governance_path: Path = GOVERNANCE_01_PATH,
 ) -> list[Finding]:
-    """Run every model validator (INV-01, INV-02, INV-05 plus taxonomy and
-    dangling-ID checks). The front matter cross-check is separate: only
-    tools/check_adr_reference.py runs it (ADR-016 Verification)."""
+    """Run every model validator (INV-01, INV-02, INV-05 plus taxonomy,
+    duplicate-pair, status, and dangling-ID checks). The front matter
+    cross-check is separate: only tools/check_adr_reference.py runs it
+    (ADR-016 Verification)."""
     findings: list[Finding] = []
     findings.extend(check_edge_types(model))
+    findings.extend(check_duplicate_edges(model))
     findings.extend(check_duplicate_primaries(model))
     findings.extend(check_dangling_adrs(model, adr_dir))
+    findings.extend(check_adr_statuses(model, adr_dir, governance_path))
     findings.extend(check_authority_cycles(model))
     findings.extend(check_assumptions(model, config_path))
     return findings

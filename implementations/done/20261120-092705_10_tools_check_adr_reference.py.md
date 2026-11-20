@@ -59,10 +59,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the early return so the cross-check always runs (REQ-008) | Pending | — | — | |
-| 2 | Fix the module docstring citations (REQ-009) | Pending | — | — | |
-| 3 | Add the companion independence fixture (REQ-027) | Pending | — | — | |
-| 4 | Run the Validation plan commands | Pending | — | — | |
+| 1 | Remove the early return so the cross-check always runs (REQ-008) | Completed | 20261120 | 20261120 | — |
+| 2 | Fix the module docstring citations (REQ-009) | Completed | 20261120 | 20261120 | — |
+| 3 | Add the companion independence fixture (REQ-027) | Completed | 20261120 | 20261120 | — |
+| 4 | Run the Validation plan commands | Completed | 20261120 | 20261120 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

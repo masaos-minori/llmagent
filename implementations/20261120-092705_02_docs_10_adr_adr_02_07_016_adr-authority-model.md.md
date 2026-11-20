@@ -11,7 +11,7 @@
 ## Assumptions
 - The Summary (line 31) and Problem (line 47) sentences contain "seven intentional circular pairs" (verified in Step 2); the pending `Current Decision Approval` bullet at line 165 (AAL-018) already covers the 6->7 count change and section rename, so REQ-025 extends that pending scope rather than creating a competing edit (Plan Assumption).
 - ADR-016 Decision 10 already documents that ADR-016 owning no decision target is intentional — no fix is needed for that claim.
-- The canonical allowed-status sentence in ADR-016 must keep equality with `governance_01` "ADR Status Definitions" (`Proposed` / `Accepted` / `Withdrawn`), which the core cross-checks.
+- Verification finding (20261120 adversarial re-check): ADR-016 contains NO canonical allowed-status sentence — the only "Status" occurrence in the file is the `## Status` heading (line 25, value `Accepted`); `Proposed`/`Withdrawn` appear nowhere in it. The allowed-status vocabulary lives in `governance_01` "ADR Status Definitions" (line 266: `Proposed` / `Accepted` / `Withdrawn`) and is enforced by `tools/check_adr_structure.py` (`_ALLOWED_STATUSES`, pinned to governance_01 by a test), not by the core today. The Implementation Notes edit must therefore describe the core's new `ADR_STATUS_INVALID` check without introducing a competing status list in ADR-016.
 
 ## Design decisions
 - Implementation Notes land ungated with Phase 1 because they only report checker behavior, like the `tools/TOOL_DESCRIPTIONS.md` sync.
@@ -58,10 +58,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Sync Implementation Notes with the new finding codes (ungated, lands with Phase 1) | Pending | — | — | |
+| 1 | Sync Implementation Notes with the new finding codes (ungated, lands with Phase 1) | Completed | 20261120 | 20261120 | — |
 | 2 | Add the approved P1 edge-type semantics to Decision 3 (REQ-019) | Pending | — | — | Gated: plans/20261120-075008_adrchk015_adr-graph-semantics.md phase 3 - requires a maintainer approval record citing a governance_03 Part 5 AAL entry (UNK-01) |
 | 3 | Replace the "seven" pair counts with the generated-section pointer (REQ-025) | Pending | — | — | Gated: plans/20261120-075008_adrchk015_adr-graph-semantics.md phase 3 - folds into the pending AAL-018 approval scope (UNK-03) |
-| 4 | Run `check_adr_structure.py` and `check_adr_reference.py` | Pending | — | — | |
+| 4 | Run `check_adr_structure.py` and `check_adr_reference.py` | Completed | 20261120 | 20261120 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

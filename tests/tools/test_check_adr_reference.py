@@ -181,3 +181,38 @@ class TestCollectIssues:
         assert len(issues) == 1
         assert issues[0].severity == "ERROR"
         assert "no source references" in issues[0].message
+
+    def test_empty_matrix_does_not_suppress_frontmatter_cross_check(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """REQ-008: the vacuity error and the model cross-check are independent
+        findings lists — a vacuous matrix must still report divergence."""
+        index = tmp_path / "adr_01_index.md"
+        index.write_text(
+            "\n".join(
+                _matrix(
+                    "| ADR-001 INV-01 | x | Unit Test | CI | Blocking | "
+                    "Confirmed (`tests/agent/test_x.py::test_x`) |"
+                )
+            )
+        )
+        model_path = tmp_path / "adr_authority.toml"
+        model_path.write_text('version = "1"\n', encoding="utf-8")
+        adr = tmp_path / "10_adr"
+        adr.mkdir()
+        (adr / "adr_02_01_001_a.md").write_text(
+            "---\ntitle: ADR-001\nrelated:\n  - adr_02_01_002_b.md\n---\n# body\n",
+            encoding="utf-8",
+        )
+        (adr / "adr_02_01_002_b.md").write_text(
+            "---\ntitle: ADR-002\nrelated: []\n---\n# body\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr("tools.check_adr_reference.ADR_INDEX", index)
+        monkeypatch.setattr("tools.check_adr_reference.ADR_DIR", adr)
+        monkeypatch.setattr("tools.check_adr_reference.MODEL_PATH", model_path)
+        issues = collect_issues()
+        messages = [issue.message for issue in issues]
+        assert any("no source references" in message for message in messages)
+        assert any("FRONTMATTER_DIVERGENCE" in message for message in messages)
+        assert all(issue.severity == "ERROR" for issue in issues)

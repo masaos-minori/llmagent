@@ -137,6 +137,7 @@ TOML registry (like `documentation_canonical_sources.toml`), guarded generated b
 
 - Model file: `config/adr_authority.toml` (authority matrix, typed edges, assumption registry; `version = "1"`).
 - Shared validator core: `tools/_adr_authority_core.py`, imported by `tools/check_adr_authority.py` (standalone CI validator) and `tools/check_adr_reference.py` (front matter cross-check).
+- Core model validators added by plan adrchk015: `EDGE_DUPLICATE` (duplicate `(from, to)` edge rows that pair-keyed consumers would silently overwrite) and `ADR_STATUS_INVALID` (a model-referenced ADR whose Status is outside governance_01 "ADR Status Definitions", a Withdrawn ADR owning a decision target or a non-`Reference` edge, or a Proposed ADR claiming primary authority). Status values are read from the ADR's `## Status` section, not from front matter.
 - Generator: `tools/generate_adr_authority.py` writes three guarded sections into `docs/10_adr/adr_01_index.md`: ADR Dependency Graph (`adr-reference-graph`), Authority Graph (`adr-authority-graph`), Intentional Circular References (`adr-intentional-cycles`).
 - The `governance_05` area-graph cycle prohibition remains limited to area nodes; the acyclicity rule of INV-02 is this ADR's own rule over the ADR authority graph.
 
