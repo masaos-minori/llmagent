@@ -98,7 +98,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # and one pending approval line.
     # Re-accepted at 35498 (2026-11-20): adrchk015 Phase 3 added the ADR-006/ADR-008 front
     # matter entries and Related ADRs bullets; the ceiling equals the accepted size.
-    "adr_02_01_004_platform-environment-failure-handling-policy.md": 35498,
+    # Re-accepted at 36267 (2026-11-20): adrchk013 renamed the Automated Tests `Status`
+    # column to `Implementation`, added the row test citations and the INV-14 row; the
+    # ceiling equals the accepted size.
+    "adr_02_01_004_platform-environment-failure-handling-policy.md": 36267,
     # Re-accepted 2026-11-12, closing a second pre-existing gap: the file had grown 32586
     # -> 33944 by 83879685e (adrrev008) without the ceiling being re-recorded. Recorded
     # only to keep check_docs_structure.py green.
@@ -110,6 +113,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 44006: the six-database scope, the per-database schema-mismatch and
     # retention rules, the memory canonical store, and the table inventory.
     "adr_02_05_008_db-sqlite-4db-separation.md": 44006,
+    # Re-accepted at 36609 (2026-11-20, adrchk013 procedure 20261120-111659_03): the
+    # ADR-016/ADR-017 matrix rows, the split-out ADR-012 INV-04 row, the ADR-003 INV-03
+    # Partial rewrite, the dropped migration-window wording and the Pipeline Mapping
+    # Summary update; the ceiling equals the accepted size.
+    "adr_01_index.md": 36609,
 }
 
 

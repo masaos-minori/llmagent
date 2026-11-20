@@ -20,27 +20,39 @@ gap, not a claim this check can verify.
 
 This check does not run the cited tests to confirm they pass — only that the
 path and node exist. Running the cited index tests is done by
-`.github/run_cited_adr_tests.py` (see docs/00_governance/governance_04_documentation-checks.md
-GV-012 Follow-up Work).
+`.github/run_cited_adr_tests.py`.
 
-Three further rules read the ADR bodies (the ADR body Verification section is the
-canonical evidence record; the index mirrors it):
+Five further rules read the ADR bodies and the index (the ADR body Verification
+section is the canonical evidence record; the index mirrors it):
 
-1. An ADR body `### Automated Tests` row whose `Implementation` cell is empty (or
+1. An ADR body `### Automated Tests` table whose header lacks the `Verifies` or
+   `Implementation` column is reported at its header line: the checker cannot
+   read the evidence such a table is meant to record. A body with no such table
+   stays silent.
+2. An ADR body `### Automated Tests` row whose `Implementation` cell is empty (or
    `-`) is reported. A non-empty cell, including one that starts with "Not verified",
    counts as an explicit status.
-2. For an invariant that appears in both an ADR body and the index matrix, the test
+3. For an invariant that appears in both an ADR body and the index matrix, the test
    files cited by the body (the union over the body rows) must be contained in the
    union of the citations in the matrix rows naming that invariant; body-cited files
    not covered by any index citation are reported when both sides cite at least one
    test file. Extra index citations — additional evidence on rows shared by several
    invariants — are not errors (containment rule; repository owner decision, 2026-10-28).
-3. Every backtick-quoted `path/to/file.py::node` citation anywhere in an ADR body
-   (not only the Automated Tests table) must name an existing file by its full
-   repository path and an existing node; a path-less citation such as
-   `test_x.py::TestY` fails the file check.
+4. Reverse direction: an invariant whose index row cites test files while the ADR
+   body records no test evidence for it (no `### Automated Tests` row names it, or
+   every row naming it cites no test file) is reported at the index row.
+5. A `Not verified` row must be Non-Blocking: an index row whose Verification
+   Status starts with "Not verified" and whose Gate is not "Non-Blocking" (unless
+   the cell carries an approved `Exception: <id>` reference), and a body row whose
+   Implementation starts with "Not verified" and whose Blocking cell is "Yes", are
+   reported.
 
-All three rules and the node validation report `ERROR` (see `_BODY_RULE_SEVERITY`),
+Every backtick-quoted `path/to/file.py::node` citation anywhere in an ADR body
+(not only the Automated Tests table) must name an existing file by its full
+repository path and an existing node; a path-less citation such as
+`test_x.py::TestY` fails the file check.
+
+All rules and the node validation report `ERROR` (see `_BODY_RULE_SEVERITY`),
 so any finding makes the exit code non-zero.
 
 Usage:
@@ -60,17 +72,32 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# Matrix/body table parsers and the ADR body rules (split fallout 2026-11-20):
+# the names re-exported here stay importable from this module for
+# tools/generate_reference_table.py and .github/run_cited_adr_tests.py.
+from tools._adr_matrix_core import (
+    _ADR_LIST_HEADING,
+    _ADR_NUMBER_RE,
+    _AUTOMATED_TESTS_HEADING,
+    _BODY_RULE_SEVERITY,
+    _INDEX_NAME,
+    _INV_NUMBER_RE,
+    _first_table_after,
+    _index_evidence,
+    _matrix_rows,
+    _read_lines,
+    _split_row,
+    check_adr_body_evidence_cells,
+    check_adr_body_table_columns,
+    check_body_index_agreement,
+    check_index_only_evidence,
+)
 from tools._docs_consistency_lib import Issue, report_and_exit
 from tools._report import PROFILE_ISSUE, add_format_argument, from_issue, render_json
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
 ADR_INDEX = DOCS_DIR / "10_adr" / "adr_01_index.md"
-
-_MATRIX_HEADING = "## ADR Invariant Verification Matrix"
-_SECTION_HEADING_RE = re.compile(r"^#{1,2} ")
-_TABLE_ROW_RE = re.compile(r"^\|.*\|\s*$")
-_TABLE_SEPARATOR_RE = re.compile(r"^\|[\s:|-]+\|\s*$")
 
 # A cited pytest node id: backtick-quoted, contains a `.py::` separator so a
 # bare code reference like `` `config_loader.py` `` (no `::`) is not matched.
@@ -82,42 +109,6 @@ _SKIP_MARKER_RE = re.compile(r"\bmark\.(?:skip|skipif|xfail)$")
 # Approved-exception reference grammar, shared with .github/run_cited_adr_tests.py
 # (row 03 imports this module by path); documented in adr_01_index.md vocabulary.
 _EXCEPTION_RE = re.compile(r"Exception: [A-Za-z0-9._-]+")
-
-# REQ-004 stepped enforcement: flip this constant to "ERROR" after the migration window.
-_CADENCE_RULE_SEVERITY = "WARNING"
-
-
-def _read_lines(path: Path) -> list[str]:
-    return path.read_text(encoding="utf-8").splitlines()
-
-
-def _matrix_rows(lines: list[str]) -> list[tuple[int, str]]:
-    """Return (1-indexed line_no, line) pairs for each table data row under
-    the ADR Invariant Verification Matrix heading, skipping the header row
-    and its `---` separator row."""
-    start: int | None = None
-    for i, line in enumerate(lines):
-        if line.strip() == _MATRIX_HEADING:
-            start = i
-            break
-    if start is None:
-        return []
-
-    rows: list[tuple[int, str]] = []
-    seen_separator = False
-    for i in range(start + 1, len(lines)):
-        line = lines[i]
-        if _SECTION_HEADING_RE.match(line):
-            break
-        if not _TABLE_ROW_RE.match(line):
-            continue
-        if not seen_separator and _TABLE_SEPARATOR_RE.match(line):
-            seen_separator = True
-            continue
-        if not seen_separator:
-            continue  # header row itself
-        rows.append((i + 1, line))
-    return rows
 
 
 _NODE_SEGMENT_SUFFIX_RE = re.compile(r"(?:\[.*\])?(?:\(\))?$")
@@ -288,7 +279,7 @@ def check_invariant_matrix_test_paths(lines: list[str]) -> list[Issue]:
 
 
 def check_adr_body_citations(adr_file: str, lines: list[str]) -> list[Issue]:
-    """Rule 3: report an unresolved `file.py::node` citation anywhere in an ADR body."""
+    """Report an unresolved `file.py::node` citation anywhere in an ADR body."""
     issues: list[Issue] = []
     for line_no, line in enumerate(lines, start=1):
         for match in _TEST_PATH_RE.finditer(line):
@@ -305,27 +296,6 @@ def check_adr_body_citations(adr_file: str, lines: list[str]) -> list[Issue]:
     return issues
 
 
-# Body-evidence findings (empty cells, body citations not covered by the index,
-# unresolved body citations) are errors, like the index checks.
-_BODY_RULE_SEVERITY = "ERROR"
-
-_ADR_LIST_HEADING = "## ADR List"
-_AUTOMATED_TESTS_HEADING = "### Automated Tests"
-_HEADING_RE = re.compile(r"^#{1,6} ")
-_ADR_NUMBER_RE = re.compile(r"ADR-(\d+)")
-_INV_NUMBER_RE = re.compile(r"INV-(\d+)")
-_ADR_PART_SPLIT_RE = re.compile(r"\s+and\s+(?=ADR-)")
-# A cited test file, with or without a `::node` suffix; source-file references
-# (for example `scripts/...`) are not test evidence and are ignored.
-_CITED_TEST_FILE_RE = re.compile(r"`(tests/[^`:]+\.py)(?:::[^`]*)?`")
-_EMPTY_CELLS = frozenset({"", "-", "\u2014"})
-_INDEX_NAME = "adr_01_index.md"
-
-
-def _split_row(line: str) -> list[str]:
-    return [cell.strip() for cell in line.strip().strip("|").split("|")]
-
-
 _MANUAL_STATUSES = ("Manual", "Partial")
 _CADENCE_FIELDS = ("Cadence:", "Expected evidence:")
 
@@ -333,7 +303,7 @@ _CADENCE_FIELDS = ("Cadence:", "Expected evidence:")
 def check_manual_partial_fields(lines: list[str]) -> list[Issue]:
     """REQ-004: a Manual or Partial matrix row must carry `Cadence:` and
     `Expected evidence:` inside its Verification Status cell; missing fields
-    report at `_CADENCE_RULE_SEVERITY` (WARNING during the migration window)."""
+    report as `ERROR`."""
     issues: list[Issue] = []
     for line_no, row in _matrix_rows(lines):
         cells = _split_row(row)
@@ -348,7 +318,7 @@ def check_manual_partial_fields(lines: list[str]) -> list[Issue]:
                     Issue(
                         file=_INDEX_NAME,
                         line_no=line_no,
-                        severity=_CADENCE_RULE_SEVERITY,
+                        severity="ERROR",
                         message=(
                             f"Verification Status cell is missing the required "
                             f"'{field}' field for a Manual/Partial row"
@@ -356,38 +326,6 @@ def check_manual_partial_fields(lines: list[str]) -> list[Issue]:
                     )
                 )
     return issues
-
-
-def _table_lines(lines: list[str], heading: str) -> list[tuple[int, str]]:
-    """Return the (1-indexed line, text) pairs of the first table under `heading`;
-    the table ends at the next heading or the first non-table line after it."""
-    start = next((i for i, line in enumerate(lines) if line.strip() == heading), None)
-    if start is None:
-        return []
-    table: list[tuple[int, str]] = []
-    for i in range(start + 1, len(lines)):
-        line = lines[i]
-        if _HEADING_RE.match(line):
-            break
-        if _TABLE_ROW_RE.match(line):
-            table.append((i + 1, line))
-        elif table:
-            break
-    return table
-
-
-def _first_table_after(
-    lines: list[str], heading: str
-) -> tuple[list[str], list[tuple[int, list[str]]]]:
-    """Return the header cells and the (line, cells) data rows of that table."""
-    table = [
-        (line_no, _split_row(line))
-        for line_no, line in _table_lines(lines, heading)
-        if not _TABLE_SEPARATOR_RE.match(line)
-    ]
-    if not table:
-        return [], []
-    return table[0][1], table[1:]
 
 
 def _adr_file_map(index_lines: list[str]) -> dict[str, str]:
@@ -408,95 +346,70 @@ def _adr_file_map(index_lines: list[str]) -> dict[str, str]:
     return mapping
 
 
-def _body_automated_tests_rows(lines: list[str]) -> list[tuple[int, list[str], str]]:
-    """Return (line, invariant numbers, Implementation cell) per data row of the
-    `### Automated Tests` table; empty when the table or a column is absent."""
-    header, rows = _first_table_after(lines, _AUTOMATED_TESTS_HEADING)
-    if "Verifies" not in header or "Implementation" not in header:
-        return []
-    verifies_col = header.index("Verifies")
-    impl_col = header.index("Implementation")
-    return [
-        (line_no, _INV_NUMBER_RE.findall(cells[verifies_col]), cells[impl_col])
-        for line_no, cells in rows
-        if len(cells) == len(header)
-    ]
-
-
-def check_adr_body_evidence_cells(adr_file: str, lines: list[str]) -> list[Issue]:
-    """Rule 1: report an ADR body row whose Implementation cell is empty."""
-    issues: list[Issue] = []
-    for line_no, invariants, cell in _body_automated_tests_rows(lines):
-        if cell in _EMPTY_CELLS:
-            names = ", ".join(f"INV-{n}" for n in invariants) or "an invariant"
-            issues.append(
-                Issue(
-                    file=adr_file,
-                    line_no=line_no,
-                    severity=_BODY_RULE_SEVERITY,
-                    message=(
-                        f"{names}: Implementation cell is empty; cite a test or "
-                        "record 'Not verified'"
-                    ),
-                )
-            )
-    return issues
-
-
-def _index_evidence(
+def check_not_verified_blocking(
     index_lines: list[str],
-) -> tuple[dict[tuple[str, str], set[str]], dict[tuple[str, str], int], set[str]]:
-    """Return the test files cited per (ADR number, invariant number), the first
-    index line of each, and every ADR number named in the matrix."""
-    cited: dict[tuple[str, str], set[str]] = {}
-    first_line: dict[tuple[str, str], int] = {}
-    adr_numbers: set[str] = set()
+    bodies: Mapping[str, list[str]],
+    adr_files: Mapping[str, str],
+) -> list[Issue]:
+    """Rule 5: a `Not verified` row must be Non-Blocking. An index row whose
+    Verification Status starts with "Not verified" and whose Gate is not
+    "Non-Blocking" is reported unless the cell carries an approved `Exception:
+    <id>` reference; a body row whose Implementation starts with "Not verified"
+    and whose Blocking cell starts with "Yes" is reported."""
+    issues: list[Issue] = []
     for line_no, row in _matrix_rows(index_lines):
         cells = _split_row(row)
-        if len(cells) < 2:
+        if len(cells) < 6:
             continue
-        files = set(_CITED_TEST_FILE_RE.findall(cells[-1]))
-        for part in _ADR_PART_SPLIT_RE.split(cells[0]):
-            adr = _ADR_NUMBER_RE.search(part)
-            if not adr:
-                continue
-            adr_numbers.add(adr.group(1))
-            for inv in _INV_NUMBER_RE.findall(part):
-                key = (adr.group(1), inv)
-                cited.setdefault(key, set()).update(files)
-                first_line.setdefault(key, line_no)
-    return cited, first_line, adr_numbers
-
-
-def check_body_index_agreement(
-    index_lines: list[str], bodies: Mapping[str, list[str]]
-) -> list[Issue]:
-    """Rule 2 (containment): report an invariant whose body-cited test files are not
-    all covered by the index citations, when both sides cite at least one test file."""
-    index_cited, index_line, _ = _index_evidence(index_lines)
-    issues: list[Issue] = []
-    for adr, body_lines in sorted(bodies.items()):
-        body_cited: dict[str, set[str]] = {}
-        for _, invariants, cell in _body_automated_tests_rows(body_lines):
-            files = set(_CITED_TEST_FILE_RE.findall(cell))
-            for inv in invariants:
-                body_cited.setdefault(inv, set()).update(files)
-        for inv, body_files in sorted(body_cited.items()):
-            index_files = index_cited.get((adr, inv))
-            if not index_files or not body_files or body_files <= index_files:
-                continue
-            issues.append(
-                Issue(
-                    file=_INDEX_NAME,
-                    line_no=index_line[(adr, inv)],
-                    severity=_BODY_RULE_SEVERITY,
-                    message=(
-                        f"ADR-{adr} INV-{inv}: body-cited test files not covered by "
-                        f"the index citations {sorted(body_files - index_files)} "
-                        f"(the index covers {sorted(index_files)})"
-                    ),
-                )
+        status_cell = cells[-1]
+        if not status_cell.startswith("Not verified"):
+            continue
+        if cells[4] == "Non-Blocking" or _EXCEPTION_RE.search(status_cell):
+            continue
+        issues.append(
+            Issue(
+                file=_INDEX_NAME,
+                line_no=line_no,
+                severity=_BODY_RULE_SEVERITY,
+                message=(
+                    f"{cells[0]}: a 'Not verified' row must be Non-Blocking or "
+                    "carry an approved 'Exception: <id>' reference"
+                ),
             )
+        )
+    for adr, body_lines in sorted(bodies.items()):
+        header, rows = _first_table_after(body_lines, _AUTOMATED_TESTS_HEADING)
+        if not all(
+            column in header for column in ("Verifies", "Blocking", "Implementation")
+        ):
+            continue
+        inv_col = header.index("Verifies")
+        block_col = header.index("Blocking")
+        impl_col = header.index("Implementation")
+        adr_name = Path(adr_files[adr]).name if adr in adr_files else f"ADR-{adr}"
+        for line_no, cells in rows:
+            if len(cells) != len(header):
+                continue
+            if cells[impl_col].startswith("Not verified") and cells[
+                block_col
+            ].startswith("Yes"):
+                names = (
+                    ", ".join(
+                        f"INV-{n}" for n in _INV_NUMBER_RE.findall(cells[inv_col])
+                    )
+                    or "an invariant"
+                )
+                issues.append(
+                    Issue(
+                        file=adr_name,
+                        line_no=line_no,
+                        severity=_BODY_RULE_SEVERITY,
+                        message=(
+                            f"{names}: a 'Not verified' row must not be Blocking; "
+                            "record the change in the pending approval form"
+                        ),
+                    )
+                )
     return issues
 
 
@@ -530,6 +443,7 @@ def collect_issues() -> list[Issue]:
             )
             continue
         bodies[adr] = lines
+        issues.extend(check_adr_body_table_columns(path.name, lines))
         issues.extend(check_adr_body_evidence_cells(path.name, lines))
         issues.extend(check_adr_body_citations(path.name, lines))
     for adr in sorted(_index_evidence(index_lines)[2] - adr_files.keys()):
@@ -542,6 +456,8 @@ def collect_issues() -> list[Issue]:
             )
         )
     issues.extend(check_body_index_agreement(index_lines, bodies))
+    issues.extend(check_index_only_evidence(index_lines, bodies))
+    issues.extend(check_not_verified_blocking(index_lines, bodies, adr_files))
     return issues
 
 
@@ -550,8 +466,10 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "Verify every pytest node id cited in docs/10_adr/adr_01_index.md's ADR "
             "Invariant Verification Matrix and in the ADR bodies resolves to an "
-            "existing file and node, and report an empty ADR body Implementation "
-            "cell and body-cited test files not covered by the index citations."
+            "existing file and node, and report an unreadable ADR body Automated "
+            "Tests table, an empty body Implementation cell, body-cited test files "
+            "not covered by the index citations, index-cited evidence with no body "
+            "evidence, and a 'Not verified' row recorded as Blocking."
         )
     )
     add_format_argument(parser, choices=("json",), default=None)

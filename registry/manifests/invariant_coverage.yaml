@@ -61,13 +61,16 @@ entries:
   status: Confirmed
   timing: CI
 - adr: ADR-003
+  cadence: every change to the Registry, approval or audit code paths.
   check_type: Unit Test
   cited:
   - tests/agent/services/test_mcp_tool_discovery.py::TestWriteClassificationFinding
   - tests/agent/test_tool_policy_comprehensive.py::TestClassifyOperationType
+  expected_evidence: a review record confirming Routing, approval and auditing reference
+    the same Safety Tier.
   gate: Blocking
   invariant: INV-03
-  status: Confirmed
+  status: Partial
   timing: CI
 - adr: ADR-004
   cadence: each deployment review.
@@ -265,8 +268,14 @@ entries:
   - tests/mcp_servers/git/test_git_service_dispatch.py::TestWriteRefAllowlist::test_rejected_branch_forms
   - tests/mcp_servers/git/test_repository_state.py::TestStage3DestinationProtection
   gate: Blocking
-  invariant: INV-01, INV-02, INV-03, INV-04
+  invariant: INV-01, INV-02, INV-03
   status: Confirmed
+  timing: CI
+- adr: ADR-012
+  check_type: Integration Test
+  gate: Non-Blocking
+  invariant: INV-04
+  status: Not verified
   timing: CI
 - adr: ADR-013
   check_type: Integration Test
@@ -312,6 +321,73 @@ entries:
   - tests/tools/test_generate_reference_table.py::TestCheckDrift::test_live_docs_have_no_drift
   gate: Blocking
   invariant: INV-01
+  status: Confirmed
+  timing: CI
+- adr: ADR-016
+  check_type: Static Check
+  cited:
+  - tests/tools/test_adr_authority.py::test_assumption_drift_against_live_config_shape
+  - tests/tools/test_adr_authority.py::test_dup_primary_fails
+  - tests/tools/test_adr_authority.py::test_typed_cycle_fails
+  gate: Blocking
+  invariant: INV-01, INV-02, INV-05
+  status: Confirmed
+  timing: CI
+- adr: ADR-016
+  check_type: Static Check
+  cited:
+  - tests/tools/test_generate_adr_authority.py::test_live_docs_and_model_have_no_drift
+  gate: Blocking
+  invariant: INV-03
+  status: Confirmed
+  timing: CI
+- adr: ADR-016
+  check_type: Static Check
+  cited:
+  - tests/tools/test_check_adr_reference.py::TestCollectIssues::test_empty_matrix_does_not_suppress_frontmatter_cross_check
+  gate: Blocking
+  invariant: INV-04
+  status: Confirmed
+  timing: CI
+- adr: ADR-017
+  check_type: Unit Test
+  cited:
+  - tests/agent/test_startup_validation.py::TestMcpAuthDisabledServers::test_disabled_server_without_token_passes_mcp_auth
+  - tests/agent/test_startup_validation.py::TestMcpAuthDisabledServers::test_enabled_server_without_token_is_fatal_and_named
+  gate: Blocking
+  invariant: INV-01
+  status: Confirmed
+  timing: CI
+- adr: ADR-017
+  check_type: Unit Test
+  cited:
+  - tests/mcp_servers/test_require_auth_token.py::TestRequireAuthToken::test_empty_token_raises
+  - tests/mcp_servers/test_require_auth_token.py::TestRequireAuthToken::test_message_names_the_server_and_variable
+  - tests/mcp_servers/test_require_auth_token.py::TestRequireAuthToken::test_non_empty_token_is_returned_unchanged
+  - tests/mcp_servers/test_require_auth_token.py::test_empty_token_prevents_every_server_from_importing
+  gate: Blocking
+  invariant: INV-02, INV-04
+  status: Confirmed
+  timing: CI
+- adr: ADR-017
+  check_type: Unit Test
+  cited:
+  - tests/mcp_servers/test_require_auth_token.py::test_attach_middleware_without_enforcement_point_is_flagged
+  - tests/mcp_servers/test_require_auth_token.py::test_every_configured_server_resolves_to_a_module_and_token_variable
+  - tests/mcp_servers/test_require_auth_token.py::test_every_server_routes_through_shared_enforcement_point
+  gate: Blocking
+  invariant: INV-02, INV-05
+  status: Confirmed
+  timing: CI
+- adr: ADR-017
+  check_type: Unit Test
+  cited:
+  - tests/mcp_servers/test_mcp_server_base.py::TestAttachAuthMiddleware::test_empty_token_accept_all_is_not_a_supported_mode
+  - tests/mcp_servers/test_mcp_server_base.py::TestAttachAuthMiddleware::test_empty_token_denies_request_without_credentials
+  - tests/mcp_servers/test_mcp_server_base.py::TestAttachAuthMiddleware::test_missing_token_returns_401
+  - tests/mcp_servers/test_mcp_server_base.py::TestAttachAuthMiddleware::test_wrong_token_returns_401
+  gate: Blocking
+  invariant: INV-03
   status: Confirmed
   timing: CI
 generated_by: tools/generate_reference_table.py
