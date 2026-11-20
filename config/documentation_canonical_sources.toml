@@ -19,14 +19,14 @@ decision_target = "overview.architecture-overview"
 claim_type = "documentation-metadata"
 source_paths = ["docs/00_governance/governance_02_documentation-metadata.md"]
 area = "Overview"
-notes = "Architecture process overview; candidate replacement for docs/architecture.md; registered as a documentation-metadata claim, whose canonical source kind per the Resolution Matrix is the documentation-metadata document."
+notes = "Architecture process overview; registered as a documentation-metadata claim, whose canonical source kind per the Resolution Matrix is the documentation-metadata document."
 
 [[canonical_sources]]
 decision_target = "deployment.deploy-script"
 claim_type = "operational-procedure"
 source_paths = ["deploy/deploy.sh"]
 area = "Deployment"
-notes = "Deploy script; candidate replacement for deploy.sh."
+notes = "Deploy script."
 
 [[canonical_sources]]
 decision_target = "governance.policy"

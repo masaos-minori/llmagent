@@ -6,7 +6,7 @@
 
 ## Assumptions
 - Re-run the Plan AC-1 history search on this file immediately before editing; if a note is already rewritten, skip it and record the evidence (source issue AI Implementation Instruction). Verified present on 20261120 (lines 22, 29).
-- No consumer outside this file cites the "candidate replacement" text (verified 20261120: `rg "candidate replacement"` over docs/, tools/, config/, scripts/ matches only this file's two notes lines).
+- No consumer cites this file's live "candidate replacement" values (re-verified 20261120 adversarial pass: `rg -l "candidate replacement"` also matches `tests/tools/test_check_canonical_source_conflicts.py`, but only as its hardcoded pre-seq-03 `DEFECTIVE_ROWS` fixture written to a tmp registry — it never reads this file; the same file's live-registry tests assert `source_paths`/`claim_type`, not these two notes values).
 
 ## Design decisions
 - Keep each remaining `notes` sentence intact after deleting only the migration clause — the clause is a migration-status statement about a future replacement decision, which the Current-Specification-Only policy bars in active config.
@@ -39,6 +39,7 @@
 
 ## Validation plan
 - `uv run python tools/check_canonical_source_registry.py` (Plan AC-4).
+- `uv run pytest tests/tools/test_check_canonical_source_conflicts.py` — live-registry consumer tests (added by the Step 3a adversarial verification on 20261120: this test file reads the repo registry in `TestRegistryRowCorrectionsT12`).
 - History search re-run on this file returns no hit for the Plan AC-1 pattern (`candidate replacement` included).
 
 ## Completion criteria
@@ -52,8 +53,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) with the registry checker named in the Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-205907 | 20261120-205955 | changed config/documentation_canonical_sources.toml (two notes clauses removed) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) with the registry checker named in the Validation plan | Completed | 20261120-205956 | 20261120-210852 | stale-detector clean; check_canonical_source_registry Pass; pytest test_check_canonical_source_conflicts 45 passed (live-registry tests do not pin the removed notes clauses); history re-search no hit; full-suite pending batch end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

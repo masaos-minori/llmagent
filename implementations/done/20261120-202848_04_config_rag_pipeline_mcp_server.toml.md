@@ -52,8 +52,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) with the diff review and pytest set named in the Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-205834 | 20261120-205907 | changed config/rag_pipeline_mcp_server.toml (NOTE block removed) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) with the diff review and pytest set named in the Validation plan | Completed | 20261120-205907 | 20261120-210852 | stale-detector clean; git diff comment-only; pytest rag_pipeline removed-keys + models 19 passed; history re-search no hit; full-suite pending batch end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

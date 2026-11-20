@@ -53,8 +53,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) with the doc-quality and ADR checkers named in the Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-205415 | 20261120-205445 | changed docs/10_adr/adr_02_03_017_mcp-authentication.md |
+| 2 | Run the validation sequence (`rules/toolchain.md`) with the doc-quality and ADR checkers named in the Validation plan | Completed | 20261120-205536 | 20261120-210851 | stale-detector clean; check_docs_quality Pass; check_adr_preservation Pass exit0 (1 WARNING, no ERROR: Decision text changed; sentence-level mapping: item 4 lost 'The former test-only bypass was removed (commit cad5e91ea);' -> 'exists; no bypass mode is supported.', Alternative B Disadvantages lost '; the test-only bypass was already removed in commit cad5e91ea'); check_adr_structure Pass; check_adr_invariant_matrix Pass; history re-search no hit; full-suite pending batch end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

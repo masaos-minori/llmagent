@@ -480,8 +480,7 @@ class TestUnresolvedIdentifiers:
         _write(
             adr_dir,
             "adr_02_009_example.md",
-            "## Decision\n\n"
-            "The item is registered as (NC-005).\n",
+            "## Decision\n\nThe item is registered as (NC-005).\n",
         )
         counts = collect_governance_heading_counts(_discover(canonical_dir))
         assert counts["NC-005"] == 2
@@ -539,8 +538,7 @@ class TestUnresolvedIdentifiers:
         _write(
             adr_dir,
             "adr_02_012_example.md",
-            "## Decision\n\n"
-            "See UNK-01-D1-profile-config and NC-0045x for details.\n",
+            "## Decision\n\nSee UNK-01-D1-profile-config and NC-0045x for details.\n",
         )
         counts = collect_governance_heading_counts(_discover(canonical_dir))
         assert find_unresolved_identifiers(_discover(adr_dir), counts) == []

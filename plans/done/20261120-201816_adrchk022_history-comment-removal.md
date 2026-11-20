@@ -163,8 +163,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: rewrite ADR-017 and governance_05 history statements | In Progress | — | — | `docs/10_adr/adr_02_03_017_mcp-authentication.md`; `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` |
-| 2 | Phase 2: delete/rewrite history comments in the three config files | In Progress | — | — | `config/agent.toml`; `config/rag_pipeline_mcp_server.toml`; `config/documentation_canonical_sources.toml` |
+| 1 | Phase 1: rewrite ADR-017 and governance_05 history statements | Completed | — | 20261120-210916 | `docs/10_adr/adr_02_03_017_mcp-authentication.md`; `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` |
+| 2 | Phase 2: delete/rewrite history comments in the three config files | Completed | — | 20261120-210916 | `config/agent.toml`; `config/rag_pipeline_mcp_server.toml`; `config/documentation_canonical_sources.toml` |
 | 3 | Phase 3: full validation gates and deploy hand-off | Pending | — | — | All five Implementation Target Files |
 
 ### Blocker Log
@@ -175,11 +175,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261120-202848_01_docs_10_adr_adr_02_03_017_mcp-authentication.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261120-202848_02_docs_00_governance_governance_05_change-impact-and-dependency-graphs.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261120-202848_03_config_agent.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261120-202848_04_config_rag_pipeline_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261120-202848_05_config_documentation_canonical_sources.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261120-202848_01_docs_10_adr_adr_02_03_017_mcp-authentication.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261120-202848_02_docs_00_governance_governance_05_change-impact-and-dependency-graphs.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261120-202848_03_config_agent.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261120-202848_04_config_rag_pipeline_mcp_server.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261120-202848_05_config_documentation_canonical_sources.toml.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

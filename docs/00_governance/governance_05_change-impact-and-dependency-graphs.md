@@ -134,8 +134,7 @@ imports and instantiates it; no other file under `scripts/mcp_servers/rag_pipeli
 duplicates RAG pipeline logic).
 
 Not an edge: `Agent → RAG`. `scripts/agent/services/rag_maintenance_service.py` maintains
-`rag.sqlite` through the `db` layer and imports nothing from `scripts/rag/`; its former
-`rag.corpus_identity` import was removed with RAGCORPUS001 Option B. RAG search and
+`rag.sqlite` through the `db` layer and imports nothing from `scripts/rag/`. RAG search and
 ingestion reach the Agent only through the generic `Agent → MCP` edge.
 
 Not represented as an edge:

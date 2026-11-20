@@ -53,7 +53,7 @@ ADR-007 Decision 9 requires a non-empty authentication token and a matching Bear
 1. Each MCP server has exactly one dedicated environment variable, `MCP_<SERVER_KEY>_AUTH_TOKEN`, as its shared secret (for example `MCP_GIT_AUTH_TOKEN` for `git-mcp`).
 2. The same variable is resolved on both sides: the Agent reads it through the `${ENV:MCP_<SERVER_KEY>_AUTH_TOKEN}` reference in `config/agent.toml`, and each server module reads the same variable for its own middleware configuration. One value, two resolution points, no separate server-side secret.
 3. An empty token fails closed on both sides. Server side: `require_auth_token()` raises `RuntimeError` naming only the server label and the variable, and the server does not start. Agent side: `scripts/agent/startup_validation.py` records a fatal `mcp_auth` finding naming every enabled server whose `auth_token` is empty, and Agent startup stops. A disabled server is exempt from the Agent-side check.
-4. The middleware is fail-closed: `attach_auth_middleware()` rejects every request with 401 when the configured token is empty, and no accept-all opt-out exists. The former test-only bypass was removed (commit `cad5e91ea`); no bypass mode is supported.
+4. The middleware is fail-closed: `attach_auth_middleware()` rejects every request with 401 when the configured token is empty, and no accept-all opt-out exists; no bypass mode is supported.
 5. Token changes take effect only on restart: the token is read once at server startup and once at Agent config resolution, so rotation requires restarting the Agent and every affected MCP server.
 6. Tokens are never logged or echoed: `require_auth_token()` names only the server and the variable, and no log line or audit record carries a token value.
 
@@ -94,7 +94,7 @@ Resolving the same environment variable on the Agent side and the server side re
 ### Alternative B: Keep an empty-token accept-all mode for local development
 
 - **Advantages:** Local test runs would not need a token.
-- **Disadvantages:** An accept-all mode is exactly the configured-but-unverified state the fail-closed rule exists to prevent; the test-only bypass was already removed in commit `cad5e91ea`.
+- **Disadvantages:** An accept-all mode is exactly the configured-but-unverified state the fail-closed rule exists to prevent.
 - **Reason for Rejection:** No bypass mode is supported; tests supply an explicit token instead.
 
 ## Consequences

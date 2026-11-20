@@ -51,8 +51,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) with the doc-quality, structure, and graph-cycle checkers named in the Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120-205536 | 20261120-205637 | changed docs/00_governance/governance_05_change-impact-and-dependency-graphs.md |
+| 2 | Run the validation sequence (`rules/toolchain.md`) with the doc-quality, structure, and graph-cycle checkers named in the Validation plan | Completed | 20261120-205637 | 20261120-210852 | stale-detector clean; check_docs_quality Pass; check_docs_structure Pass; check_dependency_graph_cycles Pass (5 nodes, 6 edges, no cycle); check_docs_content_policy Pass; history re-search no hit; full-suite pending batch end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
