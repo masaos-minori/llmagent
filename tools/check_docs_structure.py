@@ -96,7 +96,9 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # the accepted size, so further growth fails.
     # Re-accepted at 34555 (2026-11-12): adrrev015 doc 06 added the INV-14 test citations
     # and one pending approval line.
-    "adr_02_01_004_platform-environment-failure-handling-policy.md": 35132,
+    # Re-accepted at 35498 (2026-11-20): adrchk015 Phase 3 added the ADR-006/ADR-008 front
+    # matter entries and Related ADRs bullets; the ceiling equals the accepted size.
+    "adr_02_01_004_platform-environment-failure-handling-policy.md": 35498,
     # Re-accepted 2026-11-12, closing a second pre-existing gap: the file had grown 32586
     # -> 33944 by 83879685e (adrrev008) without the ceiling being re-recorded. Recorded
     # only to keep check_docs_structure.py green.

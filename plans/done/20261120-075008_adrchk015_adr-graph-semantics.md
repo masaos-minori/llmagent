@@ -252,26 +252,26 @@ with the Plan's actual steps once Implementation steps are broken down):
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Phase 1: core validator extensions (REQ-001..REQ-007, REQ-027) | Completed | — | — | ungated procedures generated 20261120-092705 (rows 08,09,12,16 + companion tests) landed 20261120: core validator (EDGE_DUPLICATE, status/ownership, eventbus.host), ARCH-002 ungated half, ADR-016 Implementation Notes sync, module-size baseline 36123 |
 | 2 | Phase 2: independence + header list + ungated docs (REQ-008..REQ-018, REQ-027) | Completed | — | — | scope amendment confirmed 20261120-091749; procedures generated 20261120-092705 (rows 01,06,07,10,11,12,13,14,15 + companion tests) landed 20261120: cross-check independence, header-list generator + governance_01 guard block, governance_04 GV-024/§18, TOOL_DESCRIPTIONS sync, Index/ADR-007/ADR-010 doc fixes; 10 procedures archived 20261120 |
-| 3 | Phase 3: approval-gated proposals P1-P6 (REQ-019..REQ-025) | Blocked | — | — | STOP after proposal submission until an approval record exists (issue constraint) |
-| 4 | Phase 4: regeneration + full validation + deploy check (REQ-026, REQ-028) | Pending | — | — | same commit as any Phase 3 model change procedures generated 20261120-092705; execution waits on Phase 3 approval for the model-regen commit gated on row 3 approval; ungated full-suite validation run 20261120 (13113 passed, diff-cover clean) |
+| 3 | Phase 3: approval-gated proposals P1-P6 (REQ-019..REQ-025) | Completed | 20261120 | 20261120 | approval recorded 2026-11-20 in ADR-016 `### Approval Record` amendment (Masao Sugimoto, repository owner); scope extended at user decision to the Decision 4/INV-02 reference-only pair relaxation; AAL-018 entry removed from governance_03 Part 5 |
+| 4 | Phase 4: regeneration + full validation + deploy check (REQ-026, REQ-028) | Completed | 20261120 | 20261120 | model-regen commit: guarded sections regenerated with the approved model change (10 intentional pairs); checkers green; full suite + diff-cover run 20261120 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 3 | No maintainer approval record for edge/target/ADR-text changes (UNK-01); count wording itself pending under AAL-018 (UNK-03) | No | — |
+| 3 | No maintainer approval record for edge/target/ADR-text changes (UNK-01); count wording itself pending under AAL-018 (UNK-03) | Yes | 2026-11-20 |
 | 2 | Scope amendment (generate_adr_authority.py, baseline file) requires plan-review confirmation (UNK-02) | Yes | 20261120-091749 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261120-092705_01_docs_10_adr_adr_01_index.md.md` | 2, 3, 4 | Procedure | Pending | — | — |
-| `implementations/20261120-092705_02_docs_10_adr_adr_02_07_016_adr-authority-model.md.md` | 1, 3 | Procedure | Pending | — | — |
-| `implementations/20261120-092705_03_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261120-092705_04_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261120-092705_05_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_01_docs_10_adr_adr_01_index.md.md` | 2, 3, 4 | Procedure | Completed | — | — |
+| `implementations/20261120-092705_02_docs_10_adr_adr_02_07_016_adr-authority-model.md.md` | 1, 3 | Procedure | Completed | — | — |
+| `implementations/20261120-092705_03_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261120-092705_04_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261120-092705_05_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md` | 3 | Procedure | Completed | — | — |
 | `implementations/20261120-092705_06_docs_10_adr_adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md.md` | 2 | Procedure | Completed | — | — |
 | `implementations/20261120-092705_07_docs_10_adr_adr_02_06_010_rag-fallback.md.md` | 2 | Procedure | Completed | — | — |
-| `implementations/20261120-092705_08_config_adr_authority.toml.md` | 1, 3 | Procedure | Pending | — | — |
+| `implementations/20261120-092705_08_config_adr_authority.toml.md` | 1, 3 | Procedure | Completed | — | — |
 | `implementations/20261120-092705_09_tools__adr_authority_core.py.md` | 1 | Procedure | Completed | — | — |
 | `implementations/20261120-092705_10_tools_check_adr_reference.py.md` | 2 | Procedure | Completed | — | — |
 | `implementations/20261120-092705_11_tools_check_adr_structure.py.md` | 2 | Procedure | Completed | — | — |
@@ -280,9 +280,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 | `implementations/20261120-092705_14_docs_00_governance_governance_04_documentation-checks.md.md` | 2 | Procedure | Completed | — | — |
 | `implementations/20261120-092705_15_tools_TOOL_DESCRIPTIONS.md.md` | 2 | Procedure | Completed | — | — |
 | `implementations/20261120-092705_16_tools_check_module_size_tools_baseline.txt.md` | 1 | Procedure | Completed | — | — |
-| `tests/tools/test_adr_authority.py` | 1 | Companion | Pending | — | — |
-| `tests/tools/test_check_adr_reference.py` | 2 | Companion | Pending | — | — |
-| `tests/tools/test_generate_adr_authority.py` | 1, 2 | Companion | Pending | — | — |
+| `tests/tools/test_adr_authority.py` | 1 | Companion | Completed | 20261120 | 20261120 | pair tests extended 20261120 (reference-only pair form) |
+| `tests/tools/test_check_adr_reference.py` | 2 | Companion | Completed | 20261120 | 20261120 | — |
+| `tests/tools/test_generate_adr_authority.py` | 1, 2 | Companion | Completed | 20261120 | 20261120 | reference-only pair rendering test added 20261120 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -65,7 +65,7 @@ The number ADR-011 is unassigned: no ADR file carries it, and it is not referenc
 
 ## ADR Dependency Graph
 
-`A → B` means that ADR-A lists ADR-B under its Related ADRs and refers to it in its body.
+`A → B` names a model edge from ADR-A to ADR-B. Normative edges point from the dependent ADR to the decision-owner ADR; `Reference` is informational and carries no direction claim. Normative references must appear as a model edge and in the citing ADR's front matter `related` list; model-only `Reference` edges are permitted (ADR-016 Decision 7).
 This graph is generated from `config/adr_authority.toml`; normative and informational edges both appear here.
 ADR-015 references no other ADR.
 
@@ -76,8 +76,8 @@ Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`.
 ADR-001 → ADR-004, ADR-014
 ADR-002 → ADR-001, ADR-004
 ADR-003 → ADR-001, ADR-002, ADR-004
-ADR-004 → ADR-001, ADR-002, ADR-003
-ADR-005 → ADR-002, ADR-004
+ADR-004 → ADR-001, ADR-002, ADR-003, ADR-006, ADR-008
+ADR-005 → ADR-002, ADR-004, ADR-009
 ADR-006 → ADR-002, ADR-004, ADR-008, ADR-013
 ADR-007 → ADR-002, ADR-004, ADR-017
 ADR-008 → ADR-002, ADR-004, ADR-005, ADR-006, ADR-013
@@ -102,7 +102,7 @@ target (ADR-016). This graph is acyclic and CI-enforced by
 Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`. Do not hand-edit between the guard comments; run `python tools/generate_adr_authority.py` to refresh.
 
 ```text
-ADR-001 --Requires--> ADR-004
+ADR-004 --Requires--> ADR-001
 ADR-004 --Requires--> ADR-002
 ADR-004 --Extends--> ADR-003
 ADR-008 --Governs--> ADR-006
@@ -116,7 +116,7 @@ ADR-017 --Specializes--> ADR-007
 | `agent.component-responsibility` | ADR-014 | ADR-003 — RuntimeToolRegistry, Tool ownership, and Routing authority within the control plane |
 | `agent.dynamic-tool-health` | ADR-003 | ADR-004 — failure classification only |
 | `agent.llm-tool-visibility` | ADR-003 | ADR-004 — failure classification only |
-| `agent.tool-approval` | ADR-003 | ADR-012 — Git MCP server-side write enforcement only; client-side approval stays under ADR-003 |
+| `agent.tool-approval` | ADR-003 | ADR-001 — workflow-level approval gate mandatoriness only; tool-level approval semantics stay under ADR-003; ADR-012 — Git MCP server-side write enforcement only; client-side approval stays under ADR-003 |
 | `agent.tool-routing` | ADR-003 | ADR-004 — failure classification only |
 | `agent.workflow-control` | ADR-001 | ADR-004 — failure classification of missing or invalid workflows only |
 | `db.recovery-separation` | ADR-008 | — |
@@ -127,6 +127,7 @@ ADR-017 --Specializes--> ADR-007
 | `mcp.authentication` | ADR-017 | — |
 | `mcp.technical-safety` | ADR-012 | ADR-007 — transport and health-check responsibilities |
 | `mcp.transport` | ADR-007 | — |
+| `platform.config-isolation` | ADR-002 | ADR-004 — failure classification of Config Isolation violations only |
 | `rag.canonical-data` | ADR-005 | — |
 | `rag.fts-text-selection` | ADR-009 | ADR-005 — FTS synchronization and rebuild operations only |
 | `security.posture-contract` | ADR-004 | — |
@@ -139,10 +140,13 @@ The following bidirectional references are intentional, not defects:
 <!-- AUTO-GENERATED: generate_adr_authority.py adr-intentional-cycles -->
 Generated from `config/adr_authority.toml` by `tools/generate_adr_authority.py`. Do not hand-edit between the guard comments; run `python tools/generate_adr_authority.py` to refresh.
 
-- ADR-001 ↔ ADR-004: ADR-004 classifies a missing or invalid workflow as a Fail-Fast failure; ADR-001 owns the mandatory workflow decision.
+- ADR-001 ↔ ADR-004: ADR-001 owns the mandatory workflow decision and cites ADR-004's failure classification for missing or invalid workflows; ADR-004 owns the failure classification.
 - ADR-001 ↔ ADR-014: ADR-014 extends the responsibility boundaries to the components other than the Workflow Engine; ADR-001 owns the Workflow Engine's mandatoriness.
 - ADR-002 ↔ ADR-004: ADR-004 classifies a Config Isolation violation as a Fail-Fast failure; ADR-002 owns the isolation decision.
 - ADR-003 ↔ ADR-004: ADR-004 defines the failure-classification contract; ADR-003 remains the authority for RuntimeToolRegistry, Tool ownership, and Routing.
+- ADR-004 ↔ ADR-006: ADR-004 classifies EventBus readiness and shape failures as Fail-Fast failures; ADR-006 owns the EventBus mechanisms. | ADR-006 relies on ADR-004's failure classification for EventBus startup and persistence failures; ADR-004 owns the failure classification.
+- ADR-004 ↔ ADR-008: ADR-004 classifies dedup-store availability failures; ADR-008 owns the database separation and durability decisions. | ADR-008 relies on ADR-004's failure classification for platform-environment failures; ADR-004 owns the failure classification.
+- ADR-005 ↔ ADR-009: ADR-005 FTS synchronization and rebuilds follow the text-selection rule owned by ADR-009; ADR-009 owns the text-selection decision. | ADR-009 text selection applies inside ADR-005's canonical data and synchronization pipeline; ADR-005 owns the canonical-data decision.
 - ADR-006 ↔ ADR-008: ADR-008 owns the database separation; ADR-006 owns the event store use of it.
 - ADR-006 ↔ ADR-013: ADR-013 owns EventBus authentication and authorization; ADR-006 owns persistence and SSE delivery.
 - ADR-007 ↔ ADR-017: ADR-007 Decision 9 requires Bearer authentication on every MCP server and defers the implementation detail; ADR-017 owns those rules.

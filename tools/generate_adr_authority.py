@@ -143,7 +143,8 @@ def render_authority_graph(model: AuthorityModel) -> str:
 
 def render_intentional_cycles(model: AuthorityModel) -> str:
     """One `ADR-A ↔ ADR-B: note` bullet per intentional bidirectional pair,
-    pairs ascending, note taken verbatim from the model's intentional edge."""
+    pairs ascending, note taken verbatim from the model's intentional edge; a
+    reference-only pair renders both directions' notes separated by ` | `."""
     by_pair = {(e.from_adr, e.to_adr): e for e in model.edges}
     bullets: list[str] = []
     for a, b in sorted(by_pair):
@@ -153,10 +154,12 @@ def render_intentional_cycles(model: AuthorityModel) -> str:
         if reverse is None:
             continue
         sides = (forward, reverse)
-        if all(s.edge_type == "Reference" for s in sides) or all(
-            s.edge_type != "Reference" for s in sides
-        ):
-            continue  # validator core reports these; emit the split pairs only
+        if all(s.edge_type != "Reference" for s in sides):
+            continue  # validator core reports these via the cycle check
+        if all(s.edge_type == "Reference" for s in sides):
+            notes = " | ".join(s.note for s in sides if s.note)
+            bullets.append(f"- {a} ↔ {b}: {notes}")
+            continue
         reference = next(s for s in sides if s.edge_type == "Reference")
         bullets.append(f"- {a} ↔ {b}: {reference.note}")
     return "\n".join(bullets)

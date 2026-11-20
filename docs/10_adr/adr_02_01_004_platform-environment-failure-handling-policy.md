@@ -9,6 +9,8 @@ related:
   - adr_02_02_001_agent-workflow-engine-mandatory.md
   - adr_02_01_002_platform-config-isolation.md
   - adr_02_02_003_agent-runtime-tool-registry-routing-authority.md
+  - adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md
+  - adr_02_05_008_db-sqlite-4db-separation.md
   - deployment_01_deployment.md
   - agent_08_04_configuration-mcp-approval-obs.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
@@ -356,6 +358,8 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - ADR-001: Mandatory Workflow Engine — missing/invalid Workflow → Fail-Fast
 - ADR-002: Per-Process Configuration Ownership and Config Isolation — Config Isolation violation → Fail-Fast
 - ADR-003: RuntimeToolRegistry as the Sole Routing Authority — RuntimeToolRegistry init failure → Fail-Fast; authority for Tool visibility/Routing/Dynamic Health
+- ADR-006: EventBus SQLite Persistence and SSE Delivery — EventBus readiness and shape failures are classified under this policy
+- ADR-008: SQLite Four-Database Separation — dedup-store availability failures reference this ADR's separation decisions
 
 ## Implementation References
 

@@ -512,15 +512,6 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Date:** Not recorded
 - **Scope:** Manifest status, generated-document list
 
-#### AAL-018
-
-- **ID:** AAL-018
-- **ADR:** ADR-016
-- **Decision:** Index section renamed to ADR Dependency Graph; pair count updated
-- **Approver:** Not recorded
-- **Date:** Not recorded
-- **Scope:** Decision Detail 6, Implementation Notes, Summary, Problem
-
 #### AAL-019
 
 - **ID:** AAL-019

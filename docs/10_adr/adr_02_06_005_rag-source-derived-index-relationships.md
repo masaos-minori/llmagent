@@ -17,6 +17,7 @@ related:
   - rag_02_03_ingestion_pipeline-chunksplitter.md
   - rag_05_01-configuration-reference.md
   - adr_02_01_004_platform-environment-failure-handling-policy.md
+  - adr_02_06_009_rag-fts5-text-separation.md
   - governance_01_documentation-policy.md
 ---
 
@@ -291,6 +292,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
 - ADR-004: Failure Handling Policy Across Environments
+- ADR-009: Separating RAG FTS5 Search Text from LLM Presentation Text — synchronization and rebuilds follow its text-selection rule
 
 ## Implementation References
 

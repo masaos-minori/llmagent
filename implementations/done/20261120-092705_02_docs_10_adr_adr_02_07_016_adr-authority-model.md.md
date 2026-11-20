@@ -59,8 +59,8 @@
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Sync Implementation Notes with the new finding codes (ungated, lands with Phase 1) | Completed | 20261120 | 20261120 | — |
-| 2 | Add the approved P1 edge-type semantics to Decision 3 (REQ-019) | Pending | — | — | Gated: plans/20261120-075008_adrchk015_adr-graph-semantics.md phase 3 - requires a maintainer approval record citing a governance_03 Part 5 AAL entry (UNK-01) |
-| 3 | Replace the "seven" pair counts with the generated-section pointer (REQ-025) | Pending | — | — | Gated: plans/20261120-075008_adrchk015_adr-graph-semantics.md phase 3 - folds into the pending AAL-018 approval scope (UNK-03) |
+| 2 | Add the approved P1 edge-type semantics to Decision 3 (REQ-019) | Completed | 20261120 | 20261120 | Approved 2026-11-20 by ADR-016 Approval Record amendment |
+| 3 | Replace the "seven" pair counts with the generated-section pointer (REQ-025) | Completed | 20261120 | 20261120 | Approved 2026-11-20 by ADR-016 Approval Record amendment |
 | 4 | Run `check_adr_structure.py` and `check_adr_reference.py` | Completed | 20261120 | 20261120 | — |
 
 ### Blocker Log

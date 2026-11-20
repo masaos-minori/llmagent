@@ -50,8 +50,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Adjust/confirm the front matter `related` list after the approved reversal (REQ-021) | Pending | — | — | Gated: plans/20261120-075008_adrchk015_adr-graph-semantics.md phase 3 - requires a maintainer approval record citing a governance_03 Part 5 AAL entry (UNK-01) |
-| 2 | Run `check_adr_reference.py` | Pending | — | — | Gated: plans/20261120-075008_adrchk015_adr-graph-semantics.md phase 3 - validation only meaningful after the model reversal lands |
+| 1 | Adjust/confirm the front matter `related` list after the approved reversal (REQ-021) | Completed | 20261120 | 20261120 | Approved 2026-11-20 by ADR-016 Approval Record amendment; no front matter change needed (ADR-004 entry already present) |
+| 2 | Run `check_adr_reference.py` | Completed | 20261120 | 20261120 | Gated: plans/20261120-075008_adrchk015_adr-graph-semantics.md phase 3 - validation only meaningful after the model reversal lands |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

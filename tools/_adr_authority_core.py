@@ -385,8 +385,8 @@ def check_duplicate_edges(model: AuthorityModel) -> list[Finding]:
 
 def check_authority_cycles(model: AuthorityModel) -> list[Finding]:
     """INV-02: the authority graph (non-Reference edges) is acyclic, and each
-    bidirectional pair is exactly one typed edge plus one intentional Reference
-    edge carrying a note."""
+    bidirectional pair is either one typed edge plus one intentional Reference
+    edge carrying a note, or two intentional Reference edges each carrying a note."""
     findings: list[Finding] = []
 
     typed = [
@@ -440,8 +440,10 @@ def check_authority_cycles(model: AuthorityModel) -> list[Finding]:
                 stack.append((nxt, 0, path + [nxt]))
 
     # Bidirectional pair rule: for each pair with edges in both directions,
-    # exactly one direction is typed and the other is an intentional Reference
-    # with a note. Both-typed pairs are caught by the DFS above.
+    # either exactly one direction is typed and the other is an intentional
+    # Reference with a note, or both directions are intentional Reference edges
+    # each with a note (ADR-016 INV-02, reference-only pair form). Both-typed
+    # pairs are caught by the DFS above.
     by_pair = {(edge.from_adr, edge.to_adr): edge for edge in model.edges}
     for (a, b), edge in sorted(by_pair.items()):
         reverse = by_pair.get((b, a))
@@ -450,18 +452,6 @@ def check_authority_cycles(model: AuthorityModel) -> list[Finding]:
         sides = (edge, reverse)
         typed_sides = [s for s in sides if s.edge_type != "Reference"]
         reference_sides = [s for s in sides if s.edge_type == "Reference"]
-        if not typed_sides:
-            findings.append(
-                Finding(
-                    code="AUTHORITY_CYCLE",
-                    location="config/adr_authority.toml",
-                    message=(
-                        f"bidirectional pair {a} <-> {b} has no typed direction; "
-                        "per ADR-016 INV-02 exactly one direction must be non-Reference"
-                    ),
-                )
-            )
-            continue
         for ref in reference_sides:
             if not ref.intentional or not ref.note:
                 findings.append(
@@ -475,6 +465,20 @@ def check_authority_cycles(model: AuthorityModel) -> list[Finding]:
                         ),
                     )
                 )
+        if not typed_sides and any(
+            not ref.intentional or not ref.note for ref in reference_sides
+        ):
+            findings.append(
+                Finding(
+                    code="AUTHORITY_CYCLE",
+                    location="config/adr_authority.toml",
+                    message=(
+                        f"reference-only bidirectional pair {a} <-> {b}: per ADR-016 INV-02 "
+                        "a pair with no typed direction requires every Reference direction "
+                        "to carry intentional = true with a note"
+                    ),
+                )
+            )
     return findings
 
 

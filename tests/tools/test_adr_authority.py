@@ -412,6 +412,31 @@ def test_unflagged_bidirectional_reference_fails(tmp_path: Path) -> None:
     assert "intentional = true" in findings[0].message
 
 
+def test_reference_only_pair_with_notes_passes(tmp_path: Path) -> None:
+    """INV-02 reference-only pair form: both directions intentional with notes."""
+    mutated = _mutate(
+        CLEAN_MODEL,
+        'from = "ADR-001"\nto = "ADR-002"\nedge_type = "Requires"',
+        'from = "ADR-001"\nto = "ADR-002"\nedge_type = "Reference"\n'
+        'intentional = true\nnote = "ADR-001 owns the decision; ADR-002 owns classification."',
+    )
+    model = load_model(_write_model(tmp_path, mutated))
+    assert check_authority_cycles(model) == []
+
+
+def test_reference_only_pair_missing_flag_fails(tmp_path: Path) -> None:
+    mutated = _mutate(
+        CLEAN_MODEL,
+        'from = "ADR-001"\nto = "ADR-002"\nedge_type = "Requires"',
+        'from = "ADR-001"\nto = "ADR-002"\nedge_type = "Reference"',
+    )
+    model = load_model(_write_model(tmp_path, mutated))
+    findings = check_authority_cycles(model)
+    assert [f.code for f in findings] == ["AUTHORITY_CYCLE", "AUTHORITY_CYCLE"]
+    assert "intentional = true" in findings[0].message
+    assert "reference-only" in findings[1].message
+
+
 def test_reverse_only_reference_pair_is_clean(tmp_path: Path) -> None:
     mutated = _mutate(
         CLEAN_MODEL,

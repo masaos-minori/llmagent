@@ -63,7 +63,7 @@
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Update ARCH-002 `config_keys` and `current_value` in the same commit as the core `eventbus.host` validator (REQ-007) | Completed | 20261120 | 20261120 | — |
-| 2 | Apply P2-P5: edge reversal, `platform.config-isolation`, `agent.tool-approval` supplemental, three `Reference` edges (REQ-021..REQ-024) | Pending | — | — | Gated: plans/20261120-075008_adrchk015_adr-graph-semantics.md phase 3 - requires a maintainer approval record citing a governance_03 Part 5 AAL entry (UNK-01); lands with the regeneration (release unit model-regen) |
+| 2 | Apply P2-P5: edge reversal, `platform.config-isolation`, `agent.tool-approval` supplemental, three `Reference` edges (REQ-021..REQ-024) | Completed | 20261120 | 20261120 | Approved 2026-11-20 by ADR-016 Approval Record amendment; reference-only pair form added (P5 relaxation); lands with regeneration |
 | 3 | Run `check_adr_authority.py` and `generate_adr_authority.py --check` | Completed | 20261120 | 20261120 | — |
 
 ### Blocker Log

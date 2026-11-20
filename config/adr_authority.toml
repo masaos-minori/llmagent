@@ -46,6 +46,7 @@ supplemental_adrs = [
 decision_target = "agent.tool-approval"
 primary_adr = "ADR-003"
 supplemental_adrs = [
+  { adr = "ADR-001", limit = "workflow-level approval gate mandatoriness only; tool-level approval semantics stay under ADR-003" },
   { adr = "ADR-012", limit = "Git MCP server-side write enforcement only; client-side approval stays under ADR-003" },
 ]
 
@@ -113,16 +114,26 @@ supplemental_adrs = [
   { adr = "ADR-013", limit = "authentication layered on top of the loopback binding" },
 ]
 
+[[authority]]
+decision_target = "platform.config-isolation"
+primary_adr = "ADR-002"
+supplemental_adrs = [
+  { adr = "ADR-004", limit = "failure classification of Config Isolation violations only" },
+]
+
 # --- Typed ADR edges (ADR-016 Decision 3) ---
 # edge_type in {Requires, Governs, Specializes, Extends, Exception-to, Reference}.
-# The authority graph is the non-Reference edges and must be acyclic; Reference edges may
-# form the seven bidirectional pairs below, each flagged intentional = true with the ownership
+# The authority graph is the non-Reference edges and must be acyclic; Reference edges
+# form the bidirectional pairs below. Each pair carries either one typed direction plus
+# one intentional Reference, or two intentional Reference directions, with the ownership
 # split recorded in `note` (rendered verbatim by tools/generate_adr_authority.py).
 
 [[adr_edge]]
 from = "ADR-001"
 to = "ADR-004"
-edge_type = "Requires"
+edge_type = "Reference"
+intentional = true
+note = "ADR-001 owns the mandatory workflow decision and cites ADR-004's failure classification for missing or invalid workflows; ADR-004 owns the failure classification."
 
 [[adr_edge]]
 from = "ADR-001"
@@ -163,9 +174,7 @@ note = "ADR-004 defines the failure-classification contract; ADR-003 remains the
 [[adr_edge]]
 from = "ADR-004"
 to = "ADR-001"
-edge_type = "Reference"
-intentional = true
-note = "ADR-004 classifies a missing or invalid workflow as a Fail-Fast failure; ADR-001 owns the mandatory workflow decision."
+edge_type = "Requires"
 
 [[adr_edge]]
 from = "ADR-004"
@@ -178,6 +187,20 @@ to = "ADR-003"
 edge_type = "Extends"
 
 [[adr_edge]]
+from = "ADR-004"
+to = "ADR-006"
+edge_type = "Reference"
+intentional = true
+note = "ADR-004 classifies EventBus readiness and shape failures as Fail-Fast failures; ADR-006 owns the EventBus mechanisms."
+
+[[adr_edge]]
+from = "ADR-004"
+to = "ADR-008"
+edge_type = "Reference"
+intentional = true
+note = "ADR-004 classifies dedup-store availability failures; ADR-008 owns the database separation and durability decisions."
+
+[[adr_edge]]
 from = "ADR-005"
 to = "ADR-002"
 edge_type = "Reference"
@@ -188,6 +211,13 @@ to = "ADR-004"
 edge_type = "Reference"
 
 [[adr_edge]]
+from = "ADR-005"
+to = "ADR-009"
+edge_type = "Reference"
+intentional = true
+note = "ADR-005 FTS synchronization and rebuilds follow the text-selection rule owned by ADR-009; ADR-009 owns the text-selection decision."
+
+[[adr_edge]]
 from = "ADR-006"
 to = "ADR-002"
 edge_type = "Reference"
@@ -196,6 +226,8 @@ edge_type = "Reference"
 from = "ADR-006"
 to = "ADR-004"
 edge_type = "Reference"
+intentional = true
+note = "ADR-006 relies on ADR-004's failure classification for EventBus startup and persistence failures; ADR-004 owns the failure classification."
 
 [[adr_edge]]
 from = "ADR-006"
@@ -237,6 +269,8 @@ edge_type = "Reference"
 from = "ADR-008"
 to = "ADR-004"
 edge_type = "Reference"
+intentional = true
+note = "ADR-008 relies on ADR-004's failure classification for platform-environment failures; ADR-004 owns the failure classification."
 
 [[adr_edge]]
 from = "ADR-008"
@@ -267,6 +301,8 @@ edge_type = "Reference"
 from = "ADR-009"
 to = "ADR-005"
 edge_type = "Reference"
+intentional = true
+note = "ADR-009 text selection applies inside ADR-005's canonical data and synchronization pipeline; ADR-005 owns the canonical-data decision."
 
 [[adr_edge]]
 from = "ADR-012"

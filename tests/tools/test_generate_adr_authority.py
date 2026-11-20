@@ -195,6 +195,23 @@ def test_sections_render_from_the_model(sandbox: tuple[Path, Path]) -> None:
     )
 
 
+def test_reference_only_pair_renders_both_notes(tmp_path: Path) -> None:
+    """A reference-only intentional pair renders both directions' notes split by ` | `."""
+    mutated = FIXTURE_MODEL.replace(
+        'from = "ADR-001"\nto = "ADR-002"\nedge_type = "Requires"',
+        'from = "ADR-001"\nto = "ADR-002"\nedge_type = "Reference"\n'
+        'intentional = true\nnote = "ADR-001 owns the decision; ADR-002 owns classification."',
+        1,
+    )
+    model_path = tmp_path / "adr_authority.toml"
+    model_path.write_text(mutated, encoding="utf-8")
+    bullets = gen.render_intentional_cycles(load_model(model_path))
+    assert (
+        "- ADR-001 ↔ ADR-002: ADR-001 owns the decision; ADR-002 owns classification. "
+        "| ADR-002 classifies failures; ADR-001 owns the decision."
+    ) in bullets
+
+
 # ---------------------------------------------------------------------------
 # 2-3. Drift detection: tamper and missing guards
 # ---------------------------------------------------------------------------

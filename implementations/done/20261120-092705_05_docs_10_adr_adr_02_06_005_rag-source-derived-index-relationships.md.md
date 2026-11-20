@@ -49,8 +49,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add ADR-009 to front matter and Related ADRs (REQ-024) | Pending | — | — | Gated: plans/20261120-075008_adrchk015_adr-graph-semantics.md phase 3 - requires a maintainer approval record citing a governance_03 Part 5 AAL entry (UNK-01) |
-| 2 | Run `check_adr_reference.py` | Pending | — | — | Gated: plans/20261120-075008_adrchk015_adr-graph-semantics.md phase 3 - validation only meaningful after the model edge lands |
+| 1 | Add ADR-009 to front matter and Related ADRs (REQ-024) | Completed | 20261120 | 20261120 | Approved 2026-11-20 by ADR-016 Approval Record amendment |
+| 2 | Run `check_adr_reference.py` | Completed | 20261120 | 20261120 | Gated: plans/20261120-075008_adrchk015_adr-graph-semantics.md phase 3 - validation only meaningful after the model edge lands |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
