@@ -61,7 +61,7 @@ table — no other file may be treated as a modification target.
 | `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md` | Automated Tests table, pending amendment | Add the INV-04 row (a concrete test, else `Not verified`); show the Blocking change as pending when no test exists (gated on UNK-02) | REQ-003, REQ-009 / AC-3, AC-5 | Body rows cover INV-01 to INV-03 and INV-05 to INV-10; the Index cites only a directory for INV-04; a search of `tests/mcp_servers/git/` for an approval-independence test found none (checked in Step 3) | `tools/check_adr_invariant_matrix.py`, `tools/check_adr_structure.py` | Verified |
 | `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` | Manual Review, pending amendment | Add the manual review that covers the Safety Tier part of INV-03 for the Index `Partial` row; show the Blocking changes of INV-03, INV-04 and INV-07 as pending (gated on UNK-02) | REQ-003, REQ-009 / AC-3, AC-5 | Rows at lines 254, 256 and 259 are `Not verified` with Blocking `Yes`; `### Manual Review` names INV-05, INV-08 and INV-09 only (checked in Step 2) | `tools/check_adr_invariant_matrix.py`, `tools/check_adr_structure.py` | Verified |
 | `docs/10_adr/adr_02_01_002_platform-config-isolation.md` | Pending amendment | Show the Blocking change of INV-03 and INV-04 as pending (gated on UNK-02) | REQ-009 / AC-5 | Rows at lines 232 and 233 are `Not verified (no automated test exists)` with Blocking `Yes` (checked in Step 2) | `tools/check_adr_invariant_matrix.py`, `tools/check_adr_structure.py` | Verified |
-| `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | Approval ledger entries | Add the ledger entries that the pending bullets cite (gated on UNK-02); an addition outside the Issue's Target Files, so the scope amendment needs approval through UNK-02 | REQ-009 / AC-5 | The ledger is Part 5 and its last entry is AAL-029; `governance_01` requires a cited entry per pending bullet (checked in Step 3) | `tools/check_adr_structure.py`, `tools/check_known_deviation_sync.py`, `tools/check_docs_quality.py` | Verified |
+| `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | Approval ledger entries | Add the ledger entries that the pending bullets cite (gated on UNK-02); an addition outside the Issue's Target Files, so the scope amendment needs approval through UNK-02 | REQ-009 / AC-5 | The ledger is Part 5 and its last entry is AAL-030; AAL-001 already records the same kind of change (ADR-001 INV-02 verification row set to Non-Blocking); `governance_01` requires a cited entry per pending bullet (checked in Step 3 and corrected in the plan-to-implementation-procedure Step 3a) | `tools/check_adr_structure.py`, `tools/check_known_deviation_sync.py`, `tools/check_docs_quality.py` | Verified |
 | `tools/TOOL_DESCRIPTIONS.md` | Tool description | Update the two `check_adr_invariant_matrix.py` rows for the new rules; fallout, required by AGENTS.md Global Rule 9 | REQ-010 / AC-6 | Rows at lines 82 and 184 describe the rules and say the body table is read by its `Implementation` column (checked in Step 3) | `tools/check_tool_descriptions_sync.py` | Verified |
 | `docs/00_governance/governance_04_documentation-checks.md` | Rule description | Update section 12 for the new rules; fallout | REQ-010 / AC-6 | Section 12 states the empty-cell and containment rules and no other (checked in Step 3) | `tools/check_docs_consistency.py`, `tools/check_docs_quality.py` | Verified |
 
@@ -215,19 +215,19 @@ the owner resolves UNK-01 (Phase 9) or UNK-02 (Phases 10 to 12). Every phase bef
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Evidence columns for ADR-004 and ADR-017 | Pending | — | — | |
-| 2 | Tables for ADR-015 and ADR-016 | Pending | — | — | |
-| 3 | Body rows that the Index already cites | Pending | — | — | |
-| 4 | Index matrix mirrors the bodies | Pending | — | — | |
-| 5 | Missing evidence column is an error | Pending | — | — | |
-| 6 | Index-only evidence is an error | Pending | — | — | |
-| 7 | Cadence error and docstring | Pending | — | — | |
-| 8 | Documentation sync | Pending | — | — | |
-| 9 | Exception grammar | Pending | — | — | Gated: UNK-01 |
-| 10 | Ledger entries for the pending amendments | Pending | — | — | Gated: UNK-02 |
-| 11 | Pending Blocking amendments | Pending | — | — | Gated: UNK-02 |
-| 12 | Not verified plus Blocking rule | Pending | — | — | Gated: UNK-02 |
-| 13 | Validation and hand-off | Pending | — | — | |
+| 1 | Evidence columns for ADR-004 and ADR-017 | In Progress | — | — |  |
+| 2 | Tables for ADR-015 and ADR-016 | In Progress | — | — |  |
+| 3 | Body rows that the Index already cites | In Progress | — | — |  |
+| 4 | Index matrix mirrors the bodies | In Progress | — | — |  |
+| 5 | Missing evidence column is an error | In Progress | — | — |  |
+| 6 | Index-only evidence is an error | In Progress | — | — |  |
+| 7 | Cadence error and docstring | In Progress | — | — |  |
+| 8 | Documentation sync | In Progress | — | — |  |
+| 9 | Exception grammar | In Progress | — | — | Gated: UNK-01 |
+| 10 | Ledger entries for the pending amendments | In Progress | — | — | Gated: UNK-02 |
+| 11 | Pending Blocking amendments | In Progress | — | — | Gated: UNK-02 |
+| 12 | Not verified plus Blocking rule | In Progress | — | — | Gated: UNK-02 |
+| 13 | Validation and hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -237,7 +237,19 @@ the owner resolves UNK-01 (Phase 9) or UNK-02 (Phases 10 to 12). Every phase bef
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261120-111659_01_tools_check_adr_invariant_matrix.py.md | 5, 6, 7, 9, 12 | Procedure | Pending | — | — |
+| implementations/20261120-111659_03_docs_10_adr_adr_01_index.md.md | 4, 7, 9, 11 | Procedure | Pending | — | — |
+| implementations/20261120-111659_04_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261120-111659_05_docs_10_adr_adr_02_03_017_mcp-authentication.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261120-111659_06_docs_10_adr_adr_02_07_016_adr-authority-model.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261120-111659_07_docs_10_adr_adr_02_07_015_docs-reference-document-class-disposition.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261120-111659_08_docs_10_adr_adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261120-111659_09_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md | 3, 11 | Procedure | Pending | — | — |
+| implementations/20261120-111659_10_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 3, 11 | Procedure | Pending | — | — |
+| implementations/20261120-111659_11_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 11 | Procedure | Pending | — | — |
+| implementations/20261120-111659_12_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 10 | Procedure | Pending | — | — |
+| implementations/20261120-111659_13_tools_TOOL_DESCRIPTIONS.md.md | 8 | Procedure | Pending | — | — |
+| implementations/20261120-111659_14_docs_00_governance_governance_04_documentation-checks.md.md | 8 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -281,3 +293,5 @@ the owner resolves UNK-01 (Phase 9) or UNK-02 (Phases 10 to 12). Every phase bef
 | REQ-009 | Acceptance Criteria; fixture for the rule | `tests/tools/test_check_adr_invariant_matrix.py` | 12 | AC-5 | the new fixtures | Derived from confirmed evidence |
 | REQ-010 | Documentation Impact; AGENTS.md Global Rule 9 | `tools/TOOL_DESCRIPTIONS.md` | 8 | AC-6 | `tools/check_tool_descriptions_sync.py` | Derived from confirmed evidence |
 | REQ-010 | Documentation Impact; section 12 states two body rules | `docs/00_governance/governance_04_documentation-checks.md` | 8 | AC-6 | `tools/check_docs_consistency.py` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261120-111659 -->
