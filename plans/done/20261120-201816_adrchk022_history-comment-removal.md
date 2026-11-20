@@ -163,8 +163,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: rewrite ADR-017 and governance_05 history statements | Pending | — | — | `docs/10_adr/adr_02_03_017_mcp-authentication.md`; `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` |
-| 2 | Phase 2: delete/rewrite history comments in the three config files | Pending | — | — | `config/agent.toml`; `config/rag_pipeline_mcp_server.toml`; `config/documentation_canonical_sources.toml` |
+| 1 | Phase 1: rewrite ADR-017 and governance_05 history statements | In Progress | — | — | `docs/10_adr/adr_02_03_017_mcp-authentication.md`; `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` |
+| 2 | Phase 2: delete/rewrite history comments in the three config files | In Progress | — | — | `config/agent.toml`; `config/rag_pipeline_mcp_server.toml`; `config/documentation_canonical_sources.toml` |
 | 3 | Phase 3: full validation gates and deploy hand-off | Pending | — | — | All five Implementation Target Files |
 
 ### Blocker Log
@@ -175,7 +175,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261120-202848_01_docs_10_adr_adr_02_03_017_mcp-authentication.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261120-202848_02_docs_00_governance_governance_05_change-impact-and-dependency-graphs.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261120-202848_03_config_agent.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261120-202848_04_config_rag_pipeline_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261120-202848_05_config_documentation_canonical_sources.toml.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -194,3 +198,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-003 | Problem + Required Changes; agent.toml lines 28-30, 42-49, 51-56, 371-377 (checked in Step 2) | config/agent.toml | Phase 2 | AC-1, AC-3, AC-5 | generate_reference_table.py --check; tests/agent/test_removed_config_keys_rejected.py; tests/agent/test_config_builders.py | Confirmed by repository evidence |
 | REQ-004 | Problem + Required Changes; rag_pipeline_mcp_server.toml lines 24-30 NOTE block (checked in Step 2) | config/rag_pipeline_mcp_server.toml | Phase 2 | AC-1, AC-5 | tests/mcp_servers/rag_pipeline/test_rag_pipeline_removed_config_keys_rejected.py; tests/mcp_servers/rag_pipeline/test_rag_pipeline_models.py | Confirmed by repository evidence |
 | REQ-005 | Problem; canonical registry lines 22 and 29 "candidate replacement" notes (checked in Step 3) | config/documentation_canonical_sources.toml | Phase 2 | AC-1, AC-4 | check_canonical_source_registry.py | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261120-202848 -->
