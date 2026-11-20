@@ -50,13 +50,22 @@ Text is split by Markdown headings (# through ######) in one pass over the whole
 
 - **Fits** (`len(section) <= md_snippet_max_chars` and at least `min_chunk` characters): the section becomes one chunk.
 - **Oversized** (`len(section) > md_snippet_max_chars`): the section alone is split by the language-appropriate chunker (`_chunk_japanese` when `lang` is `"ja"`, otherwise `_chunk_english`). The fallback is decided per section, not for the document as a whole, and runs after heading splitting; the two strategies are never applied in parallel.
-- **Undersized** (fits but is smaller than `min_chunk`): the section is silently dropped, with no error or warning.
+- **Undersized** (fits but is smaller than `min_chunk`): the section is discarded. When no other chunk is written for the source (`written == 0`), the discard is logged at `logging.WARNING` (`below_min_chunk`); when other content is written it is logged at `logging.INFO` — matching `chunk_splitter` production (`scripts/rag/ingestion/chunk_splitter.py`). This bullet describes the all-discarded case; the discard is not silent.
 
 **Metadata:** Every chunk returned by this path is tagged with the `"text"` chunk-type marker, so no metadata field distinguishes a whole-section chunk from a fallback-split fragment. `chunking_strategy` is `"heading"` for the whole source regardless of which sections fell back.
 
 **Japanese content:** When `lang` is `"ja"`, Markdown sections follow Japanese chunking semantics: an oversized section is segmented by `_chunk_japanese` (Sudachi morphological analysis), and a whole in-section chunk carries a `normalized_content` produced by the same Sudachi normalization. Japanese chunks routed through heading chunking therefore carry non-empty `normalized_content`, same as the Japanese text path. Non-ja Markdown chunks still emit empty `normalized_content`; FTS5 indexes `COALESCE(normalized_content, content)`, so for those chunks the original `content` is indexed directly.
 
-**Japanese oversized-sentence rule and non-empty content.** In the Japanese text path, `_merge_ja_sentence_pairs` never emits a chunk whose original text is empty, so `{stem}-0000.json` (the completeness sentinel published last) always carries real content and a `force=False` rerun is not driven into a re-chunk loop. A single Japanese sentence longer than `max_chunk` is detected before the buffer rules and segmented into pieces each within `max_chunk` by the shared `chunk_utils._split_overlong` rule (the same character-level greedy fill the English and heading paths use), whatever the state of the running buffer; a buffered lead is emitted before those pieces so no source text is dropped. Split sub-parts surface `normalized_content = None` and COALESCE falls back to the original text. One documented exception to the `max_chunk` bound remains: a final sentence shorter than `min_chunk` is merged into the last chunk instead of being dropped, so that merged chunk can exceed `max_chunk` (the same rule as `merge_text_items` in `scripts/rag/ingestion/chunk_utils.py`).
+**Japanese oversized-sentence rule and non-empty content.** In the Japanese text path, `_merge_ja_sentence_pairs` never emits a chunk whose original text is empty, so `{stem}-0000.json` (the completeness sentinel published last) always carries real content and a `force=False` rerun is not driven into a re-chunk loop. A single Japanese sentence longer than `max_chunk` is detected before the buffer rules and segmented into pieces each within `max_chunk` by the shared `chunk_utils._split_overlong` rule, whatever the state of the running buffer; a buffered lead is emitted before those pieces so no source text is dropped. Split sub-parts surface `normalized_content = None` and COALESCE falls back to the original text. One documented exception to the `max_chunk` bound remains: a final sentence shorter than `min_chunk` is merged into the last chunk instead of being dropped, so that merged chunk can exceed `max_chunk` (the same rule as `merge_text_items` in `scripts/rag/ingestion/chunk_utils.py`).
+
+**Size-rule guarantees:**
+
+| Behavior | Rule (production) | Guaranteeing test |
+|---|---|---|
+| Undersized section discarded, English path | discarded; `logging.WARNING` when `written == 0` (`below_min_chunk`) | `test_T_001_below_min_chunk_english_logs_warning` |
+| Undersized section discarded, Markdown heading path | discarded; `logging.WARNING` when `written == 0` (`below_min_chunk`) | `test_T_002_below_min_chunk_markdown_logs_warning` |
+| Discard logged when other content is written | `logging.INFO` when `written > 0` | `test_T_004_kept_and_discarded_logs_info` |
+| `min_chunk` greater than `max_chunk` at construction | `PipelineValidationError` | `test_min_chunk_greater_than_max_chunk_raises_at_construction` |
 
 ### 3.2 Splitting Strategies
 

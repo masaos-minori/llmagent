@@ -128,10 +128,10 @@ Changing any test assertion, adding new size-rule regression tests, touching
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add shared `splitter_config` (new)/`splitter` fixtures | Pending | — | — | |
-| 2 | Route existing tests through the fixtures without assertion changes | Pending | — | — | |
-| 3 | Run chunk suite; confirm 126 pass, no isolation-guard failures | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only |
+| 1 | Add shared `splitter_config` (new)/`splitter` fixtures | Completed | 20261120 | 20261120 | Added after `_make_splitter`; returns `dict(_CRAWL_CONFIG)` |
+| 2 | Route existing tests through the fixtures without assertion changes | Completed | 20261120 | 20261120 | Group A (validation tests) take `splitter_config` param; Group B (end-to-end/Sudachi) spread `**splitter_config` with preserved overrides; `_make_prune_splitter`/`_run_capture` use `dict(_CRAWL_CONFIG)` + mutation |
+| 3 | Run chunk suite; confirm 126 pass, no isolation-guard failures | Completed | 20261120 | 20261120 | 126 passed; no assertion changed; no inline full-config literal remains |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | test-only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

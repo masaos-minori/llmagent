@@ -60,6 +60,20 @@ def _make_splitter(md_index_enable: bool = False) -> ChunkSplitter:
     )
 
 
+@pytest.fixture
+def splitter_config() -> dict[str, Any]:
+    """Single builder for the splitter-`config` dict used across this suite."""
+
+    return dict(_CRAWL_CONFIG)
+
+
+@pytest.fixture
+def splitter(splitter_config: dict[str, Any]) -> ChunkSplitter:
+    """Seed a real ChunkSplitter through its public constructor."""
+
+    return ChunkSplitter(config=splitter_config)
+
+
 def _make_chunk_doc(url: str, content: str = "", lang: str = "en") -> ChunkDocument:
     return ChunkDocument(
         url=url,
@@ -79,52 +93,68 @@ def _make_chunk_doc(url: str, content: str = "", lang: str = "en") -> ChunkDocum
 
 
 class TestMaxChunkValidation:
-    def test_non_positive_max_chunk_raises_at_construction(self) -> None:
-        cfg = dict(_CRAWL_CONFIG)
+    def test_non_positive_max_chunk_raises_at_construction(
+        self, splitter_config: dict[str, Any]
+    ) -> None:
+        cfg = splitter_config
         cfg["max_chunk"] = 0
         with pytest.raises(PipelineValidationError):
             ChunkSplitter(config=cfg)
 
-    def test_min_chunk_greater_than_max_chunk_raises_at_construction(self) -> None:
-        cfg = dict(_CRAWL_CONFIG)
+    def test_min_chunk_greater_than_max_chunk_raises_at_construction(
+        self, splitter_config: dict[str, Any]
+    ) -> None:
+        cfg = splitter_config
         cfg["min_chunk"] = 600  # > max_chunk (500)
         with pytest.raises(PipelineValidationError, match="min_chunk"):
             ChunkSplitter(config=cfg)
         with pytest.raises(PipelineValidationError, match="max_chunk"):
             ChunkSplitter(config=cfg)
 
-    def test_negative_min_chunk_raises_at_construction(self) -> None:
-        cfg = dict(_CRAWL_CONFIG)
+    def test_negative_min_chunk_raises_at_construction(
+        self, splitter_config: dict[str, Any]
+    ) -> None:
+        cfg = splitter_config
         cfg["min_chunk"] = -1
         with pytest.raises(PipelineValidationError, match="min_chunk"):
             ChunkSplitter(config=cfg)
 
-    def test_chunk_overlap_at_max_chunk_raises_at_construction(self) -> None:
-        cfg = dict(_CRAWL_CONFIG)
+    def test_chunk_overlap_at_max_chunk_raises_at_construction(
+        self, splitter_config: dict[str, Any]
+    ) -> None:
+        cfg = splitter_config
         cfg["chunk_overlap"] = 500  # == max_chunk
         with pytest.raises(PipelineValidationError, match="chunk_overlap"):
             ChunkSplitter(config=cfg)
 
-    def test_negative_chunk_overlap_raises_at_construction(self) -> None:
-        cfg = dict(_CRAWL_CONFIG)
+    def test_negative_chunk_overlap_raises_at_construction(
+        self, splitter_config: dict[str, Any]
+    ) -> None:
+        cfg = splitter_config
         cfg["chunk_overlap"] = -10
         with pytest.raises(PipelineValidationError, match="chunk_overlap"):
             ChunkSplitter(config=cfg)
 
-    def test_wrong_type_max_chunk_raises_pipeline_error(self) -> None:
-        cfg = dict(_CRAWL_CONFIG)
+    def test_wrong_type_max_chunk_raises_pipeline_error(
+        self, splitter_config: dict[str, Any]
+    ) -> None:
+        cfg = splitter_config
         cfg["max_chunk"] = "abc"  # str, not int
         with pytest.raises(PipelineValidationError, match="max_chunk"):
             ChunkSplitter(config=cfg)
 
-    def test_wrong_type_float_min_chunk_raises_pipeline_error(self) -> None:
-        cfg = dict(_CRAWL_CONFIG)
+    def test_wrong_type_float_min_chunk_raises_pipeline_error(
+        self, splitter_config: dict[str, Any]
+    ) -> None:
+        cfg = splitter_config
         cfg["min_chunk"] = 40.5  # float, not int
         with pytest.raises(PipelineValidationError, match="min_chunk"):
             ChunkSplitter(config=cfg)
 
-    def test_valid_tight_boundary_config_constructs(self) -> None:
-        cfg = dict(_CRAWL_CONFIG)
+    def test_valid_tight_boundary_config_constructs(
+        self, splitter_config: dict[str, Any]
+    ) -> None:
+        cfg = splitter_config
         cfg["chunk_overlap"] = 499  # < max_chunk (500); tightest valid overlap
         splitter = ChunkSplitter(config=cfg)  # must not raise
         assert splitter._settings.min_chunk == 40
@@ -133,23 +163,29 @@ class TestMaxChunkValidation:
 
 
 class TestMdSnippetValidation:
-    def test_md_snippet_above_max_chunk_raises_when_enabled(self) -> None:
-        cfg = dict(_CRAWL_CONFIG)
+    def test_md_snippet_above_max_chunk_raises_when_enabled(
+        self, splitter_config: dict[str, Any]
+    ) -> None:
+        cfg = splitter_config
         cfg["md_index_enable"] = True
         cfg["md_snippet_max_chars"] = 600  # > max_chunk (500)
         with pytest.raises(PipelineValidationError, match="md_snippet_max_chars"):
             ChunkSplitter(config=cfg)
 
-    def test_md_snippet_within_range_constructs_when_enabled(self) -> None:
-        cfg = dict(_CRAWL_CONFIG)
+    def test_md_snippet_within_range_constructs_when_enabled(
+        self, splitter_config: dict[str, Any]
+    ) -> None:
+        cfg = splitter_config
         cfg["md_index_enable"] = True
         cfg["md_snippet_max_chars"] = 400  # within [40, 500]
         splitter = ChunkSplitter(config=cfg)  # must not raise
         assert splitter._settings.md_index_enable is True
         assert splitter._settings.md_snippet_max_chars == 400
 
-    def test_md_snippet_not_checked_when_disabled(self) -> None:
-        cfg = dict(_CRAWL_CONFIG)
+    def test_md_snippet_not_checked_when_disabled(
+        self, splitter_config: dict[str, Any]
+    ) -> None:
+        cfg = splitter_config
         # md_index_enable absent -> False; the 600 vs 500 mismatch is unchecked.
         splitter = ChunkSplitter(config=cfg)  # must not raise
         assert splitter._settings.md_index_enable is False
@@ -952,7 +988,9 @@ def _make_crawl_json(
 
 
 class TestProcessFileEndToEnd:
-    def test_process_file_end_to_end_english(self, tmp_path: Path) -> None:
+    def test_process_file_end_to_end_english(
+        self, tmp_path: Path, splitter_config: dict[str, Any]
+    ) -> None:
         import json
 
         content = "Hello world from the test page. " * 50
@@ -964,6 +1002,7 @@ class TestProcessFileEndToEnd:
         chunk_dir.mkdir(exist_ok=True)
         chunker = ChunkSplitter(
             config={
+                **splitter_config,
                 "rag_src_dir": str(tmp_path),
                 "min_chunk": 10,
                 "max_chunk": 1000,
@@ -988,7 +1027,7 @@ class TestProcessFileEndToEnd:
         assert "Hello world" in reassembled
 
     def test_process_file_end_to_end_english_keeps_stopwords_shape_b(
-        self, tmp_path: Path
+        self, tmp_path: Path, splitter_config: dict[str, Any]
     ) -> None:
         """ragcrv002 (Shape B): a non-empty en_stopwords config must NOT strip words
         from the stored English content, and normalized_content must be NULL."""
@@ -1004,6 +1043,7 @@ class TestProcessFileEndToEnd:
         chunk_dir.mkdir(exist_ok=True)
         chunker = ChunkSplitter(
             config={
+                **splitter_config,
                 "rag_src_dir": str(tmp_path),
                 "min_chunk": 10,
                 "max_chunk": 1000,
@@ -1025,7 +1065,9 @@ class TestProcessFileEndToEnd:
                 assert sw in lowered, f"stopword '{sw}' was removed from content"
             assert payload["normalized_content"] is None
 
-    def test_process_file_end_to_end_japanese(self, tmp_path: Path) -> None:
+    def test_process_file_end_to_end_japanese(
+        self, tmp_path: Path, splitter_config: dict[str, Any]
+    ) -> None:
         import json
 
         content = "日本語のテストページです。これはテスト用の文章です。" * 50
@@ -1037,6 +1079,7 @@ class TestProcessFileEndToEnd:
         chunk_dir.mkdir(exist_ok=True)
         chunker = ChunkSplitter(
             config={
+                **splitter_config,
                 "rag_src_dir": str(tmp_path),
                 "min_chunk": 10,
                 "max_chunk": 1000,
@@ -1065,7 +1108,7 @@ class TestProcessFileEndToEnd:
         assert stripped.count("。") >= content.count("。")
 
     def test_process_file_end_to_end_japanese_oversized_first_sentence(
-        self, tmp_path: Path
+        self, tmp_path: Path, splitter_config: dict[str, Any]
     ) -> None:
         """ragcrv001: a document whose only sentence exceeds max_chunk writes a
         contiguous series whose index-0 sentinel carries real content, so the next
@@ -1085,6 +1128,7 @@ class TestProcessFileEndToEnd:
         chunk_dir.mkdir(exist_ok=True)
         chunker = ChunkSplitter(
             config={
+                **splitter_config,
                 "rag_src_dir": str(tmp_path),
                 "min_chunk": 40,
                 "max_chunk": 500,
@@ -1113,7 +1157,7 @@ class TestProcessFileEndToEnd:
 
 class TestSudachiResolverWiring:
     def test_init_passes_resolver_arg_to_dictionary(
-        self, monkeypatch, tmp_path
+        self, monkeypatch, tmp_path, splitter_config: dict[str, Any]
     ) -> None:
         """ChunkSplitter builds Dictionary with the resolver's dict argument."""
         from pathlib import Path
@@ -1128,6 +1172,7 @@ class TestSudachiResolverWiring:
 
         ChunkSplitter(
             config={
+                **splitter_config,
                 "rag_src_dir": str(tmp_path),
                 "min_chunk": 10,
                 "max_chunk": 1000,
@@ -1140,7 +1185,7 @@ class TestSudachiResolverWiring:
         mock_dictionary.assert_called_once_with(dict=sentinel)
 
     def test_init_default_core_when_unset_uncompiled(
-        self, monkeypatch, tmp_path
+        self, monkeypatch, tmp_path, splitter_config: dict[str, Any]
     ) -> None:
         """With LLMAGENT_SUDACHI_DICT unset and uncompiled, Dictionary gets "core"."""
         from unittest.mock import MagicMock
@@ -1155,6 +1200,7 @@ class TestSudachiResolverWiring:
 
         ChunkSplitter(
             config={
+                **splitter_config,
                 "rag_src_dir": str(tmp_path),
                 "min_chunk": 10,
                 "max_chunk": 1000,
@@ -1173,15 +1219,13 @@ def _make_prune_splitter(
     tmp_path: Path, min_chunk: int = 40, max_chunk: int = 500
 ) -> ChunkSplitter:
     """ChunkSplitter rooted at tmp_path for forced re-chunk prune tests."""
-    return ChunkSplitter(
-        config={
-            "rag_src_dir": str(tmp_path),
-            "min_chunk": min_chunk,
-            "max_chunk": max_chunk,
-            "en_stopwords": [],
-            "ja_stop_pos": [],
-        }
-    )
+    cfg = dict(_CRAWL_CONFIG)
+    cfg["rag_src_dir"] = str(tmp_path)
+    cfg["min_chunk"] = min_chunk
+    cfg["max_chunk"] = max_chunk
+    cfg["en_stopwords"] = []
+    cfg["ja_stop_pos"] = []
+    return ChunkSplitter(config=cfg)
 
 
 def _write_prune_src(tmp_path: Path, stem: str, content: str) -> Path:
@@ -1663,15 +1707,13 @@ class TestDiscardLogging:
         src = tmp_path / "discard-src.json"
         src.write_text(json.dumps(data), encoding="utf-8")
         (tmp_path / "chunk").mkdir(exist_ok=True)
-        chunker = ChunkSplitter(
-            config={
-                "rag_src_dir": str(tmp_path),
-                "min_chunk": min_chunk,
-                "max_chunk": max_chunk,
-                "en_stopwords": [],
-                "ja_stop_pos": [],
-            }
-        )
+        cfg = dict(_CRAWL_CONFIG)
+        cfg["rag_src_dir"] = str(tmp_path)
+        cfg["min_chunk"] = min_chunk
+        cfg["max_chunk"] = max_chunk
+        cfg["en_stopwords"] = []
+        cfg["ja_stop_pos"] = []
+        chunker = ChunkSplitter(config=cfg)
         handler = _CaptureHandler()
         chunk_splitter_module.logger.addHandler(handler)
         try:

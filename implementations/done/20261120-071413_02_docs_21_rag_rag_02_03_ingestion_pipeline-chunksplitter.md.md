@@ -106,10 +106,10 @@ ragcrv010 owns).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct "Undersized" row to record the discard warning | Pending | — | — | |
-| 2 | Add size-rule → test links in invariant-matrix style | Pending | — | — | |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This row |
+| 1 | Correct "Undersized" row to record the discard warning | Completed | 20261120 | 20261120 | Records discard + WARNING/INFO (below_min_chunk); production is scripts/rag/ingestion/chunk_splitter.py lines 304-319 (proc cited 285-288; corrected during verification) |
+| 2 | Add size-rule → test links in invariant-matrix style | Completed | 20261120 | 20261120 | No pre-existing invariant-matrix exists in the doc; added a "Size-rule guarantees" table linking each behavior to its guaranteeing test |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261120 | 20261120 | check_docs_quality / check_docs_structure / check_docs_content_policy --strict / check_docs_consistency --domain rag all pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261120 | 20261120 | This row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

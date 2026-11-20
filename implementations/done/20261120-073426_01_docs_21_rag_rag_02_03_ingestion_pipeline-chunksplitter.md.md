@@ -156,10 +156,10 @@ re-documenting the Japanese path; or any section other than the line-59 parenthe
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation-only, no test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261120 | 20261120 | Deleted the false parenthetical "(the same character-level greedy fill the English and heading paths use)" from line 59; Japanese _split_overlong clause preserved; production is chunk_english.py::_split_sentences_en (keeps oversized sentences whole) + chunk_splitter.py::_split_markdown routing sections to _chunk_english/_chunk_japanese, never calling _split_overlong (that call lives in _chunk_code via merge_text_items) |
+| 2 | Add or update tests per Validation plan | N/A | — | — | documentation-only, no test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120 | 20261120 | check_docs_quality / check_docs_structure / check_docs_content_policy --strict / check_docs_consistency --domain rag all pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261120 | 20261120 | This row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
