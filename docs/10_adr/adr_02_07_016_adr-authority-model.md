@@ -127,9 +127,13 @@ TOML registry (like `documentation_canonical_sources.toml`), guarded generated b
 
 ## Verification
 
-- **Test**: `uv run python tools/check_adr_authority.py` validates the model against INV-01, INV-02, and INV-05 (finding codes `DUP_PRIMARY`, `DANGLING_ADR`, `AUTHORITY_CYCLE`, `ASSUMPTION_DRIFT`, `EDGE_UNKNOWN_TYPE`) and runs in the CI `lint` job. — **Verifies**: INV-01, INV-02, INV-05 — **Type**: Static Check — **Blocking**: Yes
-- **Test**: `uv run python tools/generate_adr_authority.py --check` regenerates the guarded graph sections in memory and exits 1 when a section is missing or differs from the generator output, so a hand edit or an unregenerated model change is detected. It runs in the CI `lint` job. — **Verifies**: INV-03 — **Type**: Static Check — **Blocking**: Yes
-- **Test**: `uv run python tools/check_adr_reference.py` cross-checks ADR front matter `related` edges against the model (`FRONTMATTER_DIVERGENCE`) and runs as the `adr-reference-scoped` pre-commit hook. — **Verifies**: INV-04 — **Type**: Static Check — **Blocking**: Yes
+### Automated Tests
+
+| Test | Verifies | Type | Blocking | Implementation |
+|---|---|---|---|---|
+| The authority model is validated for uniqueness, acyclicity, generated-section drift and edge typing (finding codes `DUP_PRIMARY`, `DANGLING_ADR`, `AUTHORITY_CYCLE`, `ASSUMPTION_DRIFT`, `EDGE_UNKNOWN_TYPE`); runs in the CI `lint` job | INV-01, INV-02, INV-05 | Static Check | Yes | `uv run python tools/check_adr_authority.py`, `tests/tools/test_adr_authority.py::test_dup_primary_fails`, `tests/tools/test_adr_authority.py::test_typed_cycle_fails`, `tests/tools/test_adr_authority.py::test_assumption_drift_against_live_config_shape` |
+| The guarded graph sections are regenerated in memory and exit 1 when a section is missing or differs from the generator output, so a hand edit or an unregenerated model change is detected; runs in the CI `lint` job | INV-03 | Static Check | Yes | `uv run python tools/generate_adr_authority.py --check`, `tests/tools/test_generate_adr_authority.py::test_live_docs_and_model_have_no_drift` |
+| ADR front matter `related` edges are cross-checked against the model (`FRONTMATTER_DIVERGENCE`); runs as the `adr-reference-scoped` pre-commit hook | INV-04 | Static Check | Yes | `uv run python tools/check_adr_reference.py`, `tests/tools/test_check_adr_reference.py::TestCollectIssues::test_empty_matrix_does_not_suppress_frontmatter_cross_check` |
 
 - **Coverage**: no checker verifies coverage. The checkers above verify uniqueness (INV-01), acyclicity (INV-02), generated-section drift (INV-03) and front matter consistency (INV-04); whether a decision target is registered is a review matter.
 

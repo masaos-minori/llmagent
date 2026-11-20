@@ -143,12 +143,12 @@ Not applicable — there is no unauthenticated fallback path.
 
 ### Automated Tests
 
-| Test | Verifies | Type | Blocking |
-|---|---|---|---|
-| `tests/agent/test_startup_validation.py::TestMcpAuthDisabledServers::test_enabled_server_without_token_is_fatal_and_named` (and `test_disabled_server_without_token_passes_mcp_auth`) | INV-01 | Unit | Yes |
-| `tests/mcp_servers/test_require_auth_token.py::TestRequireAuthToken::test_empty_token_raises`, `test_message_names_the_server_and_variable`, `test_non_empty_token_is_returned_unchanged`, `test_empty_token_prevents_every_server_from_importing` | INV-02, INV-04 | Unit | Yes |
-| `tests/mcp_servers/test_require_auth_token.py::test_every_server_routes_through_shared_enforcement_point`, `test_attach_middleware_without_enforcement_point_is_flagged`, `test_every_configured_server_resolves_to_a_module_and_token_variable` | INV-02, INV-05 | Regression | Yes |
-| `tests/mcp_servers/test_mcp_server_base.py::TestAttachAuthMiddleware::test_empty_token_denies_request_without_credentials`, `test_empty_token_accept_all_is_not_a_supported_mode`, `test_missing_token_returns_401`, `test_wrong_token_returns_401` | INV-03 | Unit | Yes |
+| Test | Verifies | Type | Blocking | Implementation |
+|---|---|---|---|---|
+| An enabled MCP server without an auth token is fatal at startup and named; a disabled one passes | INV-01 | Unit | Yes | `tests/agent/test_startup_validation.py::TestMcpAuthDisabledServers::test_enabled_server_without_token_is_fatal_and_named`, `tests/agent/test_startup_validation.py::TestMcpAuthDisabledServers::test_disabled_server_without_token_passes_mcp_auth` |
+| An empty token raises, the message names the server and variable, a non-empty token is returned unchanged, and an empty token prevents every server from importing | INV-02, INV-04 | Unit | Yes | `tests/mcp_servers/test_require_auth_token.py::TestRequireAuthToken::test_empty_token_raises`, `tests/mcp_servers/test_require_auth_token.py::TestRequireAuthToken::test_message_names_the_server_and_variable`, `tests/mcp_servers/test_require_auth_token.py::TestRequireAuthToken::test_non_empty_token_is_returned_unchanged`, `tests/mcp_servers/test_require_auth_token.py::test_empty_token_prevents_every_server_from_importing` |
+| Every server routes through the shared enforcement point, attaching middleware without it is flagged, and every configured server resolves to a module and token variable | INV-02, INV-05 | Regression | Yes | `tests/mcp_servers/test_require_auth_token.py::test_every_server_routes_through_shared_enforcement_point`, `tests/mcp_servers/test_require_auth_token.py::test_attach_middleware_without_enforcement_point_is_flagged`, `tests/mcp_servers/test_require_auth_token.py::test_every_configured_server_resolves_to_a_module_and_token_variable` |
+| An empty, missing, or wrong token denies the request with 401, and accept-all is not a supported mode | INV-03 | Unit | Yes | `tests/mcp_servers/test_mcp_server_base.py::TestAttachAuthMiddleware::test_empty_token_denies_request_without_credentials`, `tests/mcp_servers/test_mcp_server_base.py::TestAttachAuthMiddleware::test_empty_token_accept_all_is_not_a_supported_mode`, `tests/mcp_servers/test_mcp_server_base.py::TestAttachAuthMiddleware::test_missing_token_returns_401`, `tests/mcp_servers/test_mcp_server_base.py::TestAttachAuthMiddleware::test_wrong_token_returns_401` |
 
 ## Implementation Notes
 

@@ -229,8 +229,8 @@ Not applicable (this ADR defines no retry policy of its own)
 | No Agent module imports MCP server configuration models, and the posture DTOs hold no secret fields | INV-01 | Unit | Yes | `tests/agent/test_security_audit_config_isolation.py::test_only_audit_module_imports_security_server_config`, `tests/agent/test_security_audit_config_isolation.py::test_audit_dtos_hold_no_secret_fields`, and the `agent-mcp-config-models` import-linter contract in `.importlinter` |
 | Each MCP server validates its own security configuration at its own startup and publishes the resulting posture | INV-01 | Unit | Yes | `tests/mcp_servers/` |
 | Access to non-permitted configuration files is rejected | INV-02 | Regression | Yes | `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_denies_unauthorized`, `tests/agent/test_config_permission_cross_server.py::test_cross_server_config_load_raises_config_permission_error` |
-| An MCP server can start standalone without agent.toml | INV-03 | Integration | Yes | Not verified (no automated test exists) |
-| The Agent can start without being given MCP-specific Secrets | INV-04 | Integration | Yes | Not verified (no automated test exists) |
+| An MCP server can start standalone without agent.toml | INV-03 | Integration | No | Not verified (no automated test exists) |
+| The Agent can start without being given MCP-specific Secrets | INV-04 | Integration | No | Not verified (no automated test exists) |
 
 ### Startup Validation
 
@@ -296,6 +296,8 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-13; individual reviewer names are not recorded.
 - **Current Decision Approval (pending)**: proposed amendment of INV-04 to "The Agent's configuration files carry no MCP-server-owned settings. The only MCP-specific value the Agent is given is each enabled server's connection token, supplied through the environment-variable mechanism owned by ADR-017; an enabled server resolving to an empty token aborts startup per ADR-017." Approval: Not recorded; ledger entry: `AAL-030`.
+- **Current Decision Approval (pending)**: Setting the Blocking value of the INV-03 verification row (`Not verified (no automated test exists)`) to Non-Blocking is a verification-row change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-031. No approval is recorded here.
+- **Current Decision Approval (pending)**: Setting the Blocking value of the INV-04 verification row (`Not verified (no automated test exists)`) to Non-Blocking is a verification-row change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-032. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

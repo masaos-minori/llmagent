@@ -620,6 +620,60 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Date:** Not recorded
 - **Scope:** INV-04
 
+#### AAL-031
+
+- **ID:** AAL-031
+- **ADR:** ADR-002
+- **Decision:** INV-03 verification row set to Non-Blocking
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-03 verification row
+
+#### AAL-032
+
+- **ID:** AAL-032
+- **ADR:** ADR-002
+- **Decision:** INV-04 verification row set to Non-Blocking
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-04 verification row
+
+#### AAL-033
+
+- **ID:** AAL-033
+- **ADR:** ADR-003
+- **Decision:** INV-03 verification row set to Non-Blocking
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-03 verification row
+
+#### AAL-034
+
+- **ID:** AAL-034
+- **ADR:** ADR-003
+- **Decision:** INV-04 verification row set to Non-Blocking
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-04 verification row
+
+#### AAL-035
+
+- **ID:** AAL-035
+- **ADR:** ADR-003
+- **Decision:** INV-07 verification row set to Non-Blocking
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-07 verification row
+
+#### AAL-036
+
+- **ID:** AAL-036
+- **ADR:** ADR-012
+- **Decision:** INV-04 verification row set to Non-Blocking
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** INV-04 verification row
+
 ## Resolution Rules
 
 The following resolution criteria apply across the parts of this document:

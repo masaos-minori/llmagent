@@ -111,7 +111,11 @@ A generated projection is not a competing copy: the code remains the sole canoni
 
 ## Verification
 
-- **Test**: `uv run python tools/generate_reference_table.py --check` regenerates the guarded block of every generated document in memory and exits 1 when a document's block is missing or differs from the generator output, so a hand edit or a code change without regeneration is detected. It runs in the CI `lint` job on every pull request (`tests/tools/test_generate_reference_table.py::TestCheckDrift`). — **Verifies**: INV-01 — **Type**: Static Check — **Blocking**: Yes
+### Automated Tests
+
+| Test | Verifies | Type | Blocking | Implementation |
+|---|---|---|---|---|
+| The guarded block of every generated document is regenerated in memory and exit 1 when a document's block is missing or differs from the generator output, so a hand edit or a code change without regeneration is detected; runs in the CI `lint` job on every pull request | INV-01 | Static Check | Yes | `uv run python tools/generate_reference_table.py --check`, `tests/tools/test_generate_reference_table.py::TestCheckDrift::test_live_docs_have_no_drift` |
 
 ## Implementation Notes
 
