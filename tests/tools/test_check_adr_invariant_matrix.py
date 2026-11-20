@@ -287,6 +287,66 @@ class TestBodyIndexContainment:
         assert check_body_index_agreement(index, bodies) == []
 
 
+class TestIndexOnlyEvidence:
+    def test_index_citation_with_no_body_row_is_reported(self) -> None:
+        index = _index(
+            _index_row("ADR-001 INV-01", "Confirmed (`tests/a/test_a.py::t`)")
+        )
+        bodies = {"001": _body(_row("INV-02", "`tests/a/test_a.py::t`"))}
+        issues = checker.check_index_only_evidence(index, bodies)
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert issues[0].file == "adr_01_index.md"
+        assert issues[0].line_no == 5
+        assert "ADR-001 INV-01" in issues[0].message
+
+    def test_body_row_without_cited_files_is_reported(self) -> None:
+        index = _index(
+            _index_row("ADR-001 INV-01", "Confirmed (`tests/a/test_a.py::t`)")
+        )
+        bodies = {"001": _body(_row("INV-01", "Not verified (no test)"))}
+        issues = checker.check_index_only_evidence(index, bodies)
+        assert len(issues) == 1
+        assert "ADR-001 INV-01" in issues[0].message
+
+    def test_body_citation_is_accepted_even_without_containment(self) -> None:
+        index = _index(
+            _index_row("ADR-001 INV-01", "Confirmed (`tests/a/test_a.py::t`)")
+        )
+        bodies = {"001": _body(_row("INV-01", "`tests/b/test_b.py::t`"))}
+        assert checker.check_index_only_evidence(index, bodies) == []
+
+    def test_extra_index_citation_on_a_shared_row_is_accepted(self) -> None:
+        index = _index(
+            _index_row(
+                "ADR-001 INV-01, INV-09",
+                "Confirmed (`tests/a/test_a.py::x`, `tests/b/test_b.py::y`)",
+            )
+        )
+        bodies = {
+            "001": _body(
+                _row("INV-01", "`tests/a/test_a.py::x`"),
+                _row("INV-09", "`tests/b/test_b.py::y`"),
+            )
+        }
+        assert checker.check_index_only_evidence(index, bodies) == []
+
+    def test_index_row_without_cited_files_is_out_of_scope(self) -> None:
+        index = _index(
+            _index_row(
+                "ADR-001 INV-01", "Manual — Cadence: x. Expected evidence: y. Owner: o"
+            )
+        )
+        bodies = {"001": _body(_row("INV-01", "Not verified"))}
+        assert checker.check_index_only_evidence(index, bodies) == []
+
+    def test_adr_without_a_body_is_skipped(self) -> None:
+        index = _index(
+            _index_row("ADR-009 INV-01", "Confirmed (`tests/a/test_a.py::t`)")
+        )
+        assert checker.check_index_only_evidence(index, {}) == []
+
+
 class TestBodyTableBoundaries:
     def test_first_and_last_rows_are_both_parsed(self) -> None:
         lines = _body(
@@ -298,7 +358,29 @@ class TestBodyTableBoundaries:
         assert sorted("INV-01" in i.message for i in issues) == [False, True]
         assert {i.line_no for i in issues} == {7, 9}
 
-    def test_table_without_implementation_column_is_skipped(self) -> None:
+    def test_missing_implementation_column_is_reported(self) -> None:
+        header = "| Test | Verifies | Type | Blocking |"
+        lines = _body("| a test | INV-01 | Unit | Yes |", header=header)
+        issues = checker.check_adr_body_table_columns("adr_x.md", lines)
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert issues[0].file == "adr_x.md"
+        assert issues[0].line_no == 5  # heading, blank, header row
+        assert "Implementation" in issues[0].message
+
+    def test_missing_verifies_column_is_reported(self) -> None:
+        header = "| Test | Type | Blocking | Implementation |"
+        lines = _body("| a test | Unit | Yes | `tests/a/test_a.py::t` |", header=header)
+        issues = checker.check_adr_body_table_columns("adr_x.md", lines)
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert "Verifies" in issues[0].message
+
+    def test_table_with_both_columns_is_clean(self) -> None:
+        lines = _body(_row("INV-01", "Not verified"))
+        assert checker.check_adr_body_table_columns("adr_x.md", lines) == []
+
+    def test_unreadable_table_still_yields_no_row_findings(self) -> None:
         header = "| Test | Verifies | Type | Blocking |"
         lines = _body("| a test | INV-01 | Unit | Yes |", header=header)
         assert check_adr_body_evidence_cells("adr_x.md", lines) == []
@@ -306,6 +388,14 @@ class TestBodyTableBoundaries:
     def test_missing_table_returns_no_issue(self) -> None:
         assert (
             check_adr_body_evidence_cells("adr_x.md", ["## Verification", "text"]) == []
+        )
+
+    def test_missing_table_reports_no_column_issue(self) -> None:
+        assert (
+            checker.check_adr_body_table_columns(
+                "adr_x.md", ["## Verification", "text"]
+            )
+            == []
         )
 
     def test_row_with_wrong_cell_count_is_skipped(self) -> None:
@@ -656,12 +746,12 @@ def _status_row(status: str) -> str:
 
 
 class TestManualPartialCadence:
-    def test_missing_cadence_warning(self) -> None:
+    def test_missing_cadence_reports_errors(self) -> None:
         lines = _matrix(
             _status_row("Manual — procedure: code review. Owner: Repository owner")
         )
         issues = checker.check_manual_partial_fields(lines)
-        assert [i.severity for i in issues] == ["WARNING", "WARNING"]
+        assert [i.severity for i in issues] == ["ERROR", "ERROR"]
         assert {i.line_no for i in issues} == {5}
         assert any("Cadence:" in i.message for i in issues)
         assert any("Expected evidence:" in i.message for i in issues)
@@ -675,7 +765,7 @@ class TestManualPartialCadence:
         )
         assert checker.check_manual_partial_fields(lines) == []
 
-    def test_partial_row_missing_expected_evidence_warns_once(self) -> None:
+    def test_partial_row_missing_expected_evidence_reports_once(self) -> None:
         lines = _matrix(
             _status_row(
                 "Partial — scope: x. Cadence: each deployment review. Owner: Owner"
@@ -683,20 +773,65 @@ class TestManualPartialCadence:
         )
         issues = checker.check_manual_partial_fields(lines)
         assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
         assert "Expected evidence:" in issues[0].message
 
     def test_confirmed_row_needs_no_cadence(self) -> None:
         lines = _matrix(_status_row("Confirmed (`tests/a/test_a.py::t`)"))
         assert checker.check_manual_partial_fields(lines) == []
 
-    def test_severity_flips_with_module_constant(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(checker, "_CADENCE_RULE_SEVERITY", "ERROR")
-        lines = _matrix(_status_row("Manual — procedure: review. Owner: Owner"))
-        assert {i.severity for i in checker.check_manual_partial_fields(lines)} == {
-            "ERROR"
-        }
+
+# ---------------------------------------------------------------------------
+# Not verified plus Blocking rule (REQ-009)
+# ---------------------------------------------------------------------------
+
+
+class TestNotVerifiedBlocking:
+    def test_index_not_verified_with_blocking_gate_is_reported(self) -> None:
+        index = _index(_index_row("ADR-001 INV-01", "Not verified"))
+        issues = checker.check_not_verified_blocking(index, {}, {})
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert issues[0].file == "adr_01_index.md"
+        assert issues[0].line_no == 5
+        assert "ADR-001 INV-01" in issues[0].message
+
+    def test_index_non_blocking_gate_is_accepted(self) -> None:
+        index = _index(
+            "| ADR-001 INV-01 | s | Unit Test | CI | Non-Blocking | Not verified |"
+        )
+        assert checker.check_not_verified_blocking(index, {}, {}) == []
+
+    def test_index_exception_reference_suppresses_the_error(self) -> None:
+        index = _index(
+            "| ADR-001 INV-01 | s | Unit Test | CI | Blocking | "
+            "Not verified (Exception: EXC-001) |"
+        )
+        assert checker.check_not_verified_blocking(index, {}, {}) == []
+
+    def test_body_not_verified_with_blocking_yes_is_reported(self) -> None:
+        bodies = {"001": _body(_row("INV-01", "Not verified"))}
+        adr_files = {"001": "docs/10_adr/adr_x.md"}
+        issues = checker.check_not_verified_blocking([], bodies, adr_files)
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+        assert issues[0].file == "adr_x.md"
+        assert issues[0].line_no == 7
+        assert "INV-01" in issues[0].message
+
+    def test_body_not_verified_with_blocking_no_is_accepted(self) -> None:
+        body = _body("| a test | INV-01 | Unit | No | Not verified |")
+        issues = checker.check_not_verified_blocking(
+            [], {"001": body}, {"001": "docs/10_adr/adr_x.md"}
+        )
+        assert issues == []
+
+    def test_body_cited_row_is_out_of_scope(self) -> None:
+        body = _body(_row("INV-01", "`tests/a/test_a.py::t`"))
+        issues = checker.check_not_verified_blocking(
+            [], {"001": body}, {"001": "docs/10_adr/adr_x.md"}
+        )
+        assert issues == []
 
 
 # ---------------------------------------------------------------------------

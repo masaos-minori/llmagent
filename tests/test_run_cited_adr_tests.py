@@ -141,5 +141,8 @@ class TestRealMatrixRegression:
         # 52 after 2026-11-19: the ADR-014 INV-03 row became an automated gate citing
         # tests/agent/test_orchestrator.py::TestNoServerSideSafetyReimplementation (ADR-014
         # Manual Review -> Unit Test, adrchk003 row 31).
+        # 70 after 2026-11-20: the ADR-016 and ADR-017 rows entered the matrix, the
+        # ADR-003 INV-03 row became Partial with cited evidence, and the ADR-007 and
+        # ADR-012 rows gained their own citations (adrchk013 Plan step 4, procedure 03).
         lines = helper.ADR_INDEX.read_text(encoding="utf-8").splitlines()
-        assert len(helper.extract_cited_node_ids(lines)) == 52
+        assert len(helper.extract_cited_node_ids(lines)) == 70
