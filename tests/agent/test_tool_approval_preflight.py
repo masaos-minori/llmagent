@@ -8,25 +8,27 @@ execute_one_tool_call(), and run_approval_checks().
 
 from __future__ import annotations
 
+import dataclasses
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig, ToolConfig
-from agent.tool_approval import check_approval, run_approval_checks
+from agent.tool_approval import _GRANT_TTL_SECONDS, check_approval, run_approval_checks
 from agent.tool_audit import audit_approval as _audit_approval
 from agent.tool_audit import audit_tool_exec as _audit_tool_exec
+from agent.tool_enums import ApprovalDecisionType
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.tool_policy import (
     PolicyViolationError,
     check_preflight,
     is_plan_mode_blocked,
 )
-from agent.tool_preparation import PreparedToolCall
+from agent.tool_preparation import PreparedToolCall, _canonical_args_hash
 from agent.tool_runner import execute_one_tool_call
 from shared.tool_spec import ToolSpec
-from shared.transport_dto import ToolCallResult
+from shared.transport_dto import ToolCallResult, ToolExecutionContext
 
 from tests.agent._config_test_defaults import (
     ALL_APPROVAL_RISK_RULES,
@@ -789,10 +791,25 @@ class TestAuditToolExec:
 # ── execute_one_tool_call() ───────────────────────────────────────────────────
 
 
+def _read_registry() -> MagicMock:
+    """Registry stub classifying every tool as non-write (READ).
+
+    mcpdl001 REQ-006: with runtime_tools None, classify_operation_type fails
+    closed to UNKNOWN and the execution gate demands an ApprovalGrant; these
+    tests exercise the plain read path, so they need a read-classifying stub.
+    """
+    registry = MagicMock()
+    tool = MagicMock()
+    tool.is_write = False
+    registry.get.return_value = tool
+    return registry
+
+
 class TestExecuteOneToolCall:
     @pytest.mark.asyncio
     async def test_unpacks_three_tuple_from_execute(self) -> None:
         ctx = _make_ctx()
+        ctx.services_required.runtime_tools = _read_registry()
         ctx.services_required.tools = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
@@ -819,12 +836,13 @@ class TestExecuteOneToolCall:
         assert full_text == "result text"
         assert not is_error
         ctx.services_required.gateway.execute.assert_awaited_once_with(
-            ctx, "read_text_file", {"path": "/tmp/f"}
+            ctx, "read_text_file", {"path": "/tmp/f"}, grant=None
         )
 
     @pytest.mark.asyncio
     async def test_audit_tool_exec_called_with_x_request_id(self) -> None:
         ctx = _make_ctx()
+        ctx.services_required.runtime_tools = _read_registry()
         ctx.services_required.tools = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
@@ -1179,3 +1197,150 @@ class TestApprovalPreflightDeclaredPathKeys:
                 ctx, "read_multiple_files", {"paths": ["/tmp/a", "/tmp/b"]}
             )
         assert result is True
+
+
+# ── ApprovalGrant issuance (mcpdl001 REQ-006, AC-4) ─────────────────────────
+
+
+_APPROVAL_CALL_ID = "018f0000-0000-7000-8000-000000000002"  # logical call id fixture
+
+
+def _pc_with_context(
+    name: str, args: dict, call_id: str = "call_1"
+) -> PreparedToolCall:
+    """PreparedToolCall carrying the preparation-phase execution context."""
+    return PreparedToolCall(
+        call_id=call_id,
+        name=name,
+        args=args,
+        spec=ToolSpec(call_id=call_id, name=name, args=args),
+        original_call={"id": call_id, "function": {"name": name, "arguments": "{}"}},
+        context=ToolExecutionContext(
+            call_id=_APPROVAL_CALL_ID,
+            tool=name,
+            args_hash=_canonical_args_hash(args),
+            operation="call_tool",
+        ),
+    )
+
+
+def _read_registry() -> MagicMock:
+    """Registry mock whose tools report is_write=False: explicit READ classification."""
+    registry = MagicMock()
+    registry.get.return_value = MagicMock(is_write=False)
+    return registry
+
+
+class TestApprovalGrantIssuance:
+    """Approved non-READ calls reach execution grant-bound; denied and READ
+    calls carry no grant (REQ-006, AC-4)."""
+
+    @pytest.mark.asyncio
+    async def test_interactive_approved_write_call_carries_grant(self) -> None:
+        cfg = _make_cfg(
+            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "medium"}
+        )
+        ctx = _make_ctx(cfg)
+        ctx.conv.plan_mode = False
+        ctx.services_required.audit_logger = MagicMock()
+        pc = _pc_with_context("write_file", {"path": "/tmp/f"})
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+        ):
+            approved, denied = await run_approval_checks(ctx, [pc])
+        assert denied == []
+        granted = approved[0]
+        grant = granted.grant
+        assert grant is not None
+        assert grant.tool == "write_file"
+        assert grant.args_hash == _canonical_args_hash({"path": "/tmp/f"})
+        assert grant.mode == ApprovalDecisionType.APPROVED.value
+        assert grant.expires_at - grant.issued_at == _GRANT_TTL_SECONDS
+
+    @pytest.mark.asyncio
+    async def test_auto_approved_write_call_grant_mode_auto(self) -> None:
+        cfg = _make_cfg(
+            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "none"}
+        )
+        ctx = _make_ctx(cfg)
+        ctx.conv.plan_mode = False
+        ctx.services_required.audit_logger = MagicMock()
+        approved, denied = await run_approval_checks(
+            ctx, [_pc_with_context("write_file", {"path": "/tmp/f"})]
+        )
+        assert denied == []
+        grant = approved[0].grant
+        assert grant is not None
+        assert grant.mode == ApprovalDecisionType.AUTO.value
+
+    @pytest.mark.asyncio
+    async def test_read_call_stays_grantless(self) -> None:
+        cfg = _make_cfg(
+            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "read_text_file": "none"}
+        )
+        ctx = _make_ctx(cfg)
+        ctx.conv.plan_mode = False
+        ctx.services_required.runtime_tools = _read_registry()
+        ctx.services_required.audit_logger = MagicMock()
+        approved, denied = await run_approval_checks(
+            ctx, [_pc_with_context("read_text_file", {"path": "/tmp/f"})]
+        )
+        assert denied == []
+        assert approved[0].grant is None
+
+    @pytest.mark.asyncio
+    async def test_denied_call_never_carries_grant(self) -> None:
+        cfg = _make_cfg(
+            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "medium"}
+        )
+        ctx = _make_ctx(cfg)
+        ctx.conv.plan_mode = False
+        ctx.services_required.audit_logger = MagicMock()
+        pc = _pc_with_context("write_file", {"path": "/tmp/f"})
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="n")
+        ):
+            approved, denied = await run_approval_checks(ctx, [pc])
+        assert approved == []
+        assert denied == ["call_1"]
+        assert pc.grant is None
+
+    @pytest.mark.asyncio
+    async def test_grant_args_hash_matches_context_and_rebinding_breaks_it(
+        self,
+    ) -> None:
+        """AC-4: a re-bound/edited call fails the gateway's hash comparison."""
+        cfg = _make_cfg(
+            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "none"}
+        )
+        ctx = _make_ctx(cfg)
+        ctx.conv.plan_mode = False
+        ctx.services_required.audit_logger = MagicMock()
+        pc = _pc_with_context("write_file", {"path": "/tmp/f"})
+        approved, _ = await run_approval_checks(ctx, [pc])
+        granted = approved[0]
+        assert granted.grant is not None
+        assert granted.grant.args_hash == (
+            granted.context.args_hash if granted.context else None
+        )
+        tampered = dataclasses.replace(granted, args={"path": "/etc/cron.d/x"})
+        assert tampered.grant is not None
+        assert tampered.grant.args_hash != _canonical_args_hash(tampered.args)
+
+    @pytest.mark.asyncio
+    async def test_approval_event_carries_logical_call_id(self) -> None:
+        """REQ-008/AC-2: the tool_approval event carries the logical call id."""
+        import json
+
+        cfg = _make_cfg(
+            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "none"}
+        )
+        ctx = _make_ctx(cfg)
+        ctx.conv.plan_mode = False
+        ctx.services_required.audit_logger = MagicMock()
+        await run_approval_checks(
+            ctx, [_pc_with_context("write_file", {"path": "/tmp/f"})]
+        )
+        payload = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert payload["event"] == "tool_approval"
+        assert payload["idempotency_key"] == _APPROVAL_CALL_ID

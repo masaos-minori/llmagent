@@ -769,6 +769,54 @@ class TestBuildTurnControlMessage:
         assert "unreplayable: tool=filesystem__write_file idempotency_key=k2" in msg
         assert "replay: tool=filesystem__write_file" not in msg
 
+    def test_dispatched_stale_row_is_outcome_unknown_not_replay(self, store) -> None:
+        """AC-6 (mcpdl001 REQ-009): a stale dispatched row becomes outcome_unknown
+        and lands in the unreplayable section even when its retry_class is
+        retryable — its request may already have executed server-side."""
+        task = create_task(store._db, "s1", 1, "1.0.0", "wf")
+        self._stale_row(
+            store, task.task_id, "kd", "filesystem__write_file", "retryable"
+        )
+        store.finalize_tool_call("kd", "dispatched")
+        store._db.execute(
+            "UPDATE tool_call_state SET created_at=? WHERE idempotency_key='kd'",
+            (time.time() - 3600,),
+        )
+        store._db.commit()
+        engine = WorkflowEngine(_make_wdef(), store)
+        msg = engine.build_turn_control_message(task.task_id)
+        assert msg is not None
+        assert "replay:" not in msg
+        assert (
+            "unreplayable: tool=filesystem__write_file idempotency_key=kd"
+            " state=outcome_unknown" in msg
+        )
+        row = store._db.execute(
+            "SELECT state FROM tool_call_state WHERE idempotency_key='kd'"
+        ).fetchone()
+        assert row["state"] == "outcome_unknown"
+
+    def test_dispatch_starting_stale_row_stays_interrupted_replayable(
+        self, store
+    ) -> None:
+        """REQ-009: dispatch_starting means nothing reached the wire — the row
+        keeps today's interrupted replay semantics."""
+        task = create_task(store._db, "s1", 1, "1.0.0", "wf")
+        self._stale_row(store, task.task_id, "ks", "calculator__calculate", "retryable")
+        store.finalize_tool_call("ks", "dispatch_starting")
+        store._db.execute(
+            "UPDATE tool_call_state SET created_at=? WHERE idempotency_key='ks'",
+            (time.time() - 3600,),
+        )
+        store._db.commit()
+        engine = WorkflowEngine(_make_wdef(), store)
+        msg = engine.build_turn_control_message(task.task_id)
+        assert msg is not None
+        assert (
+            "replay: tool=calculator__calculate idempotency_key=ks state=interrupted"
+            in msg
+        )
+
     def test_no_rows_yields_none(self, store) -> None:
         task = create_task(store._db, "s1", 1, "1.0.0", "wf")
         engine = WorkflowEngine(_make_wdef(), store)

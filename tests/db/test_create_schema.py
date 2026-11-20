@@ -723,6 +723,13 @@ class TestWorkflowStatusCheckConstraints:
 
         assert self._ddl_check_set("attempts", "status") == set(ATTEMPT_STATUSES)
 
+    def test_tool_call_state_check_equals_python_vocabulary(self) -> None:
+        """REQ-005: the nine-state intent vocabulary is identical in the canonical
+        DDL CHECK and TOOL_CALL_STATES (mcpdl001 Unit-2 same-commit rule)."""
+        from agent.workflow.models import TOOL_CALL_STATES
+
+        assert self._ddl_check_set("tool_call_state", "state") == set(TOOL_CALL_STATES)
+
 
 class TestWorkflowSchemaNoMarkers:
     """Fresh workflow databases carry no marker tables and no version rows (AC-002)."""

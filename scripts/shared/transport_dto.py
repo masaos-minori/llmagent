@@ -24,6 +24,23 @@ class DynamicAvailabilityHint:
 
 
 @dataclass(frozen=True)
+class ToolExecutionContext:
+    """Immutable logical-call identity carried from preparation to the wire.
+
+    Plain-data only: ``shared`` is an import-linter leaf, so no agent types
+    may appear here. The wider identity ids (session/workflow/task/turn) ride
+    on the audit event side (``ToolExecEvent``/``execution_snapshot_json``);
+    ``server_key`` and the approval reference are not knowable at preparation
+    time and are deliberately absent.
+    """
+
+    call_id: str  # uuid7 logical call id, generated once at preparation
+    tool: str  # tool name as dispatched
+    args_hash: str  # hex sha256 over canonical-JSON args; grant comparison key
+    operation: str  # RPC operation name (e.g. "call_tool")
+
+
+@dataclass(frozen=True)
 class ToolCallResult:
     """Typed result from a single tool call execution.
 
@@ -39,6 +56,14 @@ class ToolCallResult:
     error_type: str = ""  # "transport" | "tool" | "routing" | "" (empty on success)
     availability_hint: DynamicAvailabilityHint | None = (
         None  # advisory dynamic health signal; None means no signal
+    )
+    context: ToolExecutionContext | None = (
+        None  # identity this call executed with; None on pre-dispatch routing errors
+    )
+    dispatch_stage: Literal["", "sent", "response"] = (
+        ""  # how far the call got: "" nothing sent, "sent" no response,
+        # "response" HTTP response received; the intent-state writer uses this
+        # to keep a post-send failure at a dispatch-stage state (never replayed)
     )
 
     @classmethod

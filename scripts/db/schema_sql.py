@@ -207,16 +207,18 @@ CREATE TABLE IF NOT EXISTS artifacts (
     attempt_number INTEGER
 );
 
--- Tool-call lifecycle table (toolexec001). Keyed on the tool-call
--- idempotency key, which is the only idempotency_key column in the workflow
--- database (wftaskapi001 renamed the task-side column to task_nonce).
+-- Tool-call lifecycle table (toolexec001). Keyed on the opaque uuid7 logical
+-- call id (the idempotency_key column is the only one of its name in the
+-- workflow database; wftaskapi001 renamed the task-side column to task_nonce).
+-- The state column carries the dispatch-intent vocabulary mirrored in
+-- agent.workflow.models.TOOL_CALL_STATES.
 -- This file is its single canonical definition; fresh-created databases are
 -- the only databases the workflow layer accepts.
 CREATE TABLE IF NOT EXISTS tool_call_state (
     idempotency_key TEXT PRIMARY KEY,
     task_id         TEXT NOT NULL,
     tool            TEXT NOT NULL,
-    state           TEXT NOT NULL CHECK (state IN ('pending', 'completed', 'failed', 'interrupted')),
+    state           TEXT NOT NULL CHECK (state IN ('pending', 'dispatch_starting', 'dispatched', 'response_received', 'completed', 'failed', 'interrupted', 'outcome_unknown', 'reconciliation_required')),
     retry_class     TEXT NOT NULL,
     created_at      REAL NOT NULL,
     updated_at      REAL NOT NULL

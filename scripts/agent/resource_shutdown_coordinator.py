@@ -146,6 +146,14 @@ class ResourceShutdownCoordinator:
                             server_key,
                             outcome,
                         )
+            # Plain-REPL session intent store (factory-wired, mcpdl001 REQ-007):
+            # closed with the other services, after turn processing settled.
+            if svc.session_intent_close is not None:
+                try:
+                    svc.session_intent_close()
+                except Exception as e:  # noqa: BLE001 — shutdown path must record and continue past any store-close failure, not propagate
+                    errors.append(("intent_store_close", f"{type(e).__name__}: {e}"))
+                    logger.error("session intent store close failed: %s", e)
         else:
             logger.debug("No services available to shut down")
 

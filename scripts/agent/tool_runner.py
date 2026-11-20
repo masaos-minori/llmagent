@@ -17,11 +17,10 @@ import time
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from shared.http_transport import derive_idempotency_key
 from shared.json_utils import (
     dumps as _json_dumps,
 )
-from shared.tool_constants import RETRYABLE_TOOLS
+from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS, RETRYABLE_TOOLS
 from shared.tool_executor import ToolExecutor
 from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
@@ -29,7 +28,10 @@ from shared.transport_dto import ToolCallResult
 
 from agent.tool_audit import audit_tool_exec
 from agent.tool_enums import OperationType, ToolCallStopReason
-from agent.tool_exceptions import ToolExecutorUnavailableError
+from agent.tool_exceptions import (
+    IntentRecordUnavailableError,
+    ToolExecutorUnavailableError,
+)
 from agent.tool_output import emit_tool_call, emit_tool_result
 from agent.tool_policy import (
     PolicyViolationError,
@@ -75,21 +77,32 @@ async def _recorded_call(
 
     A call that raises during execution is converted into the same six-field
     error row the preparation phase produces
-    (scripts/agent/tool_preparation.py:37), so a sibling in the same group still
-    completes and the round stays total (plans/20261023-004538_plan.md). Only *this* call's Exception is converted; BaseException (e.g.
-    asyncio.CancelledError) keeps propagating (AC-5), so a cancelled
-    round still raises out of execute_all_tool_calls.
+    (scripts/agent/tool_preparation.py:37), so a sibling in the same group
+    still completes and the round stays total (plans/20261023-004538_plan.md).
+    mcpdl001 fail-closed denials (IntentRecordUnavailableError,
+    AuditUnavailableError) land in the same conversion (REQ-007, AC-5); only
+    *this* call's Exception is converted — BaseException (e.g.
+    asyncio.CancelledError) propagates (AC-5).
 
-    This is also the single writer of the agent-side tool_call_state rows
-    (plans/20261101-105136_toolstate001 plan.md): pending is
-    recorded before dispatch, finalized completed/failed after the result row
-    exists; a propagating BaseException leaves the row pending.
+    Single writer of the agent-side tool_call_state rows (mcpdl001 REQ-003):
+    keyed on the logical call id, the row walks the intent vocabulary
+    pending → dispatch_starting → dispatched → response_received →
+    completed/failed. A post-send failure (result dispatch_stage "sent")
+    leaves the row at a dispatch-stage state for classify_stale_pending —
+    never finalized here, never replayed (AC-6); a propagating BaseException
+    leaves the row wherever dispatch stopped.
     """
-    state_key = _record_pending_state(ctx, pc)
+    state_key: str | None = None
     try:
+        state_key = _record_pending_state(ctx, pc)
         dispatched.add(pc.call_id)
-        result = await execute_one_tool_call(ctx, pc, guard)
-    except Exception as exc:  # noqa: BLE001 — per-call boundary: one raising call must not abort its siblings; CancelledError (BaseException) intentionally propagates (AC-5)
+        _finalize_state(ctx, state_key, "dispatch_starting", pc.name)
+        _finalize_state(ctx, state_key, "dispatched", pc.name)
+        result = await execute_one_tool_call(ctx, pc, guard, state_key=state_key)
+        collected[pc.call_id] = result
+        dispatched.discard(pc.call_id)
+        return result
+    except Exception as exc:  # noqa: BLE001 — per-call boundary; a raising call must not abort siblings; CancelledError still propagates (AC-5)
         logger.exception(
             "tool execution failed tool=%r call_id=%s", pc.name, pc.call_id
         )
@@ -100,12 +113,15 @@ async def _recorded_call(
         error_row = (pc.call_id, pc.name, pc.args, failure_text, True, llm_text)
         collected[pc.call_id] = error_row
         dispatched.discard(pc.call_id)
-        _finalize_state(ctx, state_key, "failed")
+        try:
+            _finalize_state(ctx, state_key, "failed", pc.name)
+        except Exception as fin_exc:  # noqa: BLE001 — a failed finalize must not mask the error-row conversion
+            logger.error(
+                "tool-call state failed-finalize also failed tool=%r: %s",
+                pc.name,
+                fin_exc,
+            )
         return error_row
-    collected[pc.call_id] = result
-    dispatched.discard(pc.call_id)
-    _finalize_state(ctx, state_key, "completed")
-    return result
 
 
 async def _run_group_calls(
@@ -134,40 +150,29 @@ async def _run_group_calls(
     )
 
 
-def _idempotency_key(ctx: AgentContext, pc: PreparedToolCall) -> str:
-    """Derive a stable, retry-invariant idempotency key for this Tool Call.
+def _logical_call_id(pc: PreparedToolCall) -> str:
+    """The call's logical call id from the preparation-phase execution context.
 
-    Composition: {workflow_id}:{task_id}:{turn_id}:{call_id}
+    Sole key for the tool_call_state row and the audit idempotency_key field
+    (mcpdl001 REQ-003): the same uuid7 the transport sends as
+    X-Idempotency-Key. Nothing is derived — the old key derivations collided.
     """
-    workflow_id = ctx.workflow.workflow_id or ""
-    task_id = ctx.workflow.current_task_id or ""
-    turn_id = ctx.turn.current_turn_id or ""
-    return f"{workflow_id}:{task_id}:{turn_id}:{pc.call_id}"
+    return pc.context.call_id if pc.context else ""
 
 
-def _state_key(ctx: AgentContext, pc: PreparedToolCall) -> str:
-    """Derive the tool_call_state row key: the transport key scoped to the task.
-
-    Same function and uid the MCP transport sends as X-Idempotency-Key, with
-    the current ``task_id`` appended so identical call content in different
-    tasks gets its own lifecycle row (wfaudit002). The wire key the
-    transport sends stays the unscoped transport key; the audit-only
-    _idempotency_key above stays separate.
-    """
-    transport_key = derive_idempotency_key(
-        "call_tool", pc.name, pc.args, str(ctx.session.session_id)
-    )
-    return f"{transport_key}:{ctx.workflow.current_task_id}"
+def _side_effecting(tool_name: str) -> bool:
+    """True when the tool is in shared.tool_constants.ALL_SIDE_EFFECTING_TOOLS."""
+    return tool_name in ALL_SIDE_EFFECTING_TOOLS
 
 
 def _classify_retry_class(tool_name: str) -> str:
     """Return the retry classification for a tool using the Agent's canonical set.
 
-    Single source of truth is shared.tool_constants.RETRYABLE_TOOLS (ADR-008): dispatch-capable tools are 'retryable'; every other tool — including
-    unknown ones — is 'non_retryable' (fail-safe). Resolving locally here (rather
-    than importing shared.mcp_dedup) keeps the Agent process from reading the
-    dispatcher's config/mcp_dedup.toml. Mirrors the dispatcher's own
-    [retry_class] map; keep the two consistent.
+    Single source of truth is shared.tool_constants.RETRYABLE_TOOLS (ADR-008):
+    dispatch-capable tools are 'retryable'; every other tool — including
+    unknown ones — is 'non_retryable' (fail-safe). Resolving locally (rather
+    than importing shared.mcp_dedup) keeps the Agent from reading the
+    dispatcher's config/mcp_dedup.toml.
     """
     return "retryable" if tool_name in RETRYABLE_TOOLS else "non_retryable"
 
@@ -175,29 +180,49 @@ def _classify_retry_class(tool_name: str) -> str:
 def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None:
     """Write the pending tool_call_state row before dispatch.
 
-    Returns the state key when the row was written, else None: recorder or
-    task context unwired, or the write failed (recording failure is
-    logged, never fatal).
+    Returns the state key (the logical call id, REQ-003), else None for
+    read-only calls on any unwired/failed path.
+
+    Fail-closed for side-effecting calls (REQ-005/REQ-007): a missing logical
+    call id, unwired recorder/task, or a recorder write failure raises
+    IntentRecordUnavailableError — no dispatch without the durable intent row.
+    Read-only calls keep the logged best-effort path.
     """
+    key = _logical_call_id(pc)
+    side_effecting = _side_effecting(pc.name)
     recorder = ctx.workflow.tool_call_recorder
     task_id = ctx.workflow.current_task_id
-    if recorder is None or task_id is None:
+    if not key or recorder is None or task_id is None:
+        if side_effecting:
+            raise IntentRecordUnavailableError(
+                f"cannot record tool_call_state for side-effecting tool {pc.name!r}: "
+                f"{'no logical call id' if not key else 'recorder/task context unwired'}"
+            )
         return None
-    key = _state_key(ctx, pc)
     try:
         recorder.record_tool_call(task_id, key, pc.name, _classify_retry_class(pc.name))
-    except Exception as exc:  # noqa: BLE001 — recording failure must not break tool execution; args are never logged
+    except Exception as exc:  # noqa: BLE001 — classification decides fail-closed vs best-effort
+        if side_effecting:
+            raise IntentRecordUnavailableError(
+                f"tool_call_state record failed for side-effecting tool {pc.name!r}"
+            ) from exc
         logger.warning("tool-call state record failed tool=%r: %s", pc.name, exc)
         return None
     return key
 
 
-def _finalize_state(ctx: AgentContext, state_key: str | None, state: str) -> None:
-    """Move the tool_call_state row to its terminal state.
+def _finalize_state(
+    ctx: AgentContext, state_key: str | None, state: str, tool_name: str = ""
+) -> None:
+    """Move the tool_call_state row to another state in the intent vocabulary.
 
-    No-op when no pending row was written (state_key is None) or the recorder
-    was unwired. BaseException paths never reach this call, leaving the row
-    pending for classify_stale_pending.
+    No-op when no pending row was written (state_key None) or the recorder is
+    unwired. BaseException paths never reach a terminal transition: the row
+    stays at whatever dispatch-stage state it reached.
+
+    Fail-closed for side-effecting calls (REQ-007): a recorder write failure
+    raises IntentRecordUnavailableError instead of the old logged warning;
+    read-only calls keep the best-effort warning.
     """
     if state_key is None:
         return
@@ -206,44 +231,69 @@ def _finalize_state(ctx: AgentContext, state_key: str | None, state: str) -> Non
         return
     try:
         recorder.finalize_tool_call(state_key, state)
-    except Exception as exc:  # noqa: BLE001 — recording failure must not break tool execution
+    except Exception as exc:  # noqa: BLE001 — classification decides fail-closed vs best-effort
+        if _side_effecting(tool_name):
+            raise IntentRecordUnavailableError(
+                f"tool_call_state {state!r} finalize failed for side-effecting tool {tool_name!r}"
+            ) from exc
         logger.warning("tool-call state finalize failed key=%s: %s", state_key, exc)
+
+
+def _grant_denied_result(name: str) -> ToolCallResult:
+    """Deny shape for a side-effecting call that reaches execution ungranted.
+
+    Same error_type as the gateway's grant denial so audit and retry
+    classification treat both denials identically (mcpdl001 REQ-006).
+    """
+    return ToolCallResult(
+        output=f"Grant denied: no approval grant (tool={name})",
+        is_error=True,
+        request_id="",
+        server_key="",
+        error_type="denied",
+    )
 
 
 async def _execute_prepared_call(
     ctx: AgentContext,
     tools: ToolExecutor,
-    name: str,
-    args: dict[str, Any],
+    pc: PreparedToolCall,
 ) -> ToolCallResult:
-    """Execute one call through the gateway, or through *tools* when it is absent.
+    """Execute one prepared call through the gateway, or through *tools* when it is absent.
 
-    Gateway-bypass safety justification:
-    When ctx.services_required.gateway is None the call runs through *tools*
-    instead of the gateway. Policy enforcement is not lost: every non-READ
-    operation still passes check_preflight() before execution, and a tool name
-    that is not in the RuntimeToolRegistry yields a `routing` `ToolCallResult`
-    from `ToolExecutor.execute()` and cannot execute.
-    NOTE: In production, factory.py:652 creates RepositoryGateway unconditionally
-    during AppServices construction, so this branch should never execute.
+    Gateway-bypass safety justification: with gateway=None the call runs
+    through *tools*; policy is not lost — every non-READ operation first needs
+    the ApprovalGrant its upstream approval issued (mcpdl001 REQ-006), a
+    non-READ call without a grant or logical call id is denied before the
+    check_preflight fallback, and a tool name absent from the
+    RuntimeToolRegistry yields a `routing` ToolCallResult from
+    ToolExecutor.execute() and cannot execute. NOTE: in
+    production, factory.py creates RepositoryGateway unconditionally during
+    AppServices construction, so this branch should never execute.
     """
+    name = pc.name
+    args = pc.args
     gateway = ctx.services_required.gateway
-    # Classify once before execution: non-READ (incl. UNKNOWN) calls
-    # set the per-attempt side-effect flag before running, so a failed side-effect
-    # call also blocks retry (adapter consumes the flag; records attempts, not success).
+    # Classify once before execution: non-READ (incl. UNKNOWN) sets the
+    # per-attempt side-effect flag before running, so a failed side-effect
+    # call also blocks retry (the adapter records attempts, not successes).
     op = classify_operation_type(name, ctx.services_required.runtime_tools)
     if op != OperationType.READ:
         ctx.turn.attempt_side_effect = True
+        if pc.grant is None or pc.context is None:
+            # AC-3/AC-4: an ungranted or id-less side-effecting call never
+            # reaches any executor, gatewayed or not.
+            logger.warning("tool_runner.grant_denied tool=%r", name)
+            return _grant_denied_result(name)
     if gateway is not None:
-        return await gateway.execute(ctx, name, args)
+        return await gateway.execute(ctx, name, args, grant=pc.grant)
     # Preflight check when gateway is None for non-READ operations
-    if op != OperationType.READ:
-        try:
-            check_preflight(ctx.cfg, name, args, ctx.services_required.runtime_tools)
-        except PolicyViolationError as exc:
-            logger.warning("tool_runner.policy_denied tool=%r reason=%s", name, exc)
-            raise  # Re-raise to prevent unauthorized execution
-    return await tools.execute(name, args)
+    try:
+        check_preflight(ctx.cfg, name, args, ctx.services_required.runtime_tools)
+    except PolicyViolationError as exc:
+        logger.warning("tool_runner.policy_denied tool=%r reason=%s", name, exc)
+        raise  # Re-raise to prevent unauthorized execution
+    return await tools.execute(name, args, context=pc.context)
 
 
 async def _record_transport_failure(
@@ -276,16 +326,24 @@ async def execute_one_tool_call(
     ctx: AgentContext,
     pc: PreparedToolCall,
     guard: ToolLoopGuard,
+    *,
+    state_key: str | None = None,
 ) -> tuple[str, str, dict, str, bool, str]:
     """Execute and truncate one already-prepared tool call.
 
-    A non-error result is recorded on *guard* here, as it is produced and before
-    truncation, so empty-result counts are visible while the rest of the batch runs.
+    A non-error result is recorded on *guard* when produced, before
+    truncation, so empty-result counts stay visible while the batch runs.
+
+    When *state_key* is given (the key from _record_pending_state), also
+    writes the result-driven intent transitions: `response_received` on a
+    response-bearing result, then the terminal `completed`/`failed`. A
+    post-send failure (dispatch_stage "sent" with an error result) leaves the
+    row at `dispatched` for classify_stale_pending — never finalized here
+    (AC-6).
 
     Returns (tc_id, name, args, full_text, is_error, llm_text).
     Raises ToolExecutorUnavailableError when ctx.services_required.tools is None.
-    Argument parsing and validation already happened in the preparation phase
-    (agent.tool_preparation.prepare_tool_calls) before this function is ever called.
+    Argument parsing and validation already happened in prepare_tool_calls().
     """
     tools = ctx.services_required.tools
     if tools is None:
@@ -295,8 +353,7 @@ async def execute_one_tool_call(
     name = pc.name
     args = pc.args
 
-    idempotency_key = _idempotency_key(ctx, pc)
-    result = await _execute_prepared_call(ctx, tools, name, args)
+    result = await _execute_prepared_call(ctx, tools, pc)
     text, is_error, x_request_id = result.output, result.is_error, result.request_id
     audit_tool_exec(
         ctx,
@@ -306,8 +363,13 @@ async def execute_one_tool_call(
         x_request_id,
         result.error_type,
         source=result.source,
-        idempotency_key=idempotency_key,
+        idempotency_key=_logical_call_id(pc),
     )
+    if state_key is not None:
+        if result.dispatch_stage == "response":
+            _finalize_state(ctx, state_key, "response_received", name)
+        if not (result.dispatch_stage == "sent" and is_error):
+            _finalize_state(ctx, state_key, "failed" if is_error else "completed", name)
 
     await _record_transport_failure(ctx, name, result)
     guard.observe_availability(result)

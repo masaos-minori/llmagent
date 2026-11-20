@@ -6,7 +6,9 @@ MCP tool execution layer.
 Provides HttpTransport implementation for POST /v1/call_tool over httpx.
 
 ToolExecutor routes tool calls to the appropriate server via ToolRouteResolver
-and delegates execution to the configured transport.
+and delegates execution to the configured transport, forwarding the call's
+ToolExecutionContext unchanged from `execute` down to the transport (the
+context-carrying contract, mcpdl001 AC-2).
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ from shared.mcp_config import McpServerConfig
 from shared.route_resolver import ToolRouteResolver, ToolRoutingError
 from shared.tool_lifecycle import LifecycleProtocol
 from shared.tool_transport_invoker import ToolTransportInvoker
-from shared.transport_dto import ToolCallResult
+from shared.transport_dto import ToolCallResult, ToolExecutionContext
 
 logger = logging.getLogger(__name__)
 
@@ -89,24 +91,29 @@ class ToolExecutor(ToolTransportInvoker):
         self,
         tool_name: str,
         args: dict[str, Any],
+        context: ToolExecutionContext | None = None,
     ) -> ToolCallResult:
         """Execute tool via the appropriate transport; applies per-server-key Semaphore when configured."""
         server_key = self._resolver.resolve(tool_name)
-        return await self._run_precall_gates(server_key, tool_name, args)
+        return await self._run_precall_gates(server_key, tool_name, args, context)
 
     async def execute(
         self,
         tool_name: str,
         args: dict[str, Any],
+        context: ToolExecutionContext | None = None,
     ) -> ToolCallResult:
         """Execute a tool; convert routing failures to a normalized result.
 
         A ToolRoutingError (not_ready, unknown_tool, posture_excluded,
         server_unavailable) never reaches the transport; it becomes a
-        ToolCallResult with error_type="routing" carrying the kind.
+        ToolCallResult with error_type="routing" carrying the kind. Routing
+        failures keep context=None/dispatch_stage="" — no transport call
+        happened. When `context` is given it is forwarded unchanged to the
+        invoker and the transport (AC-2 propagation).
         """
         try:
-            return await self._raw_execute(tool_name, args)
+            return await self._raw_execute(tool_name, args, context)
         except ToolRoutingError as exc:
             logger.warning("routing failure for tool %r: %s", tool_name, exc.kind)
             return self._error_result(

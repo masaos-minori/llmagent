@@ -18,7 +18,7 @@ from shared.tool_transport_invoker import (
     DEFAULT_PER_SERVER_CONCURRENCY,
     ToolTransportInvoker,
 )
-from shared.transport_dto import ToolCallResult
+from shared.transport_dto import ToolCallResult, ToolExecutionContext
 
 
 def _http_cfg(
@@ -165,7 +165,9 @@ class TestToolTransportInvoker:
 
         call_count = 0
 
-        async def _slow_call(name: str, args: dict[str, Any]) -> ToolCallResult:
+        async def _slow_call(
+            name: str, args: dict[str, Any], context: ToolExecutionContext | None = None
+        ) -> ToolCallResult:
             nonlocal call_count
             call_count += 1
             return ToolCallResult(
@@ -286,7 +288,9 @@ class TestHalfOpenSingleTrialGate:
         mock_transport = AsyncMock()
         call_log: list[int] = []
 
-        async def _rec_call(name: str, args: dict[str, Any]) -> ToolCallResult:
+        async def _rec_call(
+            name: str, args: dict[str, Any], context: ToolExecutionContext | None = None
+        ) -> ToolCallResult:
             call_log.append(1)
             return ToolCallResult(
                 output="ok", is_error=False, request_id="", server_key="srv"
@@ -365,7 +369,9 @@ class TestHalfOpenSingleTrialGate:
         registry = self._unavailable_registry()
         invoker = _make_invoker(health_registry=registry)
 
-        async def _raising(name: str, args: dict[str, Any]) -> ToolCallResult:
+        async def _raising(
+            name: str, args: dict[str, Any], context: ToolExecutionContext | None = None
+        ) -> ToolCallResult:
             raise RuntimeError("boom")
 
         mock_transport = MagicMock(spec=HttpTransport)
@@ -403,7 +409,17 @@ class TestRetryGatesRunOnce:
         invoker._maybe_semaphore = MagicMock(wraps=invoker._maybe_semaphore)  # type: ignore[method-assign]
         monkeypatch.setattr("shared.http_transport.asyncio.sleep", AsyncMock())
 
-        result = await invoker.invoke("srv", "some_tool", {})
+        result = await invoker.invoke(
+            "srv",
+            "some_tool",
+            {},
+            ToolExecutionContext(
+                call_id="018f0000-0000-7000-8000-0000000000cc",
+                tool="some_tool",
+                args_hash="h",
+                operation="call_tool",
+            ),
+        )
 
         assert http.post.call_count == 3  # retries exhausted on persistent 503
         assert invoker._check_health.call_count == 1  # health gate runs once
@@ -444,7 +460,12 @@ class _ConcurrencyProbe:
         self.reached = asyncio.Event()
         self.gate = asyncio.Event()
 
-    async def call(self, tool_name: str, args: dict[str, Any]) -> ToolCallResult:
+    async def call(
+        self,
+        tool_name: str,
+        args: dict[str, Any],
+        context: ToolExecutionContext | None = None,
+    ) -> ToolCallResult:
         self.current += 1
         self.peak = max(self.peak, self.current)
         if self.current == self.expected_peak:
@@ -653,3 +674,91 @@ class TestToolLevelHealthCascade:
         assert registry.get_state("srv") != McpServerHealthState.HEALTHY
         assert invoker.stat_transport_errors.get("srv", 0) == 1
         assert result.error_type == "transport"
+
+
+class TestExecutionContextPropagation:
+    """mcpdl001 row 15 (REQ-002/REQ-005, AC-6): the invoker forwards the
+    context verbatim to the transport and stamps every result it builds."""
+
+    _CTX = ToolExecutionContext(
+        call_id="018f0000-0000-7000-8000-0000000000dd",
+        tool="some_tool",
+        args_hash="args-hash",
+        operation="call_tool",
+    )
+
+    @pytest.mark.asyncio
+    async def test_context_reaches_transport_and_result(self) -> None:
+        invoker = _make_invoker()
+        seen: list[ToolExecutionContext | None] = []
+
+        async def _capture(
+            name: str,
+            args: dict[str, Any],
+            context: ToolExecutionContext | None = None,
+        ) -> ToolCallResult:
+            seen.append(context)
+            # mirrors HttpTransport.call: the transport stamps the context and
+            # dispatch_stage="response" on every returned result (AC-2).
+            return ToolCallResult(
+                output="ok",
+                is_error=False,
+                request_id="",
+                server_key="srv",
+                context=context,
+                dispatch_stage="response",
+            )
+
+        mock_transport = MagicMock(spec=HttpTransport)
+        mock_transport.call = _capture
+        invoker._transports["srv"] = mock_transport  # type: ignore[assignment]
+
+        result = await invoker.invoke("srv", "some_tool", {}, self._CTX)
+
+        assert seen == [self._CTX]  # verbatim, unchanged
+        assert result.context is self._CTX
+
+    @pytest.mark.asyncio
+    async def test_transport_failure_result_carries_stage_and_context(self) -> None:
+        """TransportError.stage lands on the error result's dispatch_stage (AC-6)."""
+        invoker = _make_invoker()
+        mock_transport = MagicMock(spec=HttpTransport)
+        mock_transport.call = AsyncMock(
+            side_effect=TransportError("post-send", stage="sent")
+        )
+        invoker._transports["srv"] = mock_transport  # type: ignore[assignment]
+
+        result = await invoker.invoke("srv", "some_tool", {}, self._CTX)
+
+        assert result.is_error is True
+        assert result.error_type == "transport"
+        assert result.context is self._CTX
+        assert result.dispatch_stage == "sent"
+
+    @pytest.mark.asyncio
+    async def test_response_stage_failure_result(self) -> None:
+        invoker = _make_invoker()
+        mock_transport = MagicMock(spec=HttpTransport)
+        mock_transport.call = AsyncMock(
+            side_effect=TransportError("bad response", stage="response")
+        )
+        invoker._transports["srv"] = mock_transport  # type: ignore[assignment]
+
+        result = await invoker.invoke("srv", "some_tool", {}, self._CTX)
+
+        assert result.dispatch_stage == "response"
+        assert result.context is self._CTX
+
+    @pytest.mark.asyncio
+    async def test_gate_rejection_results_carry_context_and_empty_stage(self) -> None:
+        """Health-gate rejection happens before dispatch: context carried,
+        dispatch_stage="" (nothing was sent)."""
+        registry = McpServerHealthRegistry(failure_threshold=1)
+        registry.record_failure("srv")
+        invoker = _make_invoker(health_registry=registry)
+
+        result = await invoker.invoke("srv", "some_tool", {}, self._CTX)
+
+        assert result.is_error is True
+        assert result.context is self._CTX
+        assert result.dispatch_stage == ""

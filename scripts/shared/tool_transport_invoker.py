@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 import logging
 from typing import Any
 
@@ -20,7 +21,11 @@ from shared.mcp_health import (
     McpServerHealthState,
 )
 from shared.tool_lifecycle import _PERMITTED_LIFECYCLE_EXCEPTIONS, LifecycleProtocol
-from shared.transport_dto import DynamicAvailabilityHint, ToolCallResult
+from shared.transport_dto import (
+    DynamicAvailabilityHint,
+    ToolCallResult,
+    ToolExecutionContext,
+)
 
 logger = logging.getLogger(__name__)
 attach_redaction_filter(logger)
@@ -149,11 +154,14 @@ class ToolTransportInvoker:
         output: str,
         error_type: str = "tool",
         availability_hint: DynamicAvailabilityHint | None = None,
+        context: ToolExecutionContext | None = None,
     ) -> ToolCallResult:
         """Construct a ToolCallResult indicating a tool-level error.
 
         ``availability_hint`` is advisory data carried on the result; only
         the health-gate rejections pass one (see ``_check_health``).
+        ``dispatch_stage`` is always ``""`` here: these results are built
+        before anything was dispatched.
         """
         return ToolCallResult(
             output=output,
@@ -163,9 +171,13 @@ class ToolTransportInvoker:
             source="mcp",
             error_type=error_type,
             availability_hint=availability_hint,
+            context=context,
+            dispatch_stage="",
         )
 
-    def _check_health(self, server_key: str) -> tuple[ToolCallResult | None, bool]:
+    def _check_health(
+        self, server_key: str, context: ToolExecutionContext | None = None
+    ) -> tuple[ToolCallResult | None, bool]:
         """Return (error_result_or_None, owns_half_open_trial).
 
         `owns_half_open_trial` is True when this call became the HALF_OPEN trial
@@ -193,6 +205,7 @@ class ToolTransportInvoker:
                         circuit_state=McpServerHealthState.HALF_OPEN,
                         retry_after_seconds=None,
                     ),
+                    context=context,
                 ),
                 False,
             )
@@ -215,6 +228,7 @@ class ToolTransportInvoker:
                             server_key
                         ),
                     ),
+                    context=context,
                 ),
                 False,
             )
@@ -238,22 +252,39 @@ class ToolTransportInvoker:
             self._increment_counter(self.stat_tool_errors, server_key)
 
     def _record_transport_error(
-        self, server_key: str, e: TransportError
+        self,
+        server_key: str,
+        e: TransportError,
+        context: ToolExecutionContext | None = None,
     ) -> ToolCallResult:
-        """Record a transport-layer error and return an error result."""
+        """Record a transport-layer error and return an error result.
+
+        The error result carries the call's context and the `stage` the
+        transport recorded on the exception: a `\"sent\"`/`\"response\"` failure
+        result is the signal the agent-side intent writer uses to leave the row
+        at a dispatch-stage state (never replayed, AC-6).
+        """
         self._increment_counter(self.stat_transport_errors, server_key)
         state = self._health_registry.record_failure(server_key)
         logger.warning(
             "transport failure for %r: %s (state=%s)", server_key, e, state.value
         )
-        return self._error_result(server_key, str(e), error_type="transport")
+        result = self._error_result(server_key, str(e), error_type="transport")
+        return dataclasses.replace(result, context=context, dispatch_stage=e.stage)
 
-    def _handle_lifecycle_error(self, server_key: str, e: Exception) -> ToolCallResult:
+    def _handle_lifecycle_error(
+        self,
+        server_key: str,
+        e: Exception,
+        context: ToolExecutionContext | None = None,
+    ) -> ToolCallResult:
         """Handle a lifecycle failure: record health failure and return normalized error result."""
         msg = f"Lifecycle ensure_ready failed for {server_key!r}: {e}"
         logger.error(msg)
         self._health_registry.record_failure(server_key)
-        return self._error_result(server_key, msg, error_type="transport")
+        return self._error_result(
+            server_key, msg, error_type="transport", context=context
+        )
 
     async def _execute_with_semaphore(
         self,
@@ -261,10 +292,11 @@ class ToolTransportInvoker:
         tool_name: str,
         args: dict[str, Any],
         sem: asyncio.Semaphore | None,
+        context: ToolExecutionContext | None = None,
     ) -> ToolCallResult:
         """Execute a transport call under optional concurrency semaphore."""
         async with self._maybe_semaphore(sem):
-            return await transport.call(tool_name, args)
+            return await transport.call(tool_name, args, context=context)
 
     async def _invoke_and_record(
         self,
@@ -273,20 +305,24 @@ class ToolTransportInvoker:
         tool_name: str,
         args: dict[str, Any],
         sem: asyncio.Semaphore | None,
+        context: ToolExecutionContext | None = None,
     ) -> ToolCallResult:
         """Execute the transport call under the semaphore and record success/transport-error; shared by invoke() and ToolExecutor._raw_execute."""
         try:
-            result = await self._execute_with_semaphore(transport, tool_name, args, sem)
+            result = await self._execute_with_semaphore(
+                transport, tool_name, args, sem, context
+            )
             self._record_success(server_key, result)
             return result
         except TransportError as e:
-            return self._record_transport_error(server_key, e)
+            return self._record_transport_error(server_key, e, context)
 
     async def _run_precall_gates(
         self,
         server_key: str,
         tool_name: str,
         args: dict[str, Any],
+        context: ToolExecutionContext | None = None,
     ) -> ToolCallResult:
         """Run the pre-call gate chain once per logical call: health → disabled →
         lifecycle → transport → semaphore → dispatch.
@@ -295,8 +331,13 @@ class ToolTransportInvoker:
         HttpTransport.call (the retry loop in scripts/shared/http_transport.py::call)
         intentionally bypass these gates; they are NOT re-evaluated between attempts.
         Per-logical-call gating is enforced by the single HALF_OPEN trial
-        (_check_health) and the per-call semaphore (_execute_with_semaphore)."""
-        health_err, owns_half_open_trial = self._check_health(server_key)
+        (_check_health) and the per-call semaphore (_execute_with_semaphore).
+
+        `context` is the call's logical identity (row 13): every gate rejection
+        and every transport failure result carries it so the agent-side intent
+        writer can key the state row.
+        """
+        health_err, owns_half_open_trial = self._check_health(server_key, context)
         if health_err is not None:
             return health_err
 
@@ -309,26 +350,30 @@ class ToolTransportInvoker:
                     "(startup_mode=none) and cannot be used"
                 )
                 logger.warning(msg)
-                return self._error_result(server_key, msg, error_type="tool")
+                return self._error_result(
+                    server_key, msg, error_type="tool", context=context
+                )
 
             if self._lifecycle is not None:
                 try:
                     await self._lifecycle.ensure_ready(server_key)
                 except Exception as e:
                     if isinstance(e, _PERMITTED_LIFECYCLE_EXCEPTIONS):
-                        return self._handle_lifecycle_error(server_key, e)
+                        return self._handle_lifecycle_error(server_key, e, context)
                     raise
 
             transport = self._transports.get(server_key)
             if transport is None:
                 msg = self._transport_missing_msg(server_key)
                 logger.error(msg)
-                return self._error_result(server_key, msg, error_type="tool")
+                return self._error_result(
+                    server_key, msg, error_type="tool", context=context
+                )
 
             self._ensure_semaphores()
             sem = (self._semaphores or {}).get(server_key)
             return await self._invoke_and_record(
-                server_key, transport, tool_name, args, sem
+                server_key, transport, tool_name, args, sem, context
             )
         finally:
             # Release the HALF_OPEN trial flag on every exit path so a cancelled
@@ -343,8 +388,9 @@ class ToolTransportInvoker:
         server_key: str,
         tool_name: str,
         args: dict[str, Any],
+        context: ToolExecutionContext | None = None,
     ) -> ToolCallResult:
         """Invoke tool via transport; applies health check, lifecycle, semaphore, and
         recording exactly once per logical call. In-call HTTP retries inside
         HttpTransport.call do not re-enter these gates."""
-        return await self._run_precall_gates(server_key, tool_name, args)
+        return await self._run_precall_gates(server_key, tool_name, args, context)

@@ -6,23 +6,25 @@ Unit tests for tool_runner.py: DAG execution, standard execution, and entry poin
 from __future__ import annotations
 
 import asyncio
-import hashlib
+import dataclasses
 import logging
 import threading
+import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
-import httpx
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.context import ConversationState, TurnState
 from agent.repository_gateway import RepositoryGateway
+from agent.shared.models import ApprovalGrant
+from agent.tool_enums import ApprovalDecisionType
 from agent.tool_exceptions import ToolExecutorUnavailableError
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.tool_policy import PolicyViolationError
-from agent.tool_preparation import PreparedToolCall
+from agent.tool_preparation import PreparedToolCall, _canonical_args_hash
 from agent.tool_run_recorder import get_serialization_stats
 from agent.tool_runner import (
     _apply_turn_char_limit,
@@ -34,12 +36,10 @@ from agent.tool_runner import (
     execute_one_tool_call,
 )
 from agent.tool_scheduler import ExecutionPlan, ScheduledBatch, ScheduledGroup
-from shared.http_transport import HttpTransport, derive_idempotency_key
-from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.tool_constants import RETRYABLE_TOOLS
 from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
-from shared.transport_dto import ToolCallResult
+from shared.transport_dto import ToolCallResult, ToolExecutionContext
 
 from tests.agent._config_test_defaults import ALL_TOOL_NAMES, PERMISSIVE_ALLOWED_ROOT
 
@@ -124,7 +124,10 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx = MagicMock()
     ctx.cfg = cfg or _cfg()
     ctx.turn.current_turn_id = "test-turn-id"
-    ctx.services_required.audit_logger = None
+    # mcpdl001 REQ-007 fail-closed: side-effecting calls raise when the audit
+    # logger is None, so the generic fixture carries a mock; audit-sensitive
+    # tests override this attribute explicitly.
+    ctx.services_required.audit_logger = MagicMock()
     ctx.services_required.gateway = None
     ctx.services_required.runtime_tools = _default_runtime_tools()
     ctx.services_required.tools = MagicMock()
@@ -171,6 +174,9 @@ def _pc(
     call_id: str | None = None,
     spec: ToolSpec | None = None,
     tc: dict | None = None,
+    *,
+    context: bool = True,
+    grant: bool = True,
 ) -> PreparedToolCall:
     """Build a PreparedToolCall for tests that exercise execute_one_tool_call()
 
@@ -178,6 +184,11 @@ def _pc(
     pipeline. call_id defaults to f"call_{name}" to match _tc()'s id
     convention, so existing assertions on specific call ids keep working when
     a _tc(name) call site is swapped for _pc(name, args).
+
+    mcpdl001 shape: the fixture carries the execution context and approval
+    grant the real pipeline produces — the context call_id equals call_id so
+    state-row keys stay deterministic. context=False / grant=False build the
+    id-less / ungranted shapes the fail-closed gates deny (REQ-003/REQ-006).
     """
     resolved_call_id = call_id or f"call_{name}"
     return PreparedToolCall(
@@ -191,6 +202,27 @@ def _pc(
             "id": resolved_call_id,
             "function": {"name": name, "arguments": "{}"},
         },
+        context=(
+            ToolExecutionContext(
+                call_id=resolved_call_id,
+                tool=name,
+                args_hash=_canonical_args_hash(args),
+                operation="call_tool",
+            )
+            if context
+            else None
+        ),
+        grant=(
+            ApprovalGrant(
+                tool=name,
+                args_hash=_canonical_args_hash(args),
+                mode=ApprovalDecisionType.APPROVED.value,
+                issued_at=time.time(),
+                expires_at=time.time() + 300.0,
+            )
+            if grant
+            else None
+        ),
     )
 
 
@@ -317,7 +349,9 @@ class TestExecuteWithDag:
         )
         call_order: list[str] = []
 
-        async def _record_exec(name: str, _args: dict) -> ToolCallResult:
+        async def _record_exec(
+            name: str, _args: dict, *, context: object | None = None
+        ) -> ToolCallResult:
             call_order.append(name)
             return ToolCallResult(
                 output="ok", is_error=False, request_id="req-1", server_key=""
@@ -358,7 +392,9 @@ class TestExecuteWithDag:
         )
         call_order: list[str] = []
 
-        async def _record_exec(name: str, _args: dict) -> ToolCallResult:
+        async def _record_exec(
+            name: str, _args: dict, *, context: object | None = None
+        ) -> ToolCallResult:
             call_order.append(name)
             return ToolCallResult(
                 output="ok", is_error=False, request_id="req-1", server_key=""
@@ -412,7 +448,9 @@ class TestExecuteWithDag:
         )
         executed: list[str] = []
 
-        async def _record(name: str, _args: dict) -> ToolCallResult:
+        async def _record(
+            name: str, _args: dict, *, context: object | None = None
+        ) -> ToolCallResult:
             executed.append(name)
             return ToolCallResult(
                 output="ok", is_error=False, request_id="req", server_key=""
@@ -669,7 +707,9 @@ class TestExecuteOneToolCallRecordsOnGuard:
     async def test_collector_no_longer_reads_a_guard_from_ctx(self) -> None:
         ctx = self._ctx()
         ctx.guard = ToolLoopGuard(ctx)  # the old, never-assigned attribute
-        results = [("c1", "read_text_file", {}, "", False, "")]
+        results: list[tuple[str, str, dict[str, Any], str, bool, str]] = [
+            ("c1", "read_text_file", {}, "", False, "")
+        ]
 
         await _collect_tool_result_msgs(ctx, results, 0, None)
 
@@ -691,14 +731,32 @@ def _saved_tool_ids(ctx: MagicMock) -> list[str]:
 
 def _saved_text(ctx: MagicMock, call_id: str) -> str:
     rows = ctx.turn.persistence_boundary.save_phase_grouped.call_args.args[0]
-    return next(row[1] for row in rows if row[3] == call_id)
+    return str(next(row[1] for row in rows if row[3] == call_id))
+
+
+def _grant_for(pc: PreparedToolCall) -> ApprovalGrant:
+    now = time.time()
+    return ApprovalGrant(
+        tool=pc.name,
+        args_hash=pc.context.args_hash if pc.context else "",
+        mode=ApprovalDecisionType.APPROVED.value,
+        issued_at=now,
+        expires_at=now + 300.0,
+    )
+
+
+def _approve_issuing_grants(
+    ctx: Any, prepared: list[PreparedToolCall]
+) -> tuple[list[PreparedToolCall], list[str]]:
+    """Approval stand-in mirroring row 02: approved calls carry their grant."""
+    return [dataclasses.replace(pc, grant=_grant_for(pc)) for pc in prepared], []
 
 
 def _approve_all() -> Any:
     return patch(
         "agent.tool_approval.run_approval_checks",
         new_callable=AsyncMock,
-        side_effect=lambda ctx, prepared: (prepared, []),
+        side_effect=_approve_issuing_grants,
     )
 
 
@@ -1073,7 +1131,9 @@ class TestCancellationDispatchState:
         started = asyncio.Event()
         block = asyncio.Event()
 
-        async def blocking_execute(name: str, args: dict) -> ToolCallResult:
+        async def blocking_execute(
+            name: str, args: dict, *, context: object | None = None
+        ) -> ToolCallResult:
             started.set()
             await block.wait()  # never set: the round is cancelled while here
             return _ok("never-reached")
@@ -1147,7 +1207,9 @@ class TestCancellationDispatchState:
         started = asyncio.Event()
         block = asyncio.Event()
 
-        async def blocking_execute(name: str, args: dict) -> ToolCallResult:
+        async def blocking_execute(
+            name: str, args: dict, *, context: object | None = None
+        ) -> ToolCallResult:
             started.set()
             await block.wait()  # never set: the round is cancelled while here
             return _ok("never-reached")
@@ -1255,11 +1317,7 @@ class TestExecuteAllToolCalls:
             )
         )
 
-        with patch(
-            "agent.tool_approval.run_approval_checks",
-            new_callable=AsyncMock,
-            side_effect=lambda ctx, prepared: (prepared, []),
-        ):
+        with _approve_all():
             await execute_all_tool_calls(
                 ctx,
                 [_tc("read_text_file", '{"path": "/tmp/f"}')],
@@ -1268,7 +1326,7 @@ class TestExecuteAllToolCalls:
             )
 
         ctx.services_required.tools.execute.assert_awaited_once_with(
-            "read_text_file", {"path": "/tmp/f"}
+            "read_text_file", {"path": "/tmp/f"}, context=ANY
         )
         ctx.turn.persistence_boundary.save_phase_grouped.assert_called_once()
 
@@ -1288,11 +1346,7 @@ class TestExecuteAllToolCalls:
             "id": "call_1",
             "function": {"name": "write_file", "arguments": "{}"},
         }
-        with patch(
-            "agent.tool_approval.run_approval_checks",
-            new_callable=AsyncMock,
-            side_effect=lambda ctx, prepared: (prepared, []),
-        ):
+        with _approve_all():
             await execute_all_tool_calls(
                 ctx,
                 [write_call],
@@ -1300,7 +1354,9 @@ class TestExecuteAllToolCalls:
                 guard=ToolLoopGuard(ctx),
             )
 
-        ctx.services_required.tools.execute.assert_awaited_once_with("write_file", {})
+        ctx.services_required.tools.execute.assert_awaited_once_with(
+            "write_file", {}, context=ANY
+        )
 
     @pytest.mark.asyncio
     async def test_no_tool_calls_does_nothing(self) -> None:
@@ -1365,7 +1421,11 @@ class TestExecuteAllToolCalls:
             "agent.tool_approval.run_approval_checks",
             new_callable=AsyncMock,
             side_effect=lambda ctx, prepared: (
-                [pc for pc in prepared if pc.call_id != "call_write"],
+                [
+                    dataclasses.replace(pc, grant=_grant_for(pc))
+                    for pc in prepared
+                    if pc.call_id != "call_write"
+                ],
                 ["call_write"],
             ),
         ):
@@ -1374,7 +1434,7 @@ class TestExecuteAllToolCalls:
             )
 
         ctx.services_required.tools.execute.assert_awaited_once_with(
-            "read_text_file", {}
+            "read_text_file", {}, context=ANY
         )
         # Should have both the tool result and the denied message
         assert len(ctx.conv.history) == 2
@@ -1388,17 +1448,13 @@ class TestExecuteAllToolCalls:
         no_id_call = {"function": {"name": "read_text_file", "arguments": "{}"}}
         valid_call = _tc("read_text_file")
 
-        with patch(
-            "agent.tool_approval.run_approval_checks",
-            new_callable=AsyncMock,
-            side_effect=lambda ctx, prepared: (prepared, []),
-        ):
+        with _approve_all():
             await execute_all_tool_calls(
                 ctx, [no_id_call, valid_call], 0, guard=ToolLoopGuard(ctx)
             )
 
         ctx.services_required.tools.execute.assert_awaited_once_with(
-            "read_text_file", {}
+            "read_text_file", {}, context=ANY
         )
         assert len(ctx.conv.history) == 2
         assert ctx.conv.history[0]["tool_call_id"] == ""
@@ -1485,7 +1541,11 @@ class TestExecuteAllToolCalls:
             "agent.tool_approval.run_approval_checks",
             new_callable=AsyncMock,
             side_effect=lambda ctx, prepared: (
-                [pc for pc in prepared if pc.call_id != "call_write"],
+                [
+                    dataclasses.replace(pc, grant=_grant_for(pc))
+                    for pc in prepared
+                    if pc.call_id != "call_write"
+                ],
                 ["call_write"],
             ),
         ):
@@ -1714,11 +1774,7 @@ class TestExecuteStandardSerialization:
         ctx.diagnostics = None
 
         write_call = _tc("write_file", '{"path": "/tmp/f"}')
-        with patch(
-            "agent.tool_approval.run_approval_checks",
-            new_callable=AsyncMock,
-            side_effect=lambda ctx, prepared: (prepared, []),
-        ):
+        with _approve_all():
             await execute_all_tool_calls(ctx, [write_call], 0, guard=ToolLoopGuard(ctx))
 
         assert len(ctx.stats.stat_serialization_events) == 1
@@ -1745,11 +1801,7 @@ class TestExecuteStandardSerialization:
         ctx.stats.stat_serialization_events = []
 
         read_call = _tc("read_text_file", '{"path": "/tmp/f"}')
-        with patch(
-            "agent.tool_approval.run_approval_checks",
-            new_callable=AsyncMock,
-            side_effect=lambda ctx, prepared: (prepared, []),
-        ):
+        with _approve_all():
             await execute_all_tool_calls(ctx, [read_call], 0, guard=ToolLoopGuard(ctx))
 
         assert ctx.stats.stat_serialization_events == []
@@ -1767,11 +1819,7 @@ class TestExecuteStandardSerialization:
         ctx.stats.stat_serialization_events = []
 
         unknown_call = _tc("unknown_tool", '{"path": "/tmp/f"}')
-        with patch(
-            "agent.tool_approval.run_approval_checks",
-            new_callable=AsyncMock,
-            side_effect=lambda ctx, prepared: (prepared, []),
-        ):
+        with _approve_all():
             await execute_all_tool_calls(
                 ctx, [unknown_call], 0, guard=ToolLoopGuard(ctx)
             )
@@ -1795,11 +1843,7 @@ class TestExecuteStandardSerialization:
         ctx.stats.stat_serialization_events = []
 
         read_call = _tc("read_text_file", '{"path": "/tmp/f"}')
-        with patch(
-            "agent.tool_approval.run_approval_checks",
-            new_callable=AsyncMock,
-            side_effect=lambda ctx, prepared: (prepared, []),
-        ):
+        with _approve_all():
             await execute_all_tool_calls(ctx, [read_call], 0, guard=ToolLoopGuard(ctx))
 
         assert ctx.stats.stat_serialization_events == []
@@ -1820,11 +1864,7 @@ class TestExecuteStandardSerialization:
         ctx.diagnostics = MagicMock()
 
         write_call = _tc("write_file", '{"path": "/tmp/f"}')
-        with patch(
-            "agent.tool_approval.run_approval_checks",
-            new_callable=AsyncMock,
-            side_effect=lambda ctx, prepared: (prepared, []),
-        ):
+        with _approve_all():
             await execute_all_tool_calls(ctx, [write_call], 0, guard=ToolLoopGuard(ctx))
 
         ctx.diagnostics.save_serialization_event.assert_called_once()
@@ -1856,11 +1896,7 @@ class TestExecuteStandardSerialization:
             "id": "call_write_2",
             "function": {"name": "write_file", "arguments": "{}"},
         }
-        with patch(
-            "agent.tool_approval.run_approval_checks",
-            new_callable=AsyncMock,
-            side_effect=lambda ctx, prepared: (prepared, []),
-        ):
+        with _approve_all():
             await execute_all_tool_calls(
                 ctx, [write_call_1, write_call_2], 0, guard=ToolLoopGuard(ctx)
             )
@@ -1912,11 +1948,7 @@ class TestExecuteStandardSerialization:
             "id": "call_write_2",
             "function": {"name": "write_file", "arguments": "{}"},
         }
-        with patch(
-            "agent.tool_approval.run_approval_checks",
-            new_callable=AsyncMock,
-            side_effect=lambda ctx, prepared: (prepared, []),
-        ):
+        with _approve_all():
             await execute_all_tool_calls(
                 ctx,
                 [read_call, write_call_1, write_call_2],
@@ -1938,7 +1970,7 @@ class TestGatewayBypassGapResolution:
 
         The investigation confirmed:
         1. No production code path ever produces gateway=None after initialization
-           (factory.py:652 creates RepositoryGateway unconditionally).
+           (factory.py creates RepositoryGateway unconditionally).
         2. The approval gate independently enforces check_preflight.
         3. Read-only tools already bypass the gateway in the normal path too.
 
@@ -1946,7 +1978,7 @@ class TestGatewayBypassGapResolution:
         """
         source = Path("scripts/agent/tool_runner.py").read_text()
         assert "Gateway-bypass safety justification:" in source
-        assert "factory.py:652 creates RepositoryGateway unconditionally" in source
+        assert "factory.py creates RepositoryGateway unconditionally" in source
 
     @pytest.mark.asyncio
     async def test_execute_via_gateway_when_present(self) -> None:
@@ -2112,7 +2144,9 @@ class TestFailedResultHashKey:
     @pytest.mark.asyncio
     async def test_absent_failed_keys_container_is_tolerated(self) -> None:
         ctx = _make_ctx()
-        results = [("call_1", "read_text_file", {}, "boom", True, "boom")]
+        results: list[tuple[str, str, dict[str, Any], str, bool, str]] = [
+            ("call_1", "read_text_file", {}, "boom", True, "boom")
+        ]
 
         tool_msgs = await _collect_tool_result_msgs(ctx, results, 0, None)
 
@@ -2282,7 +2316,8 @@ def _state_ctx(recorder: FakeRecorder | None, session_id: str = "sess-42") -> Ma
     """_make_ctx() wired for the tool_call_state producer (REQ-005 consumer side).
 
     current_task_id is set because _record_pending_state treats a None task
-    context as unwired; session_id is fixed so the derived key is deterministic.
+    context as unwired; the row key is each call's logical call id (mcpdl001
+    REQ-003), pinned by the _pc fixture's context.
     """
     ctx = _make_ctx()
     ctx.session.session_id = session_id
@@ -2306,9 +2341,12 @@ class TestToolCallStateProducer:
         events: list[str] = []
         recorder = FakeRecorder(events=events)
         ctx = _state_ctx(recorder)
-        ctx.services_required.tools.execute = AsyncMock(
-            side_effect=lambda *a, **k: (events.append("execute"), _ok())[1]
-        )
+
+        def _exec(*_a: Any, **_k: Any) -> ToolCallResult:
+            events.append("execute")
+            return _ok()
+
+        ctx.services_required.tools.execute = AsyncMock(side_effect=_exec)
         pc = _pc("read_text_file", {"path": "/tmp/a"}, call_id="c1")
         collected: dict[str, tuple] = {}
 
@@ -2316,15 +2354,20 @@ class TestToolCallStateProducer:
             ctx, [pc], guard=ToolLoopGuard(ctx), collected=collected
         )
 
-        assert events == ["record", "execute", "finalize:completed"]
+        assert events == [
+            "record",
+            "finalize:dispatch_starting",
+            "finalize:dispatched",
+            "execute",
+            "finalize:completed",
+        ]
         (recorded,) = recorder.records()
         assert recorded[1] == "task-1"
         assert recorded[3] == "read_text_file"
         assert recorded[5] == "pending"
-        assert recorded[2] == (
-            derive_idempotency_key("call_tool", "read_text_file", pc.args, "sess-42")
-            + ":task-1"
-        )
+        # mcpdl001 REQ-003: the row key is the logical call id; nothing derived
+        assert pc.context is not None
+        assert recorded[2] == pc.context.call_id == "c1"
 
     @pytest.mark.asyncio
     async def test_completed_finalize_after_success(self) -> None:
@@ -2338,12 +2381,14 @@ class TestToolCallStateProducer:
         )
 
         assert results[0][4] is False
-        (finalized,) = recorder.finalizes()
-        assert finalized[2] == (
-            derive_idempotency_key("call_tool", "read_text_file", pc.args, "sess-42")
-            + ":task-1"
-        )
-        assert finalized[5] == "completed"
+        finals = recorder.finalizes()
+        assert [f[5] for f in finals] == [
+            "dispatch_starting",
+            "dispatched",
+            "completed",
+        ]
+        assert pc.context is not None
+        assert all(f[2] == pc.context.call_id for f in finals)
 
     @pytest.mark.asyncio
     async def test_failed_finalize_after_executor_error(self) -> None:
@@ -2361,19 +2406,23 @@ class TestToolCallStateProducer:
         )
 
         assert results[0][4] is True
-        (finalized,) = recorder.finalizes()
-        assert finalized[2] == (
-            derive_idempotency_key("call_tool", "read_text_file", pc.args, "sess-42")
-            + ":task-1"
-        )
-        assert finalized[5] == "failed"
+        finals = recorder.finalizes()
+        assert [f[5] for f in finals] == [
+            "dispatch_starting",
+            "dispatched",
+            "failed",
+        ]
+        assert pc.context is not None
+        assert all(f[2] == pc.context.call_id for f in finals)
 
     @pytest.mark.asyncio
     async def test_recorder_failure_is_non_fatal(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """REQ-007: record and finalize failures are logged, never fatal, and never
-        leak recorder state into the tool result row."""
+        """mcpdl001 REQ-007 read-only half: for READ calls record and finalize
+        failures stay logged best-effort, never fatal, and never leak recorder
+        state into the tool result row (the side-effecting fail-closed half is
+        TestFailClosedRecording)."""
         with caplog.at_level(logging.WARNING, logger="agent.tool_runner"):
             # Phase A: record raises -> no state_key, tool result untouched.
             recorder_a = FakeRecorder(fail_record=True)
@@ -2413,7 +2462,8 @@ class TestToolCallStateProducer:
 
     @pytest.mark.asyncio
     async def test_baseexception_leaves_pending(self) -> None:
-        """REQ-004: a propagating CancelledError records pending and never finalizes."""
+        """REQ-004: a propagating CancelledError records pending, walks the row to
+        'dispatched', and never writes a terminal state."""
         recorder = FakeRecorder()
         ctx = _state_ctx(recorder)
         ctx.services_required.tools.execute = AsyncMock(
@@ -2431,7 +2481,12 @@ class TestToolCallStateProducer:
 
         assert len(recorder.records()) == 1
         assert recorder.records()[0][5] == "pending"
-        assert recorder.finalizes() == []
+        # No terminal state: the row is stale-classified from 'dispatched'
+        # to outcome_unknown (never replayed, mcpdl001 AC-6).
+        assert [f[5] for f in recorder.finalizes()] == [
+            "dispatch_starting",
+            "dispatched",
+        ]
 
     @pytest.mark.asyncio
     async def test_unwired_recorder_is_noop(self) -> None:
@@ -2500,84 +2555,249 @@ class TestToolCallStateProducer:
         assert "tool_that_does_not_exist" not in RETRYABLE_TOOLS
 
     @pytest.mark.asyncio
-    async def test_key_matches_transport_derivation(self) -> None:
-        """REQ-003 / AC-3 (wfaudit002-updated): the recorded key is the transport
-        derivation scoped by the current task; the wire key the transport sends
-        is the unscoped derivation (same function, same uid branch).
-
-        Replicates the transport uid selection (shared/http_transport.py L194-197:
-        _session_id, falling back to the auth-token hash) on a real HttpTransport
-        after set_session_id(), proving the session-id branch is the one selected.
-        """
+    async def test_identical_content_distinct_calls_distinct_keys(self) -> None:
+        """mcpdl001 REQ-003 / AC-3 (replaces the wfaudit002 task-scoping test):
+        identical call content carried by two logical calls gets two rows — the
+        derived-key collision is gone because the key is the per-call uuid7."""
         recorder = FakeRecorder()
-        ctx = _state_ctx(recorder)
-        pc = _pc("write_file", {"path": "/tmp/w"}, call_id="c1")
-        collected: dict[str, tuple] = {}
-
-        await _execute_with_dag(
-            ctx, [pc], guard=ToolLoopGuard(ctx), collected=collected
-        )
-        recorded_key = recorder.records()[0][2]
-
-        cfg = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://127.0.0.1:8000",
-            call_timeout_sec=60.0,
-            auth_token="test-token",
-            startup_mode=StartupMode.PERSISTENT,
-        )
-        transport = HttpTransport(
-            http=MagicMock(spec=httpx.AsyncClient),
-            base_url="http://127.0.0.1:8000",
-            server_key="srv",
-            cfg=cfg,
-        )
-        transport.set_session_id("sess-42")
-        transport_uid = (
-            transport._session_id
-            or hashlib.sha256(cfg.auth_token.encode("utf-8")).hexdigest()
-        )
-        assert (
-            transport_uid == "sess-42"
-        )  # session-id branch selected, not the token hash
-
-        # wfaudit002: the state key is the transport key scoped by task; the
-        # wire key the transport itself sends remains the unscoped derivation.
-        assert recorded_key == (
-            derive_idempotency_key("call_tool", pc.name, pc.args, transport_uid)
-            + ":task-1"
-        )
-        fallback_uid = hashlib.sha256(cfg.auth_token.encode("utf-8")).hexdigest()
-        assert recorded_key != derive_idempotency_key(
-            "call_tool", pc.name, pc.args, fallback_uid
-        )
-
-    @pytest.mark.asyncio
-    async def test_cross_task_identical_call_distinct_keys(self) -> None:
-        """wfaudit002 REQ-001: identical call content in two tasks gets two rows."""
-        recorder = FakeRecorder()
-        pc = _pc("read_text_file", {"path": "/tmp/a"}, call_id="c1")
-        for task_id in ("task-A", "task-B"):
+        for call_id in ("cA", "cB"):
             ctx = _state_ctx(recorder)
-            ctx.workflow.current_task_id = task_id
+            pc = _pc("read_text_file", {"path": "/tmp/a"}, call_id=call_id)
             await _execute_with_dag(ctx, [pc], guard=ToolLoopGuard(ctx), collected={})
-        base = derive_idempotency_key("call_tool", "read_text_file", pc.args, "sess-42")
         key_a, key_b = (r[2] for r in recorder.records())
-        assert key_a == base + ":task-A"
-        assert key_b == base + ":task-B"
+        assert key_a == "cA"
+        assert key_b == "cB"
         assert key_a != key_b
 
     @pytest.mark.asyncio
-    async def test_intra_task_retry_maps_to_same_key(self) -> None:
-        """wfaudit002 REQ-003: identical content retried in one task -> one key."""
+    async def test_logical_id_retry_invariance(self) -> None:
+        """mcpdl001 REQ-001/AC-1: a retried logical call reuses its execution
+        context — the same prepared call maps to the same key on every pass."""
         recorder = FakeRecorder()
         ctx = _state_ctx(recorder)
-        pc1 = _pc("read_text_file", {"path": "/tmp/a"}, call_id="c1")
-        pc2 = _pc("read_text_file", {"path": "/tmp/a"}, call_id="c2")
-        await _execute_with_dag(ctx, [pc1], guard=ToolLoopGuard(ctx), collected={})
-        await _execute_with_dag(ctx, [pc2], guard=ToolLoopGuard(ctx), collected={})
+        pc = _pc("read_text_file", {"path": "/tmp/a"}, call_id="c1")
+        await _execute_with_dag(ctx, [pc], guard=ToolLoopGuard(ctx), collected={})
+        await _execute_with_dag(ctx, [pc], guard=ToolLoopGuard(ctx), collected={})
         key1, key2 = (r[2] for r in recorder.records())
-        assert key1 == key2
+        assert pc.context is not None
+        assert key1 == key2 == pc.context.call_id
+
+
+class TestFailClosedRecording:
+    """mcpdl001 REQ-005/REQ-007 (AC-5/AC-6): a side-effecting call is denied when
+    its intent row or the mandatory audit record cannot be written; read-only
+    calls keep the best-effort path (pinned by TestToolCallStateProducer)."""
+
+    @pytest.mark.asyncio
+    async def test_record_failure_denies_side_effecting_call(self) -> None:
+        recorder = FakeRecorder(fail_record=True)
+        ctx = _state_ctx(recorder)
+        results = await _execute_with_dag(
+            ctx,
+            [_pc("write_file", {"path": "/tmp/w"}, call_id="cw")],
+            guard=ToolLoopGuard(ctx),
+            collected={},
+        )
+        assert results[0][4] is True
+        ctx.services_required.tools.execute.assert_not_called()
+        assert recorder.records() == []
+        assert recorder.finalizes() == []
+
+    @pytest.mark.asyncio
+    async def test_finalize_failure_denies_before_dispatch(self) -> None:
+        """The dispatch_starting write gates dispatch: its failure denies the call
+        before the executor is reached — no side effect on a dead row."""
+        recorder = FakeRecorder(fail_finalize=True)
+        ctx = _state_ctx(recorder)
+        results = await _execute_with_dag(
+            ctx,
+            [_pc("write_file", {"path": "/tmp/w"}, call_id="cw")],
+            guard=ToolLoopGuard(ctx),
+            collected={},
+        )
+        assert results[0][4] is True
+        ctx.services_required.tools.execute.assert_not_called()
+        assert len(recorder.records()) == 1
+        assert recorder.finalizes() == []
+
+    @pytest.mark.asyncio
+    async def test_unwired_recorder_denies_side_effecting_call(self) -> None:
+        ctx = _state_ctx(None)
+        results = await _execute_with_dag(
+            ctx,
+            [_pc("write_file", {"path": "/tmp/w"}, call_id="cw")],
+            guard=ToolLoopGuard(ctx),
+            collected={},
+        )
+        assert results[0][4] is True
+        ctx.services_required.tools.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_missing_logical_id_denies_side_effecting_call(self) -> None:
+        """AC-3: no logical call id, no side effect — even with a grant present."""
+        ctx = _state_ctx(FakeRecorder())
+        pc = _pc("write_file", {"path": "/tmp/w"}, call_id="cw", context=False)
+        results = await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected={}
+        )
+        assert results[0][4] is True
+        ctx.services_required.tools.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_mandatory_audit_failure_surfaces_error_row(self) -> None:
+        """REQ-007: AuditUnavailableError from the audit call lands as this
+        call's tool-error row and finalizes the intent row failed."""
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+        ctx.services_required.audit_logger = None
+        results = await _execute_with_dag(
+            ctx,
+            [_pc("write_file", {"path": "/tmp/w"}, call_id="cw")],
+            guard=ToolLoopGuard(ctx),
+            collected={},
+        )
+        assert results[0][4] is True
+        assert [f[5] for f in recorder.finalizes()][-1] == "failed"
+
+    @pytest.mark.asyncio
+    async def test_intent_transitions_in_plan_order(self) -> None:
+        """REQ-005: pending -> dispatch_starting -> dispatched ->
+        response_received -> completed, driven by the result's dispatch_stage."""
+        events: list[str] = []
+        recorder = FakeRecorder(events=events)
+        ctx = _state_ctx(recorder)
+        stamped = ToolCallResult(
+            output="result",
+            is_error=False,
+            request_id="r",
+            server_key="",
+            dispatch_stage="response",
+        )
+
+        def _exec(*_a: Any, **_k: Any) -> ToolCallResult:
+            events.append("execute")
+            return stamped
+
+        ctx.services_required.tools.execute = AsyncMock(side_effect=_exec)
+        await _execute_with_dag(
+            ctx,
+            [_pc("read_text_file", {}, call_id="c1")],
+            guard=ToolLoopGuard(ctx),
+            collected={},
+        )
+        assert events == [
+            "record",
+            "finalize:dispatch_starting",
+            "finalize:dispatched",
+            "execute",
+            "finalize:response_received",
+            "finalize:completed",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_post_send_failure_leaves_row_dispatched(self) -> None:
+        """AC-6: a post-send transport failure (dispatch_stage 'sent') leaves the
+        row at 'dispatched' — no terminal state here, never replayed."""
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+        ctx.diagnostics = None
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="boom",
+                is_error=True,
+                request_id="",
+                server_key="",
+                error_type="transport",
+                dispatch_stage="sent",
+            )
+        )
+        results = await _execute_with_dag(
+            ctx,
+            [_pc("read_text_file", {}, call_id="c1")],
+            guard=ToolLoopGuard(ctx),
+            collected={},
+        )
+        assert results[0][4] is True
+        assert [f[5] for f in recorder.finalizes()] == [
+            "dispatch_starting",
+            "dispatched",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_response_stage_failure_finalizes_failed(self) -> None:
+        """A failure whose result carries dispatch_stage 'response' has a known
+        outcome: response_received, then failed (not left for stale handling)."""
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="tool error",
+                is_error=True,
+                request_id="req-2",
+                server_key="",
+                error_type="tool",
+                dispatch_stage="response",
+            )
+        )
+        results = await _execute_with_dag(
+            ctx,
+            [_pc("read_text_file", {}, call_id="c1")],
+            guard=ToolLoopGuard(ctx),
+            collected={},
+        )
+        assert results[0][4] is True
+        assert [f[5] for f in recorder.finalizes()] == [
+            "dispatch_starting",
+            "dispatched",
+            "response_received",
+            "failed",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_error_row_text_does_not_carry_internal_keys(self) -> None:
+        """REQ-004: the denial text surfaced to the LLM names the tool, never an
+        internal id or derived key."""
+        ctx = _state_ctx(None)
+        pc = _pc("write_file", {"path": "/tmp/w"}, call_id="cw")
+        results = await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected={}
+        )
+        assert results[0][4] is True
+        assert "cw" not in results[0][3]
+        assert "write_file" in results[0][3]
+
+
+class TestGrantEnforcementAtExecution:
+    """mcpdl001 REQ-006/AC-4: a non-READ call without its ApprovalGrant never
+    reaches an executor, gatewayed or bypassed."""
+
+    @pytest.mark.asyncio
+    async def test_ungranted_write_denied_at_bypass(self) -> None:
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+        pc = _pc("write_file", {"path": "/tmp/w"}, call_id="cw", grant=False)
+        results = await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected={}
+        )
+        assert results[0][4] is True
+        assert "Grant denied" in results[0][3]
+        ctx.services_required.tools.execute.assert_not_called()
+        assert [f[5] for f in recorder.finalizes()][-1] == "failed"
+
+    @pytest.mark.asyncio
+    async def test_ungranted_write_denied_at_gateway(self) -> None:
+        executor = AsyncMock()
+        executor.execute = AsyncMock(return_value=_ok())
+        gateway = RepositoryGateway(executor=executor, cfg=_cfg(), audit_logger=None)
+        ctx = _state_ctx(FakeRecorder())
+        ctx.services_required.gateway = gateway
+        pc = _pc("shell_run", {"command": "ls"}, call_id="cs", grant=False)
+        results = await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected={}
+        )
+        assert results[0][4] is True
+        assert "Grant denied" in results[0][3]
+        executor.execute.assert_not_called()
 
 
 class TestAttemptSideEffectFlag:
@@ -2599,7 +2819,12 @@ class TestAttemptSideEffectFlag:
     @pytest.mark.asyncio
     async def test_non_read_gateway_call_sets_flag_before_execute(self) -> None:
         cfg = _cfg()
-        executor = AsyncMock(
+        # RepositoryGateway calls executor.execute(): pin the concrete result on
+        # the execute attribute (the audit now actually writes the runner's
+        # tool_exec event, REQ-007 fail-closed, so mock-chained fields would
+        # leak into the JSON payload).
+        executor = AsyncMock()
+        executor.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="ran", is_error=False, request_id="req-1", server_key=""
             )
@@ -2619,7 +2844,8 @@ class TestAttemptSideEffectFlag:
     @pytest.mark.asyncio
     async def test_read_gateway_call_leaves_flag_false(self) -> None:
         cfg = _cfg()
-        executor = AsyncMock(
+        executor = AsyncMock()
+        executor.execute = AsyncMock(
             return_value=ToolCallResult(
                 output="read", is_error=False, request_id="req-1", server_key=""
             )

@@ -3,10 +3,8 @@
 
 import asyncio
 import dataclasses
-import hashlib
-import json
 import logging
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 
@@ -14,7 +12,7 @@ from shared.json_utils import parse_http_json
 from shared.logger import attach_redaction_filter, register_secret
 from shared.mcp_config import McpServerConfig
 from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS
-from shared.transport_dto import ToolCallResult
+from shared.transport_dto import ToolCallResult, ToolExecutionContext
 
 logger = logging.getLogger(__name__)
 attach_redaction_filter(logger)
@@ -42,28 +40,21 @@ _PRESEND_SAFE_ERRORS: tuple[type[BaseException], ...] = (
 _AMBIGUOUS_RETRY_STATUSES: frozenset[int] = frozenset({502, 503, 504})
 
 
-def derive_idempotency_key(
-    method: str, tool_name: str, args: dict[str, Any], uid: str
-) -> str:
-    """Derive a deterministic idempotency key for one logical tool call.
-
-    ``sha256(method \\n tool_name \\n canonical-JSON(args) \\n uid)``: an identical
-    logical call re-derives the byte-identical key across retries, processes, and
-    restarts. The canonical JSON (sorted keys, compact separators) makes dict
-    insertion order irrelevant. The result is 64-char hex, satisfying the house
-    key shape ``^[A-Za-z0-9_-]{1,64}$``.
-    """
-    canonical_args = json.dumps(args, sort_keys=True, separators=(",", ":"))
-    payload = f"{method}\n{tool_name}\n{canonical_args}\n{uid}"
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-
 class TransportError(Exception):
     """Raised by transport layers when a transport-level failure occurs.
 
     Distinguishes transport failures (network down, timeout, process crash)
     from tool-level errors (MCP server responds with is_error=true).
+
+    `stage` records how far the failed call reached (AC-6 dispatch-stage
+    signal, consumed by the invoker and the intent-state writer):
+    ``""`` nothing was sent, ``"sent"`` the request left the client with no
+    response, ``"response"`` an HTTP response was received.
     """
+
+    def __init__(self, message: str, *, stage: Literal["", "sent", "response"] = ""):
+        super().__init__(message)
+        self.stage: Literal["", "sent", "response"] = stage
 
 
 class HttpTransport:
@@ -157,13 +148,14 @@ class HttpTransport:
         *,
         break_flag: bool = False,
         health_check: bool = True,
+        stage: Literal["", "sent", "response"] = "",
     ) -> TransportError:
         suffix = ""
         if health_check:
             suffix = " — check " + self._base_url + "/health"
         msg = f"{prefix} tool={name} url={self._base_url}: {detail}{suffix}"
         logger.warning(msg)
-        exc = TransportError(msg)
+        exc = TransportError(msg, stage=stage)
         if break_flag:
             raise exc
         return exc
@@ -182,37 +174,54 @@ class HttpTransport:
             parts.append(f"last_error={last_error}")
         return " ".join(parts) + f" after {self._RETRY_MAX} attempts"
 
-    async def call(self, name: str, args: dict[str, Any]) -> ToolCallResult:
+    async def call(
+        self,
+        name: str,
+        args: dict[str, Any],
+        context: ToolExecutionContext | None = None,
+    ) -> ToolCallResult:
         """POST to /v1/call_tool and return ToolCallResult.
 
         Raises TransportError on transport-level failures (network errors,
         timeouts, invalid responses). Tool-level errors from the MCP server
         are returned as-is with is_error=True in the result.
+
+        `context` carries the logical call id sent as X-Idempotency-Key (AC-1:
+        one opaque uuid7 per logical call, reused unchanged across every
+        retry). A call with no context or an empty `call_id` is refused before
+        any HTTP send (AC-3 gate at the wire boundary) and returns an error
+        result with `error_type="routing"` and `dispatch_stage=""` instead of
+        raising.
         """
-        # One idempotency key per logical call, derived deterministically from
-        # (method, tool name, canonical args, uid) and reused across every retry.
-        # uid is the transport's own identity: _session_id,
-        # falling back to the auth-token hash when no session id is set. Sent as
-        # a header so the server can deduplicate a re-sent write via dispatch.py's
-        # _duplicate_cache.
-        uid = (
-            self._session_id
-            or hashlib.sha256(self._auth_token.encode("utf-8")).hexdigest()
-        )
-        idempotency_key = derive_idempotency_key("call_tool", name, args, uid)
+        if context is None or not context.call_id:
+            # AC-3: sending without a logical id re-creates the identical-args
+            # collision the derived key used to cause — refuse at the wire gate.
+            msg = f"Refused: tool={name} has no logical call id for X-Idempotency-Key"
+            logger.error(msg)
+            return ToolCallResult(
+                output=msg,
+                is_error=True,
+                request_id="",
+                server_key=self._server_key,
+                source="mcp",
+                error_type="routing",
+                context=context,
+                dispatch_stage="",
+            )
         headers: dict[str, str] = {}
         if self._auth_token:
             headers["Authorization"] = f"Bearer {self._auth_token}"
         if self._session_id:
             headers["X-Session-Id"] = self._session_id
-        headers["X-Idempotency-Key"] = idempotency_key
+        headers["X-Idempotency-Key"] = context.call_id
 
         timeout = httpx.Timeout(self._timeout) if self._timeout > 0 else None
         last_retryable_status: int | None = None
         last_request_error: str | None = None  # last RequestError "<class>: <message>"
         # Per-logical-call gating: this loop may issue multiple HTTP attempts
         # (retryable statuses in _RETRYABLE_STATUS, up to _RETRY_MAX=3) but each
-        # attempt reuses the single idempotency key above and does NOT re-enter
+        # attempt reuses the single context.call_id header above unchanged
+        # (retry-invariance, AC-1) and does NOT re-enter
         # the pre-call gates. The health/lifecycle/semaphore gates run once per
         # logical call in ToolTransportInvoker._run_precall_gates; they are not
         # re-evaluated between these attempts.
@@ -232,7 +241,8 @@ class HttpTransport:
                         raise TransportError(
                             f"Transport returned {resp.status_code} for write tool '{name}' "
                             f"on attempt {attempt}; dispatch may already have executed, "
-                            "retry suppressed (fail-closed, ADR-004)"
+                            "retry suppressed (fail-closed, ADR-004)",
+                            stage="response",
                         )
                     last_retryable_status = resp.status_code
                     wait_sec = 2**attempt  # 1, 2 (increasing)
@@ -250,14 +260,23 @@ class HttpTransport:
                 if resp.status_code in self._TOOL_LEVEL_STATUSES:
                     result = self._tool_error_result(resp)
                     return dataclasses.replace(
-                        result, server_key=self._server_key, error_type="tool"
+                        result,
+                        server_key=self._server_key,
+                        error_type="tool",
+                        context=context,
+                        dispatch_stage="response",
                     )
                 resp.raise_for_status()
                 parsed = self._parse_http_response(resp)
-                return dataclasses.replace(parsed, server_key=self._server_key)
+                return dataclasses.replace(
+                    parsed,
+                    server_key=self._server_key,
+                    context=context,
+                    dispatch_stage="response",
+                )
             except httpx.TimeoutException as e:
                 raise self._transport_error(
-                    name, "[TimeoutException]", str(e), break_flag=True
+                    name, "[TimeoutException]", str(e), break_flag=True, stage="sent"
                 )
             except httpx.HTTPStatusError as e:
                 req_id = e.response.headers.get("x-request-id", "")
@@ -268,10 +287,15 @@ class HttpTransport:
                     detail,
                     break_flag=True,
                     health_check=False,
+                    stage="response",
                 )
             except ValueError as e:
                 raise self._transport_error(
-                    name, f"[{type(e).__name__}]", str(e), break_flag=True
+                    name,
+                    f"[{type(e).__name__}]",
+                    str(e),
+                    break_flag=True,
+                    stage="response",
                 )
             except httpx.RequestError as e:
                 # classification gate (ADR-004): for write tools, only
@@ -288,7 +312,8 @@ class HttpTransport:
                     raise TransportError(
                         f"Transport failed for write tool '{name}' after attempt {attempt} "
                         f"({type(e).__name__}: {e}); server-side execution outcome is ambiguous "
-                        "and client-side retry is suppressed (fail-closed, ADR-004)"
+                        "and client-side retry is suppressed (fail-closed, ADR-004)",
+                        stage="sent",
                     ) from e
                 self._transport_error(name, f"[{type(e).__name__}]", str(e))
                 last_request_error = f"{type(e).__name__}: {e}"

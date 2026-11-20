@@ -15,6 +15,7 @@ Both implement LifecycleManagerProtocol.
 from __future__ import annotations
 
 import logging
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,6 +36,7 @@ from agent.history import HistoryManager
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.lifecycle_router import _ServerLifecycleRouter
 from agent.repository_gateway import RepositoryGateway
+from agent.workflow.state_store import StateStore
 
 if TYPE_CHECKING:
     from agent.memory.embedding_client import EmbeddingClient
@@ -360,3 +362,30 @@ def build_agent_context(
         ),
         health_registry=tools_result.health_registry,
     )
+
+    _wire_plain_repl_intent_store(ctx)
+
+
+def _wire_plain_repl_intent_store(ctx: AgentContext) -> None:
+    """Wire a session-scoped tool_call_state recorder for plain-REPL sessions.
+
+    mcpdl001 REQ-007 (AC-5): tool_runner fails closed on side-effecting calls
+    whose intent row cannot be written; without this wiring every plain-REPL
+    interactive write would be denied. The pseudo task id is session-scoped
+    (Plan UNK-02 default naming; the DB session row id is not yet assigned at
+    factory time). Idempotent: only sets the recorder while it is still None.
+    workflow_engine_adapter._activate_workflow overwrites both fields when a
+    workflow task activates, so workflow sessions are unaffected.
+
+    The store instance is kept alive through its close hook on ctx.services so
+    ResourceShutdownCoordinator closes it with the other AppServices resources
+    on shutdown. Construction failures propagate — fail-closed at execution
+    time via tool_runner, not swallowed here.
+    """
+    if ctx.services is None or ctx.workflow.tool_call_recorder is not None:
+        return
+    store = StateStore()
+    ctx.services.session_intent_close = store.close
+    ctx.workflow.tool_call_recorder = store
+    if ctx.workflow.current_task_id is None:
+        ctx.workflow.current_task_id = f"repl-session-{uuid.uuid4()}"

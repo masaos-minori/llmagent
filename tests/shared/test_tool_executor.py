@@ -17,7 +17,17 @@ from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
 from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_executor import ToolExecutor
-from shared.transport_dto import ToolCallResult
+from shared.transport_dto import ToolCallResult, ToolExecutionContext
+
+
+def _ctx(name: str) -> ToolExecutionContext:
+    """Fixture context: the transport refuses calls with no logical call id (mcpdl001 AC-3)."""
+    return ToolExecutionContext(
+        call_id="018f0000-0000-7000-8000-0000000000ee",
+        tool=name,
+        args_hash="h",
+        operation="call_tool",
+    )
 
 
 class TestHttpTransportRetry:
@@ -45,7 +55,9 @@ class TestHttpTransportRetry:
             cfg=MagicMock(auth_token=""),
         )
         with patch("asyncio.sleep", return_value=None):
-            result = await transport.call("write_file", {"path": "a"})
+            result = await transport.call(
+                "write_file", {"path": "a"}, _ctx("write_file")
+            )
         assert result.output == "ok"
         assert call_count == 3
 
@@ -70,7 +82,7 @@ class TestHttpTransportRetry:
         )
         with patch("asyncio.sleep", return_value=None):
             with pytest.raises(TransportError) as exc_info:
-                await transport.call("write_file", {"path": "a"})
+                await transport.call("write_file", {"path": "a"}, _ctx("write_file"))
         assert call_count == 3
         assert "Retry exhausted" in str(exc_info.value)
 
@@ -99,7 +111,9 @@ class TestHttpTransportRetry:
         )
         with patch("asyncio.sleep", return_value=None):
             # read tool: ambiguous statuses are retried only for non-write tools
-            result = await transport.call("read_text_file", {"path": "a"})
+            result = await transport.call(
+                "read_text_file", {"path": "a"}, _ctx("read_text_file")
+            )
         assert result.output == "ok"
         assert call_count == 3
 
@@ -128,7 +142,9 @@ class TestHttpTransportRetry:
         )
         with patch("asyncio.sleep", return_value=None):
             # read tool: ambiguous statuses are retried only for non-write tools
-            result = await transport.call("read_text_file", {"path": "a"})
+            result = await transport.call(
+                "read_text_file", {"path": "a"}, _ctx("read_text_file")
+            )
         assert result.output == "ok"
         assert call_count == 3
 
@@ -157,7 +173,9 @@ class TestHttpTransportRetry:
         )
         with patch("asyncio.sleep", return_value=None):
             # read tool: ambiguous statuses are retried only for non-write tools
-            result = await transport.call("read_text_file", {"path": "a"})
+            result = await transport.call(
+                "read_text_file", {"path": "a"}, _ctx("read_text_file")
+            )
         assert result.output == "ok"
         assert call_count == 3
 
@@ -178,7 +196,7 @@ class TestHttpTransportRetry:
             cfg=MagicMock(auth_token=""),
         )
         with pytest.raises(TransportError) as exc_info:
-            await transport.call("write_file", {"path": "a"})
+            await transport.call("write_file", {"path": "a"}, _ctx("write_file"))
         assert call_count == 1
         assert "timeout" in str(exc_info.value).lower()
 
@@ -202,7 +220,7 @@ class TestHttpTransportRetry:
             cfg=MagicMock(auth_token=""),
         )
         with pytest.raises(TransportError):
-            await transport.call("write_file", {"path": "a"})
+            await transport.call("write_file", {"path": "a"}, _ctx("write_file"))
         assert call_count == 1
 
     @pytest.mark.asyncio
@@ -226,7 +244,7 @@ class TestHttpTransportRetry:
         )
         # healthcascade001 REQ-001: 400 is tool-level -> one tool error result,
         # no TransportError, no retry (the not-retried intent of this pin).
-        result = await transport.call("write_file", {"path": "a"})
+        result = await transport.call("write_file", {"path": "a"}, _ctx("write_file"))
         assert result.is_error is True
         assert result.error_type == "tool"
         assert call_count == 1
@@ -257,7 +275,7 @@ class TestHttpTransportRetry:
 
         with patch("asyncio.sleep", side_effect=capture_sleep):
             try:
-                await transport.call("write_file", {"path": "a"})
+                await transport.call("write_file", {"path": "a"}, _ctx("write_file"))
             except TransportError:
                 pass  # Expected — all retries exhausted
 
@@ -292,7 +310,7 @@ class TestRedaction:
         )
 
         with pytest.raises(TransportError) as exc_info:
-            await transport.call("write_file", {"path": "a"})
+            await transport.call("write_file", {"path": "a"}, _ctx("write_file"))
 
         assert "super-secret-value-should-not-leak" not in str(exc_info.value)
 
@@ -320,7 +338,7 @@ class TestRedaction:
         )
 
         with pytest.raises(TransportError):
-            await transport.call("write_file", {"path": "a"})
+            await transport.call("write_file", {"path": "a"}, _ctx("write_file"))
 
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
@@ -389,7 +407,7 @@ class TestToolExecutorErrorClassification:
         )
         ex._transports["file_read"] = mock_transport  # type: ignore[assignment]  -- AsyncMock duck-types HttpTransport
 
-        result = await ex._raw_execute("read_text_file", {})
+        result = await ex._raw_execute("read_text_file", {}, _ctx("read_text_file"))
 
         assert result.is_error is False
         assert result.error_type == ""
@@ -411,7 +429,7 @@ class TestToolExecutorErrorClassification:
         )
         ex._transports["file_read"] = mock_transport  # type: ignore[assignment]  -- AsyncMock duck-types HttpTransport
 
-        result = await ex._raw_execute("read_text_file", {})
+        result = await ex._raw_execute("read_text_file", {}, _ctx("read_text_file"))
 
         assert result.is_error is True
         assert result.error_type == "tool"
@@ -426,7 +444,7 @@ class TestToolExecutorErrorClassification:
         mock_transport.call = AsyncMock(side_effect=TransportError("HTTP 500"))
         ex._transports["file_read"] = mock_transport  # type: ignore[assignment]  -- AsyncMock duck-types HttpTransport
 
-        result = await ex._raw_execute("read_text_file", {})
+        result = await ex._raw_execute("read_text_file", {}, _ctx("read_text_file"))
 
         assert result.is_error is True
         assert result.error_type == "transport"
@@ -454,7 +472,7 @@ class TestToolExecutorErrorClassification:
         ex._transports["file_read"] = transport
 
         with patch("asyncio.sleep", return_value=None):
-            result = await ex._raw_execute("read_text_file", {})
+            result = await ex._raw_execute("read_text_file", {}, _ctx("read_text_file"))
 
         assert result.error_type == "transport"
         assert ex.stat_transport_errors.get("file_read", 0) == 1
@@ -477,7 +495,7 @@ class TestToolExecutorErrorClassification:
         )
         ex._transports["file_read"] = transport
 
-        result = await ex._raw_execute("read_text_file", {})
+        result = await ex._raw_execute("read_text_file", {}, _ctx("read_text_file"))
 
         assert result.error_type == "transport"
         assert ex.stat_transport_errors.get("file_read", 0) == 1
@@ -509,7 +527,7 @@ class TestToolExecutorErrorClassification:
         )
         ex._transports["file_read"] = transport
 
-        result = await ex._raw_execute("read_text_file", {})
+        result = await ex._raw_execute("read_text_file", {}, _ctx("read_text_file"))
 
         assert result.error_type == "transport"
         assert ex.stat_transport_errors.get("file_read", 0) == 1
@@ -539,7 +557,7 @@ class TestToolExecutorErrorClassification:
         )
         ex._transports["file_read"] = transport
 
-        result = await ex._raw_execute("read_text_file", {})
+        result = await ex._raw_execute("read_text_file", {}, _ctx("read_text_file"))
 
         assert result.error_type == "transport"
         assert client.calls == 1

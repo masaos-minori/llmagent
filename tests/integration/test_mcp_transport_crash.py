@@ -156,6 +156,7 @@ async def test_d05_http_timeout_races_lifecycle_termination() -> None:
     from shared.mcp_config import McpServerConfig, StartupMode, TransportType
     from shared.mcp_health import McpServerHealthRegistry
     from shared.tool_executor import ToolExecutor
+    from shared.transport_dto import ToolExecutionContext
 
     cfg = McpServerConfig(
         transport=TransportType.HTTP,
@@ -195,7 +196,15 @@ async def test_d05_http_timeout_races_lifecycle_termination() -> None:
             )
             executor._resolver.resolve = lambda _: "d05_server"
 
-            call_task = asyncio.create_task(executor.execute("_d05_tool", {}))
+            d05_ctx = ToolExecutionContext(
+                call_id="d05-call",
+                tool="_d05_tool",
+                args_hash="args-hash",
+                operation="call_tool",
+            )
+            call_task = asyncio.create_task(
+                executor.execute("_d05_tool", {}, context=d05_ctx)
+            )
 
             mgr = HttpServerLifecycleManager()
             proc = _make_running_proc()

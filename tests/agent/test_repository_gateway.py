@@ -7,18 +7,21 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.config_builders import build_agent_config
 from agent.repository_gateway import RepositoryGateway
-from agent.tool_enums import OperationType
+from agent.shared.models import ApprovalGrant
+from agent.tool_enums import ApprovalDecisionType, OperationType
 from agent.tool_exceptions import PolicyViolationError
 from agent.tool_loop_guard import ToolLoopGuard
-from agent.tool_preparation import PreparedToolCall
+from agent.tool_preparation import PreparedToolCall, _canonical_args_hash
 from agent.tool_runner import execute_one_tool_call
 from shared.tool_spec import ToolSpec
+from shared.transport_dto import ToolExecutionContext
 
 from tests.agent._config_test_defaults import (
     ALL_APPROVAL_RISK_RULES,
@@ -47,6 +50,19 @@ def _make_ctx():
         ),
         turn=SimpleNamespace(current_turn_id="turn-1"),
         workflow=workflow,
+    )
+
+
+def _grant(name: str, args: dict) -> ApprovalGrant:
+    """ApprovalGrant matching what tool_approval issues for an approved call
+    (mcpdl001 REQ-006): same tool, same canonical args hash, live TTL."""
+    now = time.time()
+    return ApprovalGrant(
+        tool=name,
+        args_hash=_canonical_args_hash(args),
+        mode=ApprovalDecisionType.APPROVED.value,
+        issued_at=now,
+        expires_at=now + 300.0,
     )
 
 
@@ -86,7 +102,10 @@ class TestWritePolicy:
             ),
         ):
             result = await gw.execute(
-                ctx, "write_file", {"path": "/etc/passwd", "content": "x"}
+                ctx,
+                "write_file",
+                {"path": "/etc/passwd", "content": "x"},
+                grant=_grant("write_file", {"path": "/etc/passwd", "content": "x"}),
             )
 
         assert result.is_error is True
@@ -110,7 +129,10 @@ class TestWritePolicy:
             patch("agent.repository_gateway.check_preflight"),
         ):
             result = await gw.execute(
-                ctx, "write_file", {"path": "/tmp/x.txt", "content": "ok"}
+                ctx,
+                "write_file",
+                {"path": "/tmp/x.txt", "content": "ok"},
+                grant=_grant("write_file", {"path": "/tmp/x.txt", "content": "ok"}),
             )
 
         assert result is expected
@@ -133,7 +155,10 @@ class TestWritePolicy:
             patch("agent.repository_gateway.check_preflight"),
         ):
             result = await gw.execute(
-                ctx, "write_file", {"path": "/tmp/x.txt", "content": "ok"}
+                ctx,
+                "write_file",
+                {"path": "/tmp/x.txt", "content": "ok"},
+                grant=_grant("write_file", {"path": "/tmp/x.txt", "content": "ok"}),
             )
 
         assert result is expected
@@ -158,7 +183,12 @@ class TestAudit:
             ),
             patch("agent.repository_gateway.check_preflight"),
         ):
-            await gw.execute(ctx, "write_file", {"path": "/tmp/x.txt", "content": "ok"})
+            await gw.execute(
+                ctx,
+                "write_file",
+                {"path": "/tmp/x.txt", "content": "ok"},
+                grant=_grant("write_file", {"path": "/tmp/x.txt", "content": "ok"}),
+            )
 
         audit.info.assert_called_once()
         call_args = audit.info.call_args[0]
@@ -210,6 +240,15 @@ class TestDenialAuditEndToEnd:
                     args={"path": "/etc/passwd", "content": "x"},
                     spec=ToolSpec(call_id="call_write_file", name="write_file"),
                     original_call={},
+                    context=ToolExecutionContext(
+                        call_id="018f0000-0000-7000-8000-000000000003",
+                        tool="write_file",
+                        args_hash=_canonical_args_hash(
+                            {"path": "/etc/passwd", "content": "x"}
+                        ),
+                        operation="call_tool",
+                    ),
+                    grant=_grant("write_file", {"path": "/etc/passwd", "content": "x"}),
                 ),
                 guard,
             )
@@ -256,12 +295,124 @@ class TestDenialAuditEndToEnd:
                     args={"path": "/etc/passwd", "content": "x"},
                     spec=ToolSpec(call_id="call_write_file", name="write_file"),
                     original_call={},
+                    context=ToolExecutionContext(
+                        call_id="018f0000-0000-7000-8000-000000000003",
+                        tool="write_file",
+                        args_hash=_canonical_args_hash(
+                            {"path": "/etc/passwd", "content": "x"}
+                        ),
+                        operation="call_tool",
+                    ),
+                    grant=_grant("write_file", {"path": "/etc/passwd", "content": "x"}),
                 ),
                 guard,
             )
 
         assert is_error is True
         ctx.services_required.audit_logger.info.assert_not_called()
+
+
+class TestGrantVerificationAtGateway:
+    """mcpdl001 REQ-006 / AC-4: _gate_write verifies the grant immediately before
+    execution and denies any mismatch — never prompts, never re-approves."""
+
+    @staticmethod
+    def _args() -> dict:
+        return {"path": "/tmp/x.txt", "content": "ok"}
+
+    def _setup(self):
+        expected = MagicMock(is_error=False, output="written")
+        executor = AsyncMock()
+        executor.execute = AsyncMock(return_value=expected)
+        gw = _make_gateway(executor=executor)
+        ctx = _make_ctx()
+        return gw, ctx, executor, expected
+
+    async def _run(self, gw, ctx, executor, args=None, grant=None):
+        args = self._args() if args is None else args
+        with (
+            patch(
+                "agent.repository_gateway.classify_operation_type",
+                return_value=OperationType.WRITE,
+            ),
+            patch("agent.repository_gateway.check_preflight"),
+        ):
+            result = await gw.execute(ctx, "write_file", args, grant=grant)
+        return result
+
+    @pytest.mark.asyncio
+    async def test_missing_grant_denied(self) -> None:
+        gw, ctx, executor, _ = self._setup()
+        result = await self._run(gw, ctx, executor, grant=None)
+        assert result.is_error is True
+        assert "Grant denied" in result.output
+        assert result.error_type == "denied"
+        executor.execute.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_tool_mismatch_denied(self) -> None:
+        gw, ctx, executor, _ = self._setup()
+        grant = _grant("write_file", self._args())
+        object.__setattr__(grant, "tool", "delete_file")
+        result = await self._run(gw, ctx, executor, grant=grant)
+        assert result.is_error is True
+        assert "tool mismatch" in result.output
+        executor.execute.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_rebound_args_denied(self) -> None:
+        """AC-4: editing the call after approval breaks the hash comparison."""
+        gw, ctx, executor, _ = self._setup()
+        result = await self._run(
+            gw,
+            ctx,
+            executor,
+            args={"path": "/etc/cron.d/x", "content": "ok"},
+            grant=_grant("write_file", self._args()),
+        )
+        assert result.is_error is True
+        assert "args hash mismatch" in result.output
+        executor.execute.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_foreign_mode_denied(self) -> None:
+        gw, ctx, executor, _ = self._setup()
+        grant = _grant("write_file", self._args())
+        object.__setattr__(grant, "mode", ApprovalDecisionType.DENIED.value)
+        result = await self._run(gw, ctx, executor, grant=grant)
+        assert result.is_error is True
+        assert "not an approval decision" in result.output
+        executor.execute.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_expired_grant_denied(self) -> None:
+        gw, ctx, executor, _ = self._setup()
+        grant = _grant("write_file", self._args())
+        object.__setattr__(grant, "expires_at", time.time() - 1.0)
+        result = await self._run(gw, ctx, executor, grant=grant)
+        assert result.is_error is True
+        assert "expired" in result.output
+        executor.execute.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_grant_is_single_use(self) -> None:
+        """AC-4: a verified grant is consumed at the gateway; replay is denied."""
+        gw, ctx, executor, expected = self._setup()
+        grant = _grant("write_file", self._args())
+        first = await self._run(gw, ctx, executor, grant=grant)
+        assert first is expected
+        second = await self._run(gw, ctx, executor, grant=grant)
+        assert second.is_error is True
+        assert "already used" in second.output
+        executor.execute.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_auto_mode_grant_accepted(self) -> None:
+        gw, ctx, executor, expected = self._setup()
+        grant = _grant("write_file", self._args())
+        object.__setattr__(grant, "mode", ApprovalDecisionType.AUTO.value)
+        result = await self._run(gw, ctx, executor, grant=grant)
+        assert result is expected
 
 
 def _stub_registry(**tools: tuple[str, ...]) -> MagicMock:
@@ -334,7 +485,10 @@ class TestWriteGateDeclaredPathKeys:
             return_value=OperationType.WRITE,
         ):
             result = await gw.execute(
-                ctx, "write_file", {"paths": ["/tmp/a", "/etc/shadow"]}
+                ctx,
+                "write_file",
+                {"paths": ["/tmp/a", "/etc/shadow"]},
+                grant=_grant("write_file", {"paths": ["/tmp/a", "/etc/shadow"]}),
             )
         assert result.is_error is True
         assert "Policy blocked" in result.output
@@ -359,7 +513,10 @@ class TestWriteGateDeclaredPathKeys:
             return_value=OperationType.WRITE,
         ):
             result = await gw.execute(
-                ctx, "write_file", {"paths": ["/tmp/a", "/tmp/b"]}
+                ctx,
+                "write_file",
+                {"paths": ["/tmp/a", "/tmp/b"]},
+                grant=_grant("write_file", {"paths": ["/tmp/a", "/tmp/b"]}),
             )
         assert result is expected
         executor.execute.assert_awaited_once_with(

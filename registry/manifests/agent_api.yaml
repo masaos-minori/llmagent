@@ -1297,6 +1297,11 @@ entries:
   name: ToolExecEvent
   signature: class ToolExecEvent
   summary: Structured audit event for tool_exec log entries.
+- file: scripts/agent/shared/models.py
+  kind: class
+  name: ApprovalGrant
+  signature: class ApprovalGrant
+  summary: Proof that the approval gate authorized one specific prepared call.
 - file: scripts/agent/shared/retry_helper.py
   kind: async function
   name: retry_once_with_delay
@@ -1368,7 +1373,7 @@ entries:
 - file: scripts/agent/tool_approval.py
   kind: async function
   name: check_approval
-  signature: async def check_approval(ctx, tool_name, args) -> bool
+  signature: async def check_approval(ctx, tool_name, args, idempotency_key) -> bool
   summary: Return True when the tool call may proceed.
 - file: scripts/agent/tool_approval.py
   kind: async function
@@ -1396,7 +1401,8 @@ entries:
 - file: scripts/agent/tool_audit.py
   kind: function
   name: audit_approval
-  signature: def audit_approval(ctx, tool_name, risk, args, decision) -> None
+  signature: def audit_approval(ctx, tool_name, risk, args, decision, idempotency_key)
+    -> None
   summary: Write a structured tool_approval event to the audit log.
 - file: scripts/agent/tool_audit.py
   kind: function
@@ -1477,7 +1483,12 @@ entries:
   kind: class
   name: AuditUnavailableError
   signature: class AuditUnavailableError
-  summary: "Defined for completeness; not raised \u2014 silent return is the policy"
+  summary: Raised when a mandatory audit record cannot be written for a
+- file: scripts/agent/tool_exceptions.py
+  kind: class
+  name: IntentRecordUnavailableError
+  signature: class IntentRecordUnavailableError
+  summary: Raised when the tool_call_state intent row cannot be written for a
 - file: scripts/agent/tool_exceptions.py
   kind: class
   name: LifecycleConfigurationError
@@ -1648,8 +1659,8 @@ entries:
 - file: scripts/agent/tool_runner.py
   kind: async function
   name: execute_one_tool_call
-  signature: async def execute_one_tool_call(ctx, pc, guard) -> tuple[str, str, dict,
-    str, bool, str]
+  signature: async def execute_one_tool_call(ctx, pc, guard, *, state_key) -> tuple[str,
+    str, dict, str, bool, str]
   summary: Execute and truncate one already-prepared tool call.
 - file: scripts/agent/tool_runner.py
   kind: async function
@@ -1827,7 +1838,7 @@ entries:
   kind: function
   name: finalize_tool_call
   signature: def finalize_tool_call(db, idempotency_key, state) -> None
-  summary: Move a tool-call row to its final state, bumping updated_at.
+  summary: Move a tool-call row to another state in the intent vocabulary, bumping
 - file: scripts/agent/workflow/tool_call_state_ops.py
   kind: function
   name: pending_tool_calls
@@ -1837,7 +1848,7 @@ entries:
   kind: function
   name: classify_stale_pending
   signature: def classify_stale_pending(db, task_id, timeout_seconds) -> list[ToolCallState]
-  summary: Mark this task's pending rows older than `timeout_seconds` as 'interrupted'.
+  summary: Transition this task's timed-out tool-call rows by dispatch stage.
 - file: scripts/agent/workflow/tool_call_state_ops.py
   kind: function
   name: get_tool_call_state

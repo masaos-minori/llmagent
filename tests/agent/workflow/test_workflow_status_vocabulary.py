@@ -82,7 +82,17 @@ class TestVocabularyMembership:
 
     def test_tool_call_states_exact(self) -> None:
         assert TOOL_CALL_STATES == frozenset(
-            {"pending", "completed", "failed", "interrupted"}
+            {
+                "pending",
+                "dispatch_starting",
+                "dispatched",
+                "response_received",
+                "completed",
+                "failed",
+                "interrupted",
+                "outcome_unknown",
+                "reconciliation_required",
+            }
         )
 
 

@@ -413,7 +413,7 @@ async def test_dag_write_executed_before_read() -> None:
     write_call = _make_tool_call("write_file", "w1")
     read_call = _make_tool_call("read_file", "r1")
 
-    async def fake_execute_one(ctx, pc, guard):
+    async def fake_execute_one(ctx, pc, guard, *, state_key=None):
         name = pc.name
         execution_order.append(name)
         return MagicMock(
@@ -456,7 +456,7 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
     write_call = _make_tool_call("write_file", "w1")
     read_call = _make_tool_call("read_file", "r1")
 
-    async def fake_execute_one(ctx, pc, guard):
+    async def fake_execute_one(ctx, pc, guard, *, state_key=None):
         name = pc.name
         execution_order.append(name)
         return MagicMock(
@@ -504,7 +504,7 @@ async def test_parallel_execution_without_side_effects() -> None:
     read_call1 = _make_tool_call("read_file", "r1")
     read_call2 = _make_tool_call("read_file", "r2")
 
-    async def fake_execute_one(ctx, pc, guard):
+    async def fake_execute_one(ctx, pc, guard, *, state_key=None):
         name = pc.name
         execution_order.append(pc.call_id)
         return MagicMock(

@@ -104,7 +104,9 @@ class TestRecordedWhileBatchIsStillRunning:
         seen_by_third_call: list[int] = []
         calls = 0
 
-        async def execute(name: str, args: dict) -> ToolCallResult:
+        async def execute(
+            name: str, args: dict, *, context: object | None = None
+        ) -> ToolCallResult:
             nonlocal calls
             calls += 1
             if calls == 3:

@@ -5,13 +5,18 @@ Unit tests for tool_preparation.py: the fail-closed preparation phase run before
 
 from __future__ import annotations
 
+import hashlib
+import json
+import uuid
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.tool_preparation import PreparedToolCall, prepare_tool_calls
 from shared.tool_spec import ToolSpec
+from shared.transport_dto import ToolExecutionContext
 
 from tests.agent._config_test_defaults import PERMISSIVE_ALLOWED_ROOT
 
@@ -356,3 +361,97 @@ class TestPrepareToolCallsDuplicateId:
         assert [p.call_id for p in prepared] == ["call_dup"]
         assert len(failures) == 1
         assert "unregistered tool" in failures[0][3]
+
+
+class TestPrepareToolCallsLogicalIdentity:
+    """REQ-001/REQ-002: uuid7 logical call id and execution context at preparation."""
+
+    def _registry(self) -> MagicMock:
+        runtime_tool = MagicMock()
+        runtime_tool.input_schema = {"type": "object", "properties": {}}
+        runtime_tool.allow_extra_fields = True
+        registry = MagicMock()
+        registry.get = MagicMock(return_value=runtime_tool)
+        registry.tool_spec_for_call = MagicMock(
+            side_effect=lambda call_id, name, args: ToolSpec(
+                call_id=call_id, name=name, args=args
+            )
+        )
+        return registry
+
+    def _ctx(self) -> MagicMock:
+        ctx = _make_ctx()
+        ctx.services_required.runtime_tools = self._registry()
+        return ctx
+
+    def test_identical_args_get_distinct_logical_ids(self) -> None:
+        """AC-1: two calls with identical tool+args must not share a logical id."""
+        prepared, failures = prepare_tool_calls(
+            self._ctx(),
+            [
+                _tc("read_text_file", '{"path": "/a"}', call_id="call_1"),
+                _tc("read_text_file", '{"path": "/a"}', call_id="call_2"),
+            ],
+        )
+        assert failures == []
+        assert len(prepared) == 2
+        ids = [p.context.call_id for p in prepared]
+        assert ids[0] != ids[1]
+        assert all(uuid.UUID(i).version == 7 for i in ids)
+
+    def test_context_attached_with_canonical_args_hash(self) -> None:
+        prepared, failures = prepare_tool_calls(
+            self._ctx(), [_tc("write_text_file", '{"b": 2, "a": 1}', call_id="call_1")]
+        )
+        assert failures == []
+        context = prepared[0].context
+        assert isinstance(context, ToolExecutionContext)
+        assert context.call_id != prepared[0].call_id  # logical id, not correlation id
+        assert uuid.UUID(context.call_id).version == 7
+        assert context.tool == "write_text_file"
+        expected = hashlib.sha256(
+            json.dumps({"b": 2, "a": 1}, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        assert context.args_hash == expected
+        assert context.operation == "call_tool"
+
+    def test_whitespace_in_id_rejected(self) -> None:
+        prepared, failures = prepare_tool_calls(
+            self._ctx(), [_tc("read_text_file", "{}", call_id="call 1")]
+        )
+        assert prepared == []
+        assert "whitespace or control characters" in failures[0][3]
+
+    def test_control_character_in_id_rejected(self) -> None:
+        prepared, failures = prepare_tool_calls(
+            self._ctx(), [_tc("read_text_file", "{}", call_id="call\n1")]
+        )
+        assert prepared == []
+        assert "whitespace or control characters" in failures[0][3]
+
+    def test_overlong_id_rejected(self) -> None:
+        prepared, failures = prepare_tool_calls(
+            self._ctx(), [_tc("read_text_file", "{}", call_id="x" * 300)]
+        )
+        assert prepared == []
+        assert "exceeds 256 characters" in failures[0][3]
+
+    def test_non_string_id_rejected(self) -> None:
+        raw = _tc("read_text_file", "{}")
+        raw["id"] = 123
+        prepared, failures = prepare_tool_calls(self._ctx(), [raw])
+        assert prepared == []
+        assert "must be a string" in failures[0][3]
+
+    def test_fallback_id_is_valid_uuid7(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """CI runs 3.13 where uuid.uuid7 is absent; the fallback must still compose
+        an RFC 9562 version-7/variant-10 identifier."""
+        import uuid as uuid_mod
+
+        from agent.tool_preparation import _logical_call_id
+
+        monkeypatch.setattr(uuid_mod, "uuid7", None, raising=False)
+        value = _logical_call_id()
+        parsed = uuid.UUID(value)
+        assert parsed.version == 7
+        assert parsed.variant == uuid.RFC_4122

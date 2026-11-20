@@ -135,12 +135,12 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/stdin_reader.py` | `StdinReader` | `class StdinReader` | Owns one daemon thread that performs one blocking read per request. |
 |  | `get_stdin_reader` | `def get_stdin_reader() -> StdinReader` | Return the process-shared reader, creating it on first use. |
 |  | `reset_stdin_reader` | `def reset_stdin_reader() -> None` | Drop the shared instance so the next get_stdin_reader() builds a fresh reader. |
-| `scripts/agent/tool_approval.py` | `check_approval` | `async def check_approval(ctx, tool_name, args) -> bool` | Return True when the tool call may proceed. |
+| `scripts/agent/tool_approval.py` | `check_approval` | `async def check_approval(ctx, tool_name, args, idempotency_key) -> bool` | Return True when the tool call may proceed. |
 |  | `run_approval_checks` | `async def run_approval_checks(ctx, prepared_calls) -> tuple[list[PreparedToolCall], list[str]]` | Run plan-mode block and interactive approval for each prepared tool call. |
 | `scripts/agent/tool_arg_validator.py` | `ValidationResult` | `class ValidationResult` | Result of validating tool call arguments against an MCP input schema. |
 |  | `validate_tool_arguments` | `def validate_tool_arguments(tool_name, args, input_schema, allow_extra_fields) -> ValidationResult` | Validate tool call arguments against the MCP tool's input schema. |
 |  | `register_custom_validator` | `def register_custom_validator(tool_name) -> Callable[[CustomValidator], CustomValidator]` | Decorator that registers a custom validation hook for tool_name. |
-| `scripts/agent/tool_audit.py` | `audit_approval` | `def audit_approval(ctx, tool_name, risk, args, decision) -> None` | Write a structured tool_approval event to the audit log. |
+| `scripts/agent/tool_audit.py` | `audit_approval` | `def audit_approval(ctx, tool_name, risk, args, decision, idempotency_key) -> None` | Write a structured tool_approval event to the audit log. |
 |  | `audit_workflow_start` | `def audit_workflow_start(ctx, task_id, workflow_version, workflow_id, session_id) -> None` | Write workflow_start event to audit log. |
 |  | `audit_stage_completed` | `def audit_stage_completed(ctx, task_id, stage_id, elapsed_ms, workflow_id, session_id) -> None` | Write stage_completed event to audit log. |
 |  | `audit_tool_exec` | `def audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type, artifact_uri, source, idempotency_key, task_linkage, dedup_state) -> None` | Write a tool_exec event with mcp_request_id to the audit log. |
@@ -155,7 +155,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `PolicyViolationError` | `class PolicyViolationError` | Raised when a pre-flight policy check denies the tool call. |
 |  | `ApprovalPreviewError` | `class ApprovalPreviewError` | Raised when dry-run preview execution fails. |
 |  | `ApprovalPreviewBlockingError` | `class ApprovalPreviewBlockingError` | Raised when dry-run preview returns an explicit error result. |
-|  | `AuditUnavailableError` | `class AuditUnavailableError` | Defined for completeness; not raised — silent return is the policy |
+|  | `AuditUnavailableError` | `class AuditUnavailableError` | Raised when a mandatory audit record cannot be written for a |
+|  | `IntentRecordUnavailableError` | `class IntentRecordUnavailableError` | Raised when the tool_call_state intent row cannot be written for a |
 |  | `LifecycleConfigurationError` | `class LifecycleConfigurationError` | Raised when a lifecycle operation is attempted with missing configuration. |
 | `scripts/agent/tool_loop_guard.py` | `TurnLoopState` | `class TurnLoopState` | Mutable per-turn loop state passed through each inner turn. |
 |  | `ToolLoopGuard` | `class ToolLoopGuard` | Guards the tool-call loop against dedup, cycle, retry, consecutive errors, and progress stagnation. |
@@ -188,7 +189,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/tool_round_completion.py` | `RoundState` | `class RoundState` | What one round has produced so far, keyed by tool_call_id where it matters. |
 |  | `complete_round` | `async def complete_round(ctx, state, tool_calls, turn, out_failed_keys, reason, collect) -> None` | Persist every row the round owes and answer each unanswered declared id. |
 | `scripts/agent/tool_run_recorder.py` | `get_serialization_stats` | `def get_serialization_stats() -> dict[str, int]` | Return current serialization statistics. |
-| `scripts/agent/tool_runner.py` | `execute_one_tool_call` | `async def execute_one_tool_call(ctx, pc, guard) -> tuple[str, str, dict, str, bool, str]` | Execute and truncate one already-prepared tool call. |
+| `scripts/agent/tool_runner.py` | `execute_one_tool_call` | `async def execute_one_tool_call(ctx, pc, guard, *, state_key) -> tuple[str, str, dict, str, bool, str]` | Execute and truncate one already-prepared tool call. |
 |  | `execute_all_tool_calls` | `async def execute_all_tool_calls(ctx, tool_calls, turn, out_failed_keys, *, guard) -> None` | Execute all tool calls then append results in original order. |
 | `scripts/agent/tool_scheduler.py` | `MissingToolSpecError` | `class MissingToolSpecError` | Raised when a tool call's call_id has no entry in the call_specs map |
 |  | `DuplicateToolCallIdError` | `class DuplicateToolCallIdError` | Raised when the same tool call id appears more than once in one batch. |

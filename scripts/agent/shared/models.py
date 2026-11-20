@@ -24,6 +24,9 @@ class ToolApprovalEvent:
     ts: float
     workflow_id: str = ""
     session_id: str = ""
+    # Logical call id (uuid7) generated at preparation; the same value the
+    # transport sends as X-Idempotency-Key and the state store keys on.
+    idempotency_key: str = ""
 
 
 @dataclass(frozen=True)
@@ -43,10 +46,28 @@ class ToolExecEvent:
     error_type: str = ""  # "transport" | "tool" | "" (empty on success)
     workflow_id: str = ""
     session_id: str = ""
-    # Workflow-scoped logical-call identity ({workflow_id}:{task_id}:{turn_id}:
-    # {call_id}) recorded for the audit log. Distinct from the transport
-    # X-Idempotency-Key, which drives server-side deduplication; nothing
-    # deduplicates on this value.
+    # Logical call id (uuid7) generated once at preparation and reused by the
+    # transport X-Idempotency-Key, the tool_call_state row, and the approval
+    # event — the single identity shared by all three (AC-2).
     idempotency_key: str = ""
     task_linkage: str = ""  # WorkflowEngine task-level linkage (current_task_id)
     artifact_uri: str | None = None
+
+
+@dataclass(frozen=True)
+class ApprovalGrant:
+    """Proof that the approval gate authorized one specific prepared call.
+
+    Issued by the approval gate (tool_approval) and re-checked at execution and
+    at the repository gateway; single-use enforcement lives in the gateway, not
+    in this model. `args_hash` is the hex sha256 of canonical-JSON args, the
+    same computation as `ToolExecutionContext.args_hash`, so a re-bound or
+    edited call fails the comparison. `issued_at`/`expires_at` are epoch
+    seconds; the expiry horizon is a tool_approval module constant.
+    """
+
+    tool: str
+    args_hash: str
+    mode: str  # approval decision mode that issued the grant
+    issued_at: float
+    expires_at: float

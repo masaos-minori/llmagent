@@ -114,7 +114,9 @@ async def test_transport_success_full_path():
         output="ok", is_error=False, request_id="", server_key="srv1"
     )
     mocks["transport"].call = AsyncMock(
-        side_effect=lambda n, a: _append_and_return(call_order, "transport", success)
+        side_effect=lambda n, a, context=None: _append_and_return(
+            call_order, "transport", success
+        )
     )
 
     result = await executor.execute("tool_a", {})

@@ -39,9 +39,24 @@ class ApprovalPreviewBlockingError(ApprovalPreviewError):
 
 
 class AuditUnavailableError(RuntimeError):
-    """Defined for completeness; not raised — silent return is the policy
+    """Raised when a mandatory audit record cannot be written for a
+    side-effecting tool call (mcpdl001 REQ-007, AC-5).
 
-    when audit logger is not configured.
+    Callers treat this as a denial: the side effect must not complete when its
+    audit record is unwritable. Read-only calls keep the silent-return
+    best-effort policy and never raise this.
+    """
+
+
+class IntentRecordUnavailableError(RuntimeError):
+    """Raised when the tool_call_state intent row cannot be written for a
+    side-effecting tool call (mcpdl001 REQ-005/REQ-007, AC-6).
+
+    Covers every unwritable path: no logical call id on the prepared call,
+    an unwired recorder or task context, and recorder write failures. The
+    runner converts this into the call's tool-error row (denial surface);
+    the side effect never dispatches without its durable intent record.
+    Read-only calls keep the logged best-effort path and never raise this.
     """
 
 

@@ -20,6 +20,7 @@ import pytest
 import respx
 from shared.mcp_config import StartupMode, TransportType
 from shared.mcp_health import McpServerHealthRegistry
+from shared.transport_dto import ToolExecutionContext
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -48,6 +49,13 @@ def _msg(*calls) -> dict:
 def _pin_resolver(executor, server_key: str) -> None:
     """Route all tool calls to a single server_key (ToolRegistry not used in chaos tests)."""
     executor._resolver.resolve = lambda _: server_key
+
+
+def _chaos_ctx(name: str) -> ToolExecutionContext:
+    """Call context: the HTTP transport refuses calls with no logical call id (AC-3)."""
+    return ToolExecutionContext(
+        call_id=f"chaos-{name}", tool=name, args_hash="args-hash", operation="call_tool"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -195,7 +203,9 @@ class TestErrorInjectionChaos:
                     health_registry=McpServerHealthRegistry(),
                 )
                 _pin_resolver(executor, "chaos_b1")
-                result = await executor.execute("_chaos_tool_b1", {})
+                result = await executor.execute(
+                    "_chaos_tool_b1", {}, context=_chaos_ctx("_chaos_tool_b1")
+                )
 
         assert result.is_error
         assert executor.stat_transport_errors.get("chaos_b1", 0) == 1
@@ -232,8 +242,12 @@ class TestErrorInjectionChaos:
                     health_registry=McpServerHealthRegistry(),
                 )
                 _pin_resolver(executor, "chaos_b2")
-                r1 = await executor.execute("_chaos_tool_b2a", {})
-                r2 = await executor.execute("_chaos_tool_b2b", {})
+                r1 = await executor.execute(
+                    "_chaos_tool_b2a", {}, context=_chaos_ctx("_chaos_tool_b2a")
+                )
+                r2 = await executor.execute(
+                    "_chaos_tool_b2b", {}, context=_chaos_ctx("_chaos_tool_b2b")
+                )
 
         assert r1.is_error and r1.error_type == "transport"
         assert r2.is_error and r2.error_type == "tool"
@@ -274,8 +288,10 @@ class TestErrorInjectionChaos:
                 )
                 _pin_resolver(executor, "chaos_b3")
                 ok, fail = await asyncio.gather(
-                    executor.execute("_chaos_ok", {}),
-                    executor.execute("_chaos_fail", {}),
+                    executor.execute("_chaos_ok", {}, context=_chaos_ctx("_chaos_ok")),
+                    executor.execute(
+                        "_chaos_fail", {}, context=_chaos_ctx("_chaos_fail")
+                    ),
                 )
 
         assert not ok.is_error
@@ -391,7 +407,9 @@ class TestNetworkChaos:
                     health_registry=McpServerHealthRegistry(),
                 )
                 _pin_resolver(executor, "chaos_d1")
-                result = await executor.execute("_chaos_d1", {})
+                result = await executor.execute(
+                    "_chaos_d1", {}, context=_chaos_ctx("_chaos_d1")
+                )
 
         # 502 triggers retry; should succeed on retry
         assert not result.is_error
@@ -423,7 +441,9 @@ class TestNetworkChaos:
                     health_registry=McpServerHealthRegistry(),
                 )
                 _pin_resolver(executor, "chaos_d2")
-                result = await executor.execute("_chaos_d2", {})
+                result = await executor.execute(
+                    "_chaos_d2", {}, context=_chaos_ctx("_chaos_d2")
+                )
 
         assert result.is_error
         assert result.error_type == "transport"
@@ -454,7 +474,9 @@ class TestNetworkChaos:
                     health_registry=McpServerHealthRegistry(),
                 )
                 _pin_resolver(executor, "chaos_d3")
-                result = await executor.execute("_chaos_d3", {})
+                result = await executor.execute(
+                    "_chaos_d3", {}, context=_chaos_ctx("_chaos_d3")
+                )
 
         # Truncated JSON should cause is_error=True (parse error)
         assert result.is_error

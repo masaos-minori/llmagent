@@ -16,8 +16,24 @@ from dataclasses import dataclass
 TASK_STATUSES = frozenset({"pending", "running", "completed", "failed", "halted"})
 # attempts.status
 ATTEMPT_STATUSES = frozenset({"running", "completed", "failed"})
-# tool_call_state.state
-TOOL_CALL_STATES = frozenset({"pending", "completed", "failed", "interrupted"})
+# tool_call_state.state — the dispatch-intent vocabulary. Never-dispatched rows
+# expire to `interrupted` (replayable); rows that reached a dispatch-stage state
+# (`dispatch_starting`, `dispatched`, `response_received`) expire to
+# `outcome_unknown` — terminal and never replayed (AC-6).
+# `reconciliation_required` is vocabulary-only until a writer exists.
+TOOL_CALL_STATES = frozenset(
+    {
+        "pending",
+        "dispatch_starting",
+        "dispatched",
+        "response_received",
+        "completed",
+        "failed",
+        "interrupted",
+        "outcome_unknown",
+        "reconciliation_required",
+    }
+)
 
 
 @dataclass

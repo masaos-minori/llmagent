@@ -11,6 +11,8 @@ Ensures:
 from __future__ import annotations
 
 import json
+import re
+from typing import Any
 from unittest.mock import MagicMock
 
 from mcp_servers.audit import _audit_log as _mcp_audit_log
@@ -325,6 +327,22 @@ class TestMcpAuditLogFormat:
 class TestAgentAuditLogFormat:
     """Tests for agent-side audit log (JSON-lines format)."""
 
+    # uuid7-shaped logical call id fixture (mcpdl001 REQ-008): the serialized
+    # field name stays idempotency_key; the value is the logical call id.
+    _CALL_ID = "018f0000-0000-7000-8000-000000000022"
+    _UUID7_RE = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+
+    @staticmethod
+    def _ctx_fixture() -> Any:
+        ctx = MagicMock()
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
+        ctx.turn.current_turn_id = "turn-audit-fmt"
+        ctx.workflow.workflow_id = "wf-test-id"
+        ctx.session.session_id = ""
+        return ctx
+
     def test_emits_json_lines(self) -> None:
         """Agent-side audit log must use JSON-lines format."""
         from agent.tool_audit import audit_tool_exec
@@ -337,7 +355,14 @@ class TestAgentAuditLogFormat:
         ctx.workflow.workflow_id = "wf-1"
         ctx.session.session_id = "sess-abc"
 
-        audit_tool_exec(ctx, "shell_run", {"cmd": "ls"}, False, "req-9")
+        audit_tool_exec(
+            ctx,
+            "shell_run",
+            {"cmd": "ls"},
+            False,
+            "req-9",
+            idempotency_key=TestAgentAuditLogFormat._CALL_ID,
+        )
 
         call_args = ctx.services_required.audit_logger.info.call_args[0][0]
         # Must be valid JSON
@@ -361,7 +386,13 @@ class TestAgentAuditLogFormat:
         ctx.session.session_id = ""
 
         audit_tool_exec(
-            ctx, "shell_run", {"cmd": "ls"}, True, "req-10", error_type="transport"
+            ctx,
+            "shell_run",
+            {"cmd": "ls"},
+            True,
+            "req-10",
+            error_type="transport",
+            idempotency_key=TestAgentAuditLogFormat._CALL_ID,
         )
 
         call_args = ctx.services_required.audit_logger.info.call_args[0][0]
@@ -381,7 +412,14 @@ class TestAgentAuditLogFormat:
         ctx.workflow.workflow_id = "wf-test-id"
         ctx.session.session_id = ""
 
-        audit_tool_exec(ctx, "shell_run", {"cmd": "ls"}, False, "req-11")
+        audit_tool_exec(
+            ctx,
+            "shell_run",
+            {"cmd": "ls"},
+            False,
+            "req-11",
+            idempotency_key=TestAgentAuditLogFormat._CALL_ID,
+        )
 
         call_args = ctx.services_required.audit_logger.info.call_args[0][0]
         # Must not start with AUDIT (key=value format)
@@ -406,7 +444,14 @@ class TestAgentAuditLogFormat:
         ctx.workflow.workflow_id = "wf-2"
         ctx.session.session_id = "sess-def"
 
-        audit_tool_exec(ctx, "write_file", {"path": "/tmp/k.txt"}, False, "req-12")
+        audit_tool_exec(
+            ctx,
+            "write_file",
+            {"path": "/tmp/k.txt"},
+            False,
+            "req-12",
+            idempotency_key=TestAgentAuditLogFormat._CALL_ID,
+        )
 
         call_args = ctx.services_required.audit_logger.info.call_args[0][0]
         parsed = json.loads(call_args)
@@ -428,7 +473,12 @@ class TestAgentAuditLogFormat:
         ctx.session.session_id = ""
 
         audit_tool_exec(
-            ctx, "read_text_file", {"path": "/tmp/l.txt"}, False, correlation_id
+            ctx,
+            "read_text_file",
+            {"path": "/tmp/l.txt"},
+            False,
+            correlation_id,
+            idempotency_key=TestAgentAuditLogFormat._CALL_ID,
         )
 
         call_args = ctx.services_required.audit_logger.info.call_args[0][0]
@@ -447,7 +497,14 @@ class TestAgentAuditLogFormat:
         ctx.workflow.workflow_id = "wf-test-id"
         ctx.session.session_id = ""
 
-        audit_tool_exec(ctx, "shell_run", {"cmd": "ls"}, False, "req-13")
+        audit_tool_exec(
+            ctx,
+            "shell_run",
+            {"cmd": "ls"},
+            False,
+            "req-13",
+            idempotency_key=TestAgentAuditLogFormat._CALL_ID,
+        )
 
         call_args = ctx.services_required.audit_logger.info.call_args[0][0]
         # Must start with { (JSON-lines)
@@ -455,3 +512,48 @@ class TestAgentAuditLogFormat:
         # Must be valid JSON
         parsed = json.loads(call_args)
         assert isinstance(parsed, dict)
+
+
+class TestAuditLogicalCallIdFieldContract:
+    """mcpdl001 REQ-008 (row 22): newly written events carry the logical call
+    id (uuid7 shape) and stay grant-free with masked args."""
+
+    def _logged_exec(self) -> dict[str, Any]:
+        from agent.tool_audit import audit_tool_exec
+
+        ctx = TestAgentAuditLogFormat._ctx_fixture()
+        ctx.cfg.tool.masked_fields = ["token"]
+        audit_tool_exec(
+            ctx,
+            "write_file",
+            {"path": "/tmp/m.csv", "token": "raw-secret"},
+            False,
+            "req-14",
+            idempotency_key=TestAgentAuditLogFormat._CALL_ID,
+        )
+        return json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+
+    def test_exec_event_carries_uuid7_logical_call_id(self) -> None:
+        parsed = self._logged_exec()
+        assert re.match(TestAgentAuditLogFormat._UUID7_RE, parsed["idempotency_key"])
+
+    def test_exec_event_is_grant_free(self) -> None:
+        """No grant capability material is serialized into the exec event."""
+        parsed = self._logged_exec()
+        assert "grant" not in parsed
+        assert "mode" not in parsed
+
+    def test_exec_event_args_preview_is_masked_not_raw(self) -> None:
+        """REQ-008: raw credentials stay out of audit rows (mask_args invariant)."""
+        parsed = self._logged_exec()
+        assert "raw-secret" not in json.dumps(parsed["args_preview"])
+
+    def test_approval_event_carries_idempotency_key_field(self) -> None:
+        """Row 8 contract: ToolApprovalEvent now serializes idempotency_key
+        (row 2 fills the value from the logical call id)."""
+        from agent.tool_audit import audit_approval
+
+        ctx = TestAgentAuditLogFormat._ctx_fixture()
+        audit_approval(ctx, "write_file", "medium", {"path": "/tmp/x"}, "approved")
+        parsed = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert "idempotency_key" in parsed

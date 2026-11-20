@@ -84,5 +84,5 @@ class TestInvokeAndRecordMerge:
         result = await invoker.invoke("srv", "some_tool", {})
 
         assert result is sentinel
-        invoker._record_transport_error.assert_called_once_with("srv", exc)
-        assert invoker._record_transport_error.call_args == call("srv", exc)
+        invoker._record_transport_error.assert_called_once_with("srv", exc, None)
+        assert invoker._record_transport_error.call_args == call("srv", exc, None)

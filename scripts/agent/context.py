@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
@@ -286,17 +287,23 @@ class ToolCallRecorder(Protocol):
 
     Implemented by agent.workflow.state_store.StateStore; deliberately not
     imported here so context.py stays import-cycle-free.
+
+    `call_id` is the opaque uuid7 logical call id from the call's execution
+    context (the same value the transport sends as X-Idempotency-Key). `state`
+    must come from agent.workflow.models.TOOL_CALL_STATES. A recorder failure
+    for a side-effecting call is raised by the caller (fail-closed in
+    tool_runner), not swallowed here.
     """
 
     def record_tool_call(
         self,
         task_id: str,
-        idempotency_key: str,
+        call_id: str,
         tool: str,
         retry_class: str,
     ) -> None: ...
 
-    def finalize_tool_call(self, idempotency_key: str, state: str) -> None: ...
+    def finalize_tool_call(self, call_id: str, state: str) -> None: ...
 
 
 @dataclass
@@ -358,6 +365,10 @@ class AppServices:
         self.health_registry = health_registry
         self.gateway: RepositoryGateway | None = gateway
         self.runtime_tools: RuntimeToolRegistry | None = runtime_tools
+        # Plain-REPL session intent-store close hook (mcpdl001 REQ-007), set by
+        # factory._wire_plain_repl_intent_store; closed by
+        # ResourceShutdownCoordinator with the other AppServices resources.
+        self.session_intent_close: Callable[[], None] | None = None
         self.serialization_events: int = 0
         self.serialization_tools_affected: int = 0
 

@@ -27,7 +27,9 @@ class ToolCallState:
     idempotency_key: str
     task_id: str
     tool: str
-    state: str  # pending | completed | failed | interrupted
+    # intent vocabulary: pending | dispatch_starting | dispatched | response_received
+    # | completed | failed | interrupted | outcome_unknown | reconciliation_required
+    state: str
     retry_class: str
     created_at: float  # epoch seconds
     updated_at: float  # epoch seconds
@@ -55,10 +57,12 @@ def record_tool_call(
 ) -> None:
     """Insert a tool-call row in state 'pending'.
 
-    Re-recording a key that already exists is a no-op re-finalize candidate, not a
-    second row: the primary key rejects the insert and the caller's dispatch flow
-    reaches this only for new calls, so INSERT OR IGNORE keeps the helper safe under
-    a racing writer.
+    `idempotency_key` is the opaque uuid7 logical call id from the call's
+    execution context — unique by construction, so distinct calls can never
+    merge into one row. Re-recording a key that already exists is a no-op
+    re-finalize candidate, not a second row: the primary key rejects the insert
+    and the caller's dispatch flow reaches this only for new calls, so INSERT
+    OR IGNORE keeps the helper safe under a racing writer.
     """
     now = time.time()
     db.execute(
@@ -71,7 +75,12 @@ def record_tool_call(
 
 
 def finalize_tool_call(db: SQLiteHelper, idempotency_key: str, state: str) -> None:
-    """Move a tool-call row to its final state, bumping updated_at.
+    """Move a tool-call row to another state in the intent vocabulary, bumping
+    updated_at.
+
+    Accepts the intermediate dispatch-stage states (`dispatch_starting`,
+    `dispatched`, `response_received`) exactly like the terminal ones — the
+    vocabulary check is the only gate.
 
     Raises:
         ValueError: if `state` is not in the `tool_call_state.state` vocabulary.
@@ -102,41 +111,59 @@ def pending_tool_calls(db: SQLiteHelper, task_id: str) -> list[ToolCallState]:
     return [_row_to_state(r) for r in rows]
 
 
+# Stale-scan source-state groups (REQ-009, AC-6): rows that never reached the
+# wire replay safely as 'interrupted'; rows already dispatched get
+# 'outcome_unknown' because their server-side outcome is unknowable.
+_STALE_REPLAYABLE_STATES = ("pending", "dispatch_starting")
+_STALE_OUTCOME_UNKNOWN_STATES = ("dispatched", "response_received")
+_STALE_SCAN_STATES = _STALE_REPLAYABLE_STATES + _STALE_OUTCOME_UNKNOWN_STATES
+_STALE_SCAN_SQL = (
+    "SELECT idempotency_key, state FROM tool_call_state"
+    " WHERE task_id=? AND state IN ("
+    + ", ".join("?" for _ in _STALE_SCAN_STATES)
+    + ") AND created_at < ?"
+)
+
+
 def classify_stale_pending(
     db: SQLiteHelper, task_id: str, timeout_seconds: float
 ) -> list[ToolCallState]:
-    """Mark this task's pending rows older than `timeout_seconds` as 'interrupted'.
+    """Transition this task's timed-out tool-call rows by dispatch stage.
 
-    Idempotent on re-run: only rows still in state 'pending' are transitioned, and
-    the transition happens inside the WHERE-guarded UPDATE (optimistic-lock style,
-    same discipline as ``recover_stale_attempts``). Returns the rows this call
-    transitioned. The timeout value comes from the caller (the dispatcher-side
-    ``pending_timeout_minutes`` config), not read here — this module stays
-    config-free.
+    Rows still at ``pending``/``dispatch_starting`` (never dispatched) become
+    ``interrupted`` — the replayable outcome callers have always seen. Rows at
+    ``dispatched``/``response_received`` become ``outcome_unknown``: the request
+    may have executed server-side, so automatic replay is forbidden (AC-6).
+
+    Idempotent on re-run: only rows still in the source state listed beside
+    them are transitioned, and the transition happens inside the WHERE-guarded
+    UPDATE (optimistic-lock style, same discipline as ``recover_stale_attempts``).
+    Returns the rows this call transitioned. The timeout value comes from the
+    caller (the dispatcher-side ``pending_timeout_minutes`` config), not read
+    here — this module stays config-free.
     """
     cutoff = time.time() - timeout_seconds
-    keys = [
-        str(row["idempotency_key"])
-        for row in db.fetchall(
-            "SELECT idempotency_key FROM tool_call_state"
-            " WHERE task_id=? AND state='pending' AND created_at < ?",
-            (task_id, cutoff),
-        )
-    ]
-    if not keys:
+    rows = db.fetchall(_STALE_SCAN_SQL, (task_id, *_STALE_SCAN_STATES, cutoff))
+    if not rows:
         return []
     stale: list[ToolCallState] = []
     now = time.time()
-    for key in keys:
+    for row in rows:
+        source_state = str(row["state"])
+        target_state = (
+            "interrupted"
+            if source_state in _STALE_REPLAYABLE_STATES
+            else "outcome_unknown"
+        )
         cursor = db.execute(
-            "UPDATE tool_call_state SET state='interrupted', updated_at=?"
-            " WHERE idempotency_key=? AND state='pending'",
-            (now, key),
+            "UPDATE tool_call_state SET state=?, updated_at=?"
+            " WHERE idempotency_key=? AND state=?",
+            (target_state, now, str(row["idempotency_key"]), source_state),
         )
         if cursor.rowcount == 1:
-            row = get_tool_call_state(db, key)
-            if row is not None:
-                stale.append(row)
+            state_row = get_tool_call_state(db, str(row["idempotency_key"]))
+            if state_row is not None:
+                stale.append(state_row)
     db.commit()
     return stale
 

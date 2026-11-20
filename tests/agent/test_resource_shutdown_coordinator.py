@@ -342,3 +342,54 @@ class TestCloseHooks:
             await coordinator.close_resources()
         error_messages = [str(c.args) for c in mock_logger.error.call_args_list]
         assert not any("close_hook" in msg for msg in error_messages)
+
+
+class TestSessionIntentStoreClose:
+    """mcpdl001 REQ-007: the factory-wired plain-REPL intent store is closed
+    with the other services; a close failure is recorded, never propagated."""
+
+    @staticmethod
+    def _coordinator_with_services() -> ResourceShutdownCoordinator:
+        coordinator = _make_coordinator()
+        svc = MagicMock()
+        svc.http.aclose = AsyncMock()
+        svc.lifecycle.shutdown_all = AsyncMock(return_value=[])
+        coordinator._ctx.services = svc
+        return coordinator
+
+    @pytest.mark.asyncio
+    async def test_intent_store_close_runs_when_wired(self) -> None:
+        coordinator = self._coordinator_with_services()
+        closed: list[bool] = []
+        coordinator._ctx.services.session_intent_close = lambda: closed.append(True)
+        await coordinator.close_resources()
+        assert closed == [True]
+
+    @pytest.mark.asyncio
+    async def test_unwired_store_is_a_noop(self) -> None:
+        coordinator = self._coordinator_with_services()
+        coordinator._ctx.services.session_intent_close = None
+        with patch("agent.resource_shutdown_coordinator.logger") as mock_logger:
+            await coordinator.close_resources()
+        error_messages = [str(c.args) for c in mock_logger.error.call_args_list]
+        assert not any("intent_store_close" in msg for msg in error_messages)
+
+    @pytest.mark.asyncio
+    async def test_raising_close_is_recorded_not_propagated(self) -> None:
+        coordinator = self._coordinator_with_services()
+
+        def raising() -> None:
+            raise RuntimeError("intent store boom")
+
+        coordinator._ctx.services.session_intent_close = raising
+        hooks_ran: list[str] = []
+        coordinator.register_close_hook("wf", lambda: hooks_ran.append("hook"))
+        with patch("agent.resource_shutdown_coordinator.logger") as mock_logger:
+            await coordinator.close_resources()
+
+        # The failure does not abort shutdown: later steps still run.
+        assert hooks_ran == ["hook"]
+        summary = coordinator._view.write_warning.call_args[0][0]
+        assert "intent_store_close" in summary
+        error_messages = [str(c.args) for c in mock_logger.error.call_args_list]
+        assert any("intent_store_close" in msg for msg in error_messages)

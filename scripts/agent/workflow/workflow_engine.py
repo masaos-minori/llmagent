@@ -160,24 +160,29 @@ class WorkflowEngine:
         return nullcontext(_NoOpSpan())
 
     def build_turn_control_message(self, task_id: str) -> str | None:
-        """Build the replay control message for a task's interrupted tool calls.
+        """Build the replay control message for a task's stale tool calls.
 
-        Turn-entry detection (toolexec001): stale pending rows are first
-        classified to 'interrupted' (timeout from the dispatcher-side dedup config),
-        then interrupted rows are listed — retryable ones with a re-issue instruction,
-        non-retryable ones as unreplayable status text the LLM must report rather than
-        replay (the dispatcher's ``dedup_unreplayable`` refusal semantics, row 04).
+        Turn-entry detection (toolexec001): stale rows are first classified by
+        dispatch stage (mcpdl001 REQ-009) — never-dispatched rows become
+        'interrupted' (timeout from the dispatcher-side dedup config), dispatched
+        rows become 'outcome_unknown'. Interrupted rows are then listed —
+        retryable ones with a re-issue instruction, non-retryable ones as
+        unreplayable status text the LLM must report rather than replay (the
+        dispatcher's ``dedup_unreplayable`` refusal semantics, row 04).
+        Outcome-unknown rows join the unreplayable section only: their request
+        may already have executed server-side, so re-issuing them could
+        duplicate side effects (AC-6).
 
         Detection must not raise into the turn path: on store or config errors the
         turn proceeds with no control message (the dispatcher's own dedup still
-        guards execution). No interrupted rows -> None -> byte-identical turn
+        guards execution). No listed rows -> None -> byte-identical turn
         behavior. Fresh pending rows (within the timeout window) are not
         listed: they may still belong to a call in flight, and re-issuing them could
         duplicate live work.
         """
         try:
             timeout_seconds = self._pending_timeout_seconds
-            interrupted = self._store.classify_stale_pending(task_id, timeout_seconds)
+            classified = self._store.classify_stale_pending(task_id, timeout_seconds)
         except Exception as exc:  # noqa: BLE001 — turn availability beats replay accuracy; the dispatcher dedup still guards execution
             logger.warning(
                 "Tool-call state detection failed for task %s (%s); proceeding without control message",
@@ -185,8 +190,11 @@ class WorkflowEngine:
                 exc,
             )
             return None
+        interrupted = [c for c in classified if c.state == "interrupted"]
         replayable = [c for c in interrupted if c.retry_class == "retryable"]
-        unreplayable = [c for c in interrupted if c.retry_class != "retryable"]
+        unreplayable = [c for c in interrupted if c.retry_class != "retryable"] + [
+            c for c in classified if c.state == "outcome_unknown"
+        ]
         if not replayable and not unreplayable:
             return None
         lines = ["[tool-call replay control]"]
@@ -202,11 +210,11 @@ class WorkflowEngine:
             )
         if unreplayable:
             lines.append(
-                "The following interrupted calls are NOT replayable. Do not re-issue them;"
+                "The following calls are NOT replayable. Do not re-issue them;"
                 " tell the user they require manual action (unreplayable: manual action required)."
             )
             lines.extend(
-                f"- unreplayable: tool={c.tool} idempotency_key={c.idempotency_key} state=interrupted"
+                f"- unreplayable: tool={c.tool} idempotency_key={c.idempotency_key} state={c.state}"
                 for c in unreplayable
             )
         return "\n".join(lines)

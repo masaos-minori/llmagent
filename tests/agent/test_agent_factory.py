@@ -731,3 +731,58 @@ class TestRouterCleanupDelegation:
 
         assert router.cleanup_server_resources("srv") == "cleaned srv"
         cleanup.assert_called_once_with("srv")
+
+
+# ── plain-REPL intent store wiring (mcpdl001 REQ-007) ────────────────────────
+
+
+class TestPlainReplIntentStoreWiring:
+    """build_agent_context wires a session-scoped StateStore recorder so
+    plain-REPL side-effecting calls have a durable intent row (AC-5)."""
+
+    def test_recorder_and_pseudo_task_id_are_wired(self, monkeypatch: Any) -> None:
+        _apply_patches(monkeypatch)
+        store_cls = MagicMock(name="StateStore")
+        monkeypatch.setattr("agent.factory.StateStore", store_cls)
+        ctx = _make_ctx()
+        # The MagicMock context auto-creates non-None workflow fields; the real
+        # startup state is unwired, so pin the unwired shape explicitly.
+        ctx.workflow.tool_call_recorder = None
+        ctx.workflow.current_task_id = None
+
+        build_agent_context(ctx, _make_view())
+
+        store_cls.assert_called_once_with()
+        assert ctx.workflow.tool_call_recorder is store_cls.return_value
+        assert str(ctx.workflow.current_task_id).startswith("repl-session-")
+        # Close hook reaches ResourceShutdownCoordinator through AppServices.
+        assert ctx.services.session_intent_close is store_cls.return_value.close
+
+    def test_existing_recorder_is_not_overwritten(self, monkeypatch: Any) -> None:
+        """Idempotency detail: only set the recorder while it is still None."""
+        _apply_patches(monkeypatch)
+        store_cls = MagicMock(name="StateStore")
+        monkeypatch.setattr("agent.factory.StateStore", store_cls)
+        ctx = _make_ctx()
+        sentinel = MagicMock(name="existing-recorder")
+        ctx.workflow.tool_call_recorder = sentinel
+
+        build_agent_context(ctx, _make_view())
+
+        store_cls.assert_not_called()
+        assert ctx.workflow.tool_call_recorder is sentinel
+        assert ctx.services.session_intent_close is None
+
+    def test_store_construction_failure_surfaces(self, monkeypatch: Any) -> None:
+        """Fail-closed: a recorder construction failure is raised here, not
+        swallowed — the call is then denied at execution time via tool_runner."""
+        _apply_patches(monkeypatch)
+        store_cls = MagicMock(name="StateStore", side_effect=OSError("db down"))
+        monkeypatch.setattr("agent.factory.StateStore", store_cls)
+        ctx = _make_ctx()
+        ctx.workflow.tool_call_recorder = None
+        ctx.workflow.current_task_id = None
+
+        with pytest.raises(OSError, match="db down"):
+            build_agent_context(ctx, _make_view())
+        assert ctx.workflow.tool_call_recorder is None

@@ -16,18 +16,24 @@ tool name absent from the registry but present in a stale
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
+import secrets
+import time
+import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import orjson
 from shared.tool_spec import ToolSpec
-from shared.transport_dto import ToolCallResult
+from shared.transport_dto import ToolCallResult, ToolExecutionContext
 
 from agent.tool_arg_validator import validate_tool_arguments
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
+    from agent.shared.models import ApprovalGrant
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +41,9 @@ logger = logging.getLogger(__name__)
 # is_error, llm_text). A prepare-phase failure has no separate "full" vs
 # "truncated" text, so both text fields carry the same rejection reason.
 _PrepFailure = tuple[str, str, dict, str, bool, str]
+
+
+_MAX_TOOL_CALL_ID_LEN = 256  # LLM-supplied tool-call ids are short opaque tokens
 
 
 @dataclass(frozen=True)
@@ -46,6 +55,57 @@ class PreparedToolCall:
     args: dict[str, Any]
     spec: ToolSpec
     original_call: dict
+    # Logical-call identity generated once here; None only in legacy fixtures —
+    # execution and the gateway deny side-effecting calls without it.
+    context: ToolExecutionContext | None = None
+    # Approval grant issued by run_approval_checks (mcpdl001 REQ-006): set via
+    # dataclasses.replace on every approved non-READ call; None for READ calls
+    # and for calls that never reach execution.
+    grant: ApprovalGrant | None = None
+
+
+def _malformed_id_reason(tc_id: str) -> str:
+    """Return a rejection reason when an LLM-supplied tool-call id is malformed, else "".
+
+    Rejects over-long ids and ids carrying whitespace or control characters: the
+    id keys correlation and audit rows, and REQ-001 requires format validation
+    at the preparation boundary.
+    """
+    if len(tc_id) > _MAX_TOOL_CALL_ID_LEN:
+        return f"tool call id exceeds {_MAX_TOOL_CALL_ID_LEN} characters: {tc_id[:64]!r}..."
+    if any(ch.isspace() or ord(ch) < 0x20 or ord(ch) == 0x7F for ch in tc_id):
+        return f"tool call id contains whitespace or control characters: {tc_id[:64]!r}"
+    return ""
+
+
+def _canonical_args_hash(args: dict[str, Any]) -> str:
+    """Hex sha256 over canonical-JSON args (sorted keys, compact separators).
+
+    Same computation as the approval grant's hash, so the gateway can compare
+    the grant and the context at the authorization boundary.
+    """
+    canonical = json.dumps(args, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _logical_call_id() -> str:
+    """Return the opaque UUIDv7 logical call id for one prepared call.
+
+    ``uuid.uuid7()`` covers both project venvs (3.14); the fallback composes the
+    same RFC 9562 layout (48-bit ms timestamp, version 7, 74 random bits) on the
+    3.13 floor declared by ``requires-python``, which CI runs.
+    """
+    uuid7 = getattr(uuid, "uuid7", None)
+    if callable(uuid7):
+        return str(uuid7())
+    value = (
+        (time.time_ns() // 1_000_000 & 0xFFFF_FFFF_FFFF) << 80
+        | 0x7 << 76
+        | secrets.randbits(12) << 64
+        | 0b10 << 62
+        | secrets.randbits(62)
+    )
+    return str(uuid.UUID(int=value))
 
 
 def _reject(tc_id: str, name: str, args: dict, kind: str, reason: str) -> _PrepFailure:
@@ -82,6 +142,13 @@ def _prepare_one(ctx: AgentContext, tc: dict) -> PreparedToolCall | _PrepFailure
         return _reject(
             tc_id or "", name or "", {}, "configuration", "tool call is missing an id"
         )
+    if not isinstance(tc_id, str):
+        return _reject(
+            str(tc_id), name or "", {}, "validation", "tool call id must be a string"
+        )
+    malformed = _malformed_id_reason(tc_id)
+    if malformed:
+        return _reject(tc_id, name or "", {}, "validation", malformed)
     if not name:
         return _reject(
             tc_id, "", {}, "validation", "tool call is missing a function name"
@@ -142,7 +209,17 @@ def _prepare_one(ctx: AgentContext, tc: dict) -> PreparedToolCall | _PrepFailure
         )
 
     return PreparedToolCall(
-        call_id=tc_id, name=name, args=args, spec=spec, original_call=tc
+        call_id=tc_id,
+        name=name,
+        args=args,
+        spec=spec,
+        original_call=tc,
+        context=ToolExecutionContext(
+            call_id=_logical_call_id(),
+            tool=name,
+            args_hash=_canonical_args_hash(args),
+            operation="call_tool",
+        ),
     )
 
 

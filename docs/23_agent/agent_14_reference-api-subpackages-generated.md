@@ -203,6 +203,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `summarize_details` | `def summarize_details(details) -> list[str]` | Summarise detail entries, truncating large payloads. |
 | `scripts/agent/shared/models.py` | `ToolApprovalEvent` | `class ToolApprovalEvent` | Structured audit event for tool_approval log entries. |
 |  | `ToolExecEvent` | `class ToolExecEvent` | Structured audit event for tool_exec log entries. |
+|  | `ApprovalGrant` | `class ApprovalGrant` | Proof that the approval gate authorized one specific prepared call. |
 | `scripts/agent/shared/retry_helper.py` | `retry_once_with_delay` | `async def retry_once_with_delay(fn, delay, shutdown_event, interrupt_msg, *, skip_first_attempt, fatal_prefix) -> T` | Execute *fn* once; if it raises, wait *delay* seconds and retry once. |
 | `scripts/agent/workflow/artifact_ops.py` | `record_artifact` | `def record_artifact(db, task_id, stage_id, uri, workflow_id, attempt_number) -> ArtifactRef` | Insert an artifact reference into the database and return it. |
 | `scripts/agent/workflow/attempt_ops.py` | `get_owner_id` | `def get_owner_id() -> str` | Return this process's owner identity: hostname-pid-random. |
@@ -225,9 +226,9 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `get_workflow_count` | `def get_workflow_count(db, session_id) -> int` | Return the number of distinct workflows for a session. |
 | `scripts/agent/workflow/tool_call_state_ops.py` | `ToolCallState` | `class ToolCallState` | Database record for one tool-call lifecycle row. |
 |  | `record_tool_call` | `def record_tool_call(db, task_id, idempotency_key, tool, retry_class) -> None` | Insert a tool-call row in state 'pending'. |
-|  | `finalize_tool_call` | `def finalize_tool_call(db, idempotency_key, state) -> None` | Move a tool-call row to its final state, bumping updated_at. |
+|  | `finalize_tool_call` | `def finalize_tool_call(db, idempotency_key, state) -> None` | Move a tool-call row to another state in the intent vocabulary, bumping |
 |  | `pending_tool_calls` | `def pending_tool_calls(db, task_id) -> list[ToolCallState]` | Return the task's pending tool-call rows, oldest first. |
-|  | `classify_stale_pending` | `def classify_stale_pending(db, task_id, timeout_seconds) -> list[ToolCallState]` | Mark this task's pending rows older than `timeout_seconds` as 'interrupted'. |
+|  | `classify_stale_pending` | `def classify_stale_pending(db, task_id, timeout_seconds) -> list[ToolCallState]` | Transition this task's timed-out tool-call rows by dispatch stage. |
 |  | `get_tool_call_state` | `def get_tool_call_state(db, idempotency_key) -> ToolCallState \| None` | Return one tool-call row by key, or None if absent. |
 | `scripts/agent/workflow/validate.py` | `validate_path` | `def validate_path(path) -> WorkflowDef` | Return the loaded WorkflowDef, or raise WorkflowLoadError if invalid. |
 |  | `main` | `def main() -> int` | Validate a workflow definition JSON file against the schema. |

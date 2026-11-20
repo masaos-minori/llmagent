@@ -139,23 +139,29 @@ class StateStore:
     def record_tool_call(
         self,
         task_id: str,
-        idempotency_key: str,
+        call_id: str,
         tool: str,
         retry_class: str,
     ) -> None:
-        """Insert a tool-call row in state 'pending' for the task."""
+        """Insert a tool-call row in state 'pending' for the task.
+
+        `call_id` is the opaque uuid7 logical call id (the call's execution
+        context `call_id`), unique by construction.
+        """
         tool_call_state_ops.record_tool_call(
-            self._db, task_id, idempotency_key, tool, retry_class
+            self._db, task_id, call_id, tool, retry_class
         )
 
-    def finalize_tool_call(self, idempotency_key: str, state: str) -> None:
-        """Move a tool-call row to its final state, bumping updated_at."""
-        tool_call_state_ops.finalize_tool_call(self._db, idempotency_key, state)
+    def finalize_tool_call(self, call_id: str, state: str) -> None:
+        """Move a tool-call row to another state in the intent vocabulary."""
+        tool_call_state_ops.finalize_tool_call(self._db, call_id, state)
 
     def classify_stale_pending(
         self, task_id: str, timeout_seconds: float
     ) -> list[ToolCallState]:
-        """Mark this task's timed-out pending tool-call rows as 'interrupted'."""
+        """Transition this task's timed-out tool-call rows by dispatch stage:
+        never-dispatched rows become 'interrupted' (replayable), dispatched rows
+        become 'outcome_unknown' (never replayed)."""
         return tool_call_state_ops.classify_stale_pending(
             self._db, task_id, timeout_seconds
         )

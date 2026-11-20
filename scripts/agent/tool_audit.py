@@ -16,7 +16,8 @@ from shared.execution_snapshot import build_execution_snapshot, snapshot_json
 from shared.json_utils import dumps as _json_dumps
 
 from agent.shared.models import ToolApprovalEvent, ToolExecEvent
-from agent.tool_enums import ApprovalDecisionType, RiskLevel
+from agent.tool_enums import ApprovalDecisionType, OperationType, RiskLevel
+from agent.tool_exceptions import AuditUnavailableError
 from agent.tool_policy import classify_operation_type
 from agent.tool_result_formatter import mask_args
 
@@ -28,6 +29,17 @@ logger = logging.getLogger(__name__)
 AUDIT_ARGS_PREVIEW_MAX_CHARS = 1500
 
 _ERROR_TYPE_DENIED = "denied"
+
+# Operation types whose tool_exec audit record is mandatory (mcpdl001 REQ-007):
+# mirrors the ALL_SIDE_EFFECTING_TOOLS classification in agent.tool_policy.
+_MANDATORY_AUDIT_OP_TYPES: frozenset[OperationType] = frozenset(
+    {
+        OperationType.WRITE,
+        OperationType.DELETE,
+        OperationType.EXECUTE,
+        OperationType.API_WRITE,
+    }
+)
 
 
 def _bounded_preview(masked: dict) -> dict:
@@ -99,8 +111,14 @@ def audit_approval(
     risk: RiskLevel | str,
     args: dict,
     decision: ApprovalDecisionType | str,
+    idempotency_key: str = "",
 ) -> None:
-    """Write a structured tool_approval event to the audit log."""
+    """Write a structured tool_approval event to the audit log.
+
+    ``idempotency_key`` carries the logical call id (mcpdl001 REQ-008, AC-2):
+    the same value the transport sends as X-Idempotency-Key and the state
+    store keys on.
+    """
     if ctx.services_required.audit_logger is None:
         return
     workflow_id = _workflow_id_or_skip(ctx, "audit_approval", tool_name)
@@ -122,6 +140,7 @@ def audit_approval(
         ts=time.time(),
         workflow_id=workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
+        idempotency_key=idempotency_key,
     )
     ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 
@@ -194,13 +213,49 @@ def audit_tool_exec(
     Every record carries ``execution_snapshot_json`` (canonical JSON of the
     deployment fingerprint captured at call time, toolexec001);
     ``dedup_state`` is serialized only when non-empty (dispatcher dedup outcome, empty for non-dispatch-originated or freshly executed calls).
+
+    ``idempotency_key`` carries the logical call id (mcpdl001 REQ-008). For
+    side-effecting calls the audit record is mandatory (REQ-007, AC-5): a
+    missing audit logger, call identity, logical call id, or workflow id
+    raises AuditUnavailableError instead of skipping, and the caller must
+    treat it as a denial. Read-only calls and the denied-event path
+    (_ERROR_TYPE_DENIED) keep the silent-skip best-effort behavior.
     """
+    op_type = classify_operation_type(tool_name, ctx.services_required.runtime_tools)
+    # Side-effect classification follows the ALL_SIDE_EFFECTING_TOOLS semantics
+    # of classify_operation_type (static sets + registry is_write). UNKNOWN (an
+    # unclassifiable tool with no registry) is NOT treated as side-effecting:
+    # dispatch itself rejects unregistered tools, so it stays best-effort here.
+    mandatory = (
+        op_type in _MANDATORY_AUDIT_OP_TYPES and error_type != _ERROR_TYPE_DENIED
+    )
+
     if ctx.services_required.audit_logger is None:
+        if mandatory:
+            raise AuditUnavailableError(
+                f"audit_tool_exec refused: audit logger unavailable for "
+                f"side-effecting tool '{tool_name}' (REQ-007 fail-closed)"
+            )
         return
     if not mcp_request_id and not source and error_type != _ERROR_TYPE_DENIED:
+        if mandatory:
+            raise AuditUnavailableError(
+                f"audit_tool_exec refused: no mcp_request_id or source for "
+                f"side-effecting tool '{tool_name}' (REQ-007 fail-closed)"
+            )
         return
+    if mandatory and not idempotency_key:
+        raise AuditUnavailableError(
+            f"audit_tool_exec refused: missing logical call id for "
+            f"side-effecting tool '{tool_name}' (REQ-008)"
+        )
     workflow_id = _workflow_id_or_skip(ctx, "audit_tool_exec", tool_name)
     if workflow_id is None:
+        if mandatory:
+            raise AuditUnavailableError(
+                f"audit_tool_exec refused: called outside workflow context "
+                f"for side-effecting tool '{tool_name}' (REQ-007 fail-closed)"
+            )
         return
     masked = mask_args(args, ctx.cfg.tool.masked_fields)
     resource_scope = _extract_resource_scope(ctx, masked, tool_name)
@@ -208,9 +263,7 @@ def audit_tool_exec(
         event="tool_exec",
         task_id=ctx.turn.current_turn_id or "",
         tool=tool_name,
-        operation_type=classify_operation_type(
-            tool_name, ctx.services_required.runtime_tools
-        ),
+        operation_type=op_type,
         resource_scope=resource_scope,
         mcp_request_id=mcp_request_id,
         is_error=is_error,

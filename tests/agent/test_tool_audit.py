@@ -21,6 +21,7 @@ from agent.tool_audit import (
     write_round_exec,
 )
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
+from agent.tool_exceptions import AuditUnavailableError
 from shared.json_utils import dumps as _json_dumps
 
 from tests.agent._config_test_defaults import (
@@ -28,6 +29,8 @@ from tests.agent._config_test_defaults import (
     PERMISSIVE_ALLOWED_ROOT,
     PERMISSIVE_SQLITE_VEC_SO,
 )
+
+_CALL_ID = "018f0000-0000-7000-8000-000000000005"  # logical call id fixture (REQ-008)
 
 
 def _make_cfg(**overrides: Any) -> AgentConfig:
@@ -71,7 +74,17 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.workflow.workflow_id = "wf-test-id"
     ctx.session.session_id = None
     ctx.services_required.audit_logger = None
+    # Registry None: classify_operation_type fails closed to UNKNOWN for
+    # unregistered tools; static write/delete tools still classify as WRITE/DELETE.
+    ctx.services_required.runtime_tools = None
     return ctx
+
+
+def _read_registry() -> Any:
+    """Registry mock whose get() reports is_write=False: explicit READ classification."""
+    registry = MagicMock()
+    registry.get.return_value = MagicMock(is_write=False)
+    return registry
 
 
 class TestAuditApprovalInv11:
@@ -167,7 +180,9 @@ def _args_preview_after_write(writer: str, args: dict[str, Any]) -> dict[str, An
     if writer == "approval":
         audit_approval(ctx, "write_file", RiskLevel.MEDIUM, args, "approved")
     else:
-        audit_tool_exec(ctx, "write_file", args, False, "req-1")
+        audit_tool_exec(
+            ctx, "write_file", args, False, "req-1", idempotency_key=_CALL_ID
+        )
     logged = ctx.services_required.audit_logger.info.call_args[0][0]
     preview: dict[str, Any] = json.loads(logged)["args_preview"]
     return preview
@@ -298,6 +313,7 @@ class TestAuditToolExecSnapshotDedup:
             False,
             "req-9",
             dedup_state="duplicate_hit",
+            idempotency_key=_CALL_ID,
         )
         payload = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
         assert payload["dedup_state"] == "duplicate_hit"
@@ -339,7 +355,9 @@ def _logged_event_with_fields(
     if writer == "approval":
         audit_approval(ctx, "write_file", RiskLevel.MEDIUM, args, "approved")
     else:
-        audit_tool_exec(ctx, "write_file", args, False, "req-scrub-1")
+        audit_tool_exec(
+            ctx, "write_file", args, False, "req-scrub-1", idempotency_key=_CALL_ID
+        )
     logged: str = ctx.services_required.audit_logger.info.call_args[0][0]
     return logged
 
@@ -514,8 +532,130 @@ class TestDeniedResultAudit:
             "req-1",
             "",
             source="agent",
+            idempotency_key=_CALL_ID,
         )
         control = json.loads(
             control_ctx.services_required.audit_logger.info.call_args[0][0]
         )
         assert set(denied) == set(control)
+
+
+class TestMandatoryAuditForSideEffects:
+    """mcpdl001 REQ-007/REQ-008 (AC-5): side-effecting calls fail closed when
+    the audit record cannot be written; read-only calls stay best-effort."""
+
+    def _logged_ctx(self) -> Any:
+        ctx = _make_ctx()
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.cfg.tool.masked_fields = []
+        ctx.cfg.approval.approval_resource_keys = {}
+        return ctx
+
+    def test_write_with_missing_audit_logger_raises(self) -> None:
+        ctx = _make_ctx()  # audit_logger = None
+        ctx.services_required.tools.execute = MagicMock()
+        with pytest.raises(AuditUnavailableError, match="write_file"):
+            audit_tool_exec(
+                ctx,
+                "write_file",
+                {"path": "/tmp/x"},
+                False,
+                "req-1",
+                source="mcp",
+                idempotency_key=_CALL_ID,
+            )
+
+    def test_delete_with_missing_audit_logger_raises(self) -> None:
+        ctx = _make_ctx()
+        with pytest.raises(AuditUnavailableError, match="delete_file"):
+            audit_tool_exec(
+                ctx,
+                "delete_file",
+                {"path": "/tmp/x"},
+                False,
+                "req-1",
+                source="mcp",
+                idempotency_key=_CALL_ID,
+            )
+
+    def test_read_only_with_missing_audit_logger_stays_silent(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.runtime_tools = _read_registry()
+        audit_tool_exec(
+            ctx,
+            "read_text_file",
+            {"path": "/tmp/f"},
+            False,
+            "req-1",
+            source="mcp",
+            idempotency_key=_CALL_ID,
+        )  # must not raise (REQ-007 best-effort carve-out)
+
+    def test_write_with_empty_logical_id_raises(self) -> None:
+        ctx = self._logged_ctx()
+        with pytest.raises(AuditUnavailableError, match="logical call id"):
+            audit_tool_exec(ctx, "write_file", {"path": "/tmp/x"}, False, "req-1")
+
+    def test_read_only_with_empty_logical_id_still_emits(self) -> None:
+        ctx = self._logged_ctx()
+        ctx.services_required.runtime_tools = _read_registry()
+        audit_tool_exec(ctx, "read_text_file", {"path": "/tmp/f"}, False, "req-1")
+        ctx.services_required.audit_logger.info.assert_called_once()
+
+    def test_write_with_empty_identity_raises(self) -> None:
+        ctx = self._logged_ctx()
+        with pytest.raises(AuditUnavailableError, match="no mcp_request_id or source"):
+            audit_tool_exec(
+                ctx,
+                "write_file",
+                {"path": "/tmp/x"},
+                False,
+                "",
+                source="",
+                idempotency_key=_CALL_ID,
+            )
+
+    def test_write_without_workflow_id_raises_after_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        ctx = self._logged_ctx()
+        ctx.workflow.workflow_id = None
+        with caplog.at_level(logging.WARNING, logger="agent.tool_audit"):
+            with pytest.raises(AuditUnavailableError, match="outside workflow context"):
+                audit_tool_exec(
+                    ctx,
+                    "write_file",
+                    {"path": "/tmp/x"},
+                    False,
+                    "req-1",
+                    idempotency_key=_CALL_ID,
+                )
+        assert "audit_tool_exec" in caplog.text
+        assert "/tmp/x" not in caplog.text  # no argument values in the warning
+
+    def test_denied_path_keeps_skip_and_empty_id_behavior(self) -> None:
+        """Denied events never executed a side effect: skip behavior unchanged."""
+        ctx_none = _make_ctx()  # audit_logger = None
+        audit_tool_exec(
+            ctx_none, "write_file", {"path": "/tmp/x"}, True, "", "denied", source=""
+        )  # must not raise (Compatibility: denied path keeps skip behavior)
+
+        ctx = self._logged_ctx()
+        audit_tool_exec(
+            ctx, "write_file", {"path": "/tmp/x"}, True, "", "denied", source=""
+        )  # empty logical id stays allowed for denied events
+        ctx.services_required.audit_logger.info.assert_called_once()
+
+    def test_logical_id_lands_in_the_event(self) -> None:
+        ctx = self._logged_ctx()
+        audit_tool_exec(
+            ctx,
+            "write_file",
+            {"path": "/tmp/x"},
+            False,
+            "req-1",
+            source="mcp",
+            idempotency_key=_CALL_ID,
+        )
+        payload = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert payload["idempotency_key"] == _CALL_ID

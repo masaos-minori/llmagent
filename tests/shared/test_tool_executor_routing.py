@@ -5,19 +5,18 @@ set_lifecycle(), transport-dispatch paths, and auth header injection.
 
 from __future__ import annotations
 
-import hashlib
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from shared.http_transport import HttpTransport, TransportError, derive_idempotency_key
+from shared.http_transport import HttpTransport, TransportError
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
 from shared.runtime_tool import build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_executor import LifecycleProtocol, ToolExecutor
-from shared.transport_dto import ToolCallResult
+from shared.transport_dto import ToolCallResult, ToolExecutionContext
 
 
 def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
@@ -26,6 +25,15 @@ def _http_cfg(url: str = "http://127.0.0.1:8000") -> McpServerConfig:
         url=url,
         startup_mode=StartupMode.PERSISTENT,
         auth_token="test-token",
+    )
+
+
+def _ctx(
+    name: str, call_id: str = "018f7e2c-1c3d-7abc-8def-0123456789ab"
+) -> ToolExecutionContext:
+    """Fixture context: the transport now refuses calls without a logical id."""
+    return ToolExecutionContext(
+        call_id=call_id, tool=name, args_hash="args-hash", operation="call_tool"
     )
 
 
@@ -232,7 +240,7 @@ class TestHttpTransportAuthHeader:
         mock_http.post = AsyncMock(return_value=mock_resp)
 
         transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc", cfg)
-        await transport.call("my_tool", {})
+        await transport.call("my_tool", {}, _ctx("my_tool"))
 
         call_kwargs = mock_http.post.call_args.kwargs
         assert call_kwargs["headers"].get("Authorization") == "Bearer my-token"
@@ -252,7 +260,7 @@ class TestHttpTransportAuthHeader:
         mock_http.post = AsyncMock(return_value=mock_resp)
 
         transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc", cfg)
-        await transport.call("my_tool", {})
+        await transport.call("my_tool", {}, _ctx("my_tool"))
 
         call_kwargs = mock_http.post.call_args.kwargs
         assert call_kwargs["headers"].get("Authorization") is None
@@ -278,7 +286,7 @@ class TestHttpTransportAuthHeader:
         transport = HttpTransport(
             mock_http, "http://127.0.0.1:8000", "svc", cfg=MagicMock(auth_token="")
         )
-        res = await transport.call("my_tool", {})
+        res = await transport.call("my_tool", {}, _ctx("my_tool"))
         x_req_id = res.request_id
 
         assert x_req_id == "abc-123"
@@ -295,7 +303,7 @@ class TestHttpTransportAuthHeader:
         transport = HttpTransport(
             mock_http, "http://127.0.0.1:8000", "svc", cfg=MagicMock(auth_token="")
         )
-        res = await transport.call("my_tool", {})
+        res = await transport.call("my_tool", {}, _ctx("my_tool"))
         x_req_id = res.request_id
 
         assert x_req_id == ""
@@ -316,7 +324,7 @@ class TestHttpTransportErrors:
             mock_http, "http://127.0.0.1:8000", "svc", cfg=MagicMock(auth_token="")
         )
         with pytest.raises(TransportError) as exc_info:
-            await transport.call("my_tool", {})
+            await transport.call("my_tool", {}, _ctx("my_tool"))
         assert "[HTTPStatusError]" in str(exc_info.value)
         assert "status=500" in str(exc_info.value)
 
@@ -331,7 +339,7 @@ class TestHttpTransportErrors:
             mock_http, "http://127.0.0.1:8000", "svc", cfg=MagicMock(auth_token="")
         )
         with pytest.raises(TransportError):
-            await transport.call("my_tool", {})
+            await transport.call("my_tool", {}, _ctx("my_tool"))
 
     @pytest.mark.asyncio
     async def test_invalid_response_raises_transport_error(self) -> None:
@@ -343,13 +351,14 @@ class TestHttpTransportErrors:
             mock_http, "http://127.0.0.1:8000", "svc", cfg=MagicMock(auth_token="")
         )
         with pytest.raises(TransportError):
-            await transport.call("my_tool", {})
+            await transport.call("my_tool", {}, _ctx("my_tool"))
 
 
 class TestHttpTransportIdempotencyRetry:
     @pytest.mark.asyncio
     async def test_retry_reuses_single_idempotency_key(self) -> None:
-        """REQ-005: one X-Idempotency-Key per logical call, reused across retries."""
+        """REQ-005/AC-1 (rewritten for mcpdl001 row 16): the reused
+        X-Idempotency-Key is the context's logical call id, not a derived key."""
         cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:8000",
@@ -369,23 +378,16 @@ class TestHttpTransportIdempotencyRetry:
         mock_http.post = AsyncMock(side_effect=[_resp(503), _resp(200)])
 
         transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc", cfg)
+        call_id = "018f0000-0000-7000-8000-0000000000aa"
         with patch("shared.http_transport.asyncio.sleep"):
-            await transport.call("my_tool", {})
+            await transport.call("my_tool", {}, _ctx("my_tool", call_id))
 
         keys = [
             c.kwargs["headers"]["X-Idempotency-Key"]
             for c in mock_http.post.call_args_list
         ]
         assert len(keys) == 2
-        assert all(k for k in keys)  # every attempt carries a non-empty key
-        assert len(set(keys)) == 1  # identical value reused across retries
-        # Row 16 (REQ-001): the reused key equals the locally re-derived
-        # deterministic key. No session id is set, so the transport's uid is the
-        # auth-token hash (row 01 Assumptions).
-        expected_key = derive_idempotency_key(
-            "call_tool", "my_tool", {}, hashlib.sha256(b"my-token").hexdigest()
-        )
-        assert keys[0] == expected_key
+        assert keys == [call_id, call_id]  # the logical id is reused unchanged
 
     @pytest.mark.asyncio
     async def test_write_and_read_retry_call_counts(self) -> None:
@@ -417,7 +419,7 @@ class TestHttpTransportIdempotencyRetry:
             transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc", cfg)
             with patch("shared.http_transport.asyncio.sleep"):
                 with pytest.raises(TransportError):
-                    await transport.call(name, {})
+                    await transport.call(name, {}, _ctx(name))
             return len(calls)
 
         write_calls = await _count_post_calls("git_commit")
@@ -454,7 +456,7 @@ class TestSetSessionId:
         # Trigger a call so headers are captured
         transport = ex._transports["srv"]
         assert isinstance(transport, HttpTransport)
-        await transport.call("some_tool", {})
+        await transport.call("some_tool", {}, _ctx("some_tool"))
 
         call_kwargs = mock_http.post.call_args.kwargs
         assert call_kwargs["headers"].get("X-Session-Id") == "sess-abc"
@@ -1019,3 +1021,50 @@ class TestExecuteRoutingResults:
         assert result.is_error is True
         assert result.error_type == "routing"
         assert "routing:server_unavailable:" in result.output
+
+
+class TestNoContextRefusalAtRoutingLayer:
+    """AC-3 via ToolExecutor: a call whose context lacks the logical id is
+    refused at the transport gate (row 16) and never hits the wire."""
+
+    @pytest.mark.asyncio
+    async def test_execute_without_context_is_refused(self) -> None:
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        ex = ToolExecutor(
+            mock_http,
+            server_configs={"file_read": _http_cfg()},
+            health_registry=McpServerHealthRegistry(),
+        )
+        ex.set_runtime_registry(_runtime_registry_for({"read_text_file": "file_read"}))
+        res = await ex.execute("read_text_file", {"path": "/x"})
+        assert res.is_error is True
+        assert res.error_type == "routing"
+        assert res.dispatch_stage == ""
+        assert "no logical call id" in res.output
+        assert mock_http.post.await_count == 0
+
+    @pytest.mark.asyncio
+    async def test_execute_with_context_forwards_it_to_the_transport(self) -> None:
+        """Row 14 companion: execute() forwards the context unchanged down the chain."""
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.content = b'{"result":"ok","is_error":false}'
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.headers = {}
+        mock_http.post = AsyncMock(return_value=mock_resp)
+        ex = ToolExecutor(
+            mock_http,
+            server_configs={"file_read": _http_cfg()},
+            health_registry=McpServerHealthRegistry(),
+        )
+        ex.set_runtime_registry(_runtime_registry_for({"read_text_file": "file_read"}))
+        ctx = _ctx("read_text_file", "018f0000-0000-7000-8000-0000000000bb")
+        res = await ex.execute("read_text_file", {"path": "/x"}, ctx)
+        assert res.is_error is False
+        assert res.context is ctx
+        assert res.dispatch_stage == "response"
+        assert (
+            mock_http.post.call_args.kwargs["headers"]["X-Idempotency-Key"]
+            == ctx.call_id
+        )

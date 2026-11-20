@@ -18,10 +18,18 @@ import respx
 from shared.mcp_config import McpServerConfig, TransportType
 from shared.mcp_health import McpServerHealthRegistry
 from shared.tool_executor import ToolExecutor
+from shared.transport_dto import ToolExecutionContext
 
 _TEST_URL = "http://127.0.0.1:19001"
 _HTTP_KEY = "int_http"
 _HTTP_TOOL = "_int_http_tool"
+
+
+def _ctx(call_id: str = "018f7e2c-1c3d-7abc-8def-0123456789ab") -> ToolExecutionContext:
+    """Call context: the HTTP transport refuses calls with no logical call id (AC-3)."""
+    return ToolExecutionContext(
+        call_id=call_id, tool=_HTTP_TOOL, args_hash="args-hash", operation="call_tool"
+    )
 
 
 def _make_http_executor(
@@ -55,7 +63,9 @@ async def test_a01_http_tool_call_succeeds():
         )
         async with httpx.AsyncClient() as http:
             executor = _make_http_executor(http)
-            result = await executor.execute(_HTTP_TOOL, {"path": "/tmp/x"})
+            result = await executor.execute(
+                _HTTP_TOOL, {"path": "/tmp/x"}, context=_ctx()
+            )
 
     assert not result.is_error
     assert result.output == "ok"
@@ -71,7 +81,7 @@ async def test_a02_http_504_returns_transport_error(http_retry_delays):
         mock.post("/v1/call_tool").respond(504)
         async with httpx.AsyncClient() as http:
             executor = _make_http_executor(http)
-            result = await executor.execute(_HTTP_TOOL, {})
+            result = await executor.execute(_HTTP_TOOL, {}, context=_ctx())
 
     assert result.is_error
     assert result.error_type == "transport"
@@ -87,7 +97,7 @@ async def test_a03_http_timeout_returns_transport_error():
         mock.post("/v1/call_tool").mock(side_effect=httpx.TimeoutException("timed out"))
         async with httpx.AsyncClient() as http:
             executor = _make_http_executor(http)
-            result = await executor.execute(_HTTP_TOOL, {})
+            result = await executor.execute(_HTTP_TOOL, {}, context=_ctx())
 
     assert result.is_error
     assert result.error_type == "transport"
@@ -111,7 +121,7 @@ async def test_a04_http_503_retry_then_success(http_retry_delays):
         mock.post("/v1/call_tool").mock(side_effect=_side_effect)
         async with httpx.AsyncClient() as http:
             executor = _make_http_executor(http)
-            result = await executor.execute(_HTTP_TOOL, {})
+            result = await executor.execute(_HTTP_TOOL, {}, context=_ctx())
 
     assert not result.is_error
     assert result.output == "recovered"
@@ -130,7 +140,7 @@ async def test_a05_http_tool_error_increments_stat():
         )
         async with httpx.AsyncClient() as http:
             executor = _make_http_executor(http)
-            result = await executor.execute(_HTTP_TOOL, {})
+            result = await executor.execute(_HTTP_TOOL, {}, context=_ctx())
 
     assert result.is_error
     assert result.error_type == "tool"
@@ -153,7 +163,7 @@ async def test_a10_health_check_unavailable_rejects_call():
             for _ in range(3):
                 health.record_failure(_HTTP_KEY)
 
-            result = await executor.execute(_HTTP_TOOL, {})
+            result = await executor.execute(_HTTP_TOOL, {}, context=_ctx())
 
     assert result.is_error
     assert not transport_route.called
@@ -171,7 +181,12 @@ async def test_a12_concurrent_http_calls_all_complete():
         async with httpx.AsyncClient() as http:
             executor = _make_http_executor(http)
             results = await asyncio.gather(
-                *[executor.execute(_HTTP_TOOL, {"n": i}) for i in range(5)]
+                *[
+                    executor.execute(
+                        _HTTP_TOOL, {"n": i}, context=_ctx(call_id=f"call-{i}")
+                    )
+                    for i in range(5)
+                ]
             )
 
     assert len(results) == 5
@@ -194,7 +209,7 @@ async def test_a13_http_429_retry_then_transport_error(http_retry_delays):
         mock.post("/v1/call_tool").mock(side_effect=_side_effect)
         async with httpx.AsyncClient() as http:
             executor = _make_http_executor(http)
-            result = await executor.execute(_HTTP_TOOL, {})
+            result = await executor.execute(_HTTP_TOOL, {}, context=_ctx())
 
     assert result.is_error
     assert result.error_type == "transport"
@@ -218,7 +233,7 @@ async def test_a14_http_502_retry_then_transport_error(http_retry_delays):
         mock.post("/v1/call_tool").mock(side_effect=_side_effect)
         async with httpx.AsyncClient() as http:
             executor = _make_http_executor(http)
-            result = await executor.execute(_HTTP_TOOL, {})
+            result = await executor.execute(_HTTP_TOOL, {}, context=_ctx())
 
     assert result.is_error
     assert result.error_type == "transport"
@@ -235,7 +250,7 @@ async def test_a15_http_400_non_retryable():
         mock.post("/v1/call_tool").respond(400)
         async with httpx.AsyncClient() as http:
             executor = _make_http_executor(http)
-            result = await executor.execute(_HTTP_TOOL, {})
+            result = await executor.execute(_HTTP_TOOL, {}, context=_ctx())
 
     assert result.is_error
     # 400 is tool-level (REQ-001): tool error result, not a transport failure.
@@ -254,7 +269,7 @@ async def test_a16_http_500_non_retryable():
         mock.post("/v1/call_tool").respond(500)
         async with httpx.AsyncClient() as http:
             executor = _make_http_executor(http)
-            result = await executor.execute(_HTTP_TOOL, {})
+            result = await executor.execute(_HTTP_TOOL, {}, context=_ctx())
 
     assert result.is_error
     assert result.error_type == "transport"
@@ -280,7 +295,7 @@ async def test_a17_http_503_retry_then_success(http_retry_delays):
         mock.post("/v1/call_tool").mock(side_effect=_side_effect)
         async with httpx.AsyncClient() as http:
             executor = _make_http_executor(http)
-            result = await executor.execute(_HTTP_TOOL, {})
+            result = await executor.execute(_HTTP_TOOL, {}, context=_ctx())
 
     assert not result.is_error
     assert result.output == "recovered"

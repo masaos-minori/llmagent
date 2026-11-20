@@ -986,3 +986,85 @@ class TestToolCallStateOps:
         ] == ["fresh"]
         # Idempotent on re-run: nothing transitions twice.
         assert store.classify_stale_pending(task.task_id, 60.0) == []
+
+    def test_distinct_logical_ids_never_merge(self, store) -> None:
+        """mcpdl001 REQ-005 / row 24: two calls with identical tool, args and
+        task but distinct uuid7 logical ids are two rows — the old derived-key
+        merge is gone because the key is the per-call id itself."""
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        store.record_tool_call(
+            task.task_id,
+            "018f0000-0000-7000-8000-0000000000a1",
+            "calculator__calculate",
+            "retryable",
+        )
+        store.record_tool_call(
+            task.task_id,
+            "018f0000-0000-7000-8000-0000000000a2",
+            "calculator__calculate",
+            "retryable",
+        )
+        pending = tool_call_state_ops.pending_tool_calls(store._db, task.task_id)
+        assert [c.idempotency_key for c in pending] == [
+            "018f0000-0000-7000-8000-0000000000a1",
+            "018f0000-0000-7000-8000-0000000000a2",
+        ]
+        store.finalize_tool_call("018f0000-0000-7000-8000-0000000000a1", "completed")
+        assert [
+            c.idempotency_key
+            for c in tool_call_state_ops.pending_tool_calls(store._db, task.task_id)
+        ] == ["018f0000-0000-7000-8000-0000000000a2"]
+
+    def test_dispatch_stage_rows_stay_out_of_pending(self, store) -> None:
+        """mcpdl001 REQ-005 / row 24: a row walked through the intermediate
+        intent states is no longer 'pending' and never re-enters the pending
+        listing, though it is still live for stale classification."""
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        store.record_tool_call(
+            task.task_id, "walk-1", "calculator__calculate", "retryable"
+        )
+        store.finalize_tool_call("walk-1", "dispatch_starting")
+        assert tool_call_state_ops.pending_tool_calls(store._db, task.task_id) == []
+        store.finalize_tool_call("walk-1", "dispatched")
+        assert tool_call_state_ops.pending_tool_calls(store._db, task.task_id) == []
+        store.finalize_tool_call("walk-1", "response_received")
+        assert tool_call_state_ops.pending_tool_calls(store._db, task.task_id) == []
+        row = tool_call_state_ops.get_tool_call_state(store._db, "walk-1")
+        assert row is not None and row.state == "response_received"
+
+    def test_classify_stale_pending_splits_by_dispatch_stage(self, store) -> None:
+        """REQ-009/AC-6: never-dispatched stale rows become 'interrupted'
+        (replayable); dispatch-stage stale rows become 'outcome_unknown' and are
+        never replayed."""
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        store.record_tool_call(
+            task.task_id, "never", "calculator__calculate", "retryable"
+        )
+        store.record_tool_call(
+            task.task_id, "starting", "calculator__calculate", "retryable"
+        )
+        store.finalize_tool_call("starting", "dispatch_starting")
+        store.record_tool_call(
+            task.task_id, "sent", "filesystem__write_file", "non_retryable"
+        )
+        store.finalize_tool_call("sent", "dispatched")
+        store.record_tool_call(
+            task.task_id, "resp", "filesystem__write_file", "non_retryable"
+        )
+        store.finalize_tool_call("resp", "response_received")
+        store._db.execute(
+            "UPDATE tool_call_state SET created_at=?", (time.time() - 120,)
+        )
+        store._db.commit()
+        states = {
+            c.idempotency_key: c.state
+            for c in store.classify_stale_pending(task.task_id, 60.0)
+        }
+        assert states == {
+            "never": "interrupted",
+            "starting": "interrupted",
+            "sent": "outcome_unknown",
+            "resp": "outcome_unknown",
+        }
+        # Idempotent on re-run; outcome_unknown rows never re-enter the scan.
+        assert store.classify_stale_pending(task.task_id, 60.0) == []
