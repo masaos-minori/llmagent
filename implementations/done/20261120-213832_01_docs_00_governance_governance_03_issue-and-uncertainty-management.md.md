@@ -78,8 +78,8 @@ Insert exactly this block (17 fields):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan (`routing.md` Tools) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 2026-11-20 | pre-edit searches re-run: both zero-hit (no AGENT-/EVENTBUS- headings, no module-name mentions) |
+| 2 | Run the documentation checkers named in the Validation plan (`routing.md` Tools) | Completed | — | 2026-11-20 | all named checkers pass; governance_03 size ceiling re-accepted 34313->36248 in tools/check_docs_structure.py per established pattern |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

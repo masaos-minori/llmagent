@@ -66,8 +66,8 @@ In the target file, write the new cell inside the table row with `AGENT-001` bac
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Run after the seq 01 procedure creates `AGENT-001` |
-| 2 | Run the documentation checkers named in the Validation plan (`routing.md` Tools) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 2026-11-20 | Run after the seq 01 procedure creates `AGENT-001` seq 01 completed and archived; AGENT-001 exists in governance_03 single-cell edit applied to line 169 row only |
+| 2 | Run the documentation checkers named in the Validation plan (`routing.md` Tools) | Completed | — | 2026-11-20 | archived-status checker no findings; prose mentions unchanged; full suite (13154 passed, 7 skipped) run earlier in this cycle |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -153,9 +153,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: re-run searches, then register the AGENT-001 design-gap entry | In Progress | — | — | `docs/00_governance/governance_03_issue-and-uncertainty-management.md` |
-| 2 | Phase 2: update the adrrev002 UNK-02 Resolution Path cell | In Progress | — | — | `plans/done/20261110-091327_adrrev002_agent-eventbus-coupling.md` |
-| 3 | Phase 3: validation gates and scope confirmation (no deploy) | Pending | — | — | Both Implementation Target Files |
+| 1 | Phase 1: re-run searches, then register the AGENT-001 design-gap entry | Completed | — | 2026-11-20 | `docs/00_governance/governance_03_issue-and-uncertainty-management.md` |
+| 2 | Phase 2: update the adrrev002 UNK-02 Resolution Path cell | Completed | — | 2026-11-20 | `plans/done/20261110-091327_adrrev002_agent-eventbus-coupling.md` |
+| 3 | Phase 3: validation gates and scope confirmation (no deploy) | Completed | — | 2026-11-20 | Both Implementation Target Files validation gates and full test suite pass; scope confirmed by git diff |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -165,8 +165,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261120-213832_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261120-213832_02_plans_done_20261110-091327_adrrev002_agent-eventbus-coupling.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261120-213832_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261120-213832_02_plans_done_20261110-091327_adrrev002_agent-eventbus-coupling.md.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

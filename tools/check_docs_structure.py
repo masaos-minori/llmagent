@@ -124,7 +124,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 34313 (2026-11-20, adrchk021 procedure 20261120-174933_04): the
     # AAL-038 ledger entry (ADR-015 pending amendment, release unit with procedure 03)
     # grew the ledger 33915 -> 34313; the ceiling equals the accepted size.
-    "governance_03_issue-and-uncertainty-management.md": 34313,
+    # Re-accepted at 36248 (2026-11-20, adrchk023 procedure 20261120-213832_01): the
+    # AGENT-001 Known Issue entry (unused agent-side EventBus client modules) grew the
+    # ledger 34313 -> 36248; the ceiling equals the accepted size.
+    "governance_03_issue-and-uncertainty-management.md": 36248,
 }
 
 

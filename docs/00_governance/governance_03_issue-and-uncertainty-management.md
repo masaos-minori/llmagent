@@ -91,6 +91,26 @@ Part 1 entries, Part 2 items, and "Proposed" ADRs are reviewed quarterly (`gover
 
 Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, AGENT-*, MCP-*, DEPLOY-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
+#### AGENT-001
+
+- **ID:** AGENT-001
+- **Title:** Two unused agent-side EventBus client modules are listed as current libraries without a recorded keep-versus-retire decision
+- **Status**: open
+- **Severity:** Low
+- **Area:** Agent
+- **Type:** design-gap
+- **Source:** adrchk023 EventBus client modules verification, import scan over `scripts/`, `tools/`, `deploy/`, `config/`, `.github/`
+- **Owner:** Repository owner
+- **First Found:** adrchk023 EventBus client modules verification
+- **Target:** `docs/23_agent/agent_02_runtime-architecture.md`
+- **Related:** None
+- **Summary:** `scripts/agent/eventbus_subscriber.py` and `scripts/agent/eventbus_topic_admin_client.py` are imported only by their own unit tests while documents present them as current client libraries; the Unused Features rule requires the keep-versus-retire decision to be registered.
+- **Current Description:** `docs/23_agent/agent_02_runtime-architecture.md` `EventBus Client Modules` and the `docs/23_agent/agent_13_reference-api-generated.md` AUTO-GENERATED block describe `EventBusSubscriber` and `EventBusTopicAdminClient` as current client-side libraries for the Event Bus HTTP API.
+- **Observed Implementation:** Only `tests/agent/test_eventbus_subscriber.py` and `tests/agent/test_eventbus_topic_admin_client.py` import the modules; no `scripts/` runtime component imports them; `registry/manifests/agent_api.yaml` lists their public classes.
+- **Impact:** The modules read as a supported API, and the governance decision to keep or retire them is unrecorded.
+- **Recommended Action:** The maintainer decides whether the modules are retained for the planned future EventBus integration or retired through a follow-up Plan. Recorded pending that decision; no approval is written here.
+- **Resolution Target:** maintainer decision recorded in this entry; retention closes with the future EventBus integration Plan, retirement runs through a follow-up Plan
+
 #### MCP-001
 
 - **ID:** MCP-001
