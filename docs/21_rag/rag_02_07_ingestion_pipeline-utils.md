@@ -61,6 +61,21 @@ The three chunking paths route through it while keeping their language-specific 
 
 ---
 
+## 8. Pipeline Utils Readers (`scripts/rag/ingestion/pipeline_utils.py`)
+
+### 8.1 Module Overview
+
+`pipeline_utils.py` provides the two strict validator/reader pairs used at the
+crawl-to-chunk seam. `read_crawl_json(path)` validates a raw crawl JSON file and
+returns a `CrawlDocument` (the raw-crawl DTO; no chunk-only fields).
+`read_chunk_json(path)` validates a chunk JSON file and returns a `ChunkDocument`
+(the chunk-ready DTO). The boundary between them is expressed in the type system:
+the splitter converts the `CrawlDocument` to a `ChunkDocument` at the single
+`process_file` seam (`_read_source_data`), so the rest of the splitter keeps
+operating on a `ChunkDocument`.
+
+---
+
 ## Keywords
 
 - crawler-utils

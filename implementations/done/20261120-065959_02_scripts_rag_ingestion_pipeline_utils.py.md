@@ -94,10 +94,10 @@ Changing `read_chunk_json`, the 16-key payload field set, or any chunk-only read
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Change `read_crawl_json` return type to `CrawlDocument` | Pending | — | — | |
-| 2 | Update strict tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Change `read_crawl_json` return type to `CrawlDocument` | Completed | 20261120-093650 | 20261120-093650 | — |
+| 2 | Update strict tests per Validation plan | Completed | 20261120-093650 | 20261120-093650 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-093650 | 20261120-093650 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261120-093650 | 20261120-093650 | N/A:no doc change for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

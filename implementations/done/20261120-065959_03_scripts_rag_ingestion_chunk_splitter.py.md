@@ -125,10 +125,10 @@ Changing the 16-key payload field set/order, or any chunk-only reader.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `CrawlDocument`->`ChunkDocument` conversion; make `ChunkMetadata` total | Pending | — | — | |
-| 2 | Update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add `CrawlDocument`->`ChunkDocument` conversion; make `ChunkMetadata` total | Completed | 20261120-093650 | 20261120-093650 | — |
+| 2 | Update tests per Validation plan | Completed | 20261120-093650 | 20261120-093650 | N/A:no test edit; TestChunkPayloadKeyContract unaffected (validated) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-093650 | 20261120-093650 | Passed; module-size baseline updated (chunk_splitter 27282->27925 B) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261120-093650 | 20261120-093650 | N/A:no doc change for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

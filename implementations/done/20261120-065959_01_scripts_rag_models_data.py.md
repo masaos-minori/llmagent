@@ -74,10 +74,10 @@ Adding chunk-only fields to `CrawlDocument`; changing `ChunkDocument` or
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm `CrawlDocument` completeness; no edit required | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Confirm `CrawlDocument` completeness; no edit required | Completed | 20261120-093650 | 20261120-093650 | No edit required: CrawlDocument already declares all 8 fields ChunkSplitter reads (verified) |
+| 2 | Add or update tests per Validation plan | Completed | 20261120-093650 | 20261120-093650 | N/A:no code change,no test change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-093650 | 20261120-093650 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261120-093650 | 20261120-093650 | N/A:no doc change for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

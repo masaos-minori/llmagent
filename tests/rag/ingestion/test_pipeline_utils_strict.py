@@ -17,6 +17,7 @@ from rag.ingestion.pipeline_utils import (
     read_chunk_json,
     read_crawl_json,
 )
+from rag.models_data import CrawlDocument
 
 # --- Helper fixtures ---
 
@@ -68,6 +69,7 @@ class TestReadCrawlJson:
         assert result.code_blocks == CRAWL_PAYLOAD["code_blocks"]
         assert result.etag == CRAWL_PAYLOAD["etag"]
         assert result.last_modified == CRAWL_PAYLOAD["last_modified"]
+        assert isinstance(result, CrawlDocument)
 
     def test_missing_key_raises(self, tmp_path: Path) -> None:
         data = dict(CRAWL_PAYLOAD)

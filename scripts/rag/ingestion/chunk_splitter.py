@@ -41,8 +41,28 @@ from rag.ingestion.pipeline_utils import (
     is_already_processed,
     read_crawl_json,
 )
-from rag.models_data import ChunkDocument, ChunkSettings
+from rag.models_data import ChunkDocument, ChunkSettings, CrawlDocument
 from rag.utils import normalize_unicode
+
+
+def _crawl_to_chunk_document(crawl: CrawlDocument, src_path: Path) -> ChunkDocument:
+    """Convert a validated CrawlDocument to a ChunkDocument for the splitter."""
+    return ChunkDocument(
+        url=crawl.url,
+        title=crawl.title,
+        lang=crawl.lang,
+        content=crawl.content,
+        code_blocks=list(crawl.code_blocks),
+        etag=crawl.etag,
+        last_modified=crawl.last_modified,
+        fetched_at=crawl.fetched_at,
+        chunking_strategy="text",
+        chunk_index=0,
+        source_file=src_path.name,
+        chunk_type="",
+        normalized_content=None,
+    )
+
 
 # NOTE: unvalidated heuristic, pending performance tuning
 MIN_HEADING_LINES_FOR_MARKDOWN = 2
@@ -90,11 +110,11 @@ def _map_failure_class(exc: BaseException) -> IngestionFailureReason:
     return IngestionFailureReason.UNEXPECTED_FAILURE
 
 
-class ChunkMetadata(TypedDict, total=False):
+class ChunkMetadata(TypedDict):
     """Typed dict for document-level metadata shared across chunk files.
 
-    All fields are optional because this dict is spread with ** into the output payload.
-    TypedDict spreading requires total=False and cannot be used in constructor calls.
+    All fields are required: _extract_chunk_metadata always sets all eight keys, so a
+    missing key now fails at construction rather than producing a payload missing a key.
     """
 
     url: str
@@ -444,7 +464,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
     def _read_source_data(self, src_path: Path) -> ChunkDocument | None:
         """Read and parse a JSON crawl file; returns ChunkDocument or None on failure."""
         try:
-            return read_crawl_json(src_path)
+            return _crawl_to_chunk_document(read_crawl_json(src_path), src_path)
         except (FileNotFoundError, ChunkFormatError) as e:
             logger.error("skip %s: %s", src_path.name, e)
             return None

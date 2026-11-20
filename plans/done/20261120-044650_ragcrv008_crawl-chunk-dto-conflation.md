@@ -182,9 +182,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Preparation / Refactoring — extend `CrawlDocument`, make `ChunkMetadata` total | In Progress | — | — |  |
-| 2 | Phase 2: Core Logic Implementation — `read_crawl_json` return type + `CrawlDocument` -> `ChunkDocument` conversion | In Progress | — | — |  |
-| 3 | Phase 3: Deployment & Verification — update strict tests, run regression, update docs | In Progress | — | — |  |
+| 1 | Phase 1: Preparation / Refactoring — extend `CrawlDocument`, make `ChunkMetadata` total | Completed | — | 20261120-093741 |  |
+| 2 | Phase 2: Core Logic Implementation — `read_crawl_json` return type + `CrawlDocument` -> `ChunkDocument` conversion | Completed | — | 20261120-093741 |  |
+| 3 | Phase 3: Deployment & Verification — update strict tests, run regression, update docs | Completed | — | 20261120-093741 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -194,11 +194,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261120-065959_01_scripts_rag_models_data.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261120-065959_02_scripts_rag_ingestion_pipeline_utils.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261120-065959_03_scripts_rag_ingestion_chunk_splitter.py.md` | 1, 2 | Procedure | Pending | — | — |
-| `implementations/20261120-065959_04_tests_rag_ingestion_test_pipeline_utils_strict.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261120-065959_05_docs_21_rag_rag_02_07_ingestion_pipeline-utils.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261120-065959_01_scripts_rag_models_data.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261120-065959_02_scripts_rag_ingestion_pipeline_utils.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261120-065959_03_scripts_rag_ingestion_chunk_splitter.py.md` | 1, 2 | Procedure | Completed | — | — |
+| `implementations/20261120-065959_04_tests_rag_ingestion_test_pipeline_utils_strict.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261120-065959_05_docs_21_rag_rag_02_07_ingestion_pipeline-utils.md.md` | 3 | Procedure | Completed | — | — |
 
 Type options: Test / Task / Phase / Doc / Config / Infra / Other
 

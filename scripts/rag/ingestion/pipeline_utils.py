@@ -13,7 +13,7 @@ import orjson
 from shared.logger import Logger
 
 from rag.exceptions import ChunkFormatError
-from rag.models_data import ChunkDocument
+from rag.models_data import ChunkDocument, CrawlDocument
 from rag.models_result import SkipInfo
 
 logger = Logger(__name__, "/opt/llm/logs/pipeline.log")
@@ -81,8 +81,8 @@ def _validate_int_non_negative(data: dict[str, Any], key: str, label: str) -> in
     return val
 
 
-def read_crawl_json(path: Path) -> ChunkDocument:
-    """Read and validate a crawl JSON file; return a ChunkDocument.
+def read_crawl_json(path: Path) -> CrawlDocument:
+    """Read and validate a crawl JSON file; return a CrawlDocument.
 
     Raises ChunkFormatError on any validation failure.
     """
@@ -127,7 +127,7 @@ def read_crawl_json(path: Path) -> ChunkDocument:
         raise ChunkFormatError(
             "crawl: empty 'content' requires non-empty 'code_blocks'"
         )
-    return ChunkDocument(
+    return CrawlDocument(
         url=url,
         title=title or "",
         lang=lang,
@@ -135,11 +135,6 @@ def read_crawl_json(path: Path) -> ChunkDocument:
         code_blocks=code_blocks,
         etag=etag,
         last_modified=last_modified,
-        chunking_strategy="text",
-        normalized_content=None,
-        chunk_index=0,
-        source_file="",
-        chunk_type="",
         fetched_at=fetched_at,
     )
 
