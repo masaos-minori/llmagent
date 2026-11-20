@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Convert the Verification bullet to an Automated Tests table (Plan step 2) | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Convert the Verification bullet to an Automated Tests table (Plan step 2) | Completed | 20261120 | 20261120 | Bullet converted to one-row Automated Tests table; tool command token kept |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | — | 20261120 | 6 of 7 doc checkers exit 0; pytest 27 passed; check_adr_preservation: 1 citation token swapped (TestCheckDrift -> full node), procedure-authorized expansion, no changed invariant |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

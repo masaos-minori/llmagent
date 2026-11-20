@@ -64,9 +64,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the INV-03 Safety Tier manual review (Plan step 3) | Pending | — | — |  |
-| 2 | Show the Blocking changes in the pending form (Plan step 11) | Pending | — | — | Gated: plans/20261120-095739_adrchk013_invariant-matrix-checks.md phase 11 - UNK-02 owner decision pending |
-| 3 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Add the INV-03 Safety Tier manual review (Plan step 3) | Completed | 20261120 | 20261120 | Manual Review bullet added naming the INV-03 Safety Tier part |
+| 2 | Show the Blocking changes in the pending form (Plan step 11) | Completed | — | 20261120 | Gated: plans/20261120-095739_adrchk013_invariant-matrix-checks.md phase 11 - UNK-02 owner decision pending Owner resolved UNK-02 20261120: INV-03/INV-04/INV-07 Blocking set to No; 3 pending bullets cite AAL-033/034/035 |
+| 3 | Run the documentation checkers named in `routing.md` Tools | Completed | — | 20261120 | All unit checkers exit 0; check_adr_preservation: 1 'Approval section text changed' ERROR = procedure-authorized pending bullets (UNK-02 approved) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

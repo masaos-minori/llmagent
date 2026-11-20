@@ -89,13 +89,13 @@ N/A: a read-only documentation checker; no input crosses a trust boundary.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the missing-column rule (Plan step 5) | Pending | — | — | After the data procedures of Plan steps 1 to 4 |
-| 2 | Add the Index-only evidence rule (Plan step 6) | Pending | — | — | After the data procedures of Plan steps 1 to 4 |
-| 3 | Make the Cadence rule an error and fix the docstring (Plan step 7) | Pending | — | — | |
-| 4 | Apply the exception grammar (Plan step 9) | Pending | — | — | Gated: plans/20261120-095739_adrchk013_invariant-matrix-checks.md phase 9 - UNK-01 owner decision pending |
-| 5 | Add the Not verified plus Blocking rule (Plan step 12) | Pending | — | — | Gated: plans/20261120-095739_adrchk013_invariant-matrix-checks.md phase 12 - UNK-02 owner decision pending |
-| 6 | Add or update tests per Validation plan (companion test file) | Pending | — | — | Fixtures first, shown failing |
-| 7 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the missing-column rule (Plan step 5) | Completed | 20261120 | 2026-11-20 | After the data procedures of Plan steps 1 to 4 check_adr_body_table_columns added; module split fallout: body rules moved to tools/_adr_matrix_core.py (Plan amended, fallout class) to pass the 24576 B gate |
+| 2 | Add the Index-only evidence rule (Plan step 6) | Completed | — | 2026-11-20 | After the data procedures of Plan steps 1 to 4 check_index_only_evidence added in tools/_adr_matrix_core.py |
+| 3 | Make the Cadence rule an error and fix the docstring (Plan step 7) | Completed | — | 2026-11-20 | _CADENCE_RULE_SEVERITY removed; check_manual_partial_fields reports ERROR; docstring rewritten |
+| 4 | Apply the exception grammar (Plan step 9) | Completed | — | 2026-11-20 | Gated: plans/20261120-095739_adrchk013_invariant-matrix-checks.md phase 9 - UNK-01 owner decision pending UNK-01 resolved: owner approved the current matrix exception grammar (Exception: <id>, no expiry); no code change required |
+| 5 | Add the Not verified plus Blocking rule (Plan step 12) | Completed | — | 2026-11-20 | Gated: plans/20261120-095739_adrchk013_invariant-matrix-checks.md phase 12 - UNK-02 owner decision pending check_not_verified_blocking added (Index Gate and body Blocking sides); UNK-02 resolved via pending approval form and ledger AAL-031..036 |
+| 6 | Add or update tests per Validation plan (companion test file) | Completed | — | 2026-11-20 | Fixtures first, shown failing Fixtures-first confirmed failing (18 failed) before checker changes; 82 passed after |
+| 7 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 2026-11-20 | ruff format/check, mypy, bandit clean on checker, _adr_matrix_core.py and test file; targeted pytest 148 passed; live checker exit 0; size gate OK |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

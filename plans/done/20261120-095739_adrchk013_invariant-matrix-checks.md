@@ -41,7 +41,9 @@ The matrix gates CI and deployment reviews. A matrix that cannot detect a mismat
 - `REQ-010`: The tool description and the `governance_04` rule description state the new rules (fallout from REQ-004 to REQ-006).
 
 ## Implementation Target Files
-**Freeze status**: Frozen
+**Freeze status**: Frozen (re-frozen 2026-11-20 after the fallout amendment re-verified; all other rows re-checked against current repository state)
+Amended 2026-11-20 (fallout): added tools/_adr_matrix_core.py — The new checker rules take tools/check_adr_invariant_matrix.py to 28648 B against the 24576 B tools/ module size gate; the ADR body rules are extracted into a shared core module the checker imports, following the tools/_adr_authority_core.py precedent. Re-verified 2026-11-20: the file was created by `module_nodes.py extract` (12 nodes), `tools/audit_plan_target_paths.py` reports 0 findings, and `tools/check_module_size.py` reports no new violations
+Amended 2026-11-20 (fallout): added tests/test_run_cited_adr_tests.py — The authorized Index citation additions of Plan step 4 (procedure 03) grow the live matrix from 52 to 70 unique cited node ids; the pinned-count regression test in tests/test_run_cited_adr_tests.py fails until its pin is updated. Fallout required to keep the existing test suite passing
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -64,6 +66,8 @@ table — no other file may be treated as a modification target.
 | `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | Approval ledger entries | Add the ledger entries that the pending bullets cite (gated on UNK-02); an addition outside the Issue's Target Files, so the scope amendment needs approval through UNK-02 | REQ-009 / AC-5 | The ledger is Part 5 and its last entry is AAL-030; AAL-001 already records the same kind of change (ADR-001 INV-02 verification row set to Non-Blocking); `governance_01` requires a cited entry per pending bullet (checked in Step 3 and corrected in the plan-to-implementation-procedure Step 3a) | `tools/check_adr_structure.py`, `tools/check_known_deviation_sync.py`, `tools/check_docs_quality.py` | Verified |
 | `tools/TOOL_DESCRIPTIONS.md` | Tool description | Update the two `check_adr_invariant_matrix.py` rows for the new rules; fallout, required by AGENTS.md Global Rule 9 | REQ-010 / AC-6 | Rows at lines 82 and 184 describe the rules and say the body table is read by its `Implementation` column (checked in Step 3) | `tools/check_tool_descriptions_sync.py` | Verified |
 | `docs/00_governance/governance_04_documentation-checks.md` | Rule description | Update section 12 for the new rules; fallout | REQ-010 / AC-6 | Section 12 states the empty-cell and containment rules and no other (checked in Step 3) | `tools/check_docs_consistency.py`, `tools/check_docs_quality.py` | Verified |
+| `tools/_adr_matrix_core.py` | Split fallout: shared ADR matrix body-rule module | The new checker rules take tools/check_adr_invariant_matrix.py to 28648 B against the 24576 B tools/ module size gate; the ADR body rules are extracted into a shared core module the checker imports, following the tools/_adr_authority_core.py precedent | REQ-005 / N/A: none cites REQ-005 | uv run python tools/check_module_size.py --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt reports check_adr_invariant_matrix.py: 28648 B exceeds the 24576 B limit (2026-11-20); module created 2026-11-20 and checker re-imports its names | tests/tools/test_check_adr_invariant_matrix.py | Verified |
+| `tests/test_run_cited_adr_tests.py` | Update the pinned matrix citation count | The authorized Index citation additions of Plan step 4 (procedure 03) grow the live matrix from 52 to 70 unique cited node ids; the pinned-count regression test in tests/test_run_cited_adr_tests.py fails until its pin is updated. Fallout required to keep the existing test suite passing | REQ-003 / N/A: none cites REQ-003 | uv run pytest tests/test_run_cited_adr_tests.py reports test_matrix_has_expected_unique_citation_count: assert 70 == 52 (2026-11-20) | tests/test_run_cited_adr_tests.py | Verified |
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified. Same
@@ -140,6 +144,8 @@ columns. Bus Factor is 1 for every file: one author accounts for all commits (`g
 | `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | Modify | Medium: ledger read by `check_adr_structure.py` | 17 | 1 | not applicable (rsynced) |
 | `tools/TOOL_DESCRIPTIONS.md` | Modify | Low: read by `check_tool_descriptions_sync.py` | 70 | 1 | not applicable (rsynced) |
 | `docs/00_governance/governance_04_documentation-checks.md` | Modify | Low | 12 | 1 | not applicable (rsynced) |
+| `tools/_adr_matrix_core.py` | Create | Not assessed (amendment 2026-11-20) | N/A | N/A | Not assessed (amendment 2026-11-20) |
+| `tests/test_run_cited_adr_tests.py` | Modify | Not assessed (amendment 2026-11-20) | N/A | N/A | Not assessed (amendment 2026-11-20) |
 
 ## Design
 - **D1 Data before checker**: each new checker rule lands on a repository its rule already passes, so Phases 1 to 4 correct data under the unchanged checker (it must keep exiting 0), and Phases 5 and 6 add the rules. Alternative: add the rules first and fix data in the same change (rejected: the phases could not be validated alone).
@@ -170,6 +176,7 @@ the owner resolves UNK-01 (Phase 9) or UNK-02 (Phases 10 to 12). Every phase bef
    - [ ] Add the ADR-016 and ADR-017 rows (Gate and Status from the bodies); change ADR-003 INV-03 to `Partial` with unverified scope, `Cadence:`, `Expected evidence:` and an Owner; align the ADR-012 INV-04, ADR-004 INV-14 and ADR-007 INV-06 rows with their body rows; update the Pipeline Mapping Summary; keep every Gate unchanged (REQ-003; `docs/10_adr/adr_01_index.md`)
 5. **Phase 5: Missing evidence column is an error**
    - [ ] Write the failing fixtures, then report an `### Automated Tests` table without `Verifies` or `Implementation` (REQ-004; `tests/tools/test_check_adr_invariant_matrix.py`, `tools/check_adr_invariant_matrix.py`)
+   - [ ] Split fallout: shared ADR matrix body-rule module (REQ-005; `tools/_adr_matrix_core.py`) — amendment 2026-11-20
 6. **Phase 6: Index-only evidence is an error**
    - [ ] Write the failing fixtures, then report Index-cited test files with no body evidence, keeping the containment cases (REQ-005; `tests/tools/test_check_adr_invariant_matrix.py`, `tools/check_adr_invariant_matrix.py`); when the size gate fails, split the body rules with `module_nodes.py` and report the new module as a fallout amendment
 7. **Phase 7: Cadence error and docstring**
@@ -187,6 +194,7 @@ the owner resolves UNK-01 (Phase 9) or UNK-02 (Phases 10 to 12). Every phase bef
     - [ ] Write the failing fixtures, then report a `Not verified` row that is `Blocking` without an approved exception, in the Index and in ADR bodies (REQ-009; `tests/tools/test_check_adr_invariant_matrix.py`, `tools/check_adr_invariant_matrix.py`)
 13. **Phase 13: Validation and hand-off**
     - [ ] Run the validation sequence and the checkers named in Validation plan; no deploy step, because no `scripts/` or `config/` file changes; commit through `git-commit-and-sync` (REQ-001 to REQ-010; every target file)
+    - [ ] New file: not a new file — update the pinned matrix citation count (REQ-003; `tests/test_run_cited_adr_tests.py`) — amendment 2026-11-20
 
 ### Release units
 **Unit**: pending-amendments | **Phases**: 10, 11 | **Reason**: a ledger entry without its pending bullet and a pending bullet without its ledger entry each fail `tools/check_adr_structure.py`, so they cannot be validated alone.
@@ -215,19 +223,19 @@ the owner resolves UNK-01 (Phase 9) or UNK-02 (Phases 10 to 12). Every phase bef
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Evidence columns for ADR-004 and ADR-017 | In Progress | — | — |  |
-| 2 | Tables for ADR-015 and ADR-016 | In Progress | — | — |  |
-| 3 | Body rows that the Index already cites | In Progress | — | — |  |
-| 4 | Index matrix mirrors the bodies | In Progress | — | — |  |
-| 5 | Missing evidence column is an error | In Progress | — | — |  |
-| 6 | Index-only evidence is an error | In Progress | — | — |  |
-| 7 | Cadence error and docstring | In Progress | — | — |  |
-| 8 | Documentation sync | In Progress | — | — |  |
-| 9 | Exception grammar | In Progress | — | — | Gated: UNK-01 |
-| 10 | Ledger entries for the pending amendments | In Progress | — | — | Gated: UNK-02 |
-| 11 | Pending Blocking amendments | In Progress | — | — | Gated: UNK-02 |
-| 12 | Not verified plus Blocking rule | In Progress | — | — | Gated: UNK-02 |
-| 13 | Validation and hand-off | Pending | — | — |  |
+| 1 | Evidence columns for ADR-004 and ADR-017 | Completed | — | 20261120 | Procedures 04 (ADR-004) and 05 (ADR-017) executed and archived |
+| 2 | Tables for ADR-015 and ADR-016 | Completed | — | 20261120 | Procedures 06 (ADR-016) and 07 (ADR-015) executed and archived |
+| 3 | Body rows that the Index already cites | Completed | — | 20261120 | ADR-007/ADR-012 body rows added (procedures 08, 09) |
+| 4 | Index matrix mirrors the bodies | Completed | — | 20261120 | Procedure 03 executed and archived |
+| 5 | Missing evidence column is an error | Completed | — | 20261120 | Procedure 01 step 1 landed; fallout split to tools/_adr_matrix_core.py for the 24576 B gate |
+| 6 | Index-only evidence is an error | Completed | — | 20261120 | check_index_only_evidence landed (procedure 01) |
+| 7 | Cadence error and docstring | Completed | — | 20261120 | Cadence rule now ERROR; docstring rewritten; GV-012 Follow-up wording removed |
+| 8 | Documentation sync | Completed | — | 20261120 | Procedures 13 (TOOL_DESCRIPTIONS) and 14 (governance_04 section 12) executed and archived; _adr_matrix_core.py documented as fallout |
+| 9 | Exception grammar | Completed | — | 20261120 | Gated: UNK-01 UNK-01 resolved 20261120: owner approved current grammar (Exception: <id>, no expiry); no code change; consumer tests pass |
+| 10 | Ledger entries for the pending amendments | Completed | — | 20261120 | Gated: UNK-02 UNK-02 resolved by owner 20261120: AAL-031..036 added (procedure 12) |
+| 11 | Pending Blocking amendments | Completed | — | 20261120 | Gated: UNK-02 UNK-02 resolved by owner 20261120: pending bullets and Blocking changes in ADR-002/ADR-003/ADR-012 (procedures 09, 10, 11) |
+| 12 | Not verified plus Blocking rule | Completed | — | 20261120 | Gated: UNK-02 UNK-02 resolved 20261120 via pending form: check_not_verified_blocking landed (procedure 01) |
+| 13 | Validation and hand-off | Completed | — | 20261120 | run_validation_gates.py --full: all gates pass (ast-grep not available in this environment); full pytest 13131 passed; diff-cover >=90; pinned citation count updated 52->70 (fallout amendment) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -258,7 +266,7 @@ the owner resolves UNK-01 (Phase 9) or UNK-02 (Phases 10 to 12). Every phase bef
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261120-095739
-- **Related target files**: `tools/check_adr_invariant_matrix.py`; `tests/tools/test_check_adr_invariant_matrix.py`; `docs/10_adr/adr_01_index.md`; `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`; `docs/10_adr/adr_02_03_017_mcp-authentication.md`; `docs/10_adr/adr_02_07_016_adr-authority-model.md`; `docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md`; `docs/10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md`; `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`; `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`; `docs/10_adr/adr_02_01_002_platform-config-isolation.md`; `docs/00_governance/governance_03_issue-and-uncertainty-management.md`; `tools/TOOL_DESCRIPTIONS.md`; `docs/00_governance/governance_04_documentation-checks.md`
+- **Related target files**: `tools/check_adr_invariant_matrix.py`; `tests/tools/test_check_adr_invariant_matrix.py`; `docs/10_adr/adr_01_index.md`; `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`; `docs/10_adr/adr_02_03_017_mcp-authentication.md`; `docs/10_adr/adr_02_07_016_adr-authority-model.md`; `docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md`; `docs/10_adr/adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md`; `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`; `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`; `docs/10_adr/adr_02_01_002_platform-config-isolation.md`; `docs/00_governance/governance_03_issue-and-uncertainty-management.md`; `tools/TOOL_DESCRIPTIONS.md`; `docs/00_governance/governance_04_documentation-checks.md`, `tools/_adr_matrix_core.py`, `tests/test_run_cited_adr_tests.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -293,5 +301,7 @@ the owner resolves UNK-01 (Phase 9) or UNK-02 (Phases 10 to 12). Every phase bef
 | REQ-009 | Acceptance Criteria; fixture for the rule | `tests/tools/test_check_adr_invariant_matrix.py` | 12 | AC-5 | the new fixtures | Derived from confirmed evidence |
 | REQ-010 | Documentation Impact; AGENTS.md Global Rule 9 | `tools/TOOL_DESCRIPTIONS.md` | 8 | AC-6 | `tools/check_tool_descriptions_sync.py` | Derived from confirmed evidence |
 | REQ-010 | Documentation Impact; section 12 states two body rules | `docs/00_governance/governance_04_documentation-checks.md` | 8 | AC-6 | `tools/check_docs_consistency.py` | Derived from confirmed evidence |
+| REQ-005 | Amendment 2026-11-20: The new checker rules take tools/check_adr_invariant_matrix.py to 28648 B against the 24576 B tools/ module size gate; the ADR body rules are extracted into a shared core module the checker imports, following the tools/_adr_authority_core.py precedent | tools/_adr_matrix_core.py | Phase 5 | N/A: none cites REQ-005 | tests/tools/test_check_adr_invariant_matrix.py | Needs confirmation |
+| REQ-003 | Amendment 2026-11-20: The authorized Index citation additions of Plan step 4 (procedure 03) grow the live matrix from 52 to 70 unique cited node ids; the pinned-count regression test in tests/test_run_cited_adr_tests.py fails until its pin is updated. Fallout required to keep the existing test suite passing | tests/test_run_cited_adr_tests.py | Phase 13 | N/A: none cites REQ-003 | tests/test_run_cited_adr_tests.py | Confirmed by repository evidence |
 
 <!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261120-111659 -->

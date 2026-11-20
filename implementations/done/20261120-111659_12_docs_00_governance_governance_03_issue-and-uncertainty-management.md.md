@@ -63,8 +63,8 @@ N/A: revert the commit together with the ADR procedures (release unit).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the ledger entries (Plan step 10) | Pending | — | — | Gated: plans/20261120-095739_adrchk013_invariant-matrix-checks.md phase 11 - UNK-02 owner decision pending |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Add the ledger entries (Plan step 10) | Completed | 20261120 | 20261120 | Gated: plans/20261120-095739_adrchk013_invariant-matrix-checks.md phase 11 - UNK-02 owner decision pending Owner resolved UNK-02 20261120 (incl. governance_03 scope amendment): AAL-031..036 appended after AAL-030 in ascending order |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | — | 20261120 | adr_structure/known_deviation_sync/needs_confirmation_inventory/docs checkers all exit 0; every cited AAL ID resolves |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

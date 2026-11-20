@@ -65,9 +65,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the INV-04 row (Plan step 3) | Pending | — | — |  |
-| 2 | Show the INV-04 Blocking change in the pending form (Plan step 11) | Pending | — | — | Gated: plans/20261120-095739_adrchk013_invariant-matrix-checks.md phase 11 - UNK-02 owner decision pending |
-| 3 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Add the INV-04 row (Plan step 3) | Completed | 20261120 | 20261120 | UNK-03 re-search done: no approval-independence test in tests/mcp_servers/git/; row added as 'Not verified (no automated test exists)' |
+| 2 | Show the INV-04 Blocking change in the pending form (Plan step 11) | Completed | — | 20261120 | Gated: plans/20261120-095739_adrchk013_invariant-matrix-checks.md phase 11 - UNK-02 owner decision pending Owner resolved UNK-02 20261120: Blocking set to No; pending bullet cites AAL-036 |
+| 3 | Run the documentation checkers named in `routing.md` Tools | Completed | — | 20261120 | All unit checkers exit 0; check_adr_preservation: 1 'Approval section text changed' ERROR = procedure-authorized pending bullet (UNK-02 approved) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -64,8 +64,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the Implementation column and move the citations (Plan step 1) | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Add the Implementation column and move the citations (Plan step 1) | Completed | 20261120 | 20261120 | Implementation column added; Test cells rewritten as descriptions; 11 full node citations, all verified present in test sources |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | — | 20261120 | 6 of 7 doc checkers exit 0; pytest on the 3 cited files: 96 passed; check_adr_preservation reports 6 'test citation added' ERRORs, all procedure-authorized full-path expansions of bare names (precedent: done/20261118-212828_03 Final Report) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the two check_adr_invariant_matrix.py rows (Plan step 8) | Pending | — | — |  |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Update the two check_adr_invariant_matrix.py rows (Plan step 8) | Completed | — | 2026-11-20 | Both rows updated; also documented tools/_adr_matrix_core.py (split fallout of the checker size gate) as a new shared-base row pair; registry/manifests/invariant_coverage.yaml regenerated for the new Index rows |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | — | 2026-11-20 | check_tool_descriptions_sync.py exit 0; no 'column skipped' wording remained |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

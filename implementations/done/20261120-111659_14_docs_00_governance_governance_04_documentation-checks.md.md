@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update section 12 (Plan step 8) | Pending | — | — |  |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Update section 12 (Plan step 8) | Completed | — | 2026-11-20 | Section 12 now states the missing-column, Index-only-evidence, Not verified plus Blocking, and Manual/Partial Cadence rules |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | — | 2026-11-20 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_japanese, check_docs_consistency --domain deployment all exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

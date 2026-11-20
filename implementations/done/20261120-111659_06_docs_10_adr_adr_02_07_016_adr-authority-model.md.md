@@ -64,8 +64,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Convert the Verification bullets to an Automated Tests table (Plan step 2) | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Convert the Verification bullets to an Automated Tests table (Plan step 2) | Completed | 20261120 | 20261120 | Verification bullets converted to Automated Tests table; 3 rows, 5-column; tool commands kept verbatim to preserve backtick tokens; Coverage note kept |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | — | 20261120 | 6 of 7 doc checkers exit 0; pytest on 3 cited test modules: 72 passed; check_adr_preservation: 5 'test citation added' ERRORs, all procedure-authorized nodes, no changed invariant |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

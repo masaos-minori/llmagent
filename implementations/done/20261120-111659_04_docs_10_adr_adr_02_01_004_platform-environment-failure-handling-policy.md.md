@@ -67,8 +67,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename the column, add the citations and the INV-14 row (Plan step 1) | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Rename the column, add the citations and the INV-14 row (Plan step 1) | Completed | 20261120 | 20261120 | Status->Implementation rename; INV-07/08/09/10 citations added; INV-14 row added; size ceiling re-accepted at 36267 in tools/check_docs_structure.py |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | — | 20261120 | 7 doc checkers exit 0 (adr_structure 1 pre-existing ADR-015 warning); check_adr_preservation clean (citations reuse tokens already in HEAD); pytest on cited nodes: 73 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Name INV-06 in the INV-04 row (Plan step 3) | Pending | — | — |  |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Name INV-06 in the INV-04 row (Plan step 3) | Completed | 20261120 | 20261120 | INV-04 row Verifies cell set to 'INV-04, INV-06'; no other cell changed |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | — | 20261120 | 6 of 7 doc checkers exit 0; check_adr_preservation clean for ADR-007; matrix now has body evidence for the Index ADR-007 INV-06 row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

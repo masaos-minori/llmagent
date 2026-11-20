@@ -62,8 +62,8 @@ N/A: revert the commit; the ledger procedure is reverted with it (release unit).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Show the INV-03 and INV-04 Blocking changes in the pending form (Plan step 11) | Pending | — | — | Gated: plans/20261120-095739_adrchk013_invariant-matrix-checks.md phase 11 - UNK-02 owner decision pending |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Show the INV-03 and INV-04 Blocking changes in the pending form (Plan step 11) | Completed | 20261120 | 20261120 | Gated: plans/20261120-095739_adrchk013_invariant-matrix-checks.md phase 11 - UNK-02 owner decision pending Owner resolved UNK-02 20261120: INV-03/INV-04 Blocking set to No; pending bullets cite AAL-031/032 |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | — | 20261120 | All unit checkers exit 0; check_adr_preservation: 1 'Approval section text changed' ERROR = procedure-authorized pending bullets (UNK-02 approved) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
