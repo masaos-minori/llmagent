@@ -9,8 +9,8 @@ Remove the transport-key assertions and add the fail-closed state/audit and inte
 - Phase 1 requires these tests to be added failing-first (issue instruction: tests before the grant and fail-closed code).
 
 ## Design decisions
-- Delete the derive-key assertions at :2325, :2343, :2366, :2547, :2551, :2564 and any fixture that builds `_state_key`-shaped expectations.
-- Add characterization tests: recorder write failure denies a side-effecting call but not a read-only one; mandatory-audit failure denies; intent transitions appear in order `pending` → `dispatch_starting` (new) → `dispatched` → `response_received` (new) → `completed`/`failed`; a post-send transport failure leaves the row dispatch-stage for stale classification.
+- Delete the derive-key assertions at :2325, :2343, :2366, :2547, :2551, :2564, the module import at :37 (`from shared.http_transport import HttpTransport, derive_idempotency_key`), and any fixture that builds `_state_key`-shaped expectations.
+- Add characterization tests: recorder write failure denies a side-effecting call but not a read-only one; mandatory-audit failure denies; intent transitions appear in order `pending` → `dispatch_starting` (new) → `dispatched` → `response_received` (new) → `completed`/`failed`; a post-send transport failure (`ToolCallResult.dispatch_stage="sent"`, row 13/16 mechanism) leaves the row dispatch-stage for stale classification, while `dispatch_stage=""` finalizes `failed`.
 - Recorder fakes must match the row 6 protocol (logical call id keyed).
 
 ## Alternatives considered
@@ -52,9 +52,9 @@ Gateway-bypass tests (row 3's companion); audit-internal tests (row 5's companio
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | Derive-key assertions, the `derive_idempotency_key` import, and `_state_key`-shaped fixtures removed; replaced by logical-id pins (`pc.context.call_id`). Added `TestFailClosedRecording` (record/finalize failure denies side-effecting but not read-only; mandatory-audit failure surfaces error row; transition order `pending → dispatch_starting → dispatched → response_received → completed`; post-send failure leaves row at dispatched) and `TestGrantEnforcementAtExecution` (grant-less write denied before preflight). Fixture `_pc` now builds the real `ToolExecutionContext` + `ApprovalGrant` shape (context/grant kwargs); local executor fakes accept the runner's `context=` kwarg; `_approve_all` mirrors row 02 by issuing grants (`_approve_issuing_grants` + `dataclasses.replace`). Failing-first order adapted: row-04 code had already landed in this batch, so tests were validated against it immediately. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | `uv run pytest tests/agent/test_tool_runner.py`: 111 passed; ruff clean; mypy clean on the file (0 errors, incl. fixes for fixture typing). |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-11-21 | N/A: test-only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

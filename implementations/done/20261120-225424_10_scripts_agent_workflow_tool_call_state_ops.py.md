@@ -23,14 +23,14 @@ Key `tool_call_state` rows by the logical call id, implement the intent transiti
 `scripts/agent/workflow/tool_call_state_ops.py`
 
 ### Procedure
-Update the `state` value comment (:31), the docstrings, and `classify_stale_pending`; keep `_row_to_state` (:35-46) unchanged.
+Update the `state` value comment (:30, verified 2026-11-20; previously cited :31), the docstrings, and `classify_stale_pending`; keep `_row_to_state` (:35-46) unchanged.
 
 ### Method
 Per-key guarded UPDATE, one branch per source state; `db.commit()` once as today (:139).
 
 ### Details
 - Return value keeps "rows this call transitioned" for both branches so the dispatcher's replay-control path sees `interrupted` exactly as before.
-- `pending_tool_calls` (:90-101) keeps selecting `state='pending'` only — dispatched rows are intentionally invisible to replay listing.
+- `pending_tool_calls` (:90-102) keeps selecting `state='pending'` only — dispatched rows are intentionally invisible to replay listing.
 
 ### Companion test files
 - `tests/agent/workflow/test_workflow_engine.py`
@@ -38,7 +38,7 @@ Per-key guarded UPDATE, one branch per source state; `db.commit()` once as today
   - Validation: `uv run pytest tests/agent/workflow/test_workflow_engine.py` passes.
 
 ## Compatibility considerations
-`workflow_engine.py` (reference only) consumes `interrupted` lists; unchanged semantics preserved per the Plan's consumer-scan disposition.
+`workflow_engine.py` (reference only) consumes `interrupted` lists; unchanged semantics preserved per the Plan's consumer-scan disposition. Implementation finding (2026-11-21): the Plan's "no change planned" for `workflow_engine.py` did not hold — `build_turn_control_message` lists every row `classify_stale_pending` returns with hardcoded `state=interrupted` replay text, so `outcome_unknown` rows would have entered the replay section (AC-6 violation). Minimal consumer edit applied: interrupted/outcome_unknown are separated by `c.state`; outcome_unknown rows join only the unreplayable section, and the unreplayable line prints `state={c.state}`. Interrupted-row text pins stay byte-identical.
 
 ## Security considerations
 `outcome_unknown` prevents automatic re-execution of side-effecting calls whose outcome is unknown.
@@ -60,10 +60,10 @@ outcome_unknown reconciliation procedure (mcpdl004); DDL (row 12); recorder faca
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs sweep owned by mcpai012 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | stale split + docstrings; engine consumer edit (see Compatibility) |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-21 | 2026-11-21 | split test in test_workflow_state_store.py; dispatched/dispatch_starting cases in test_workflow_engine.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | ruff+mypy+targeted pytest (87 passed); full suite at batch end |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-21 | 2026-11-21 | Docs sweep owned by mcpai012 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -83,4 +83,4 @@ outcome_unknown reconciliation procedure (mcpdl004); DDL (row 12); recorder faca
 - **Source plan**: `plans/20261120-222144_mcpdl001_approval-grant-intent.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261120-225424
-- **Related target files**: `scripts/agent/workflow/tool_call_state_ops.py`, `tests/agent/workflow/test_workflow_engine.py`
+- **Related target files**: `scripts/agent/workflow/tool_call_state_ops.py`, `scripts/agent/workflow/workflow_engine.py` (consumer edit, see Compatibility), `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_workflow_state_store.py`

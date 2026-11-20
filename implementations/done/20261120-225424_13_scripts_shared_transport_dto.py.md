@@ -12,6 +12,8 @@ Define the immutable `ToolExecutionContext` in the shared leaf layer and carry i
 ## Design decisions
 - Add `ToolExecutionContext` (new) as a frozen dataclass: `call_id: str` (uuid7 logical id), `tool: str`, `args_hash: str`, `operation: str`.
 - Add a `context: ToolExecutionContext | None = None` field to `ToolCallResult` (:26-42) so the transport/executor chain returns the identity it executed with; default `None` keeps existing constructions valid.
+- Verification finding resolved 2026-11-20 (REQ-002 subset decision, explicit): REQ-002 lists a wider field set (session/workflow/task/turn ids, server key, execution mode, snapshot, approval reference). This row defines a deliberate subset: the other ids already ride on `ToolExecEvent` and `execution_snapshot_json` (audit side), while `server_key` and the approval reference are not knowable at preparation time. Cite this row as the canonical context shape for downstream plans (Plan Risk: naming drift).
+- Add a `dispatch_stage: str = ""` field to `ToolCallResult` (verified 2026-11-20: required by AC-6): the post-send failure signal that row 4 consumes to leave the intent row at dispatch-stage states. Values: `""` = nothing dispatched, `"sent"` = dispatch attempted, no response, `"response"` = HTTP response received. Set by row 16, propagated by row 15, consumed by row 4.
 
 ## Alternatives considered
 - Placing the context in `scripts/agent/`: rejected — the shared transport chain (:16 forwarders) must carry it without importing agent (import-linter contract).
@@ -52,10 +54,10 @@ Context construction (row 1); forwarding plumbing (rows 14-16).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs sweep owned by mcpai012 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | `ToolExecutionContext` + `context`/`dispatch_stage` fields added |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-21 | 2026-11-21 | No companion tests in this row; coverage lands with rows 26/19 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | ruff+mypy+test_http_transport (30 passed)+lint-imports (6 kept); full suite at batch end |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-21 | 2026-11-21 | Docs sweep owned by mcpai012 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

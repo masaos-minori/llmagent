@@ -7,10 +7,10 @@ Verify the approval grant immediately before `_gate_write` executes the call; de
 
 ## Assumptions
 - The grant is carried on the `PreparedToolCall` and reaches the gateway through the caller-side call path updated by row 4 (`tool_runner.py`).
-- `_denied_result` (used at line 115) is the existing deny shape and stays the deny path.
+- `_denied_result` (used at :116) is the existing deny shape and stays the deny path.
 
 ## Design decisions
-- `execute` and `_gate_write` (lines 96-105) accept the grant/context alongside `tool_name`/`args`; a write reaching the gateway without a valid grant is denied.
+- `execute` (:82-96) and `_gate_write` (:98-127) accept the grant/context alongside `tool_name`/`args`; a write reaching the gateway without a valid grant is denied. (Citation fix 2026-11-20: the previously cited "lines 96-105" was off.)
 - Verify immediately before `self._executor.execute` (:118): tool name match, sha256(args) equals the grant's args hash, execution mode match, expiry, and single use; mark the grant consumed after successful verification.
 - Any mismatch returns `_denied_result(...)`; the gateway never prompts and never re-approves.
 
@@ -22,7 +22,7 @@ Verify the approval grant immediately before `_gate_write` executes the call; de
 `scripts/agent/repository_gateway.py`
 
 ### Procedure
-Add grant verification at the top of `_gate_write` (line 98), before `check_preflight`; update `execute`'s signature (:96) to carry the grant.
+Add grant verification at the top of `_gate_write` (def at :98), before `check_preflight`; update `execute`'s signature (def at :82) to carry the grant.
 
 ### Method
 Pure comparison against the grant fields; update the module docstring precondition (:62-68) to state that a grant must accompany non-READ calls.
@@ -59,10 +59,10 @@ Grant issuance (row 2); the gateway-bypass branch in `tool_runner` (row 4).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs sweep owned by mcpai012 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | `execute(ctx, tool_name, args, grant=None)`; `_verify_grant` checks tool match, args_hash vs `ToolExecutionContext.args_hash`, mode in `_GRANT_VALID_MODES` (AUTO/APPROVED), expiry, single-use via `_consumed_grants` (pruned at 1024). Denial → `_denied_result("Grant denied: ...")` with `error_type="denied"`, raised before `check_preflight`. Grant hash compares against the runner's canonical hash (tool_preparation._canonical_args_hash), not orjson dumps. |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-21 | 2026-11-21 | `tests/agent/test_repository_gateway.py`: `_grant` fixture + `TestGrantVerificationAtGateway` (7 tests: pass, tool mismatch, args mismatch, mode mismatch, expired, single-use replay, missing grant on write). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | Targeted: gateway file 16 passed; full tests/agent+tests/shared batch run green (see batch record). ruff/mypy clean on the changed files. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-11-21 | Docs sweep owned by mcpai012 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

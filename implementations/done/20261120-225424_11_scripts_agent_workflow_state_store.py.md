@@ -50,10 +50,10 @@ Transition SQL (row 10); protocol definition (row 6).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs sweep owned by mcpai012 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | `call_id` rename + docstrings; same commit set as row 6 (protocol/facade pair) |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-21 | 2026-11-21 | row 10's tests cover the facade; no new tests needed (passthrough) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | ruff + `mypy scripts/` (no issues) + test_workflow_state_store/test_orchestrator (194 passed) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-21 | 2026-11-21 | Docs sweep owned by mcpai012 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

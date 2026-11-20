@@ -51,9 +51,9 @@ Audit raising semantics (row 5 and its companion).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | Landed with row 5. Existing `audit_tool_exec` format pins pass a uuid7-shaped `_CALL_ID`; new `TestAuditLogicalCallIdFieldContract` pins: exec event `idempotency_key` matches the uuid7 regex, event is grant-free (`no grant`/`mode` keys), `args_preview` stays masked (raw secret absent), approval event carries the `idempotency_key` field (value is filled by row 2). |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | `uv run pytest tests/agent/test_audit_log_format.py`: 28 passed; ruff clean. |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-11-21 | N/A: test-only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

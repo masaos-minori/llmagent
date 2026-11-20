@@ -244,27 +244,27 @@ Each step cites rows of the frozen `Implementation Target Files` table.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261120-225424_01_scripts_agent_tool_preparation.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_02_scripts_agent_tool_approval.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_03_scripts_agent_repository_gateway.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_04_scripts_agent_tool_runner.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_05_scripts_agent_tool_audit.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_06_scripts_agent_context.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_07_scripts_agent_factory.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_08_scripts_agent_shared_models.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_09_scripts_agent_workflow_models.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_10_scripts_agent_workflow_tool_call_state_ops.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_11_scripts_agent_workflow_state_store.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_12_scripts_db_schema_sql.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_13_scripts_shared_transport_dto.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_14_scripts_shared_tool_executor.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_15_scripts_shared_tool_transport_invoker.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_16_scripts_shared_http_transport.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_19_tests_agent_test_tool_runner.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_22_tests_agent_test_audit_log_format.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_24_tests_agent_workflow_test_workflow_state_store.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_26_tests_shared_test_http_transport.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261120-225424_32_tests_deploy_test_required_workflow_tables_parity.py.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_01_scripts_agent_tool_preparation.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_02_scripts_agent_tool_approval.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_03_scripts_agent_repository_gateway.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_04_scripts_agent_tool_runner.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_05_scripts_agent_tool_audit.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_06_scripts_agent_context.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_07_scripts_agent_factory.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_08_scripts_agent_shared_models.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_09_scripts_agent_workflow_models.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_10_scripts_agent_workflow_tool_call_state_ops.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_11_scripts_agent_workflow_state_store.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_12_scripts_db_schema_sql.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_13_scripts_shared_transport_dto.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_14_scripts_shared_tool_executor.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_15_scripts_shared_tool_transport_invoker.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_16_scripts_shared_http_transport.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_19_tests_agent_test_tool_runner.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_22_tests_agent_test_audit_log_format.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_24_tests_agent_workflow_test_workflow_state_store.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_26_tests_shared_test_http_transport.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261120-225424_32_tests_deploy_test_required_workflow_tables_parity.py.md` | 6 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

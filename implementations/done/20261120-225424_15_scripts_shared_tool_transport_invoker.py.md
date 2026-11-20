@@ -9,8 +9,8 @@ Forward the execution context from the invoker to the transport and surface the 
 - The intent-row writes themselves stay agent-side (`tool_runner`, row 4); the shared layer only carries the context and marks dispatch success/failure on the `ToolCallResult`.
 
 ## Design decisions
-- Add `context: ToolExecutionContext | None = None` to the transport-invocation path in `ToolTransportInvoker` (class at :35, transport call in the MCP-invoke method) and pass it to `HttpTransport`'s call (row 16 signature).
-- Populate `ToolCallResult.context` (:44 region, row 13 field) on every result this layer builds, including transport-failure results — a post-send failure result carrying the context is the signal that leaves the row at `dispatched` (row 4/10, AC-6).
+- Add `context: ToolExecutionContext | None = None` to the transport-invocation path in `ToolTransportInvoker` (class at :36, verified 2026-11-20; previously cited :35) — `invoke` (:341-350), `_run_precall_gates` (:285-339), `_invoke_and_record` (:269-283), `_execute_with_semaphore` (:258-267) — and pass it to `HttpTransport.call` (row 16 signature).
+- Populate `ToolCallResult.context` and `dispatch_stage` (row 13 fields) on every result this layer builds, including transport-failure results — a post-send failure result carrying the context is the signal that leaves the row at `dispatched` (row 4/10, AC-6). Mechanism (resolved 2026-11-20): `TransportError` gains a `stage` attribute set at its raise sites in `http_transport.py` (row 16); `_record_transport_error` (:240-249) copies it onto the error result; every invoker-side `_error_result` (:146-166) site (health :168-227, disabled :306-312, lifecycle :314-320, missing transport :322-326) uses `dispatch_stage=""` because nothing was dispatched. Health/lifecycle/semaphore gate logic itself stays unchanged.
 
 ## Alternatives considered
 - Writing the intent row from the shared layer: rejected — `shared` is a leaf (`.importlinter`) and cannot reach the agent-side recorder.
@@ -23,10 +23,10 @@ Forward the execution context from the invoker to the transport and surface the 
 Extend the invoke signature and the internal `HttpTransport` call sites with `context`; set `context` on constructed `ToolCallResult` values.
 
 ### Method
-Parameter threading plus result-field population; health/lifecycle/semaphore logic (:26-33 region) untouched.
+Parameter threading plus result-field population; gate logic untouched (verified anchors: semaphore :100-140, health :168-227; the previously cited ":26-33" is the module's concurrency-constant region).
 
 ### Details
-- Cache-hit and circuit-open short-circuit results carry the context too (identity is known regardless of transport outcome).
+- Every invoker-built result carries the context (identity is known regardless of outcome). Verification note 2026-11-20: this layer has no cache-hit short-circuit path — cache hits exist server-side (`dispatch.py::_duplicate_cache`) only; the invoker-built results are the health-gate, disabled-server, lifecycle, and missing-transport error results plus the transport results from `HttpTransport.call`.
 
 ### Companion test files
 - `tests/shared/test_tool_transport_invoker.py`
@@ -56,10 +56,10 @@ Header semantics (row 16); intent-row state machine (rows 4, 10).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs sweep owned by mcpai012 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | `context` param on invoke/_run_precall_gates/_invoke_and_record/_execute_with_semaphore/_error_result/_check_health/_handle_lifecycle_error; `_record_transport_error` copies `e.stage` onto the result |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-21 | 2026-11-21 | new TestExecutionContextPropagation class in tests/shared/test_tool_transport_invoker.py; existing fake-transport signatures widened for the context kwarg |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | ruff+mypy+tests/shared (1280 passed); full suite at batch end |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-21 | 2026-11-21 | Docs sweep owned by mcpai012 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

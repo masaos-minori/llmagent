@@ -52,10 +52,10 @@ Recorder implementations (rows 10, 11) and wiring (row 7).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs sweep owned by mcpai012 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | `call_id` rename + docstring; landed in the same commit set as row 11 (protocol/facade pair — renaming one side alone breaks mypy structural matching) |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-21 | 2026-11-21 | no protocol-specific test file; existing recorder-wiring tests pass; row 19 updates the test fakes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | ruff + `mypy scripts/` (445 files, no issues) + test_workflow_state_store/test_orchestrator (194 passed) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-21 | 2026-11-21 | Docs sweep owned by mcpai012 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

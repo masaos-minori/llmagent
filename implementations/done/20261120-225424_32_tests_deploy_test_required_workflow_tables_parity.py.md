@@ -51,9 +51,9 @@ The DDL itself (row 12).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | No file change needed: the parity test expresses parity directly against the canonical DDL fingerprint (`build_workflow_schema_sql()` → `schema_fingerprint`), with no embedded DDL copy or checksum — row 12's nine-state `CHECK` text is adopted automatically. Verified, not assumed. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | `uv run pytest tests/deploy/test_required_workflow_tables_parity.py`: 5 passed (in the combined run with row 24: 57 passed); `uv run python tools/check_db_separation.py`: "No violations found". |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-11-21 | N/A: test-only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

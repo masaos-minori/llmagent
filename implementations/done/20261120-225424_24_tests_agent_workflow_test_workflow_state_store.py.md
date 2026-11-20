@@ -52,9 +52,9 @@ Engine replay behavior (row 10's companion); DDL text (row 12's companions).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | Rows 10-12 already landed the key/transition/stale-split pins in this file; this row adds the two remaining pins: `test_distinct_logical_ids_never_merge` (identical tool+args+task, distinct uuid7 ids → two rows) and `test_dispatch_stage_rows_stay_out_of_pending` (dispatch_starting/dispatched/response_received stay out of `pending_tool_calls`, row still live). Fixture key values already match the logical-id shape. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | `uv run pytest tests/agent/workflow/test_workflow_state_store.py tests/deploy/test_required_workflow_tables_parity.py`: 57 passed; ruff clean on the changed file. |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-11-21 | N/A: test-only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

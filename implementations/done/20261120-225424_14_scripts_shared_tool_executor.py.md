@@ -6,11 +6,11 @@ Accept the execution context in `ToolExecutor.execute` and forward it to the inv
 **Release unit**: contract-chain
 
 ## Assumptions
-- `ToolExecutor` extends `ToolTransportInvoker` (line 34); the invoker-side signature is row 15's change — the two signatures land in the same commit set.
+- `ToolExecutor` extends `ToolTransportInvoker` (class at :37, verified 2026-11-20; the document previously cited line 34); the invoker-side signature is row 15's change — the two signatures land in the same commit set.
 
 ## Design decisions
-- Add a `context: ToolExecutionContext | None = None` parameter to the execute/routing path (:8-10 delegation contract, :32-36 routing delegation region) and pass it unchanged to the invoker call.
-- Routing-failure results (`error_type="routing"`, :30-33 docstring contract) keep `context=None` semantics where no transport call happens.
+- Add a `context: ToolExecutionContext | None = None` parameter to `execute` (:97-114) and `_raw_execute` (:88-95) and pass it unchanged to the invoker call (`_run_precall_gates`, row 15 signature).
+- Routing-failure results (`error_type="routing"`; the docstring contract is at :102-107, the build site at :110-114 — the previously cited ":30-33" refers to the `ToolCallResult` docstring in `transport_dto.py`) keep `context=None`/`dispatch_stage=""` semantics where no transport call happens.
 
 ## Alternatives considered
 - Passing the context through a module-level argument object: rejected — an explicit parameter keeps mypy coverage of the propagation chain (AC-2 auditability).
@@ -56,10 +56,10 @@ Context definition (row 13); invoker/transport handling (rows 15-16).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs sweep owned by mcpai012 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | `context` param on `execute`/`_raw_execute`, forwarded to `_run_precall_gates`; routing errors keep context=None |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-21 | 2026-11-21 | companion pins added in tests/shared/test_tool_executor_routing.py (TestNoContextRefusalAtRoutingLayer) + test_tool_executor.py `_ctx` adaptation |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | ruff+mypy(445 clean)+tests/shared (1280 passed)+lint-imports (6 kept); full suite at batch end |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-21 | 2026-11-21 | Docs sweep owned by mcpai012 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

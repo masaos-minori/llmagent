@@ -11,10 +11,10 @@ Delete the `_idempotency_key`/`_state_key` derivations, propagate the execution 
 
 ## Design decisions
 - Delete `_idempotency_key` (:137-145) and `_state_key` (:148-160); all recording uses `pc.context`'s logical call id.
-- `_record_pending_state` (:175-191) and `_finalize_state` (:195-211): for side-effecting calls a recorder write failure raises (denial surface: tool-error row via `execute_one_tool_call`), instead of the current `logger.warning` + `return None`; read-only calls keep best-effort.
-- Gateway-bypass branch (:237-246): non-READ calls without a grant/context never reach `tools.execute` — deny before the `check_preflight` fallback.
-- Wrap `_execute_prepared_call` with intent transitions: `dispatch_starting` (new) before, `dispatched` after the transport call starts, `response_received` (new) on response, `completed`/`failed` at finalize; a post-send transport failure leaves `dispatched`/`response_received` (new) for stale classification (never retried here, AC-6).
-- Keep the audit call (:298-309) passing the logical id; mandatory-audit errors propagate (row 5).
+- `_record_pending_state` (:175-192) and `_finalize_state` (:195-210): for side-effecting calls a recorder write failure raises (denial surface: tool-error row via `_recorded_call`), instead of the current `logger.warning` + `return None`; read-only calls keep best-effort.
+- Gateway-bypass branch (:239-246): non-READ calls without a grant/context never reach `tools.execute` — deny before the `check_preflight` fallback.
+- Wrap the dispatch with intent transitions (verified anchors: the state-row writer is `_recorded_call` :67-108 — pending at :88, finalize at :103/:107): `dispatch_starting` (new) before `_execute_prepared_call` (:213-246), `dispatched` immediately before the executor call, `response_received` (new) on a response-bearing result, `completed`/`failed` at finalize; a post-send transport failure leaves the row at `dispatched`/`response_received` for stale classification (never retried here, AC-6). Mechanism (resolved 2026-11-20): consume `ToolCallResult.dispatch_stage` (row 13 field, set by rows 15-16) — `"response"` → response-bearing, `"sent"` → leave dispatch-stage, `""` → finalize `failed`.
+- Keep the audit call (:298 derive + :301-310 call) passing the logical id; mandatory-audit errors propagate (row 5).
 
 ## Alternatives considered
 - Keeping `_state_key` as a fallback when the context is missing: rejected — AC-3 forbids side effects without an id; a fallback re-creates today's collision bug.
@@ -24,7 +24,7 @@ Delete the `_idempotency_key`/`_state_key` derivations, propagate the execution 
 `scripts/agent/tool_runner.py`
 
 ### Procedure
-Remove both key derivation functions; rewire `_record_pending_state`, `_finalize_state`, `_execute_prepared_call` (:214-246), the audit block (:295-310), and `_record_transport_failure` (:249+) to the logical call id and the intent transitions.
+Remove both key derivation functions; rewire `_recorded_call` (:67-108), `_record_pending_state`, `_finalize_state`, `_execute_prepared_call` (:213-246), the audit block (:298-310), and `_record_transport_failure` (:249-265) to the logical call id and the intent transitions.
 
 ### Method
 Fail-closed gate: compute side-effect class once per call (`_classify_retry_class` region already classifies); branch fail-open/fail-closed on that class only.
@@ -32,6 +32,7 @@ Fail-closed gate: compute side-effect class once per call (`_classify_retry_clas
 ### Details
 - REQ-004: no internal id or key appears in any LLM-facing tool message or error text; denial text stays the existing policy-denied wording.
 - `_run_approval_gate` (:561-576) itself stays the sole approval gate; grant presence is checked at execution and at the gateway.
+- The gateway-bypass docstring at :227 cites "factory.py:652" — stale (factory wires the gateway at factory.py:358-360); fix the citation while editing this branch.
 
 ## Compatibility considerations
 `tests/agent/test_tool_runner.py` transport-key assertions (:2325, :2343, :2366, :2547, :2551, :2564) are removed in row 19 in the same unit.
@@ -56,10 +57,10 @@ Audit mandatory-raising inside `tool_audit.py` (row 5); recorder protocol defini
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Phase 3 part lands with unit contract-chain; Phase 5 part with auth-intent |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs sweep owned by mcpai012 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | State key is `pc.context.call_id` (logical uuid7); `_derive_transport_key`/`_state_key`/`_idempotency_key` deleted. `_record_pending_state` fail-closed for side-effecting tools (missing id, unwired recorder, write failure → deny); read-only stays logged best-effort. `_recorded_call` writes `pending → dispatch_starting → dispatched` before dispatch, `response_received` when `result.dispatch_stage == "response"`, terminal `completed`/`failed` unless `dispatch_stage == "sent" and is_error` (AC-6: post-send failure leaves the row at dispatched for stale classification). Deviation: transitions live in `_recorded_call` (single wrapper) rather than split across execute_one_tool_call. `_execute_prepared_call` denies non-READ calls without grant/context via `_grant_denied_result` (error_type="denied") before `check_preflight`; gateway path passes `grant=pc.grant`; audit `idempotency_key=_logical_call_id(pc)`. Fail-closed audit classifier keys on `_MANDATORY_AUDIT_OP_TYPES`; recorder classifier keys on `ALL_SIDE_EFFECTING_TOOLS` (row 04 companion). |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-21 | 2026-11-21 | Companion tests land in row 19 (`tests/agent/test_tool_runner.py`: TestFailClosedRecording, TestGrantEnforcementAtExecution, transition-order pins). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | ruff + mypy clean on scripts/agent/tool_runner.py; targeted suite green (111 passed in test_tool_runner.py); batch full run green. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 2026-11-21 | Docs sweep owned by mcpai012 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

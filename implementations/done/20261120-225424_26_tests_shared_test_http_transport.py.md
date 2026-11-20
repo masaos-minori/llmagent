@@ -9,7 +9,7 @@ Pin that the outbound `X-Idempotency-Key` carries the opaque logical id and remo
 - Row 26's code counterpart is row 16 (`http_transport.py`); tests are added failing-first per Phase 1.
 
 ## Design decisions
-- Delete the `derive_idempotency_key` import (:22) and its test block (:255-289) plus the isolated :332 assertion.
+- Delete the `derive_idempotency_key` import (:22) and every derivation pin: the block at :252-291, the cross-transport identical-key test at :297-346 (including the subprocess pin at :332-333 and the local compare at :346), and the wfaudit002 HEAD_KEY literal pin class at :447-476. Verification finding 2026-11-20: the document previously cited only ":255-289 plus isolated :332" — the true deletion/rewrite scope is these three blocks.
 - Add cases: two calls with identical args send different header values; a retry of one call re-sends the identical value; a call with no context is refused before any HTTP request (AC-3); the header matches the context's `call_id` (AC-2 end-to-end pin).
 
 ## Alternatives considered
@@ -51,9 +51,9 @@ Routing-layer removal (row 16's companion); executor forwarding (row 14's compan
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | rewritten: derivation/HEAD_KEY pins deleted; TestLogicalCallIdHeader adds identical-args-different-header, retry-reuse, header==call_id, no-context refusal; stage pins on raise-site tests |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | ruff+28 passed as part of tests/shared (1280 passed) |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-21 | 2026-11-21 | N/A: test-only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

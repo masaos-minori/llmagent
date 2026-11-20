@@ -12,8 +12,9 @@ Generate the logical call id once per prepared tool call and attach an immutable
 
 ## Design decisions
 - Generate `str(uuid.uuid7())` in `_prepare_one` at preparation time; the id is reused unchanged by every retry of that call.
-- Add a `context` field to the frozen `PreparedToolCall` (:40-48) holding the `ToolExecutionContext` (new); `call_id` keeps its correlation-only role.
-- Malformed/missing LLM ids keep the existing `_reject` path (:77-84); no new id format validation is added on the logical id (opaque by design).
+- Add a `context` field to the frozen `PreparedToolCall` (:40-48) holding the `ToolExecutionContext` (new); `call_id` keeps its correlation-only role. Implemented shape: `context: ToolExecutionContext | None = None` — the None default keeps existing test fixtures constructing `PreparedToolCall` valid until their own rows update them; `prepare_tool_calls` always sets it, and rows 4/3 deny side-effecting calls when it is absent (fail-closed).
+- Malformed/missing LLM ids keep the existing `_reject` path (:81-88). Verification finding (2026-11-20): the existing path only rejects an empty `tc_id` — REQ-001's "validate length, format, whitespace, and control characters" needs a new check in `_prepare_one` (reject ids containing whitespace/control characters or exceeding a sane length cap; `_reject` with `kind="validation"`). No new validation is added on the uuid7 logical id itself (opaque by design).
+- Implemented finding (2026-11-21): CI (`.github/workflows/ci.yml`) runs Python 3.13, where `uuid.uuid7()` does not exist — the Plan assumption covered only the two venvs. Resolution kept in scope: `_logical_call_id()` in `tool_preparation.py` uses native `uuid.uuid7()` when present (both venvs) and composes the same RFC 9562 layout (48-bit ms timestamp, version 7, 74 random bits) on 3.13. CI bumping to 3.14 was rejected: out of this row's target-file scope.
 
 ## Alternatives considered
 - Content-composite key (sha256 of args): rejected — two independent calls with identical arguments would collide, violating `REQ-001` / AC-1.
@@ -29,12 +30,13 @@ In `_prepare_one` (line 75), after the existing `tc_id`/`name` validation, build
 Construct the context once; never regenerate it downstream. Keep `_reject` semantics unchanged.
 
 ### Details
-- Context carries the plain-data fields defined in `scripts/shared/transport_dto.py`: logical call id, tool name, and canonical-args hash.
-- `prepare_tool_calls` (:38-50 region) propagates the context with the dataclass; no other preparation behavior changes.
+- Context carries the fields defined in `scripts/shared/transport_dto.py` (row 13): `call_id`, `tool`, `args_hash`, `operation`. Verification note: REQ-002 enumerates a wider field list; row 13 keeps a deliberate subset because the other ids are already carried by `ToolExecEvent`/`execution_snapshot_json` and `server_key`/approval reference are not knowable at preparation time.
+- `prepare_tool_calls` (actually :187-214; the previously cited ":38-50" is wrong) propagates the context with the dataclass; no other preparation behavior changes.
+- Do not add the `grant` field here: row 2 (auth-intent unit) adds `grant: ApprovalGrant | None = None` to `PreparedToolCall` when `ApprovalGrant` (row 8) exists.
 
 ### Companion test files
 - `tests/agent/test_tool_preparation.py`
-  - Procedure: add cases for id uniqueness per call, identical-args calls getting different ids, malformed-id rejection unchanged, and context attached to each `PreparedToolCall`.
+  - Procedure: add cases for id uniqueness per call, identical-args calls getting different ids, malformed-id rejection extended per REQ-001 (whitespace, control characters, over-long ids rejected), and context attached to each `PreparedToolCall`.
   - Validation: `uv run pytest tests/agent/test_tool_preparation.py` passes.
 
 ## Compatibility considerations
@@ -60,10 +62,10 @@ Transport header wiring (row 16) and audit/state key propagation (rows 5, 8, 10)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs sweep owned by mcpai012 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | context field + malformed-id checks + `_logical_call_id()` (3.13 fallback) |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-21 | 2026-11-21 | `TestPrepareToolCallsLogicalIdentity` added (7 cases) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | ruff+format+mypy+targeted pytest (19 passed); full suite at batch end |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-21 | 2026-11-21 | Docs sweep owned by mcpai012 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -9,7 +9,7 @@ Re-point the audit event identity fields to the logical call id and define the `
 - The persisted column/field name `idempotency_key` is kept on `ToolExecEvent`; only its value semantics change to the opaque logical call id (no audit-log schema rename in this Plan).
 
 ## Design decisions
-- Replace the `idempotency_key` comment block on `ToolExecEvent` (:48-50, currently "nothing deduplicates on this value" with the composite-key description) with the opaque uuid7 logical-call-id contract.
+- Replace the `idempotency_key` comment block on `ToolExecEvent` (:46-49, currently "nothing deduplicates on this value" with the composite-key description; field at :50) with the opaque uuid7 logical-call-id contract.
 - Add `idempotency_key: str = ""` to `ToolApprovalEvent` (:13-26) so approval and execution events carry the same logical call id (AC-2).
 - Define `ApprovalGrant` (new) as a frozen dataclass in this module: `tool`, `args_hash`, `mode`, `issued_at` (new), `expires_at` (new); single-use is enforced by the gateway consumer (row 3), not by the model.
 
@@ -53,10 +53,10 @@ Grant issuance (row 2); grant verification (row 3).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs sweep owned by mcpai012 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | exec comment rewritten; approval `idempotency_key` added; `ApprovalGrant` defined (epoch-seconds timestamps) |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-21 | 2026-11-21 | format pins land with row 22 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | ruff+mypy+test_audit_log_format (24 passed); full mypy at batch end |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-21 | 2026-11-21 | Docs sweep owned by mcpai012 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

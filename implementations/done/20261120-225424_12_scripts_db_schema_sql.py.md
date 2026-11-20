@@ -10,8 +10,8 @@ Extend the canonical `tool_call_state` DDL `CHECK` to the nine-state intent voca
 - The primary-key column name `idempotency_key` stays; the comment documents that its value is now the opaque uuid7 logical call id.
 
 ## Design decisions
-- Edit the `state` CHECK at :217 in `scripts/db/schema_sql.py` to `('pending','dispatch_starting','dispatched','response_received','completed','failed','interrupted','outcome_unknown','reconciliation_required')` — identical set to `TOOL_CALL_STATES` (row 9), same commit.
-- Update the surrounding comment block (:213-215 region) to state the new key semantics; no index (`idx_tool_call_state_task_state`) change.
+- Edit the `state` CHECK at :219 in `scripts/db/schema_sql.py` (verified 2026-11-20; previously cited :217) to `('pending','dispatch_starting','dispatched','response_received','completed','failed','interrupted','outcome_unknown','reconciliation_required')` — identical set to `TOOL_CALL_STATES` (row 9), same commit.
+- Update the surrounding comment block (:210-214) to state the new key semantics; no index (`idx_tool_call_state_task_state` at :225-226) change.
 
 ## Alternatives considered
 - Renaming the key column to `call_id`: rejected — the shape pins, `check_db_separation.py`, and every consumer name `idempotency_key`; value semantics carry the change.
@@ -60,10 +60,10 @@ Transition semantics (row 10); the parity test's own update (row 32).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Deploy runbook note only |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-21 | 2026-11-21 | nine-state CHECK + key-semantics comment |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-21 | 2026-11-21 | new `test_tool_call_state_check_equals_python_vocabulary` added (no prior DDL-text pin existed); the per-database pin targets the mcp_dedup table and stays unchanged |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-21 | 2026-11-21 | ruff+mypy+`pytest tests/db tests/deploy/test_required_workflow_tables_parity.py` (524 passed)+check_db_separation; same commit set as row 9 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-21 | 2026-11-21 | Deploy runbook note only (archive-and-recreate is a deploy-time operator action, UNK-04) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
