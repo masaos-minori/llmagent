@@ -12,7 +12,7 @@
 - The new identifier is the next free number after NC-002 (expected NC-003); read Part 2 at edit time. `NC-` is the only inventory prefix, so the number is unique across Part 2.
 - The entry records the question only: `Assigned To` is the maintainer, no decision and no approval text is written (Plan Assumption A3).
 - SHARED-001 is closed on this evidence: `test_run_integrity_check_keeps_rollback_journal_mode` passes and the classification path opens the database read-only (`scripts/db/recovery.py`, `_run_integrity_check(..., read_only=True)`); if the test fails when re-run, stop and report (Plan Assumption A4).
-- For SHARED-002 only the line numbers are replaced: the ADR-008 matrix may no longer list `memories_vec` as a system of record (Plan UNK-03); do not change its status or substance, and report the staleness.
+- For SHARED-002 only the line numbers are replaced: verified against current source (Step 3a, 2026-11-20) — the ADR-008 `System of record` row no longer lists `memories_vec` and the `Derived or rebuildable data` row lists `memories_fts, memories_vec (from memories)`; AAL-027 records the pending approval. The ledger `Current Description` is therefore restated in the past tense (the mismatch as first found) with row names instead of line numbers; do not change the entry's status or substance, and report the staleness (Plan UNK-03).
 
 ## Design decisions
 
@@ -30,7 +30,7 @@ N/A: a text edit; the Plan fixes the change.
 1. Run `uv run pytest tests/db/test_db_recovery.py -k keeps_rollback_journal_mode -q`; continue only when it passes.
 2. Append a new entry after `#### NC-002` in Part 2 `### Active Items` with the fifteen fields listed in Details.
 3. Delete the `#### SHARED-001` entry, from its heading to the line before `#### SHARED-002`.
-4. In the `#### SHARED-002` entry's `Current Description`, replace `Line 92` and `line 93` with the matrix row names (`System of record` row and `Derived or rebuildable data` row); change nothing else in the entry.
+4. In the `#### SHARED-002` entry's `Current Description`, replace the line-number citation with matrix row names in the past tense (the mismatch as first found): `Line 92 lists ... and line 93 lists ...` becomes `The System of record row listed ... and the Derived or rebuildable data row listed ...` naming the same values; change nothing else in the entry.
 ### Method
 - Direct text edits; keep the existing field order and bullet shape of NC-001 and NC-002.
 ### Details
@@ -71,9 +71,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Register the new entry in Part 2 (Plan step 1) | Pending | — | — |  |
-| 2 | Remove SHARED-001 and fix the SHARED-002 line numbers (Plan step 2) | Pending | — | — | Same change set as the ADR-008 procedure |
-| 3 | Run the validation sequence for this row (Validation plan) | Pending | — | — | |
+| 1 | Register the new entry in Part 2 (Plan step 1) | Completed | 20261120-151320 | 20261120-151320 | NC-003 registered after NC-002 with the 15 Part 2 fields. |
+| 2 | Remove SHARED-001 and fix the SHARED-002 line numbers (Plan step 2) | Completed | 20261120-151320 | 20261120-151320 | Same change set as the ADR-008 procedure SHARED-001 entry removed; SHARED-002 Current Description restated with row names instead of line numbers. |
+| 3 | Run the validation sequence for this row (Validation plan) | Completed | 20261120-151320 | 20261120-151320 | All checkers in the Validation plan pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

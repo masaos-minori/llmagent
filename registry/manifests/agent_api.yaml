@@ -833,7 +833,7 @@ entries:
   kind: function
   name: validate_diagnostics_retention_days
   signature: def validate_diagnostics_retention_days(cfg) -> None
-  summary: Validate retention_days is an int (<= 0 disables purge; preserved per UNK-03).
+  summary: Validate retention_days is an int (<= 0 disables purge).
 - file: scripts/agent/services/config_validators.py
   kind: function
   name: validate_diagnostics_sensitive_fields

@@ -152,7 +152,7 @@ async def nack(
     if not consumer_id:
         raise HTTPException(status_code=400, detail="consumer_id is required for NACK")
 
-    # UNK-01 (recommended): reject a NACK without an idempotency key
+    # Reject a NACK without an idempotency key
     if not idempotency_key:
         raise HTTPException(
             status_code=400, detail="idempotency_key is required for NACK"

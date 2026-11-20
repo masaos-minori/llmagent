@@ -54,7 +54,7 @@ EventBus routes in `scripts/eventbus/` are intended to authenticate callers by B
 
 ### Caller model status
 
-The EventBus is intentionally kept in service (keep decision recorded in `adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`, repository owner instruction 2026-11-09); its producers and consumers are not yet defined, and the component that will define them together with the integration timing are a marked pending item — "maintainer decision (pending)" — registered through `governance_03_issue-and-uncertainty-management.md` (Plan UNK-01). Until that item is resolved, no producer or consumer is named, and any first publisher or consumer client of any kind activates `Review Triggers` item 1 and must authenticate and authorize under this ADR's contract.
+The EventBus is intentionally kept in service (keep decision recorded in `adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`, repository owner instruction 2026-11-09); its producers and consumers are not yet defined, and the component that will define them together with the integration timing are a marked pending item — "maintainer decision (pending)" — registered through `governance_03_issue-and-uncertainty-management.md` (NC-003). Until that item is resolved, no producer or consumer is named, and any first publisher or consumer client of any kind activates `Review Triggers` item 1 and must authenticate and authorize under this ADR's contract.
 
 ## Assumptions
 

@@ -218,7 +218,7 @@ RETRYABLE_TOOLS: frozenset[str] = frozenset(
 # fail-closed write gate, the tool_policy static classification, and the
 # server.py REQ-004 idempotency-key boundary. Independent of the retry-class
 # dimension (RETRYABLE_TOOLS above) and of approval tiers; do not conflate
-# them. Routing authority remains this module's header (lines 4-21); this set
+# them. Routing authority remains this module's docstring; this set
 # classifies tools, it does not route them.
 ALL_SIDE_EFFECTING_TOOLS: frozenset[str] = (
     WRITE_TOOLS

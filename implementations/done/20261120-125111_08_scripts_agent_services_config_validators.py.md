@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the docstring (Plan step 4) | Pending | — | — | Run the generator afterwards |
-| 2 | Run the validation sequence for this row (Validation plan) | Pending | — | — | |
+| 1 | Edit the docstring (Plan step 4) | Completed | 20261120-151344 | 20261120-151344 | Run the generator afterwards Docstring replaced; generator re-run in the same change set (see the manifest procedure). |
+| 2 | Run the validation sequence for this row (Validation plan) | Completed | 20261120-151344 | 20261120-151344 | All checkers in the Validation plan pass; tests/agent/services/test_typed_validators.py 572 passed with the eventbus run. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

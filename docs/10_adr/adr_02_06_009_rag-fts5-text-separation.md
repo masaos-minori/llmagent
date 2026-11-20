@@ -173,7 +173,7 @@ INV-09 is not used.
 - **Decision.** For English, `chunks.normalized_content` is `NULL` and `chunks.content`
   is the original crawled text region (every word retained, including stopwords).
   English therefore follows INV-04 exactly; no exception is made.
-- **Basis.** Resolved by the owner on 2026-11-19 (UNK-01): INV-04 already dictates
+- **Basis.** Resolved by the owner on 2026-11-19: INV-04 already dictates
   `NULL` for English, so this restores the documented invariant without an exception.
   Shape A — storing the stopword-stripped projection as `content` so FTS5 indexes the
   stripped text — was considered and rejected because no FTS quality measurement favors

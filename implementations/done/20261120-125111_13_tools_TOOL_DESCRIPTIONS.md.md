@@ -9,7 +9,7 @@
 
 ## Assumptions
 
-- Only the rule that landed is described; the pending adrchk013 procedure edits other rows of this file (compatible overlap, Plan Assumption A1).
+- Only the rule that landed is described; the adrchk013 batch (which edits other rows of this file) is already archived in `implementations/done/` (compatible overlap, Plan Assumption A1).
 
 ## Design decisions
 
@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the two rows (Plan step 6) | Pending | — | — | After the checker procedure |
-| 2 | Run the validation sequence for this row (Validation plan) | Pending | — | — | |
+| 1 | Update the two rows (Plan step 6) | Completed | 20261120-151422 | 20261120-151422 | After the checker procedure Both rows extended with the identifier rule; one Index row added for tools/_known_deviation_identifiers.py (split fallout; check_tool_descriptions_sync requires every tools/*.py to be documented). |
+| 2 | Run the validation sequence for this row (Validation plan) | Completed | 20261120-151422 | 20261120-151422 | All checkers in the Validation plan pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

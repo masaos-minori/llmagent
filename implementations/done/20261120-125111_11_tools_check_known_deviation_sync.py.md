@@ -79,11 +79,11 @@ N/A: revert the commit; a module split reverts with the rule that forced it.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the failing fixtures first (companion test file) | Pending | — | — | Fixtures shown failing before the rule |
-| 2 | Add the identifier rule for ADR documents (Plan step 5) | Pending | — | — | After the data procedures of Plan steps 1 to 3 |
-| 3 | Split the checker if the size gate fails and record the module as a fallout amendment (Plan step 5) | Pending | — | — | Only when the gate fails |
-| 4 | Extend the rule to scripts/ (Plan step 7) | Pending | — | — | Gated: plans/20261120-124329_adrchk012_traceability-id-uniqueness.md phase 7 - UNK-01 owner decision pending |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Write the failing fixtures first (companion test file) | Completed | 20261120-151407 | 20261120-151407 | Fixtures shown failing before the rule 5 fixture tests added first; collection failed with ImportError before the rule existed (failing-first evidence). |
+| 2 | Add the identifier rule for ADR documents (Plan step 5) | Completed | 20261120-151407 | 20261120-151407 | After the data procedures of Plan steps 1 to 3 Rule 6 added: _CITED_IDENTIFIER_RE plus heading counts across all Parts; 25 tests pass; live run reports no issues (exit 0). |
+| 3 | Split the checker if the size gate fails and record the module as a fallout amendment (Plan step 5) | Completed | 20261120-151407 | 20261120-151407 | Only when the gate fails Split executed with tools/module_nodes.py: tools/_known_deviation_identifiers.py created (3684 B); checker 24106 B under the 24576 gate; tools/amend_plan.py refuses archived plans (plans/done/), so the fallout is recorded here and documented as an Index row in tools/TOOL_DESCRIPTIONS.md. |
+| 4 | Extend the rule to scripts/ (Plan step 7) | N/A | — | — | Gated: plans/20261120-124329_adrchk012_traceability-id-uniqueness.md phase 7 - UNK-01 owner decision pending Row not executed in this batch: the extension is owned by Plan phase 7, whose gate stays open in the Plan Execution Status row. |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261120-151422 | 20261120-151422 | ruff format/check, mypy, bandit, pytest 25 passed, live checker run, check_module_size all pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

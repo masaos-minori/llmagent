@@ -349,7 +349,6 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- **Known Issue:** SHARED-001 — Dry Run switches a rollback-journal-mode target database to WAL mode on open. Recorded pending a maintainer decision (fix Dry Run to avoid the journal-mode change, or accept and document it); not resolved. See `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
 - **Known Issue:** SHARED-002 — `memories_vec` is classified as both system of record and derived/rebuildable in the ADR-008 Recovery Policy Matrix (Recovery Policy Matrix, system of record and derived rows). Recorded pending a maintainer decision on the correct classification; not resolved. See `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1. The Matrix now classifies `memories_vec` as derived only, pending AAL-027; the Known Issue stays open until that approval is recorded.
 
 ## Review Triggers

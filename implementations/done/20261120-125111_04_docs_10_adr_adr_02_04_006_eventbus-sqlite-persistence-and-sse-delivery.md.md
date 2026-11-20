@@ -1,20 +1,19 @@
 ## Goal
 
-- Remove the SHARED-001 bullet from `## Known Deviations`, because SHARED-001 is fixed in code and its ledger entry is removed (`REQ-005`).
+- Replace the plan-local identifier in Decision item 14 with the identifier of the new inventory entry (`REQ-002`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- Plan step 2. Execute in the same change set as the `governance_03` procedure: removing the ledger entry alone leaves a dangling reference here, and removing this bullet alone leaves an uncited open entry.
+- Plan step 1. Execute after the `governance_03` procedure has assigned the identifier.
 
 ## Assumptions
 
-- The Issue's claim that this section reads `Not applicable` does not hold: the section lists the SHARED-001 and SHARED-002 bullets (checked in the plan-to-implementation-procedure cycle).
-- The SHARED-002 bullet stays unchanged (its status is open until the AAL-027 approval is recorded).
+- The identifier is the one the `governance_03` procedure assigned (expected NC-003); read it from Part 2 before editing.
 
 ## Design decisions
 
-- Remove only the bullet; do not rewrite the section or add a resolution note (Current-Specification-Only policy).
+- Change only the identifier token; the sentence keeps its meaning.
 
 ## Alternatives considered
 
@@ -22,18 +21,17 @@ N/A: a text edit; the Plan fixes the change.
 
 ## Implementation
 ### Target file
-`docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+`docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`
 ### Procedure
-1. In `## Known Deviations`, delete the bullet that starts `- **Known Issue:** SHARED-001`.
-2. Leave the SHARED-002 bullet and the section heading as they are.
+1. In Decision item 14, replace `(UNK-01)` in `The producer and consumer model is not yet defined (UNK-01)` with the new identifier in parentheses.
 ### Method
-- Direct bullet deletion.
+- Direct token replacement.
 ### Details
-- Do not add `Not applicable`; the section still holds the SHARED-002 bullet.
+- No other wording changes; the decision text stays as it is.
 
 ## Compatibility considerations
 
-N/A: documentation row; no decision text changes.
+- The token change lands inside the `## Decision` section: `check_adr_preservation.py` reports a WARNING for the Decision section text change (not an ERROR); the sentence-level mapping is that only the identifier token changes and the meaning stays. No Known Deviations or Approval text changes, so no ERROR is expected from this row.
 
 ## Security considerations
 
@@ -50,19 +48,19 @@ N/A: revert the commit.
 
 ## Completion criteria
 
-- ADR-008 `## Known Deviations` no longer cites SHARED-001 and the sync check passes together with the ledger change (AC-4).
+- `grep -n "UNK-"` returns nothing in this ADR and the new identifier resolves to exactly one heading (AC-1).
 
 ## Out of Scope
 
-- The SHARED-002 bullet and every other ADR-008 section.
+- Any change to the keep decision or to other items.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the SHARED-001 bullet (Plan step 2) | Pending | — | — | Same change set as the governance_03 procedure |
-| 2 | Run the validation sequence for this row (Validation plan) | Pending | — | — | |
+| 1 | Replace the plan-local identifier (Plan step 1) | Completed | 20261120-151320 | 20261120-151320 | After the governance_03 procedure (UNK-01) replaced with (NC-003); check_adr_preservation WARNING: section Decision text changed, mapping: identifier token only. |
+| 2 | Run the validation sequence for this row (Validation plan) | Completed | 20261120-151320 | 20261120-151320 | All checkers in the Validation plan pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -76,10 +74,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-005` (close SHARED-001)
+- **Requirement ID**: `REQ-002` (cite the new entry)
 - **Source issue**: issues/20261117-123012_adrchk012_traceability-id-uniqueness.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261120-124329_adrchk012_traceability-id-uniqueness.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261120-125111
-- **Related target files**: `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+- **Related target files**: `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`

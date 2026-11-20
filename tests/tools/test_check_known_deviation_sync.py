@@ -16,11 +16,13 @@ from pathlib import Path
 from tools._docs_consistency_lib import DocFile, discover_md_files
 from tools.check_known_deviation_sync import (
     CanonicalStatus,
+    collect_governance_heading_counts,
     cross_check,
     discover_known_issue_prefixes,
     find_bullets_without_id,
     find_dangling_general_references,
     find_resolved_bullets,
+    find_unresolved_identifiers,
     parse_adr_references,
     parse_canonical_adr_targets,
     parse_canonical_statuses,
@@ -438,3 +440,107 @@ class TestBulletWithoutId:
             "  - nested sub-bullet with no ID\n",
         )
         assert find_bullets_without_id(_discover(adr_dir)) == []
+
+
+class TestUnresolvedIdentifiers:
+    """`UNK-`/`NC-` tokens cited in an ADR must resolve to exactly one
+    `governance_03` heading (rule 6)."""
+
+    def test_unresolved_unk_citation_is_reported(self, tmp_path: Path) -> None:
+        canonical_dir = tmp_path / "docs"
+        _write(
+            canonical_dir,
+            "governance_03_fixture.md",
+            "## Part 2: Needs Confirmation Inventory\n\n"
+            "#### NC-002\n\n- **ID:** NC-002\n",
+        )
+        adr_dir = tmp_path / "10_adr"
+        _write(
+            adr_dir,
+            "adr_02_008_example.md",
+            "## Decision\n\n"
+            "14. The producer and consumer model is not yet defined (UNK-01).\n",
+        )
+        counts = collect_governance_heading_counts(_discover(canonical_dir))
+        findings = find_unresolved_identifiers(_discover(adr_dir), counts)
+        assert [f.line_no for f in findings] == [3]
+        assert all(f.severity == "ERROR" for f in findings)
+        assert "no entry" in findings[0].message
+
+    def test_duplicated_heading_is_reported(self, tmp_path: Path) -> None:
+        canonical_dir = tmp_path / "docs"
+        _write(
+            canonical_dir,
+            "governance_03_fixture.md",
+            "## Part 2: Needs Confirmation Inventory\n\n"
+            "#### NC-005\n\n- **ID:** NC-005\n\n"
+            "#### NC-005\n\n- **ID:** NC-005\n",
+        )
+        adr_dir = tmp_path / "10_adr"
+        _write(
+            adr_dir,
+            "adr_02_009_example.md",
+            "## Decision\n\n"
+            "The item is registered as (NC-005).\n",
+        )
+        counts = collect_governance_heading_counts(_discover(canonical_dir))
+        assert counts["NC-005"] == 2
+        findings = find_unresolved_identifiers(_discover(adr_dir), counts)
+        assert [f.line_no for f in findings] == [3]
+        assert findings[0].severity == "ERROR"
+        assert "exactly one" in findings[0].message
+
+    def test_unresolved_nc_citation_is_reported(self, tmp_path: Path) -> None:
+        canonical_dir = tmp_path / "docs"
+        _write(
+            canonical_dir,
+            "governance_03_fixture.md",
+            "#### NC-002\n\n- **ID:** NC-002\n",
+        )
+        adr_dir = tmp_path / "10_adr"
+        _write(
+            adr_dir,
+            "adr_02_010_example.md",
+            "## Context\n\nRegistered as (NC-009).\n",
+        )
+        counts = collect_governance_heading_counts(_discover(canonical_dir))
+        findings = find_unresolved_identifiers(_discover(adr_dir), counts)
+        assert len(findings) == 1
+        assert findings[0].severity == "ERROR"
+
+    def test_heading_under_part_2_resolves_clean(self, tmp_path: Path) -> None:
+        """Part 2 headings count: the Part 1 scan boundary must not hide them."""
+        canonical_dir = tmp_path / "docs"
+        _write(
+            canonical_dir,
+            "governance_03_fixture.md",
+            "## Part 1: Known Issues\n\n#### SHARED-002\n\n- **ID:** SHARED-002\n\n"
+            "## Part 2: Needs Confirmation Inventory\n\n"
+            "#### NC-004\n\n- **ID:** NC-004\n",
+        )
+        adr_dir = tmp_path / "10_adr"
+        _write(
+            adr_dir,
+            "adr_02_011_example.md",
+            "## Decision\n\nItem (NC-004) is tracked.\n",
+        )
+        counts = collect_governance_heading_counts(_discover(canonical_dir))
+        assert counts["NC-004"] == 1
+        assert find_unresolved_identifiers(_discover(adr_dir), counts) == []
+
+    def test_token_with_word_suffix_is_not_matched(self, tmp_path: Path) -> None:
+        canonical_dir = tmp_path / "docs"
+        _write(
+            canonical_dir,
+            "governance_03_fixture.md",
+            "#### NC-004\n",
+        )
+        adr_dir = tmp_path / "10_adr"
+        _write(
+            adr_dir,
+            "adr_02_012_example.md",
+            "## Decision\n\n"
+            "See UNK-01-D1-profile-config and NC-0045x for details.\n",
+        )
+        counts = collect_governance_heading_counts(_discover(canonical_dir))
+        assert find_unresolved_identifiers(_discover(adr_dir), counts) == []

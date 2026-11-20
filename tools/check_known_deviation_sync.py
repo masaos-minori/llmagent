@@ -4,7 +4,7 @@
 Every ADR's `## Known Deviations` section cites Known Issue IDs (e.g. `EVENTBUS-008`)
 that are tracked in
 `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
-Five failure modes are reported:
+Six failure modes are reported:
 
   1. A `- **Resolved**:` bullet appears in an ADR's Known Deviations. The
      Current-Specification-Only Policy keeps no resolved items in active
@@ -22,6 +22,11 @@ Five failure modes are reported:
      own ordering convention.
   5. A top-level bullet in an ADR's `## Known Deviations` cites no Known Issue
      ID -- an open deviation recorded without its canonical ledger ID (ERROR).
+  6. An `UNK-` or `NC-` identifier cited anywhere in an ADR does not resolve to
+     exactly one `#### <ID>` heading in the canonical document -- a plan-local
+     identifier, a removed entry, or a duplicated heading (ERROR). Headings are
+     counted across all Parts of the canonical document, including the Part 2
+     Needs Confirmation Inventory.
 
 Rule ID: GV-022 (docs/00_governance/governance_04_documentation-checks.md).
 
@@ -49,6 +54,11 @@ from tools._docs_consistency_lib import (
     discover_md_files,
     report_and_exit,
 )
+from tools._known_deviation_identifiers import (
+    _CANONICAL_ID_HEADER_RE,
+    collect_governance_heading_counts,
+    find_unresolved_identifiers,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
@@ -73,11 +83,6 @@ _GOVERNANCE_KNOWN_ISSUES_PATH = (
     DOCS_DIR / "00_governance" / _GOVERNANCE_KNOWN_ISSUES_DOC
 )
 
-# Matches both the legacy per-area heading ("### MCP-004: Some title") and the
-# consolidated governance document's heading ("#### RAG-003", no title on the
-# same line) -- see docs/00_governance/governance_03_issue-and-uncertainty-management.md
-# Part 1's Entry Template.
-_CANONICAL_ID_HEADER_RE = re.compile(r"^#{3,4} ([A-Z]+-\d+)(?::|\s*$)")
 # The governance document's Part 2 ("Needs Confirmation Inventory") also uses
 # `#### NC-<N>` headings that match the ID shape above (letters-dash-digits)
 # but are a different inventory entirely -- entries at or after this heading
@@ -417,6 +422,11 @@ def find_bullets_without_id(files: list[DocFile]) -> list[Issue]:
 
 
 # ---------------------------------------------------------------------------
+# Identifier resolution (rule 6)
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
 # Cross-check
 # ---------------------------------------------------------------------------
 
@@ -540,6 +550,11 @@ def collect_issues() -> list[Issue]:
             discover_known_issue_prefixes(canonical_docs, canonical),
         )
     )
+    issues.extend(
+        find_unresolved_identifiers(
+            adr_docs, collect_governance_heading_counts(canonical_docs)
+        )
+    )
     return issues
 
 
@@ -570,8 +585,10 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "Read-only cross-check of every ADR's Known Deviations "
             "references against the "
-            "Known Issue entries in governance_03, and rejection of "
-            "`- **Resolved**:` bullets in Known Deviations."
+            "Known Issue entries in governance_03, rejection of "
+            "`- **Resolved**:` bullets in Known Deviations, and resolution "
+            "of `UNK-`/`NC-` identifiers cited in ADRs to exactly one "
+            "governance_03 heading."
         )
     )
     parser.add_argument(

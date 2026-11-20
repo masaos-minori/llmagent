@@ -20,7 +20,7 @@ This directory contains all Architecture Decision Records (ADRs). Each ADR captu
 
 ## Known Deviations
 
-Confirmed deviations are tracked in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1 and cited in each affected ADR's `Known Deviations`. No confirmed deviation remains.
+Confirmed deviations are tracked in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1 and cited in each affected ADR's `Known Deviations`. The ledger, not this guide, states which deviations are open.
 
 ## Reading Order
 

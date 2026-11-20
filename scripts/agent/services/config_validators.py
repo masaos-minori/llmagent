@@ -200,7 +200,7 @@ def validate_diagnostics_encryption_key(cfg: DiagnosticsConfig) -> None:
 
 
 def validate_diagnostics_retention_days(cfg: DiagnosticsConfig) -> None:
-    """Validate retention_days is an int (<= 0 disables purge; preserved per UNK-03)."""
+    """Validate retention_days is an int (<= 0 disables purge)."""
     if isinstance(cfg.retention_days, bool) or not isinstance(cfg.retention_days, int):
         raise ValueError(
             f"retention_days must be an int, got {type(cfg.retention_days).__name__}"

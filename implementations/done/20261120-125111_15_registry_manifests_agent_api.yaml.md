@@ -60,8 +60,8 @@ N/A: revert the commit (the reference document reverts with it).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the manifest (Plan step 4) | Pending | — | — | After the config_validators.py procedure |
-| 2 | Run the validation sequence for this row (Validation plan) | Pending | — | — | |
+| 1 | Regenerate the manifest (Plan step 4) | Completed | 20261120-151344 | 20261120-151344 | After the config_validators.py procedure Regenerated; single summary line changed in agent_api.yaml; the other manifests were rewritten byte-identical. |
+| 2 | Run the validation sequence for this row (Validation plan) | Completed | 20261120-151344 | 20261120-151344 | All checkers in the Validation plan pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

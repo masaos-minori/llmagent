@@ -171,26 +171,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action:** maintainer approves or amends the governance_01 Resolution Matrix owner list for the `mcp.component-mandatoriness` row; no approval is written here.
 - **Resolution Target:** owner-list approval recorded in `governance_01_documentation-policy.md`
 
-#### SHARED-001
-
-- **ID:** SHARED-001
-- **Title:** Dry Run switches a rollback-journal-mode target database to WAL mode on open
-- **Status**: open
-- **Severity:** Low
-- **Area:** Shared/DB
-- **Type:** implementation-bug
-- **Source:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` Automated Tests INV-16 row and `tests/db/test_db_recovery.py` rollback-journal clause
-- **Owner:** Repository owner
-- **First Found:** adrrev009 ADR-008 recovery alignment review
-- **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
-- **Related:** `plans/20261110-233648_adrrev009_adr008-recovery-align.md`
-- **Summary:** The Dry Run path opens the target DB connection to classify its condition, which converts a rollback-journal-mode database to WAL mode; ADR-008 documents Dry Run as taking no action on the target DB, which does not cover this journal-mode switch.
-- **Current Description:** ADR-008 Automated Tests INV-16 states "a rollback-journal file is switched to WAL when opened and is not covered" while the ADR's `## Known Deviations` reads "Not applicable", so the deviation is neither recorded nor resolved.
-- **Observed Implementation:** `scripts/db/recovery.py` Dry Run path opens the target connection for classification; SQLite rewrites a rollback-journal-mode file to WAL mode on open.
-- **Impact:** A rollback-journal-mode database is silently converted to WAL mode during a Dry Run. Operational impact is low because WAL is the production mode, but it contradicts the documented "no action on the target DB" claim and is currently unrecorded.
-- **Recommended Action:** Maintainer decides either (a) fix Dry Run so it does not alter the target's journal mode (for example a read-only classification that avoids the conversion), or (b) accept the switch and record it as an explicit Known Deviation in ADR-008. Recorded here pending that decision; no code fix or approval is fabricated.
-- **Resolution Target:** maintainer decision recorded in ADR-008 `## Known Deviations` or a Dry Run code fix
-
 #### SHARED-002
 
 - **ID:** SHARED-002
@@ -205,7 +185,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
 - **Related:** `plans/20261110-233648_adrrev009_adr008-recovery-align.md`
 - **Summary:** The session.sqlite column of ADR-008's Recovery Policy Matrix lists `memories_vec` under "System of record" and again under "Derived or rebuildable data (from memories)", classifying one store two mutually exclusive ways.
-- **Current Description:** Line 92 lists `sessions, messages, memories, memories_vec` as the system of record and line 93 lists `memories_vec (from memories)` as derived/rebuildable data for the same store in the same table.
+- **Current Description:** The System of record row listed `sessions, messages, memories, memories_vec` as the system of record and the Derived or rebuildable data row listed `memories_vec (from memories)` as derived/rebuildable data for the same store in the same table.
 - **Observed Implementation:** No component treats `memories_vec` as a canonical store independent of `memories`; it is rebuilt from `memories`, which supports the derived classification, but the matrix still lists it as a system of record.
 - **Impact:** An operator cannot determine the recovery policy for `memories_vec`; a store cannot be both canonical and derived, so the matrix is internally contradictory.
 - **Recommended Action:** Maintainer decides the correct classification (system of record versus derived/rebuildable) and edits the matrix accordingly. Recorded here pending that decision; the classification is not resolved by this Plan.
@@ -283,6 +263,24 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 - **Priority:** High
 - **Related NC:** None
 - **Resolution Target:** justification text in ADR-004 Decision Group 2 item 7
+- **Blocking:** None
+
+#### NC-003
+
+- **ID:** NC-003
+- **Source File:** `adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`
+- **Section:** Decision > item 14 (EventBus producers and consumers)
+- **Line Number:** 86
+- **Question:** Which component defines the EventBus producers and consumers, and when is the integration planned?
+- **Evidence:** ADR-006 Decision item 14 and the ADR-013 Caller model status both state that the producer and consumer model is not yet defined and that no producer or consumer is named.
+- **Impact:** Until resolved, no producer or consumer is named, and the first publisher or consumer client of any kind activates ADR-013 `Review Triggers` item 1.
+- **Required Action:** The maintainer decides the defining component and the integration timing; the implementer does not write either.
+- **Status:** open
+- **Assigned To:** maintainer
+- **Last Reviewed:** 2026-11-20
+- **Priority:** Medium
+- **Related NC:** None
+- **Resolution Target:** the decision recorded in ADR-006 Decision item 14
 - **Blocking:** None
 
 ## Part 3: Canonical Source Conflict

@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the line-number reference (Plan step 4) | Pending | — | — |  |
-| 2 | Run the validation sequence for this row (Validation plan) | Pending | — | — | |
+| 1 | Replace the line-number reference (Plan step 4) | Completed | 20261120-151344 | 20261120-151344 | Line-number reference replaced with docstring wording; ruff and tests/shared pass. |
+| 2 | Run the validation sequence for this row (Validation plan) | Completed | 20261120-151344 | 20261120-151344 | All checkers in the Validation plan pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

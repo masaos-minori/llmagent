@@ -115,7 +115,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `validate_memory_retention_days` | `def validate_memory_retention_days(cfg) -> None` | Validate that memory_retention_days is at least 1. |
 |  | `validate_memory_max_pinned` | `def validate_memory_max_pinned(cfg) -> None` | Validate that memory_max_pinned is at least 1. |
 |  | `validate_diagnostics_encryption_key` | `def validate_diagnostics_encryption_key(cfg) -> None` | Validate encryption_key is a valid Fernet key when configured (empty = disabled). |
-|  | `validate_diagnostics_retention_days` | `def validate_diagnostics_retention_days(cfg) -> None` | Validate retention_days is an int (<= 0 disables purge; preserved per UNK-03). |
+|  | `validate_diagnostics_retention_days` | `def validate_diagnostics_retention_days(cfg) -> None` | Validate retention_days is an int (<= 0 disables purge). |
 |  | `validate_diagnostics_sensitive_fields` | `def validate_diagnostics_sensitive_fields(cfg) -> None` | Validate sensitive_fields is a frozenset of strings. |
 |  | `validate_approval_risk_rules` | `def validate_approval_risk_rules(cfg) -> None` | Validate that all approval_risk_rules values are valid. |
 |  | `validate_tool_safety_tiers` | `def validate_tool_safety_tiers(cfg) -> None` | Validate that all tool_safety_tiers values are valid. |

@@ -83,7 +83,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive) with different rol
     - 11e. On the Replay-to-Live switch, Consumers must process idempotently by `event_id`.
 12. Authentication and authorization of EventBus callers follow ADR-013. Independently of authentication, the EventBus accepts only a loopback bind address; a non-loopback host fails configuration validation. (Explicit in code — `scripts/eventbus/config.py` `EventBusConfig.__post_init__`)
 13. The ACK Offset is a high-water mark of acknowledged `seq` values, not a contiguous low-water mark. On resume, the position is the lowest unacknowledged `seq` at or below the stored offset when one exists, otherwise `stored_offset + 1`; no unacknowledged event is skipped, and already-acknowledged events are fast-forwarded. Consumers need not ACK in strict `seq` order.
-14. The EventBus service is kept (planned future integration), per the repository owner instruction of 2026-11-09; it currently has no defined producers or consumers, and that absence is intentional. The producer and consumer model is not yet defined (UNK-01): the defining component and integration timing are left as a marked pending item for the maintainer to complete through `governance_03_issue-and-uncertainty-management.md`.
+14. The EventBus service is kept (planned future integration), per the repository owner instruction of 2026-11-09; it currently has no defined producers or consumers, and that absence is intentional. The producer and consumer model is not yet defined (NC-003): the defining component and integration timing are left as a marked pending item for the maintainer to complete through `governance_03_issue-and-uncertainty-management.md`.
 
 ### Replay Contract
 

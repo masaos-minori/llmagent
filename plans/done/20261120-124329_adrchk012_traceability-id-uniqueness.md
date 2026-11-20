@@ -203,14 +203,14 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Register the pending EventBus item and cite it | In Progress | — | — |  |
-| 2 | Close SHARED-001 and fix the SHARED-002 line numbers | In Progress | — | — |  |
-| 3 | Guide sentence and ADR-009 token | In Progress | — | — |  |
-| 4 | Script comments and the generated reference | In Progress | — | — |  |
-| 5 | Checker rule for ADR documents | In Progress | — | — | After Phases 1 to 3 |
-| 6 | Documentation sync | In Progress | — | — |  |
-| 7 | Scripts rule and remaining comments | In Progress | — | — | Gated: UNK-01 |
-| 8 | Validation, deploy hand-off, and close-out | Pending | — | — |  |
+| 1 | Register the pending EventBus item and cite it | Completed | 20261120-144000 | 20261120-151511 | NC-003 registered in Part 2; cited in ADR-006 Decision item 14 and ADR-013 Caller model status. |
+| 2 | Close SHARED-001 and fix the SHARED-002 line numbers | Completed | 20261120-144000 | 20261120-151511 | SHARED-001 removed from the ledger and the ADR-008 Known Deviations bullet; SHARED-002 Current Description restated with row names. |
+| 3 | Guide sentence and ADR-009 token | Completed | 20261120-151320 | 20261120-151511 | Guide sentence replaced with a ledger pointer; ADR-009 UNK-01 token removed. |
+| 4 | Script comments and the generated reference | Completed | 20261120-150400 | 20261120-151511 | ack_route comment, config_validators docstring, tool_constants reference replaced; manifest and generated reference regenerated with generate_reference_table.py --manifests; --check clean. |
+| 5 | Checker rule for ADR documents | Completed | 20261120-150800 | 20261120-151511 | After Phases 1 to 3 Rule 6 landed; split created tools/_known_deviation_identifiers.py (24106 B checker under gate); amend_plan refused the archived plan so the fallout is recorded in the procedure Execution Status and tools/TOOL_DESCRIPTIONS.md. |
+| 6 | Documentation sync | Completed | 20261120-151100 | 20261120-151511 | TOOL_DESCRIPTIONS rows, new helper Index row, GV-022 row and Enforcement paragraph updated. |
+| 7 | Scripts rule and remaining comments | In Progress | — | — | Gated: UNK-01 Gate remains open: UNK-01 owner decision pending; procedure _11 step 4 recorded N/A for this batch. |
+| 8 | Validation, deploy hand-off, and close-out | In Progress | 20261120-151522 | — | Batch-end validation, archive, and commit in progress; deploy hand-off is an owner decision. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

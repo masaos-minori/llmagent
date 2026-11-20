@@ -1,19 +1,19 @@
 ## Goal
 
-- Replace the plan-local identifier in the Caller model status paragraph with the identifier of the new inventory entry (`REQ-002`).
+- Replace the guide's absence claim with a pointer to the ledger, so the guide states no count and no absence (`REQ-007`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- Plan step 1. Execute after the `governance_03` procedure has assigned the identifier.
+- Plan step 3. One sentence in the `## Known Deviations` paragraph.
 
 ## Assumptions
 
-- The identifier is the one the `governance_03` procedure assigned (expected NC-003).
+- The ledger (`governance_03` Part 1) is the only source of which deviations are open; the guide must not restate it.
 
 ## Design decisions
 
-- Change only the identifier token; drop the word `Plan` that qualified the old identifier.
+- Keep the first sentence (where deviations are tracked and cited) and replace only the sentence `No confirmed deviation remains.`
 
 ## Alternatives considered
 
@@ -21,13 +21,13 @@ N/A: a text edit; the Plan fixes the change.
 
 ## Implementation
 ### Target file
-`docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`
+`docs/10_adr/adr_00_document-guide.md`
 ### Procedure
-1. In `### Caller model status`, replace `(Plan UNK-01)` with the new identifier in parentheses.
+1. Replace `No confirmed deviation remains.` with a clause that names the ledger as the source of the open deviations, for example: `The ledger, not this guide, states which deviations are open.`
 ### Method
-- Direct token replacement.
+- Direct one-sentence edit.
 ### Details
-- No other wording changes; the `Review Triggers` link stays.
+- Make no count, absence, or status claim in the replacement.
 
 ## Compatibility considerations
 
@@ -48,19 +48,19 @@ N/A: revert the commit.
 
 ## Completion criteria
 
-- `grep -n "UNK-"` returns nothing in this ADR and the new identifier resolves to exactly one heading (AC-1).
+- The paragraph contains no count or absence claim and points to the ledger (AC-3).
 
 ## Out of Scope
 
-- The authentication and authorization contract.
+- Other sections of the guide and the ledger contents.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the plan-local identifier (Plan step 1) | Pending | — | — | After the governance_03 procedure |
-| 2 | Run the validation sequence for this row (Validation plan) | Pending | — | — | |
+| 1 | Replace the sentence with a pointer to the ledger (Plan step 3) | Completed | 20261120-151320 | 20261120-151320 | Sentence replaced with ledger pointer; check_adr_preservation reports the expected ERROR for the deliberate absence-claim removal (scenario-gated, hand-run tool). |
+| 2 | Run the validation sequence for this row (Validation plan) | Completed | 20261120-151320 | 20261120-151320 | All checkers in the Validation plan pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -74,10 +74,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-002` (cite the new entry)
+- **Requirement ID**: `REQ-007` (guide sentence)
 - **Source issue**: issues/20261117-123012_adrchk012_traceability-id-uniqueness.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261120-124329_adrchk012_traceability-id-uniqueness.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261120-125111
-- **Related target files**: `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`
+- **Related target files**: `docs/10_adr/adr_00_document-guide.md`

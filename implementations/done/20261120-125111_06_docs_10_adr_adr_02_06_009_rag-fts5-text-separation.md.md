@@ -1,19 +1,19 @@
 ## Goal
 
-- Replace the guide's absence claim with a pointer to the ledger, so the guide states no count and no absence (`REQ-007`).
+- Remove the plan-local `(UNK-01)` token from the Basis paragraph, so no `UNK-` token remains in `docs/10_adr/` (`REQ-003`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- Plan step 3. One sentence in the `## Known Deviations` paragraph.
+- Plan step 3. A fallout of the checker rule (`REQ-008`): the file is outside the Issue's Target Files and is recorded in the Plan's table.
 
 ## Assumptions
 
-- The ledger (`governance_03` Part 1) is the only source of which deviations are open; the guide must not restate it.
+- The token cites a plan-local decision; the sentence's meaning does not depend on it.
 
 ## Design decisions
 
-- Keep the first sentence (where deviations are tracked and cited) and replace only the sentence `No confirmed deviation remains.`
+- Delete only the token and the space before it.
 
 ## Alternatives considered
 
@@ -21,17 +21,17 @@ N/A: a text edit; the Plan fixes the change.
 
 ## Implementation
 ### Target file
-`docs/10_adr/adr_00_document-guide.md`
+`docs/10_adr/adr_02_06_009_rag-fts5-text-separation.md`
 ### Procedure
-1. Replace `No confirmed deviation remains.` with a clause that names the ledger as the source of the open deviations, for example: `The ledger, not this guide, states which deviations are open.`
+1. In the `- **Basis.**` bullet, change `Resolved by the owner on 2026-11-19 (UNK-01): INV-04 already dictates` to `Resolved by the owner on 2026-11-19: INV-04 already dictates`.
 ### Method
-- Direct one-sentence edit.
+- Direct token deletion.
 ### Details
-- Make no count, absence, or status claim in the replacement.
+- Change no decision, invariant, or approval text.
 
 ## Compatibility considerations
 
-N/A: documentation row; no decision text changes.
+- The token sits in the `- **Basis.**` bullet of `### English Normalization Shape (Shape B)` under `## Invariants`. The `- INV-04:` headline line is not touched, so `check_adr_preservation.py` reports no ERROR from invariant text; the Invariants section text change is a WARNING with the sentence-level mapping that only the `(UNK-01)` token was deleted.
 
 ## Security considerations
 
@@ -48,19 +48,19 @@ N/A: revert the commit.
 
 ## Completion criteria
 
-- The paragraph contains no count or absence claim and points to the ledger (AC-3).
+- `grep -rn -E "UNK-[0-9]+" docs/10_adr` returns nothing (AC-1).
 
 ## Out of Scope
 
-- Other sections of the guide and the ledger contents.
+- The Shape A discussion and every other ADR-009 section.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the sentence with a pointer to the ledger (Plan step 3) | Pending | — | — |  |
-| 2 | Run the validation sequence for this row (Validation plan) | Pending | — | — | |
+| 1 | Remove the plan-local token (Plan step 3) | Completed | 20261120-151320 | 20261120-151320 | (UNK-01) removed from the Basis bullet; check_adr_preservation WARNING: section Invariants text changed, mapping: token removal only. |
+| 2 | Run the validation sequence for this row (Validation plan) | Completed | 20261120-151320 | 20261120-151320 | All checkers in the Validation plan pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -74,10 +74,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-007` (guide sentence)
+- **Requirement ID**: `REQ-003` (remove the plan-local token)
 - **Source issue**: issues/20261117-123012_adrchk012_traceability-id-uniqueness.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261120-124329_adrchk012_traceability-id-uniqueness.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261120-125111
-- **Related target files**: `docs/10_adr/adr_00_document-guide.md`
+- **Related target files**: `docs/10_adr/adr_02_06_009_rag-fts5-text-separation.md`
