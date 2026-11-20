@@ -54,38 +54,38 @@ High
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/agent/tool_preparation.py | modify | Generate the logical call id once and build the `ToolExecutionContext` on `PreparedToolCall`; reject malformed ids | REQ-001, REQ-002, AC-1, AC-3 | `PreparedToolCall` fields at :40-48; `call_id` taken from the LLM dict at :77-84 | tests/agent/test_tool_preparation.py | Verified |
-| scripts/agent/tool_approval.py | modify | Issue the `ApprovalGrant` when a call passes the approval gate | REQ-006, AC-4 | module purpose :3-6; audit_approval call at :18 | tests/agent/test_tool_approval_preflight.py | Verified |
-| scripts/agent/repository_gateway.py | modify | Verify the grant immediately before `_gate_write` execution; deny on mismatch, expiry, or reuse | REQ-006, AC-4 | docstring precondition :62-68; `_gate_write` executes with no approval reference :107-118 | tests/agent/test_repository_gateway.py | Verified |
-| scripts/agent/tool_runner.py | modify | Remove `_idempotency_key`/`_state_key` derivations; propagate the context; fail-closed intent recording and finalize transitions | REQ-003, REQ-005, REQ-007, REQ-009, AC-2, AC-5, AC-6 | key derivations :137-160; fail-open excepts :187-191 and :209-210; audit call :298-309 | tests/agent/test_tool_runner.py | Verified |
-| scripts/agent/tool_audit.py | modify | Record the logical call id in audit events; make the audit record mandatory (raising) for side-effecting calls | REQ-007, REQ-008, AC-2, AC-5 | silent skip on missing logger/id :198-204; `idempotency_key` param :188, :223 | tests/agent/test_tool_audit.py; tests/agent/test_audit_log_format.py | Verified |
-| scripts/agent/context.py | modify | Update the `ToolCallRecorder` protocol to the new key/state contract | REQ-005, REQ-007 | protocol :284-299; unwired defaults :311-312 | tests/agent/test_tool_runner.py | Verified |
-| scripts/agent/factory.py | modify | Wire a session-scoped state recorder for non-workflow (plain REPL) sessions so side-effecting calls have a durable intent store | REQ-007, AC-5 | gateway wired unconditionally at :358; recorder/task_id wired only by workflow_engine_adapter (see Reference Files) — plain REPL today writes no `tool_call_state` row | tests/agent/test_tool_runner.py | Verified |
-| scripts/agent/shared/models.py | modify | Replace the `idempotency_key` event fields with the logical call id; define the `ApprovalGrant` model | REQ-006, REQ-008 | `ToolApprovalEvent` :13, `ToolExecEvent` :30; `idempotency_key: str = ""` with "nothing" comment :48-50 | tests/agent/test_audit_log_format.py | Verified |
-| scripts/agent/workflow/models.py | modify | Extend `TOOL_CALL_STATES` to the intent vocabulary | REQ-005, AC-6 | `TOOL_CALL_STATES` frozenset at :20 | tests/agent/workflow/test_workflow_status_vocabulary.py | Verified |
-| scripts/agent/workflow/tool_call_state_ops.py | modify | Rows keyed by logical call id; intent transitions; stale classification split (never-dispatched → `interrupted`, dispatched → `outcome_unknown`) | REQ-005, REQ-009, AC-6 | state values comment :30; `INSERT OR IGNORE` collision merge :63-69; `classify_stale_pending` :105-141 | tests/agent/workflow/test_workflow_state_store.py; tests/agent/workflow/test_workflow_engine.py | Verified |
-| scripts/agent/workflow/state_store.py | modify | Pass the new key/state contract through the recorder methods | REQ-005, REQ-007 | `record_tool_call` / `finalize_tool_call` / `classify_stale_pending` :139-161 | tests/agent/workflow/test_workflow_state_store.py | Verified |
-| scripts/db/schema_sql.py | modify | `tool_call_state` canonical DDL: extend the `state` CHECK vocabulary and re-state the key semantics comment | REQ-005, AC-2 | table DDL with CHECK :215-223 | tests/db/test_create_schema.py; tests/db/test_schema_validation_per_database.py | Verified |
-| scripts/shared/transport_dto.py | modify | Define the immutable `ToolExecutionContext` in the shared leaf layer; carry it on `ToolCallResult` for downstream consumers | REQ-002, AC-2 | `ToolCallResult` definition :26-32; shared-is-leaf contract in `.importlinter` | tests/shared/test_http_transport.py | Verified |
-| scripts/shared/tool_executor.py | modify | Accept and forward the execution context to the invoker | REQ-002, AC-2 | routing delegation :8-10, :32-36 | tests/shared/test_tool_executor.py | Verified |
-| scripts/shared/tool_transport_invoker.py | modify | Forward the execution context to the transport; record the dispatch-stage intent signal | REQ-002, REQ-005 | transport invocation layer module docstring :2 | tests/shared/test_tool_transport_invoker.py | Verified |
-| scripts/shared/http_transport.py | modify | Delete `derive_idempotency_key`; send the logical call id as `X-Idempotency-Key`; reject a side-effecting call with no id | REQ-003, AC-1, AC-3 | derivation function :45-52; header construction :192-208 | tests/shared/test_http_transport.py; tests/shared/test_tool_executor_routing.py | Verified |
-| tests/agent/test_tool_preparation.py | modify | Id generation, malformed-id rejection, context attachment | REQ-001, REQ-002 | imports `PreparedToolCall`/`prepare_tool_calls` at :13 | — | Verified |
-| tests/agent/test_tool_approval_preflight.py | modify | Grant issuance on approval; denial produces no grant | REQ-006 | calls `run_approval_checks` | — | Verified |
-| tests/agent/test_tool_runner.py | modify | Delete transport-key assertions (:2325-2366, :2547-2564); add fail-closed state/audit and intent-transition tests | REQ-003, REQ-005, REQ-007, REQ-009 | derive-key assertions at :2325, :2343, :2366, :2547, :2551, :2564 | — | Verified |
-| tests/agent/test_repository_gateway.py | modify | Direct-gateway bypass without grant; argument/mode/expiry/reuse rejection | REQ-006, AC-4 | exists; gateway audit coupling at `grep audit_tool_exec` hit | — | Verified |
-| tests/agent/test_tool_audit.py | modify | Mandatory audit for side-effecting calls; best-effort for read-only; logical id recorded | REQ-007, REQ-008 | exists; calls `audit_tool_exec` | — | Verified |
-| tests/agent/test_audit_log_format.py | modify | Audit event field contract (logical call id, no raw args) | REQ-008 | exists; `grep audit_tool_exec` hit | — | Verified |
-| tests/agent/workflow/test_workflow_status_vocabulary.py | modify | Pin the new intent vocabulary | REQ-005 | pins `TOOL_CALL_STATES` (only test naming it) | — | Verified |
-| tests/agent/workflow/test_workflow_state_store.py | modify | New-key row writes, intent transitions, collision-freedom | REQ-005 | uses `tool_call_state` | — | Verified |
-| tests/agent/workflow/test_workflow_engine.py | modify | Stale-pending split: never-dispatched replayable, dispatched → `outcome_unknown` non-replayable | REQ-009 | uses `tool_call_state` via engine | — | Verified |
-| tests/shared/test_http_transport.py | modify | Header carries the opaque id; delete derivation tests (:255-289, :332) | REQ-003 | imports `derive_idempotency_key` at :22, :255, :266, :273, :280, :289 | — | Verified |
-| tests/shared/test_tool_executor.py | modify | Context forwarded through execute | REQ-002 | exists in issue target list | — | Verified |
-| tests/shared/test_tool_transport_invoker.py | modify | Context forwarded to transport | REQ-002 | exists in issue target list | — | Verified |
-| tests/shared/test_tool_executor_routing.py | modify | Delete `derive_idempotency_key` imports/assertions | REQ-003 | imports it at :14 | — | Verified |
-| tests/db/test_create_schema.py | modify | Workflow DDL shape after the CHECK vocabulary change | REQ-005 | names `tool_call_state` | — | Verified |
-| tests/db/test_schema_validation_per_database.py | modify | Per-database shape validation against the new DDL | REQ-005 | names `tool_call_state` | — | Verified |
-| tests/deploy/test_required_workflow_tables_parity.py | modify | Workflow-table parity list against the changed DDL | REQ-005 | names `tool_call_state` | — | Verified |
+| scripts/agent/tool_preparation.py | modify | Generate the logical call id once and build the `ToolExecutionContext` on `PreparedToolCall`; reject malformed ids | REQ-001, REQ-002, AC-1, AC-3 | `PreparedToolCall` fields at :40-48; `call_id` taken from the LLM dict at :77-84 | `tests/agent/test_tool_preparation.py` | Verified |
+| scripts/agent/tool_approval.py | modify | Issue the `ApprovalGrant` when a call passes the approval gate | REQ-006, AC-4 | module purpose :3-6; audit_approval call at :18 | `tests/agent/test_tool_approval_preflight.py` | Verified |
+| scripts/agent/repository_gateway.py | modify | Verify the grant immediately before `_gate_write` execution; deny on mismatch, expiry, or reuse | REQ-006, AC-4 | docstring precondition :62-68; `_gate_write` executes with no approval reference :107-118 | `tests/agent/test_repository_gateway.py` | Verified |
+| scripts/agent/tool_runner.py | modify | Remove `_idempotency_key`/`_state_key` derivations; propagate the context; fail-closed intent recording and finalize transitions | REQ-003, REQ-005, REQ-007, REQ-009, AC-2, AC-5, AC-6 | key derivations :137-160; fail-open excepts :187-191 and :209-210; audit call :298-309 | `tests/agent/test_tool_runner.py` | Verified |
+| scripts/agent/tool_audit.py | modify | Record the logical call id in audit events; make the audit record mandatory (raising) for side-effecting calls | REQ-007, REQ-008, AC-2, AC-5 | silent skip on missing logger/id :198-204; `idempotency_key` param :188, :223 | `tests/agent/test_tool_audit.py`; `tests/agent/test_audit_log_format.py` | Verified |
+| scripts/agent/context.py | modify | Update the `ToolCallRecorder` protocol to the new key/state contract | REQ-005, REQ-007 | protocol :284-299; unwired defaults :311-312 | `tests/agent/test_tool_runner.py` | Verified |
+| scripts/agent/factory.py | modify | Wire a session-scoped state recorder for non-workflow (plain REPL) sessions so side-effecting calls have a durable intent store | REQ-007, AC-5 | gateway wired unconditionally at :358; recorder/task_id wired only by workflow_engine_adapter (see Reference Files) — plain REPL today writes no `tool_call_state` row | `tests/agent/test_tool_runner.py` | Verified |
+| scripts/agent/shared/models.py | modify | Replace the `idempotency_key` event fields with the logical call id; define the `ApprovalGrant` model | REQ-006, REQ-008 | `ToolApprovalEvent` :13, `ToolExecEvent` :30; `idempotency_key: str = ""` with "nothing" comment :48-50 | `tests/agent/test_audit_log_format.py` | Verified |
+| scripts/agent/workflow/models.py | modify | Extend `TOOL_CALL_STATES` to the intent vocabulary | REQ-005, AC-6 | `TOOL_CALL_STATES` frozenset at :20 | `tests/agent/workflow/test_workflow_status_vocabulary.py` | Verified |
+| scripts/agent/workflow/tool_call_state_ops.py | modify | Rows keyed by logical call id; intent transitions; stale classification split (never-dispatched → `interrupted`, dispatched → `outcome_unknown`) | REQ-005, REQ-009, AC-6 | state values comment :30; `INSERT OR IGNORE` collision merge :63-69; `classify_stale_pending` :105-141 | `tests/agent/workflow/test_workflow_state_store.py`; `tests/agent/workflow/test_workflow_engine.py` | Verified |
+| scripts/agent/workflow/state_store.py | modify | Pass the new key/state contract through the recorder methods | REQ-005, REQ-007 | `record_tool_call` / `finalize_tool_call` / `classify_stale_pending` :139-161 | `tests/agent/workflow/test_workflow_state_store.py` | Verified |
+| scripts/db/schema_sql.py | modify | `tool_call_state` canonical DDL: extend the `state` CHECK vocabulary and re-state the key semantics comment | REQ-005, AC-2 | table DDL with CHECK :215-223 | `tests/db/test_create_schema.py`; `tests/db/test_schema_validation_per_database.py` | Verified |
+| scripts/shared/transport_dto.py | modify | Define the immutable `ToolExecutionContext` in the shared leaf layer; carry it on `ToolCallResult` for downstream consumers | REQ-002, AC-2 | `ToolCallResult` definition :26-32; shared-is-leaf contract in `.importlinter` | `tests/shared/test_http_transport.py` | Verified |
+| scripts/shared/tool_executor.py | modify | Accept and forward the execution context to the invoker | REQ-002, AC-2 | routing delegation :8-10, :32-36 | `tests/shared/test_tool_executor.py` | Verified |
+| scripts/shared/tool_transport_invoker.py | modify | Forward the execution context to the transport; record the dispatch-stage intent signal | REQ-002, REQ-005 | transport invocation layer module docstring :2 | `tests/shared/test_tool_transport_invoker.py` | Verified |
+| scripts/shared/http_transport.py | modify | Delete `derive_idempotency_key`; send the logical call id as `X-Idempotency-Key`; reject a side-effecting call with no id | REQ-003, AC-1, AC-3 | derivation function :45-52; header construction :192-208 | `tests/shared/test_http_transport.py`; `tests/shared/test_tool_executor_routing.py` | Verified |
+| `tests/agent/test_tool_preparation.py` | modify | Id generation, malformed-id rejection, context attachment | REQ-001, REQ-002 | imports `PreparedToolCall`/`prepare_tool_calls` at :13 | — | Verified |
+| `tests/agent/test_tool_approval_preflight.py` | modify | Grant issuance on approval; denial produces no grant | REQ-006 | calls `run_approval_checks` | — | Verified |
+| `tests/agent/test_tool_runner.py` | modify | Delete transport-key assertions (:2325-2366, :2547-2564); add fail-closed state/audit and intent-transition tests | REQ-003, REQ-005, REQ-007, REQ-009 | derive-key assertions at :2325, :2343, :2366, :2547, :2551, :2564 | — | Verified |
+| `tests/agent/test_repository_gateway.py` | modify | Direct-gateway bypass without grant; argument/mode/expiry/reuse rejection | REQ-006, AC-4 | exists; gateway audit coupling at `grep audit_tool_exec` hit | — | Verified |
+| `tests/agent/test_tool_audit.py` | modify | Mandatory audit for side-effecting calls; best-effort for read-only; logical id recorded | REQ-007, REQ-008 | exists; calls `audit_tool_exec` | — | Verified |
+| `tests/agent/test_audit_log_format.py` | modify | Audit event field contract (logical call id, no raw args) | REQ-008 | exists; `grep audit_tool_exec` hit | — | Verified |
+| `tests/agent/workflow/test_workflow_status_vocabulary.py` | modify | Pin the new intent vocabulary | REQ-005 | pins `TOOL_CALL_STATES` (only test naming it) | — | Verified |
+| `tests/agent/workflow/test_workflow_state_store.py` | modify | New-key row writes, intent transitions, collision-freedom | REQ-005 | uses `tool_call_state` | — | Verified |
+| `tests/agent/workflow/test_workflow_engine.py` | modify | Stale-pending split: never-dispatched replayable, dispatched → `outcome_unknown` non-replayable | REQ-009 | uses `tool_call_state` via engine | — | Verified |
+| `tests/shared/test_http_transport.py` | modify | Header carries the opaque id; delete derivation tests (:255-289, :332) | REQ-003 | imports `derive_idempotency_key` at :22, :255, :266, :273, :280, :289 | — | Verified |
+| `tests/shared/test_tool_executor.py` | modify | Context forwarded through execute | REQ-002 | exists in issue target list | — | Verified |
+| `tests/shared/test_tool_transport_invoker.py` | modify | Context forwarded to transport | REQ-002 | exists in issue target list | — | Verified |
+| `tests/shared/test_tool_executor_routing.py` | modify | Delete `derive_idempotency_key` imports/assertions | REQ-003 | imports it at :14 | — | Verified |
+| `tests/db/test_create_schema.py` | modify | Workflow DDL shape after the CHECK vocabulary change | REQ-005 | names `tool_call_state` | — | Verified |
+| `tests/db/test_schema_validation_per_database.py` | modify | Per-database shape validation against the new DDL | REQ-005 | names `tool_call_state` | — | Verified |
+| `tests/deploy/test_required_workflow_tables_parity.py` | modify | Workflow-table parity list against the changed DDL | REQ-005 | names `tool_call_state` | — | Verified |
 
 ## Reference Files
 
@@ -229,12 +229,12 @@ Each step cites rows of the frozen `Implementation Target Files` table.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Contract and bypass/outage tests first | Pending | — | — | |
-| 2 | Phase 2: Logical call id and ToolExecutionContext | Pending | — | — | |
-| 3 | Phase 3: Transport key replacement | Pending | — | — | |
-| 4 | Phase 4: ApprovalGrant and gateway verification | Pending | — | — | |
-| 5 | Phase 5: Intent states and fail-closed persistence | Pending | — | — | |
-| 6 | Phase 6: Deployment & verification | Pending | — | — | |
+| 1 | Phase 1: Contract and bypass/outage tests first | In Progress | — | — |  |
+| 2 | Phase 2: Logical call id and ToolExecutionContext | In Progress | — | — |  |
+| 3 | Phase 3: Transport key replacement | In Progress | — | — |  |
+| 4 | Phase 4: ApprovalGrant and gateway verification | In Progress | — | — |  |
+| 5 | Phase 5: Intent states and fail-closed persistence | In Progress | — | — |  |
+| 6 | Phase 6: Deployment & verification | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -244,7 +244,27 @@ Each step cites rows of the frozen `Implementation Target Files` table.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261120-225424_01_scripts_agent_tool_preparation.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_02_scripts_agent_tool_approval.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_03_scripts_agent_repository_gateway.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_04_scripts_agent_tool_runner.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_05_scripts_agent_tool_audit.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_06_scripts_agent_context.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_07_scripts_agent_factory.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_08_scripts_agent_shared_models.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_09_scripts_agent_workflow_models.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_10_scripts_agent_workflow_tool_call_state_ops.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_11_scripts_agent_workflow_state_store.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_12_scripts_db_schema_sql.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_13_scripts_shared_transport_dto.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_14_scripts_shared_tool_executor.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_15_scripts_shared_tool_transport_invoker.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_16_scripts_shared_http_transport.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_19_tests_agent_test_tool_runner.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_22_tests_agent_test_audit_log_format.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_24_tests_agent_workflow_test_workflow_state_store.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_26_tests_shared_test_http_transport.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261120-225424_32_tests_deploy_test_required_workflow_tables_parity.py.md` | 6 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -296,3 +316,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-009 | Required Changes bullet 11 | tests/agent/workflow/test_workflow_engine.py | 1 | AC-6 | stale-split tests | Planned |
 | REQ-009 | Required Changes bullet 11 | scripts/agent/tool_runner.py | 5 | AC-6 | post-send failure transition test | Planned |
 | REQ-010 | Constraints + Design (issue migrate bullet restated) | scripts/db/schema_sql.py | 6 | AC-2 | deploy-gate note validated in Phase 6 | Planned |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261120-225424 -->
