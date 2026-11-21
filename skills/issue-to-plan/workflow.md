@@ -230,7 +230,8 @@ Step 2's same-cycle dedup rule and depth ceiling apply to this step.
   does not change `workflow-path-b.md`'s "once all four analyses are complete" gate.
 
 - **Consumer scan** (a change to a persisted schema, a public API, or a shared
-  constant): before Step 5, run `uv run python tools/scan_change_consumers.py --seed
+  constant, or the removal or rename of a class, method, function, or field that other
+  modules call or read): before Step 5, run `uv run python tools/scan_change_consumers.py --seed
   <seed>` once per changed symbol, column or table name, constant, or file, and record
   every candidate in the Plan's `Design` section as a target row, a reference row, or
   `not affected: {reason}` (format: `templates/plan.md`). The report lists candidates

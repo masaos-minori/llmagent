@@ -178,7 +178,8 @@ section is marked `Frozen`). Populate these two sections from `issue-to-plan`
 behavior or a dependency belongs in `Reference Files`, not `Implementation Target
 Files`.
 
-For a persisted-schema, public-API, or shared-constant change, record each candidate
+For a persisted-schema, public-API, or shared-constant change, or the removal or rename
+of a symbol that other modules call or read, record each candidate
 from `tools/scan_change_consumers.py` in the `Design` section as a target row (added to
 `Implementation Target Files`), a reference row (added to `Reference Files`), or
 `not affected: {reason}`. The scan lists candidates only; the procedure is in
