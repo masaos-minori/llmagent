@@ -128,7 +128,7 @@ OpenTelemetry, the audit log path (JSON-lines) and structured logging are config
 ## Key Constraints
 
 - Unknown `tool_safety_tiers` keys are fatal at startup (see Safety Tiers).
-- `allowed_tools=[]` denies every tool at runtime, including after a config reload; in production `ProductionConfigValidator` also records it as a validation error at load, so startup exits (Explicit in code — `scripts/agent/production_config_validator.py`).
+- `allowed_tools=[]` is valid and does not deny (base visibility applies) under `discovered`; under `explicit_allowlist` it denies every tool at runtime, including after a config reload. It is no longer recorded as a production-validator error at load (Explicit in code — `scripts/shared/runtime_tool_registry.py` `apply_policy`).
 - `approval_github_allowed_repos=[]` means "deny all".
 - `cfg.diagnostics.*` changes are reported by `/reload` under the `[LIVE]` category and take effect on the next `DiagnosticStore` save()/fetch() without a restart.
 

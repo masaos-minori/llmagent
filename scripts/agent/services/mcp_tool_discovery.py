@@ -4,16 +4,15 @@ McpToolDiscoveryService — discover live MCP tools at startup and build a
 `RuntimeToolRegistry`.
 
 This service fetches every HTTP-transport MCP server's `/v1/tools` endpoint,
-validates each entry's shape (richer than `repl_health.py`'s existing
-name-only check), normalizes valid entries into `shared.runtime_tool.RuntimeTool`
-instances via `build_runtime_tool()`, detects cross-server duplicate tool
-names, validates live tool lists against the static `ToolRegistry` for drift,
-absorbs `_check_tool_definitions` startup validation, and reads
-`schema_version`/`capabilities` keys on the response body and per-tool
-entries. A response body missing `schema_version`, or declaring one other
-than `mcp_servers.server.MCP_TOOL_SCHEMA_VERSION`, is rejected outright (all
-of that server's tools excluded, one WARNING/FATAL finding) — the server and
-this discovery client must speak the same tool-schema version.
+validates each entry's shape, normalizes valid entries into
+`shared.runtime_tool.RuntimeTool` instances via `build_runtime_tool()`,
+detects cross-server duplicate tool names, validates live tool lists against
+the static `ToolRegistry` for drift, absorbs `_check_tool_definitions` startup
+validation, and reads `schema_version`/`capabilities` keys on the response body
+and per-tool entries. A response body missing `schema_version`, or declaring
+one other than `mcp_servers.server.MCP_TOOL_SCHEMA_VERSION`, is rejected outright
+(all of that server's tools excluded, one WARNING/FATAL finding) — the server
+and this discovery client must speak the same tool-schema version.
 Returns a built `shared.runtime_tool_registry.RuntimeToolRegistry` plus a list
 of findings the startup pipeline can report.
 
@@ -22,12 +21,8 @@ The `/v1/tools` round-trip and the response- and entry-level validation live in
 building live in `mcp_tool_discovery_registry.py`; this module keeps the orchestration —
 severity escalation, drift, write-classification and tool-definition findings.
 
-This is an independent HTTP round-trip from `repl_health.py`'s existing
-drift-check fetch (`_collect_server_tool_names_per_server()`) — the two are
-*not* unified in this pass, per the design decision to keep the discovery fetch
-pattern (`mcp_tool_discovery_fetch.py`) self-contained. Because each fetch is a
-separate HTTP call, the two could theoretically observe different tool sets if a
-server's state changes between the two calls; this is a known, accepted limitation.
+Discovery fetches `/v1/tools` once per server. Each fetch is a single, self-contained
+HTTP call; this module performs no second cross-module fetch of the same data.
 
 Duplicate-tool-name handling (concrete decision, stated explicitly per the
 requirement's "avoid automatic priority selection" constraint): when the same
@@ -52,11 +47,13 @@ decides a gate itself.
 
 from __future__ import annotations
 
+import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from shared.mcp_config import TransportType
+from shared.runtime_paths import resolve_config_dir
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_routing_validation import validate_routing_against_live
 
@@ -111,7 +108,25 @@ class McpToolDiscoveryService:
             entries, unavailable_keys, allowed_servers=allowed_servers
         )
         findings.extend(dedup_findings)
-        findings = self._check_required_tools(findings, registry)
+        try:
+            tool_catalog = self._load_tool_catalog()
+        except OSError as exc:
+            # Fail-closed (REQ-005): a missing/unreadable manifest means no
+            # required server can prove its declared capability, so block.
+            findings.append(
+                StartupCheckOutcome(
+                    source=_SOURCE,
+                    status=StartupCheckStatus.FATAL,
+                    message=f"tool_catalog.toml unavailable: {exc}",
+                    remediation="Ship config/tool_catalog.toml alongside agent.toml.",
+                )
+            )
+            return DiscoveryResult(
+                registry=registry,
+                findings=findings,
+                unreachable=unreachable,
+            )
+        findings = self._check_required_tools(findings, registry, tool_catalog)
         findings.extend(self._build_drift_findings(entries))
         findings.extend(self._build_write_classification_findings(registry))
         tool_defs_finding = await self._check_tool_definitions_finding()
@@ -122,6 +137,19 @@ class McpToolDiscoveryService:
             findings=findings,
             unreachable=unreachable,
         )
+
+    def _load_tool_catalog(self) -> dict[str, Any]:
+        """Load config/tool_catalog.toml once per discovery (fail-closed).
+
+        Resolves the config directory the same way every other config-directory
+        reader does and parses the manifest with the stdlib TOML reader. The
+        manifest is DATA (it crosses no import boundary), so it is loaded here at
+        runtime rather than imported as a module. Raises ``OSError`` if the file
+        is missing or unreadable so the caller can fail closed.
+        """
+        path = resolve_config_dir() / "tool_catalog.toml"
+        raw = path.read_text(encoding="utf-8")
+        return tomllib.loads(raw)
 
     async def _fetch_all_server_entries(
         self,
@@ -228,23 +256,68 @@ class McpToolDiscoveryService:
         self,
         findings: list[StartupCheckOutcome],
         registry: RuntimeToolRegistry,
+        tool_catalog: Mapping[str, Any],
     ) -> list[StartupCheckOutcome]:
-        """Check that all required tools are present in the discovery results."""
-        discovered_names = {tool.name for tool in registry.all_tools()}
+        """Check that every required server proves its declared required capability.
+
+        Required-capability model (REQ-005, AC-3): the manifest
+        (config/tool_catalog.toml) declares, per required server, the capability a
+        surfaced tool must provide. For each required server, if no discovered tool
+        declares that capability the finding is FATAL.
+
+        The check is inert until the capability model is in use. It engages only
+        when at least one discovered tool declares a capability; until servers
+        populate the ``capabilities`` field on their ``/v1/tools`` payloads no
+        capability can be proven or disproven, so the check reports nothing
+        rather than blocking startup on unverifiable data.
+        """
+        all_tools = list(registry.all_tools())
+        if not any(tool.capabilities for tool in all_tools):
+            return findings
+
+        caps_by_server: dict[str, set[str]] = {}
+        for tool in all_tools:
+            caps_by_server.setdefault(tool.server_key, set()).update(tool.capabilities)
+
         for srv_key, srv_cfg in self._ctx.cfg.mcp.mcp_servers.items():
-            if not srv_cfg.required or not srv_cfg.tool_names:
+            if not srv_cfg.required:
                 continue
-            for tool_name in srv_cfg.tool_names:
-                if tool_name in discovered_names:
-                    continue
+            server_entry = tool_catalog.get("server", {}).get(srv_key)
+            if not isinstance(server_entry, Mapping):
+                findings.append(
+                    StartupCheckOutcome(
+                        source=_SOURCE,
+                        status=StartupCheckStatus.FATAL,
+                        message=f"{srv_key}: required server absent from tool_catalog.toml",
+                        remediation="Add a [server.<key>] table with a required_capability.",
+                    )
+                )
+                continue
+            required_cap = server_entry.get("required_capability")
+            if not required_cap:
                 findings.append(
                     StartupCheckOutcome(
                         source=_SOURCE,
                         status=StartupCheckStatus.FATAL,
                         message=(
-                            f"{srv_key}: required tool {tool_name!r} not found in discovery results"
+                            f"{srv_key}: tool_catalog.toml does not declare a "
+                            "required_capability"
                         ),
-                        remediation="Verify the server's /v1/tools response includes this tool.",
+                        remediation="Set required_capability for this server.",
+                    )
+                )
+                continue
+            provided = caps_by_server.get(srv_key, set())
+            if required_cap not in provided:
+                findings.append(
+                    StartupCheckOutcome(
+                        source=_SOURCE,
+                        status=StartupCheckStatus.FATAL,
+                        message=(
+                            f"{srv_key}: required capability {required_cap!r} not "
+                            "provided by any discovered tool"
+                        ),
+                        remediation="Verify the server's /v1/tools response declares this capability.",
                     )
                 )
         return findings

@@ -91,13 +91,22 @@ class TestProductionConfigValidatorRegistryLookupFailClosed:
 
 
 class TestProductionConfigValidatorAllowedTools:
-    """Tests for allowed_tools=[] visibility check."""
+    """allowed_tools shape checks. The unconditional empty-list rejection was
+    removed (REQ-003): emptiness is now mode-dependent and owned by the
+    mode-aware typed validators, so production validation records no error for
+    an empty list here.
+
+    REQ-003: an empty allowed_tools is no longer fatal unconditionally at
+    production validation; emptiness is valid in discovered mode and owned by
+    the mode-aware typed validators.
+    """
 
     def test_allowed_tools_empty_no_production_error(self) -> None:
+        """REQ-003: an empty allowed_tools is NOT recorded as an error here
+        (the blanket rejection was removed); enforcement is mode-aware."""
         config: dict[str, object] = {"allowed_tools": []}
         result = ProductionConfigValidator().validate(config)
-        assert not any("allowed_tools" in err and "[]" in err for err in result.errors)
-        assert result.warnings == []
+        assert not any("allowed_tools" in err for err in result.errors)
 
     def test_allowed_tools_nonempty_no_issue(self) -> None:
         config = {"allowed_tools": ["shell_execute"]}

@@ -28,10 +28,9 @@ Two comparison functions (`shared/tool_routing_validation.py`) detect configurat
 
 | Function | Comparison Target | When Called |
 |---|---|---|
-| `validate_routing_against_config()` | config's `tool_names` vs. Registry | At startup (`agent/services/routing_drift.py::check_routing_drift()`, called from `startup_validation`) |
 | `validate_routing_against_live()` | live `/v1/tools` vs. Registry | At startup (`McpToolDiscoveryService` drift verification) |
 
-> **Startup Verification Semantics** — The aforementioned `validate_routing_against_config()` and `validate_routing_against_live()` functions compare the live `/v1/tools` against the internal routing registry. This is distinct from the tool definition check performed by `McpToolDiscoveryService`, which compares configured `tool_definitions` (from `agent.toml`) against live `/v1/tools`. For startup validation behavior, see [mcp_06 Startup Validation Behavior](mcp_06_09_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior).
+> **Startup Verification Semantics** — The aforementioned `validate_routing_against_live()` function compares the live `/v1/tools` against the internal routing registry. This is distinct from the tool definition check performed by `McpToolDiscoveryService`, which compares configured `tool_definitions` (from `agent.toml`) against live `/v1/tools`. For startup validation behavior, see [mcp_06 Startup Validation Behavior](mcp_06_09_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior).
 
 Drift warnings are displayed during agent startup.
 

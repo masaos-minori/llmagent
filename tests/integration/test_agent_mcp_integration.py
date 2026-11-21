@@ -39,7 +39,6 @@ def _make_http_executor(
     cfg = McpServerConfig(
         transport=TransportType.HTTP,
         url=_TEST_URL,
-        tool_names=[_HTTP_TOOL],
         startup_mode=None,
         auth_token="test-token",
     )

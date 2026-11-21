@@ -182,8 +182,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `compare_fingerprint` | `def compare_fingerprint(server_key, posture) -> PostureValidationResult` | Report whether a server's fingerprint changed since the last posture seen for that key. |
 |  | `reset_fingerprint_state` | `def reset_fingerprint_state() -> None` | Clear the process-local fingerprint map, for tests. |
 | `scripts/agent/services/rag_maintenance_service.py` | `RagMaintenanceService` | `class RagMaintenanceService` | Maintenance operations scoped exclusively to rag.sqlite. |
-| `scripts/agent/services/routing_drift.py` | `check_routing_drift` | `def check_routing_drift(ctx, *, strict) -> list[str]` | Check config tool_names against ToolRegistry at startup. |
-|  | `check_routing_safety_tiers` | `def check_routing_safety_tiers(ctx) -> list[str]` | Check that all registered tools have a declared safety tier. |
+| `scripts/agent/services/routing_drift.py` | `check_routing_safety_tiers` | `def check_routing_safety_tiers(ctx) -> list[str]` | Check that all registered tools have a declared safety tier. |
 | `scripts/agent/services/session_restore.py` | `repair_orphan_tool_calls` | `def repair_orphan_tool_calls(messages, session_id, *, boundary_index) -> tuple[list[LLMMessage], int]` | Pair assistant tool_calls rows with tool-result rows at load time. |
 |  | `restore_session` | `async def restore_session(ctx, session_id) -> SessionRestoreResult` | Restore session: rebuild history, switch session ID, reset stats. |
 | `scripts/agent/services/session_title.py` | `SessionTitleService` | `class SessionTitleService` | Generate a short LLM-based title for a session and persist it. |

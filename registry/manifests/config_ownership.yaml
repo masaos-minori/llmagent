@@ -135,10 +135,6 @@ entries:
   hot_reloadable: true
   section: tool
   validator: null
-- field: tool_definitions
-  hot_reloadable: true
-  section: tool
-  validator: null
 - field: tool_policy_mode
   hot_reloadable: true
   section: tool

@@ -45,7 +45,7 @@ Resolves `tool_name` → `server_key` using `RuntimeToolRegistry` as sole author
 
 ### Validation functions (`shared/tool_routing_validation.py`)
 
-`validate_routing_against_config`/`live`/`all` return an empty dictionary if no drift is detected. `check_tool_safety_tiers`/`check_unknown_tool_safety_tiers` short-circuit when `tool_safety_tiers` is empty or unset (an opt-in feature).
+`validate_routing_against_live`/`all` return an empty dictionary if no drift is detected. `check_tool_safety_tiers`/`check_unknown_tool_safety_tiers` short-circuit when `tool_safety_tiers` is empty or unset (an opt-in feature).
 
 ## 4b. `LifecycleProtocol` (`shared/tool_lifecycle.py`)
 

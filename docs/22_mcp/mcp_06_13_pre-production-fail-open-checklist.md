@@ -17,7 +17,7 @@ related:
 Before deploying to production, verify the following:
 
 - [ ] `serial_tool_calls = false` (Default; DAG scheduling is always used. Setting to `true` forces every call into its own serial phase — see [agent_08_03](../23_agent/agent_08_03_configuration-tools-memory.md))
-- [ ] `allowed_tools` is not an empty list (empty denies every tool at runtime, including after `/reload`; in production `ProductionConfigValidator.validate()` rejects `allowed_tools=[]` at validation)
+- [ ] `allowed_tools` is not an empty list when `tool_policy_mode = "explicit_allowlist"` (an empty list denies every tool at runtime, including after `/reload` under `explicit_allowlist`; under `discovered` an empty list is valid and base visibility applies)
 - [ ] `allowed_root` is not empty (an empty or absent value is a config load error — see [agent_08_01](../23_agent/agent_08_01_configuration-loading-agent-config.md))
 - [ ] `protected_branches` is not empty in `config/git_mcp_server.toml` and `config/github_mcp_server.toml` (an empty or absent value is a config load error for that server; the server does not start)
 - [ ] All registered tools have an entry in `tool_safety_tiers` (Missing tier → Fatal error in production)

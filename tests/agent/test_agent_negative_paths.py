@@ -27,7 +27,6 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "tool_result_max_llm_chars": 4000,
         "masked_fields": [],
         "allowed_tools": ["shell_execute"],
-        "tool_definitions": [],
         "tool_safety_tiers": {},
         "approval_risk_rules": {},
         "approval_shell_safe_prefixes": ["/bin/", "/usr/bin/"],

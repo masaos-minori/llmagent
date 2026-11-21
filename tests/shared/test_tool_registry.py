@@ -5,11 +5,7 @@ Unit tests for shared.tool_registry — registry drift validation.
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock
-
 import pytest
-from shared.mcp_config import McpServerConfig
 from shared.tool_registry import (
     ToolDefinition,
     ToolRegistry,
@@ -17,52 +13,8 @@ from shared.tool_registry import (
     get_registry,
 )
 from shared.tool_routing_validation import (
-    validate_routing_against_config,
     validate_routing_against_live,
 )
-
-
-class TestValidateRoutingDriftRegistry:
-    """Tests for validate_routing_against_config drift detection."""
-
-    def test_no_drift_when_config_matches_registry(self) -> None:
-        """validate_routing_against_config returns {} when config tool_names are in the registry."""
-        registry = ToolRegistry()
-        registry.register(ToolDefinition(name="read_text_file", server_key="file_read"))
-        registry.register(ToolDefinition(name="list_directory", server_key="file_read"))
-
-        cfg = MagicMock(spec=McpServerConfig)
-        cfg.tool_names = ["read_text_file", "list_directory"]
-        server_configs = {"file_read": cfg}
-
-        result = validate_routing_against_config(
-            registry=registry, server_configs=server_configs
-        )
-        assert result == {}
-
-    def test_drift_detected_when_config_has_unregistered_tool(self) -> None:
-        """validate_routing_against_config returns mismatch when config lists a tool not in registry."""
-        registry = ToolRegistry()
-        registry.register(ToolDefinition(name="read_text_file", server_key="file_read"))
-
-        cfg = MagicMock(spec=McpServerConfig)
-        cfg.tool_names = ["read_text_file", "missing_tool"]
-        server_configs = {"file_read": cfg}
-
-        result = validate_routing_against_config(
-            registry=registry, server_configs=server_configs
-        )
-        assert "file_read" in result
-        assert any("missing_tool" in msg for msg in result["file_read"])
-
-    def test_no_drift_when_config_tool_names_empty(self) -> None:
-        """validate_routing_against_config skips servers with empty tool_names."""
-        cfg = MagicMock(spec=McpServerConfig)
-        cfg.tool_names = []
-        server_configs = {"some_server": cfg}
-
-        result = validate_routing_against_config(server_configs=server_configs)
-        assert result == {}
 
 
 class TestDuplicateOwnershipRejection:
@@ -118,69 +70,6 @@ class TestValidateRoutingAgainstLive:
         registry = ToolRegistry()
         drift = validate_routing_against_live(registry, None)
         assert drift == {}
-
-
-class TestConfigGatedToolDrift:
-    """A config-gated tool the server withholds is not drift; other absences still are."""
-
-    @staticmethod
-    def _web_search_registry() -> ToolRegistry:
-        registry = ToolRegistry()
-        registry.register(ToolDefinition(name="search_web", server_key="web_search"))
-        registry.register(ToolDefinition(name="browser_fetch", server_key="web_search"))
-        return registry
-
-    @staticmethod
-    def _config(tool_names: list[str]) -> dict[str, McpServerConfig]:
-        cfg = MagicMock(spec=McpServerConfig)
-        cfg.tool_names = tool_names
-        return {"web_search": cfg}
-
-    def test_gated_tool_absent_from_config_is_not_drift(self) -> None:
-        drift = validate_routing_against_config(
-            registry=self._web_search_registry(),
-            server_configs=self._config(["search_web"]),
-        )
-        assert drift == {}
-
-    def test_gated_tool_present_in_config_is_not_drift(self) -> None:
-        drift = validate_routing_against_config(
-            registry=self._web_search_registry(),
-            server_configs=self._config(["search_web", "browser_fetch"]),
-        )
-        assert drift == {}
-
-    def test_ungated_tool_absent_from_config_is_still_drift(self) -> None:
-        drift = validate_routing_against_config(
-            registry=self._web_search_registry(),
-            server_configs=self._config(["browser_fetch"]),
-        )
-        assert drift["web_search"] == [
-            "[web_search] tool 'search_web' in registry but not in config"
-        ]
-
-    def test_unregistered_tool_in_config_is_still_drift(self) -> None:
-        drift = validate_routing_against_config(
-            registry=self._web_search_registry(),
-            server_configs=self._config(["search_web", "no_such_tool"]),
-        )
-        assert drift["web_search"] == [
-            "[web_search] tool 'no_such_tool' in config but not in registry"
-        ]
-
-    def test_gated_tool_absent_from_live_is_not_drift(self) -> None:
-        drift = validate_routing_against_live(
-            self._web_search_registry(), {"web_search": ["search_web"]}
-        )
-        assert drift == {}
-
-    def test_ungated_tool_absent_from_live_is_still_drift(self) -> None:
-        drift = validate_routing_against_live(
-            self._web_search_registry(), {"web_search": ["browser_fetch"]}
-        )
-        assert drift["web_search"] == [
-            "[web_search] tool 'search_web' in registry but not in live response"
-        ]
 
 
 class TestStartupValidationStrictMode:
@@ -308,59 +197,3 @@ class TestGetToolNamesOrdering:
         registry.register(ToolDefinition(name="apple", server_key="s1"))
         registry.register(ToolDefinition(name="mango", server_key="s1"))
         assert registry.get_tool_names("s1") == ["apple", "mango", "zebra"]
-
-
-class TestValidateRoutingAgainstRealConfig:
-    """validate_routing_against_config exercised against the real production config.
-
-    Every other test in this module uses a synthetic ToolRegistry and a
-    MagicMock(spec=McpServerConfig) server_configs mapping. None of them load
-    config/agent.toml's actual [mcp_servers.<key>] tool_names, so a drift bug
-    that only manifests against the real file (e.g. a server key present in
-    tool_constants.py but missing/misspelled in agent.toml, or vice versa)
-    would go undetected. This exercises all 10 registry keys (8 MCP servers;
-    file[read/write/delete] register separately) against the real file.
-    """
-
-    # agent.toml's [mcp_servers.*].auth_token values are "${ENV:...}" references
-    # (mcpauth) -- set every one to a non-empty placeholder so _build_mcp_servers()
-    # can construct all 10 servers here, without depending on real secrets being
-    # present in this test environment.
-    _REQUIRED_AUTH_TOKEN_ENV_VARS = (
-        "MCP_SHELL_AUTH_TOKEN",
-        "MCP_GIT_AUTH_TOKEN",
-        "MCP_GITHUB_AUTH_TOKEN",
-        "MCP_WEB_SEARCH_AUTH_TOKEN",
-        "MCP_FILE_READ_AUTH_TOKEN",
-        "MCP_FILE_WRITE_AUTH_TOKEN",
-        "MCP_FILE_DELETE_AUTH_TOKEN",
-        "MCP_CICD_AUTH_TOKEN",
-        "MCP_RAG_PIPELINE_AUTH_TOKEN",
-        "MCP_MDQ_AUTH_TOKEN",
-    )
-
-    def _load_real_server_configs(self, monkeypatch: pytest.MonkeyPatch) -> dict:
-        import tomllib
-
-        from shared.mcp_config import _build_mcp_servers
-
-        for var in self._REQUIRED_AUTH_TOKEN_ENV_VARS:
-            monkeypatch.setenv(var, "test-token")
-        agent_toml_path = Path(__file__).parent.parent.parent / "config" / "agent.toml"
-        with open(agent_toml_path, "rb") as f:
-            raw_cfg = tomllib.load(f)
-        return _build_mcp_servers(raw_cfg)
-
-    def test_no_drift_against_real_agent_toml(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        server_configs = self._load_real_server_configs(monkeypatch)
-        result = validate_routing_against_config(server_configs=server_configs)
-        assert result == {}
-
-    def test_real_agent_toml_covers_all_registry_server_keys(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        server_configs = self._load_real_server_configs(monkeypatch)
-        registry = get_registry()
-        assert set(registry.get_servers()) <= set(server_configs)

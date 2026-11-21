@@ -1173,11 +1173,6 @@ entries:
   summary: Maintenance operations scoped exclusively to rag.sqlite.
 - file: scripts/agent/services/routing_drift.py
   kind: function
-  name: check_routing_drift
-  signature: def check_routing_drift(ctx, *, strict) -> list[str]
-  summary: Check config tool_names against ToolRegistry at startup.
-- file: scripts/agent/services/routing_drift.py
-  kind: function
   name: check_routing_safety_tiers
   signature: def check_routing_safety_tiers(ctx) -> list[str]
   summary: Check that all registered tools have a declared safety tier.

@@ -385,10 +385,46 @@ class TestCmdMcpStatusNewColumns:
             url="http://127.0.0.1:8000",
             cmd=[],
             auth_token="test-token",
-            tool_names=["write_file", "edit_file"],
         )
         tiers = {"write_file": "WRITE_SAFE", "edit_file": "WRITE_SAFE"}
         ctx = _Ctx({"writer": cfg}, tool_safety_tiers=tiers)
+        # Tier is derived from the runtime registry (not the removed McpServerConfig
+        # tool_names field); expose the two write tools on this server so the WRITE
+        # column resolves to WRITE_SAFE.
+        ctx.services_required.runtime_tools = _registry_with(
+            RuntimeTool(
+                name="write_file",
+                server_key="writer",
+                server_url="",
+                description="Write a file",
+                input_schema={"type": "object"},
+                raw_definition={},
+                status="active",
+                is_write=True,
+                requires_serial=False,
+                resource_scope_kind="",
+                resource_scope_keys=(),
+                agent_safety_tier="WRITE_SAFE",
+                enabled_for_llm=True,
+                capabilities=(),
+            ),
+            RuntimeTool(
+                name="edit_file",
+                server_key="writer",
+                server_url="",
+                description="Edit a file",
+                input_schema={"type": "object"},
+                raw_definition={},
+                status="active",
+                is_write=True,
+                requires_serial=False,
+                resource_scope_kind="",
+                resource_scope_keys=(),
+                agent_safety_tier="WRITE_SAFE",
+                enabled_for_llm=True,
+                capabilities=(),
+            ),
+        )
         mcp = _Mcp(ctx)
 
         resp = MagicMock()
@@ -410,7 +446,6 @@ class TestCmdMcpStatusNewColumns:
             url="http://127.0.0.1:8000",
             cmd=[],
             auth_token="test-token",
-            tool_names=["read_text_file", "list_directory"],
         )
         ctx = _Ctx({"reader": cfg})
         mcp = _Mcp(ctx)

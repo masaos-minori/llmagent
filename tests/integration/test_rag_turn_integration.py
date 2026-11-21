@@ -56,13 +56,11 @@ _WF_CTX = dict(
 
 def _make_http_executor(
     http: httpx.AsyncClient,
-    tool_names: list[str],
     health_registry: McpServerHealthRegistry | None = None,
 ) -> ToolExecutor:
     cfg = McpServerConfig(
         transport=TransportType.HTTP,
         url=_TEST_URL,
-        tool_names=tool_names,
         startup_mode=None,
         auth_token="test-token",
     )
@@ -167,7 +165,7 @@ async def test_f01_rag_empty_result_turn_continues() -> None:
     with respx.mock(base_url=_TEST_URL, assert_all_called=False) as mock:
         mock.post("/v1/call_tool").respond(200, json={"result": "", "is_error": False})
         async with httpx.AsyncClient() as http:
-            executor = _make_http_executor(http, [_RAG_TOOL])
+            executor = _make_http_executor(http)
             ctx = _make_turn_ctx(executor, risk_none_for=[_RAG_TOOL])
             guard = _make_guard()
             runner = LLMTurnRunner(ctx, guard)
@@ -203,7 +201,7 @@ async def test_f02_rag_tool_error_increments_error_count() -> None:
             200, json={"result": error_text, "is_error": True}
         )
         async with httpx.AsyncClient() as http:
-            executor = _make_http_executor(http, [_RAG_TOOL])
+            executor = _make_http_executor(http)
             ctx = _make_turn_ctx(executor, risk_none_for=[_RAG_TOOL])
             guard = _make_guard()
             runner = LLMTurnRunner(ctx, guard)
@@ -239,7 +237,7 @@ async def test_f03_sse_disconnect_after_rag_result_not_persisted_as_assistant() 
             200, json={"result": "some rag content", "is_error": False}
         )
         async with httpx.AsyncClient() as http:
-            executor = _make_http_executor(http, [_RAG_TOOL])
+            executor = _make_http_executor(http)
             ctx = _make_turn_ctx(executor, risk_none_for=[_RAG_TOOL])
             guard = _make_guard()
             runner = LLMTurnRunner(ctx, guard)
@@ -288,7 +286,7 @@ async def test_f04_rag_injection_pattern_sanitization_boundary() -> None:
             200, json={"result": injection_text, "is_error": False}
         )
         async with httpx.AsyncClient() as http:
-            executor = _make_http_executor(http, [_RAG_TOOL])
+            executor = _make_http_executor(http)
             ctx = _make_turn_ctx(executor, risk_none_for=[_RAG_TOOL])
             guard = _make_guard()
             runner = LLMTurnRunner(ctx, guard)
@@ -326,7 +324,7 @@ async def test_f05_mixed_success_and_timeout_in_same_round() -> None:
     with respx.mock(base_url=_TEST_URL, assert_all_called=False) as mock:
         mock.post("/v1/call_tool").mock(side_effect=_side_effect)
         async with httpx.AsyncClient() as http:
-            executor = _make_http_executor(http, [ok_tool, timeout_tool])
+            executor = _make_http_executor(http)
             ctx = _make_turn_ctx(executor, risk_none_for=[ok_tool, timeout_tool])
             guard = _make_guard()
             runner = LLMTurnRunner(ctx, guard)

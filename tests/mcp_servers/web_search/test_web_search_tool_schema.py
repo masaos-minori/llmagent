@@ -12,8 +12,6 @@ concerns into one class.
 
 from __future__ import annotations
 
-import tomllib
-from pathlib import Path
 from typing import Any
 
 from mcp_servers.web_search.web_search_models import SearchRequest
@@ -80,47 +78,3 @@ class TestSearchWebSchemaDrift:
         assert schema["properties"]["max_results"][
             "maximum"
         ] == _max_results_constraint("le")
-
-
-def _agent_toml_search_web() -> dict[str, Any]:
-    """Locate the search_web tool definition's parameters block in the real
-    config/agent.toml, matched by name (not array index)."""
-    path = Path(__file__).parent.parent.parent.parent / "config" / "agent.toml"
-    with open(path, "rb") as f:
-        cfg = tomllib.load(f)
-    matches = [
-        td["function"]
-        for td in cfg["tool_definitions"]
-        if td["function"]["name"] == "search_web"
-    ]
-    assert len(matches) == 1
-    parameters: dict[str, Any] = matches[0]["parameters"]
-    return parameters
-
-
-def _tool_list_search_web_schema() -> dict[str, Any]:
-    return _search_web_schema()
-
-
-class TestAgentTomlVsToolListParity:
-    """Assert config/agent.toml's search_web [[tool_definitions]] parameter set
-    stays consistent with TOOL_LIST["search_web"].inputSchema (the MCP server's
-    own accepted schema) — catches drift such as a parameter present in the
-    server's schema but missing from the LLM-facing agent.toml definition."""
-
-    def test_agent_toml_search_web_properties_subset_of_tool_list(self) -> None:
-        agent_props = set(_agent_toml_search_web()["properties"])
-        tool_list_props = set(_tool_list_search_web_schema()["properties"])
-        assert agent_props <= tool_list_props
-
-    def test_agent_toml_search_web_max_results_present(self) -> None:
-        assert "max_results" in _agent_toml_search_web()["properties"]
-
-    def test_agent_toml_search_web_max_results_not_required(self) -> None:
-        assert "max_results" not in _agent_toml_search_web()["required"]
-
-    def test_agent_toml_search_web_required_matches_tool_list(self) -> None:
-        assert (
-            _agent_toml_search_web()["required"]
-            == _tool_list_search_web_schema()["required"]
-        )

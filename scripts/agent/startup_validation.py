@@ -28,7 +28,7 @@ from agent.services.mcp_health import check_readiness, collect_server_postures
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from agent.services.models import RagConsistencyResult
 from agent.services.rag_maintenance_service import RagMaintenanceService
-from agent.services.routing_drift import check_routing_drift, check_routing_safety_tiers
+from agent.services.routing_drift import check_routing_safety_tiers
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
 
 if TYPE_CHECKING:
@@ -165,18 +165,6 @@ class StartupValidationPipeline:
         # server aborts startup so runtime_tools is never published (AC-3).
         # Synchronous; reads no network state, so it costs nothing here.
         _check_component_mandatoriness(ctx, pipeline)
-
-        # 5. Routing drift (static)
-        # Strict mode raises RuntimeError on any drift, which is recorded as FATAL
-        # below (ADR-003 routing authority). The returned messages are informational
-        # and empty in strict mode.
-        try:
-            for msg in check_routing_drift(ctx, strict=True):
-                pipeline.add_warning("routing_drift", msg)
-        except RuntimeError as exc:
-            pipeline.add_fatal("routing_drift", str(exc))
-        except Exception as exc:  # noqa: BLE001 — an unexpected failure of the drift check is always FATAL (an unknown result is not a clean result), so it must be captured and classified rather than crash startup
-            _record_drift_check_failure(pipeline, exc)
 
         # 5b. Routing safety tiers
         # A registered tool without a declared tier is Fail-Closed (ADR-004 INV-07).

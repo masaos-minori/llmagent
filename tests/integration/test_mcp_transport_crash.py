@@ -162,7 +162,6 @@ async def test_d05_http_timeout_races_lifecycle_termination() -> None:
         transport=TransportType.HTTP,
         url="http://127.0.0.1:19099",
         cmd=[],
-        tool_names=["_d05_tool"],
         startup_mode=StartupMode.PERSISTENT,
         auth_token="test-token",
     )

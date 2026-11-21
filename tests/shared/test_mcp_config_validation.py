@@ -8,7 +8,6 @@ def _http_cfg(**kwargs):
     defaults = dict(
         transport=TransportType.HTTP,
         url="http://localhost:8080",
-        tool_names=["tool_a"],
         call_timeout_sec=60.0,
         health_timeout=None,
         startup_timeout_sec=30,
@@ -26,7 +25,6 @@ def _subprocess_cfg(**kwargs):
         url="http://localhost:8080",
         startup_mode=StartupMode.SUBPROCESS,
         cmd=["./run.sh"],
-        tool_names=["tool_b"],
         call_timeout_sec=60.0,
         health_timeout=None,
         startup_timeout_sec=30,
@@ -65,7 +63,6 @@ def test_subprocess_missing_cmd_raises():
             transport=TransportType.HTTP,
             url="http://localhost:8080",
             startup_mode=StartupMode.SUBPROCESS,
-            tool_names=[],
             key="s",
         )
 
@@ -96,24 +93,6 @@ def test_startup_timeout_negative_raises():
 def test_startup_timeout_positive_is_valid():
     cfg = _http_cfg(startup_timeout_sec=1)
     assert cfg.startup_timeout_sec == 1
-
-
-# --- new: tool_names checks ---
-
-
-def test_empty_tool_name_raises():
-    with pytest.raises(ValueError, match="tool_names"):
-        _http_cfg(tool_names=[""])
-
-
-def test_duplicate_tool_names_raises():
-    with pytest.raises(ValueError, match="duplicate"):
-        _http_cfg(tool_names=["tool_a", "tool_a"])
-
-
-def test_empty_tool_names_list_is_valid():
-    cfg = _http_cfg(tool_names=[])
-    assert cfg.tool_names == []
 
 
 # --- new: auth_token check ---

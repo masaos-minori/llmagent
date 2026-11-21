@@ -163,7 +163,6 @@ _TOOL_DEFAULTS = {
     "max_tool_turns": 5,
     "tool_result_max_llm_chars": 8000,
     "tool_results_turn_max_chars": 50000,
-    "tool_definitions": [],
     "allowed_tools": [],
 }
 
@@ -194,7 +193,6 @@ class TestBuildToolConfig:
             "max_tool_turns": 9,
             "tool_result_max_llm_chars": 9,
             "tool_results_turn_max_chars": 9,
-            "tool_definitions": [{"name": "x"}],
             "system_prompts": {"default": "custom"},
             "allowed_tools": ["tool_a"],
         }

@@ -75,12 +75,6 @@ class TestMcpServerConfigValidation:
                 TransportType.HTTP, "http://127.0.0.1:8000", startup_mode=""
             )
 
-    def test_tool_names_default_empty(self) -> None:
-        cfg = McpServerConfig(
-            TransportType.HTTP, "http://127.0.0.1:8000", auth_token="test-token"
-        )
-        assert cfg.tool_names == []
-
     def test_startup_timeout_default(self) -> None:
         cfg = McpServerConfig(
             TransportType.HTTP, "http://127.0.0.1:8000", auth_token="test-token"
@@ -175,7 +169,6 @@ class TestBuildMcpServers:
         assert s.startup_mode == StartupMode.NONE
         assert s.call_timeout_sec == 60.0
         assert s.startup_timeout_sec == 30
-        assert s.tool_names == []
         assert s.role == ""
 
     def test_auth_token_and_role_parsed(self) -> None:

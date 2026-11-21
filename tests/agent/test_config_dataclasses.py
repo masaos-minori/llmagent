@@ -22,8 +22,11 @@ from agent.services.config_validators import (
     validate_diagnostics_encryption_key,
     validate_diagnostics_retention_days,
     validate_diagnostics_sensitive_fields,
+    validate_disabled_tools,
+    validate_tool_policy_mode,
 )
 from cryptography.fernet import Fernet
+from shared.tool_registry import ToolDefinition, get_registry
 
 # ── LLMConfig ─────────────────────────────────────────────────────────────────
 
@@ -175,6 +178,49 @@ class TestToolConfigValidation:
             match=re.escape("progress_stagnation_window must be >= 0, got -1"),
         ):
             ToolConfig(progress_stagnation_window=-1)
+
+    def test_tool_policy_mode_defaults_to_explicit_allowlist(self) -> None:
+        """REQ-001: an absent config key resolves to explicit_allowlist without
+        special-casing."""
+        cfg = ToolConfig()
+        assert cfg.tool_policy_mode == "explicit_allowlist"
+
+    def test_disabled_tools_defaults_to_empty_list(self) -> None:
+        """REQ-001: disabled_tools is a hard denylist defaulting to empty."""
+        cfg = ToolConfig()
+        assert cfg.disabled_tools == []
+
+    def test_exposure_fields_populate_from_kwargs(self) -> None:
+        """The two new fields populate from raw config values."""
+        cfg = ToolConfig(tool_policy_mode="discovered", disabled_tools=["shell_run"])
+        assert cfg.tool_policy_mode == "discovered"
+        assert cfg.disabled_tools == ["shell_run"]
+
+
+# ── config_validators tool-field validators ─────────────────────────────────--
+
+
+class TestConfigValidatorsToolFields:
+    def test_tool_policy_mode_accepts_known_values(self) -> None:
+        for mode in ("discovered", "explicit_allowlist"):
+            validate_tool_policy_mode(ToolConfig(tool_policy_mode=mode))
+
+    def test_tool_policy_mode_rejects_unknown(self) -> None:
+        with pytest.raises(ValueError, match="tool_policy_mode must be"):
+            validate_tool_policy_mode(ToolConfig(tool_policy_mode="bogus"))
+
+    def test_disabled_tools_accepts_registered_name(self) -> None:
+        get_registry().register(
+            ToolDefinition(name="zzz_fixture_tool", server_key="fixture")
+        )
+        validate_disabled_tools(ToolConfig(disabled_tools=["zzz_fixture_tool"]))
+
+    def test_disabled_tools_rejects_unregistered_name(self) -> None:
+        with pytest.raises(ValueError, match="unregistered tool names"):
+            validate_disabled_tools(ToolConfig(disabled_tools=["not_a_real_tool"]))
+
+    def test_disabled_tools_empty_is_valid(self) -> None:
+        validate_disabled_tools(ToolConfig(disabled_tools=[]))
 
 
 # ── ApprovalConfig ────────────────────────────────────────────────────────────

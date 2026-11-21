@@ -37,7 +37,6 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "tool_result_max_llm_chars": 4000,
         "masked_fields": [],
         "allowed_tools": [],
-        "tool_definitions": [],
         "tool_safety_tiers": {},
         "approval_risk_rules": {},
         "approval_protected_paths": [],
@@ -93,13 +92,13 @@ class TestPrepareToolCallsConfigurationErrors:
 
 
 class TestPrepareToolCallsUnknownTool:
-    def test_unregistered_name_rejected_despite_matching_tool_definitions_entry(
+    def test_unregistered_name_rejected(
         self,
     ) -> None:
-        """The core regression test: an unregistered tool name must be rejected even
-        when a stale ctx.cfg.tool.tool_definitions entry matches it by name — proving
-        tool_definitions is never consulted as a fallback."""
-        ctx = _make_ctx(_cfg(tool_definitions=[{"function": {"name": "stale_tool"}}]))
+        """The core regression test: an unregistered tool name must be rejected by
+        the fail-closed preparation path — the RuntimeToolRegistry is the sole
+        authority and never falls back to any static config."""
+        ctx = _make_ctx(_cfg())
         ctx.services_required.runtime_tools = MagicMock()
         ctx.services_required.runtime_tools.get.side_effect = KeyError("stale_tool")
 

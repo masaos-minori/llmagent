@@ -124,7 +124,6 @@ async def test_skipped_live_routing_no_raise(startup_instance) -> None:
                 discover_all=AsyncMock(side_effect=Exception("all servers unreachable"))
             ),
         ),
-        patch(f"{MODULE}.check_routing_drift", return_value=[]),
         patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
         patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
     ):
@@ -159,7 +158,6 @@ async def test_validation_pipeline_reports_fatal_when_config_missing() -> None:
             side_effect=RuntimeError("readiness check failed"),
         ),
         patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
-        patch(f"{MODULE}.check_routing_drift", return_value=[]),
         patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
         patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
     ):
@@ -206,7 +204,6 @@ class TestOneProbePerStartup:
                 new_callable=AsyncMock,
                 return_value={},
             ) as mock_probe,
-            patch(f"{MODULE}.check_routing_drift", return_value=[]),
             patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
             patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
         ):
@@ -236,7 +233,6 @@ class TestOneProbePerStartup:
                 new_callable=AsyncMock,
                 return_value=fake_gates,
             ),
-            patch(f"{MODULE}.check_routing_drift", return_value=[]),
             patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
             patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
         ):
@@ -265,7 +261,6 @@ class TestOneProbePerStartup:
                 new_callable=AsyncMock,
                 return_value={},
             ) as mock_probe,
-            patch(f"{MODULE}.check_routing_drift", return_value=[]),
             patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
             patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
         ):
@@ -378,7 +373,6 @@ class TestFaltyOwnConfigFileScenario:
                 ),
             ),
             patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
-            patch(f"{MODULE}.check_routing_drift", return_value=[]),
             patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
             patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
         ):
@@ -409,7 +403,6 @@ class TestFaltyOwnConfigFileScenario:
                 f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
             ),
             patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
-            patch(f"{MODULE}.check_routing_drift", return_value=[]),
             patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
             patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
         ):
@@ -449,10 +442,6 @@ class TestUnknownTopLevelKeyScenario:
                 f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
             ),
             patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
-            patch(
-                f"{MODULE}.check_routing_drift",
-                return_value=["Routing drift [web]: extra tool 'foo'"],
-            ),
             patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
             patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
         ):
@@ -496,7 +485,6 @@ class TestInv07EnvironmentFailureHandling:
                 side_effect=RuntimeError("Allowlist verification failed"),
             ),
             patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
-            patch(f"{MODULE}.check_routing_drift", return_value=[]),
             patch(f"{MODULE}.check_routing_safety_tiers", return_value=[]),
             patch(f"{MODULE}.RagMaintenanceService") as mock_rag,
         ):
@@ -531,7 +519,6 @@ class TestInv07EnvironmentFailureHandling:
                 f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
             ),
             patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
-            patch(f"{MODULE}.check_routing_drift", return_value=[]),
             patch(
                 f"{MODULE}.check_routing_safety_tiers",
                 side_effect=RuntimeError("Safety tier verification failed"),

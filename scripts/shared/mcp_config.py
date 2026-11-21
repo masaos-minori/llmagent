@@ -67,7 +67,6 @@ class McpServerConfig:
     call_timeout_sec: float = 60.0  # per-call timeout for HttpTransport; 0 = no timeout
     health_timeout: float | None = None  # per-server health-check timeout; None → 5.0
     startup_timeout_sec: int = 30  # subprocess startup health-poll timeout in seconds
-    tool_names: list[str] = field(default_factory=list)
     auth_token: str = ""  # Bearer token sent by ToolExecutor
     role: str = ""  # human-readable role label
     cmd: list[str] = field(
@@ -128,7 +127,6 @@ class McpServerConfig:
 
         self._validate_startup_requirements(key_prefix)
         self._validate_timeouts(key_prefix)
-        self._validate_tool_names(key_prefix)
         self._validate_auth_token(key_prefix)
         self._validate_env(key_prefix)
         self._validate_url_scheme(key_prefix)
@@ -167,17 +165,6 @@ class McpServerConfig:
             raise ValueError(
                 f"{key_prefix}: startup_timeout_sec must be >= 0, got {self.startup_timeout_sec}"
             )
-
-    def _validate_tool_names(self, key_prefix: str) -> None:
-        """Validate that tool_names entries are non-empty strings with no duplicates."""
-        for i, name in enumerate(self.tool_names):
-            if not isinstance(name, str) or not name:
-                raise ValueError(
-                    f"{key_prefix}: tool_names[{i}] must be a non-empty string, got {name!r}"
-                )
-        if len(self.tool_names) != len(set(self.tool_names)):
-            dupes = sorted({n for n in self.tool_names if self.tool_names.count(n) > 1})
-            raise ValueError(f"{key_prefix}: duplicate tool_names: {dupes}")
 
     def _validate_auth_token(self, key_prefix: str) -> None:
         """Validate that auth_token is a non-empty str, unless the server is disabled."""
@@ -300,7 +287,6 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         startup_stagger_delay_sec=float(v.get("startup_stagger_delay_sec", 0.0)),
         max_stderr_log_size_mb=float(v.get("max_stderr_log_size_mb", 100.0)),
         max_stderr_log_files=int(v.get("max_stderr_log_files", 3)),
-        tool_names=list(v.get("tool_names", [])),
         auth_token=resolved_auth_token,
         call_timeout_sec=float(v.get("call_timeout_sec", 60.0)),
         health_timeout=health_timeout,

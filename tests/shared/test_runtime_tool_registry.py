@@ -221,6 +221,52 @@ class TestRuntimeToolRegistry:
         reg.apply_policy(tier_map={}, allowed_tools=["read_file"])
         assert reg.get("read_file").agent_safety_tier == "READ_ONLY"
 
+    def test_apply_policy_discovered_mode_allows_registered_tool_with_empty_allowlist(
+        self,
+    ) -> None:
+        """REQ-005: in discovered mode an empty allowed_tools does not disable
+        a registered tool (base visibility applies)."""
+        tool = build_fixture_runtime_tool(
+            name="read_file", server_key="s", enabled_for_llm=True
+        )
+        reg = _registry_with(tool)
+        reg.apply_policy(
+            tier_map={},
+            allowed_tools=(),
+            tool_policy_mode="discovered",
+        )
+        assert reg.get("read_file").enabled_for_llm is True
+
+    def test_apply_policy_discovered_mode_denies_disabled_tool(self) -> None:
+        """REQ-005: disabled_tools is a hard denylist applied in discovered mode."""
+        tool = build_fixture_runtime_tool(
+            name="read_file", server_key="s", enabled_for_llm=True
+        )
+        reg = _registry_with(tool)
+        reg.apply_policy(
+            tier_map={},
+            allowed_tools=(),
+            tool_policy_mode="discovered",
+            disabled_tools=["read_file"],
+        )
+        assert reg.get("read_file").enabled_for_llm is False
+
+    def test_apply_policy_discovered_mode_respects_base_visibility_false(self) -> None:
+        """REQ-005: discovered mode still honors llm_visibility_base=False."""
+        tool = build_fixture_runtime_tool(
+            name="hidden_tool",
+            server_key="s",
+            enabled_for_llm=True,
+            llm_visibility_base=False,
+        )
+        reg = _registry_with(tool)
+        reg.apply_policy(
+            tier_map={},
+            allowed_tools=(),
+            tool_policy_mode="discovered",
+        )
+        assert reg.get("hidden_tool").enabled_for_llm is False
+
     def test_diagnostics_uses_raw_definition_disabled_reason_when_present(self) -> None:
         tool = build_fixture_runtime_tool(
             name="quota_tool",

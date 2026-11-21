@@ -201,16 +201,6 @@ class ToolConfig:
     tool_result_max_llm_chars: int = 8000
     # Max total chars of all tool results within one turn
     tool_results_turn_max_chars: int = 50000
-    # Compatibility-only static tool schema list; RuntimeToolRegistry
-    # (shared/runtime_tool_registry.py), populated from live /v1/tools, is the sole
-    # runtime authority for tool validation/scheduling/approval/execution (no fallback
-    # to this field remains in any runtime path). Retained for: (a) startup drift
-    # validation against /v1/tools (agent/services/tool_validation.py::_check_tool_definitions)
-    # and (b) the shape template for test fixtures. No longer read at runtime: the
-    # llm_turn_runner.py::_stream_llm() fallback to static tool_definitions and the
-    # cmd_mcp.py + registry.py tool-count displays were removed by rtregistry001, which reads the
-    # registry as the single runtime tool authority.
-    tool_definitions: list[dict] = field(default_factory=list)
     system_prompts: dict[str, str] = field(default_factory=dict)
     system_prompt_tool: str = ""
     # Exposure contract is mode-dependent (tool_policy_mode): empty is valid and

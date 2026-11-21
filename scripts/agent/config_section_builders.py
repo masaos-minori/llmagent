@@ -216,7 +216,6 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
         tool_results_turn_max_chars=_get_or_default(
             cfg, "tool_results_turn_max_chars", _get_int, 50000
         ),
-        tool_definitions=_get_or_default(cfg, "tool_definitions", _get_list, []),
         system_prompts=_get_or_default(
             cfg, "system_prompts", _get_dict, {"default": system_prompt_tool}
         ),

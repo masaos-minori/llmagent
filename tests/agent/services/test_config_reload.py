@@ -431,7 +431,6 @@ class TestDiffMcpServerConfig:
             ("startup_timeout_sec", 999),
             ("cmd", ["changed", "cmd"]),
             ("env", {"CHANGED": "1"}),
-            ("tool_names", ["changed_tool"]),
         ],
     )
     def test_single_field_change_detected(
@@ -1145,7 +1144,6 @@ class TestRegistryFieldClassification:
             "plan_blocked_tools",
             "system_prompt_tool",
             "system_prompts",
-            "tool_definitions",
             "allowed_tools",
             "tool_policy_mode",
             "disabled_tools",

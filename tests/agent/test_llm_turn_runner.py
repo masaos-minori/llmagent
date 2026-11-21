@@ -37,7 +37,6 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.tool.tool_error_retry_max = 0
     ctx.cfg.tool.tool_cycle_detect_window = 0
     ctx.cfg.tool.tool_error_max_consecutive = 3
-    ctx.cfg.tool.tool_definitions = []
     ctx.conv = ConversationState()
     ctx.stats.stat_tool_errors = 0
     ctx.services_required.llm = AsyncMock()
@@ -284,12 +283,11 @@ class TestFinalizeAnswer:
 
 
 class TestStreamLlmToolDefs:
-    """REQ-008: _filter_disabled_tool_definitions() (a confirmed self-referential
-    no-op second-stage filter) was removed; _stream_llm() now inlines the one part
-    of it that was actually live — the registry-is-None fallback to
-    ctx.cfg.tool.tool_definitions. These cases assert on the tool_defs argument
-    _stream_llm() passes to llm.stream(), rather than calling the removed method
-    directly."""
+    """REQ-008: _stream_llm() treats the runtime ToolRegistry as the sole authority
+    for LLM-facing tool definitions and raises (fail-closed) when the registry is
+    None; there is no config-driven fallback. These cases assert on the tool_defs
+    argument _stream_llm() passes to llm.stream(), rather than calling the removed
+    _filter_disabled_tool_definitions() directly."""
 
     @pytest.mark.asyncio
     async def test_registry_not_none_returns_from_registry(
@@ -315,8 +313,9 @@ class TestStreamLlmToolDefs:
     async def test_registry_not_none_includes_live_registered_tool_absent_from_static_config(
         self, runner: LLMTurnRunner
     ) -> None:
-        """Regression: tool present in RuntimeToolRegistry but absent from
-        ctx.cfg.tool.tool_definitions is still offered to the LLM."""
+        """Regression: tool present in RuntimeToolRegistry is still offered to
+        the LLM; the registry is the sole authority regardless of any static
+        config."""
         mock_registry = MagicMock()
         live_tool_def = {
             "name": "live_tool",
@@ -325,8 +324,6 @@ class TestStreamLlmToolDefs:
         }
         mock_registry.llm_tool_definitions.return_value = [live_tool_def]
         runner._ctx.services_required.runtime_tools = mock_registry
-        # Explicitly ensure the static config does NOT contain the live tool
-        runner._ctx.cfg.tool.tool_definitions = []
 
         await runner._stream_llm("http://llm", 0)
 
@@ -338,12 +335,10 @@ class TestStreamLlmToolDefs:
     async def test_registry_is_none_raises_no_static_fallback(
         self, runner: LLMTurnRunner
     ) -> None:
-        """When registry is None, _stream_llm raises instead of falling back to
-        ctx.cfg.tool.tool_definitions (runtime registry is the sole authority)."""
+        """When registry is None, _stream_llm raises (fail-closed) citing the
+        runtime registry as the sole source of LLM-facing tool definitions
+        (no config-driven fallback)."""
         runner._ctx.services_required.runtime_tools = None
-        runner._ctx.cfg.tool.tool_definitions = [
-            {"name": "static_tool", "function": {"name": "static_tool"}},
-        ]
 
         with pytest.raises(RuntimeError):
             await runner._stream_llm("http://llm", 0)

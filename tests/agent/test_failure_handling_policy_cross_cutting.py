@@ -31,7 +31,6 @@ def _server(server_key: str) -> McpServerConfig:
         startup_mode=StartupMode.PERSISTENT,
         required=True,
         auth_token="test-token",
-        tool_names=["probe"],
     )
 
 

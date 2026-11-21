@@ -227,7 +227,7 @@ async def test_optional_mcp_failure_disables_only_that_tool() -> None:
     )
     assert any(
         f.status == StartupCheckStatus.FATAL
-        and "cannot validate tool definitions" in f.message
+        and "cannot validate tool ownership" in f.message
         for f in mcp_findings
     ), "ADR-004: the tool-definition check has no non-strict bypass"
 

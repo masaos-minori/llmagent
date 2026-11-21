@@ -102,6 +102,18 @@ class TestPrintConfigValues:
         assert "allowed_tools" in out
         assert "unrestricted" not in out
 
+    def test_empty_allowed_tools_discovered_mode_message(self, capsys: Any) -> None:
+        """REQ-007: an empty allowed_tools shows the discovered-mode message
+        (base visibility applies), not the explicit_allowlist denial."""
+        tool = ToolConfig()
+        tool.allowed_tools = []
+        tool.tool_policy_mode = "discovered"
+        ctx = _make_ctx(tool=tool)
+        cmd = _Config(ctx)
+        cmd._print_config_values()
+        out = capsys.readouterr().out
+        assert "allowed_tools       : (none: discovered mode" in out
+
     def test_with_plan_blocked_tools(self, capsys: Any) -> None:
         tool = ToolConfig()
         tool.plan_blocked_tools = ["write_file", "delete_file"]

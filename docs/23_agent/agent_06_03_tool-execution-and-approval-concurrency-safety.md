@@ -30,7 +30,7 @@ Documents responsibility separation for safety controls, design decisions for `T
 
 | Control | Behavior |
 |---|---|
-| `allowed_tools` (`cfg.tool`) | Whitelist; an empty list denies every tool at runtime, including after a config reload. Separately, `ProductionConfigValidator` records `allowed_tools=[]` as a validation error at load (startup exits on validator errors) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/production_config_validator.py`) |
+| `allowed_tools` (`cfg.tool`) | Whitelist; an empty list denies every tool at runtime (including after a config reload) only under `explicit_allowlist` (fail closed). In `discovered` mode an empty list is valid and does not deny (base visibility applies). `tool_policy_mode` selects between them (`scripts/shared/runtime_tool_registry.py` `apply_policy`) |
 | `allowed_root` (`cfg.approval`) | Path jail; required (an empty or absent value fails config load) |
 | `approval_github_allowed_repos` (`cfg.approval`) | GitHub write allowlist; if empty, all are rejected (**Fail-closed**) |
 
@@ -63,7 +63,7 @@ The Orchestrator never falls back directly to unapproved execution if it cannot 
 
 ## Key Constraints
 
-- Fail-closed: `approval_github_allowed_repos=[]`, `allowed_tools=[]` (denies every tool at runtime, also after reload), workflow creation failure
+- Fail-closed: `approval_github_allowed_repos=[]`, `allowed_tools=[]` under `explicit_allowlist` (denies every tool at runtime, also after reload), workflow creation failure
 - Fail-safe: tools missing from `tool_safety_tiers` are rejected at startup; at classification time a tool absent from the registry is `high`
 - ToolLoopGuard guard hints are not injected into history
 

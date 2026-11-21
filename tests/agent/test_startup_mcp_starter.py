@@ -1,82 +1,14 @@
-"""Tests for routing drift strict mode checks."""
+"""Tests for MCP server startup health verification."""
 
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
-from agent.services.routing_drift import check_routing_drift
-from shared.tool_registry import (
-    ToolDefinition,
-    _reset_registry_for_testing,
-    get_registry,
-)
-
-
-def _make_ctx(tool_names=None):
-    ctx = MagicMock()
-    cfg = MagicMock()
-    server = MagicMock()
-    server.tool_names = tool_names or ["tool_a", "tool_b"]
-    cfg.mcp.mcp_servers = {"srv1": server}
-    ctx.cfg = cfg
-    return ctx
+from shared.tool_registry import _reset_registry_for_testing
 
 
 def setup_function():
     _reset_registry_for_testing()
-
-
-# --- check_routing_drift strict mode ---
-
-
-def test_routing_drift_non_strict_returns_warnings():
-    _reset_registry_for_testing()
-    registry = get_registry()
-    registry.register(ToolDefinition("tool_a", "srv1"))
-    # tool_b in config but not in registry -> drift
-    ctx = _make_ctx(tool_names=["tool_a", "tool_b"])
-    msgs = check_routing_drift(ctx, strict=False)
-    assert len(msgs) > 0
-    assert any("tool_b" in m for m in msgs)
-
-
-def test_routing_drift_strict_raises():
-    _reset_registry_for_testing()
-    registry = get_registry()
-    registry.register(ToolDefinition("tool_a", "srv1"))
-    ctx = _make_ctx(tool_names=["tool_a", "tool_b"])
-    with pytest.raises(RuntimeError, match="Strict mode"):
-        check_routing_drift(ctx, strict=True)
-
-
-def test_routing_drift_no_drift_returns_empty():
-    _reset_registry_for_testing()
-    registry = get_registry()
-    registry.register(ToolDefinition("tool_a", "srv1"))
-    ctx = _make_ctx(tool_names=["tool_a"])
-    msgs = check_routing_drift(ctx, strict=True)
-    assert msgs == []
-
-
-def test_routing_drift_unexpected_error_propagates_when_non_strict():
-    ctx = _make_ctx()
-    with patch(
-        "shared.tool_routing_validation.validate_routing_against_config",
-        side_effect=ValueError("boom"),
-    ):
-        with pytest.raises(ValueError, match="boom"):
-            check_routing_drift(ctx, strict=False)
-
-
-def test_routing_drift_unexpected_error_propagates_when_strict():
-    ctx = _make_ctx()
-    with patch(
-        "shared.tool_routing_validation.validate_routing_against_config",
-        side_effect=ValueError("boom"),
-    ):
-        # An unexpected failure must not be disguised as the strict-mode drift error.
-        with pytest.raises(ValueError, match="boom"):
-            check_routing_drift(ctx, strict=True)
 
 
 # --- post-startup health verification sends the Bearer token ---

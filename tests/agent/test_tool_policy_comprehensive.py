@@ -398,6 +398,54 @@ class TestCheckPreflightEdgeCases:
         # Test missing path key
         assert check_allowed_root(cfg, "write_file", {"other": "/tmp/file"})
 
+    @staticmethod
+    def _reg_with(*names: str) -> RuntimeToolRegistry:
+        tools = {
+            name: RuntimeTool(
+                name=name,
+                server_key="test_server",
+                server_url="",
+                description="",
+                input_schema={},
+                raw_definition={},
+                status="active",
+                is_write=False,
+                requires_serial=False,
+                resource_scope_kind="",
+                resource_scope_keys=(),
+                agent_safety_tier="READ_ONLY",
+                enabled_for_llm=True,
+                capabilities=(),
+            )
+            for name in names
+        }
+        return RuntimeToolRegistry(
+            tools=tools, allowed_servers=frozenset({"test_server"})
+        )
+
+    def test_discovered_mode_allows_registered_tool(self) -> None:
+        cfg = _cfg(tool_policy_mode="discovered", allowed_tools=[])
+        reg = self._reg_with("any_tool")
+        check_preflight(cfg, "any_tool", {}, reg)  # does not raise
+
+    def test_discovered_mode_denies_unregistered_tool(self) -> None:
+        cfg = _cfg(tool_policy_mode="discovered", allowed_tools=[])
+        reg = self._reg_with("write_file")
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(cfg, "any_tool", {}, reg)
+        assert exc_info.value.audit_decision == "denied_discovered"
+
+    def test_discovered_mode_denies_disabled_tool(self) -> None:
+        cfg = _cfg(
+            tool_policy_mode="discovered",
+            allowed_tools=[],
+            disabled_tools=["write_file"],
+        )
+        reg = self._reg_with("write_file")
+        with pytest.raises(PolicyViolationError) as exc_info:
+            check_preflight(cfg, "write_file", {}, reg)
+        assert exc_info.value.audit_decision == "denied_discovered"
+
 
 class TestClassifyRiskEdgeCases:
     def test_mixed_tier_classification(self) -> None:

@@ -5,6 +5,7 @@ Unit tests for McpStatusService and _tier_for_server.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -194,3 +195,76 @@ class TestProbeAllHealthTimeoutZero:
         assert timeout_val.read is None
         # The health probe authenticates with the server's configured token
         assert captured_headers == [{"Authorization": "Bearer test-token"}]
+
+
+class _FakeAsyncClient:
+    """Minimal async httpx.AsyncClient stand-in returning empty tools."""
+
+    def __init__(self, **kwargs: object) -> None:
+        pass
+
+    async def __aenter__(self) -> _FakeAsyncClient:
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        pass
+
+    async def get(self, *args: object, **kwargs: object) -> MagicMock:
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {"tools": []}
+        return resp
+
+
+class TestProbeAllTierDerivation:
+    """REQ-003: probe_all derives each server's tier from the RuntimeToolRegistry
+    (the ADR-003 sole tool authority), not the removed cfg.tool_names field."""
+
+    @pytest.mark.asyncio
+    async def test_probe_all_falls_back_to_read_only_when_registry_absent(
+        self,
+    ) -> None:
+        """A server absent from the runtime registry degrades to READ_ONLY when
+        the registry itself is None (no static-catalog fallback remains)."""
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:8000",
+            startup_mode=StartupMode.PERSISTENT,
+            auth_token="test-token",
+        )
+        ctx = MagicMock()
+        ctx.cfg.approval.tool_safety_tiers = {}
+        ctx.cfg.mcp.mcp_servers = {"srv": cfg}
+        ctx.services_required.runtime_tools = None
+
+        with patch("agent.services.mcp_status.httpx.AsyncClient", _FakeAsyncClient):
+            status = McpStatusService(ctx=ctx)
+            results = await status.probe_all()
+
+        assert results[0].tier == McpTier.READ_ONLY
+
+    @pytest.mark.asyncio
+    async def test_probe_all_uses_registry_tier_for_populated_server(
+        self,
+    ) -> None:
+        """A server whose tools live in the runtime registry takes the highest
+        risk tier among those tools (READ_ONLY when unclassified)."""
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:8000",
+            startup_mode=StartupMode.PERSISTENT,
+            auth_token="test-token",
+        )
+        ctx = MagicMock()
+        ctx.cfg.approval.tool_safety_tiers = {"write_file": "WRITE_SAFE"}
+        ctx.cfg.mcp.mcp_servers = {"srv": cfg}
+        ctx.services_required.runtime_tools = MagicMock()
+        ctx.services_required.runtime_tools.all_tools.return_value = [
+            SimpleNamespace(name="write_file", server_key="srv"),
+        ]
+
+        with patch("agent.services.mcp_status.httpx.AsyncClient", _FakeAsyncClient):
+            status = McpStatusService(ctx=ctx)
+            results = await status.probe_all()
+
+        assert results[0].tier == McpTier.WRITE_SAFE

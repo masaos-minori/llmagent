@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/shared/tool_routing_validation.py — MCP tool routing drift validation against config and live responses.
+"""scripts/shared/tool_routing_validation.py — MCP tool routing drift validation against live responses.
 
 This module's use of the static ToolRegistry as drift-detection input is a formalized,
 current architectural decision — see ADR-003 Decision Detail #15 / INV-04
@@ -9,7 +9,6 @@ current architectural decision — see ADR-003 Decision Detail #15 / INV-04
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from shared.mcp_config import McpServerConfig
     from shared.tool_registry import ToolRegistry
 
 
@@ -20,30 +19,6 @@ def _resolve_registry(registry: "ToolRegistry | None") -> "ToolRegistry":
 
         return get_registry()
     return registry
-
-
-def validate_routing_against_config(
-    registry: "ToolRegistry | None" = None,
-    server_configs: dict[str, "McpServerConfig"] | None = None,
-) -> dict[str, list[str]]:
-    """Validate that config tool_names match the registry.
-
-    Returns {server_key: [mismatch_messages]} for servers with mismatches.
-    Empty dict means no drift detected.
-    """
-    registry = _resolve_registry(registry)
-    if server_configs is None:
-        return {}
-
-    drift: dict[str, list[str]] = {}
-    for server_key, cfg in server_configs.items():
-        if not cfg.tool_names:
-            continue
-        mismatches = registry.validate_tool_names_match(server_key, cfg.tool_names)
-        if mismatches:
-            drift[server_key] = mismatches
-
-    return drift
 
 
 def validate_routing_against_live(

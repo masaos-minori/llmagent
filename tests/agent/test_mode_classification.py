@@ -12,6 +12,9 @@ from agent.context import ConversationState
 from agent.mdq_rag_classifier import MdqRagMode
 from agent.mode_classification import _mode_hint, classify_and_inject_mode
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.runtime_tool_registry import RuntimeToolRegistry
+
+from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
 
 
 def _make_ctx(
@@ -22,11 +25,21 @@ def _make_ctx(
     server_cfg = McpServerConfig(
         transport=TransportType.HTTP,
         url="http://127.0.0.1:19200",
-        tool_names=mdq_tool_names or [],
         startup_mode=StartupMode.PERSISTENT,
         auth_token="test-token",
     )
     ctx.cfg.mcp.mcp_servers = {"mdq": server_cfg} if mdq_tool_names else {}
+    # REQ-003 fallout: MDQ availability is now judged by the RuntimeToolRegistry
+    # (the ADR-003 sole tool authority), not the removed McpServerConfig.tool_names.
+    if mdq_tool_names is None:
+        ctx.services_required.runtime_tools = None
+    else:
+        ctx.services_required.runtime_tools = RuntimeToolRegistry(
+            tools={
+                name: build_fixture_runtime_tool(name, "mdq") for name in mdq_tool_names
+            },
+            allowed_servers=frozenset({"mdq"}),
+        )
     ctx.conv = ConversationState()
     return ctx
 

@@ -5,7 +5,7 @@ Tool ownership registry and routing seed data. RuntimeToolRegistry
 (shared/runtime_tool_registry.py) is the sole runtime routing authority, populated from
 live /v1/tools discovery. ToolRegistry serves one verified production role:
   (a) drift-detection input for McpToolDiscoveryService
-      (validate_routing_against_live()/validate_routing_against_config() in
+      (validate_routing_against_live() in
       shared/tool_routing_validation.py) and config drift checks
       (agent/production_config_validator.py, agent/startup_validation.py).
 This role remains active and maintained (not abolished) — confirmed by the live wiring in
@@ -30,7 +30,6 @@ Config `tool_names` is NOT a routing input; it is drift validation metadata only
 
 Drift detection:
   Canonical validation module: `shared.tool_routing_validation`.
-  - validate_routing_against_config(): validates config tool_names against registry
   - validate_routing_against_live(): validates live /v1/tools responses against registry
 """
 

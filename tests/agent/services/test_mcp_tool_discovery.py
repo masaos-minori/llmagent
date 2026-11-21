@@ -919,7 +919,7 @@ class TestDiscoverAllUnreachableServers:
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         assert any(
             f.status == StartupCheckStatus.FATAL
-            and "cannot validate tool definitions" in f.message
+            and "cannot validate tool ownership" in f.message
             for f in mcp_findings
         )
         assert any(f.status == StartupCheckStatus.WARNING for f in mcp_findings)
@@ -1083,7 +1083,6 @@ class TestDiscoverAllServerFilter:
             url="http://127.0.0.1:9000",
             startup_mode=StartupMode.NONE,
             required=True,
-            tool_names=["grep"],
             auth_token="test-token",
         )
         http = AsyncMock(spec=httpx.AsyncClient)
@@ -1097,11 +1096,16 @@ class TestDiscoverAllServerFilter:
         http.get.assert_not_called()
         assert result.unreachable == []
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
-        required_tool_findings = [
-            f for f in mcp_findings if "required tool" in f.message.lower()
+        # No capability is declared anywhere, so the required-capability check is
+        # inert (REQ-005 engages only once servers surface a capability); the
+        # disabled server is simply not fetched.
+        required_cap_findings = [
+            f
+            for f in mcp_findings
+            if "required capability" in f.message
+            or "absent from tool_catalog" in f.message
         ]
-        assert len(required_tool_findings) == 1
-        assert required_tool_findings[0].status == StartupCheckStatus.FATAL
+        assert len(required_cap_findings) == 0
 
 
 # ── real-app schema validation matrix ──────────────────────────────────────────
@@ -2146,24 +2150,62 @@ class TestRequiredServerMalformedEntryFatalEscalation:
         assert not any("is_write" in f.message for f in fatal_findings)
 
 
-# ── REQ-009: Required-tool-presence check ──────────────────────────────────────
+# ── REQ-005: Required-capability check ────────────────────────────────────────
 
 
-class TestRequiredToolPresenceCheck:
+class TestRequiredCapabilityCheck:
+    """The required-server check reads a required capability from the
+    tool_catalog.toml manifest (declared per required server) and asserts a
+    discovered tool provides it (REQ-005, AC-3). It engages only when a declared
+    capability exists; until servers populate the capabilities field on
+    /v1/tools the check is inert rather than blocking startup on unverifiable
+    data.
+    """
+
+    @staticmethod
+    def _tool_payload(capabilities: list[str]) -> dict[str, object]:
+        return {
+            "name": "grep",
+            "description": "d",
+            "inputSchema": {"type": "object", "properties": {}},
+            "is_write": False,
+            "requires_serial": False,
+            "resource_scope_kind": "",
+            "resource_scope_keys": [],
+            "capabilities": capabilities,
+        }
+
+    @staticmethod
+    def _capability_findings(result: DiscoveryResult) -> list[object]:
+        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
+        return [
+            f
+            for f in mcp_findings
+            if "required capability" in f.message
+            or "absent from tool_catalog" in f.message
+            or "does not declare" in f.message
+        ]
+
     @pytest.mark.asyncio
-    async def test_missing_required_tool_name_produces_fatal(
+    async def test_declared_required_capability_present_no_fatal(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(
             "agent.services.mcp_tool_discovery._check_tool_definitions",
             AsyncMock(return_value=HealthCheckResult()),
         )
+        # Tool declares the required capability, so the check engages and passes.
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: {
+                "server": {"required_srv": {"required_capability": "filesystem.read"}}
+            },
+        )
         srv_cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
             startup_mode=StartupMode.PERSISTENT,
             required=True,
-            tool_names=["grep", "nonexistent_tool"],
             auth_token="test-token",
         )
         http = AsyncMock(spec=httpx.AsyncClient)
@@ -2172,17 +2214,7 @@ class TestRequiredToolPresenceCheck:
                 200,
                 {
                     "schema_version": "1.0",
-                    "tools": [
-                        {
-                            "name": "grep",
-                            "description": "d",
-                            "inputSchema": {"type": "object", "properties": {}},
-                            "is_write": False,
-                            "requires_serial": False,
-                            "resource_scope_kind": "",
-                            "resource_scope_keys": [],
-                        }
-                    ],
+                    "tools": [self._tool_payload(["filesystem.read"])],
                 },
             )
         )
@@ -2193,28 +2225,28 @@ class TestRequiredToolPresenceCheck:
         ).discover_all()
 
         assert result.registry.get("grep") is not None
-        mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
-        missing_tool_findings = [
-            f for f in mcp_findings if "not found in discovery results" in f.message
-        ]
-        assert len(missing_tool_findings) == 1
-        assert missing_tool_findings[0].status == StartupCheckStatus.FATAL
-        assert "nonexistent_tool" in missing_tool_findings[0].message
+        assert not self._capability_findings(result)
 
     @pytest.mark.asyncio
-    async def test_all_required_tools_present_no_fatal(
+    async def test_missing_required_capability_produces_fatal(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(
             "agent.services.mcp_tool_discovery._check_tool_definitions",
             AsyncMock(return_value=HealthCheckResult()),
         )
+        # Tool declares a different capability than the required one.
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: {
+                "server": {"required_srv": {"required_capability": "filesystem.read"}}
+            },
+        )
         srv_cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:9000",
             startup_mode=StartupMode.PERSISTENT,
             required=True,
-            tool_names=["grep"],
             auth_token="test-token",
         )
         http = AsyncMock(spec=httpx.AsyncClient)
@@ -2223,17 +2255,7 @@ class TestRequiredToolPresenceCheck:
                 200,
                 {
                     "schema_version": "1.0",
-                    "tools": [
-                        {
-                            "name": "grep",
-                            "description": "d",
-                            "inputSchema": {"type": "object", "properties": {}},
-                            "is_write": False,
-                            "requires_serial": False,
-                            "resource_scope_kind": "",
-                            "resource_scope_keys": [],
-                        }
-                    ],
+                    "tools": [self._tool_payload(["filesystem.write"])],
                 },
             )
         )
@@ -2244,11 +2266,244 @@ class TestRequiredToolPresenceCheck:
         ).discover_all()
 
         assert result.registry.get("grep") is not None
+        fatal = self._capability_findings(result)
+        assert len(fatal) == 1
+        assert fatal[0].status == StartupCheckStatus.FATAL
+        assert "filesystem.read" in fatal[0].message
+
+    @pytest.mark.asyncio
+    async def test_required_server_absent_from_manifest_produces_fatal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        # Manifest has no entry for the required server.
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: {"server": {}},
+        )
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
+            required=True,
+            auth_token="test-token",
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [self._tool_payload(["filesystem.read"])],
+                },
+            )
+        )
+        ctx = _make_ctx({"required_srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
+
+        fatal = self._capability_findings(result)
+        assert len(fatal) == 1
+        assert fatal[0].status == StartupCheckStatus.FATAL
+        assert "absent from tool_catalog" in fatal[0].message
+
+    @pytest.mark.asyncio
+    async def test_inert_when_no_capability_declared(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Until servers populate the capabilities field, the check reports
+        nothing rather than blocking startup on unverifiable data."""
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: {
+                "server": {"required_srv": {"required_capability": "filesystem.read"}}
+            },
+        )
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
+            required=True,
+            auth_token="test-token",
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [self._tool_payload([])],
+                },
+            )
+        )
+        ctx = _make_ctx({"required_srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
+
+        assert result.registry.get("grep") is not None
+        assert not self._capability_findings(result)
+
+    @pytest.mark.asyncio
+    async def test_disabled_required_server_flagged_when_model_active(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When the capability model is engaged (another server surfaces a
+        capability), a disabled-but-required server surfaces zero tools, so its
+        required capability is unproven and the check fails closed."""
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        # Only the disabled required server carries a required capability; the
+        # enabled server is not required and only needs to engage the model.
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: {
+                "server": {"disabled_srv": {"required_capability": "filesystem.read"}}
+            },
+        )
+        enabled_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9001",
+            startup_mode=StartupMode.PERSISTENT,
+            required=False,
+            auth_token="test-token",
+        )
+        disabled_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9002",
+            startup_mode=StartupMode.NONE,
+            required=True,
+            auth_token="test-token",
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        # Only the enabled server is fetched; the disabled one is skipped.
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [self._tool_payload(["filesystem.write"])],
+                },
+            )
+        )
+        ctx = _make_ctx(
+            {"enabled_srv": enabled_cfg, "disabled_srv": disabled_cfg}, http
+        )
+
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
+
+        # The disabled server is never fetched.
+        assert result.registry.get("grep") is not None
+        fatal = self._capability_findings(result)
+        assert len(fatal) == 1
+        assert fatal[0].status == StartupCheckStatus.FATAL
+        assert "filesystem.read" in fatal[0].message
+
+    @staticmethod
+    def _boom_manifest(self) -> object:
+        raise OSError("manifest missing")
+
+    @pytest.mark.asyncio
+    async def test_unreadable_manifest_produces_fatal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A manifest that cannot be read fails closed (REQ-005): no required
+        server can prove its declared capability, so startup blocks."""
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            self._boom_manifest,
+        )
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
+            required=True,
+            auth_token="test-token",
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [self._tool_payload(["filesystem.write"])],
+                },
+            )
+        )
+        ctx = _make_ctx({"required_srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
+
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
-        missing_tool_findings = [
-            f for f in mcp_findings if "not found in discovery results" in f.message
+        fatal = [
+            f for f in mcp_findings if "tool_catalog.toml unavailable" in f.message
         ]
-        assert len(missing_tool_findings) == 0
+        assert len(fatal) == 1
+        assert fatal[0].status == StartupCheckStatus.FATAL
+
+    @pytest.mark.asyncio
+    async def test_required_server_without_required_capability_produces_fatal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A required server present in the manifest but without a declared
+        required_capability is a FATAL (AC-3): the manifest must state what the
+        server's tools must provide."""
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        # Manifest lists the server but declares no required_capability.
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: {"server": {"required_srv": {}}},
+        )
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
+            required=True,
+            auth_token="test-token",
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [self._tool_payload(["filesystem.write"])],
+                },
+            )
+        )
+        ctx = _make_ctx({"required_srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
+
+        fatal = self._capability_findings(result)
+        assert len(fatal) == 1
+        assert fatal[0].status == StartupCheckStatus.FATAL
+        assert "does not declare" in fatal[0].message
 
 
 # ── auth-header propagation on the /v1/tools probe ────────────────────────────

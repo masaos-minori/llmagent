@@ -49,10 +49,12 @@ async def classify_and_inject_mode(query: str, ctx: AgentContext) -> None:
     config_mode = getattr(ctx.cfg, "mdq_rag_mode", None)
     mode = resolve_mode(query, config_mode)
     if mode == MdqRagMode.MDQ:
-        mdq_available = any(
-            "search_docs" in (srv.tool_names or [])
-            for srv in ctx.cfg.mcp.mcp_servers.values()
+        _mdq_names = (
+            {t.name for t in ctx.services_required.runtime_tools.all_tools()}
+            if ctx.services_required.runtime_tools is not None
+            else set()
         )
+        mdq_available = "search_docs" in _mdq_names
         if not mdq_available:
             logger.warning(
                 "MDQ mode selected but mdq-mcp tools unavailable; falling back to RAG"

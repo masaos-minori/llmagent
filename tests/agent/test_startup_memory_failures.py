@@ -32,7 +32,7 @@ async def _run_check_services(
     embedding_dims: int | None = None,
     **overrides: object,
 ) -> tuple[StartupValidationResult, Exception | None]:
-    """Run StartupOrchestrator._check_services() with clean-pass mocks for all 5 patched checks,
+    """Run StartupOrchestrator._check_services() with clean-pass mocks for all 4 patched checks,
     overridden per-test via kwargs (named after the agent.startup_validation import site), and return
     (captured pipeline outcomes, exception raised by _check_services() or None).
     """
@@ -47,7 +47,6 @@ async def _run_check_services(
                 )
             )
         ),
-        "check_routing_drift": MagicMock(return_value=[]),
         "check_routing_safety_tiers": MagicMock(return_value=[]),
         "RagMaintenanceService": MagicMock(return_value=consistent_rag),
     }

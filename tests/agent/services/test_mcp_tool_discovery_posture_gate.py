@@ -12,7 +12,6 @@ import httpx
 import pytest
 from agent.services.mcp_health import PostureGate, classify_server_failure
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
-from agent.shared.health_models import StartupCheckStatus
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.security.result_dto import REASON_OK, REASON_POSTURE_MISSING
@@ -50,7 +49,6 @@ def _tools_body(*names: str) -> dict[str, object]:
 def _server(
     url: str = "http://127.0.0.1:9000",
     required: bool = True,
-    tool_names: list[str] | None = None,
 ) -> McpServerConfig:
     return McpServerConfig(
         transport=TransportType.HTTP,
@@ -58,7 +56,6 @@ def _server(
         startup_mode=StartupMode.PERSISTENT,
         auth_token="test-token",
         required=required,
-        tool_names=list(tool_names or []),
     )
 
 
@@ -262,52 +259,3 @@ class TestPostureGateDoesNotProbeHealth:
 
         assert result.unreachable == []
         assert _tool_names(result.registry) == set()
-
-
-class TestRequiredToolInteraction:
-    @pytest.mark.asyncio
-    async def test_a_required_tool_of_a_posture_rejected_server_is_a_fatal_finding(
-        self,
-    ) -> None:
-        http = _http({"http://127.0.0.1:9000/v1/tools": _tools_body("git_push")})
-        ctx = _make_ctx({"git": _server(tool_names=["git_push"])}, http)
-        gates = {
-            "git": _gate("git", posture_accepted=False, ready=False, validated=False)
-        }
-
-        result = await McpToolDiscoveryService(ctx, posture_gates=gates).discover_all()
-
-        missing = [
-            finding
-            for finding in result.findings
-            if finding.source == _SOURCE and "required tool" in finding.message
-        ]
-        assert len(missing) == 1
-        assert missing[0].status == StartupCheckStatus.FATAL
-
-        # REQ-001 strict-only: git_push is declared by the server but absent
-        # from tools_definitions, so the definition check now contributes a
-        # second FATAL finding (previously a WARNING under the removed strict
-        # toggle).
-        mismatches = [
-            finding
-            for finding in result.findings
-            if finding.source == _SOURCE and "extra_on_servers" in finding.message
-        ]
-        assert len(mismatches) == 1
-        assert mismatches[0].status == StartupCheckStatus.FATAL
-
-    @pytest.mark.asyncio
-    async def test_a_green_gate_keeps_the_required_tool_present(self) -> None:
-        http = _http({"http://127.0.0.1:9000/v1/tools": _tools_body("git_push")})
-        ctx = _make_ctx({"git": _server(tool_names=["git_push"])}, http)
-        gates = {"git": _gate("git")}
-
-        result = await McpToolDiscoveryService(ctx, posture_gates=gates).discover_all()
-
-        assert not [
-            finding
-            for finding in result.findings
-            if finding.source == _SOURCE
-            and "not found in discovery results" in finding.message
-        ]

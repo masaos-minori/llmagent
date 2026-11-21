@@ -1,0 +1,146 @@
+# Machine-readable static ownership/capability registry (REQ-004, REQ-005, UNK-01).
+#
+# Replaces the [[tool_definitions]] / tool_names data that lived in config/agent.toml.
+# Each [server.<key>] table declares:
+#   owned_tools        - tools this server owns (drift-detection expected set)
+#   capabilities       - capability strings the server's tools provide
+#   required_capability - for a `required` server (ADR-004): the capability whose
+#                         absence at startup is FATAL (AC-3)
+#
+# Consumers:
+#   - scripts/agent/services/mcp_tool_discovery.py reads required_capability per
+#     required server (required-capability model, row 7).
+#   - The drift check reads owned_tools as the expected live set.
+#
+# This is DATA, not code: it crosses no import boundary (shared is a leaf per
+# .importlinter) and is loaded with the stdlib tomllib reader at startup.
+#
+# NOTE: required_capability values below are the inferred per-server domain marker
+# (see issue agentcfg002). cliplc008 defines the canonical required-capability
+# schema; reconcile these identifiers with that schema before wiring the check.
+# browser_fetch is CONFIG_GATED (web-search-mcp withholds it while
+# browser_allowed_domains is empty); it stays in owned_tools so ownership facts
+# match the static seed, but its live absence is not reported as drift.
+version = 1
+
+[server.file_read]
+owned_tools = [
+    "directory_tree",
+    "get_file_info",
+    "grep_files",
+    "list_directory",
+    "list_directory_with_sizes",
+    "read_media_file",
+    "read_multiple_files",
+    "read_text_file",
+    "search_files",
+]
+capabilities = ["filesystem.read"]
+required_capability = "filesystem.read"
+
+[server.file_write]
+owned_tools = [
+    "create_directory",
+    "edit_file",
+    "move_file",
+    "write_file",
+]
+capabilities = ["filesystem.write"]
+required_capability = "filesystem.write"
+
+[server.file_delete]
+owned_tools = [
+    "delete_directory",
+    "delete_file",
+]
+capabilities = ["filesystem.delete"]
+required_capability = "filesystem.delete"
+
+[server.rag_pipeline]
+owned_tools = [
+    "rag_delete_document",
+    "rag_debug_pipeline",
+    "rag_list_documents",
+    "rag_run_pipeline",
+]
+capabilities = ["rag.pipeline"]
+required_capability = "rag.pipeline"
+
+[server.cicd]
+owned_tools = [
+    "get_workflow_logs",
+    "get_workflow_runs",
+    "get_workflow_status",
+    "trigger_workflow",
+]
+capabilities = ["cicd.pipeline"]
+required_capability = "cicd.pipeline"
+
+[server.mdq]
+owned_tools = [
+    "get_chunk",
+    "grep_docs",
+    "index_paths",
+    "outline",
+    "refresh_index",
+    "search_docs",
+    "stats",
+]
+capabilities = ["mdq.corpus"]
+required_capability = "mdq.corpus"
+
+[server.git]
+owned_tools = [
+    "git_add",
+    "git_branch",
+    "git_checkout",
+    "git_commit",
+    "git_diff",
+    "git_log",
+    "git_pull",
+    "git_push",
+    "git_show",
+    "git_status",
+]
+capabilities = ["git.operations"]
+required_capability = "git.operations"
+
+[server.shell]
+owned_tools = ["shell_run"]
+capabilities = ["shell.execution"]
+required_capability = "shell.execution"
+
+[server.github]
+owned_tools = [
+    "github_add_issue_comment",
+    "github_create_branch",
+    "github_create_issue",
+    "github_create_or_update_file",
+    "github_create_pull_request",
+    "github_delete_file",
+    "github_get_commit",
+    "github_get_file_contents",
+    "github_get_issue",
+    "github_get_pull_request",
+    "github_list_branches",
+    "github_list_commits",
+    "github_list_issues",
+    "github_list_pull_requests",
+    "github_merge_pull_request",
+    "github_push_files",
+    "github_search_code",
+    "github_search_issues",
+    "github_search_pull_requests",
+    "github_search_repositories",
+    "github_update_pull_request",
+]
+capabilities = ["github.operations"]
+required_capability = "github.operations"
+
+[server.web_search]
+owned_tools = [
+    "browser_fetch",
+    "search_web",
+]
+capabilities = ["web.search"]
+required_capability = "web.search"

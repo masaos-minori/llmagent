@@ -121,35 +121,45 @@ class TestProbeMcpHealthDetail:
 
 class TestCheckToolDefinitions:
     @pytest.mark.asyncio
-    async def test_no_mismatch_returns_empty(self) -> None:
+    async def test_no_drift_returns_empty(self) -> None:
         ctx = MagicMock()
-        ctx.cfg.tool.tool_definitions = [
-            {"function": {"name": "read_file"}},
-            {"function": {"name": "write_file"}},
-        ]
 
-        with patch(
-            "agent.services.tool_validation._collect_server_tool_names",
-            new_callable=AsyncMock,
-        ) as mock_collect:
-            mock_collect.return_value = ({"read_file", "write_file"}, [])
+        with (
+            patch(
+                "agent.services.tool_validation._collect_server_tool_names",
+                new_callable=AsyncMock,
+            ) as mock_collect,
+            patch(
+                "agent.services.tool_validation.validate_routing_against_live",
+                return_value={},
+            ) as mock_drift,
+        ):
+            mock_collect.return_value = ({"file_read": ["read_file"]}, [])
             result = await _check_tool_definitions(ctx, strict=False)
 
         assert not result.has_issues
+        mock_drift.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_returns_warning_on_missing_in_server(self) -> None:
+    async def test_returns_warning_on_drift(self) -> None:
         ctx = MagicMock()
-        ctx.cfg.tool.tool_definitions = [
-            {"function": {"name": "read_file"}},
-            {"function": {"name": "write_file"}},
-        ]
 
-        with patch(
-            "agent.services.tool_validation._collect_server_tool_names",
-            new_callable=AsyncMock,
-        ) as mock_collect:
-            mock_collect.return_value = ({"read_file"}, [])
+        with (
+            patch(
+                "agent.services.tool_validation._collect_server_tool_names",
+                new_callable=AsyncMock,
+            ) as mock_collect,
+            patch(
+                "agent.services.tool_validation.validate_routing_against_live",
+                return_value={
+                    "file_read": [
+                        "[file_read] tool 'write_file' is registered to server "
+                        "'file_write', not 'file_read'"
+                    ]
+                },
+            ),
+        ):
+            mock_collect.return_value = ({"file_read": ["read_file", "write_file"]}, [])
             result = await _check_tool_definitions(ctx, strict=False)
 
         msgs = result.warning_messages()
@@ -157,17 +167,20 @@ class TestCheckToolDefinitions:
         assert "write_file" in msgs[0]
 
     @pytest.mark.asyncio
-    async def test_logs_warning_on_missing_in_cfg(self) -> None:
+    async def test_no_warnings_when_no_drift(self) -> None:
         ctx = MagicMock()
-        ctx.cfg.tool.tool_definitions = [
-            {"function": {"name": "read_file"}},
-        ]
 
-        with patch(
-            "agent.services.tool_validation._collect_server_tool_names",
-            new_callable=AsyncMock,
-        ) as mock_collect:
-            mock_collect.return_value = ({"read_file", "delete_file"}, [])
+        with (
+            patch(
+                "agent.services.tool_validation._collect_server_tool_names",
+                new_callable=AsyncMock,
+            ) as mock_collect,
+            patch(
+                "agent.services.tool_validation.validate_routing_against_live",
+                return_value={},
+            ),
+        ):
+            mock_collect.return_value = ({"file_read": ["read_file"]}, [])
             result = await _check_tool_definitions(ctx, strict=False)
 
         assert not result.has_issues
@@ -175,69 +188,78 @@ class TestCheckToolDefinitions:
     @pytest.mark.asyncio
     async def test_raises_in_strict_mode(self) -> None:
         ctx = MagicMock()
-        ctx.cfg.tool.tool_definitions = [
-            {"function": {"name": "read_file"}},
-        ]
 
-        with patch(
-            "agent.services.tool_validation._collect_server_tool_names",
-            new_callable=AsyncMock,
-        ) as mock_collect:
-            mock_collect.return_value = ({"read_file", "delete_file"}, [])
+        with (
+            patch(
+                "agent.services.tool_validation._collect_server_tool_names",
+                new_callable=AsyncMock,
+            ) as mock_collect,
+            patch(
+                "agent.services.tool_validation.validate_routing_against_live",
+                return_value={"file_read": ["[file_read] drift"]},
+            ),
+        ):
+            mock_collect.return_value = ({"file_read": ["read_file", "write_file"]}, [])
             with pytest.raises(RuntimeError, match="Strict mode"):
                 await _check_tool_definitions(ctx, strict=True)
 
     @pytest.mark.asyncio
     async def test_returns_empty_when_all_servers_unreachable(self) -> None:
         ctx = MagicMock()
-        ctx.cfg.tool.tool_definitions = [
-            {"function": {"name": "read_file"}},
-        ]
 
-        with patch(
-            "agent.services.tool_validation._collect_server_tool_names",
-            new_callable=AsyncMock,
-        ) as mock_collect:
-            mock_collect.return_value = (set(), [])
+        with (
+            patch(
+                "agent.services.tool_validation._collect_server_tool_names",
+                new_callable=AsyncMock,
+            ) as mock_collect,
+            patch(
+                "agent.services.tool_validation.validate_routing_against_live",
+                return_value={},
+            ) as mock_drift,
+        ):
+            mock_collect.return_value = ({}, ["srv-a"])
             result = await _check_tool_definitions(ctx, strict=False)
 
         assert not result.has_issues
+        mock_drift.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_raises_in_strict_mode_when_all_unreachable(self) -> None:
         ctx = MagicMock()
-        ctx.cfg.tool.tool_definitions = [
-            {"function": {"name": "read_file"}},
-        ]
 
-        with patch(
-            "agent.services.tool_validation._collect_server_tool_names",
-            new_callable=AsyncMock,
-        ) as mock_collect:
-            mock_collect.return_value = (
-                set(),
-                ["srv-a"],
-            )  # empty names, non-empty unreachable
+        with (
+            patch(
+                "agent.services.tool_validation._collect_server_tool_names",
+                new_callable=AsyncMock,
+            ) as mock_collect,
+            patch(
+                "agent.services.tool_validation.validate_routing_against_live",
+                return_value={},
+            ),
+        ):
+            mock_collect.return_value = ({}, ["srv-a"])
             with pytest.raises(
                 RuntimeError, match="Strict mode: all MCP servers unreachable"
             ):
                 await _check_tool_definitions(ctx, strict=True)
 
     @pytest.mark.asyncio
-    async def test_partial_unreachable_non_strict_returns_warning_if_mismatch(
+    async def test_partial_unreachable_non_strict_returns_warning_if_drift(
         self,
     ) -> None:
         ctx = MagicMock()
-        ctx.cfg.tool.tool_definitions = [
-            {"function": {"name": "read_file"}},
-            {"function": {"name": "write_file"}},
-        ]
 
-        with patch(
-            "agent.services.tool_validation._collect_server_tool_names",
-            new_callable=AsyncMock,
-        ) as mock_collect:
-            mock_collect.return_value = ({"read_file"}, ["srv-b"])
+        with (
+            patch(
+                "agent.services.tool_validation._collect_server_tool_names",
+                new_callable=AsyncMock,
+            ) as mock_collect,
+            patch(
+                "agent.services.tool_validation.validate_routing_against_live",
+                return_value={"file_read": ["[file_read] tool 'write_file' ..."]},
+            ),
+        ):
+            mock_collect.return_value = ({"file_read": ["read_file"]}, ["srv-b"])
             result = await _check_tool_definitions(ctx, strict=False)
 
         msgs = result.warning_messages()
@@ -247,34 +269,40 @@ class TestCheckToolDefinitions:
     @pytest.mark.asyncio
     async def test_partial_unreachable_strict_raises(self) -> None:
         ctx = MagicMock()
-        ctx.cfg.tool.tool_definitions = [
-            {"function": {"name": "read_file"}},
-            {"function": {"name": "write_file"}},
-        ]
 
-        with patch(
-            "agent.services.tool_validation._collect_server_tool_names",
-            new_callable=AsyncMock,
-        ) as mock_collect:
-            mock_collect.return_value = ({"read_file"}, ["srv-b"])
+        with (
+            patch(
+                "agent.services.tool_validation._collect_server_tool_names",
+                new_callable=AsyncMock,
+            ) as mock_collect,
+            patch(
+                "agent.services.tool_validation.validate_routing_against_live",
+                return_value={"file_read": ["[file_read] tool 'write_file' ..."]},
+            ),
+        ):
+            mock_collect.return_value = ({"file_read": ["read_file"]}, ["srv-b"])
             with pytest.raises(RuntimeError, match="Strict mode"):
                 await _check_tool_definitions(ctx, strict=True)
 
     @pytest.mark.asyncio
-    async def test_all_unreachable_non_strict_skips_validation(self) -> None:
+    async def test_no_reachable_servers_non_strict_skips_validation(self) -> None:
         ctx = MagicMock()
-        ctx.cfg.tool.tool_definitions = [
-            {"function": {"name": "read_file"}},
-        ]
 
-        with patch(
-            "agent.services.tool_validation._collect_server_tool_names",
-            new_callable=AsyncMock,
-        ) as mock_collect:
-            mock_collect.return_value = (set(), ["srv-a"])
+        with (
+            patch(
+                "agent.services.tool_validation._collect_server_tool_names",
+                new_callable=AsyncMock,
+            ) as mock_collect,
+            patch(
+                "agent.services.tool_validation.validate_routing_against_live",
+                return_value={},
+            ) as mock_drift,
+        ):
+            mock_collect.return_value = ({}, [])
             result = await _check_tool_definitions(ctx, strict=False)
 
         assert not result.has_issues
+        mock_drift.assert_not_called()
 
 
 # ── check_service_health() ────────────────────────────────────────────────────

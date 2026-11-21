@@ -67,7 +67,6 @@ def _server(
         startup_mode=startup_mode,
         required=required,
         auth_token=auth_token,
-        tool_names=["probe"],
     )
 
 

@@ -58,7 +58,6 @@ async def _run_check_services(
                 )
             )
         ),
-        "check_routing_drift": MagicMock(return_value=[]),
         "check_routing_safety_tiers": MagicMock(return_value=[]),
         "RagMaintenanceService": MagicMock(return_value=consistent_rag),
     }
@@ -286,58 +285,6 @@ class TestCheckServicesSeverityClassification:
         assert outcomes == [
             StartupCheckOutcome("mcp_tool_discovery", StartupCheckStatus.OK)
         ]
-
-    # ── routing_drift (static) ───────────────────────────────────────────────
-
-    @pytest.mark.asyncio
-    async def test_routing_drift_warning_on_messages(self) -> None:
-        ctx = _make_startup_ctx()
-        pipeline, exc = await _run_check_config(
-            ctx,
-            check_routing_drift=MagicMock(
-                return_value=["Routing drift [web]: extra tool 'foo'"]
-            ),
-        )
-        assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
-        assert len(outcomes) == 1
-        assert outcomes[0].status == StartupCheckStatus.WARNING
-
-    @pytest.mark.asyncio
-    async def test_routing_drift_emits_no_outcome_when_clean(self) -> None:
-        """routing_drift never emits an OK outcome — a clean result produces zero
-        recorded outcomes for this source (no pipeline.add_ok('routing_drift') call
-        exists anywhere in _check_services())."""
-        ctx = _make_startup_ctx()
-        pipeline, exc = await _run_check_config(
-            ctx, check_routing_drift=MagicMock(return_value=[])
-        )
-        assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
-        assert outcomes == []
-
-    @pytest.mark.asyncio
-    async def test_routing_drift_unexpected_failure_is_fatal(self) -> None:
-        """An unexpected failure of the drift check is always FATAL: an unknown
-        result is not a clean result, and ADR-004 left no non-strict bypass."""
-        ctx = _make_startup_ctx()
-        pipeline, exc = await _run_check_config(
-            ctx, check_routing_drift=MagicMock(side_effect=ValueError("boom"))
-        )
-        assert exc is not None
-        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
-        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
-
-    @pytest.mark.asyncio
-    async def test_routing_drift_runtime_error_is_fatal(self) -> None:
-        ctx = _make_startup_ctx()
-        pipeline, exc = await _run_check_config(
-            ctx,
-            check_routing_drift=MagicMock(side_effect=RuntimeError("drift detected")),
-        )
-        assert exc is not None
-        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
-        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
 
     # ── routing_safety_tiers ─────────────────────────────────────────────────
 

@@ -83,7 +83,13 @@ class McpStatusService:
     ) -> McpProbeResult:
         """Probe a single MCP server and return its status result with interpretation fields."""
         auth = bool(cfg.auth_token)
-        tier = _tier_for_server(cfg.tool_names, tiers)
+        _reg = ctx.services_required.runtime_tools
+        _server_tools = [
+            t.name
+            for t in (_reg.all_tools() if _reg is not None else [])
+            if t.server_key == key
+        ]
+        tier = _tier_for_server(_server_tools, tiers)
         (
             availability,
             sandbox_backend,

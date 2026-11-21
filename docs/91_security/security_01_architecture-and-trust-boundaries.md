@@ -154,7 +154,7 @@ Fail-open vs fail-closed behavior by component, applied identically in every env
 | `approval_github_allowed_repos` empty | Fail-closed (deny all GitHub mutation tools) | Pre-flight check in `agent/tool_policy.py` |
 | `allowed_dirs` empty | Fail-closed (allow none) | |
 | `allowed_repos` (github-mcp) empty | Fail-closed (denies all writes; no fail-open mode exists) | See `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Fail-Open vs Fail-Closed Summary |
-| Agent `allowed_tools` empty | Fail-closed (denies every tool, including after a config reload) | Also a production-validator error at load: `agent/production_config_validator.py` |
+| Agent `allowed_tools` empty | Fail-closed (denies every tool, including after a config reload) under `explicit_allowlist`; valid (base visibility applies) under `discovered` | No longer a production-validator error at load: `validate_allowed_tools` accepts an empty list; mode semantics in `shared/runtime_tool_registry.py` `apply_policy` |
 | Agent `allowed_root` empty or absent | Fail-closed (config load error; the path jail is never skipped) | `agent/production_config_validator.py` |
 | `protected_branches` empty (git-mcp and github-mcp) | Fail-closed (config load error) | Enforced in each server's config build |
 | `path_denylist` empty (github-mcp) | Permitted — the registered ADR-004 exception (denies no paths) | The only permitted empty-safety-list relaxation; rationale recorded in ADR-004 Group 1 (pending) |

@@ -63,7 +63,15 @@ _SUBPROCESS_REACHABLE_PATTERNS: tuple[str, ...] = ("*_mcp_server.toml",)
 # adr_authority.toml are read only by tools/. Their references must not widen what a child
 # process is given.
 _OTHER_PROCESS_CONFIGS: frozenset[str] = frozenset(
-    {"eventbus.toml", "documentation_canonical_sources.toml", "adr_authority.toml"}
+    {
+        "eventbus.toml",
+        "documentation_canonical_sources.toml",
+        "adr_authority.toml",
+        # Static ownership/capability registry (REQ-004/005). Loaded in-process by
+        # mcp_tool_discovery.py::_load_tool_catalog() at startup; no subprocess server
+        # reads it, so it is not subprocess-reachable.
+        "tool_catalog.toml",
+    }
 )
 
 # Entry module for each `startup_mode = "subprocess"` server in config/agent.toml.
