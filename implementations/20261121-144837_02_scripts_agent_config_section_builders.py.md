@@ -7,7 +7,7 @@ Read the embedding endpoint from the Memory section in the builder and remove th
 
 ## Assumptions
 - `tests/agent/test_config_builders.py` is not a companion of this row: it is named by two rows (this row and `config/agent.toml`), so it keeps its own document (Plan row 22).
-- The refiner-key rejection message that names `config/rag_pipeline_mcp_server.toml` is part of the existing behaviour asserted by the companion-adjacent test file; the rejected keys must keep being rejected after `_build_rag_config()` is removed.
+- The refiner-key rejection message that names `config/rag_pipeline_mcp_server.toml` is part of the existing behaviour asserted by the companion-adjacent test file; the rejected keys must keep being rejected after `_build_rag_config()` is removed, which is why the check's call site moves to the production validator (Plan row 7).
 
 ## Design decisions
 - `_build_memory_config()` gains one key read, `memory_embed_url`, using the same `get_typed`/`_get_str_or_default` pattern as its sibling reads, so typed validation stays in one place (REQ-004 pattern reference).
@@ -22,7 +22,7 @@ Read the embedding endpoint from the Memory section in the builder and remove th
 ### Procedure
 - Delete `_build_rag_config()` (line 169) and its import of `RAGConfig`.
 - In `_build_memory_config()` (line 231), set `memory_embed_url` from the Memory-section mapping.
-- Keep the refiner-key rejection path that raises for `use_refiner`, `refiner_max_tokens`, `refiner_timeout`, `refiner_max_chars_per_chunk`.
+- Move the `check_agent_refiner_keys()` call to the production validator (Plan row 7); the builder no longer calls it. The function itself is unchanged, and the keys `use_refiner`, `refiner_max_tokens`, `refiner_timeout`, `refiner_max_chars_per_chunk` keep being rejected with the same message.
 ### Method
 - Single key read at the point the Memory dataclass is constructed; no new helper, no alias fallback.
 ### Details
@@ -40,7 +40,7 @@ Read the embedding endpoint from the Memory section in the builder and remove th
 - N/A: revert the commit within release unit RU-1.
 
 ## Open question
-- 不明: `check_agent_refiner_keys()` is currently called only from `_build_rag_config()`. Once that builder is removed there is no call site left, and `_build_memory_config()` receives only the Memory mapping, so the top-level refiner keys can be reached only through the production validator or another surviving path. The Plan does not name that call site; confirm it before removing the builder.
+- Resolved 2026-11-21 (owner decision): `check_agent_refiner_keys()` is called from `ProductionConfigValidator.validate()` (Plan row 7), not from any builder, so the asserted message is preserved; this document only removes the builder-side call.
 
 ## Validation plan
 - `uv run pytest tests/agent/test_config_builders.py -v`
@@ -48,7 +48,7 @@ Read the embedding endpoint from the Memory section in the builder and remove th
 - `PYTHONPATH=scripts uv run lint-imports`
 
 ## Completion criteria
-- No `_build_rag_config()` definition remains; a Memory-section `memory_embed_url` value reaches `MemoryConfig`, and the refiner keys are still rejected as unknown.
+- No `_build_rag_config()` definition remains; a Memory-section `memory_embed_url` value reaches `MemoryConfig`, and the refiner keys are still rejected with the `config/rag_pipeline_mcp_server.toml` message by the production validator (Plan row 7).
 
 ## Out of Scope
 - The assembly call site (`scripts/agent/config_builders.py`) and the test assertions (Plan row 22).
@@ -66,7 +66,7 @@ Read the embedding endpoint from the Memory section in the builder and remove th
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |---|---|---|---|
-| 1 | Call site for `check_agent_refiner_keys()` after `_build_rag_config()` removal is undecided (see Open question) | — | — |
+| 1 | Call site for `check_agent_refiner_keys()` after `_build_rag_config()` removal is undecided (see Open question) | Yes | 2026-11-21 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

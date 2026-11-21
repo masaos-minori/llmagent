@@ -8,11 +8,11 @@ Replace the RAG-section builder tests with tests for the Memory-section key, so 
 ## Assumptions
 - This row is not a companion: `tests/agent/test_config_builders.py` is named by two rows (`config_section_builders.py` and `config/agent.toml`), so it keeps its own document.
 - The refiner-key rejection message that names `config/rag_pipeline_mcp_server.toml` must keep being asserted; `check_agent_refiner_keys()` stays as the definition of that message.
-- Where the refiner-key check is invoked after `_build_rag_config()` is removed is unknown (see Open question); the test target follows that decision.
+- Resolved 2026-11-21 (owner decision): the check is invoked from `ProductionConfigValidator.validate()` (Plan row 7), so the assertion for this behaviour belongs to `tests/agent/test_production_config_validator.py` and not to this file.
 
 ## Design decisions
 - `TestBuildRAGConfig` is replaced by cases on `_build_memory_config()` for `memory_embed_url` (new): an empty mapping yields the default, and a supplied value is reflected.
-- The parametrized refiner-key rejection test is kept in some form, because rejecting those keys is current behaviour that the Plan's AC-001 preserves.
+- The refiner-key rejection coverage is kept by moving it to `tests/agent/test_production_config_validator.py` (Plan row 7's companion), because rejecting those keys is current behaviour that the Plan's AC-001 preserves.
 
 ## Alternatives considered
 - Delete the refiner-key test with the RAG builder: rejected — the behaviour it protects is not removed by this Plan, so its coverage would be lost.
@@ -21,9 +21,10 @@ Replace the RAG-section builder tests with tests for the Memory-section key, so 
 ### Target file
 `tests/agent/test_config_builders.py`
 ### Procedure
-- Remove `TestBuildRAGConfig` (lines 122-144) and the `RAGConfig` import (line 21).
+- Remove `TestBuildRAGConfig` (lines 122-144), `TestRagConfigValidationReporting` (lines 670-694), and the `_build_rag_config` calls in `TestBuilderExceptionTypeUniformity` (lines 824, 829); remove the `_build_rag_config` import (lines 3, 24).
 - In `TestBuildMemoryConfig`, add cases asserting `memory_embed_url` defaults to `""` and reflects a supplied value.
-- Keep the refiner-key rejection assertions against the surviving call site once the open question is resolved.
+- Do not re-assert the refiner-key message in this file: after the owner decision the assertion belongs to `tests/agent/test_production_config_validator.py`, which is Plan row 7's companion, so this document only deletes the RAG-builder cases.
+- Drop the two RAG-builder reporting characterizations rather than retarget them: the builder that logs per validator result no longer exists, and the equivalent path is covered by the existing production-validator tests in this file's own scope.
 ### Method
 - Direct calls to `_build_memory_config()` with plain dicts; no fixture changes beyond the `_MIN_CFG` comment that describes the cross-field check removed by Plan row 1.
 
@@ -44,13 +45,13 @@ Replace the RAG-section builder tests with tests for the Memory-section key, so 
 - `uv run ruff check tests/agent/test_config_builders.py`, `uv run mypy tests/agent/test_config_builders.py`
 
 ## Completion criteria
-- The Memory builder's new key read is covered by a passing and a failing case; no test imports or constructs `RAGConfig`; the refiner keys are still proven to be rejected.
+- The Memory builder's new key read is covered by a passing and a failing case; no test imports or constructs `RAGConfig`; no test asserts the refiner-key message here, because that coverage is held by Plan row 7's companion test file.
 
 ## Out of Scope
 - The builder implementation (Plan row 2), the dataclass validation (Plan row 1).
 
 ## Open question
-- 不明: after `_build_rag_config()` is removed, `check_agent_refiner_keys()` needs a call site (the Memory builder receives only the Memory mapping, so the top-level refiner keys can only be reached by the production validator or another surviving path). The plan does not name that call site; confirm which one before moving the assertions.
+- Resolved 2026-11-21 (owner decision): the call site is `ProductionConfigValidator.validate()` (Plan row 7), so the refiner-key assertion is asserted through the validator and lives in `tests/agent/test_production_config_validator.py`.
 
 ## Execution Status
 
