@@ -168,7 +168,7 @@ with `rg`), and the docs the checklist requires are updated or recorded as not r
   collected.
 - Run the validation sequence in `rules/toolchain.md` on the new files (pass `scripts/` and
   `tests/` paths explicitly).
-- Run the `routing.md` Tools → "When to run which tool" checkers the change triggers:
+- Run the `rules/tool-gates.md` "When to run which tool" checkers the change triggers:
   `uv run python tools/generate_reference_table.py --type mcp` to refresh the MCP table,
   then `uv run python tools/generate_reference_table.py --check`;
   `uv run python tools/check_module_size.py` for the new modules; and, when docs were edited,

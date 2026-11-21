@@ -424,7 +424,7 @@ Decide what documentation the change implies, then act only within the task's sc
 (`AGENTS.md` Global Rule 5):
 
 - **Affected docs**: look up the target document via `routing.md` "Docs → task mapping" (which delegates to `docs/00_index.md`) — MUST NOT guess a filename; old single-file names no longer exist. Edit a doc only when the task requires it or the user asks; otherwise record it in Output expectations as a documentation follow-up (document, section, reason).
-- **When a doc is edited**: use `python-documentation`, and run the checkers `routing.md` Tools "When to run which tool" lists for `docs/` changes (`tools/check_docs_quality.py`, `tools/check_docs_structure.py`, and the others that apply; `tools/run_validation_gates.py` selects them).
+- **When a doc is edited**: use `python-documentation`, and run the checkers `rules/tool-gates.md` "When to run which tool" lists for `docs/` changes (`tools/check_docs_quality.py`, `tools/check_docs_structure.py`, and the others that apply; `tools/run_validation_gates.py` selects them).
 - **`routing.md`**: the Docs → task mapping lives in `docs/00_index.md`; do not add per-module entries to `routing.md`. Change `routing.md` only if a new task type or skill needs a row, and only when the task asks for it.
 - **`deploy/deploy.sh`**: add a `cp` line only if a new `config/*.toml` file was introduced (see Phase 5 Step 5c File editing rules — module add/remove alone does not require a `deploy.sh` change)
 

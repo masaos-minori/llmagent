@@ -2,7 +2,7 @@
 
 ## Project lint tools
 
-See `routing.md` Tools → "When to run which tool" for the checkers to run when modifying
+See `rules/tool-gates.md` "When to run which tool" for the checkers to run when modifying
 `docs/`. MUST NOT hardcode tool names or invocations here. Phase 9 requires running them.
 
 ## Repository documentation conventions
@@ -382,7 +382,7 @@ When dependency files and operational commands conflict:
 
 ### Run the docs checkers
 
-Run every row of `routing.md` Tools → "When to run which tool" that the change triggers:
+Run every row of `rules/tool-gates.md` "When to run which tool" that the change triggers:
 a `docs/*.md` file added or edited, a domain's docs touched, a "Needs confirmation" marker
 added, resolved, or removed, a Front Matter gap, a rename. `AGENTS.md` Global Rule 9: manual
 review does not substitute for them.

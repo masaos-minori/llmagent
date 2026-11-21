@@ -108,7 +108,7 @@ Pre-commit validation: run the gates the staged change requires, before committi
 uv run python tools/run_validation_gates.py
 ```
 
-It maps changed files to the checkers in `routing.md` "When to run which tool" and
+It maps changed files to the checkers in `rules/tool-gates.md` "When to run which tool" and
 `rules/toolchain.md` (fast mode by default; `--full` only when the user asks). It also
 satisfies `AGENTS.md` Global Rule 9 for `docs/` and `tools/` changes. A `Fail` or `Blocked`
 summary is a stop condition; fix the cause (delegating per `SKILL.md` Composition rules),

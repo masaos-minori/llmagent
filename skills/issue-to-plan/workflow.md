@@ -71,8 +71,8 @@ Report an interim update only when a sub-investigation's outcome is Blocking (se
 
 ## Step 0: Load Required Instructions
 
-Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
-`rules/toolchain.md`, `rules/ai-execution.md`, `rules/workflow-lifecycle.md`,
+Read, if not already loaded this session: `routing.md`,
+`rules/ai-execution.md`, `rules/workflow-lifecycle.md`,
 `rules/filename-collision.md`, `templates/traceability.md`,
 `templates/requirement-traceability.md`, `templates/execution-status.md`,
 `templates/issue.md`, `templates/plan.md`, `skills/DESIGN.md` (Output language,
@@ -81,6 +81,9 @@ skill), and this file. Load `templates/unknowns-issue.md` / `templates/risks-iss
 Step 6, only when a standalone Unknown/Risk file is actually filed.
 MUST NOT load `workflow-path-b.md` here — see Step 5, which loads it only once Step 3
 determines Path B.
+Load `rules/coding.md` at Step 5 only when a target row changes a file under `scripts/`,
+`tools/`, or `tests/`, and `rules/toolchain.md` at Step 5 where the diff-cover baseline is
+recorded; a Plan whose rows are all documentation loads neither.
 
 Apply `rules/ai-execution.md` Context Reading for reuse-vs-reload of previously loaded
 shared files across cycles.
@@ -244,7 +247,7 @@ Step 2's same-cycle dedup rule and depth ceiling apply to this step.
   `not affected: {reason}`. A hit found here becomes a row at freeze instead of a
   fallout amendment during implementation.
   - Module size: for a `scripts/` or `tools/` file that gains code, compare `wc -c
-    <file>` with the 24576 B gate (`routing.md` Tools, `check_module_size.py` rows). A file
+    <file>` with the 24576 B gate (`rules/tool-gates.md` `check_module_size.py` rows). A file
     that would pass the gate gets a split row for the extracted module.
   - Pinned counts: search `tests/` for the changed list, table, or inventory and read the
     assertions on its length or count (for example a cited-node total). A test that pins
@@ -558,7 +561,7 @@ Path A sizing check from Step 5: more than 3 `Implementation Target Files` rows 
 classified Path A is reclassified or split before the Plan is frozen.
 
 Run `uv run python tools/check_workitem_structure.py --file plans/{filename}.md` on the
-filled Plan (per `routing.md` Tools → "When to run which tool"). It checks only that every
+filled Plan (per `rules/tool-gates.md` "When to run which tool"). It checks only that every
 required `## ` section is present; the content checks above still apply.
 
 **Completed when**: every item in the preserved-information list above is present in the

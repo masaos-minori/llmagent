@@ -78,13 +78,18 @@ cadence, using this line format:
 
 ## Step 0: Load Required Instructions
 
-Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
-`rules/toolchain.md`, `skills/python-design/SKILL.md`,
-`skills/python-design/workflow.md`, `rules/ai-execution.md`,
+Read, if not already loaded this session: `routing.md`, `rules/ai-execution.md`,
 `rules/workflow-lifecycle.md`, `skills/DESIGN.md` (Output language, Out-of-scope
 paths), `templates/traceability.md`, `templates/plan.md`,
 `templates/implementation-procedure.md`, `templates/execution-status.md`,
 `SKILL.md` (this skill), and this file.
+
+Load these at Step 3c, only when a row needs them, and reuse them for later rows:
+- `rules/coding.md` and `rules/toolchain.md` — when the row's target is a code or test file
+  (its Validation plan names concrete commands); a docs-only row does not load them.
+- `skills/python-design/SKILL.md` and `skills/python-design/workflow.md` — when the row is
+  written in the full form of `templates/implementation-procedure.md`; a row that uses
+  "Lightweight fill for small rows" does not load them.
 
 Apply `rules/ai-execution.md` Context Reading for reuse-vs-reload of shared files
 across cycles.

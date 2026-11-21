@@ -88,8 +88,7 @@ Apply `rules/ai-execution.md` Progress Reporting (Base).
 
 #### Step 0: Discover tools and load required files
 
-- Validation checkers are not discovered by browsing: they are the rows of `routing.md` Tools →
-  "When to run which tool" that a `docs/*.md` change triggers (Step 5 lists them). Use those; do not
+- Validation checkers are not discovered by browsing: they are the rows of `rules/tool-gates.md` "When to run which tool" that a `docs/*.md` change triggers (Step 5 lists them). Use those; do not
   write a replacement script (`routing.md`).
 - Discovery applies only to the helpers for mapping a document to source, symbols, config, and
   tests (Step 2): list the files directly under `tools/` and in subdirectories relevant to the
@@ -254,7 +253,7 @@ Style:
 #### Step 5: Validate the updated document
 
 - Treat this as an independent step, run after the document update (Step 4).
-- Run the checkers that `routing.md` Tools → "When to run which tool" assigns to a `docs/*.md`
+- Run the checkers that `rules/tool-gates.md` "When to run which tool" assigns to a `docs/*.md`
   change — at least `tools/check_docs_quality.py`, `tools/check_docs_structure.py docs/<path>`,
   `tools/check_docs_content_policy.py`, `tools/check_docs_japanese.py`,
   `tools/check_docs_consistency.py --domain <domain>` for the touched domain, and

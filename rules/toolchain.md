@@ -190,7 +190,7 @@ uv run python -m compileall -q scripts/
 
 ## Documentation consistency (per domain)
 
-See `routing.md` Tools → "When to run which tool" for the full list of documentation checkers
+See `rules/tool-gates.md` "When to run which tool" for the full list of documentation checkers
 and when to run each one. The domain-specific check:
 
 ```bash

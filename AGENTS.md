@@ -29,7 +29,7 @@ regardless of the chat language.
 6. **Do not commit changes without a clear commit message explaining the reason.**
 7. **If you perform the same operation three or more times, extract it into a Python script, place it under `./tools/`, and reuse it from that point on.**
 8. **Never emit partial output, even across context compaction. Return only the complete final output.**
-9. **Before finishing any task that added, edited, or removed a file under `docs/` or `tools/`, run the applicable checker(s) listed in `routing.md` Tools → "When to run which tool".** Manual review does not substitute for these — several failure modes (stale claims, unregistered Needs-Confirmation markers, `tools/`↔`TOOL_DESCRIPTIONS.md` drift) are invisible from reading the changed file alone.
+9. **Before finishing any task that added, edited, or removed a file under `docs/` or `tools/`, run the applicable checker(s) listed in `rules/tool-gates.md` "When to run which tool".** Manual review does not substitute for these — several failure modes (stale claims, unregistered Needs-Confirmation markers, `tools/`↔`TOOL_DESCRIPTIONS.md` drift) are invisible from reading the changed file alone.
 
 ## Loop Prevention
 

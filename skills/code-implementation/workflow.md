@@ -32,7 +32,7 @@ below still requires the full inspection that rule describes):
 | `lint-imports` | 3e | Architecture/import-boundary check |
 | `bandit` | 3e | Security check |
 | `pytest` (targeted, then full suite), `pytest --testmon` | 4 | Test execution and impact-based selection |
-| See `routing.md` Tools → "When to run which tool" | 6 | Documentation validation |
+| See `rules/tool-gates.md` "When to run which tool" | 6 | Documentation validation |
 
 `close-implementation` (usage: `tools/TOOL_DESCRIPTIONS.md`) refuses (non-zero exit, no
 move) if the target's `### Execution Status` table still has a `Pending` row, without `--force --reason`. Per
@@ -458,7 +458,7 @@ Also run each non-test check the procedure's `## Validation plan` lists that the
 repository-defined set above does not already cover. A listed check that cannot be run is
 recorded as `Not run: {reason}` in the row's Notes, never dropped silently.
 
-Also, for every changed non-`docs/` file, apply the rows of `routing.md` Tools → "When to
+Also, for every changed non-`docs/` file, apply the rows of `rules/tool-gates.md` "When to
 run which tool" its type triggers (e.g. `tools/*.py`, `scripts/**/*.py`,
 `skills/*.md`/`rules/*.md`/`prompts/*.md`, `tests/`) — Step 6 covers `docs/*.md` only.
 A changed `tools/*.py` file also follows `routing.md` "Adding a new tool": pass the file
@@ -492,7 +492,7 @@ failure's cause is not immediately obvious, load and apply
   `implementations/`, and no file under `scripts/`, `tests/`, `tools/`, `config/`, or any
   other path changed, no test run applies: the 0-collected rule, the targeted run, the
   once-per-cycle full-suite run, and the coverage gate (recorded `N/A`) are skipped. Run
-  instead, for each file Step 3d changed, the checkers `routing.md` Tools "When to run
+  instead, for each file Step 3d changed, the checkers `rules/tool-gates.md` "When to run
   which tool" requires for that file (Step 6 applies the same list to the files Step 5
   edits, so a checker is not run twice for one file), and record `N/A: documentation-only
   change; replaced by {checkers run}` in the Notes of procedure row 3. A cycle whose
@@ -568,7 +568,7 @@ If Step 5 made no edits (no changed file matched a Task scope row), skip this st
 content checks entirely and mark Step 6 Completed with Notes = `N/A: no documentation
 changes to validate`.
 
-Run the checkers `routing.md` Tools → "When to run which tool" requires for an edited
+Run the checkers `rules/tool-gates.md` "When to run which tool" requires for an edited
 `docs/*.md` file (`AGENTS.md` Global Rule 9: MUST NOT rely on manual review alone for
 what they automate); MUST NOT hardcode tool names or invocations here (that table is the single source of truth).
 

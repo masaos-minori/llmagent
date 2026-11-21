@@ -71,7 +71,7 @@ execution stopped in a `Blocked` state per a `workflow.md` step's own bound, or 
 - every new tool is declared in the server's `GET /v1/tools` response (schema 2.0) and in the `shared/tool_constants.py` frozenset
 - tests for the new server exist under `tests/mcp_servers/<name>/` and pass
 - the generated MCP reference table is current: `uv run python tools/generate_reference_table.py --check` exits 0
-- the other applicable `routing.md` Tools → "When to run which tool" checkers pass (Step 5)
+- the other applicable `rules/tool-gates.md` "When to run which tool" checkers pass (Step 5)
 - `uv run python tools/check_docs_consistency.py --domain mcp` passes when docs were edited
 - the service is running, `/mcp status` shows the new server `OK`, and one tool of the new server was called successfully
 - no errors mentioning the server in `agent.log`

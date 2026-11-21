@@ -331,7 +331,7 @@ selects the gates the changed files need). At minimum:
   lines (not verified here), so do not report it as this gate's result; when the full run
   is impractical, report `Not run: {reason}` (`validation.md` Conditional Validation).
 - When a module was split, merged, or grew: `uv run python tools/check_module_size.py`
-  (`routing.md` Tools). When the code under a generated-reference domain changed:
+  (`rules/tool-gates.md`). When the code under a generated-reference domain changed:
   `uv run python tools/generate_reference_table.py --check`.
 - When the target is under `tools/` rather than `scripts/`, use `routing.md` "Adding a new
   tool" validation (pass the file path explicitly to `mypy`) instead of the `scripts/`

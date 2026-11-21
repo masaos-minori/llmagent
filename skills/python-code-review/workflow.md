@@ -13,11 +13,11 @@
 | `PYTHONPATH=scripts uv run lint-imports` | 3 | Confirm dependency-direction findings against `.importlinter` (command per `rules/toolchain.md`) |
 | `uv run bandit -r <paths> -c pyproject.toml -ll` | 5 | Confirm security findings with static analysis where available (the CI form; medium severity and above) |
 | `pytest` | 6 | Confirm claimed test coverage or failure actually reproduces, only after Phase 6's isolation check |
-| `uv run python tools/check_docs_consistency.py --domain <domain>` | 7 | Ground a doc/code mismatch in config keys, ports, and symbols (see `routing.md` Tools) |
+| `uv run python tools/check_docs_consistency.py --domain <domain>` | 7 | Ground a doc/code mismatch in config keys, ports, and symbols (see `rules/tool-gates.md`) |
 | Project checkers (table below) | 2–7 | Re-use the repository's own structural checks as evidence; each runs only for the diff type it covers |
 | `uv run python tools/run_validation_gates.py --base <base>` | 2–7 | One-shot alternative: selects and runs the gates the changed files need |
 
-Project checkers (from `routing.md` "When to run which tool"; run those whose trigger
+Project checkers (from `rules/tool-gates.md` "When to run which tool"; run those whose trigger
 matches the diff and list each with its result under Commands run):
 
 | Diff touches | Run |
@@ -163,7 +163,7 @@ Do:
 
 Do:
 - identify documentation that now contradicts the changed behavior
-- ground every mismatch claim in the current implementation, not in memory of prior versions; for config keys, ports, and symbols, run `uv run python tools/check_docs_consistency.py --domain <domain>` (domains per `routing.md` Tools)
+- ground every mismatch claim in the current implementation, not in memory of prior versions; for config keys, ports, and symbols, run `uv run python tools/check_docs_consistency.py --domain <domain>` (domains per `rules/tool-gates.md`)
 - avoid implementation-reference duplication: see `skills/DESIGN.md` Avoid implementation-reference duplication and Docs content policy — remove
 
 **Completed when**: every doc claim about the changed behavior has been checked against the current implementation.

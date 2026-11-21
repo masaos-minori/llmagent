@@ -46,7 +46,7 @@ through Step 2's safety evaluation before it runs:
 | Source | What it supplies |
 |---|---|
 | `rules/toolchain.md` | the standard validation sequence (format, lint, type, architecture, security, test) and the coverage command sequence |
-| `routing.md` Tools → "When to run which tool" | repository checkers (docs, DB separation, module size, tool-description sync, and others) |
+| `rules/tool-gates.md` "When to run which tool" | repository checkers (docs, DB separation, module size, tool-description sync, and others) |
 | `pyproject.toml`, CI workflows | pytest configuration, markers, plugins, and the commands CI runs |
 | `tools/run_validation_gates.py` | an on-demand runner for the routing checkers (fast mode) and, with `--full`, the standard sequence including the full test suite — if used, do not also run the same commands separately |
 | `uv run pytest` options such as `--testmon` | impact-based selection, for Step 4 re-runs only |
