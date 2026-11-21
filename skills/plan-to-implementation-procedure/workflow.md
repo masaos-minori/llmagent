@@ -422,7 +422,10 @@ the document, then the check is re-run: add the heading with a body, or with
 `N/A: {short reason}` where `templates/implementation-procedure.md` "Lightweight fill for
 small rows" applies (the headings stay even when the body shrinks). Each repeat of the
 same finding counts toward `AGENTS.md` Attempt Limit (3). A document that still fails is
-reported in the final report and MUST NOT be presented as complete.
+reported in the final report and MUST NOT be presented as complete. A `procedure-length`
+finding is advisory (exit code 0): shrink the document per "Lightweight fill for small
+rows", or name the document in the final report with the reason the row needs the full
+form; it does not block Step 3d or Step 4.
 
 ### Step 3d: Progress recording
 

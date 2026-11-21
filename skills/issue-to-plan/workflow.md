@@ -455,6 +455,11 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
   no row. `plan-to-implementation-procedure` stops on a blocking Unknown, so recording it
   here surfaces it a phase earlier.
 - Resolve Unknowns only when supported by repository evidence.
+- Record an Unknown as `Blocking? = True` when its answer decides which file, symbol, or
+  call site an `Implementation Target Files` row changes, or the contract of a symbol a
+  row changes: a procedure generated before the answer would carry an open owner decision
+  and force a Plan amendment afterward. An Unknown that only qualifies how a row is
+  verified or documented stays `False`.
 - If a blocking ambiguity remains (`BLOCKING: True`), stop and request clarification; the cycle ends `Blocked` and the Issue stays in `issues/` (no move).
 - Record non-blocking Unknowns in the Plan's Unknowns table
   (`ID | Unknown Description | Evidence Missing | Resolution Path | Blocking?`). Only

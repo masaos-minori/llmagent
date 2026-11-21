@@ -96,7 +96,9 @@ to the item.
   - "Execution Status" lists only the steps that apply: a docs-only row drops the
     "Add or update tests" step and keeps the validation step as the documentation
     checkers named in `routing.md` Tools "When to run which tool".
-  - Target length is about 40 lines. A row that does not fit the lightweight criteria
+  - Target length is about 40 lines; `tools/check_workitem_structure.py` reports a
+    documentation-only procedure over 60 lines as an advisory `procedure-length`
+    finding. A row that does not fit the lightweight criteria
     above uses the full form.
 
 - **Release unit** — the `## Scope` line carries the unit name when the Plan's `### Release units`
