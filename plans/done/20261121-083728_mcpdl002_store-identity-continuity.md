@@ -61,6 +61,8 @@ One transaction atomically acquires an attempt for a logical call; only the curr
 **Freeze status**: Frozen (set to `Frozen` only once `issue-to-plan` Step 8's
 Implementation Target Files Validation passes — see `rules/workflow-lifecycle.md`
 Implementation Target Files Validation (Plan Freeze)).
+Amended 2026-11-21 (fallout): added tests/deploy/test_init_db_schema_gate.py — The new init_db.sh dedup step resolves the store path from config/mcp_dedup.toml, so the sandbox config copy must rewrite that file too; without the rewrite the scripted run would address /opt/llm/db.
+Amended 2026-11-21 (fallout): added tests/deploy/test_init_db_eventbus_schema.py — Its _write_config already rewrites every config/*.toml, so the new dedup step's db_path is rewritten too; the row records that this driver exercises the new script step and must stay green.
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -92,6 +94,8 @@ table — no other file may be treated as a modification target.
 | docs/22_mcp/mcp_03_03_transport-and-health.md | Transport/dedup doc | Update the durable-dedup state description to the new acquisition vocabulary and start states; fix the deterministic-key claim (:38 `derive_idempotency_key`) to the logical-call-id contract | REQ-006, REQ-012; AC-11 | mcp_03_03:38 (`derive_idempotency_key(method, tool_name, args, uid)` claim), :51-59 (dedup states) | docs checker | Verified |
 | docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md | Agent tool-execution doc | Fix the two stale key-derivation claims to the logical-call-id contract (no `derive_idempotency_key` exists in `scripts/`) | REQ-012; AC-11 | agent_06_01:81 and :99 cite `shared/http_transport.py::derive_idempotency_key`; `rg derive_idempotency_key scripts/` returns no definition (verified 2026-11-21) | docs checker | Verified |
 | docs/23_agent/agent_10_05_operations-and-observability-monitoring.md | Monitoring doc | Update the dedup-degradation observability row (new WARNING markers for lease conflicts, reconciliation_required, replaced/legacy refusal) to the new taxonomy | REQ-006, REQ-012; AC-11 | agent_10_05:30 observability row cites the current WARNING set and the db_03_07 Replay Decision Table | docs checker | Verified |
+| `tests/deploy/test_init_db_schema_gate.py` | Deploy sandbox driver | The new init_db.sh dedup step resolves the store path from config/mcp_dedup.toml, so the sandbox config copy must rewrite that file too; without the rewrite the scripted run would address /opt/llm/db. | REQ-011 / N/A: none cites REQ-011 | _write_config rewrites only agent.toml and eventbus.toml (tests/deploy/test_init_db_schema_gate.py:166-186, verified 2026-11-21); config/mcp_dedup.toml pins db_path = /opt/llm/db/mcp_dedup.sqlite. | uv run pytest tests/deploy/ | Verified |
+| `tests/deploy/test_init_db_eventbus_schema.py` | Deploy sandbox driver | Its _write_config already rewrites every config/*.toml, so the new dedup step's db_path is rewritten too; the row records that this driver exercises the new script step and must stay green. | REQ-011 / N/A: none cites REQ-011 | _write_config copies config/ and rewrites /opt/llm/db in every *.toml (tests/deploy/test_init_db_eventbus_schema.py:98-108, verified 2026-11-21). | uv run pytest tests/deploy/ | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) for the full validation procedure):
@@ -201,6 +205,8 @@ separate scope-of-record.
 | docs/22_mcp/mcp_03_03_transport-and-health.md | Dedup/transport section | MCP transport docs | 9 | 2 | None |
 | docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md | Key-derivation claims | Agent tool-execution docs | 8 | 2 | None |
 | docs/23_agent/agent_10_05_operations-and-observability-monitoring.md | Observability row | Monitoring docs | 3 | 2 | None |
+| `tests/deploy/test_init_db_schema_gate.py` | Modify | Not assessed (amendment 2026-11-21) | N/A | N/A | Not assessed (amendment 2026-11-21) |
+| `tests/deploy/test_init_db_eventbus_schema.py` | Modify | Not assessed (amendment 2026-11-21) | N/A | N/A | Not assessed (amendment 2026-11-21) |
 
 ## Design
 Verification findings (Step 2, against current source 2026-11-21):
@@ -251,6 +257,8 @@ as a unit; `N/A` is only for a Plan whose every phase passes validation alone.
    - [ ] Register `mcp_dedup` in tools/check_db_separation.py and add the manifest source in tools/generate_reference_table.py; regenerate registry/manifests/db_schema_versions.yaml (REQ-009).
    - [ ] Add the dedup store initialization step to deploy/init_db.sh (REQ-011).
    - [ ] Update tests/shared/test_mcp_dedup.py, tests/mcp_servers/test_mcp_dispatch.py, tests/mcp_servers/conftest.py, tests/shared/test_execution_snapshot.py, tests/db/test_schema_validation_per_database.py, tests/tools/test_check_db_separation.py to the new contract; Phase 1 tests must now pass (REQ-001..REQ-009; AC-1..AC-10).
+   - [ ] Deploy sandbox driver (REQ-011; `tests/deploy/test_init_db_schema_gate.py`) — amendment 2026-11-21
+   - [ ] Deploy sandbox driver (REQ-011; `tests/deploy/test_init_db_eventbus_schema.py`) — amendment 2026-11-21
 4. **Phase 4: Documentation reconciliation**
    - [ ] Update docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md, docs/41_db/db_08_active_databases.md, docs/41_db/db_01_architecture_and_schema-overview-and-config.md, docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md, docs/22_mcp/mcp_03_03_transport-and-health.md, docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md, docs/23_agent/agent_10_05_operations-and-observability-monitoring.md per the new contract and the stale-claim list in Design (REQ-012; AC-11).
 
@@ -289,10 +297,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Test-first evidence (concurrency + identity) | In Progress | 20261121-100219 | — | Records the UNK-05 answer |
-| 2 | Store core and identity (mcp_dedup.py, config keys, snapshot) | In Progress | 20261121-100219 | — |  |
-| 3 | Dispatcher, validators, deployment, tests | In Progress | 20261121-100219 | — | Co-lands with Phase 2 as release unit dedup-lease-identity-rollover |
-| 4 | Documentation reconciliation | In Progress | 20261121-100219 | — | Release unit docs-sync |
+| 1 | Test-first evidence (concurrency + identity) | Completed | 20261121-100219 | 20261121-133239 | Records the UNK-05 answer UNK-05 answer: current in-process path serializes lookup->record_pending (no double-grant in-process); cross-process/overlay gap = live pending row silently refreshed by concurrent record_pending (ownership lost, created_epoch overwritten) and force=True terminal-evidence reset. Concurrency suite lands red-first (9/9 TypeError). Phase 1 landed red-first and now green: test_mcp_dedup_concurrency.py (9 tests) + test_mcp_dedup_identity.py (13 tests). |
+| 2 | Store core and identity (mcp_dedup.py, config keys, snapshot) | Completed | 20261121-100219 | 20261121-133239 | Store rewrite (module family split), lease/identity contract, config keys lease_seconds/max_attempts, execution_snapshot dedup component. |
+| 3 | Dispatcher, validators, deployment, tests | Completed | 20261121-100219 | 20261121-133239 | Co-lands with Phase 2 as release unit dedup-lease-identity-rollover Dispatch acquisition-API rewrite, check_db_separation + generator + manifest registration, init_db.sh dedup init step, all updated test drivers (incl. the two amended deploy sandbox drivers) green. |
+| 4 | Documentation reconciliation | Completed | 20261121-100219 | 20261121-133239 | Release unit docs-sync All seven docs rows reconciled to the new contract; no stale derive_idempotency_key / recreated-empty / lookup-era claims remain; docs checkers pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -302,25 +310,28 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261121-093956_01_scripts_shared_mcp_dedup.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261121-093956_02_scripts_mcp_servers_dispatch.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-093956_03_scripts_shared_execution_snapshot.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261121-093956_04_config_mcp_dedup.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261121-093956_05_tools_check_db_separation.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-093956_06_tools_generate_reference_table.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-093956_07_registry_manifests_db_schema_versions.yaml.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-093956_08_deploy_init_db.sh.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-093956_09_tests_shared_test_mcp_dedup.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-093956_10_tests_shared_test_mcp_dedup_concurrency.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261121-093956_11_tests_shared_test_mcp_dedup_identity.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261121-093956_15_tests_db_test_schema_validation_per_database.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-093956_17_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-093956_18_docs_41_db_db_08_active_databases.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-093956_19_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-093956_20_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-093956_21_docs_22_mcp_mcp_03_03_transport-and-health.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-093956_22_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-093956_23_docs_23_agent_agent_10_05_operations-and-observability-monitoring.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-093956_01_scripts_shared_mcp_dedup.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261121-093956_02_scripts_mcp_servers_dispatch.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-093956_03_scripts_shared_execution_snapshot.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261121-093956_04_config_mcp_dedup.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261121-093956_05_tools_check_db_separation.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-093956_06_tools_generate_reference_table.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-093956_07_registry_manifests_db_schema_versions.yaml.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-093956_08_deploy_init_db.sh.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-093956_09_tests_shared_test_mcp_dedup.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-093956_10_tests_shared_test_mcp_dedup_concurrency.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261121-093956_11_tests_shared_test_mcp_dedup_identity.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261121-093956_15_tests_db_test_schema_validation_per_database.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-093956_17_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-093956_18_docs_41_db_db_08_active_databases.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-093956_19_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-093956_20_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-093956_21_docs_22_mcp_mcp_03_03_transport-and-health.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-093956_22_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-093956_23_docs_23_agent_agent_10_05_operations-and-observability-monitoring.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-093956_08_deploy_init_db.sh.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-093956_08_deploy_init_db.sh.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-093956_08_deploy_init_db.sh.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -329,7 +340,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261121-083728
-- **Related target files**: scripts/shared/mcp_dedup.py, scripts/mcp_servers/dispatch.py, scripts/shared/execution_snapshot.py, config/mcp_dedup.toml, tools/check_db_separation.py, tools/generate_reference_table.py, registry/manifests/db_schema_versions.yaml, deploy/init_db.sh, tests/shared/test_mcp_dedup.py, tests/shared/test_mcp_dedup_concurrency.py, tests/shared/test_mcp_dedup_identity.py, tests/mcp_servers/test_mcp_dispatch.py, tests/mcp_servers/conftest.py, tests/shared/test_execution_snapshot.py, tests/db/test_schema_validation_per_database.py, tests/tools/test_check_db_separation.py, docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md, docs/41_db/db_08_active_databases.md, docs/41_db/db_01_architecture_and_schema-overview-and-config.md, docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md, docs/22_mcp/mcp_03_03_transport-and-health.md, docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md, docs/23_agent/agent_10_05_operations-and-observability-monitoring.md — the full list of `File Path` values from `Implementation Target Files` above, once `Frozen`
+- **Related target files**: scripts/shared/mcp_dedup.py, scripts/mcp_servers/dispatch.py, scripts/shared/execution_snapshot.py, config/mcp_dedup.toml, tools/check_db_separation.py, tools/generate_reference_table.py, registry/manifests/db_schema_versions.yaml, deploy/init_db.sh, tests/shared/test_mcp_dedup.py, tests/shared/test_mcp_dedup_concurrency.py, tests/shared/test_mcp_dedup_identity.py, tests/mcp_servers/test_mcp_dispatch.py, tests/mcp_servers/conftest.py, tests/shared/test_execution_snapshot.py, tests/db/test_schema_validation_per_database.py, tests/tools/test_check_db_separation.py, docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md, docs/41_db/db_08_active_databases.md, docs/41_db/db_01_architecture_and_schema-overview-and-config.md, docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md, docs/22_mcp/mcp_03_03_transport-and-health.md, docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md, docs/23_agent/agent_10_05_operations-and-observability-monitoring.md, tests/deploy/test_init_db_schema_gate.py, tests/deploy/test_init_db_eventbus_schema.py — the full list of `File Path` values from `Implementation Target Files` above, once `Frozen`
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
@@ -368,5 +379,8 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-005 | Fixture initialization path | tests/mcp_servers/conftest.py | Phase 3 | AC-5 | tests/mcp_servers suite | Planned |
 | REQ-008 | Component pins (:88-97) | tests/shared/test_execution_snapshot.py | Phase 3 | AC-7 | this file | Planned |
 | REQ-009 | Validator cases | tests/tools/test_check_db_separation.py | Phase 3 | AC-9 | this file | Planned |
+| REQ-011 | Amendment 2026-11-21: The new init_db.sh dedup step resolves the store path from config/mcp_dedup.toml, so the sandbox config copy must rewrite that file too; without the rewrite the scripted run would address /opt/llm/db. | tests/deploy/test_init_db_schema_gate.py | Phase 3 | N/A: none cites REQ-011 | uv run pytest tests/deploy/ | Confirmed by repository evidence |
+| REQ-011 | Amendment 2026-11-21: Runs the whole init_db.sh script in a sandbox; the same config-copy rewrite is required so the new dedup step stays inside the sandbox db dir. | tests/deploy/test_init_db_eventbus_schema.py | Phase 3 | N/A: none cites REQ-011 | uv run pytest tests/deploy/ | Confirmed by repository evidence |
+| REQ-011 | Amendment 2026-11-21: Its _write_config already rewrites every config/*.toml, so the new dedup step's db_path is rewritten too; the row records that this driver exercises the new script step and must stay green. | tests/deploy/test_init_db_eventbus_schema.py | Phase 3 | N/A: none cites REQ-011 | uv run pytest tests/deploy/ | Confirmed by repository evidence |
 
 <!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261121-093956 -->

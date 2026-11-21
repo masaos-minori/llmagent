@@ -56,9 +56,9 @@ Write the failing-first concurrency suite against today's `DedupStore`, then kee
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the suite (new file) against current code | Pending | — | — | |
-| 2 | Run Phase 1 evidence pass and record failures (feeds UNK-05 answer) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the suite (new file) against current code | Completed | 20261121-104142 | 20261121-104508 | Suite written: 9 tests, 4 classes; multi-caller races only. |
+| 2 | Run Phase 1 evidence pass and record failures (feeds UNK-05 answer) | Completed | — | 20261121-104508 | Phase1 evidence: 9/9 FAILED TypeError DedupStore.__init__ unexpected kwarg lease_seconds. Probes vs current code: in-process sequential double-acquire grants=1 (event-loop serializes lookup->record_pending); live pending row silently refreshed by second record_pending (created_epoch 100->200, owner lost); force=True resets completed->pending and drops result; staggered cross-process second caller saw existing row (TOCTOU window not exercised, silent-refresh gap proven). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261121-111007 | Targeted suite green after row 01 landed (10: 9/9, 11: 13/13; combined 22/22). ruff check/format green. mypy scope excludes tests/shared per pyproject files list. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

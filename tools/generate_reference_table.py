@@ -53,6 +53,7 @@ _INGESTER_TOML = REPO_ROOT / "config" / "ingester.toml"
 
 MANIFEST_DIR = REPO_ROOT / "registry" / "manifests"
 EVENTBUS_SCHEMA_SQL_SRC = REPO_ROOT / "scripts" / "eventbus" / "schema.sql"
+DEDUP_SCHEMA_SRC = REPO_ROOT / "scripts" / "shared" / "mcp_dedup_schema.py"
 CONFIG_FIELD_REGISTRY_SRC = (
     REPO_ROOT / "scripts" / "agent" / "services" / "config_field_registry.py"
 )
@@ -493,6 +494,7 @@ _MANIFEST_SOURCES: dict[str, list[str]] = {
         "scripts/db/config.py",
         "config/agent.toml",
         "scripts/eventbus/schema.sql",
+        "scripts/shared/mcp_dedup_schema.py",
     ],
     "config_ownership": ["scripts/agent/services/config_field_registry.py"],
     "health_contracts": ["scripts/shared/security/posture_contract.py"],
@@ -586,12 +588,31 @@ def _schema_version_row(name: str, source: Path, version: int | str) -> dict[str
     }
 
 
+def _dedup_user_version() -> int:
+    """Read the dedup store's identity stamp from the schema module source.
+
+    AST-only read (no import of scripts/): the generator stays a text-level
+    tool, same as the DbConfig field scan it already performs.
+    """
+    return int(
+        ast.literal_eval(
+            _assigned_value(_module_ast(DEDUP_SCHEMA_SRC), "_USER_VERSION")
+        )
+    )
+
+
 def _db_schema_version_entries() -> list[dict[str, Any]]:
     # Stamp-less (ADR-008; db_07 no-version-stamping policy): schema.sql
-    # records "unversioned"; content_hash is the fingerprint.
+    # records "unversioned"; content_hash is the fingerprint. The dedup store is
+    # the one stamped database: `version` records its PRAGMA user_version
+    # identity stamp, and content_hash fingerprints the module that defines
+    # _CANONICAL_DDL (scripts/shared/mcp_dedup_schema.py).
     entries = _db_path_entries()
     entries.append(
         _schema_version_row("eventbus", EVENTBUS_SCHEMA_SQL_SRC, "unversioned")
+    )
+    entries.append(
+        _schema_version_row("mcp_dedup", DEDUP_SCHEMA_SRC, _dedup_user_version())
     )
     entries.sort(key=lambda e: (e["kind"], e["name"]))
     return entries

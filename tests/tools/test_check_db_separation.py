@@ -42,6 +42,76 @@ def test_detects_cross_db_foreign_key() -> None:
     assert any("[cross-db-fk]" in p and "rag.sqlite" in p for p in problems)
 
 
+def test_mcp_dedup_registered_in_inventory_and_ddl() -> None:
+    """mcp_dedup owns exactly the ledger/identity tables its canonical DDL creates."""
+    expected = frozenset({"dedup_call_state", "store_meta", "call_attempt_history"})
+    assert mod.TABLE_OWNERSHIP["mcp_dedup"] == expected
+    ddl = _ddl()
+    created = {
+        m.group("name")
+        for m in mod._CREATE_RE.finditer(mod._strip_sql_comments(ddl["mcp_dedup"]))
+    }
+    assert created == expected
+    assert mod.check_table_ownership(ddl) == []
+
+
+def test_dedup_ledger_cannot_reuse_workflow_table_name() -> None:
+    """One table name maps to exactly one database: dedup_call_state replaced the
+    old tool_call_state collision with workflow.sqlite (Plan D-6)."""
+    ddl = _ddl()
+    ddl["mcp_dedup"] += "\nCREATE TABLE IF NOT EXISTS tool_call_state (key TEXT);"
+    problems = mod.check_table_ownership(ddl)
+    assert any("belongs to workflow.sqlite" in p for p in problems)
+
+
+def test_detects_mcp_dedup_path_not_named_after_database(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cfg = tmp_path / "config"
+    cfg.mkdir()
+    (cfg / "agent.toml").write_text(
+        'rag_db_path = "/d/rag.sqlite"\n'
+        'session_db_path = "/d/session.sqlite"\n'
+        'workflow_db_path = "/d/workflow.sqlite"\n',
+        encoding="utf-8",
+    )
+    (cfg / "eventbus.toml").write_text(
+        'db_path = "/d/eventbus.sqlite"\n', encoding="utf-8"
+    )
+    (cfg / "mcp_dedup.toml").write_text(
+        '[dedup]\ndb_path = "/d/dedup_store.sqlite"\n', encoding="utf-8"
+    )
+    monkeypatch.setattr(mod, "CONFIG_DIR", cfg)
+    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+    problems = mod.check_db_paths()
+    assert any(
+        "mcp_dedup.toml" in p and "not named mcp_dedup.sqlite" in p for p in problems
+    )
+
+
+def test_detects_mcp_dedup_shared_path_with_core_db(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cfg = tmp_path / "config"
+    cfg.mkdir()
+    (cfg / "agent.toml").write_text(
+        'rag_db_path = "/d/rag.sqlite"\n'
+        'session_db_path = "/d/session.sqlite"\n'
+        'workflow_db_path = "/d/mcp_dedup.sqlite"\n',
+        encoding="utf-8",
+    )
+    (cfg / "eventbus.toml").write_text(
+        'db_path = "/d/eventbus.sqlite"\n', encoding="utf-8"
+    )
+    (cfg / "mcp_dedup.toml").write_text(
+        '[dedup]\ndb_path = "/d/mcp_dedup.sqlite"\n', encoding="utf-8"
+    )
+    monkeypatch.setattr(mod, "CONFIG_DIR", cfg)
+    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+    problems = mod.check_db_paths()
+    assert any("point to the same file" in p and "mcp_dedup" in p for p in problems)
+
+
 def test_detects_vec0_outside_inventory() -> None:
     ddl = _ddl()
     ddl["workflow"] += (

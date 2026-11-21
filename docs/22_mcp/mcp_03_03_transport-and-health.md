@@ -31,34 +31,42 @@ related:
 - **Non-retryable errors:** HTTP timeouts (`httpx.TimeoutException`) and `HTTPStatusError` for status codes other than 429/502/503/504 and the tool-level set are propagated immediately without retries.
 - **Tool-level vs. Transport-level errors:** Tool-level errors (`error_type == "tool"`) are treated as successful transport calls, triggering `record_success()` and incrementing the `stat_tool_errors` counter. Transport-level errors trigger `record_failure()` and increment the `stat_transport_errors` counter. Both counters are tracked independently.
 
-### Idempotency Key Derivation and Durable Dedup
+### Idempotency Key Contract and Durable Dedup
 
-`HttpTransport` derives one idempotency key per logical tool call and sends it as the
+`HttpTransport` carries one logical call id per logical tool call and sends it as the
 `X-Idempotency-Key` header on every attempt (retries reuse the same key; they do not
-re-derive it). The key is deterministic — `derive_idempotency_key(method, tool_name, args, uid)`
-computes a sha256 over the method, tool name, canonical JSON of the arguments (sorted keys),
-and a caller-stable `uid` (the transport session id, falling back to the auth-token hash) —
-so an identical logical call re-derives the byte-identical key across retries, processes, and
-restarts, so a retried or re-sent side-effecting call is recognized by server-side dedup.
+re-issue it). The caller owns key generation: the agent assigns one stable id per logical
+call (`context.call_id`, surfaced by `scripts/agent/tool_runner.py::_logical_call_id`) and the
+transport forwards it verbatim — nothing is derived, because the old hash derivations collided
+across callers. A side-effecting call dispatched without a logical call id is refused before
+leaving the transport. The same byte-identical key reaches the dispatcher for that call across
+retries, processes, and restarts, so a retried or re-sent side-effecting call is recognized by
+server-side dedup.
 
-Server side (`scripts/mcp_servers/dispatch.py`), a caller-supplied non-empty key takes
-precedence over any derived value (caller-key precedence). For side-effecting tools the key
-feeds two layers:
+Server side (`scripts/mcp_servers/dispatch.py`), a caller-supplied non-empty key drives the
+dedup layers. For side-effecting tools the key feeds two layers:
 
 - A bounded in-process fast-path overlay (`_duplicate_cache`, TTL/eviction: see
   [mcp_03_01](mcp_03_01_dispatch-and-routing.md)) that now serves as a cache in front of the
   durable store, not the durability mechanism itself.
-- The durable dedup store in `mcp_dedup.sqlite` (`shared/mcp_dedup.py`), whose states
-  (`pending` / `completed` / `failed` / `interrupted`), replay decision table, retry
-  classification, retention, and concurrency contract are documented in
-  [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md).
+- The durable dedup store in `mcp_dedup.sqlite` (`shared/mcp_dedup.py`), whose lease-held row
+  states (`pending` / `completed` / `failed` / `interrupted`), acquisition vocabulary
+  (`acquired`, `replay_completed`, `in_progress`, `contract_mismatch`,
+  `reconciliation_required`, `outcome_unknown`, `replay_unavailable`), store start states
+  (`first_initialization`, `healthy`, `lost`, `replaced`, `legacy_or_unverified`,
+  `schema_mismatch`), replay decision table, retry classification, retention, and concurrency
+  contract are documented in [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md).
 
 Failure semantics at the dispatcher boundary: a key reused with different content (different
 tool or arguments) is rejected as `error_type="idempotency_key_reused"` before dispatch, on both
-the overlay and the durable row. An `interrupted` call is replayed only for tools classified
-`retryable` in `config/mcp_dedup.toml`; `non_retryable` tools are refused with
-`error_type="dedup_unreplayable"`. Store unavailability never stalls retryable tools (the call
-proceeds with an audited `dedup_state="store_error"` marker) but fails closed for
+the overlay and the durable row. A live lease held by another caller is refused as
+`error_type="dedup_in_progress"`. An expired-lease or `interrupted` call is replayed only for
+tools classified `retryable` in `config/mcp_dedup.toml` (an expired `pending` lease goes through
+the audited reconciliation step first); `non_retryable` tools, and terminal rows that cannot be
+safely replayed (`replay_unavailable`, `outcome_unknown`), are refused with
+`error_type="dedup_unreplayable"`. Store unavailability — including a store whose identity is
+lost, replaced, legacy, or drifted and whose open is refused — never stalls retryable tools (the
+call proceeds with an audited `dedup_state="store_error"` marker) but fails closed for
 `non_retryable` tools (`error_type="dedup_store_error"`). Only real, successful, non-dry-run
 results are cached; dry-run outcomes clear the key.
 ---

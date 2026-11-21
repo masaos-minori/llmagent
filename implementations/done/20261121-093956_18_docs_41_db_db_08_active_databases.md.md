@@ -51,8 +51,8 @@ Rewrite the `mcp_dedup.sqlite` section and add the runbook entry.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the doc per Implementation > Method | Pending | — | — | |
-| 2 | Run the docs checkers (routing.md Tools) | Pending | — | — | |
+| 1 | Update the doc per Implementation > Method | Completed | — | 20261121-125822 | mcp_dedup section rewritten: three-table schema authority (mcp_dedup_schema.py) + identity stamp, deploy-time lifecycle (init_db.sh), lease columns and terminal immutability row semantics, archive-only rebuild wording, and new operator resolution runbook subsection (start-state refusals, resolve_store 4-step rollover, empty-file-alone non-resolution rule). Deviation from Method: no sentinel handling documented (sentinel dropped, marker+generation is the only handshake). |
+| 2 | Run the docs checkers (routing.md Tools) | Completed | — | 20261121-125822 | check_docs_quality.py and check_docs_structure.py both pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

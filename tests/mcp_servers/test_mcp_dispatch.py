@@ -412,11 +412,12 @@ class TestDurableDedup:
         assert len(_duplicate_cache) == 1
 
     @pytest.mark.asyncio
-    async def test_snapshot_mismatch_yields_fresh_audited_attempt(
+    async def test_completed_snapshot_mismatch_refused_replay(
         self, durable: dict, monkeypatch: Any
     ) -> None:
-        """completed + snapshot mismatch -> fresh attempt on the same key, tagged
-        snapshot_mismatch (REQ-005); a matching snapshot keeps serving stored."""
+        """completed + snapshot mismatch -> refusal (replay_unavailable); the old
+        force-reset fresh-attempt path is gone (mcpdl002 D-5). A matching
+        snapshot keeps serving stored."""
         calls: list[int] = []
         r1 = await dispatch_tool(
             {self.TOOL: self._handler(calls)},
@@ -426,7 +427,7 @@ class TestDurableDedup:
         )
         assert r1.dedup_state == ""
         assert len(calls) == 1
-        row = durable["store"].lookup("k1")
+        row = durable["store"].get_execution("k1")
         assert row is not None and row.status == "completed"
 
         import mcp_servers.dispatch as dispatch_mod
@@ -443,15 +444,15 @@ class TestDurableDedup:
             {"p": "a"},
             idempotency_key="k1",
         )
-        assert not r2.is_error
-        assert r2.dedup_state == "snapshot_mismatch"
-        assert len(calls) == 2  # fresh attempt, not blocked (plan Risks)
-        # ...and the matching direction still serves the stored result. The fresh
-        # attempt stored the perturbed snapshot, so compare against that row now.
-        row2 = durable["store"].lookup("k1")
-        assert row2 is not None and row2.status == "completed"
+        assert r2.is_error
+        assert r2.error_type == "dedup_unreplayable"
+        assert r2.dedup_state == "replay_unavailable"
+        assert len(calls) == 1  # refused; no fresh attempt
+        row2 = durable["store"].get_execution("k1")
+        assert row2 is not None and row2.status == "completed"  # terminal row immutable
+        # ...and the matching direction still serves the stored result.
         monkeypatch.setattr(
-            dispatch_mod, "build_execution_snapshot", lambda **kw: dict(row2.snapshot)
+            dispatch_mod, "build_execution_snapshot", lambda **kw: dict(row.snapshot)
         )
         _duplicate_cache.clear()
         r3 = await dispatch_tool(
@@ -461,22 +462,27 @@ class TestDurableDedup:
             idempotency_key="k1",
         )
         assert r3.dedup_state == "duplicate_hit"
-        assert len(calls) == 2
+        assert len(calls) == 1
 
     @pytest.mark.asyncio
-    async def test_interrupted_retryable_replays(self, durable: dict) -> None:
-        """pending/interrupted + retryable -> replay the same key (REQ-005)."""
+    async def test_expired_lease_retryable_replays_via_reconcile(
+        self, durable: dict
+    ) -> None:
+        """pending with an expired lease + retryable -> reconcile_execution then
+        one reacquisition, tagged replayed (REQ-005/AC-3)."""
         calls: list[int] = []
         import time
 
         args_hash = durable["mod"]._normalize_args_hash({"p": "a"})
-        durable["store"].record_pending(
+        acq = durable["store"].try_acquire_execution(
             "k1",
             self.TOOL,
             args_hash,
             {"deployed_rev": "x"},
+            "seed-owner",
             now_epoch=time.time() - 3600,
         )
+        assert acq.status == "acquired"
         r = await dispatch_tool(
             {self.TOOL: self._handler(calls)},
             self.TOOL,
@@ -486,24 +492,55 @@ class TestDurableDedup:
         assert not r.is_error
         assert r.dedup_state == "replayed"
         assert len(calls) == 1
-        assert durable["store"].lookup("k1").status == "completed"
+        row = durable["store"].get_execution("k1")
+        assert row is not None and row.status == "completed"
+        assert row.attempt_number == 2  # reconcile + reacquisition advanced the ledger
+
+    @pytest.mark.asyncio
+    async def test_live_lease_other_owner_refused_in_progress(
+        self, durable: dict
+    ) -> None:
+        """A live pending row owned by another caller refuses as in_progress;
+        handler not executed (AC-2)."""
+        calls: list[int] = []
+        args_hash = durable["mod"]._normalize_args_hash({"p": "a"})
+        acq = durable["store"].try_acquire_execution(
+            "k1", self.TOOL, args_hash, {"deployed_rev": "x"}, "other-owner"
+        )
+        assert acq.status == "acquired"
+        r = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="k1",
+        )
+        assert r.is_error
+        assert r.error_type == "dedup_in_progress"
+        assert r.dedup_state == "in_progress"
+        assert len(calls) == 0
+        row = durable["store"].get_execution("k1")
+        assert row is not None and row.status == "pending"
+        assert row.owner_id == "other-owner"
 
     @pytest.mark.asyncio
     async def test_interrupted_non_retryable_refused(self, durable: dict) -> None:
-        """interrupted + non_retryable -> refuse with dedup_unreplayable; handler
-        not executed (REQ-005). Unknown tools default to non_retryable."""
+        """expired pending + non_retryable -> refuse with dedup_unreplayable /
+        reconciliation_required; handler not executed (REQ-003/AC-3). Unknown
+        tools default to non_retryable."""
         calls: list[int] = []
         import time
 
         durable["mod"]._dedup_config = replace(durable["config"], retry_class={})
         args_hash = durable["mod"]._normalize_args_hash({"p": "a"})
-        durable["store"].record_pending(
+        acq = durable["store"].try_acquire_execution(
             "k1",
             self.TOOL,
             args_hash,
             {"deployed_rev": "x"},
+            "seed-owner",
             now_epoch=time.time() - 3600,
         )
+        assert acq.status == "acquired"
         r = await dispatch_tool(
             {self.TOOL: self._handler(calls)},
             self.TOOL,
@@ -512,8 +549,78 @@ class TestDurableDedup:
         )
         assert r.is_error
         assert r.error_type == "dedup_unreplayable"
-        assert r.dedup_state == "unreplayable"
+        assert r.dedup_state == "reconciliation_required"
         assert len(calls) == 0
+        row = durable["store"].get_execution("k1")
+        assert (
+            row is not None and row.status == "pending"
+        )  # refusal never mutates the row
+
+    @pytest.mark.asyncio
+    async def test_attempt_cap_outcome_unknown_matrix(
+        self, tmp_path: Any, monkeypatch: Any
+    ) -> None:
+        """attempt_number >= max_attempts -> outcome_unknown: non-retryable
+        refuses, retryable dispatches degraded with the audited store_error
+        marker (REQ-003)."""
+        import time
+
+        import mcp_servers.dispatch as dispatch_mod
+        from shared.mcp_dedup import DedupConfig, DedupStore
+
+        db_path = str(tmp_path / "cap_dedup.sqlite")
+        store = DedupStore(db_path, max_attempts=1)
+        config = DedupConfig(db_path=db_path, retry_class={})
+        _duplicate_cache.clear()
+        monkeypatch.setattr(dispatch_mod, "_dedup_store", store)
+        monkeypatch.setattr(dispatch_mod, "_dedup_config", config)
+        monkeypatch.setattr(dispatch_mod, "_dedup_disabled", False)
+        monkeypatch.setattr(dispatch_mod, "_purge_done", False)
+        try:
+            args_hash = dispatch_mod._normalize_args_hash({"p": "a"})
+            store.try_acquire_execution(
+                "k1",
+                self.TOOL,
+                args_hash,
+                {"deployed_rev": "x"},
+                "seed-owner",
+                now_epoch=time.time() - 3600,
+            )
+            calls: list[int] = []
+            r = await dispatch_tool(
+                {self.TOOL: self._handler(calls)},
+                self.TOOL,
+                {"p": "a"},
+                idempotency_key="k1",
+            )
+            assert r.is_error
+            assert r.error_type == "dedup_unreplayable"
+            assert r.dedup_state == "outcome_unknown"
+            assert len(calls) == 0
+
+            # Retryable classification: audited degraded dispatch, no ownership.
+            dispatch_mod._dedup_config = replace(
+                config, retry_class={self.TOOL: "retryable"}
+            )
+            _duplicate_cache.clear()
+            calls2: list[int] = []
+            r2 = await dispatch_tool(
+                {self.TOOL: self._handler(calls2)},
+                self.TOOL,
+                {"p": "a"},
+                idempotency_key="k1",
+            )
+            assert not r2.is_error
+            assert r2.dedup_state == "store_error"
+            assert len(calls2) == 1
+            row = store.get_execution("k1")
+            assert (
+                row is not None and row.status == "pending"
+            )  # degraded path owns nothing
+            assert row.attempt_number == 1
+        finally:
+            store.close()
+            _duplicate_cache.clear()
 
     @pytest.mark.asyncio
     async def test_durable_args_hash_mismatch_rejected(self, durable: dict) -> None:
@@ -545,14 +652,14 @@ class TestDurableDedup:
     async def test_store_error_retryable_proceeds_non_retryable_fails_closed(
         self, durable: dict, monkeypatch: Any
     ) -> None:
-        """Store lookup failure: retryable tools dispatch with the audited
+        """Store acquisition failure: retryable tools dispatch with the audited
         store_error marker; non-retryable tools fail closed (plan Risks)."""
         calls: list[int] = []
 
         def _boom(*a: Any, **kw: Any) -> None:
             raise sqlite3.OperationalError("disk is locked")
 
-        monkeypatch.setattr(durable["store"], "lookup", _boom)
+        monkeypatch.setattr(durable["store"], "try_acquire_execution", _boom)
         r = await dispatch_tool(
             {self.TOOL: self._handler(calls)},
             self.TOOL,
@@ -631,31 +738,33 @@ class TestDurableDedup:
         assert len(calls2) == 0
 
     @pytest.mark.asyncio
-    async def test_lost_store_non_retryable_refused_retryable_proceeds(
+    async def test_lost_store_start_state_refused_retryable_degrades(
         self, durable: dict, monkeypatch: Any
     ) -> None:
-        """A lost/recreated store cannot prove a prior non-retryable call
-        completed: refuse it until an operator resolves the sentinel (REQ-001);
-        retryable tools degrade overlay-only (REQ-002)."""
+        """A lost store (file gone while the installation marker remains) refuses
+        the open with the typed 'lost' start state: non-retryable tools fail
+        closed, retryable tools degrade overlay-only (REQ-006/REQ-007)."""
         import os
 
-        from shared.mcp_dedup import DedupStore
+        import shared.mcp_dedup as dedup_mod
 
-        # Simulate a store that was lost and recreated: delete the DB file and
-        # drop the operator-acknowledgement sentinel beside it, then reopen.
+        mod = durable["mod"]
+        # Simulate a lost store: delete the DB file, leave .mcp_dedup_installed.
         durable["store"].close()
         os.remove(durable["db_path"])
-        sentinel = os.path.join(
-            os.path.dirname(durable["db_path"]), ".mcp_dedup_resolved"
+        # Force re-init: _dedup_context() re-opens and the store refuses with 'lost'.
+        mod._dedup_store = None
+        mod._dedup_config = None
+        mod._dedup_disabled = False
+        mod._dedup_start_state = None
+        monkeypatch.setattr(mod, "load_dedup_config", lambda: durable["config"])
+        monkeypatch.setattr(
+            dedup_mod,
+            "load_dedup_config",
+            lambda: replace(durable["config"], retry_class={}),
         )
-        with open(sentinel, "w", encoding="utf-8") as fh:
-            fh.write("operator-resolved\n")
-        reopened = DedupStore(durable["db_path"])
-        assert reopened.lost_or_recreated is True
-        durable["mod"]._dedup_store = reopened
 
         # Non-retryable: refused without executing (fail closed).
-        durable["mod"]._dedup_config = replace(durable["config"], retry_class={})
         calls: list[int] = []
         r = await dispatch_tool(
             {self.TOOL: self._handler(calls)},
@@ -666,11 +775,14 @@ class TestDurableDedup:
         assert r.is_error
         assert r.error_type == "dedup_store_error"
         assert r.dedup_state == "store_error"
+        assert mod._dedup_start_state == "lost"
         assert len(calls) == 0
 
         # Retryable: degrade to store_error and proceed overlay-only.
-        durable["mod"]._dedup_config = replace(
-            durable["config"], retry_class={self.TOOL: "retryable"}
+        monkeypatch.setattr(
+            dedup_mod,
+            "load_dedup_config",
+            lambda: replace(durable["config"], retry_class={self.TOOL: "retryable"}),
         )
         calls2: list[int] = []
         r2 = await dispatch_tool(
@@ -684,13 +796,92 @@ class TestDurableDedup:
         assert len(calls2) == 1
 
     @pytest.mark.asyncio
+    async def test_replaced_store_start_state_refused(
+        self, durable: dict, monkeypatch: Any
+    ) -> None:
+        """A store file whose store_meta uuid contradicts the installation marker
+        is classified 'replaced' and refuses the open: non-retryable tools fail
+        closed (REQ-006)."""
+        import shared.mcp_dedup as dedup_mod
+
+        mod = durable["mod"]
+        durable["store"].close()
+        raw = sqlite3.connect(durable["db_path"])
+        raw.execute("UPDATE store_meta SET store_uuid = 'foreign-uuid-0000'")
+        raw.commit()
+        raw.close()
+        mod._dedup_store = None
+        mod._dedup_config = None
+        mod._dedup_disabled = False
+        mod._dedup_start_state = None
+        cfg = replace(durable["config"], retry_class={})
+        monkeypatch.setattr(mod, "load_dedup_config", lambda: cfg)
+        monkeypatch.setattr(dedup_mod, "load_dedup_config", lambda: cfg)
+
+        calls: list[int] = []
+        r = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="k1",
+        )
+        assert r.is_error
+        assert r.error_type == "dedup_store_error"
+        assert r.dedup_state == "store_error"
+        assert mod._dedup_start_state == "replaced"
+        assert len(calls) == 0
+
+    @pytest.mark.asyncio
+    async def test_legacy_store_start_state_refused(
+        self, durable: dict, monkeypatch: Any
+    ) -> None:
+        """A pre-change store shape (no store_meta identity row) is classified
+        'legacy_or_unverified' and refuses the open: non-retryable tools fail
+        closed, never first-initialization (REQ-006)."""
+        import os
+
+        import shared.mcp_dedup as dedup_mod
+
+        mod = durable["mod"]
+        durable["store"].close()
+        os.remove(durable["db_path"])
+        marker = os.path.join(
+            os.path.dirname(durable["db_path"]), ".mcp_dedup_installed"
+        )
+        if os.path.exists(marker):
+            os.remove(marker)
+        raw = sqlite3.connect(durable["db_path"])
+        raw.execute("CREATE TABLE dedup_call_state (key TEXT PRIMARY KEY, status TEXT)")
+        raw.commit()
+        raw.close()
+        mod._dedup_store = None
+        mod._dedup_config = None
+        mod._dedup_disabled = False
+        mod._dedup_start_state = None
+        cfg = replace(durable["config"], retry_class={})
+        monkeypatch.setattr(mod, "load_dedup_config", lambda: cfg)
+        monkeypatch.setattr(dedup_mod, "load_dedup_config", lambda: cfg)
+
+        calls: list[int] = []
+        r = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="k1",
+        )
+        assert r.is_error
+        assert r.error_type == "dedup_store_error"
+        assert r.dedup_state == "store_error"
+        assert mod._dedup_start_state == "legacy_or_unverified"
+        assert len(calls) == 0
+
+    @pytest.mark.asyncio
     async def test_first_ever_key_executes_once_on_fresh_store(
         self, durable: dict
     ) -> None:
-        """A genuinely fresh store (no sentinel) executes a never-seen key once;
-        the lost/recreated gate does not fire before an operator acknowledges the
-        deployment (Plan Risks)."""
-        assert durable["store"].lost_or_recreated is False
+        """A genuinely fresh store (no installation marker) classifies as
+        first_initialization and executes a never-seen key once (REQ-006)."""
+        assert durable["store"].start_state == "first_initialization"
         durable["mod"]._dedup_config = replace(durable["config"], retry_class={})
         calls: list[int] = []
         r = await dispatch_tool(
@@ -706,13 +897,13 @@ class TestDurableDedup:
     async def test_post_open_write_failure_fails_closed_non_retryable(
         self, durable: dict, monkeypatch: Any
     ) -> None:
-        """A failed pre-execution write leaves no proof of completion: a
+        """A failed acquisition write leaves no proof of completion: a
         non-retryable tool fails closed (REQ-002)."""
 
         def _boom(*a: Any, **kw: Any) -> None:
             raise sqlite3.OperationalError("disk I/O error")
 
-        monkeypatch.setattr(durable["store"], "record_pending", _boom)
+        monkeypatch.setattr(durable["store"], "try_acquire_execution", _boom)
         durable["mod"]._dedup_config = replace(durable["config"], retry_class={})
         calls: list[int] = []
         r = await dispatch_tool(
@@ -729,13 +920,13 @@ class TestDurableDedup:
     async def test_post_open_write_failure_warning_only_retryable(
         self, durable: dict, monkeypatch: Any
     ) -> None:
-        """A failed pre-execution write degrades to the overlay for a retryable
+        """A failed acquisition write degrades to the overlay for a retryable
         tool (warning only); the call still executes (REQ-002)."""
 
         def _boom(*a: Any, **kw: Any) -> None:
             raise sqlite3.OperationalError("disk I/O error")
 
-        monkeypatch.setattr(durable["store"], "record_pending", _boom)
+        monkeypatch.setattr(durable["store"], "try_acquire_execution", _boom)
         calls: list[int] = []
         r = await dispatch_tool(
             {self.TOOL: self._handler(calls)},
@@ -753,25 +944,28 @@ class TestDurableDedup:
 
         calls: list[int] = []
         old = time.time() - 15 * 86400
-        durable["store"].record_pending(
-            "old1", self.TOOL, "h", {"deployed_rev": "x"}, now_epoch=old
+        snap = {"deployed_rev": "x"}
+        durable["store"].try_acquire_execution(
+            "old1", self.TOOL, "h", snap, "seed-owner", now_epoch=old
         )
         durable["store"].record_completed(
-            "old1", {"deployed_rev": "x"}, "done", now_epoch=old
+            "old1", snap, "done", "seed-owner", now_epoch=old
         )
-        assert durable["store"].lookup("old1") is not None
+        assert durable["store"].get_execution("old1") is not None
         await dispatch_tool(
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
             idempotency_key="k1",
         )
-        assert durable["store"].lookup("old1") is None  # swept by the first dispatch
-        durable["store"].record_pending(
-            "old2", self.TOOL, "h", {"deployed_rev": "x"}, now_epoch=old
+        assert (
+            durable["store"].get_execution("old1") is None
+        )  # swept by the first dispatch
+        durable["store"].try_acquire_execution(
+            "old2", self.TOOL, "h", snap, "seed-owner", now_epoch=old
         )
         durable["store"].record_completed(
-            "old2", {"deployed_rev": "x"}, "done", now_epoch=old
+            "old2", snap, "done", "seed-owner", now_epoch=old
         )
         await dispatch_tool(
             {self.TOOL: self._handler(calls)},
@@ -779,7 +973,9 @@ class TestDurableDedup:
             {"p": "a"},
             idempotency_key="k2",
         )
-        assert durable["store"].lookup("old2") is not None  # no second sweep in-process
+        assert (
+            durable["store"].get_execution("old2") is not None
+        )  # no second sweep in-process
 
     @pytest.mark.asyncio
     async def test_error_and_dry_run_do_not_leave_replayable_state(
@@ -795,7 +991,7 @@ class TestDurableDedup:
             {self.TOOL: bad}, self.TOOL, {"p": "a"}, idempotency_key="k1"
         )
         assert r1.is_error
-        assert durable["store"].lookup("k1").status == "failed"
+        assert durable["store"].get_execution("k1").status == "failed"
 
         calls: list[int] = []
         r2 = await dispatch_tool(
@@ -805,7 +1001,7 @@ class TestDurableDedup:
             idempotency_key="k2",
         )
         assert not r2.is_error
-        assert durable["store"].lookup("k2").status == "completed"
+        assert durable["store"].get_execution("k2").status == "completed"
         # Turn k2's completed row into a dry-run-shaped second attempt is out of
         # scope here; instead assert the completed row exists and replays as a hit.
         r3 = await dispatch_tool(
@@ -849,8 +1045,37 @@ class TestDurableDedupDryRunClear:
             {self.TOOL: dry}, self.TOOL, {"p": "a"}, idempotency_key="k1"
         )
         assert not r.is_error
-        assert durable["store"].lookup("k1") is None  # no replayable state left
+        assert durable["store"].get_execution("k1") is None  # no replayable state left
         assert len(_duplicate_cache) == 0
+
+    @pytest.mark.asyncio
+    async def test_finalize_lease_conflict_surfaces_without_redispatch(
+        self, durable: dict, monkeypatch: Any
+    ) -> None:
+        """A lost lease at finalization is surfaced as lease_conflict: the
+        handler ran once and is never re-dispatched (REQ-002)."""
+        from shared.mcp_dedup import DedupLeaseConflict
+
+        def _conflict(*a: Any, **kw: Any) -> None:
+            raise DedupLeaseConflict("record_completed updated 0 rows")
+
+        monkeypatch.setattr(durable["store"], "record_completed", _conflict)
+        calls: list[int] = []
+
+        async def handler(args: dict) -> str:
+            calls.append(1)
+            return "wrote"
+
+        r = await dispatch_tool(
+            {self.TOOL: handler}, self.TOOL, {"p": "a"}, idempotency_key="k1"
+        )
+        assert not r.is_error  # the handler already ran; the outcome is surfaced
+        assert r.dedup_state == "lease_conflict"
+        assert len(calls) == 1
+        row = durable["store"].get_execution("k1")
+        assert (
+            row is not None and row.status == "pending"
+        )  # the row stays for reconciliation
 
 
 if __name__ == "__main__":

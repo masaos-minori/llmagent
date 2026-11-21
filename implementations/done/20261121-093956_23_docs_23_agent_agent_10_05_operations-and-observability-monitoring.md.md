@@ -49,8 +49,8 @@ Rewrite the observability row's trigger list.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the doc per Implementation > Method | Pending | — | — | |
-| 2 | Run the docs checkers (routing.md Tools) | Pending | — | — | |
+| 1 | Update the doc per Implementation > Method | Completed | — | 20261121-130434 | Row rewritten in its table shape: start-state refusal triggers, reconciliation_required/outcome_unknown/replay_unavailable classifications, lease-conflict and lease-renewal warnings, retained warning-only store-write-failure case; lookup-era wording gone. Payload note updated and verified against scripts/agent/tool_audit.py:281 (execution_snapshot_json carries the dedup component). |
+| 2 | Run the docs checkers (routing.md Tools) | Completed | — | 20261121-130434 | check_docs_quality.py and check_docs_structure.py both pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

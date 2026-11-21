@@ -65,7 +65,7 @@ The `chunks_vec` (`rag.sqlite`) and `memories_vec` (`session.sqlite`) tables def
 
 ### 8e. Supported Baseline and Archive-and-Recreate Runbook
 
-The only supported source schema of each database is the schema of the current release. Nothing migrates: `rag`, `session`, `workflow`, `eventbus`, and `mdq` all accept the current shape only, validated at startup by the shared fingerprint, and an older or drifted database is refused; `mcp_dedup` is recreated empty. The rule for the six databases is ADR-008 Decision Detail #22.
+The only supported source schema of each database is the schema of the current release. Nothing migrates: `rag`, `session`, `workflow`, `eventbus`, and `mdq` all accept the current shape only, validated at startup by the shared fingerprint, and an older or drifted database is refused; `mcp_dedup` classifies its file at open (`lost`, `replaced`, `legacy_or_unverified`, `schema_mismatch`) and refuses a store whose identity stamp (`store_meta` row + `PRAGMA user_version` + installation marker) is missing or drifted — it is never silently recreated empty. The operator archives such a file and the next creation issues a new store generation (see the db_08 runbook). The rule for the six databases is ADR-008 Decision Detail #22.
 
 | Database | Accepted schema | Recovery when not accepted | Owner |
 |---|---|---|---|
@@ -73,7 +73,7 @@ The only supported source schema of each database is the schema of the current r
 | `eventbus.sqlite` | Canonical `schema.sql` shape validated by the shared fingerprint | Archive and recreate (runbook below) | The EventBus service |
 | `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | Delete the file and re-index the Markdown files (section 8d) | The `mdq-mcp` server |
 | `rag.sqlite`, `session.sqlite` | Current create-only shape | Archive and recreate (runbook below) | RAG / session layers |
-| `mcp_dedup.sqlite` | Current dedup ledger shape | Recreated empty | The shared MCP dispatcher |
+| `mcp_dedup.sqlite` | Current three-table ledger shape carrying the identity stamp (`store_meta` row, `PRAGMA user_version = 1`, installation marker) | Operator archives the refused file; `resolve_store` creates a new store generation (db_08 runbook) | The shared MCP dispatcher |
 
 Recreation impact when a database is not accepted (full procedure: [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)):
 
@@ -84,7 +84,7 @@ Recreation impact when a database is not accepted (full procedure: [db_07 sectio
 | `mdq.sqlite` | No lasting loss — derived store, rebuilt from the Markdown files | Not required | Delete the file and re-index (section 8d) |
 | `session.sqlite` | Yes — sessions are lost; memory is recovered from the JSONL archive with `/memory rebuild` | Required: export conversations with `/session export`; `rotate_all_dbs()` archives the file | Restore the archived file |
 | `rag.sqlite` | Yes — the corpus is re-ingested | Required: `rotate_all_dbs()` archives it | Restore the archived file |
-| `mcp_dedup.sqlite` | No lasting loss — disposable ledger; non-retryable tools are rejected until the operator resolves the state | Not required | Not applicable (recreated empty) |
+| `mcp_dedup.sqlite` | No lasting loss — disposable ledger; non-retryable tools are rejected until the operator resolves the state | Not required | Operator resolution: `resolve_store` archives the file as `.corrupt-<ts>` and creates a new generation (db_08 runbook) |
 
 Archive-and-recreate runbook (operator procedure; details in [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)):
 

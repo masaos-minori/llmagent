@@ -1,8 +1,9 @@
 """Tests for scripts/shared/execution_snapshot.py (toolexec001 row 18).
 
-Covers the four-component build, snapshot equality, per-component mismatch
-reporting, missing DEPLOYED_REV tolerance, and cross-process/cross-cwd
-determinism. SQLite fixtures are file-backed with a committed header because
+Covers the component-keyed build, snapshot equality, per-component mismatch
+reporting, missing DEPLOYED_REV tolerance, cross-process/cross-cwd
+determinism, and the mcpdl002 dedup identity component (gen rollover, swap,
+absent). SQLite fixtures are file-backed with a committed header because
 schema_versions reads the file header (offset 28), which :memory: DBs lack.
 """
 
@@ -22,6 +23,11 @@ from shared.execution_snapshot import (
     mismatching_components,
     snapshot_json,
     snapshots_equal,
+)
+from shared.mcp_dedup import (
+    DedupStore,
+    clear_dedup_config_cache,
+    resolve_store,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -308,3 +314,71 @@ class TestDeterminism:
     def test_injected_build_matches_subprocess_build(self, fx: dict[str, Any]) -> None:
         subprocess_json = self._canonical_via_subprocess(REPO_ROOT, fx)
         assert subprocess_json == snapshot_json(_build(fx))
+
+
+def _write_dedup_config(fx: dict[str, Any], db_path: object) -> None:
+    """Point config/mcp_dedup.toml in the fixture config dir at db_path."""
+    (fx["config_dir"] / "mcp_dedup.toml").write_text(
+        f'[dedup]\ndb_path = "{db_path}"\n'
+    )
+    clear_dedup_config_cache()
+
+
+class TestDedupComponent:
+    def test_without_dedup_config_component_is_absent(self, fx: dict[str, Any]) -> None:
+        snap = _build(fx)
+        assert snap["dedup"] == "absent"
+
+    def test_config_without_store_file_is_absent_and_not_created(
+        self, fx: dict[str, Any]
+    ) -> None:
+        store_path = fx["tmp"] / "dedup" / "mcp_dedup.sqlite"
+        _write_dedup_config(fx, store_path)
+        snap = _build(fx)
+        assert snap["dedup"] == "absent"
+        # The snapshot build is read-only: it must not initialize the store.
+        assert not store_path.exists()
+
+    def test_identity_component_format(self, fx: dict[str, Any]) -> None:
+        store_path = fx["tmp"] / "dedup" / "mcp_dedup.sqlite"
+        _write_dedup_config(fx, store_path)
+        store = DedupStore(str(store_path))
+        try:
+            fingerprint = store.schema_fingerprint
+        finally:
+            store.close()
+        snap = _build(fx)
+        assert snap["dedup"] == f"gen=1;schema={fingerprint}"
+
+    def test_generation_rollover_flags_only_dedup(self, fx: dict[str, Any]) -> None:
+        """AC-7: snapshots before and after a generation rollover are unequal."""
+        store_path = fx["tmp"] / "dedup" / "mcp_dedup.sqlite"
+        _write_dedup_config(fx, store_path)
+        DedupStore(str(store_path)).close()
+        base = _build(fx)
+        assert base["dedup"].startswith("gen=1;schema=")
+        store_path.unlink()  # lost: the installation marker remains
+        resolve_store(store_path)
+        after = _build(fx)
+        assert after["dedup"].startswith("gen=2;schema=")
+        assert mismatching_components(base, after) == ["dedup"]
+        assert not snapshots_equal(base, after)
+
+    def test_store_swap_to_identityless_file_reads_absent(
+        self, fx: dict[str, Any]
+    ) -> None:
+        store_path = fx["tmp"] / "dedup" / "mcp_dedup.sqlite"
+        _write_dedup_config(fx, store_path)
+        DedupStore(str(store_path)).close()
+        base = _build(fx)
+        store_path.unlink()
+        (store_path.parent / ".mcp_dedup_installed").unlink()
+        _make_db(store_path)  # a foreign file without store_meta
+        after = _build(fx)
+        assert after["dedup"] == "absent"
+        assert mismatching_components(base, after) == ["dedup"]
+
+    def test_malformed_dedup_config_reads_absent(self, fx: dict[str, Any]) -> None:
+        (fx["config_dir"] / "mcp_dedup.toml").write_text("[dedup\ndb_path = ")
+        snap = _build(fx)
+        assert snap["dedup"] == "absent"

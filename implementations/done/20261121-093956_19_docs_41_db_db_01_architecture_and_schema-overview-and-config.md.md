@@ -48,8 +48,8 @@ Edit the :36 paragraph in place.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the doc per Implementation > Method | Pending | — | — | |
-| 2 | Run the docs checkers (routing.md Tools) | Pending | — | — | |
+| 1 | Update the doc per Implementation > Method | Completed | — | 20261121-125900 | Verified :36 stale claim (tool_call_state name + unconditional recreation) and edited in place: dedup_call_state/store_meta/call_attempt_history naming, identity stamp, refused-then-operator-recreated wording. mdq sentence and surrounding structure untouched; db_01 carries no other dedup mentions (grep-verified). |
+| 2 | Run the docs checkers (routing.md Tools) | Completed | — | 20261121-125900 | check_docs_quality.py and check_docs_structure.py both pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

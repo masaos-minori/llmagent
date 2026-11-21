@@ -70,9 +70,9 @@ Replace the durable-dedup block in `dispatch_tool` with a single acquisition cal
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Co-lands with row 01 (release unit) |
-| 2 | Update companion test files per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | radon F(44) baseline gate |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261121-113427 | Co-lands with row 01 (release unit) Acquisition API landed: single try_acquire_execution + _dedup_decision helper (D-5 mapping: acquired/replay_completed/in_progress/reconciliation_required/outcome_unknown/contract_mismatch/replay_unavailable). Owner nonce per call; owner-conditional record_completed/record_failed/mark_interrupted (CancelledError path); heartbeat via _renew_lease_if_needed; DedupLeaseConflict logged, never re-dispatched (lease_conflict dedup_state). Lost/recreated pre-check and lookup/record_pending/force removed. Retryable expired-lease replay = reconcile_execution + reacquire (dedup_state=replayed); outcome_unknown retryable degrades audited store_error. Start-state refusals (lost/replaced/legacy_or_unverified/schema_mismatch) captured typed in _dedup_start_state via _dedup_context. |
+| 2 | Update companion test files per Validation plan | Completed | — | 20261121-113427 | test_mcp_dispatch.py adapted: snapshot-mismatch test now asserts replay_unavailable refusal; interrupted tests seed via try_acquire_execution with expired now_epoch; new in_progress, outcome_unknown matrix, lease_conflict, replaced-state and legacy-state refusal tests; lookup->get_execution; retention seeds use acquisition+finalize. conftest.py: _dedup_start_state reset added; store fixtures already build through DedupStore init path (identity row + marker). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261121-113427 | radon F(44) baseline gate uv run pytest tests/mcp_servers/ 2662 passed 3 skipped. rg 'record_pending|force=True' scripts/mcp_servers/ empty. radon: dispatch_tool E(37) vs F(44) baseline (not worse); _dedup_decision B(10). ruff check/format+mypy green. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

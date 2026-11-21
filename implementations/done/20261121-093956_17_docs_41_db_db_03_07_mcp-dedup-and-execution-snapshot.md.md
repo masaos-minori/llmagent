@@ -51,8 +51,8 @@ Rewrite the store sections to the new contract and fix the two stale claims.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the doc per Implementation > Method | Pending | — | — | |
-| 2 | Run the docs checkers (routing.md Tools) | Pending | — | — | |
+| 1 | Update the doc per Implementation > Method | Completed | — | 20261121-125716 | Doc rewritten in place to the lease+identity contract: identity stamp/start states, lease+terminal immutability, acquisition vocabulary, attempt history, lease_seconds/max_attempts config keys, caller-supplied logical-call-id key (derive_idempotency_key text removed), dangling follow-up-issue citation removed, execution_snapshot 5-component dedup component added, Replay Decision Table rebuilt with identity-refusal branches. |
+| 2 | Run the docs checkers (routing.md Tools) | Completed | — | 20261121-125716 | check_docs_quality.py and check_docs_structure.py both pass (two REQ-xxx markers removed to satisfy the Current-Specification-Only Policy). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

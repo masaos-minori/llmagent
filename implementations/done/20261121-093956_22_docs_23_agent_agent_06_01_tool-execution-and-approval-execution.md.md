@@ -49,8 +49,8 @@ Rewrite the two cited sentences.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the doc per Implementation > Method | Pending | — | — | |
-| 2 | Run the docs checkers (routing.md Tools) | Pending | — | — | |
+| 1 | Update the doc per Implementation > Method | Completed | — | 20261121-130333 | Rewrote both cited sentences (:81, :99) to the logical-call-id contract. Scope extension found during adversarial verification: the same sentences claimed recording is 'best-effort'/'never fatal', contradicting the implemented fail-closed rule for side-effecting calls (IntentRecordUnavailableError, mcpdl001 REQ-005/REQ-007 in scripts/agent/tool_runner.py::_record_pending_state); corrected in the same two locations (:81 paragraph and Key Constraints bullet). |
+| 2 | Run the docs checkers (routing.md Tools) | Completed | — | 20261121-130333 | grep confirms no derive_idempotency_key citation remains in docs/; check_docs_quality.py and check_docs_structure.py both pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

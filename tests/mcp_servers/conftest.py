@@ -57,6 +57,7 @@ def isolated_dedup(
     monkeypatch.setattr(dispatch_mod, "_dedup_store", store)
     monkeypatch.setattr(dispatch_mod, "_dedup_config", config)
     monkeypatch.setattr(dispatch_mod, "_dedup_disabled", False)
+    monkeypatch.setattr(dispatch_mod, "_dedup_start_state", None)
     yield db_path
     store.close()
     dispatch_mod._duplicate_cache.clear()

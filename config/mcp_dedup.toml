@@ -14,6 +14,12 @@
 [dedup]
 db_path = "/opt/llm/db/mcp_dedup.sqlite"
 retention_days = 14
+# Owner-lease window for a live pending execution; renewed by heartbeat
+# (renew_lease). Lease expiry alone only yields reconciliation_required.
+lease_seconds = 30
+# Maximum attempts tracked for one logical call before the outcome is
+# permanently unknown (reconciliation gate).
+max_attempts = 3
 
 [retry_class]
 # file_write server (file_write)

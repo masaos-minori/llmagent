@@ -9,6 +9,7 @@ determinism, two-way drift) and the --check output contract.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -138,6 +139,10 @@ _DEPLOYMENT_SOURCES: dict[str, str] = {
     ),
     "scripts/db/schema_sql.py": 'WORKFLOW_SCHEMA_VERSION = "1.1.0"\n',
     "scripts/eventbus/schema.sql": "CREATE TABLE eventbus_events (id INTEGER);\n",
+    "scripts/shared/mcp_dedup_schema.py": (
+        "_SCHEMA = 'CREATE TABLE IF NOT EXISTS dedup_call_state (key TEXT)'\n"
+        "_USER_VERSION = 1\n"
+    ),
 }
 
 _FULL_SOURCES: dict[str, str] = {
@@ -249,6 +254,9 @@ def _synthetic_repo(
         grt, "EVENTBUS_SCHEMA_SQL_SRC", tmp_path / "scripts" / "eventbus" / "schema.sql"
     )
     monkeypatch.setattr(
+        grt, "DEDUP_SCHEMA_SRC", tmp_path / "scripts" / "shared" / "mcp_dedup_schema.py"
+    )
+    monkeypatch.setattr(
         grt,
         "_EVENTBUS_ROUTE_MODULES",
         tuple(
@@ -331,7 +339,19 @@ class TestManifestGeneration:
             ("db_path", "history.sqlite"),
             ("db_path", "session.sqlite"),
             ("schema", "eventbus"),
+            ("schema", "mcp_dedup"),
         ]
+        dedup = next(e for e in db if e["name"] == "mcp_dedup")
+        assert dedup["source"] == "scripts/shared/mcp_dedup_schema.py"
+        # `version` is the store's PRAGMA user_version identity stamp; the
+        # content_hash fingerprints the module holding the canonical DDL.
+        assert dedup["version"] == 1
+        assert (
+            dedup["content_hash"]
+            == hashlib.sha256(
+                (tmp_path / "scripts/shared/mcp_dedup_schema.py").read_bytes()
+            ).hexdigest()
+        )
         fields = grt.build_manifest("config_ownership")["entries"]
         assert fields[0] == {
             "field": "max_retries",

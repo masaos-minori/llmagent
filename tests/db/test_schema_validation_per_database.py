@@ -40,7 +40,7 @@ from eventbus.db_tools import ensure as eventbus_ensure
 from eventbus.db_tools import schema_sql as eventbus_schema_sql
 from mcp_servers.mdq.db_schema import _CREATE_STATEMENTS, create_production_tables
 from shared.mcp_dedup import _CANONICAL_DDL as dedup_canonical_ddl
-from shared.mcp_dedup import DedupStore
+from shared.mcp_dedup import DedupStore, DedupStoreError
 from shared.schema_fingerprint import REFUSAL_MESSAGE, build_fingerprint
 
 _VEC0_STATEMENT_RE = re.compile(
@@ -98,13 +98,24 @@ class _Domain:
     index_snippet: str
     index_replacement: str = ""
     drop_index_by_name: bool = True
+    # Extra step applied to a freshly DDL-built file before the entry runs.
+    # mcp_dedup needs it: the store open (REQ-006) requires the identity a real
+    # first-initialization writes (store_meta row, user_version stamp,
+    # installation marker), which raw DDL alone does not produce.
+    post_build: Callable[[Path], None] | None = None
+    # Table planted by the "extra legacy table" mutant. Defaults to a generic
+    # throwaway; mcp_dedup pins the real pre-change table name so the mutant
+    # models the migration this release actually replaced.
+    extra_table_ddl: str = "CREATE TABLE drift_legacy (id INTEGER PRIMARY KEY);"
 
 
 def _refusal(entry: Callable[[], object]) -> str | None:
     """Run an open/startup entry; return its refusal text, or None when accepted."""
     try:
         result = entry()
-    except RuntimeError as exc:
+    except (RuntimeError, DedupStoreError) as exc:
+        # DedupStoreError wraps the fingerprint refusal for the dedup store open
+        # (the typed start-state taxonomy added for store identity continuity).
         return str(exc)
     if isinstance(result, tuple) and hasattr(result, "valid"):
         # SchemaCheckResult: preflight entries report refusals, not raises.
@@ -166,6 +177,33 @@ def _entry_dedup(path: Path) -> str | None:
     return _refusal(_open)
 
 
+_DEDUP_UUID = "00000000-0000-4000-8000-000000000001"
+_DEDUP_MARKER_NAME = ".mcp_dedup_installed"
+
+
+def _stamp_dedup_identity(path: Path) -> None:
+    """Give a DDL-built dedup file the identity a real store initialization writes.
+
+    Without this the store open would refuse on a missing identity row or the
+    user_version stamp before the fingerprint gate under test is reached, and
+    the drift refusal would name the wrong check.
+    """
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute(
+            "INSERT INTO store_meta (store_uuid, generation, schema_fingerprint,"
+            " config_fingerprint, created_epoch) VALUES (?, 1, ?, ?, ?)",
+            (_DEDUP_UUID, "0" * 64, "1" * 64, 1700000000.0),
+        )
+        conn.execute("PRAGMA user_version = 1")
+        conn.commit()
+    finally:
+        conn.close()
+    (path.parent / _DEDUP_MARKER_NAME).write_text(
+        f"{_DEDUP_UUID}\n1\n", encoding="utf-8"
+    )
+
+
 def _entry_mdq(path: Path) -> str | None:
     def _open() -> None:
         conn = sqlite3.connect(path)
@@ -217,9 +255,19 @@ _DOMAINS: tuple[_Domain, ...] = (
         name="mcp_dedup",
         entry=_entry_dedup,
         canonical=lambda: dedup_canonical_ddl,
-        primary_table="tool_call_state",
+        primary_table="dedup_call_state",
         check_snippet="CHECK (status IN ('pending', 'completed', 'failed', 'interrupted'))",
-        index_snippet="idx_tcs_updated",
+        index_snippet="idx_dcs_updated",
+        post_build=_stamp_dedup_identity,
+        # The pre-change store was a single tool_call_state table; planting it
+        # as the extra table models the real stale-file collision, not a generic
+        # throwaway.
+        extra_table_ddl=(
+            "CREATE TABLE tool_call_state ("
+            "key TEXT PRIMARY KEY, tool_name TEXT NOT NULL, args_hash TEXT NOT NULL,"
+            " status TEXT NOT NULL, snapshot_json TEXT NOT NULL,"
+            " created_epoch REAL NOT NULL, updated_epoch REAL NOT NULL);"
+        ),
     ),
     _Domain(
         name="mdq",
@@ -256,10 +304,8 @@ def _mutate_missing_index(domain: _Domain, canonical: str) -> str:
     return canonical.replace(domain.index_snippet, domain.index_replacement, 1)
 
 
-def _mutate_extra_table(canonical: str) -> str:
-    return _append_mutated(
-        canonical, "CREATE TABLE drift_legacy (id INTEGER PRIMARY KEY);"
-    )
+def _mutate_extra_table(domain: _Domain, canonical: str) -> str:
+    return _append_mutated(canonical, domain.extra_table_ddl)
 
 
 def _mutate_extra_column(domain: _Domain, canonical: str) -> str:
@@ -271,6 +317,8 @@ def _mutate_extra_column(domain: _Domain, canonical: str) -> str:
 def _build(tmp_path: Path, domain: _Domain, ddl: str, label: str) -> Path:
     path = tmp_path / f"{domain.name}-{label}.sqlite"
     _executescript(path, ddl)
+    if domain.post_build is not None:
+        domain.post_build(path)
     return path
 
 
@@ -311,7 +359,9 @@ class TestFourDrifts:
 
     @pytest.mark.parametrize("domain", _DOMAINS, ids=_DOMAIN_IDS)
     def test_extra_legacy_table(self, tmp_path: Path, domain: _Domain) -> None:
-        _assert_refused(tmp_path, domain, _mutate_extra_table(domain.canonical()))
+        _assert_refused(
+            tmp_path, domain, _mutate_extra_table(domain, domain.canonical())
+        )
 
     @pytest.mark.parametrize("domain", _DOMAINS, ids=_DOMAIN_IDS)
     def test_extra_column(self, tmp_path: Path, domain: _Domain) -> None:
@@ -324,3 +374,47 @@ class TestFourDrifts:
         _assert_refused(
             tmp_path, domain, _mutate_missing_index(domain, domain.canonical())
         )
+
+
+class TestIdentityMismatch:
+    """mcp_dedup only (REQ-005/REQ-006): the identity stamp and the store_meta
+    row are part of the canonical shape. A stamped, identity-bearing baseline
+    is accepted; a store missing the stamp or the identity row is refused with
+    the archive-and-recreate guidance and left byte-identical."""
+
+    _DEDUP = next(d for d in _DOMAINS if d.name == "mcp_dedup")
+
+    def test_baseline_carries_identity_stamp_and_row(self, tmp_path: Path) -> None:
+        baseline = _build(tmp_path, self._DEDUP, self._DEDUP.canonical(), "identity")
+        assert self._DEDUP.entry(baseline) is None
+        conn = sqlite3.connect(baseline)
+        try:
+            assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 1
+            assert conn.execute("SELECT 1 FROM store_meta").fetchone() is not None
+        finally:
+            conn.close()
+        assert (baseline.parent / _DEDUP_MARKER_NAME).is_file()
+
+    def test_missing_stamp_refused(self, tmp_path: Path) -> None:
+        store = _build(tmp_path, self._DEDUP, self._DEDUP.canonical(), "nostamp")
+        conn = sqlite3.connect(store)
+        conn.execute("PRAGMA user_version = 0")
+        conn.commit()
+        conn.close()
+        before = _fingerprint(store)
+        error = self._DEDUP.entry(store)
+        assert error is not None, "an unstamped store was accepted"
+        assert REFUSAL_MESSAGE in error
+        assert _fingerprint(store) == before
+
+    def test_missing_identity_row_refused(self, tmp_path: Path) -> None:
+        store = _build(tmp_path, self._DEDUP, self._DEDUP.canonical(), "norow")
+        conn = sqlite3.connect(store)
+        conn.execute("DELETE FROM store_meta")
+        conn.commit()
+        conn.close()
+        before = _fingerprint(store)
+        error = self._DEDUP.entry(store)
+        assert error is not None, "an identity-row-less store was accepted"
+        assert REFUSAL_MESSAGE in error
+        assert _fingerprint(store) == before

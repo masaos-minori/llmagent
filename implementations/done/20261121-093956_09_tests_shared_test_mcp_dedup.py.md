@@ -56,8 +56,8 @@ Rewrite the store-level suites in place; keep the `store(tmp_path)` fixture idio
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the suites per Implementation > Method | Pending | — | — | Lands in Phase 3 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rewrite the suites per Implementation > Method | Completed | — | 20261121-124714 | Lands in Phase 3 File rewritten: 62 tests across acquisition state machine, lease ownership, stamped fingerprint gate, reopen durability, cross-process, retention purge, lease classification, start-state classification (resolve_lost_store/DEDUP_SENTINEL_NAME/user_version==0 usages removed), config validation + resolution/cache with lease_seconds/max_attempts cases. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261121-124714 | tests/shared/test_mcp_dedup.py 62 passed; tests/shared/ + dispatch suite 1353 passed. Ledger bug found by this rewrite and fixed: reconcile_execution raised its refusal inside BEGIN IMMEDIATE without rollback, leaving the connection mid-transaction; refusals now roll back first (shared/mcp_dedup_ledger.py). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

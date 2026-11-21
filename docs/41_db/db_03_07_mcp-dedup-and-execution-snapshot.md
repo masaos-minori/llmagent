@@ -23,7 +23,8 @@ related:
 
 # MCP Dedup Store and Execution Snapshot Tables
 
-Operational and failure semantics for the two durable stores introduced by toolexec001:
+Operational and failure semantics for the two durable stores introduced by toolexec001 and
+renewed by mcpdl002 (lease + identity contract):
 the standalone `mcp_dedup.sqlite` dedup store (owned by the shared MCP dispatcher) and
 the `tool_call_state` table inside `workflow.sqlite` (owned by
 the agent; the former `execution_snapshots` table is retired, see its section). Transport-facing semantics: [mcp_03_03](../22_mcp/mcp_03_03_transport-and-health.md).
@@ -38,41 +39,77 @@ this file is owned by the shared MCP dispatcher layer (`scripts/shared/mcp_dedup
 The agent's tool-call view lives in `workflow.sqlite` instead, and the dispatcher never
 writes into `mdq.sqlite` or `rag.sqlite`.
 
-Contract details (all owned by `scripts/shared/mcp_dedup.py`):
+Contract details (owned by the `scripts/shared/mcp_dedup*.py` module family; `shared.mcp_dedup`
+is the public facade):
 
 - File location: the config file is resolved through `resolve_config_dir()` (overridable with
   `LLMAGENT_CONFIG_DIR`), like every other config consumer. The store database is `dedup.db_path` in
   `config/mcp_dedup.toml`, default `/opt/llm/db/mcp_dedup.sqlite` — the same fallback-literal shape the
   other platform databases use. A missing config file raises `ConfigMissingError`; bad values raise
   `ConfigParseError`.
-- Bootstrap: the store creates its own table and indexes on open (`CREATE TABLE IF NOT EXISTS`),
-  stamps `PRAGMA user_version = 1` as its current schema-shape marker. There is no migration
-  registry: a future schema change to this file lands as a new canonical DDL and the file is
+- Bootstrap and identity stamp: the store creates its canonical tables and indexes on open
+  (`scripts/shared/mcp_dedup_schema.py`) and stamps its identity as a three-part handshake:
+  a `store_meta` identity row (random `store_uuid` + generation), `PRAGMA user_version = 1`,
+  and an external installation marker file (`.mcp_dedup_installed`) next to the database. Automatic
+  migration is not supported: a future schema change lands as a new canonical DDL and the file is
   archived and recreated (see Adoption Path below).
-- Concurrency: WAL journal mode, `PRAGMA busy_timeout` (default 5000 ms), `synchronous = NORMAL`,
+- Identity start states: every open classifies the file before any write —
+  `first_initialization` (genuinely new; writes the identity stamp), `healthy` (stamp, identity
+  row, marker, and canonical fingerprint all agree), or a typed refusal: `lost` (a known
+  generation's file is gone), `replaced` (the marker names a different store),
+  `legacy_or_unverified` (pre-change shape, no identity row, or a missing marker), and
+  `schema_mismatch` (fingerprint or `user_version` drift). Refusals raise
+  `DedupStoreError` with the shared archive-and-recreate guidance; nothing is migrated,
+  stamped, or repaired automatically. `resolve_store` is the operator-runbook path
+  for archive-and-recreate.
+- Concurrency: WAL journal mode (set only after a successful classification, so refused opens
+  stay strictly read-only), `PRAGMA busy_timeout` (default 5000 ms), `synchronous = NORMAL`,
   one held connection guarded by a `threading.Lock`, and every write runs under `BEGIN IMMEDIATE`.
   Cross-process writers rely on the busy timeout; a `sqlite3.Error` rolls back and is re-raised.
-- State machine: `pending -> completed`, `pending -> failed`, `pending -> interrupted`.
-  Terminal states never regress; `record_pending` refreshes only `pending`/`interrupted` rows
-  unless called with `force=True` (the dispatcher uses force only for the policy-allowed fresh
-  attempt on a snapshot-mismatched completed row).
+- Lease-based state machine: `pending -> completed`, `pending -> failed`, `pending -> interrupted`.
+  Each acquisition (`try_acquire_execution`) gives the acquiring caller an `owner_id` and a lease
+  (`lease_expires_epoch = now + lease_seconds`). The owner can heartbeat with `renew_lease`.
+  Finalization (`record_completed`, `record_failed`, `mark_interrupted`) is owner-conditional:
+  a non-owner write, a write to a terminal row, or a heartbeat on an expired or terminal row
+  raises `DedupLeaseConflict` and never mutates the row.
+- Acquisition vocabulary (the decision `try_acquire_execution` returns, and the dispatcher maps):
+  `acquired` (first attempt or a permitted recovery attempt), `replay_completed` (terminal
+  completed row with matching snapshot and intact payload), `in_progress` (live lease held by
+  another owner), `contract_mismatch` (stored `tool_name`/`args_hash` disagree with the incoming
+  call), `reconciliation_required` (expired `pending` lease — classification only, never a new
+  owner), `outcome_unknown` (attempt cap reached), `replay_unavailable` (terminal row that
+  cannot be safely replayed: completed with a snapshot mismatch or a truncated payload, or failed).
+- Terminal immutability: terminal rows are never rewritten. There is no force-reset path; a
+  completed row with a different snapshot or a truncated payload refuses re-execution as
+  `replay_unavailable` in every retry class. Recovery of an expired `pending` lease requires
+  `reconcile_execution` first (audited `pending -> interrupted` transition plus a history entry);
+  only then may one reacquisition proceed (`attempt_number + 1`), gated by `dedup.max_attempts`.
+  Reacquisition never rewrites the stored snapshot.
+- Attempt history: `call_attempt_history` records every decision (attempt, completed, failed,
+  reconciled) per key with its attempt number. History entries outlive the terminal row's purge
+  cutoff only within the same retention window (see retention sweep below).
 - Result size cap: a stored result larger than 8000 serialized characters is replaced by a
   truncated sentinel (`{"truncated": true, "sha256": <full-payload hash>, "preview": <first 1000 chars>}`).
-  A truncated stored payload is never served as a replay result; it triggers a fresh attempt.
+  A truncated stored payload is never served as a replay result; acquisition reports it as
+  `replay_unavailable` (refused), not a fresh attempt.
 - Retry classification: `RETRYABLE_TOOLS` in `scripts/shared/tool_constants.py` owns the
   classification; `[retry_class]` in `config/mcp_dedup.toml` is its mirror, load-validated
   against the owner (unknown tool names, disallowed values, and contradictions with the owner
   are rejected). Unlisted tools default to `non_retryable` at lookup (fail-safe unreplayable).
 - Retention sweep: `purge_expired(retention_days)` deletes terminal rows older than the retention
-  window (default 14 days). Pending rows are never purged; their timeout path is classification.
-  The dispatcher purges once per process on first use.
-- Idempotency key: `sha256` over `(method, tool_name, args, uid)` via `derive_idempotency_key`
-  (shared by the transport layer; see mcp_03_03). A row whose stored `tool_name`/`args_hash`
-  disagree with the incoming call is rejected as `idempotency_key_reused` before any dispatch.
+  window (default 14 days) together with their `call_attempt_history` entries. Pending rows are
+  never purged; their timeout path is lease classification. The dispatcher purges once per
+  process on first use.
+- Idempotency key: the key is the caller-supplied logical call id, carried end to end
+  (`X-Idempotency-Key` at the transport; the agent passes `context.call_id` through
+  `scripts/agent/tool_runner.py::_logical_call_id`). Nothing is derived — the old hash
+  derivations collided. A row whose stored `tool_name`/`args_hash` disagree with the incoming
+  call is rejected as `idempotency_key_reused` before any dispatch.
 
 Config keys (all in `config/mcp_dedup.toml`): `dedup.db_path`, `dedup.retention_days` (14),
-`dedup.pending_timeout_minutes` (10), and the `[retry_class]` map (load-validated against
-`RETRYABLE_TOOLS` and the known MCP tool names). The same timeout value is
+`dedup.pending_timeout_minutes` (10), `dedup.lease_seconds` (30, accepted range 1..3600),
+`dedup.max_attempts` (3, accepted range 1..10), and the `[retry_class]` map (load-validated
+against `RETRYABLE_TOOLS` and the known MCP tool names). The same timeout value is
 the source for the agent-side stale-pending classification in `workflow.sqlite`. The config file is
 read once per process: after the first successful load the parsed config is cached until the service
 restarts, and a failed load is not cached.
@@ -80,6 +117,13 @@ restarts, and a failed load is not cached.
 ## `tool_call_state` (workflow.sqlite); `execution_snapshots` retired
 
 The `execution_snapshots` table and the `tool_call_state.snapshot_id` foreign key are never written by any code path and are retired. Fresh databases do not create them; a legacy database that still carries the empty table fails startup under exact fingerprint matching and is archived and recreated by the operator.
+
+Snapshot state is carried in the `execution_snapshot` component map instead
+(`scripts/shared/execution_snapshot.py`): five component keys — `deployed_rev`, `git_sha`,
+`config_hash`, `schema_versions`, and `dedup`. The `dedup` component is read from the dedup
+store identity via a read-only `read_store_identity()` lookup and renders as
+`gen=<generation>;schema=<schema-fingerprint>`, or `absent` when the store is unconfigured,
+unopenable, or identity-less; building a snapshot never creates or mutates the store.
 
 `tool_call_state` lives in `workflow.sqlite`, defined in the canonical create-path DDL
 `db/schema_sql.py` and created at database creation; the fingerprint gate compares the
@@ -103,9 +147,8 @@ Operational notes:
   unlike the ISO-8601 TEXT columns of the older workflow tables.
   Consumers must not assume a single timestamp format across workflow tables
   (see db_02 section 7b).
-- The `idempotency_key` column holds the same derived key the transport computes, so an
-  agent row and a dedup-store row for one call can be matched (producer-side key identity
-  is the open item in the follow-up issue above).
+- The `idempotency_key` column holds the same logical call id the transport carries, so an
+  agent row and a dedup-store row for one call can be matched.
 - Stale-pending classification: `classify_stale_pending` transitions this task's `pending`
   rows older than `dedup.pending_timeout_minutes` to `interrupted` inside a WHERE-guarded
   UPDATE (idempotent on re-run, same discipline as `recover_stale_attempts`). The rows it
@@ -116,16 +159,23 @@ Operational notes:
 
 What ops reads when a call "wasn't re-run". Branch labels are the shipped `dedup_state`
 values on `DispatchResult` and the `error_type` taxonomy in `scripts/mcp_servers/dispatch.py`.
+The acquisition statuses behind the branches are listed in the store section above.
 
 | Stored row state | Call condition | Action | Audit tag |
 |---|---|---|---|
-| completed | snapshot matches, stored result present and not truncated | serve cached result, no handler executed, no side effects | `dedup_state=duplicate_hit` |
-| completed | snapshot mismatch, or stored payload is a truncated sentinel | fresh attempt under the same key (`record_pending` with force) | `dedup_state=snapshot_mismatch` / `result_truncated` |
-| pending / failed / interrupted | tool is `retryable` | re-dispatch the same key (interrupted past the timeout is the canonical case) | `dedup_state=replayed` |
-| pending / failed / interrupted | tool is `non_retryable` | refuse the call before dispatch; no handler runs | `is_error`, `error_type=dedup_unreplayable`, `dedup_state=unreplayable` |
-| any | store unavailable, tool `retryable` | dispatch continues without dedup protection | `dedup_state=store_error` |
-| any | store unavailable, tool `non_retryable` | fail closed, call refused | `is_error`, `error_type=dedup_store_error`, `dedup_state=store_error` |
+| no row | any | acquire attempt 1 under the caller's lease; handler runs | `dedup_state=""` (owner-scoped) |
+| completed | snapshot matches, stored result present and not truncated | serve cached replay, no handler executed, no side effects | `dedup_state=duplicate_hit` |
+| completed | snapshot mismatch, or stored payload is a truncated sentinel | refused; the force-reset path is gone | `is_error`, `error_type=dedup_unreplayable`, `dedup_state=replay_unavailable` |
+| pending | live lease held by another owner | refused before dispatch | `is_error`, `error_type=dedup_in_progress`, `dedup_state=in_progress` |
+| pending | lease expired, tool `retryable` | `reconcile_execution` (audited `pending -> interrupted`), then one reacquisition (`attempt_number + 1`), handler runs | `dedup_state=replayed` (owner-scoped) |
+| pending | lease expired, tool `non_retryable` | refused before dispatch | `is_error`, `error_type=dedup_unreplayable`, `dedup_state=reconciliation_required` |
+| interrupted | attempts remain | reacquire with `attempt_number + 1`, handler runs | `dedup_state=replayed` (owner-scoped) |
+| interrupted | `dedup.max_attempts` exhausted | tool `retryable`: audited degraded dispatch (overlay-only marker); tool `non_retryable`: refused | `dedup_state=store_error` / `is_error`, `error_type=dedup_unreplayable`, `dedup_state=outcome_unknown` |
+| failed | any | refused; terminal rows are immutable | `is_error`, `error_type=dedup_unreplayable`, `dedup_state=replay_unavailable` |
 | any | stored `tool_name`/`args_hash` disagree with incoming call | rejected before dispatch | `is_error`, `error_type=idempotency_key_reused` |
+| any (store side) | store unavailable or refused open, tool `retryable` | dispatch continues with an audited degraded marker | `dedup_state=store_error` |
+| any (store side) | store unavailable or refused open, tool `non_retryable` | fail closed, call refused | `is_error`, `error_type=dedup_store_error`, `dedup_state=store_error` |
+| any (store side) | store identity lost/replaced/legacy/mismatch | open refused as `DedupStoreError`; operator resolves via archive-and-recreate | `is_error`, `error_type=dedup_store_error`, `dedup_state=store_error` (non-retryable) / `dedup_state=store_error` (retryable) |
 
 Side notes:
 
@@ -133,19 +183,25 @@ Side notes:
   no replayable state is left behind.
 - Expired-pending semantics on the dedup store side are read-time classification
   (`classify_interrupted` in `scripts/shared/mcp_dedup.py`): a lookup reports an old `pending`
-  row as `interrupted` without mutating it. The store-side dispatcher currently replays fresh
-  `pending` rows per the retry class above; the workflow-side timeout transition is the
-  `classify_stale_pending` UPDATE described above.
+  row as `interrupted` without mutating it. An expired lease is never re-authorized without
+  the audited `reconcile_execution` step first.
+- A finalization that loses ownership (0-row owner-conditional UPDATE) raises
+  `DedupLeaseConflict` and is reported as `dedup_state=lease_conflict`; the dispatcher logs it
+  and never re-dispatches the call.
 - Interrupted rows are never silently re-executed for `non_retryable` tools: the refusal is
   the guarantee, and the operator decides the next step.
 
 ## Adoption Path (Current-Only Policy)
 
-`mcp_dedup.sqlite` bootstraps with `CREATE TABLE IF NOT EXISTS` + `PRAGMA user_version`
-and carries no version ledger or migration step. A future schema change to this file lands as a new canonical DDL in
-`scripts/shared/mcp_dedup.py`, and an existing file matching the previous shape is archived
-and recreated. Until such a change, recovery for this file is recreating it: the store is a
-disposable cache, and a fresh empty store only means the next call of each key runs for real.
+`mcp_dedup.sqlite` bootstraps with its canonical DDL plus the identity stamp (`store_meta`
+row, `PRAGMA user_version = 1`, external installation marker) and carries no version ledger or
+migration step. A future schema change to this file lands as a new canonical DDL in
+`scripts/shared/mcp_dedup_schema.py`, and an existing file matching the previous shape is
+archived and recreated. Until such a change, recovery for this file is recreating it: the store
+is a disposable cache, and a fresh empty store only means the next call of each key runs for
+real. Identity refusals (`lost`, `replaced`, `legacy_or_unverified`, `schema_mismatch`) follow
+the same operator resolution: archive the file, remove or rename it, and let the next open
+stamp a fresh identity (`resolve_store` is the scripted path).
 
 ## Keywords
 

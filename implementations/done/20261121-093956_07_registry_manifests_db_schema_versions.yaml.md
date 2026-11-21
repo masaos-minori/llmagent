@@ -20,7 +20,7 @@ Regenerate `registry/manifests/db_schema_versions.yaml` so it contains the new `
 ### Procedure
 Run the generator and commit its output.
 ### Method
-- `uv run python tools/generate_reference_table.py` (manifest regeneration), then verify the new `mcp_dedup` entry shows `kind: schema`, `source: scripts/shared/mcp_dedup.py`, and the stamp recorded by row 01.
+- `uv run python tools/generate_reference_table.py --manifests --type deployment` (manifest regeneration; the sanctioned generator command), then verify the new `mcp_dedup` entry shows `kind: schema`, `source: scripts/shared/mcp_dedup_schema.py` (the module that holds `_CANONICAL_DDL` after row 01's module-family split), and `version: 1`, the stamp recorded by row 01.
 ### Details
 - Current manifest (verified 2026-11-21): three `kind: db_path` entries (rag/session/workflow) plus the `eventbus` `kind: schema` entry; no `mcp_dedup` row.
 
@@ -47,8 +47,8 @@ Run the generator and commit its output.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run the generator and commit the regenerated manifest | Pending | — | — | Never hand-edit |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Run the generator and commit the regenerated manifest | Completed | — | 20261121-122259 | Never hand-edit Regenerated with 'uv run python tools/generate_reference_table.py --manifests --type deployment'; new entry: kind schema, name mcp_dedup, source scripts/shared/mcp_dedup_schema.py, version 1, content_hash ccbf4c3d35fd1616... Generated output only, never hand-edited. The deployment guarded doc block was re-rendered unchanged (it lists kind db_path rows only). |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261121-122259 | --check --type deployment exits 0 ('No drift found'); tests/tools/ 2394 passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

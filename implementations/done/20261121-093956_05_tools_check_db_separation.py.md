@@ -57,9 +57,9 @@ Extend the canonical registration tables and the config-path-key scan for the de
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Update companion test file per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261121-121446 | check_db_separation registers mcp_dedup: TABLE_OWNERSHIP entry, DB_PATH_REGISTRATIONS ((mcp_dedup.toml, db_path) -> mcp_dedup) instead of loosening _DB_PATH_KEY_RE, check_db_paths scan extended to config/mcp_dedup.toml, _schema_ddl includes the store _CANONICAL_DDL. |
+| 2 | Update companion test file per Validation plan | Completed | — | 20261121-121446 | 5 new tests in tests/tools/test_check_db_separation.py (14/14 green). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261121-121446 | CLI exits 0 'No violations found'; ruff/format/mypy green (mypy fixed by renaming the second scan-loop variable to scanned_db). Fallout resolved: the honesty test flagged shared/mcp_dedup.py at 46876 B over the 24576 B gate; fixed by splitting the store into the shared/mcp_dedup* module family rather than baselining the violation (routing.md), all members under the limit. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

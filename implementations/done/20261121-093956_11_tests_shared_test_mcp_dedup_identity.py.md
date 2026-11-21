@@ -58,9 +58,9 @@ Write the identity/loss matrix suite against today's store, then keep it as the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the suite (new file) against current code | Pending | — | — | |
-| 2 | Run Phase 1 evidence pass and record failures (feeds UNK-05 answer) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the suite (new file) against current code | Completed | 20261121-104530 | 20261121-104703 | Suite written: 13 tests, 4 classes; legacy fixture inline. |
+| 2 | Run Phase 1 evidence pass and record failures (feeds UNK-05 answer) | Completed | — | 20261121-104703 | Phase1 evidence: 13/13 FAILED (AttributeError start_state/DedupStoreError/resolve_store; OperationalError no such table store_meta; resolve_lost_store still present; user_version pin 0). Current store has no identity row, marker, or start-state classification; touch() shape present in source. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261121-111007 | Targeted suite green after row 01 landed (10: 9/9, 11: 13/13; combined 22/22). ruff check/format green. mypy scope excludes tests/shared per pyproject files list. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

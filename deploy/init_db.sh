@@ -105,6 +105,78 @@ PY
 fi
 echo "OK: workflow.sqlite, rag.sqlite, session.sqlite match the canonical schema fingerprint"
 
+# ── dedup store 初期化 (REQ-005/REQ-011) ─────────────────────────────────────
+# The dedup store is created through the shared loader path (shared.mcp_dedup),
+# never by raw DDL in this script (ADR-008 schema authority). Opening the store
+# runs first-initialization in one sequence: identity row in store_meta,
+# PRAGMA user_version = 1, and the .mcp_dedup_installed marker next to the DB
+# file. Only `first_initialization` and `healthy` open; a pre-existing store in
+# any other start state (legacy_or_unverified / schema_mismatch / lost / replaced)
+# aborts the run. This script never mutates, archives, or deletes a database
+# (fail-closed): the operator resolves those states manually with the store-API
+# resolution procedure documented in docs/41_db/db_08_active_databases.md.
+echo "--- dedup store 初期化 ---"
+if ! (cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true \
+    uv run "${UV_PROD_FLAGS[@]}" python - <<'PY'
+import sqlite3
+import sys
+from pathlib import Path
+
+from shared.mcp_dedup import DedupStoreError, load_dedup_config, open_dedup_store
+from shared.mcp_dedup_schema import _INSTALL_MARKER_NAME
+
+config = load_dedup_config()  # resolves config/mcp_dedup.toml (LLMAGENT_CONFIG_DIR honored)
+try:
+    store = open_dedup_store(config)
+except DedupStoreError as exc:
+    print(f"[gate] {exc}", file=sys.stderr)
+    print(
+        "Automatic migration and version stamping are not supported. Stop the"
+        " service, archive the reported store, resolve it with the operator"
+        " procedure in docs/41_db/db_08_active_databases.md, then re-run this"
+        " script.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+try:
+    path = Path(store.db_path)
+    print(f"dedup store: state={store.start_state} path={path}")
+    problems = []
+    if not path.is_file():
+        problems.append(f"store file missing: {path}")
+    else:
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            user_version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+            has_identity = (
+                conn.execute("SELECT 1 FROM store_meta LIMIT 1").fetchone() is not None
+            )
+        finally:
+            conn.close()
+        if user_version != 1:
+            problems.append(f"PRAGMA user_version={user_version}, expected 1")
+        if not has_identity:
+            problems.append("store_meta carries no identity row")
+    if not (path.parent / _INSTALL_MARKER_NAME).is_file():
+        problems.append(f"installation marker missing: {path.parent / _INSTALL_MARKER_NAME}")
+    for problem in problems:
+        print(f"[gate] dedup store verification failed: {problem}", file=sys.stderr)
+    if problems:
+        sys.exit(1)
+    print(
+        f"OK: dedup store verified (identity row, PRAGMA user_version=1, marker"
+        f" {_INSTALL_MARKER_NAME})"
+    )
+finally:
+    store.close()
+PY
+); then
+    echo "[FATAL] dedup store initialization failed (see the [gate] line above)." >&2
+    echo "A pre-existing store in an unsafe start state must be resolved by the operator:" >&2
+    echo "  docs/41_db/db_08_active_databases.md (archive-and-recreate, generation rollover)" >&2
+    exit 1
+fi
+
 # ── Recovery drill hook (REQ-007) ────────────────────────────────────────────
 # Default OFF. Only run the read-only drill when an operator opts in with
 # RUN_RECOVERY_DRILL=1 (drill cadence is undecided until UNK-01 is resolved).

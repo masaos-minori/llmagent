@@ -118,7 +118,7 @@ _STALE_REPLAYABLE_STATES = ("pending", "dispatch_starting")
 _STALE_OUTCOME_UNKNOWN_STATES = ("dispatched", "response_received")
 _STALE_SCAN_STATES = _STALE_REPLAYABLE_STATES + _STALE_OUTCOME_UNKNOWN_STATES
 _STALE_SCAN_SQL = (
-    "SELECT idempotency_key, state FROM tool_call_state"
+    "SELECT idempotency_key, state FROM tool_call_state"  # nosec B608 — the concatenation only emits literal ? placeholders from a module-constant tuple; all values bind through the placeholders
     " WHERE task_id=? AND state IN ("
     + ", ".join("?" for _ in _STALE_SCAN_STATES)
     + ") AND created_at < ?"

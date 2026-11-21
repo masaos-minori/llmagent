@@ -189,6 +189,13 @@ def _write_config(tmp_path: pathlib.Path, db_dir: pathlib.Path) -> pathlib.Path:
         eventbus_toml.read_text(encoding="utf-8").replace("/opt/llm/db/", f"{db_dir}/"),
         encoding="utf-8",
     )
+    # The dedup store resolves its database the same way (shared.mcp_dedup loader on
+    # mcp_dedup.toml), so init_db.sh's dedup step stays inside the sandbox db dir.
+    dedup_toml = cfg_dir / "mcp_dedup.toml"
+    dedup_toml.write_text(
+        dedup_toml.read_text(encoding="utf-8").replace("/opt/llm/db/", f"{db_dir}/"),
+        encoding="utf-8",
+    )
     return cfg_dir
 
 
@@ -389,3 +396,70 @@ def test_recovery_drill_runs_under_flag_and_leaves_fixtures_untouched(
     assert len(artifacts) == 3, [p.name for p in artifacts]
     after = {name: _hash(db_dir / name) for name in _LIVE_FILES}
     assert before == after, "the read-only drill must not mutate live databases"
+
+
+# Dedup store initialization (REQ-005 / REQ-011): the script opens the store
+# through the shared loader, so first-initialization stamps identity, user_version,
+# and the installation marker in one run; an unsafe pre-existing store aborts
+# instead of being mutated.
+_DEDUP_OK = "OK: dedup store verified"
+_DEDUP_FATAL = "[FATAL] dedup store initialization failed"
+_LEGACY_DEDUP_DDL = """CREATE TABLE call_state (
+    call_key TEXT PRIMARY KEY,
+    status TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+)"""
+
+
+def test_dedup_store_initialized_with_identity_stamp_and_marker(
+    tmp_path: pathlib.Path,
+) -> None:
+    db_dir = tmp_path / "db"
+    db_dir.mkdir(parents=True, exist_ok=True)
+    scripts_dir = _write_stub_scripts(tmp_path)
+    _provision_all_canonical(db_dir)
+
+    result = _run(_write_driver(tmp_path, db_dir=db_dir, scripts_dir=scripts_dir))
+
+    assert result.returncode == 0, result.stderr
+    assert "state=first_initialization" in result.stdout
+    assert _DEDUP_OK in result.stdout
+    assert _BANNER in result.stdout
+
+    dedup_db = db_dir / "mcp_dedup.sqlite"
+    assert dedup_db.is_file()
+    conn = sqlite3.connect(dedup_db)
+    try:
+        assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 1
+        assert conn.execute("SELECT 1 FROM store_meta LIMIT 1").fetchone() is not None
+    finally:
+        conn.close()
+    assert (db_dir / ".mcp_dedup_installed").is_file()
+
+
+def test_dedup_init_aborts_on_legacy_store_without_mutating_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    db_dir = tmp_path / "db"
+    db_dir.mkdir(parents=True, exist_ok=True)
+    scripts_dir = _write_stub_scripts(tmp_path)
+    _provision_all_canonical(db_dir)
+    legacy_db = db_dir / "mcp_dedup.sqlite"
+    conn = sqlite3.connect(legacy_db)
+    try:
+        conn.executescript(_LEGACY_DEDUP_DDL)
+        conn.commit()
+    finally:
+        conn.close()
+    before = _hash(legacy_db)
+
+    result = _run(_write_driver(tmp_path, db_dir=db_dir, scripts_dir=scripts_dir))
+
+    assert result.returncode != 0
+    assert _DEDUP_FATAL in result.stderr
+    assert "Automatic migration and version stamping are not supported" in result.stderr
+    assert "docs/41_db/db_08_active_databases.md" in result.stderr
+    assert _DEDUP_OK not in result.stdout
+    assert _BANNER not in result.stdout
+    assert _hash(legacy_db) == before  # fail-closed: the script performs no write
+    assert not (db_dir / ".mcp_dedup_installed").exists()

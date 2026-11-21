@@ -60,9 +60,9 @@ Extend the snapshot builder with a `dedup` component and its config-key plumbing
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Update companion test file per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261121-111526 | dedup component landed: gen=<generation>;schema=<fingerprint>, absent sentinel. Deviation (verified): snapshot reads identity via new read-only read_store_identity() added to row 01's module; open_dedup_store would first-initialize a store as a snapshot side effect. Deviation (verified): _DB_PATH_KEYS/_DB_PATH_DEFAULTS unchanged (Method 3 is conditional 'where the builder needs the path'); the component reads mcp_dedup.toml via load_dedup_config, and adding a dead label would corrupt schema_versions pins. COMPONENT_KEYS now has 5 entries; plan D-8 said '4-component' (count off; substance met). |
+| 2 | Update companion test file per Validation plan | Completed | — | 20261121-111526 | Companion test_execution_snapshot.py: +5 TestDedupComponent tests incl AC-7 rollover-flags-only-dedup; 34/34 green. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261121-111526 | pytest tests/shared/test_execution_snapshot.py 34/34; ruff+format+mypy green; radon build_execution_snapshot B(6) unchanged. tests/mcp_servers/ gate deferred to row 02 (dispatch still on old store API). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

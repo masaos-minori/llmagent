@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """check_db_separation.py — Verify the ADR-008 SQLite 4DB separation boundaries.
 
-Statically verifies that the four logical databases (rag, session, workflow,
-eventbus) stay physically and logically separated:
+Statically verifies that the four core logical databases (rag, session, workflow,
+eventbus) plus the disposable mcp_dedup store stay physically and logically
+separated:
 
   1. Table ownership: the tables created by each database's schema DDL equal the
      canonical ownership inventory below (a table placed in the wrong database, or
      an unregistered table, is reported).
   2. Cross-DB references: no DDL REFERENCES clause targets a table owned by
      another database.
-  3. Physical path separation: the four configured/default DB paths are distinct
-     files named after their database (`rag.sqlite`, ...), and every `*_db_path`
-     key under `config/*.toml` points to the file named after its key.
+  3. Physical path separation: the configured/default DB paths are distinct
+     files named after their database (`rag.sqlite`, ..., `mcp_dedup.sqlite`),
+     and every registered db path key under `config/*.toml` points to the file
+     named after its database (the `*_db_path` regex plus the explicit
+     DB_PATH_REGISTRATIONS for bare `db_path` keys like mcp_dedup.toml).
   4. sqlite-vec scope: `vec0` virtual tables exist only where the inventory
      registers them, `SQLiteHelper` loads the extension by default only for `rag`
      and `session` (the databases that own a vec0 table),
@@ -20,6 +23,8 @@ eventbus) stay physically and logically separated:
      `FROM`/`JOIN` (`rag.`, `session.`, `workflow.`, `eventbus.`) in `scripts/`.
 
 Rule: ADR-008 INV-01 to INV-05 and INV-08 (docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md).
+mcp_dedup is ADR-008's disposable store: registered here for ownership and path
+coverage without changing the four-DB contract.
 
 Usage:
     uv run python tools/check_db_separation.py
@@ -82,6 +87,11 @@ TABLE_OWNERSHIP: dict[str, frozenset[str]] = {
             "dlq_outbox",
         },
     ),
+    # ADR-008 disposable store (mcpdl002): the dedup ledger and its identity
+    # tables. Each name maps to exactly one database (the ledger rename
+    # dedup_call_state removed the old collision with workflow's
+    # tool_call_state).
+    "mcp_dedup": frozenset({"dedup_call_state", "store_meta", "call_attempt_history"}),
 }
 
 # Virtual tables backed by the sqlite-vec extension, by owning database.
@@ -109,11 +119,19 @@ _DEFAULT_LOAD_VEC_RE = re.compile(
     r"\(\s*[\"']rag[\"']\s*,\s*[\"']session[\"']\s*\)"
 )
 _DB_PATH_KEY_RE = re.compile(r"^(?P<db>rag|session|workflow|eventbus)_db_path$")
+# Explicit (config file, leaf key) -> database registrations for db path keys
+# that do not carry the database name in the key itself (ADR-008 keeps the
+# regex tight instead of matching every bare `db_path`).
+DB_PATH_REGISTRATIONS: dict[tuple[str, str], str] = {
+    ("eventbus.toml", "db_path"): "eventbus",
+    ("mcp_dedup.toml", "db_path"): "mcp_dedup",
+}
 
 
 def _schema_ddl() -> dict[str, str]:
     """Return the schema DDL text per database."""
     import db.schema_sql as schema_sql  # noqa: PLC0415
+    from shared.mcp_dedup import _CANONICAL_DDL  # noqa: PLC0415
 
     return {
         "rag": schema_sql.build_rag_schema_sql(8),
@@ -122,6 +140,7 @@ def _schema_ddl() -> dict[str, str]:
         "eventbus": (REPO_ROOT / "scripts" / "eventbus" / "schema.sql").read_text(
             encoding="utf-8"
         ),
+        "mcp_dedup": _CANONICAL_DDL,
     }
 
 
@@ -178,7 +197,7 @@ def _normalize(path: str) -> str:
 
 
 def check_db_paths() -> list[str]:
-    """Check 3: four distinct physical files named after their database."""
+    """Check 3: distinct physical files, each named after its database."""
     problems: list[str] = []
     from db.config import DbConfig  # noqa: PLC0415
 
@@ -188,6 +207,7 @@ def check_db_paths() -> list[str]:
         "session": "",
         "workflow": str(defaults["workflow_db_path"]),
         "eventbus": "",
+        "mcp_dedup": "",
     }
     # eventbus.sqlite belongs to the EventBus service: its path is the db_path of
     # config/eventbus.toml, never a key of agent.toml.
@@ -202,6 +222,16 @@ def check_db_paths() -> list[str]:
                     f"[db-path] config/eventbus.toml: db_path = {configured_path!r} "
                     "is not named eventbus.sqlite"
                 )
+    # mcp_dedup.sqlite belongs to the disposable dedup store: its path is the
+    # db_path of config/mcp_dedup.toml ([dedup] table; DB_PATH_REGISTRATIONS).
+    dedup_toml = CONFIG_DIR / "mcp_dedup.toml"
+    if dedup_toml.is_file():
+        dedup_data = tomllib.loads(dedup_toml.read_text(encoding="utf-8"))
+        dedup_table = dedup_data.get("dedup")
+        if isinstance(dedup_table, dict) and isinstance(
+            dedup_table.get("db_path"), str
+        ):
+            paths["mcp_dedup"] = dedup_table["db_path"]
     agent_toml = CONFIG_DIR / "agent.toml"
     if agent_toml.is_file():
         data = tomllib.loads(agent_toml.read_text(encoding="utf-8"))
@@ -212,9 +242,10 @@ def check_db_paths() -> list[str]:
                 paths[m.group("db")] = value
     for db_name, path in paths.items():
         if not path:
+            registered = DB_PATH_REGISTRATIONS.get((f"{db_name}.toml", "db_path"))
             source = (
-                "config/eventbus.toml db_path"
-                if db_name == "eventbus"
+                f"config/{db_name}.toml db_path"
+                if registered == db_name
                 else f"{db_name}_db_path"
             )
             problems.append(f"[db-path] {source} is not configured")
@@ -230,8 +261,13 @@ def check_db_paths() -> list[str]:
         data = tomllib.loads(toml_path.read_text(encoding="utf-8"))
         for key, value in _flatten(data).items():
             m = _DB_PATH_KEY_RE.match(key)
-            if m and isinstance(value, str):
-                expected_name = f"{m.group('db')}.sqlite"
+            scanned_db: str | None = None
+            if m:
+                scanned_db = m.group("db")
+            else:
+                scanned_db = DB_PATH_REGISTRATIONS.get((toml_path.name, key))
+            if scanned_db and isinstance(value, str):
+                expected_name = f"{scanned_db}.sqlite"
                 if Path(value).name != expected_name:
                     rel = toml_path.relative_to(REPO_ROOT)
                     problems.append(

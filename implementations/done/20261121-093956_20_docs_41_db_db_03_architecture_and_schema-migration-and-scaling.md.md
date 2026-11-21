@@ -49,8 +49,8 @@ Rewrite the `mcp_dedup` mentions in the policy sentence and the per-database tab
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the doc per Implementation > Method | Pending | — | — | |
-| 2 | Run the docs checkers (routing.md Tools) | Pending | — | — | |
+| 1 | Update the doc per Implementation > Method | Completed | — | 20261121-125951 | Verified the three stale 'recreated empty' claims (:68 policy sentence, accepted-schema table row, recreation-impact table row) and rewrote all three to the identity-gated rule: open-time classification refusals, identity stamp, operator archive + new-generation rollover via resolve_store (cross-linked to the db_08 runbook). Six-database framing and ADR-008 Decision Detail #22 citation intact; no migration/upgrade-path claims added. |
+| 2 | Run the docs checkers (routing.md Tools) | Completed | — | 20261121-125951 | check_docs_quality.py and check_docs_structure.py both pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -13,6 +13,11 @@ Captures a component-keyed fingerprint of the running deployment at call start
 - ``schema_versions``: the ``user_version`` header field (offset 60, 4-byte big
   endian) of each known DB file; no sqlite3 connection is opened (scripts/shared
   boundary rule); equals ``PRAGMA user_version`` for committed databases.
+- ``dedup``: the dedup store identity (``gen=<generation>;schema=<fingerprint>``)
+  read through the shared dedup loader from ``config/mcp_dedup.toml``; a store
+  swap or generation rollover breaks snapshot equality. The read never creates
+  or mutates the store; an unconfigured or identity-less store yields
+  ``"absent"``.
 
 Equality is per component; each differing component is named by
 ``mismatching_components`` so audit can distinguish a config-only change from a
@@ -40,6 +45,7 @@ COMPONENT_KEYS: tuple[str, ...] = (
     "git_sha",
     "config_hash",
     "schema_versions",
+    "dedup",
 )
 
 _UNKNOWN = "unknown"
@@ -136,13 +142,34 @@ def _schema_versions(db_paths: Mapping[str, str]) -> str:
     )
 
 
+def _dedup_component(cfg_dir: Path) -> str:
+    """Dedup store identity component: ``gen=<generation>;schema=<fingerprint>``.
+
+    Read through the shared dedup loader (import is deferred: `shared.mcp_dedup`
+    itself imports this module at module level). The read is strictly
+    read-only — building a snapshot never creates or mutates the store.
+    Unconfigured, unopenable, or identity-less stores yield ``absent``.
+    """
+    try:
+        from shared.mcp_dedup import load_dedup_config, read_store_identity
+
+        config = load_dedup_config(cfg_dir / "mcp_dedup.toml")
+    except (OSError, ValueError):
+        return _ABSENT
+    identity = read_store_identity(config.db_path)
+    if identity is None:
+        return _ABSENT
+    generation, fingerprint = identity
+    return f"gen={generation};schema={fingerprint}"
+
+
 def build_execution_snapshot(
     *,
     deployed_rev_path: str | Path | None = None,
     config_dir: str | Path | None = None,
     db_paths: Mapping[str, str | Path] | Iterable[str | Path] | None = None,
 ) -> dict[str, str]:
-    """Build the four-component execution snapshot. Never raises.
+    """Build the component-keyed execution snapshot. Never raises.
 
     Keyword seams (row 18 test contract): ``deployed_rev_path``, ``config_dir``
     and ``db_paths`` override the deployed defaults; ``db_paths`` accepts a
@@ -167,6 +194,7 @@ def build_execution_snapshot(
         "git_sha": git_sha,
         "config_hash": _config_hash(cfg_dir),
         "schema_versions": _schema_versions(resolved_db_paths),
+        "dedup": _dedup_component(cfg_dir),
     }
 
 
@@ -187,5 +215,5 @@ def mismatching_components(a: Mapping[str, str], b: Mapping[str, str]) -> list[s
 
 
 def snapshots_equal(a: Mapping[str, str], b: Mapping[str, str]) -> bool:
-    """True only when all four components are present on both sides and equal."""
+    """True only when every COMPONENT_KEYS entry is present on both sides and equal."""
     return not mismatching_components(a, b)

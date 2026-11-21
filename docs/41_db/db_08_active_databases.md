@@ -66,9 +66,41 @@ Each database is owned by a single component (see the **Owner** line of each sec
 
 - **Owner**: the shared MCP dispatcher (`scripts/mcp_servers/dispatch.py`)
 - **Config source**: `db_path` in `config/mcp_dedup.toml` only; `agent.toml` carries no dedup path
-- **Schema authority**: `scripts/shared/mcp_dedup.py` (`_SCHEMA`, `CREATE TABLE IF NOT EXISTS tool_call_state`); `DedupStore.__init__` executes it on first use
-- **Lifecycle**: Created on first dispatch use via `open_dedup_store`; persists until deleted
-- **Rebuild**: disposable derived store, rebuildable from live dispatch decisions; backup and rotation helpers do not cover it. Recovery is recreation per ADR-004. See [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) (Derived Stores Outside the Four Domains)
+- **Schema authority**: `scripts/shared/mcp_dedup_schema.py` (canonical DDL: `dedup_call_state`,
+  `store_meta`, `call_attempt_history`); creation also stamps the store identity: a `store_meta`
+  row (store uuid + generation), `PRAGMA user_version = 1`, and the external installation marker
+  `.mcp_dedup_installed` next to the database file
+- **Lifecycle**: Created by `deploy/init_db.sh` at deploy time (which verifies the identity stamp
+  and aborts on a refused open); reopened by every dispatcher process via `open_dedup_store`;
+  persists until archived by the operator
+- **Row semantics**: `dedup_call_state` rows carry lease columns (`owner_id`,
+  `lease_expires_epoch`, `attempt_number`); `pending` rows hold a lease, terminal rows
+  (`completed`/`failed`/`interrupted`) are immutable. `call_attempt_history` records each
+  attempt/finalization/reconciliation decision. See [db_03_07](db_03_07_mcp-dedup-and-execution-snapshot.md).
+- **Rebuild**: disposable dedup-log cache; backup and rotation helpers do not cover it. Unlike
+  derived stores such as mdq, its evidence is archive-only: it is never auto-rebuilt from any
+  source. Recovery is the operator runbook below. See [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) (Derived Stores Outside the Four Domains)
+
+### Operator resolution runbook (mcp_dedup)
+
+A store open classifies the file before any write and refuses with a `DedupStoreError` state:
+`lost` (a known generation's file is gone), `replaced` (the installation marker names a
+different store), `legacy_or_unverified` (pre-change shape, missing identity row, or missing
+marker), or `schema_mismatch` (canonical fingerprint or `PRAGMA user_version` drift). The
+refusal log line and `init_db.sh`'s `[gate]` abort message name the state and the file path.
+
+Resolution is `scripts/shared/mcp_dedup.py::resolve_store(db_path)`:
+
+1. It refuses a healthy store (resolution is only for lost, replaced, legacy, or drifted stores).
+2. It records the previous generation (identity row first, installation marker as fallback).
+3. It archives the old file as `<path>.corrupt-<timestamp>` (wal/shm sidecars included) and
+   removes the installation marker.
+4. It creates a new store generation, stamps it with `previous generation + 1`, and logs the
+   decision line (`archived=... previous_generation=... new_generation=...`).
+
+An empty or missing file alone never resolves anything by itself: only this operation performs
+the rollover, and services restart normally afterwards — a fresh empty store only means the
+next call of each key runs for real.
 
 ## Related ADRs
 

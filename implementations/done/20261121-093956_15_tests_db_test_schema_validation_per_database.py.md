@@ -28,6 +28,8 @@ Update the dedup entry's canonical source pin, drift cases, and baseline constru
 4. Add (or fold into the baseline case) the identity-stamp mismatch: a store missing `store_meta` or the stamp must refuse with the archive-and-recreate error.
 ### Details
 - Current pins (verified 2026-11-21): imports `shared.mcp_dedup._CANONICAL_DDL` and `DedupStore`; `_entry_dedup` opens `DedupStore(str(path))`; entry `name="mcp_dedup"` sits in the per-database matrix around :217.
+- Executed 2026-11-21: `_Domain` gained `post_build` (identity stamping for DDL-built dedup files: store_meta row + `PRAGMA user_version = 1` + installation marker) and `extra_table_ddl` (per-domain extra-table mutant; mcp_dedup plants the real pre-change `tool_call_state` table). `primary_table`/`index_snippet` re-pinned to `dedup_call_state`/`idx_dcs_updated`; `_refusal` also catches `DedupStoreError`. New `TestIdentityMismatch` covers the unstamped and identity-row-less refusals with `REFUSAL_MESSAGE` and byte-identity guards.
+- Production-side deviation (row 01 file): the `schema_mismatch` stamp-drift and identity-row-less refusal messages now carry the full `REFUSAL_MESSAGE` archive-and-recreate guidance, so identity mismatches match the same operator vocabulary as fingerprint refusals.
 
 ## Compatibility considerations
 - Other domains' entries are untouched; the shared fingerprint/refusal vocabulary (`REFUSAL_MESSAGE`) is unchanged.
@@ -52,8 +54,8 @@ Update the dedup entry's canonical source pin, drift cases, and baseline constru
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the dedup harness entries per Implementation > Method | Pending | — | — | Lands in Phase 3 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the dedup harness entries per Implementation > Method | Completed | — | 20261121-125315 | Lands in Phase 3 Dedup domain re-pinned (dedup_call_state/idx_dcs_updated, three-table canonical), extra legacy-table mutant plants the real pre-change tool_call_state via new per-domain extra_table_ddl, post_build stamps the identity the store open requires, new TestIdentityMismatch covers stamp-missing and identity-row-less refusals. Deviation from Method 2: baseline is built from the canonical DDL text plus explicit identity stamping instead of a live store open, keeping baseline-vs-mutant fingerprint symmetry; identity requirements are asserted directly. Deviation recorded: row 01 refusal messages for stamp drift and missing identity row now embed REFUSAL_MESSAGE. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261121-125315 | tests/db/test_schema_validation_per_database.py 33 passed; tests/shared/ + tests/db/ 1838 passed; ruff check/format and mypy green. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

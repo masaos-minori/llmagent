@@ -50,8 +50,8 @@ Rewrite the key-derivation sentence (:38) and the durable-dedup state/failure-se
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the doc per Implementation > Method | Pending | — | — | |
-| 2 | Run the docs checkers (routing.md Tools) | Pending | — | — | |
+| 1 | Update the doc per Implementation > Method | Completed | — | 20261121-130114 | Verified stale claims (:36-42 derivation paragraph, four-state-only store block). Rewrote the section: caller-supplied logical-call-id contract (X-Idempotency-Key via context.call_id, transport refuses without a call id), acquisition vocabulary, store start states, dedup_in_progress refusal, reconciliation-gated replay, replay_unavailable/outcome_unknown refusals, identity-refusal coverage in store-unavailability wording. idempotency_key_reused semantics preserved. |
+| 2 | Run the docs checkers (routing.md Tools) | Completed | — | 20261121-130114 | check_docs_quality.py and check_docs_structure.py both pass. Remaining derive_idempotency_key mentions live in agent_06_01 (row 22 target). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
