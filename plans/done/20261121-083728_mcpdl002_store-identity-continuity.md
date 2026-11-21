@@ -35,7 +35,7 @@ Source: consolidated MCP deduplication two-layer defense backlog (`memo-issue.md
 - `record_pending(force=True)` resets a terminal row to pending (clearing `result_json`, resetting `created_epoch`/`updated_epoch`), destroying reconciliation evidence and allowing the same logical call to execute again; a zero-row finalization update passes silently.
 - No identity marker is written at normal initialization, so a deleted or replaced database cannot be distinguished from a first start; `resolve_lost_store()`'s `touch()` creates an empty file that hides the loss.
 - The store's own schema version is invisible to the execution-identity snapshot (`_DB_PATH_KEYS` covers only rag/session/workflow), and the store is not registered in `tools/check_db_separation.py` or `registry/manifests/db_schema_versions.yaml`.
-- `DedupStore.__init__` raises a raw `RuntimeError` on a table-shape mismatch, which escapes `dispatch.py`'s audited fail-open/fail-closed `store_error` taxonomy (it catches only `sqlite3.Error`/`OSError`/`ConfigMissingError`/`ConfigParseError`).
+- `DedupStore.__init__` raises a raw `RuntimeError` on a table-shape mismatch. Verification finding (2026-11-21, plan-to-implementation-procedure Step 3a): it does not escape `dispatch.py` — `_dedup_context` catches every `Exception` at open time (dispatch.py:167-178) and disables durable dedup process-wide with a generic warning, after which non-retryable calls fail closed as `dedup_store_error` (dispatch.py:437-452) and retryable calls proceed overlay-only. The real gap is that the failure is masked rather than typed: shape mismatch, lost store, and a plain unavailable store all collapse into one undifferentiated fallback, with no start state reported.
 
 ## Reason for Change
 Duplicate execution of external side effects is a correctness and data-integrity risk. Ownership without identity would still let all evidence vanish, and identity without atomic ownership would only preserve an unsafe ledger, so both change the same schema in one rollout.
@@ -70,10 +70,10 @@ table — no other file may be treated as a modification target.
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | scripts/shared/mcp_dedup.py | Store core | Rewrite `_SCHEMA`/`_INDEXES`/`_CANONICAL_DDL` (ledger columns `owner_id`, `lease_expires_epoch`, `attempt_number`; `store_meta` and `call_attempt_history` tables; ledger table renamed `dedup_call_state`); replace `lookup`/`record_pending` with `try_acquire_execution`; owner-conditional heartbeat/finalization; delete `force=True`; identity stamping and start-state classification; operator resolution replacing `resolve_lost_store`/`touch()`; typed `store_error` surfacing; new config keys | REQ-001..REQ-007, REQ-010; AC-1..AC-6 | issue evidence lines 310 (`record_pending`), 318-323 (force reset), 390 (`lookup`), 453-470 (`resolve_lost_store` + `touch()`), 52-77 (`_SCHEMA`, `_CANONICAL_DDL`, `DEDUP_SENTINEL_NAME`); verified against current file 2026-11-21 | tests/shared/test_mcp_dedup.py; tests/shared/test_mcp_dedup_concurrency.py; tests/shared/test_mcp_dedup_identity.py | Verified |
-| scripts/mcp_servers/dispatch.py | Caller adoption | Replace `lookup` + pending-write + `force` call sites with `try_acquire_execution` + owner-scoped finalize; map new start states to the existing `store_error` taxonomy (`dedup_store_error` refusal for non-retryable, audited overlay-only `store_error` for retryable per ADR-004 MCP-001); keep overlay cache and per-key `args_hash` reuse rejection | REQ-001, REQ-002, REQ-006; AC-1, AC-6 | dispatch.py:289-315 (lost-store refusal), 313-329 (`lookup` failure fallback), 331-343 (reuse rejection), 160-179 (`_dedup_context` fail-open) | tests/mcp_servers/test_mcp_dispatch.py; tests/mcp_servers/conftest.py | Verified |
-| scripts/shared/execution_snapshot.py | Compatibility data | Add the dedup store identity component (generation + schema fingerprint) to the snapshot build and `_DB_PATH_KEYS` so a dedup-store swap is visible in snapshot comparison | REQ-008; AC-7 | execution_snapshot.py `_DB_PATH_KEYS` covers only rag/session/workflow (verified 2026-11-21) | tests/shared/test_execution_snapshot.py | Verified |
+| scripts/mcp_servers/dispatch.py | Caller adoption | Replace `lookup` + pending-write + `force` call sites with `try_acquire_execution` + owner-scoped finalize; map new start states to the existing `store_error` taxonomy (`dedup_store_error` refusal for non-retryable, audited overlay-only `store_error` for retryable per ADR-004 MCP-001); keep overlay cache and per-key `args_hash` reuse rejection | REQ-001, REQ-002, REQ-006; AC-1, AC-6 | dispatch.py:289-315 (lost-store refusal), 313-329 (`lookup` failure fallback), 331-343 (reuse rejection), 160-179 (`_dedup_context` fail-open) | `tests/mcp_servers/test_mcp_dispatch.py`; `tests/mcp_servers/conftest.py` | Verified |
+| scripts/shared/execution_snapshot.py | Compatibility data | Add the dedup store identity component (generation + schema fingerprint) to the snapshot build and `_DB_PATH_KEYS` so a dedup-store swap is visible in snapshot comparison | REQ-008; AC-7 | execution_snapshot.py `_DB_PATH_KEYS` covers only rag/session/workflow (verified 2026-11-21) | `tests/shared/test_execution_snapshot.py` | Verified |
 | config/mcp_dedup.toml | Configuration | Add `[dedup] lease_seconds` and `[dedup] max_attempts` keys alongside `db_path`/`retention_days` | REQ-010; AC-8 | config/mcp_dedup.toml `[dedup]` currently holds only `db_path` and `retention_days` (verified 2026-11-21) | tests/shared/test_mcp_dedup.py (loader tests) | Verified |
-| tools/check_db_separation.py | Validator registration | Register `mcp_dedup` in `TABLE_OWNERSHIP` (new ledger table names) and extend `_DB_PATH_KEY_RE` (or an equivalent explicit registration) to cover the `db_path` key in `config/mcp_dedup.toml` | REQ-009; AC-9 | tools/check_db_separation.py:55 (`TABLE_OWNERSHIP`, four DBs only), :111 (`_DB_PATH_KEY_RE = ^(rag\|session\|workflow\|eventbus)_db_path$`) | tests/tools/test_check_db_separation.py | Verified |
+| tools/check_db_separation.py | Validator registration | Register `mcp_dedup` in `TABLE_OWNERSHIP` (new ledger table names) and extend `_DB_PATH_KEY_RE` (or an equivalent explicit registration) to cover the `db_path` key in `config/mcp_dedup.toml` | REQ-009; AC-9 | tools/check_db_separation.py:55 (`TABLE_OWNERSHIP`, four DBs only), :111 (`_DB_PATH_KEY_RE = ^(rag\|session\|workflow\|eventbus)_db_path$`) | `tests/tools/test_check_db_separation.py` | Verified |
 | tools/generate_reference_table.py | Generator source | Emit a `mcp_dedup` schema-version manifest entry (canonical DDL source + user_version stamp) from the store module | REQ-008, REQ-009; AC-9 | registry/manifests/db_schema_versions.yaml holds no `mcp_dedup` entry today; generator sources are `scripts/db/config.py`, `config/agent.toml`, `scripts/eventbus/schema.sql` (generate_reference_table.py:55) | tools/generate_reference_table.py --check (see Validation plan) | Verified |
 | registry/manifests/db_schema_versions.yaml | Generated manifest | Regenerate with `tools/generate_reference_table.py` so the manifest contains the new `mcp_dedup` entry (generated file: never hand-edit) | REQ-009; AC-9 | Manifest file has no `mcp_dedup` row (verified 2026-11-21) | tools/generate_reference_table.py --check | Verified |
 | deploy/init_db.sh | Deployment initialization | Initialize the dedup store (identity row, user_version stamp, installation marker) deterministically at deploy time via the shared loader, and verify creation; operator-resolution step documented there | REQ-005, REQ-007, REQ-011; AC-5, AC-10 | deploy/init_db.sh contains no dedup/mcp references today (grep 2026-11-21); deploy.sh:153-154 copies `config/mcp_dedup.toml` | tests/deploy/ scripts execution (see Validation plan) | Verified |
@@ -81,7 +81,7 @@ table — no other file may be treated as a modification target.
 | tests/shared/test_mcp_dedup_concurrency.py | New test file (New file; directory tests/shared exists) | Test-first: one key under 100 concurrent async callers acquires exactly once; multi-connection and multi-process ownership; heartbeat vs stale recovery; finalization vs recovery race; process-kill-during-dispatch scenario | REQ-001..REQ-003; AC-1..AC-3 | New file per issue Target Files; must be shown failing on current code before store changes land (issue AI Implementation Instruction) | this file | Verified |
 | tests/shared/test_mcp_dedup_identity.py | New test file (New file; directory tests/shared exists) | Loss and replacement matrix: DB-only deletion, marker-only deletion, DB replacement (different store UUID), legacy pre-change DB fixture, schema mismatch, first initialization, operator resolution generation rollover | REQ-005..REQ-007; AC-4, AC-5 | New file per issue Target Files; must be shown failing on current code before store changes land | this file | Verified |
 | tests/mcp_servers/test_mcp_dispatch.py | Dispatcher tests | Adapt `test_store_error_retryable_proceeds_non_retryable_fails_closed` and `test_lost_store_non_retryable_refused_retryable_proceeds` to the acquisition API and new start states; add replaced/legacy-state refusal cases | REQ-001, REQ-006; AC-1, AC-4, AC-5 | test names cite REQ-001/REQ-002 and the lost-store contract today (verified 2026-11-21) | this file | Verified |
-| tests/mcp_servers/conftest.py | Fixture | Build fixtures through the new initialization path (identity + marker) instead of raw table creation | REQ-005 | conftest.py:46 imports `DedupConfig, DedupStore` and seeds store fixtures directly | consumed by tests/mcp_servers/* | Verified |
+| tests/mcp_servers/conftest.py | Fixture | Build fixtures through the new initialization path (identity + marker) instead of raw table creation | REQ-005 | conftest.py:45 imports `DedupConfig, DedupStore` and seeds store fixtures directly | consumed by tests/mcp_servers/* | Verified |
 | tests/shared/test_execution_snapshot.py | Snapshot tests | Update the component-shape and mismatch pins (`COMPONENT_KEYS` equality test at :88-95) for the added dedup component | REQ-008; AC-7 | test pins `set(snap) == set(COMPONENT_KEYS)` (test_execution_snapshot.py:88-97) | this file | Verified |
 | tests/db/test_schema_validation_per_database.py | Schema-drift tests | Update the `mcp_dedup` drift-harness expectations for the new multi-table canonical shape and identity stamp | REQ-004, REQ-008, REQ-009; AC-9 | test_schema_validation_per_database.py:42-43, 161-219 pin `_CANONICAL_DDL` and a `DedupStore` entry for the current single-table shape | this file | Verified |
 | tests/tools/test_check_db_separation.py | Validator tests | Add registration cases: `mcp_dedup` path-key check for `config/mcp_dedup.toml` `db_path` and ownership of the new ledger tables | REQ-009; AC-9 | tests/tools/test_check_db_separation.py:60-67 exercises the four-DB path-key rules only | this file | Verified |
@@ -209,7 +209,7 @@ Verification findings (Step 2, against current source 2026-11-21):
 - The lost-store sentinel gate already exists in code and tests (`DedupStore.__init__` `lost_or_recreated`; `resolve_lost_store()` writing `.mcp_dedup_resolved`), but nothing in `docs/` or `deploy/` documents the sentinel or `resolve_lost_store` — a real documentation gap confirmed by `rg`.
 - `mcp_dedup` is absent from `tools/check_db_separation.py` (path-key regex `^(rag|session|workflow|eventbus)_db_path$`; config key is `db_path`) and from `registry/manifests/db_schema_versions.yaml`.
 - Doc/code divergences confirmed: db_03_07 claims a `PRAGMA user_version = 1` stamp (code never stamps; the test pins `user_version == 0`); db_03_07:69, mcp_03_03:38, and agent_06_01:81/99 claim a `derive_idempotency_key(method, tool_name, args, uid)` derivation, while the key is caller-supplied (`X-Idempotency-Key` from `context.call_id`; `scripts/agent/tool_runner.py::_logical_call_id`); the function exists nowhere in `scripts/`.
-- `DedupStore.__init__`'s shape-mismatch `RuntimeError` escapes `dispatch.py::_dedup_context`'s caught exception set, bypassing the audited taxonomy.
+- `DedupStore.__init__`'s shape-mismatch `RuntimeError` is caught by `dispatch.py::_dedup_context`'s broad open-time `except Exception`, which collapses it into the generic disabled-store fallback; the audited taxonomy is bypassed by masking rather than by escape (Step 3a verification finding, 2026-11-21).
 - Validation baseline: radon flags `load_dedup_config` at C(18) and `dispatch_tool` at F(44); bandit clean on the three subject files; vulture lists the soon-to-be-removed `mark_interrupted`/`classify_interrupted`/`resolve_lost_store` as currently unused outside tests.
 
 Consumer-scan dispositions (`tools/scan_change_consumers.py` seeds `scripts/shared/mcp_dedup.py`, `DedupStore`, `record_pending`, `resolve_lost_store`, `DEDUP_SENTINEL_NAME`, `purge_expired`, `tool_call_state`, `snapshot_json`):
@@ -289,10 +289,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| Phase 1 | Test-first evidence (concurrency + identity) | Pending | — | — | Records the UNK-05 answer |
-| Phase 2 | Store core and identity (mcp_dedup.py, config keys, snapshot) | Pending | — | — | |
-| Phase 3 | Dispatcher, validators, deployment, tests | Pending | — | — | Co-lands with Phase 2 as release unit dedup-lease-identity-rollover |
-| Phase 4 | Documentation reconciliation | Pending | — | — | Release unit docs-sync |
+| 1 | Test-first evidence (concurrency + identity) | In Progress | 20261121-100219 | — | Records the UNK-05 answer |
+| 2 | Store core and identity (mcp_dedup.py, config keys, snapshot) | In Progress | 20261121-100219 | — |  |
+| 3 | Dispatcher, validators, deployment, tests | In Progress | 20261121-100219 | — | Co-lands with Phase 2 as release unit dedup-lease-identity-rollover |
+| 4 | Documentation reconciliation | In Progress | 20261121-100219 | — | Release unit docs-sync |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -302,7 +302,25 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261121-093956_01_scripts_shared_mcp_dedup.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261121-093956_02_scripts_mcp_servers_dispatch.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-093956_03_scripts_shared_execution_snapshot.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261121-093956_04_config_mcp_dedup.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261121-093956_05_tools_check_db_separation.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-093956_06_tools_generate_reference_table.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-093956_07_registry_manifests_db_schema_versions.yaml.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-093956_08_deploy_init_db.sh.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-093956_09_tests_shared_test_mcp_dedup.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-093956_10_tests_shared_test_mcp_dedup_concurrency.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261121-093956_11_tests_shared_test_mcp_dedup_identity.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261121-093956_15_tests_db_test_schema_validation_per_database.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-093956_17_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-093956_18_docs_41_db_db_08_active_databases.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-093956_19_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-093956_20_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-093956_21_docs_22_mcp_mcp_03_03_transport-and-health.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-093956_22_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-093956_23_docs_23_agent_agent_10_05_operations-and-observability-monitoring.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -350,3 +368,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-005 | Fixture initialization path | tests/mcp_servers/conftest.py | Phase 3 | AC-5 | tests/mcp_servers suite | Planned |
 | REQ-008 | Component pins (:88-97) | tests/shared/test_execution_snapshot.py | Phase 3 | AC-7 | this file | Planned |
 | REQ-009 | Validator cases | tests/tools/test_check_db_separation.py | Phase 3 | AC-9 | this file | Planned |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261121-093956 -->
