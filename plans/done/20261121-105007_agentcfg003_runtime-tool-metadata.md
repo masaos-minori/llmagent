@@ -117,6 +117,8 @@ passed on 2026-11-21: every row exists or is declared as a creation, every row i
 and every row is linked to a Requirement or Acceptance criterion. Run
 `uv run python tools/audit_plan_target_paths.py` and `uv run python tools/check_plan_target_overlaps.py`
 to re-check).
+Amended 2026-11-21 (scope): added scripts/mcp_servers/models.py — McpTool TypedDict carries the extended per-tool required field set; resource_scope_keys value type becomes the key-to-kind mapping
+Amended 2026-11-21 (fallout): added scripts/agent/constants.py — Remove the default constants for the removed maps (dead definitions once the fields and builders are removed); the declared metadata is the only source
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -192,6 +194,8 @@ table — no other file may be treated as a modification target.
 | `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md` | Change | Removed config keys and the precedence statement | REQ-012 / AC-11 | Lines 83, 91, 98, 102, 130 | `uv run python tools/check_docs_structure.py docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md` | Verified |
 | `docs/91_security/security_02_high-risk-tool-common-policy.md` | Change | Fail-closed table row for the removed maps | REQ-012 / AC-11 | Line 158 | `uv run python tools/check_docs_structure.py docs/91_security/security_02_high-risk-tool-common-policy.md` | Verified |
 | `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` | Change | Decision and invariant change, with the maintainer approval record | REQ-012 / AC-11 | Decisions 2, 5, 8, 9, 14 | `uv run python tools/check_adr_reference.py` | Verified |
+| `scripts/mcp_servers/models.py` | Extend | McpTool TypedDict carries the extended per-tool required field set; resource_scope_keys value type becomes the key-to-kind mapping | REQ-003 / N/A: none cites REQ-003 | McpTool TypedDict declares the four current required keys; every producer TOOL_LIST literal is typed as list[McpTool], so the extended field set cannot be declared without this file | tests/mcp_servers/test_tool_schema_contract.py | Verified |
+| `scripts/agent/constants.py` | Narrow | Remove the default constants for the removed maps (dead definitions once the fields and builders are removed); the declared metadata is the only source | REQ-011 / N/A: none cites REQ-011 | scripts/agent/constants.py defines _DEFAULT_APPROVAL_RISK_RULES, _DEFAULT_RESOURCE_KEYS, _DEFAULT_DRY_RUN_TOOLS; they are read only by config_section_builders.py and config_dataclasses.py, and no test references them | N/A: no test asserts these constants | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -334,6 +338,8 @@ installed). Values are from the measurement run on the current working tree.
 | `registry/manifests/config_ownership.yaml` | Remove ownership entries | Ownership checker, config docs | 6 | 4/6 | `registry/` is rsynced to the deployed directory; no script change |
 | `scripts/agent/services/mcp_status.py` | Server risk from declared tiers | `/mcp` status display | 4 | 17/36 | rsync, no change needed |
 | `scripts/agent/startup_validation.py` | Tier check path | Startup failure handling | 16 | 15/25 | rsync, no change needed |
+| `scripts/mcp_servers/models.py` | Modify | Not assessed (amendment 2026-11-21) | N/A | N/A | Not assessed (amendment 2026-11-21) |
+| `scripts/agent/constants.py` | Modify | Not assessed (amendment 2026-11-21) | N/A | N/A | Not assessed (amendment 2026-11-21) |
 
 ## Design
 ### Contract shape
@@ -419,6 +425,7 @@ installed). Values are from the measurement run on the current working tree.
    - [ ] Declare the new fields in each tool-definition file (REQ-003; every row in Implementation
      Target Files under `scripts/mcp_servers/*_tools.py` and the `scripts/mcp_servers/github` and
      `scripts/mcp_servers/rag_pipeline` tool files listed there).
+   - [ ] Extend (REQ-003; `scripts/mcp_servers/models.py`) — amendment 2026-11-21
 4. **Phase 4: Consumer migration**
    - [ ] Read declared metadata in the Agent policy, approval, audit and runner paths
      (REQ-004, REQ-008, REQ-009; `scripts/agent/tool_policy.py`, `scripts/agent/tool_approval.py`,
@@ -439,6 +446,7 @@ installed). Values are from the measurement run on the current working tree.
      REQ-011; `scripts/agent/config_dataclasses.py`, `scripts/agent/config_section_builders.py`,
      `scripts/agent/services/config_field_registry.py`, `scripts/agent/services/config_validators.py`,
      `registry/manifests/config_ownership.yaml`, `config/agent.toml`).
+   - [ ] Narrow (REQ-011; `scripts/agent/constants.py`) — amendment 2026-11-21
 6. **Phase 6: Tests**
    - [ ] Contract tests for the vocabulary, required fields and fail-closed validation (REQ-001,
      REQ-002, REQ-013; `tests/shared/test_tool_metadata.py`, `tests/shared/test_runtime_tool.py`,
@@ -519,12 +527,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: decision gate and ADR approval record | Pending | — | — | Cannot be completed by this Plan alone; the approval record must be written in the same change |
-| 2 | Phase 2: typed vocabulary and field-set validation | Pending | — | — | |
-| 3 | Phase 3: producer declarations | Pending | — | — | 13 tool-definition files plus the schema contract |
-| 4 | Phase 4: consumer migration and constants demotion | Pending | — | — | Release unit: contract-and-producers |
-| 5 | Phase 5: configuration layer removal | Pending | — | — | Release unit: config-removal-and-tests |
-| 6 | Phase 6: contract tests | Pending | — | — | Fixture-only test files are out of scope (see Risks) |
+| 1 | Phase 1: decision gate and ADR approval record | Blocked | — | — | Blocked by the maintainer approval record (UNK-03, UNK-04); the ADR procedure was generated in this pass (20261121-115519) |
+| 2 | Phase 2: typed vocabulary and field-set validation | In Progress | — | — | 3 procedure documents generated (pass 20261121-115519); field-set version value undecided (UNK-01) |
+| 3 | Phase 3: producer declarations | In Progress | — | — | 13 tool-definition files plus the schema contract 15 procedure documents generated (pass 20261121-115519) |
+| 4 | Phase 4: consumer migration and constants demotion | In Progress | — | — | Release unit: contract-and-producers 16 procedure documents generated (pass 20261121-115519); field names undecided (UNK-02, UNK-05, UNK-06) |
+| 5 | Phase 5: configuration layer removal | In Progress | — | — | Release unit: config-removal-and-tests 7 procedure documents generated (pass 20261121-115519) |
+| 6 | Phase 6: contract tests | In Progress | — | — | Fixture-only test files are out of scope (see Risks) 9 procedure documents generated (pass 20261121-115519); fixture-only test files stay with the test-audit follow-up |
 | 7 | Phase 7: validation gates, deployment check, doc checkers | Pending | — | — | Baseline: 1 known pre-existing failure, 13182 passed, 5 skipped |
 
 ### Blocker Log
@@ -541,6 +549,62 @@ Table structure, status/type vocabulary, and general guidance: see
 | test-audit follow-up: migrate the test files that use the removed config maps only as fixtures (~14 files) | 6 | Test | Pending | QA | N/A: not scheduled |
 | doc sweep: MCP reference docs that state the current classification priority | 7 | Doc Change | Pending | Docs | N/A: not scheduled |
 | ADR approval record for the constants-to-drift-only and `RETRYABLE_TOOLS` ownership change | 1 | Code Change | Pending | Maintainer | N/A: not scheduled |
+| implementations/20261121-115519_01_scripts_shared_tool_metadata.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261121-115519_02_scripts_shared_runtime_tool.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261121-115519_03_scripts_shared_resource_scope.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261121-115519_04_scripts_shared_runtime_tool_registry.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_05_scripts_shared_tool_constants.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_06_scripts_shared_mcp_dedup.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_07_scripts_shared_tool_routing_validation.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_08_scripts_mcp_servers_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_09_scripts_mcp_servers_cicd_cicd_tools.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_10_scripts_mcp_servers_file_read_tools.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_11_scripts_mcp_servers_file_write_tools.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_12_scripts_mcp_servers_file_delete_tools.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_13_scripts_mcp_servers_git_git_tools.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_14_scripts_mcp_servers_github_tools_file.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_15_scripts_mcp_servers_github_tools_issues.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_16_scripts_mcp_servers_github_tools_pull_requests.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_17_scripts_mcp_servers_github_tools_repository.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_18_scripts_mcp_servers_mdq_mdq_tools.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_19_scripts_mcp_servers_rag_pipeline_rag_pipeline_tools.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_20_scripts_mcp_servers_shell_shell_tools.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_21_scripts_mcp_servers_web_search_web_search_tools.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_22_scripts_agent_tool_policy.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_23_scripts_agent_tool_approval.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_24_scripts_agent_tool_audit.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_25_scripts_agent_tool_runner.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_26_scripts_agent_production_config_validator.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_27_scripts_agent_startup_validation.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_28_scripts_agent_services_config_validators.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261121-115519_29_scripts_agent_services_config_field_registry.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261121-115519_30_scripts_agent_config_dataclasses.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261121-115519_31_scripts_agent_config_section_builders.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261121-115519_32_config_agent.toml.md | 5 | Procedure | Pending | — | — |
+| implementations/20261121-115519_33_registry_manifests_config_ownership.yaml.md | 5 | Procedure | Pending | — | — |
+| implementations/20261121-115519_34_scripts_agent_services_mcp_status.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_35_scripts_agent_services_config_service_sync.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_36_scripts_agent_commands_cmd_config_display.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_37_scripts_agent_services_routing_drift.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_38_scripts_agent_services_mcp_tool_discovery.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_39_scripts_agent_services_mcp_tool_discovery_registry.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-115519_43_tests_shared_test_runtime_tool_registry.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261121-115519_45_tests_shared_test_tool_safety_tiers.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261121-115519_47_tests_mcp_servers_test_tool_schema_contract.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261121-115519_49_tests_agent_test_tool_policy_comprehensive.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261121-115519_51_tests_agent_test_tool_approval_risk.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261121-115519_52_tests_agent_test_agent_repl_tool_exec.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261121-115519_56_tests_agent__config_test_defaults.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261121-115519_57_tests_agent_test_config_builders.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261121-115519_59_tests_agent_services_test_config_reload.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261121-115519_62_docs_23_agent_agent_06_02_tool-execution-and-approval-approval.md.md | 7 | Procedure | Pending | — | — |
+| implementations/20261121-115519_63_docs_23_agent_agent_06_04_tool-execution-and-approval-canonical.md.md | 7 | Procedure | Pending | — | — |
+| implementations/20261121-115519_64_docs_23_agent_agent_08_03_configuration-tools-memory.md.md | 7 | Procedure | Pending | — | — |
+| implementations/20261121-115519_65_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md | 7 | Procedure | Pending | — | — |
+| implementations/20261121-115519_66_docs_91_security_security_02_high-risk-tool-common-policy.md.md | 7 | Procedure | Pending | — | — |
+| implementations/20261121-115519_67_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261121-115519_68_scripts_mcp_servers_models.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-115519_69_scripts_agent_constants.py.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -549,7 +613,7 @@ Table structure, status/type vocabulary, and general guidance: see
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261121-105007
-- **Related target files**: `scripts/shared/tool_metadata.py`, `scripts/shared/runtime_tool.py`, `scripts/shared/resource_scope.py`, `scripts/shared/runtime_tool_registry.py`, `scripts/shared/tool_constants.py`, `scripts/shared/mcp_dedup.py`, `scripts/shared/tool_routing_validation.py`, `scripts/mcp_servers/server.py`, `scripts/mcp_servers/cicd/cicd_tools.py`, `scripts/mcp_servers/file/read_tools.py`, `scripts/mcp_servers/file/write_tools.py`, `scripts/mcp_servers/file/delete_tools.py`, `scripts/mcp_servers/git/git_tools.py`, `scripts/mcp_servers/github/tools_file.py`, `scripts/mcp_servers/github/tools_issues.py`, `scripts/mcp_servers/github/tools_pull_requests.py`, `scripts/mcp_servers/github/tools_repository.py`, `scripts/mcp_servers/mdq/mdq_tools.py`, `scripts/mcp_servers/rag_pipeline/rag_pipeline_tools.py`, `scripts/mcp_servers/shell/shell_tools.py`, `scripts/mcp_servers/web_search/web_search_tools.py`, `scripts/agent/tool_policy.py`, `scripts/agent/tool_approval.py`, `scripts/agent/tool_audit.py`, `scripts/agent/tool_runner.py`, `scripts/agent/production_config_validator.py`, `scripts/agent/startup_validation.py`, `scripts/agent/services/config_validators.py`, `scripts/agent/services/config_field_registry.py`, `scripts/agent/config_dataclasses.py`, `scripts/agent/config_section_builders.py`, `config/agent.toml`, `registry/manifests/config_ownership.yaml`, `scripts/agent/services/mcp_status.py`, `scripts/agent/services/config_service_sync.py`, `scripts/agent/commands/cmd_config_display.py`, `scripts/agent/services/routing_drift.py`, `scripts/agent/services/mcp_tool_discovery.py`, `scripts/agent/services/mcp_tool_discovery_registry.py`, `tests/shared/test_tool_metadata.py`, `tests/shared/test_runtime_tool.py`, `tests/shared/runtime_tool_factory.py`, `tests/shared/test_runtime_tool_registry.py`, `tests/shared/test_resource_scope.py`, `tests/shared/test_tool_safety_tiers.py`, `tests/shared/test_tool_constants.py`, `tests/mcp_servers/test_tool_schema_contract.py`, `tests/agent/test_tool_policy.py`, `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/test_tool_approval_preflight.py`, `tests/agent/test_tool_approval_risk.py`, `tests/agent/test_agent_repl_tool_exec.py`, `tests/agent/test_tool_audit.py`, `tests/agent/test_tool_runner.py`, `tests/agent/test_production_config_validator.py`, `tests/agent/_config_test_defaults.py`, `tests/agent/test_config_builders.py`, `tests/agent/test_config_dataclasses.py`, `tests/agent/services/test_config_reload.py`, `tests/agent/commands/test_agent_cmd_config.py`, `tests/agent/shared/test_startup_validation_pipeline.py`, `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md`, `docs/23_agent/agent_06_04_tool-execution-and-approval-canonical.md`, `docs/23_agent/agent_08_03_configuration-tools-memory.md`, `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`, `docs/91_security/security_02_high-risk-tool-common-policy.md`, `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`, `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md`, `docs/23_agent/agent_06_04_tool-execution-and-approval-canonical.md`, `docs/23_agent/agent_08_03_configuration-tools-memory.md`, `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`, `docs/91_security/security_02_high-risk-tool-common-policy.md`, `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`
+- **Related target files**: `scripts/shared/tool_metadata.py`, `scripts/shared/runtime_tool.py`, `scripts/shared/resource_scope.py`, `scripts/shared/runtime_tool_registry.py`, `scripts/shared/tool_constants.py`, `scripts/shared/mcp_dedup.py`, `scripts/shared/tool_routing_validation.py`, `scripts/mcp_servers/server.py`, `scripts/mcp_servers/cicd/cicd_tools.py`, `scripts/mcp_servers/file/read_tools.py`, `scripts/mcp_servers/file/write_tools.py`, `scripts/mcp_servers/file/delete_tools.py`, `scripts/mcp_servers/git/git_tools.py`, `scripts/mcp_servers/github/tools_file.py`, `scripts/mcp_servers/github/tools_issues.py`, `scripts/mcp_servers/github/tools_pull_requests.py`, `scripts/mcp_servers/github/tools_repository.py`, `scripts/mcp_servers/mdq/mdq_tools.py`, `scripts/mcp_servers/rag_pipeline/rag_pipeline_tools.py`, `scripts/mcp_servers/shell/shell_tools.py`, `scripts/mcp_servers/web_search/web_search_tools.py`, `scripts/agent/tool_policy.py`, `scripts/agent/tool_approval.py`, `scripts/agent/tool_audit.py`, `scripts/agent/tool_runner.py`, `scripts/agent/production_config_validator.py`, `scripts/agent/startup_validation.py`, `scripts/agent/services/config_validators.py`, `scripts/agent/services/config_field_registry.py`, `scripts/agent/config_dataclasses.py`, `scripts/agent/config_section_builders.py`, `config/agent.toml`, `registry/manifests/config_ownership.yaml`, `scripts/agent/services/mcp_status.py`, `scripts/agent/services/config_service_sync.py`, `scripts/agent/commands/cmd_config_display.py`, `scripts/agent/services/routing_drift.py`, `scripts/agent/services/mcp_tool_discovery.py`, `scripts/agent/services/mcp_tool_discovery_registry.py`, `tests/shared/test_tool_metadata.py`, `tests/shared/test_runtime_tool.py`, `tests/shared/runtime_tool_factory.py`, `tests/shared/test_runtime_tool_registry.py`, `tests/shared/test_resource_scope.py`, `tests/shared/test_tool_safety_tiers.py`, `tests/shared/test_tool_constants.py`, `tests/mcp_servers/test_tool_schema_contract.py`, `tests/agent/test_tool_policy.py`, `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/test_tool_approval_preflight.py`, `tests/agent/test_tool_approval_risk.py`, `tests/agent/test_agent_repl_tool_exec.py`, `tests/agent/test_tool_audit.py`, `tests/agent/test_tool_runner.py`, `tests/agent/test_production_config_validator.py`, `tests/agent/_config_test_defaults.py`, `tests/agent/test_config_builders.py`, `tests/agent/test_config_dataclasses.py`, `tests/agent/services/test_config_reload.py`, `tests/agent/commands/test_agent_cmd_config.py`, `tests/agent/shared/test_startup_validation_pipeline.py`, `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md`, `docs/23_agent/agent_06_04_tool-execution-and-approval-canonical.md`, `docs/23_agent/agent_08_03_configuration-tools-memory.md`, `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`, `docs/91_security/security_02_high-risk-tool-common-policy.md`, `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`, `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md`, `docs/23_agent/agent_06_04_tool-execution-and-approval-canonical.md`, `docs/23_agent/agent_08_03_configuration-tools-memory.md`, `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`, `docs/91_security/security_02_high-risk-tool-common-policy.md`, `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`, `scripts/mcp_servers/models.py`, `scripts/agent/constants.py`
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
@@ -630,3 +694,7 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-013 | Display test group | `tests/agent/commands/test_agent_cmd_config.py` | Phase 6 | AC-12 | T-05 | Derived from confirmed evidence |
 | REQ-013 | Startup pipeline test group | `tests/agent/shared/test_startup_validation_pipeline.py` | Phase 6 | AC-12 | T-09 | Derived from confirmed evidence |
 | REQ-013 | Shared fixture helper | `tests/agent/_config_test_defaults.py` | Phase 6 | AC-12 | T-05 | Derived from confirmed evidence |
+| REQ-003 | Amendment 2026-11-21: McpTool TypedDict carries the extended per-tool required field set; resource_scope_keys value type becomes the key-to-kind mapping | scripts/mcp_servers/models.py | Phase 3 | N/A: none cites REQ-003 | tests/mcp_servers/test_tool_schema_contract.py | Confirmed by repository evidence |
+| REQ-011 | Amendment 2026-11-21: Remove the default constants for the removed maps (dead definitions once the fields and builders are removed); the declared metadata is the only source | scripts/agent/constants.py | Phase 5 | N/A: none cites REQ-011 | N/A: no test asserts these constants | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261121-115519 -->
