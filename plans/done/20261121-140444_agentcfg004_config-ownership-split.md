@@ -53,10 +53,13 @@ Each setting has one owning process. The Agent owns Memory embedding settings in
 
 ## Implementation Target Files
 **Freeze status**: Frozen (validated by `issue-to-plan` Step 8; see Validation plan. All paths verified to exist in Step 2/3.)
+Amended 2026-11-21 (fallout): added scripts/agent/config_builders.py — build_agent_config() is the caller of _build_rag_config(); removing the section builder breaks the assembly call site
+Amended 2026-11-21 (fallout): added scripts/agent/services/config_reload.py — the reload path routes the validated sections and calls ServiceSyncer with ctx.cfg.rag; removing AgentConfig.rag and routing Memory through a typed candidate breaks this call site
+Amended 2026-11-21 (fallout): added scripts/agent/services/config_service_sync.py — sync_all() takes the RAG section as a parameter that its body never uses; with AgentConfig.rag removed the caller cannot supply it, so the parameter is dropped
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/agent/config_dataclasses.py | Modify | Remove `RAGConfig` and the `rag` field of `AgentConfig`; add `memory_embed_url` to `MemoryConfig`; move the enabled-gated URL requirement from `AgentConfig._validate_memory_embed_url` into `MemoryConfig` validation | REQ-001; AC-001, AC-002 | `class RAGConfig`, `AgentConfig.rag` field, `_validate_memory_embed_url` (checked in Step 2) | tests/agent/test_config_dataclasses.py | Verified |
+| scripts/agent/config_dataclasses.py | Modify | Remove `RAGConfig` and the `rag` field of `AgentConfig`; add `memory_embed_url` to `MemoryConfig`; move the enabled-gated URL requirement from `AgentConfig._validate_memory_embed_url` into `MemoryConfig` validation | REQ-001; AC-001, AC-002 | `class RAGConfig`, `AgentConfig.rag` field, `_validate_memory_embed_url` (checked in Step 2) | `tests/agent/test_config_dataclasses.py` | Verified |
 | scripts/agent/config_section_builders.py | Modify | `_build_memory_config()` reads `memory_embed_url` from the Memory section; `_build_rag_config()` removed | REQ-001; AC-001 | `_build_rag_config()` and `_build_memory_config()` present (checked in Step 2) | tests/agent/test_config_builders.py | Verified |
 | scripts/agent/factory.py | Modify | `_build_embedding_client()` takes the endpoint from `ctx.cfg.memory`, not `ctx.cfg.rag` | REQ-001; AC-002 | `_build_embedding_client()` reads `ctx.cfg.rag.embed_url` (checked in Step 2/3) | covered by tests run per Validation plan; no test asserts this line directly | Verified |
 | scripts/agent/services/mcp_health.py | Modify | The `embed-llm` health entry reads the Memory-owned endpoint | REQ-001; AC-002 | Health entry uses `ctx.cfg.rag.embed_url` (checked in Step 2) | tests/agent/test_repl_health.py sets `ctx.cfg.rag.embed_url`; run as affected test, no change required while the field exists — excluded as target until a test change is proven | Verified |
@@ -73,7 +76,7 @@ Each setting has one owning process. The Agent owns Memory embedding settings in
 | scripts/db/helper.py | Modify | Path-resolution fallback uses injected typed configuration instead of `build_db_config()`'s implicit `agent.toml` load; error wording updated | REQ-003; AC-004 | `SQLiteHelper` calls `build_db_config()` when no explicit path is given (checked in Step 3) | tests/db/test_sqlite_helper.py (run as affected test; no assertion changes proven) | Verified |
 | scripts/agent/services/db_maintenance_service.py | Modify | Constructs `RetentionConfig` and the checkpoint mode from Agent-owned typed configuration and passes them to `scripts/db/` | REQ-004; AC-004, AC-005 | Imports `RetentionConfig` and `checkpoint_wal` (checked in Step 2) | tests run per Validation plan | Verified |
 | scripts/agent/commands/cmd_config_stats.py | Modify | Call site of `build_db_config()` updated to the injected-configuration signature (Agent owns its config file, so the load stays here) | REQ-003; AC-004 | Lazy-imports and calls `build_db_config()` (checked in Step 3) | tests/agent/commands/test_agent_cmd_config.py (run as affected test) | Verified |
-| scripts/agent/commands/cmd_config_display.py | Modify | Same call-site update as `cmd_config_stats.py` | REQ-003; AC-004 | Lazy-imports and calls `build_db_config()` (checked in Step 3) | tests/agent/commands/test_cmd_config_char.py | Verified |
+| scripts/agent/commands/cmd_config_display.py | Modify | Same call-site update as `cmd_config_stats.py` | REQ-003; AC-004 | Lazy-imports and calls `build_db_config()` (checked in Step 3) | `tests/agent/commands/test_cmd_config_char.py` | Verified |
 | config/agent.toml | Modify | Move the embedding endpoint key from the infrastructure block to the Memory section as `memory_embed_url`; keep every explicit value in the owning file; Session and Workflow path keys stay with the Agent owner (Design D1); ownership comments updated | REQ-001, REQ-003; AC-002, AC-005, AC-006 | Infrastructure block currently holds `embed_url` above the Memory section (checked in Step 2) | tests/agent/test_config_builders.py, tests/db/test_db_config.py | Verified |
 | tests/conftest.py | Modify | DB fixture constructs `DbConfig` through the injected-configuration signature | REQ-003, REQ-004; AC-004 | Fixture calls `build_db_config()` directly (checked in Step 3) | — | Verified |
 | tests/agent/test_config_dataclasses.py | Modify | Remove `RAGConfig` assertions; add Memory-enabled/disabled validation tests for the moved field | REQ-001; AC-001, AC-002 | Imports `RAGConfig` (checked in Step 2) | — | Verified |
@@ -87,6 +90,9 @@ Each setting has one owning process. The Agent owns Memory embedding settings in
 | docs/21_rag/rag_05_01-configuration-reference.md | Modify | States `AgentConfig.rag` carries only the endpoint; must reflect the moved ownership | REQ-001, REQ-003; Documentation Impact | `AgentConfig.rag` (`RAGConfig`) statement present (found by consumer scan, Step 3) | — | Verified |
 | docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md | Modify | States maintenance policies read from `agent.toml`; must reflect the typed injected configuration | REQ-004; Documentation Impact | `RetentionConfig.from_config()` statement present (checked in Step 3) | — | Verified |
 | docs/23_agent/agent_13_reference-api-generated.md | Modify | Guarded `AUTO-GENERATED` block lists `RAGConfig`; refresh via `tools/generate_reference_table.py` (ADR-015 INV-01) | REQ-001; Documentation Impact | Generated table row for `RAGConfig` present (found by consumer scan, Step 3) | `tools/generate_reference_table.py --check` | Verified |
+| `scripts/agent/config_builders.py` | Modify | build_agent_config() is the caller of _build_rag_config(); removing the section builder breaks the assembly call site | REQ-001 / N/A: none cites REQ-001 | scripts/agent/config_builders.py line 37 imports _build_rag_config and line 125 passes rag=_build_rag_config(cfg) to AgentConfig | tests/agent/test_config_builders.py (run as affected test; no assertion changes proven) | Verified |
+| `scripts/agent/services/config_reload.py` | Modify | the reload path routes the validated sections and calls ServiceSyncer with ctx.cfg.rag; removing AgentConfig.rag and routing Memory through a typed candidate breaks this call site | REQ-002 / N/A: none cites REQ-002 | scripts/agent/services/config_reload.py lines 111 and 207: the candidate loop iterates ('llm','rag','tool','approval') with memory handled by prepare_direct_section, and passes self._ctx.cfg.rag to ServiceSyncer.sync_all() | tests/agent/services/test_config_reload.py (run as affected test; no assertion changes proven beyond REQ-002 scope) | Verified |
+| `scripts/agent/services/config_service_sync.py` | Modify | sync_all() takes the RAG section as a parameter that its body never uses; with AgentConfig.rag removed the caller cannot supply it, so the parameter is dropped | REQ-001 / N/A: none cites REQ-001 | scripts/agent/services/config_service_sync.py lines 34-49 declare rag_cfg and sync_all()'s body (lines 50-86) reads only ctx.cfg.llm and ctx.cfg.tool | no test file exists for this module; covered by tests/agent/services/test_config_reload.py run as affected test | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -171,6 +177,9 @@ Per `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus
 | docs/21_rag/rag_05_01-configuration-reference.md | Modify | Low | 9 | High | not applicable (rsynced) |
 | docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md | Modify | Low | 6 | High | not applicable (rsynced) |
 | docs/23_agent/agent_13_reference-api-generated.md | Modify | Low | 25 | High | not applicable (rsynced) |
+| `scripts/agent/config_builders.py` | Modify | Not assessed (amendment 2026-11-21) | N/A | N/A | Not assessed (amendment 2026-11-21) |
+| `scripts/agent/services/config_reload.py` | Modify | Not assessed (amendment 2026-11-21) | N/A | N/A | Not assessed (amendment 2026-11-21) |
+| `scripts/agent/services/config_service_sync.py` | Modify | Not assessed (amendment 2026-11-21) | N/A | N/A | Not assessed (amendment 2026-11-21) |
 
 Note on the `tests/db/test_db_config.py` row: the `Bus Factor` column value was entered in the wrong column position above for that row only; read the Bus Factor as `High` for all rows, and `deploy.sh Impact` as `not applicable (rsynced)` for all source and test files.
 
@@ -206,11 +215,14 @@ Path B. Analysis performed: architecture (import graph and `.importlinter` contr
    - [ ] REQ-001: update consumers to read the Memory-owned endpoint (scripts/agent/factory.py, scripts/agent/services/mcp_health.py)
    - [ ] REQ-001: move the key in the owning file; keep all explicit values (config/agent.toml)
    - [ ] REQ-001: update assertions and add enabled/disabled validation tests (tests/agent/test_config_dataclasses.py, tests/agent/test_config_builders.py, tests/agent/commands/test_cmd_config_char.py, tests/conftest.py)
+   - [ ] Modify (REQ-001; `scripts/agent/config_builders.py`) — amendment 2026-11-21
+   - [ ] Modify (REQ-001; `scripts/agent/services/config_service_sync.py`) — amendment 2026-11-21
    - The dataclass removal cannot be validated alone because its consumers and fixtures break until they land; therefore this phase is one independently revertable unit.
 
 2. **Phase 2: Memory typed-candidate reload**
    - [ ] REQ-002: build and validate a typed candidate for the Memory section in the reload path (scripts/agent/services/config_section_reload.py, scripts/agent/services/config_field_registry.py)
    - [ ] REQ-002: add candidate-validation tests (tests/agent/services/test_config_reload.py)
+   - [ ] Modify (REQ-002; `scripts/agent/services/config_reload.py`) — amendment 2026-11-21
 
 3. **Phase 3: Typed maintenance configuration and implicit-load removal** (Release unit RU-2)
    - [ ] REQ-004, REQ-003: replace the `from_config()` factories and `_load_agent_config()` with typed construction from caller-supplied values; define the typed maintenance configuration in `scripts/db/` (scripts/db/maintenance.py, scripts/db/artifact_retention.py)
@@ -263,12 +275,12 @@ Path B. Analysis performed: architecture (import graph and `.importlinter` contr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Memory embedding endpoint move (RU-1) | Pending | — | — | |
-| 2 | Phase 2: Memory typed-candidate reload | Pending | — | — | |
-| 3 | Phase 3: Typed maintenance configuration and implicit-load removal (RU-2) | Pending | — | — | |
-| 4 | Phase 4: Production validator cleanup | Pending | — | — | |
-| 5 | Phase 5: Documentation and gates | Pending | — | — | |
-| 6 | Phase 6: Deployment hand-off | Pending | — | — | |
+| 1 | Phase 1: Memory embedding endpoint move (RU-1) | In Progress | — | — |  |
+| 2 | Phase 2: Memory typed-candidate reload | In Progress | — | — |  |
+| 3 | Phase 3: Typed maintenance configuration and implicit-load removal (RU-2) | In Progress | — | — |  |
+| 4 | Phase 4: Production validator cleanup | In Progress | — | — |  |
+| 5 | Phase 5: Documentation and gates | In Progress | — | — |  |
+| 6 | Phase 6: Deployment hand-off | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -279,6 +291,38 @@ Path B. Analysis performed: architecture (import graph and `.importlinter` contr
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
+| implementations/20261121-144837_01_scripts_agent_config_dataclasses.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261121-144837_02_scripts_agent_config_section_builders.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261121-144837_03_scripts_agent_factory.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261121-144837_04_scripts_agent_services_mcp_health.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261121-144837_05_scripts_agent_services_config_field_registry.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261121-144837_06_scripts_agent_services_config_section_reload.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261121-144837_07_scripts_agent_production_config_validator.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261121-144837_08_scripts_db_config.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_09_scripts_db_maintenance.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_10_scripts_db_rotation.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_11_scripts_db_recovery.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_12_scripts_db_recovery_verification.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_13_scripts_db_recovery_drill.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_14_scripts_db_artifact_retention.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_15_scripts_db_helper.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_16_scripts_agent_services_db_maintenance_service.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_17_scripts_agent_commands_cmd_config_stats.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_18_scripts_agent_commands_cmd_config_display.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_19_config_agent.toml.md | 1 | Procedure | Pending | — | — |
+| implementations/20261121-144837_20_tests_conftest.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_22_tests_agent_test_config_builders.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261121-144837_24_tests_agent_services_test_config_reload.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261121-144837_25_tests_db_test_db_config.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_26_tests_db_test_db_maintenance.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261121-144837_27_docs_23_agent_agent_08_02_configuration-llm-rag.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261121-144837_28_docs_23_agent_agent_08_03_configuration-tools-memory.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261121-144837_29_docs_21_rag_rag_05_01-configuration-reference.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261121-144837_30_docs_41_db_db_06_api_and_operations-maintenance-and-rotation.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261121-144837_31_docs_23_agent_agent_13_reference-api-generated.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261121-144837_32_scripts_agent_config_builders.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261121-144837_33_scripts_agent_services_config_reload.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261121-144837_34_scripts_agent_services_config_service_sync.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -287,7 +331,7 @@ Path B. Analysis performed: architecture (import graph and `.importlinter` contr
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261121-140444
-- **Related target files**: scripts/agent/config_dataclasses.py, scripts/agent/config_section_builders.py, scripts/agent/factory.py, scripts/agent/services/mcp_health.py, scripts/agent/services/config_field_registry.py, scripts/agent/services/config_section_reload.py, scripts/agent/production_config_validator.py, scripts/db/config.py, scripts/db/maintenance.py, scripts/db/rotation.py, scripts/db/recovery.py, scripts/db/recovery_verification.py, scripts/db/recovery_drill.py, scripts/db/artifact_retention.py, scripts/db/helper.py, scripts/agent/services/db_maintenance_service.py, scripts/agent/commands/cmd_config_stats.py, scripts/agent/commands/cmd_config_display.py, config/agent.toml, tests/conftest.py, tests/agent/test_config_dataclasses.py, tests/agent/test_config_builders.py, tests/agent/commands/test_cmd_config_char.py, tests/agent/services/test_config_reload.py, tests/db/test_db_config.py, tests/db/test_db_maintenance.py, docs/23_agent/agent_08_02_configuration-llm-rag.md, docs/23_agent/agent_08_03_configuration-tools-memory.md, docs/21_rag/rag_05_01-configuration-reference.md, docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md, docs/23_agent/agent_13_reference-api-generated.md
+- **Related target files**: scripts/agent/config_dataclasses.py, scripts/agent/config_section_builders.py, scripts/agent/factory.py, scripts/agent/services/mcp_health.py, scripts/agent/services/config_field_registry.py, scripts/agent/services/config_section_reload.py, scripts/agent/production_config_validator.py, scripts/db/config.py, scripts/db/maintenance.py, scripts/db/rotation.py, scripts/db/recovery.py, scripts/db/recovery_verification.py, scripts/db/recovery_drill.py, scripts/db/artifact_retention.py, scripts/db/helper.py, scripts/agent/services/db_maintenance_service.py, scripts/agent/commands/cmd_config_stats.py, scripts/agent/commands/cmd_config_display.py, config/agent.toml, tests/conftest.py, tests/agent/test_config_dataclasses.py, tests/agent/test_config_builders.py, tests/agent/commands/test_cmd_config_char.py, tests/agent/services/test_config_reload.py, tests/db/test_db_config.py, tests/db/test_db_maintenance.py, docs/23_agent/agent_08_02_configuration-llm-rag.md, docs/23_agent/agent_08_03_configuration-tools-memory.md, docs/21_rag/rag_05_01-configuration-reference.md, docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md, docs/23_agent/agent_13_reference-api-generated.md, scripts/agent/config_builders.py, scripts/agent/services/config_reload.py, scripts/agent/services/config_service_sync.py
 
 ### Requirement Traceability
 
@@ -325,6 +369,11 @@ Path B. Analysis performed: architecture (import graph and `.importlinter` contr
 | REQ-004 | Documents `from_config()` reading `agent.toml` (Step 3) | docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md | Phase 5 | Documentation Impact | docs gates | Confirmed by repository evidence |
 | REQ-001 | Guarded generated table lists the removed class (consumer scan, Step 3) | docs/23_agent/agent_13_reference-api-generated.md | Phase 5 | Documentation Impact | `generate_reference_table.py --check` | Confirmed by repository evidence |
 | REQ-003 | Already satisfied and enforced by the isolation test (Step 2) | tests/mcp_servers/test_config_isolation_import.py | N/A: reference-only row; no test change is planned | AC-003 | itself | Confirmed by repository evidence |
+| REQ-001 | Amendment 2026-11-21: build_agent_config() is the caller of _build_rag_config(); removing the section builder breaks the assembly call site | scripts/agent/config_builders.py | Phase 1 | N/A: none cites REQ-001 | tests/agent/test_config_builders.py (run as affected test; no assertion changes proven) | Confirmed by repository evidence |
+| REQ-002 | Amendment 2026-11-21: the reload path routes the validated sections and calls ServiceSyncer with ctx.cfg.rag; removing AgentConfig.rag and routing Memory through a typed candidate breaks this call site | scripts/agent/services/config_reload.py | Phase 2 | N/A: none cites REQ-002 | tests/agent/services/test_config_reload.py (run as affected test; no assertion changes proven beyond REQ-002 scope) | Confirmed by repository evidence |
+| REQ-001 | Amendment 2026-11-21: sync_all() takes the RAG section as a parameter that its body never uses; with AgentConfig.rag removed the caller cannot supply it, so the parameter is dropped | scripts/agent/services/config_service_sync.py | Phase 1 | N/A: none cites REQ-001 | no test file exists for this module; covered by tests/agent/services/test_config_reload.py run as affected test | Confirmed by repository evidence |
 
 ## Next steps
 - `plan-to-implementation-procedure` takes this Plan (frozen); `tools/plan_dependency_order.py` reports no gating plan dependency beyond the coordination note.
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261121-144837 -->
