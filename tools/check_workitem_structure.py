@@ -62,7 +62,9 @@ archives predate these rules, so the paths that already violated them are listed
 `tools/check_archived_status_baseline.txt` (unfinished rows) and
 `tools/check_status_value_baseline.txt` (vocabulary values) and are not reported.
 
-Exit code: 0 when no finding is reported; 1 otherwise.
+Exit code: 0 when no finding is reported; 1 otherwise. A `procedure-length` finding (a
+documentation-only procedure over the line limit of `tools/_workitem_length_check.py`) is
+advisory: it is printed but does not make the exit code 1.
 """
 
 from __future__ import annotations
@@ -88,11 +90,13 @@ from tools._workitem_leftover_rules import (
     issue_template_leftover_lines,
     plan_bracket_lines,
 )
+from tools._workitem_length_check import find_docs_procedure_length_findings
 from tools._workitem_status_check import find_status_value_findings
 from tools._workitem_status_table import parse_execution_status_rows
 
 ARCHIVED_STATUS_BASELINE = ROOT_DIR / "tools" / "check_archived_status_baseline.txt"
 STATUS_VALUE_BASELINE = ROOT_DIR / "tools" / "check_status_value_baseline.txt"
+ADVISORY_CATEGORIES = frozenset({"procedure-length"})
 _UNFINISHED_PREFIXES = ("pending", "in progress", "in_progress", "blocked")
 
 _FENCE_RE = re.compile(r"```markdown\n(.*?)\n```", re.DOTALL)
@@ -392,6 +396,14 @@ def _status_value_findings(doc_path: Path) -> list[dict[str, str]]:
     return find_status_value_findings(doc_path.read_text(encoding="utf-8"), rel_path)
 
 
+def _length_findings(doc_path: Path) -> list[dict[str, str]]:
+    """Advisory length rule for an active procedure document."""
+    rel_path = doc_path.relative_to(ROOT_DIR).as_posix()
+    return find_docs_procedure_length_findings(
+        doc_path.read_text(encoding="utf-8"), rel_path
+    )
+
+
 def collect_single_file_findings(doc_path: Path) -> list[dict[str, str]]:
     doc_path = doc_path.resolve()
     kind = infer_kind(doc_path)
@@ -421,6 +433,7 @@ def collect_single_file_findings(doc_path: Path) -> list[dict[str, str]]:
             findings.extend(find_plan_leftover_findings(doc_path, ROOT_DIR))
         else:
             findings.extend(find_procedure_leftover_findings(doc_path, ROOT_DIR))
+            findings.extend(_length_findings(doc_path))
     return findings
 
 
@@ -448,6 +461,7 @@ def collect_findings(kinds: set[str], include_done: bool) -> list[dict[str, str]
                 )
             else:
                 findings.extend(find_procedure_leftover_findings(doc_path, ROOT_DIR))
+                findings.extend(_length_findings(doc_path))
     return findings
 
 
@@ -459,7 +473,7 @@ def render_text(findings: list[dict[str, str]]) -> str:
     for finding in findings:
         by_file.setdefault(finding["file"], []).append(finding)
     for file_path, file_findings in by_file.items():
-        lines.append(f"{file_path} ({len(file_findings)} missing)")
+        lines.append(f"{file_path} ({len(file_findings)} finding(s))")
         for finding in file_findings:
             lines.append(f"  {finding['detail']}")
     lines.append(f"\n{len(findings)} finding(s) total.")
@@ -568,7 +582,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(render_text(findings), end="")
 
-    return 1 if findings else 0
+    return 1 if any(f["category"] not in ADVISORY_CATEGORIES for f in findings) else 0
 
 
 if __name__ == "__main__":

@@ -973,3 +973,63 @@ def test_rule_module_entry_points_report_scaffolds_not_filled(doc_root: Path) ->
     assert wlr.find_procedure_leftover_findings(filled_proc, doc_root) == []
     assert wlr.find_issue_leftover_findings(issue_scaffold, doc_root)
     assert wlr.find_issue_leftover_findings(filled_issue, doc_root) == []
+
+
+# --- advisory length rule for documentation-only procedures -------------------------
+
+
+def _docs_procedure(target_line: str, extra_lines: int) -> str:
+    body = _filled_body("implementation")
+    return (
+        f"{body}\n## Implementation\n### Target file\n{target_line}\n"
+        + "Padding line.\n" * extra_lines
+    )
+
+
+@pytest.mark.parametrize("target_line", ["`docs/a.md`", "- `docs/a.md`"])
+def test_long_docs_procedure_is_reported_but_does_not_fail(
+    doc_root: Path, target_line: str
+) -> None:
+    doc = _write(
+        doc_root / "implementations",
+        "20260105-000020_procedure.md",
+        _docs_procedure(target_line, 70),
+    )
+    findings = [
+        f
+        for f in cwis.collect_single_file_findings(doc)
+        if f["category"] == "procedure-length"
+    ]
+    assert len(findings) == 1
+    assert findings[0]["file"] == "implementations/20260105-000020_procedure.md"
+    assert cwis.main(["--file", str(doc)]) == 0
+
+
+def test_short_docs_procedure_and_long_code_procedure_are_not_reported(
+    doc_root: Path,
+) -> None:
+    short = _write(
+        doc_root / "implementations",
+        "20260105-000021_procedure.md",
+        "## Goal\n### Target file\n`docs/a.md`\n",
+    )
+    code = _write(
+        doc_root / "implementations",
+        "20260105-000022_procedure.md",
+        _docs_procedure("`scripts/a.py`", 70),
+    )
+    for doc in (short, code):
+        assert [
+            f
+            for f in cwis.collect_single_file_findings(doc)
+            if f["category"] == "procedure-length"
+        ] == []
+
+
+def test_length_finding_does_not_mask_a_blocking_finding(doc_root: Path) -> None:
+    doc = _write(
+        doc_root / "implementations",
+        "20260105-000023_procedure.md",
+        "## Goal\n### Target file\n`docs/a.md`\n" + "Padding line.\n" * 70,
+    )
+    assert cwis.main(["--file", str(doc)]) == 1
