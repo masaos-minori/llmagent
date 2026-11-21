@@ -2,7 +2,7 @@
 
 Covers the four surfaces the plan's validation table exercises: path-to-gate selection
 (REQ-002), result classification into the canonical vocabulary (REQ-005), fast-vs-full
-mode gate sets (REQ-003), and the drift invariant against the real routing.md (REQ-006).
+mode gate sets (REQ-003), and the drift invariant against the real rules/tool-gates.md (REQ-006).
 
 ``run_gate`` results come from an injected runner callable rather than ``unittest.mock``,
 so the mock-patch-targets checker never sees a module-level patch target to complain about.
@@ -46,7 +46,7 @@ from tools.run_validation_gates import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-ROUTING_MD = REPO_ROOT / "routing.md"
+ROUTING_MD = REPO_ROOT / "rules/tool-gates.md"
 PRECOMMIT_CONFIG = REPO_ROOT / ".pre-commit-config.yaml"
 
 
@@ -81,7 +81,7 @@ def test_checker_id_from_relative_tool_path():
 
 
 def test_checker_id_matches_across_sources():
-    """Every mapping id equals the id derived from the equivalent routing.md Run cell."""
+    """Every mapping id equals the id derived from the equivalent rules/tool-gates.md Run cell."""
     for gate in ROUTING_GATES:
         command_line = " ".join(gate.command[0])
         from_cell = _checker_id_from_cell(f"`{command_line}`")
@@ -115,7 +115,7 @@ def test_selection_docs_only_fast_mode():
 
 
 def test_adr_edit_does_not_auto_select_preservation_check():
-    """check_adr_preservation is content-based (routing.md: only for an ADR shortened or
+    """check_adr_preservation is content-based (rules/tool-gates.md: only for an ADR shortened or
     reworded without changing its decisions), so an ADR edit never selects it, while the
     gate keeps its routing mapping entry for the drift check."""
     adr_path = "docs/10_adr/adr_01_index.md"
@@ -360,14 +360,14 @@ def test_modes_full_adds_toolchain_sequence() -> None:
 
 
 def test_drift_all_routing_checkers_mapped() -> None:
-    """Every checker named in the real routing.md has a mapping entry."""
+    """Every checker named in the real rules/tool-gates.md has a mapping entry."""
     text = ROUTING_MD.read_text(encoding="utf-8")
     count, errors = drift_report(text)
     assert count == 0, errors
 
 
 def test_drift_reports_unmapped_checker() -> None:
-    """A synthetic routing.md with an unmapped Run cell produces a drift error."""
+    """A synthetic rules/tool-gates.md with an unmapped Run cell produces a drift error."""
     synthetic = (
         "### When to run which tool\n\n"
         "| Situation | Run | Notes |\n"
@@ -519,7 +519,7 @@ def test_hook_entry_forms_derive_gate_ids(entry: str, expected: str) -> None:
 
 
 def test_live_precommit_config_has_no_drift() -> None:
-    """The real hook config and routing.md produce zero drift errors (AC-1)."""
+    """The real hook config and rules/tool-gates.md produce zero drift errors (AC-1)."""
     routing = ROUTING_MD.read_text(encoding="utf-8")
     config = PRECOMMIT_CONFIG.read_text(encoding="utf-8")
     count, errors = drift_report(routing, config)
@@ -634,7 +634,7 @@ def test_manual_plan_tool_gates_have_manual_shape() -> None:
 
 
 def test_manual_plan_tool_gate_ids_match_routing_rows() -> None:
-    """The routing.md Run cells derive the same checker ids as the gate mappings."""
+    """The rules/tool-gates.md Run cells derive the same checker ids as the gate mappings."""
     cells = _parse_routing_run_cells(ROUTING_MD.read_text(encoding="utf-8"))
     cell_ids = {_checker_id_from_cell(cell) for cell in cells}
     by_id = {gate.checker_id: gate for gate in ROUTING_GATES}
@@ -897,7 +897,7 @@ def test_ruff_gate_scopes_argv_to_changed_paths() -> None:
 
 
 def test_drift_still_passes_after_ruff_gate_added() -> None:
-    """After the routing.md row is added, every checker is still mapped (AC-005)."""
+    """After the rules/tool-gates.md row is added, every checker is still mapped (AC-005)."""
     text = ROUTING_MD.read_text(encoding="utf-8")
     count, errors = drift_report(text)
     assert count == 0, errors

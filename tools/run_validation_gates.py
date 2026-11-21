@@ -9,7 +9,7 @@ The gates come from two embedded sources:
 
 - ``rules/toolchain.md`` "Standard validation sequence" — the linear order for full mode;
   the embedded commands mirror it verbatim, so that file stays the canonical command list.
-- ``routing.md`` "When to run which tool" — path-keyed conditional checkers used by fast
+- ``rules/tool-gates.md`` "When to run which tool" — path-keyed conditional checkers used by fast
   mode to select only what the changed files trigger.
 
 Fast mode runs only the matched routing gates; full mode adds every toolchain gate
@@ -19,7 +19,7 @@ Result classification uses the canonical vocabulary from ``rules/ai-execution.md
 a skipped or unavailable gate is ``Not available``, never ``Pass``.
 
 Sub commands: default runs the selected gates (``--base`` sets the git ref, default
-``master``; ``--full`` selects full mode). ``drift`` verifies every routing.md checker and
+``master``; ``--full`` selects full mode). ``drift`` verifies every rules/tool-gates.md checker and
 every tool-backed pre-commit hook has a mapping (or reviewed ``COMMIT_ONLY_HOOKS``) entry,
 exiting non-zero on any drift (REQ-006, hook parity).
 
@@ -377,7 +377,7 @@ def run_gates(
 
 
 def _checker_id_from_cell(run_cell: str) -> str:
-    """Derive the same id from a raw ``routing.md`` "Run" cell (strips markdown escaping)."""
+    """Derive the same id from a raw ``rules/tool-gates.md`` "Run" cell (strips markdown escaping)."""
     cleaned = run_cell.replace(chr(92), "").replace("`", "").strip()
     return _checker_id_from_command(tuple(cleaned.split()))
 
@@ -416,7 +416,7 @@ def _split_md_row(row: str) -> list[str]:
 
 
 def _parse_routing_run_cells(text: str) -> list[str]:
-    """Return the "Run" cell of each data row in routing.md's "When to run which tool" table."""
+    """Return the "Run" cell of each data row in rules/tool-gates.md's "When to run which tool" table."""
     lines = text.splitlines()
     start = next(
         (i for i, line in enumerate(lines) if line.strip() == _ROUTING_HEADING),
@@ -424,7 +424,7 @@ def _parse_routing_run_cells(text: str) -> list[str]:
     )
     if start is None:
         raise RuntimeError(
-            f"{_ROUTING_HEADING!r} heading not found in routing.md; cannot run drift check"
+            f"{_ROUTING_HEADING!r} heading not found in rules/tool-gates.md; cannot run drift check"
         )
     run_idx: int | None = None
     in_table = False
@@ -509,10 +509,10 @@ def parse_precommit_hooks(config_text: str) -> tuple[dict[str, str], list[str]]:
 def drift_report(
     routing_text: str, precommit_text: str | None = None
 ) -> tuple[int, list[str]]:
-    """Compare routing.md's checkers, and optionally the hooks, against this tool's mapping.
+    """Compare rules/tool-gates.md's checkers, and optionally the hooks, against this tool's mapping.
 
-    Returns ``(error_count, messages)``. Every routing.md checker must have a mapping entry
-    and every mapping entry must come from routing.md; either drift is an error. The row
+    Returns ``(error_count, messages)``. Every rules/tool-gates.md checker must have a mapping entry
+    and every mapping entry must come from rules/tool-gates.md; either drift is an error. The row
     naming this orchestrator itself is excluded. With ``precommit_text``, every tool-backed
     hook needs a mapping or ``COMMIT_ONLY_HOOKS`` entry, each with a reason and a live hook.
     """
@@ -521,11 +521,11 @@ def drift_report(
     } - {_SELF_CHECKER_ID}
     actual = {gate.checker_id for gate in ROUTING_GATES}
     errors: list[str] = [
-        f"routing.md checker has no mapping entry: {missing}"
+        f"rules/tool-gates.md checker has no mapping entry: {missing}"
         for missing in sorted(expected - actual)
     ]
     errors += [
-        f"mapping entry is not a routing.md checker: {extra}"
+        f"mapping entry is not a rules/tool-gates.md checker: {extra}"
         for extra in sorted(actual - expected)
     ]
     if precommit_text is not None:
@@ -564,19 +564,19 @@ def _run_gates(
 
 def _run_drift() -> int:
     texts: dict[str, str] = {}
-    for name in ("routing.md", _PRECOMMIT_CONFIG):
+    for name in ("rules/tool-gates.md", _PRECOMMIT_CONFIG):
         try:
             texts[name] = (REPO_ROOT / name).read_text(encoding="utf-8")
         except OSError as exc:
             print(f"ERROR: cannot read {name}: {exc}", file=sys.stderr)
             return 1
-    count, errors = drift_report(texts["routing.md"], texts[_PRECOMMIT_CONFIG])
+    count, errors = drift_report(texts["rules/tool-gates.md"], texts[_PRECOMMIT_CONFIG])
     if count:
         for message in errors:
             print(message, file=sys.stderr)
         return 1
     print(
-        f"OK: {len(ROUTING_GATES)} routing.md checker(s) all mapped; "
+        f"OK: {len(ROUTING_GATES)} rules/tool-gates.md checker(s) all mapped; "
         f"pre-commit hooks in parity"
     )
     return 0
@@ -624,7 +624,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "drift",
         help=(
-            "Verify every routing.md 'When to run which tool' checker and every "
+            "Verify every rules/tool-gates.md 'When to run which tool' checker and every "
             "tool-backed pre-commit hook has a mapping entry (or an allowlist entry)"
         ),
     )

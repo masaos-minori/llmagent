@@ -133,7 +133,7 @@ repos:
         entry: uv run python -m tools.run_validation_gates drift
         language: system
         pass_filenames: false
-        files: ^(\.pre-commit-config\.yaml|routing\.md|tools/run_validation_gates\.py|tools/_validation_gate_defs\.py)$
+        files: ^(\.pre-commit-config\.yaml|rules/tool-gates\.md|tools/run_validation_gates\.py|tools/_validation_gate_defs\.py)$
       - id: mock-patch-targets
         name: Check mock.patch targets reach the code under test
         entry: uv run python -m tools.check_mock_patch_targets

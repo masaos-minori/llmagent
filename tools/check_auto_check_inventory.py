@@ -8,8 +8,8 @@ entries.
 
 The checker parses the authoritative enumeration of auto-checks (the Governance
 Verification Matrix ``Method = Auto`` cells in
-``docs/00_governance/governance_04_documentation-checks.md`` and the tool table in
-``routing.md``), discovers the real tool scripts dynamically at runtime, and
+``docs/00_governance/governance_04_documentation-checks.md`` and the tool tables in
+``routing.md`` and ``rules/tool-gates.md``), discovers the real tool scripts dynamically at runtime, and
 resolves each documented token by basename or relative path. A token with no
 match is flagged at ``Warning``; a token with only a close (edit-distance)
 candidate is reported as a non-blocking drift hint. Nothing here is blocking.
@@ -31,6 +31,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 # --root so the same logic can point at a fixture tree in tests.
 DEFAULT_GOVERNANCE_DOC = "docs/00_governance/governance_04_documentation-checks.md"
 DEFAULT_ROUTING_DOC = "routing.md"
+DEFAULT_TOOL_GATES_DOC = "rules/tool-gates.md"
 
 # Directories scanned for real tool scripts. Discovered dynamically; nothing here
 # is hardcoded per tool (REQ-002).
@@ -189,11 +190,12 @@ def audit(sources: list[tuple[Path, ParseFn]], index: ToolIndex) -> list[Issue]:
 def _default_sources(root: Path) -> list[tuple[Path, ParseFn]]:
     sources: list[tuple[Path, ParseFn]] = []
     governance = root / DEFAULT_GOVERNANCE_DOC
-    routing = root / DEFAULT_ROUTING_DOC
     if governance.exists():
         sources.append((governance, parse_governance_rows))
-    if routing.exists():
-        sources.append((routing, parse_routing_rows))
+    for name in (DEFAULT_ROUTING_DOC, DEFAULT_TOOL_GATES_DOC):
+        routing = root / name
+        if routing.exists():
+            sources.append((routing, parse_routing_rows))
     return sources
 
 

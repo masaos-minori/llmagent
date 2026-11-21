@@ -48,9 +48,9 @@ class Gate:
     def checker_id(self) -> str:
         """Stable per-checker id derived from the first command's argv.
 
-        Used by the drift check to compare this tool's mapping against ``routing.md``. Two
+        Used by the drift check to compare this tool's mapping against ``rules/tool-gates.md``. Two
         checkers that share a tool basename are disambiguated by their subcommand or flag
-        value, so the id is unique per routing.md row.
+        value, so the id is unique per rules/tool-gates.md row.
         """
         return _checker_id_from_command(self.command[0]) if self.command else ""
 
@@ -121,8 +121,8 @@ _VALUE_FLAG_RE = re.compile(r"^--(type|format|domain|kind|status)$")
 
 
 # --- Embedded gate inventory -----------------------------------------------------
-# Transcribed from routing.md "When to run which tool" (path-keyed checkers, fast
-# mode). Keep the commands equal to that source; the drift check fails if routing.md
+# Transcribed from rules/tool-gates.md "When to run which tool" (path-keyed checkers, fast
+# mode). Keep the commands equal to that source; the drift check fails if rules/tool-gates.md
 # gains a checker without a matching entry here.
 
 
@@ -537,7 +537,7 @@ ROUTING_GATES: tuple[Gate, ...] = (
         mode=MODE_FAST,
         patterns=("docs/**", "plans/**", "issues/**", "implementations/**"),
     ),
-    # Content-based, so no patterns: routing.md applies this check only to an ADR that was
+    # Content-based, so no patterns: rules/tool-gates.md applies this check only to an ADR that was
     # shortened or reworded without intending to change its decisions. It reports every
     # added or removed test citation as an ERROR, so auto-selecting it for any ADR edit made
     # a deliberate citation correction fail. Run it by hand for a size-reduction change.
@@ -665,7 +665,7 @@ ROUTING_GATES: tuple[Gate, ...] = (
         patterns=("scripts/*.py", "scripts/**/*.py"),
     ),
     # Manual planning-time tools: `<plan>` is a runtime placeholder and no patterns are
-    # given, so the gate check never auto-selects them; the routing.md rows carry the
+    # given, so the gate check never auto-selects them; the rules/tool-gates.md rows carry the
     # triggers. The Run cells mirror these argv token for token (drift id parity).
     Gate(
         name="audit_plan_target_paths",
