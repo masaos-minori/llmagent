@@ -378,11 +378,10 @@ condition keeps its own document, and every other file keeps the one-file rule:
   Requirement link, edits the other Plan sections consistently, re-checks the four
   Freeze criteria for the row (`Draft` on a failure), and prints the structure,
   path-audit, and overlap checks. State the class per `rules/workflow-lifecycle.md` Plan
-  Amendment Approval Classes (proposed): for a fallout amendment, amend without asking
+  Amendment Approval Classes: for a fallout amendment, amend without asking
   and report it afterward (file, class, reason); for a scope or behavior change, a new requirement,
   or a removed row, stop `Blocked: additional target file discovered — {path}` and
-  ask before amending; while that policy is not accepted, treat every amendment as the
-  second class. Once re-frozen, resume this same session's cycle from Step 3c at the row
+  ask before amending. Once re-frozen, resume this same session's cycle from Step 3c at the row
   that discovered the gap — MUST NOT restart from Step 2's Revalidation (already
   satisfied by the re-freeze) or from row 1.
 - If investigation instead reveals that this row's approach needs to change but no
