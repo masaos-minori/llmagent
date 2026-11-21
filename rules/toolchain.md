@@ -222,8 +222,9 @@ positives and would require an allowlist. See governance_04 §Accepted Limits.
 
 ## Scheduled CI Result Check — Operational Notes
 
-Status as of 2026-10-25: not activated. `gh` is not authenticated on this machine, and the
-recurring-task creation is pending owner approval (issue 20261023-173506 plan phase 3).
+Status as of 2026-11-21: `gh` is authenticated on this machine (`gh auth status`). Activation
+of the recurring task was pending owner approval on 2026-10-25 (issue 20261023-173506 plan
+phase 3) and has not been re-verified since.
 
 - Command: `uv run python tools/check_ci_results.py` (defaults: `--limit 10`, `--workflow`,
   `--branch`, and `--before` unset). Exit `0` = all examined runs green and no repeated

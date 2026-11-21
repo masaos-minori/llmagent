@@ -183,7 +183,9 @@ of a symbol that other modules call or read, record each candidate
 from `tools/scan_change_consumers.py` in the `Design` section as a target row (added to
 `Implementation Target Files`), a reference row (added to `Reference Files`), or
 `not affected: {reason}`. The scan lists candidates only; the procedure is in
-`skills/issue-to-plan/workflow.md` Step 3.
+`skills/issue-to-plan/workflow.md` Step 3. Record the results of that step's predictable
+fallout check (module size gate, pinned counts, tool inventory, generated blocks) the
+same way.
 
 ## Notes on filling "Affected areas"
 

@@ -238,6 +238,22 @@ Step 2's same-cycle dedup rule and depth ceiling apply to this step.
   only, so a missing consumer is not evidence of absence; read its testmon state line.
   The scan is guidance and does not block the Plan.
 
+- **Predictable fallout check** (any Plan that adds code to a file, changes a list or
+  inventory, or adds or removes a tool): before Step 5, check each item below and record
+  the result in the Plan's `Design` section as a target row, a reference row, or
+  `not affected: {reason}`. A hit found here becomes a row at freeze instead of a
+  fallout amendment during implementation.
+  - Module size: for a `scripts/` or `tools/` file that gains code, compare `wc -c
+    <file>` with the 24576 B gate (`routing.md` Tools, `check_module_size.py` rows). A file
+    that would pass the gate gets a split row for the extracted module.
+  - Pinned counts: search `tests/` for the changed list, table, or inventory and read the
+    assertions on its length or count (for example a cited-node total). A test that pins
+    the old count is a target row.
+  - Tool inventory: an added or removed `tools/*.py` needs the `tools/TOOL_DESCRIPTIONS.md`
+    row (`check_tool_descriptions_sync.py`).
+  - Generated blocks: a change under a generated-reference domain needs the regenerated
+    output (`generate_reference_table.py --check`).
+
 Read only the section(s) located via `rg`/grep for the target symbol or claim, unless
 that section alone omits context the claim depends on (e.g. a decorator, base class, or
 module-level state defined elsewhere in the same file) — in that case read the full file.
