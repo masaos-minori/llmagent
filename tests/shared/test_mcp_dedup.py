@@ -12,6 +12,7 @@ All SQLite access is on tmp_path files; /opt/llm/db/ is never touched.
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 import subprocess
 import sys
@@ -658,13 +659,31 @@ class TestConfigValidation:
         with pytest.raises(ConfigParseError, match="write_file"):
             load_dedup_config(bad)
 
-    def test_retry_class_membership_contradiction_rejected(self, tmp_path):
+    def test_retry_class_reference_drift_is_reported_not_fatal(self, tmp_path, caplog):
+        # agentcfg003: the declared retry_policy is the authority; a mirror entry
+        # disagreeing with the RETRYABLE_TOOLS reference set is a drift finding,
+        # not a load failure, and the loaded classification stands.
+        drift = tmp_path / "mcp_dedup.toml"
+        drift.write_text(
+            '[dedup]\n[retry_class]\nwrite_file = "non_retryable"\n', encoding="utf-8"
+        )
+        with caplog.at_level(logging.WARNING):
+            cfg = load_dedup_config(drift)
+        assert cfg.retry_class["write_file"] == "non_retryable"
+        assert retry_class("write_file", cfg) == "non_retryable"
+        assert any("drift finding" in record.message for record in caplog.records)
+
+    def test_retry_class_membership_contradiction_reports_drift(self, tmp_path, caplog):
+        # agentcfg003 replaced the fail-closed gate: a mirror entry contradicting
+        # the RETRYABLE_TOOLS reference set loads with a drift finding.
         bad = tmp_path / "mcp_dedup.toml"
         bad.write_text(
             '[dedup]\n[retry_class]\nsearch_web = "retryable"\n', encoding="utf-8"
         )
-        with pytest.raises(ConfigParseError, match="search_web"):
-            load_dedup_config(bad)
+        with caplog.at_level(logging.WARNING):
+            cfg = load_dedup_config(bad)
+        assert cfg.retry_class["search_web"] == "retryable"
+        assert any("search_web" in record.message for record in caplog.records)
 
     def test_store_opens_from_config_db_path(self, tmp_path):
         cfg_file = tmp_path / "mcp_dedup.toml"

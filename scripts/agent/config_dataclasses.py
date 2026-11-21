@@ -25,15 +25,9 @@ from dataclasses import dataclass, field
 from shared.mcp_config import McpServerConfig
 
 from agent.constants import (
-    _DEFAULT_APPROVAL_RISK_RULES,
-    _DEFAULT_DRY_RUN_TOOLS,
     _DEFAULT_PLAN_BLOCKED_TOOLS,
     _DEFAULT_PROTECTED_PATHS,
-    _DEFAULT_RESOURCE_KEYS,
     _DEFAULT_SHELL_SAFE_PREFIXES,
-)
-from agent.services.config_validators import (
-    validate_approval_risk_rules as _v_app_risk,
 )
 from agent.services.config_validators import (
     validate_diagnostics_encryption_key as _v_diag_key,
@@ -106,9 +100,6 @@ from agent.services.config_validators import (
 )
 from agent.services.config_validators import (
     validate_tool_error_retry_max as _v_tool_erm,
-)
-from agent.services.config_validators import (
-    validate_tool_safety_tiers as _v_app_tier,
 )
 
 LLM_TEMPERATURE_MAX = 2.0
@@ -270,12 +261,14 @@ class MCPConfig:
 
 @dataclass
 class ApprovalConfig:
-    """Risk-based tool approval policy settings."""
+    """Risk-based tool approval policy settings.
 
-    # tool_name -> "none" | "medium" | "high"; absent tools default to "medium" (fail-closed)
-    approval_risk_rules: dict[str, str] = field(
-        default_factory=lambda: dict(_DEFAULT_APPROVAL_RISK_RULES),
-    )
+    Agentcfg003 REQ-005: the per-tool maps (`approval_risk_rules`,
+    `approval_resource_keys`, `approval_dry_run_tools`, `tool_safety_tiers`)
+    are removed — tool tier, risk, resource keys and dry-run capability are
+    declared by each tool's producer and read from the live RuntimeToolRegistry.
+    """
+
     # File path prefixes that escalate any operation to "high" risk
     approval_protected_paths: list[str] = field(
         default_factory=lambda: list(_DEFAULT_PROTECTED_PATHS),
@@ -289,28 +282,12 @@ class ApprovalConfig:
     approval_shell_safe_prefixes: list[str] = field(
         default_factory=lambda: list(_DEFAULT_SHELL_SAFE_PREFIXES),
     )
-    # Arg keys treated as resource identifiers for path/branch escalation
-    approval_resource_keys: dict[str, list[str]] = field(
-        default_factory=lambda: dict(_DEFAULT_RESOURCE_KEYS),
-    )
-    # Tools with dry_run=True support; approval flow injects dry_run automatically
-    approval_dry_run_tools: list[str] = field(
-        default_factory=lambda: list(_DEFAULT_DRY_RUN_TOOLS),
-    )
-    # tool_name -> "READ_ONLY" | "WRITE_SAFE" | "WRITE_DANGEROUS" | "ADMIN"
-    # Absent tools default to "WRITE_DANGEROUS" (fail-safe)
-    tool_safety_tiers: dict[str, str] = field(default_factory=dict)
     # Absolute path prefix all file paths must be relative to; "" disables
     allowed_root: str = ""
     # GitHub repos (owner/repo) allowed for write ops; empty = deny all (fail-closed)
     approval_github_allowed_repos: list[str] = field(default_factory=list)
     # Block all GitHub write operations globally when True
     gitops_push_blocked: bool = False
-
-    def __post_init__(self) -> None:
-        """Validate approval configuration fields after initialization."""
-        _v_app_risk(self)
-        _v_app_tier(self)
 
 
 @dataclass

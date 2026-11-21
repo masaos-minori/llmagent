@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 from agent.services.config_validators import (
     validate_allowed_root,
     validate_allowed_tools,
-    validate_approval_risk_rules,
     validate_disabled_tools,
     validate_llm_context_char_limit,
     validate_llm_context_token_limit,
@@ -26,7 +25,6 @@ from agent.services.config_validators import (
     validate_tool_max_tool_turns,
     validate_tool_policy_mode,
     validate_tool_result_max_llm_chars,
-    validate_tool_safety_tiers,
 )
 
 
@@ -85,17 +83,9 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
     ConfigFieldRegistry("tool_policy_mode", "tool", True, validate_tool_policy_mode),
     ConfigFieldRegistry("disabled_tools", "tool", True, validate_disabled_tools),
     # Approval section
-    ConfigFieldRegistry(
-        "approval_risk_rules", "approval", True, validate_approval_risk_rules
-    ),
     ConfigFieldRegistry("approval_protected_paths", "approval", True),
     ConfigFieldRegistry("approval_high_risk_branches", "approval", True),
     ConfigFieldRegistry("approval_shell_safe_prefixes", "approval", True),
-    ConfigFieldRegistry("approval_resource_keys", "approval", True),
-    ConfigFieldRegistry("approval_dry_run_tools", "approval", True),
-    ConfigFieldRegistry(
-        "tool_safety_tiers", "approval", True, validate_tool_safety_tiers
-    ),
     ConfigFieldRegistry("allowed_root", "approval", True, validate_allowed_root),
     ConfigFieldRegistry("approval_github_allowed_repos", "approval", True),
     ConfigFieldRegistry("gitops_push_blocked", "approval", False),

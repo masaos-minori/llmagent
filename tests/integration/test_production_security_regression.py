@@ -35,6 +35,9 @@ def test_strict_configuration_validation_via_real_startup() -> None:
     """Exercises the real `ProductionConfigValidator` (not a stand-in) against
     a disposable, in-memory config -- strict validation is unconditional and
     has no profile switch.
+
+    Agentcfg003 REQ-011: the removed policy maps are themselves rejected, so a
+    config that still carries one fails with the unknown-key error.
     """
     from agent.production_config_validator import ProductionConfigValidator
 
@@ -44,8 +47,8 @@ def test_strict_configuration_validation_via_real_startup() -> None:
     result = ProductionConfigValidator().validate(config, known_tools={"real_tool"})
     assert result.errors, "the validator must reject all violations as errors"
     joined = "; ".join(result.errors)
-    assert "unknown_tool" in joined
-    assert "Unknown safety tier keys" in joined
+    assert "Unknown config keys" in joined
+    assert "tool_safety_tiers" in joined
     assert not result.warnings, "the validator must not downgrade to warnings"
 
 

@@ -38,7 +38,10 @@ from shared.mcp_config import (
     StartupMode,
     TransportType,
 )
+from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_registry import get_registry
+
+from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
 
 
 def _make_ctx() -> MagicMock:
@@ -132,7 +135,7 @@ class TestCheckConfigStage:
 
     @pytest.mark.asyncio
     async def test_safety_tier_failure_is_fatal(self) -> None:
-        """A safety-tier failure is always FATAL (fail-closed), regardless of drift policy."""
+        """A tier-drift report failure is always FATAL (fail-closed), regardless of drift policy."""
         ctx = _make_ctx()
         result = _run_check_config(
             ctx,
@@ -141,7 +144,7 @@ class TestCheckConfigStage:
             ),
         )
 
-        outcomes = [o for o in result.outcomes if o.source == "routing_safety_tiers"]
+        outcomes = [o for o in result.outcomes if o.source == "routing_drift"]
         assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
 
     @pytest.mark.asyncio
@@ -159,16 +162,21 @@ class TestCheckConfigStage:
 
     @pytest.mark.asyncio
     async def test_tool_missing_from_safety_tiers_is_fatal(self) -> None:
-        """One registered tool missing from tool_safety_tiers is FATAL, never a warning."""
+        """Agentcfg003 drift shape: a seed-registered tool with no live declared
+        entry is FATAL, never a warning (REQ-007 / AC-10)."""
         ctx = _make_ctx()
         names = sorted(get_registry().get_all_tool_names())
-        ctx.cfg.approval.tool_safety_tiers = {name: "read" for name in names[1:]}
+        ctx.services = MagicMock()
+        ctx.services.runtime_tools = RuntimeToolRegistry(
+            tools={name: build_fixture_runtime_tool(name, "git") for name in names[1:]},
+            allowed_servers=frozenset({"git"}),
+        )
         result = _run_check_config(
             ctx,
             check_routing_safety_tiers=startup_validation.check_routing_safety_tiers,
         )
 
-        outcomes = [o for o in result.outcomes if o.source == "routing_safety_tiers"]
+        outcomes = [o for o in result.outcomes if o.source == "routing_drift"]
         assert [o.status for o in outcomes] == [StartupCheckStatus.FATAL]
         assert names[0] in outcomes[0].message
         assert not any(o.status == StartupCheckStatus.WARNING for o in outcomes)

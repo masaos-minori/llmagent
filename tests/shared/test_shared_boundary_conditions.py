@@ -134,12 +134,14 @@ class TestExtensionLessPathResolution:
 
 
 class TestKnownToolsNoneFallback:
-    """T-6: Reconciled with REQ-001's fail-closed semantics.
+    """T-6: Reconciled with REQ-001's fail-closed semantics (agentcfg003 REQ-004/REQ-011).
 
     NOTE: This class was originally written under SHARED-6
     (plans/done/20260726-193048_plan.md) to assert the old fail-open behavior
     (known_tools=None skips tool tier validation). After REQ-001's fail-closed
-    change, these tests now assert the new fail-closed semantics.
+    change, and after agentcfg003 removed the `tool_safety_tiers` map, these
+    tests assert the declared-tier risk floor: the validator reads the live
+    registry's declarations, never a config map.
 
     This class intentionally supersedes SHARED-6 per ADR-004's fail-closed
     principle: production validation cannot succeed without an authoritative
@@ -151,9 +153,6 @@ class TestKnownToolsNoneFallback:
     ) -> None:
         """REQ-001/T-6: When known_tools=None and registry lookup fails,
         the validator must surface a validation error instead of silently skipping."""
-        config: dict[str, Any] = {
-            "tool_safety_tiers": {"some_tool": "WRITE_SAFE"},
-        }
         validator = ProductionConfigValidator()
 
         def _raise() -> None:
@@ -162,18 +161,40 @@ class TestKnownToolsNoneFallback:
             )
 
         monkeypatch.setattr("shared.tool_registry.get_registry", _raise)
-        result = validator.validate(config, known_tools=None)
+        result = validator.validate({}, known_tools=None)
         assert any(
             "registry" in err.lower() or "resolution" in err.lower()
             for err in result.errors
         )
 
-    def test_known_tools_empty_set_validates_all_as_unknown(self) -> None:
-        """When known_tools is empty set, all safety tiers are flagged as unknown."""
+    def test_known_tools_empty_set_fails_closed_on_declared_floor(self) -> None:
+        """An empty known_tools set resolves no floor target, and the removed
+        `tool_safety_tiers` key is itself rejected: a config that still carries
+        it fails validation with the unknown-key error."""
         config: dict[str, Any] = {
             "tool_safety_tiers": {"unknown_tool": "WRITE_SAFE"},
         }
         validator = ProductionConfigValidator()
         result = validator.validate(config, known_tools=set())
-        assert any("not a registered tool name" in err for err in result.errors)
+        assert any("Unknown config keys" in err for err in result.errors)
         assert len(result.errors) > 0
+
+    def test_declared_tier_below_floor_is_reported(self) -> None:
+        """AC-04: a registered git write tool declaring a NONE-tier value is
+        flagged fail-closed; the declaration is the only risk source."""
+        from shared.runtime_tool_registry import RuntimeToolRegistry
+
+        from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
+
+        registry = RuntimeToolRegistry(
+            tools={
+                "git_push": build_fixture_runtime_tool(
+                    "git_push", "git", agent_safety_tier="READ_ONLY"
+                )
+            },
+            allowed_servers=frozenset({"git"}),
+        )
+        result = ProductionConfigValidator().validate(
+            {}, known_tools={"git_push"}, runtime_tools=registry
+        )
+        assert any("git_push" in err for err in result.errors)

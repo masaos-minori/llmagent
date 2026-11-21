@@ -16,6 +16,7 @@ from shared.config_validator import ConfigValidationResult
 
 if TYPE_CHECKING:
     from shared.component_mandatoriness import ComponentClassification
+    from shared.runtime_tool_registry import RuntimeToolRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -53,83 +54,75 @@ def _resolve_known_tools(known_tools: set[str] | None) -> set[str]:
         raise ValueError(msg) from exc
 
 
-def _check_missing_tool_safety_tiers(
-    tool_safety_tiers: Mapping[str, object],
-    known_tools: set[str] | None = None,
-    errors: list[str] | None = None,
-) -> list[str]:
-    """Return tool names that are registered but missing from tool_safety_tiers."""
-    try:
-        resolved_tools = _resolve_known_tools(known_tools)
-    except ValueError as exc:
-        if errors is not None:
-            errors.append(str(exc))
-        return []
-    missing = [t for t in sorted(resolved_tools) if t not in tool_safety_tiers]
-    return [f"'{t}' not in tool_safety_tiers" for t in missing]
+# Agentcfg003 REQ-011: the removed per-tool maps have no compatibility reader.
+# They are subtracted from the introspected valid-key set explicitly so a stale
+# deployed config is rejected as an unknown key with the key named, independent
+# of when the dataclass fields themselves are removed.
+_REMOVED_PRODUCTION_KEYS: frozenset[str] = frozenset(
+    {
+        "tool_safety_tiers",
+        "approval_risk_rules",
+        "approval_resource_keys",
+        "approval_dry_run_tools",
+    }
+)
+
+# The named git write tools carry a declared-tier risk floor (see
+# _check_approval_risk_floor).
+_GIT_RISK_FLOOR_TOOLS: frozenset[str] = frozenset(
+    ("git_checkout", "git_pull", "git_push")
+)
 
 
-def _check_unknown_tool_safety_tiers(
-    tool_safety_tiers: Mapping[str, object],
-    known_tools: set[str] | None = None,
-    errors: list[str] | None = None,
-) -> list[str]:
-    """Return tool_safety_tiers keys that are not registered tool names."""
-    try:
-        resolved_tools = _resolve_known_tools(known_tools)
-    except ValueError as exc:
-        if errors is not None:
-            errors.append(str(exc))
-        return []
-    unknown = sorted(set(tool_safety_tiers) - resolved_tools)
-    return [f"'{k}' not a registered tool name" for k in unknown]
-
-
-# Approval-risk posture (DT-01 Option A, approved 2026-11-18): approval_risk_rules
-# is authoritative — a rule entry overrides the tool's tier here exactly as it does
-# in classify_risk(), and tier entries for rule-eligible tools are intentional
-# defense-in-depth for plan-mode blocking and the ADR-003 tier-vs-write
-# classification. No rule/tier redundancy guard exists by decision; if one is ever
-# decided it belongs in this module, not in classify_risk().
 def _check_approval_risk_floor(
-    approval_risk_rules: Mapping[str, object],
-    tool_safety_tiers: Mapping[str, object],
+    runtime_tools: RuntimeToolRegistry | None,
     known_tools: set[str] | None = None,
     errors: list[str] | None = None,
 ) -> list[str]:
-    """Return tool names whose resolved effective risk is below HIGH."""
+    """Return git write tools whose declared tier resolves below the risk floor.
+
+    Agentcfg003 REQ-004/REQ-007 (AC-04): the floor reads each registered tool's
+    declared ``agent_safety_tier`` mapped through ``_TIER_TO_RISK`` — the removed
+    ``approval_risk_rules``/``tool_safety_tiers`` maps no longer contribute. The
+    named git write tools must declare a tier whose mapped risk is above NONE; a
+    registered tool with no usable declaration (missing field or unrecognized
+    tier value) is reported fail-closed. A tool absent from the runtime registry
+    is not flagged: ``classify_risk()`` resolves it to HIGH (UNKNOWN fail-safe),
+    exactly as before. When ``runtime_tools`` is None there is no declared source
+    to read: config validation runs before /v1/tools discovery, so enforcement
+    lives at the discovery schema gate, at ``classify_risk()`` decision time,
+    and in the routing drift report. The MEDIUM-to-HIGH escalation via
+    ``approval_protected_paths`` remains a runtime decision.
+    """
     from agent.tool_policy import _TIER_TO_RISK, RiskLevel
 
-    GIT_WRITE_TOOLS = frozenset(("git_checkout", "git_pull", "git_push"))
     try:
         resolved_tools = _resolve_known_tools(known_tools)
     except ValueError as exc:
         if errors is not None:
             errors.append(str(exc))
         return []
-    targets = GIT_WRITE_TOOLS & resolved_tools
-    below_high: list[str] = []
+    targets = _GIT_RISK_FLOOR_TOOLS & resolved_tools
+    if runtime_tools is None:
+        return []
+    below_floor: list[str] = []
     for tool_name in sorted(targets):
-        raw_rule = approval_risk_rules.get(tool_name)
-        if raw_rule is not None:
-            try:
-                base = RiskLevel(str(raw_rule))
-            except ValueError:
-                # classify_risk() does not guard this conversion, so an invalid
-                # override would crash risk classification at call time in
-                # production — flag it here instead of silently skipping it.
-                below_high.append(
-                    f"'{tool_name}' has invalid approval_risk_rules value {raw_rule!r}"
-                )
-                continue
-        elif tool_name in tool_safety_tiers:
-            tier = str(tool_safety_tiers[tool_name])
-            base = _TIER_TO_RISK.get(tier, RiskLevel.MEDIUM)
-        else:
+        try:
+            tool = runtime_tools.get(tool_name)
+        except KeyError:
             continue
-        if base != RiskLevel.HIGH:
-            below_high.append(f"'{tool_name}' effective risk={base}")
-    return below_high
+        tier = getattr(tool, "agent_safety_tier", None)
+        if tier is None:
+            below_floor.append(f"'{tool_name}' missing declared agent_safety_tier")
+            continue
+        base = _TIER_TO_RISK.get(str(tier))
+        if base is None:
+            below_floor.append(f"'{tool_name}' unrecognized declared tier {tier!r}")
+        elif base is RiskLevel.NONE:
+            below_floor.append(
+                f"'{tool_name}' declared tier {tier!r} effective risk {base.value}"
+            )
+    return below_floor
 
 
 def _get_valid_production_keys() -> frozenset[str]:
@@ -212,22 +205,30 @@ def _get_valid_production_keys() -> frozenset[str]:
         }
     )
 
-    _VALID_PRODUCTION_KEYS = frozenset(valid_keys)
+    _VALID_PRODUCTION_KEYS = frozenset(valid_keys - _REMOVED_PRODUCTION_KEYS)
     return _VALID_PRODUCTION_KEYS
 
 
 class ProductionConfigValidator:
     """Validate configuration against production security requirements.
 
-    Checks tool safety tier consistency and other production-critical settings.
+    Checks the declared-metadata risk floor and other production-critical
+    settings; removed per-tool maps are rejected as unknown keys (REQ-011).
     """
 
     def validate(
         self,
         config: Mapping[str, object],
         known_tools: set[str] | None = None,
+        runtime_tools: RuntimeToolRegistry | None = None,
     ) -> ConfigValidationResult:
-        """Validate the full configuration against production security rules."""
+        """Validate the full configuration against production security rules.
+
+        ``runtime_tools`` (the live RuntimeToolRegistry) supplies the declared
+        tiers for the git risk floor; without it the floor defers to the
+        discovery schema gate and decision-time classification (see
+        ``_check_approval_risk_floor``).
+        """
         errors: list[str] = []
         warnings: list[str] = []
 
@@ -237,42 +238,16 @@ class ProductionConfigValidator:
                 msg = f"{key}=false — strict mode is required in production"
                 self._record(errors, warnings, msg)
 
-        # Bidirectional tool_safety_tiers validation
-        raw_tiers = config.get("tool_safety_tiers")
-        tool_safety_tiers: Mapping[str, object] = (
-            raw_tiers if isinstance(raw_tiers, Mapping) else {}
-        )
-        if tool_safety_tiers:
-            missing_tiers = _check_missing_tool_safety_tiers(
-                tool_safety_tiers, known_tools=known_tools, errors=errors
-            )
-            if missing_tiers:
-                tier_msg = "; ".join(missing_tiers)
-                self._record(errors, warnings, f"Missing safety tiers: {tier_msg}")
-
-            unknown_tiers = _check_unknown_tool_safety_tiers(
-                tool_safety_tiers, known_tools=known_tools, errors=errors
-            )
-            if unknown_tiers:
-                tier_msg = "; ".join(unknown_tiers)
-                self._record(errors, warnings, f"Unknown safety tier keys: {tier_msg}")
-
-        # Approval risk floor check for git write tools. Runs even when
-        # approval_risk_rules is absent so the tool_safety_tiers fallback
-        # (e.g. an implicit WRITE_DANGEROUS -> MEDIUM default) is still caught.
-        raw_risk_rules = config.get("approval_risk_rules")
-        approval_risk_rules: Mapping[str, object] = (
-            raw_risk_rules if isinstance(raw_risk_rules, Mapping) else {}
-        )
-        low_risk_tools = _check_approval_risk_floor(
-            approval_risk_rules,
-            tool_safety_tiers,
+        # Declared-tier risk floor for the named git write tools. Reads the
+        # registry's declared metadata, never a configuration map (REQ-004).
+        below_floor = _check_approval_risk_floor(
+            runtime_tools,
             known_tools=known_tools,
             errors=errors,
         )
-        if low_risk_tools:
-            tool_list = "; ".join(low_risk_tools)
-            msg = f"Effective risk below HIGH for git tools: {tool_list}"
+        if below_floor:
+            tool_list = "; ".join(below_floor)
+            msg = f"Declared risk below floor for git tools: {tool_list}"
             self._record(errors, warnings, msg)
 
         # allowed_root: an empty or absent root would disable the path jail
@@ -354,16 +329,6 @@ class ProductionConfigValidator:
                 component_id,
             )
         return errors
-
-    def validate_unknown_tool_safety_tiers(
-        self, unknown_keys: list[str]
-    ) -> ConfigValidationResult:
-        """Validate that unknown tool_safety_tiers keys are rejected."""
-        errors = [
-            f"tool_safety_tiers contains unknown key {k!r} (not a registered tool name)"
-            for k in unknown_keys
-        ]
-        return ConfigValidationResult(errors=errors)
 
     @staticmethod
     def _check_unknown_production_keys(config: Mapping[str, object]) -> list[str]:

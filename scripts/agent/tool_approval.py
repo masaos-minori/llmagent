@@ -62,34 +62,30 @@ _GITOPS_BLOCKABLE_TOOLS: frozenset[str] = _GITHUB_MUTATION_TOOLS - {
     "github_add_issue_comment",
 }
 
+
 # Tools that support the dry_run parameter for preview enrichment.
-# No-op contract: a member's server must perform zero write/delete/network/
-# database side effects under dry_run=True. Do not add a member here unless it meets
-# that guarantee — the pre-preview runs the tool before the user approves.
-_KNOWN_DRY_RUN_CAPABLE_TOOLS: frozenset[str] = frozenset(
-    [
-        "write_file",
-        "edit_file",
-        "create_directory",
-        "delete_file",
-        "delete_directory",
-        "move_file",
-        "github_create_or_update_file",
-        "github_push_files",
-        "github_delete_file",
-        "github_create_issue",
-        "github_add_issue_comment",
-        "github_create_pull_request",
-        "github_update_pull_request",
-        "github_merge_pull_request",
-        "github_create_branch",
-    ]
-)
+# No-op contract: a producer's server must perform zero write/delete/network/
+# database side effects under dry_run=True — the pre-preview runs the tool
+# before the user approves. The capability is now the declared
+# ``preview_capability`` field (agentcfg003 REQ-009); the local tool-name set
+# and the approval_dry_run_tools config map no longer exist.
+def _declared_dry_run_capable(ctx: AgentContext, tool_name: str) -> bool:
+    """Return True when the registered tool declares ``preview_capability="dry_run"``.
 
-
-def _is_dry_run_capable(tool_name: str) -> bool:
-    """Check whether a tool supports the dry_run parameter."""
-    return tool_name in _KNOWN_DRY_RUN_CAPABLE_TOOLS
+    No-op contract: a producer declares the capability only when its server
+    performs zero write/delete/network/database side effects under dry_run=True —
+    the pre-preview runs the tool before the user approves. A tool with no
+    declaration, including an unregistered tool, fails closed and gets the
+    static preview (agentcfg003 REQ-004, REQ-009).
+    """
+    registry = ctx.services_required.runtime_tools
+    if registry is None:
+        return False
+    try:
+        tool = registry.get(tool_name)
+    except KeyError:
+        return False
+    return tool.preview_capability == "dry_run"
 
 
 async def _build_preview_with_dry_run(
@@ -99,18 +95,16 @@ async def _build_preview_with_dry_run(
 ) -> str:
     """Return preview string, optionally enriched with dry-run output.
 
-    Raises ApprovalPreviewError when dry-run execution fails, unless
-    approval_dry_run_tools is not configured or tools is unavailable.
+    Raises ApprovalPreviewError when dry-run execution fails, unless the tool
+    declares no dry_run capability or tools is unavailable.
     """
     preview = build_preview(tool_name, args)
-    if (
-        tool_name not in ctx.cfg.approval.approval_dry_run_tools
-        or ctx.services_required.tools is None
-    ):
+    if ctx.services_required.tools is None:
         return preview
-    if not _is_dry_run_capable(tool_name):
+    if not _declared_dry_run_capable(ctx, tool_name):
         logger.warning(
-            "Tool %s does not support dry_run; using static preview", tool_name
+            "Tool %s does not declare dry_run preview capability; using static preview",
+            tool_name,
         )
         return preview
     try:
@@ -283,7 +277,9 @@ async def run_approval_checks(
         args_preview = pc.args
         masked_preview = mask_args(args_preview, ctx.cfg.tool.masked_fields)
         call_id = pc.context.call_id if pc.context else ""
-        if ctx.conv.plan_mode and is_plan_mode_blocked(ctx.cfg, tc_name):
+        if ctx.conv.plan_mode and is_plan_mode_blocked(
+            ctx.cfg, tc_name, ctx.services_required.runtime_tools
+        ):
             emit_plan_blocked(tc_name, _json_dumps(masked_preview))
             logger.info("Plan mode blocked tool: %s", tc_name)
             denied_ids.append(pc.call_id)

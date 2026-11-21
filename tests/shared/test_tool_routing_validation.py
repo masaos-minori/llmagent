@@ -8,6 +8,7 @@ from __future__ import annotations
 import pytest
 from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
+from shared.tool_metadata import TOOL_FIELD_SET_VERSION
 
 from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
 
@@ -82,7 +83,14 @@ class TestRoutingAuthority:
             is_write=True,
             requires_serial=True,
             resource_scope_kind="filesystem",
-            resource_scope_keys=("path",),
+            resource_scope_keys={"path": "path"},
+            agent_safety_tier="WRITE_DANGEROUS",
+            side_effect_class="external_write",
+            retry_policy="never",
+            reconciliation_policy="external_state",
+            idempotency_required=True,
+            preview_capability="none",
+            policy_version=TOOL_FIELD_SET_VERSION,
         )
         reg = _registry_with(tool)
         spec = reg.tool_spec_map()["delete_file"]
@@ -141,15 +149,15 @@ class TestRoutingAuthority:
         with pytest.raises(KeyError):
             reg.tool_spec_for_call(call_id="call-1", name="nope", args={})
 
-    def test_apply_policy_updates_tier_and_llm_visibility(self) -> None:
-        """INV-005: apply_policy enforces policy on tool tiers and visibility."""
+    def test_apply_policy_keeps_declared_tier_and_sets_visibility(self) -> None:
+        """apply_policy controls visibility but never overwrites the declared tier."""
         tool = build_fixture_runtime_tool(
             name="shell_run", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={"shell_run": "ADMIN"}, allowed_tools=["shell_run"])
+        reg.apply_policy(allowed_tools=["shell_run"])
         updated = reg.get("shell_run")
-        assert updated.agent_safety_tier == "ADMIN"
+        assert updated.agent_safety_tier == tool.agent_safety_tier
         assert updated.enabled_for_llm is True
 
     def test_apply_policy_disables_tools_not_in_allowed_list(self) -> None:
@@ -158,7 +166,7 @@ class TestRoutingAuthority:
             name="search_web", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={}, allowed_tools=["other_tool"])
+        reg.apply_policy(allowed_tools=["other_tool"])
         assert reg.get("search_web").enabled_for_llm is False
 
     def test_apply_policy_empty_allowed_tools_disables_all(self) -> None:
@@ -167,28 +175,16 @@ class TestRoutingAuthority:
             name="search_web", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={}, allowed_tools=())
+        reg.apply_policy(allowed_tools=())
         assert reg.get("search_web").enabled_for_llm is False
 
-    def test_apply_policy_updates_tier_to_read_only(self) -> None:
-        """INV-005: READ_ONLY tier assignment works via apply_policy."""
-        tool = build_fixture_runtime_tool(
-            name="read_file", server_key="s", enabled_for_llm=True
-        )
-        reg = _registry_with(tool)
-        reg.apply_policy(
-            tier_map={"read_file": "READ_ONLY"}, allowed_tools=["read_file"]
-        )
-        updated = reg.get("read_file")
-        assert updated.agent_safety_tier == "READ_ONLY"
-
-    def test_apply_policy_keeps_current_tier_when_absent_from_tier_map(self) -> None:
-        """INV-005: existing tier is preserved when not in tier_map."""
+    def test_apply_policy_never_overrides_declared_tier(self) -> None:
+        """agentcfg003: the declared tier is the single authority; apply_policy leaves it."""
         tool = build_fixture_runtime_tool(
             name="read_file", server_key="s", agent_safety_tier="READ_ONLY"
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={}, allowed_tools=["read_file"])
+        reg.apply_policy(allowed_tools=["read_file"])
         assert reg.get("read_file").agent_safety_tier == "READ_ONLY"
 
     def test_diagnostics_uses_raw_definition_disabled_reason_when_present(self) -> None:
@@ -287,10 +283,10 @@ class TestRoutingAuthority:
         )
         reg = _registry_with(tool)
         # First call: disable the tool
-        reg.apply_policy(tier_map={}, allowed_tools=["other"])
+        reg.apply_policy(allowed_tools=["other"])
         assert reg.get("t").enabled_for_llm is False
         # Second call: re-enable it
-        reg.apply_policy(tier_map={}, allowed_tools=["t"])
+        reg.apply_policy(allowed_tools=["t"])
         assert reg.get("t").enabled_for_llm is True
 
     def test_atomic_single_swap_identity_change(self) -> None:
@@ -300,7 +296,7 @@ class TestRoutingAuthority:
         )
         reg = _registry_with(tool)
         old_id = id(reg._tools)
-        reg.apply_policy(tier_map={}, allowed_tools=("t",))
+        reg.apply_policy(allowed_tools=("t",))
         new_id = id(reg._tools)
         assert old_id != new_id
 
@@ -346,10 +342,10 @@ class TestApplyPolicyReversibility:
         )
         reg = _registry_with(tool)
         # First call: disable the tool
-        reg.apply_policy(tier_map={}, allowed_tools=["other_tool"])
+        reg.apply_policy(allowed_tools=["other_tool"])
         assert reg.get("shell_run").enabled_for_llm is False
         # Second call: re-enable the tool
-        reg.apply_policy(tier_map={}, allowed_tools=["shell_run"])
+        reg.apply_policy(allowed_tools=["shell_run"])
         assert reg.get("shell_run").enabled_for_llm is True
 
     def test_atomic_single_swap_per_call(self) -> None:
@@ -359,7 +355,7 @@ class TestApplyPolicyReversibility:
         )
         reg = _registry_with(tool)
         old_id = id(reg._tools)
-        reg.apply_policy(tier_map={}, allowed_tools=["shell_run"])
+        reg.apply_policy(allowed_tools=["shell_run"])
         new_id = id(reg._tools)
         assert old_id != new_id
         assert len(reg._tools) == 1

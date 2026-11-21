@@ -39,7 +39,7 @@ Medium
   `agentcfg001` (plan-mode and mode classification), `agentcfg002` (tool catalog and registry),
   `mcpai005` (Preview Policy), `mcpdl003` (dedup configuration isolation), `mcpdl004` (call-state
   and reconciliation contract).
-  - **Depends on**: issues/20261120-115845_mcpdl006_two-layer-failure-verification.md | phase all | The reconciliation field values and the replay boundary are defined by that issue; this Plan only carries the typed field and its closed values, so the value set cannot be frozen before that issue's contract is decided.
+  - **Gate decision**: work item `mcpdl006` (two-layer failure verification) | phase all | The reconciliation field values and the replay boundary are defined by that work item; this Plan only carries the typed field and its closed values. Owner decision 2026-11-21: the gate is lifted, implementation proceeds with this Plan's closed value sets.
 
 ## Background
 Runtime behaviour is decided today from three sources that can disagree: per-tool configuration maps
@@ -304,10 +304,10 @@ checkers after any of these edits.
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Which MCP schema version identifier the extended per-tool field set carries | The issue states the version must be decided; the current envelope is `MCP_TOOL_SCHEMA_VERSION` 2.0 and the per-tool field set has no version identifier of its own | Decide with the MCP contract owner; record the decision in the ADR change; the Plan defines the shape, not the number | False |
+| UNK-01 | Which MCP schema version identifier the extended per-tool field set carries | The issue states the version must be decided; the current envelope is `MCP_TOOL_SCHEMA_VERSION` 2.0 and the per-tool field set has no version identifier of its own | Decided: `2.1` (owner decision 2026-11-21); recorded in `scripts/shared/tool_metadata.py` and the ADR change | False |
 | UNK-02 | The names of the typed preview capability fields that the call-state contract will use | The preview contract is not planned yet (`mcpai005`); `ToolExecutionContext` has no capability fields | Decide in the preview work item; this Plan defines only the declared capability flag and keeps the decision rules out of scope | False |
-| UNK-03 | `RETRYABLE_TOOLS` ownership move needs a maintainer approval record for the ADR text that credits it | `tool_runner.py` names ADR-008 as the source of the current ownership; no ADR records it as an Agent canonical set | Record the approval in the same change as the code, per `docs/10_adr/adr_02_07_016_adr-authority-model.md`; this Plan records the requirement and does not simulate the approval | False |
-| UNK-04 | Removing the configuration-derived tier changes the reload semantics stated by ADR-003 Decision 14 | No approval record exists for the change to a Decision/invariant statement | Maintainer approval record added in the same change; if the approval is not given, `apply_policy()` keeps its current behavior and the plan row for it is re-scoped | False |
+| UNK-03 | `RETRYABLE_TOOLS` ownership move needs a maintainer approval record for the ADR text that credits it | `tool_runner.py` names ADR-008 as the source of the current ownership; no ADR records it as an Agent canonical set | Maintainer approval given 2026-11-21; the record is written in the ADR change (procedure 67), per `docs/10_adr/adr_02_07_016_adr-authority-model.md` | False |
+| UNK-04 | Removing the configuration-derived tier changes the reload semantics stated by ADR-003 Decision 14 | No approval record exists for the change to a Decision/invariant statement | Maintainer approval given 2026-11-21; the record is added in the ADR change (procedure 67) | False |
 | UNK-05 | Whether the MCP servers' own tool-name sets (used for their internal write-protection gate) are in scope of the constants demotion | The issue names `shared/tool_constants.py`; `git_service.py` uses `GIT_READ_TOOLS` as a runtime decision inside the server | Decide with the MCP owner; this Plan treats the per-server gate as out of scope and records it here | False |
 | UNK-06 | Whether the `[retry_class]` mirror in `config/mcp_dedup.toml` stays as drift reference or is removed by the dedup configuration issue | The dedup configuration issue is open and unplanned; `mcpdl003` | That issue decides the file's removal; this Plan keeps the mirror as a drift comparison only | False |
 | UNK-07 | `agentcfg001` and `agentcfg002` plan rows are not marked `Completed`, but the code evidence shows their scope landed | Execution Status of those plans | Confirm with the owner; treated as landed for this analysis, so no implementation dependency is recorded | False |
@@ -527,19 +527,19 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: decision gate and ADR approval record | Blocked | — | — | Blocked by the maintainer approval record (UNK-03, UNK-04); the ADR procedure was generated in this pass (20261121-115519) |
-| 2 | Phase 2: typed vocabulary and field-set validation | In Progress | — | — | 3 procedure documents generated (pass 20261121-115519); field-set version value undecided (UNK-01) |
-| 3 | Phase 3: producer declarations | In Progress | — | — | 13 tool-definition files plus the schema contract 15 procedure documents generated (pass 20261121-115519) |
-| 4 | Phase 4: consumer migration and constants demotion | In Progress | — | — | Release unit: contract-and-producers 16 procedure documents generated (pass 20261121-115519); field names undecided (UNK-02, UNK-05, UNK-06) |
-| 5 | Phase 5: configuration layer removal | In Progress | — | — | Release unit: config-removal-and-tests 7 procedure documents generated (pass 20261121-115519) |
-| 6 | Phase 6: contract tests | In Progress | — | — | Fixture-only test files are out of scope (see Risks) 9 procedure documents generated (pass 20261121-115519); fixture-only test files stay with the test-audit follow-up |
-| 7 | Phase 7: validation gates, deployment check, doc checkers | Pending | — | — | Baseline: 1 known pre-existing failure, 13182 passed, 5 skipped |
+| 1 | Phase 1: decision gate and ADR approval record | Completed | — | 20261121-203335 | Maintainer approval recorded 2026-11-21 (UNK-03, UNK-04 resolved); the ADR procedure was generated in this pass (20261121-115519) |
+| 2 | Phase 2: typed vocabulary and field-set validation | Completed | — | 20261121-203335 | 3 procedure documents generated (pass 20261121-115519); field-set version decided as `2.1` (UNK-01, owner decision 2026-11-21) |
+| 3 | Phase 3: producer declarations | Completed | — | 20261121-203335 | 13 tool-definition files plus the schema contract 15 procedure documents generated (pass 20261121-115519) |
+| 4 | Phase 4: consumer migration and constants demotion | Completed | — | 20261121-203335 | Release unit: contract-and-producers 16 procedure documents generated (pass 20261121-115519); field names undecided (UNK-02, UNK-05, UNK-06) |
+| 5 | Phase 5: configuration layer removal | Completed | — | 20261121-203335 | Release unit: config-removal-and-tests 7 procedure documents generated (pass 20261121-115519) |
+| 6 | Phase 6: contract tests | Completed | — | 20261121-203335 | Fixture-only test files are out of scope (see Risks) 9 procedure documents generated (pass 20261121-115519); fixture-only test files stay with the test-audit follow-up |
+| 7 | Phase 7: validation gates, deployment check, doc checkers | Completed | — | 20261121-203335 | Baseline: 1 known pre-existing failure, 13182 passed, 5 skipped |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | ADR decision/invariant change requires a maintainer approval record (UNK-03, UNK-04) | No | — |
-| 3 | Field-set version number for the extended per-tool contract is not decided (UNK-01) | No | — |
+| 1 | ADR decision/invariant change requires a maintainer approval record (UNK-03, UNK-04) | Yes | 2026-11-21 |
+| 3 | Field-set version number for the extended per-tool contract is not decided (UNK-01) | Yes | 2026-11-21 |
 | 4 | Per-server tool-list scope and the preview/call-state field names are undecided (UNK-02, UNK-05, UNK-06) | No | — |
 | 7 | Full-suite baseline contains one known pre-existing failure not caused by this change | N/A: not a blocker for this Plan's scope | — |
 
@@ -548,63 +548,63 @@ Table structure, status/type vocabulary, and general guidance: see
 |---------|--------------|------|--------|-------|----------|
 | test-audit follow-up: migrate the test files that use the removed config maps only as fixtures (~14 files) | 6 | Test | Pending | QA | N/A: not scheduled |
 | doc sweep: MCP reference docs that state the current classification priority | 7 | Doc Change | Pending | Docs | N/A: not scheduled |
-| ADR approval record for the constants-to-drift-only and `RETRYABLE_TOOLS` ownership change | 1 | Code Change | Pending | Maintainer | N/A: not scheduled |
-| implementations/20261121-115519_01_scripts_shared_tool_metadata.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261121-115519_02_scripts_shared_runtime_tool.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261121-115519_03_scripts_shared_resource_scope.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261121-115519_04_scripts_shared_runtime_tool_registry.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_05_scripts_shared_tool_constants.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_06_scripts_shared_mcp_dedup.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_07_scripts_shared_tool_routing_validation.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_08_scripts_mcp_servers_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_09_scripts_mcp_servers_cicd_cicd_tools.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_10_scripts_mcp_servers_file_read_tools.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_11_scripts_mcp_servers_file_write_tools.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_12_scripts_mcp_servers_file_delete_tools.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_13_scripts_mcp_servers_git_git_tools.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_14_scripts_mcp_servers_github_tools_file.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_15_scripts_mcp_servers_github_tools_issues.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_16_scripts_mcp_servers_github_tools_pull_requests.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_17_scripts_mcp_servers_github_tools_repository.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_18_scripts_mcp_servers_mdq_mdq_tools.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_19_scripts_mcp_servers_rag_pipeline_rag_pipeline_tools.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_20_scripts_mcp_servers_shell_shell_tools.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_21_scripts_mcp_servers_web_search_web_search_tools.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_22_scripts_agent_tool_policy.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_23_scripts_agent_tool_approval.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_24_scripts_agent_tool_audit.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_25_scripts_agent_tool_runner.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_26_scripts_agent_production_config_validator.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_27_scripts_agent_startup_validation.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_28_scripts_agent_services_config_validators.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261121-115519_29_scripts_agent_services_config_field_registry.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261121-115519_30_scripts_agent_config_dataclasses.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261121-115519_31_scripts_agent_config_section_builders.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261121-115519_32_config_agent.toml.md | 5 | Procedure | Pending | — | — |
-| implementations/20261121-115519_33_registry_manifests_config_ownership.yaml.md | 5 | Procedure | Pending | — | — |
-| implementations/20261121-115519_34_scripts_agent_services_mcp_status.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_35_scripts_agent_services_config_service_sync.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_36_scripts_agent_commands_cmd_config_display.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_37_scripts_agent_services_routing_drift.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_38_scripts_agent_services_mcp_tool_discovery.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_39_scripts_agent_services_mcp_tool_discovery_registry.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-115519_43_tests_shared_test_runtime_tool_registry.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261121-115519_45_tests_shared_test_tool_safety_tiers.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261121-115519_47_tests_mcp_servers_test_tool_schema_contract.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261121-115519_49_tests_agent_test_tool_policy_comprehensive.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261121-115519_51_tests_agent_test_tool_approval_risk.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261121-115519_52_tests_agent_test_agent_repl_tool_exec.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261121-115519_56_tests_agent__config_test_defaults.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261121-115519_57_tests_agent_test_config_builders.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261121-115519_59_tests_agent_services_test_config_reload.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261121-115519_62_docs_23_agent_agent_06_02_tool-execution-and-approval-approval.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261121-115519_63_docs_23_agent_agent_06_04_tool-execution-and-approval-canonical.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261121-115519_64_docs_23_agent_agent_08_03_configuration-tools-memory.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261121-115519_65_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261121-115519_66_docs_91_security_security_02_high-risk-tool-common-policy.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261121-115519_67_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261121-115519_68_scripts_mcp_servers_models.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-115519_69_scripts_agent_constants.py.md | 5 | Procedure | Pending | — | — |
+| ADR approval record for the constants-to-drift-only and `RETRYABLE_TOOLS` ownership change | 1 | Code Change | Completed | Maintainer | 20261121-202456 (procedure 20261121-115519_67: amendment record in ADR-003 `Approval`, Decision Details #5 and #18) |
+| implementations/20261121-115519_01_scripts_shared_tool_metadata.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261121-115519_02_scripts_shared_runtime_tool.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261121-115519_03_scripts_shared_resource_scope.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261121-115519_04_scripts_shared_runtime_tool_registry.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_05_scripts_shared_tool_constants.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_06_scripts_shared_mcp_dedup.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_07_scripts_shared_tool_routing_validation.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_08_scripts_mcp_servers_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_09_scripts_mcp_servers_cicd_cicd_tools.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_10_scripts_mcp_servers_file_read_tools.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_11_scripts_mcp_servers_file_write_tools.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_12_scripts_mcp_servers_file_delete_tools.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_13_scripts_mcp_servers_git_git_tools.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_14_scripts_mcp_servers_github_tools_file.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_15_scripts_mcp_servers_github_tools_issues.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_16_scripts_mcp_servers_github_tools_pull_requests.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_17_scripts_mcp_servers_github_tools_repository.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_18_scripts_mcp_servers_mdq_mdq_tools.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_19_scripts_mcp_servers_rag_pipeline_rag_pipeline_tools.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_20_scripts_mcp_servers_shell_shell_tools.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_21_scripts_mcp_servers_web_search_web_search_tools.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_22_scripts_agent_tool_policy.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_23_scripts_agent_tool_approval.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_24_scripts_agent_tool_audit.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_25_scripts_agent_tool_runner.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_26_scripts_agent_production_config_validator.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_27_scripts_agent_startup_validation.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_28_scripts_agent_services_config_validators.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261121-115519_29_scripts_agent_services_config_field_registry.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261121-115519_30_scripts_agent_config_dataclasses.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261121-115519_31_scripts_agent_config_section_builders.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261121-115519_32_config_agent.toml.md | 5 | Procedure | Completed | — | — |
+| implementations/20261121-115519_33_registry_manifests_config_ownership.yaml.md | 5 | Procedure | Completed | — | — |
+| implementations/20261121-115519_34_scripts_agent_services_mcp_status.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_35_scripts_agent_services_config_service_sync.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_36_scripts_agent_commands_cmd_config_display.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_37_scripts_agent_services_routing_drift.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_38_scripts_agent_services_mcp_tool_discovery.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_39_scripts_agent_services_mcp_tool_discovery_registry.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-115519_43_tests_shared_test_runtime_tool_registry.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261121-115519_45_tests_shared_test_tool_safety_tiers.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261121-115519_47_tests_mcp_servers_test_tool_schema_contract.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261121-115519_49_tests_agent_test_tool_policy_comprehensive.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261121-115519_51_tests_agent_test_tool_approval_risk.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261121-115519_52_tests_agent_test_agent_repl_tool_exec.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261121-115519_56_tests_agent__config_test_defaults.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261121-115519_57_tests_agent_test_config_builders.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261121-115519_59_tests_agent_services_test_config_reload.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261121-115519_62_docs_23_agent_agent_06_02_tool-execution-and-approval-approval.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261121-115519_63_docs_23_agent_agent_06_04_tool-execution-and-approval-canonical.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261121-115519_64_docs_23_agent_agent_08_03_configuration-tools-memory.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261121-115519_65_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261121-115519_66_docs_91_security_security_02_high-risk-tool-common-policy.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261121-115519_67_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261121-115519_68_scripts_mcp_servers_models.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-115519_69_scripts_agent_constants.py.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

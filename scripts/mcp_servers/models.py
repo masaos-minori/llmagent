@@ -5,9 +5,18 @@ Shared Pydantic models for the /v1/call_tool unified endpoint.
 Used by FileopMCPServer.py, WebSearchMCPServer.py, and GithubMCPServer.py.
 """
 
+from collections.abc import Mapping
 from typing import Any, NotRequired, Required, TypedDict
 
 from pydantic import BaseModel, Field, field_validator
+from shared.runtime_tool import AgentSafetyTier
+from shared.tool_metadata import (
+    PreviewCapability,
+    ReconciliationPolicy,
+    ResourceKeyKind,
+    RetryPolicy,
+    SideEffectClass,
+)
 
 from mcp_servers.tool_validators import validate_tool_args
 
@@ -49,7 +58,14 @@ class CallToolResponse(BaseModel):
 
 
 class McpTool(TypedDict):
-    """TypedDict for a single MCP tool definition in TOOL_LIST."""
+    """TypedDict for a single MCP tool definition in TOOL_LIST.
+
+    agentcfg003 (REQ-003/AC-03): the schema-2.1 required field set is declared
+    here with the value types from shared.tool_metadata, so a producer literal
+    that omits or mistypes a required declaration fails at type-check time as
+    well as at the runtime schema gate (validate_tool_schema_v2). No field is
+    NotRequired.
+    """
 
     name: Required[str]
     description: Required[str]
@@ -59,7 +75,14 @@ class McpTool(TypedDict):
     is_write: Required[bool]
     requires_serial: Required[bool]
     resource_scope_kind: Required[str]
-    resource_scope_keys: Required[list[str]]
+    resource_scope_keys: Required[Mapping[str, ResourceKeyKind]]
+    agent_safety_tier: Required[AgentSafetyTier]
+    side_effect_class: Required[SideEffectClass]
+    retry_policy: Required[RetryPolicy]
+    reconciliation_policy: Required[ReconciliationPolicy]
+    idempotency_required: Required[bool]
+    preview_capability: Required[PreviewCapability]
+    policy_version: Required[str]
 
 
 class McpToolProperty(TypedDict):

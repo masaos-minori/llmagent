@@ -80,28 +80,26 @@ Each MCP server is an independent process that only reads its own configuration 
 
 #### Risk Rules
 
-Per-tool base risk is set by `approval_risk_rules` in `config/agent.toml`; tools without an entry fall back to the risk derived from their `tool_safety_tiers` tier (Explicit in code — scripts/agent/tool_policy.py `_TIER_TO_RISK`). Categories:
+Per-tool base risk comes from the tool's declared `agent_safety_tier` mapped through `_TIER_TO_RISK` (Explicit in code — scripts/agent/tool_policy.py). The removed per-tool config maps (`approval_risk_rules`, `tool_safety_tiers`) no longer exist; naming one in `config/agent.toml` is rejected as an unknown key. Categories under the shipped declared tiers:
 
-- `none`: tools whose tier-derived level is none (`READ_ONLY` and `WRITE_SAFE` tiers) and that no rule raises. A tool with no rule takes its tier-derived level, which is not always `none`: for example `rag_delete_document` is `WRITE_DANGEROUS` and therefore `medium`, not `high`, unless a rule sets otherwise (see `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`)
-- `medium`: local file mutation tools that do not delete (write, edit, create directory, move), and lower-impact GitHub changes (branch, pull request create/update, issue create, issue comment)
-- `high`: local file and directory deletion tools, `shell_run`, GitHub content/merge changes (file create/update/delete, multi-file push, pull request merge), and git `git_checkout`/`git_pull`/`git_push`
+- `none`: tools whose declared tier maps to none (`READ_ONLY` and `WRITE_SAFE` tiers) — the local file write/edit/create-directory/move tools, `git_add`, `git_commit`, and the lower-impact GitHub changes (branch create, pull request create/update, issue create, issue comment). A tier-derived `none` is never raised by escalation.
+- `medium`: tools declaring `WRITE_DANGEROUS` — the local file and directory deletion tools, the git write tools (`git_checkout`/`git_pull`/`git_push`), and the GitHub content/merge changes (file create/update/delete, multi-file push, pull request merge). A protected path or high-risk branch escalates them to `high` (see `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`).
+- `high`: tools declaring `ADMIN` (for example `shell_run`), and any tool absent from the registry (fail-safe). `shell_run` matching the read-only safe-shape rule resolves to `none` via the special override instead.
 
-`ProductionConfigValidator` rejects a configuration in which the git tools `git_checkout`/`git_pull`/`git_push` resolve to a risk below high (Explicit in code — scripts/agent/production_config_validator.py `_check_approval_risk_floor()`). The per-tool mapping is in `[approval_risk_rules]` of `config/agent.toml` and the [MCP ownership matrix](../22_mcp/mcp_01_tool_ownership_matrix.md).
+`ProductionConfigValidator` rejects a configuration where the git write tools `git_checkout`/`git_pull`/`git_push` declare a tier whose mapped risk is `none` (Explicit in code — scripts/agent/production_config_validator.py `_check_approval_risk_floor()`); the escalation from `medium` to `high` via `approval_protected_paths` remains a runtime decision.
 
-**Precedence**: `approval_risk_rules` decides the level whenever a tool is listed there; `tool_safety_tiers` is consulted only when no rule matches, and otherwise drives plan-mode blocking and the tier-vs-write classification, not the approval level (a tool may carry both keys by design — `git_add` is `WRITE_SAFE` with no rule and resolves to `none`, while `github_create_branch` is `WRITE_SAFE` with a `medium` rule and resolves to `medium`). The evaluation order itself is canonical in [agent_06_02](agent_06_02_tool-execution-and-approval-approval.md).
+The evaluation order itself is canonical in [agent_06_02](agent_06_02_tool-execution-and-approval-approval.md).
 
 #### Escalation, Auto-Approval and Dry Run
 
 - `approval_protected_paths` and `approval_high_risk_branches` escalate an operation to high risk (values: `config/agent.toml`).
 - Protected-path escalation only ever sees paths inside `allowed_root`: a path outside the jail is denied at the pre-check stage before risk classification runs (see the Protected-path scope note in [agent_06_02](agent_06_02_tool-execution-and-approval-approval.md)). The list does not discriminate between paths inside the jail.
 - `approval_shell_safe_prefixes` defines auto-approval prefixes for `shell_run`.
-- `approval_dry_run_tools` lists tools executed in advance with `dry_run=True`.
+- Tools declaring `preview_capability="dry_run"` are executed in advance with `dry_run=True` (Explicit in code — `agent/tool_approval.py`).
 
 #### Safety Tiers
 
-`tool_safety_tiers` maps tool to `READ_ONLY` / `WRITE_SAFE` / `WRITE_DANGEROUS` / `ADMIN`.
-
-**CRITICAL**: The keys must be actual registered tool names, not server keys. Unknown keys are fatal at startup (config validation error), independent of any environment (Explicit in code — `scripts/agent/production_config_validator.py`).
+The safety tier (`READ_ONLY` / `WRITE_SAFE` / `WRITE_DANGEROUS` / `ADMIN`) is no longer a config map: each tool's producer declares it as `agent_safety_tier` in its tool definition, and the value set is closed and enforced at registration (Explicit in code — `scripts/shared/tool_metadata.py`). The removed `tool_safety_tiers` key in `config/agent.toml` is rejected as an unknown key by the production config validator, independent of any environment (Explicit in code — `scripts/agent/production_config_validator.py`).
 
 #### GitHub Write Control and File Path Restrictions
 
@@ -127,7 +125,7 @@ OpenTelemetry, the audit log path (JSON-lines) and structured logging are config
 
 ## Key Constraints
 
-- Unknown `tool_safety_tiers` keys are fatal at startup (see Safety Tiers).
+- A config naming a removed per-tool map (`tool_safety_tiers`, `approval_risk_rules`, `approval_resource_keys`, `approval_dry_run_tools`) is rejected at load as an unknown key (see Risk Rules and Safety Tiers).
 - `allowed_tools=[]` is valid and does not deny (base visibility applies) under `discovered`; under `explicit_allowlist` it denies every tool at runtime, including after a config reload. It is no longer recorded as a production-validator error at load (Explicit in code — `scripts/shared/runtime_tool_registry.py` `apply_policy`).
 - `approval_github_allowed_repos=[]` means "deny all".
 - `cfg.diagnostics.*` changes are reported by `/reload` under the `[LIVE]` category and take effect on the next `DiagnosticStore` save()/fetch() without a restart.

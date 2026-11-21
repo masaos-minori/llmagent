@@ -53,7 +53,8 @@ class TestPrintConfigValues:
         assert "Approval settings:" in out
         assert "Security settings (tool safety):" in out
         assert "plan_mode           : OFF" in out
-        assert "risk_rules" in out
+        # agentcfg003 REQ-011: the removed risk_rules map is no longer displayed.
+        assert "risk_rules" not in out
         assert "allowed_root        : (disabled)" in out
 
     def test_default_output_full(self, capsys: Any) -> None:
@@ -74,13 +75,16 @@ class TestPrintConfigValues:
         assert "plan_mode           : ON" in out
 
     def test_with_risk_rules_empty(self, capsys: Any) -> None:
+        """agentcfg003 REQ-011: the removed risk_rules/dry_run_tools/
+        tool_safety_tiers maps have no display line at all."""
         approval = ApprovalConfig()
-        approval.approval_risk_rules = {}
         ctx = _make_ctx(approval=approval)
         cmd = _Config(ctx)
         cmd._print_config_values()
         out = capsys.readouterr().out
-        assert "risk_rules          : (none)" in out
+        assert "risk_rules" not in out
+        assert "dry_run_tools" not in out
+        assert "tool_safety_tiers" not in out
 
     def test_with_allowed_repos(self, capsys: Any) -> None:
         approval = ApprovalConfig()
@@ -152,15 +156,12 @@ class TestPrintConfigValues:
             "Execution settings:",
             "  serial_tool_calls   : False",
             "Approval settings:",
-            "  risk_rules          : ",
             "  protected_paths     :",
             "  high_risk_branches  :",
-            "  dry_run_tools       :",
             "  masked_fields       :",
             "Security settings (tool safety):",
             "  allowed_root        : (disabled)",
             "  github_allowed_repos: (Fail-Closed",
-            "  tool_safety_tiers   : 0 tools classified",
             "  allowed_tools       : (none: all tools denied)",
             "  plan_mode           : OFF",
             "  plan_blocked_tools  :",

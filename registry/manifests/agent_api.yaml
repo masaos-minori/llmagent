@@ -851,16 +851,6 @@ entries:
   summary: Validate sensitive_fields is a frozenset of strings.
 - file: scripts/agent/services/config_validators.py
   kind: function
-  name: validate_approval_risk_rules
-  signature: def validate_approval_risk_rules(cfg) -> None
-  summary: Validate that all approval_risk_rules values are valid.
-- file: scripts/agent/services/config_validators.py
-  kind: function
-  name: validate_tool_safety_tiers
-  signature: def validate_tool_safety_tiers(cfg) -> None
-  summary: Validate that all tool_safety_tiers values are valid.
-- file: scripts/agent/services/config_validators.py
-  kind: function
   name: validate_allowed_root
   signature: def validate_allowed_root(cfg) -> None
   summary: Validate that allowed_root is a non-empty absolute path.
@@ -1175,7 +1165,7 @@ entries:
   kind: function
   name: check_routing_safety_tiers
   signature: def check_routing_safety_tiers(ctx) -> list[str]
-  summary: Check that all registered tools have a declared safety tier.
+  summary: Return tier-drift findings comparing the seed registry with live declarations.
 - file: scripts/agent/services/session_restore.py
   kind: function
   name: repair_orphan_tool_calls
@@ -1569,12 +1559,12 @@ entries:
   kind: function
   name: check_write_classification
   signature: def check_write_classification(registry) -> list[str]
-  summary: Return one finding per tool whose RuntimeTool write flag disagrees with
-    the static sets.
+  summary: Return one finding per tool whose declared write classification disagrees
+    with the reference sets.
 - file: scripts/agent/tool_policy.py
   kind: function
   name: is_plan_mode_blocked
-  signature: def is_plan_mode_blocked(cfg, tool_name) -> bool
+  signature: def is_plan_mode_blocked(cfg, tool_name, registry) -> bool
   summary: Return True when plan mode must reject the tool call.
 - file: scripts/agent/tool_policy.py
   kind: function

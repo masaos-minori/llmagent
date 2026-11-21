@@ -60,7 +60,6 @@ class McpStatusService:
     async def probe_all(self) -> list[McpProbeResult]:
         """Probe every configured MCP server and collect health statuses."""
         ctx = self._ctx
-        tiers: dict[str, str] = ctx.cfg.approval.tool_safety_tiers
         results: list[McpProbeResult] = []
         for key, cfg in ctx.cfg.mcp.mcp_servers.items():
             effective_timeout = get_effective_health_timeout(cfg)
@@ -68,7 +67,7 @@ class McpStatusService:
                 timeout=httpx.Timeout(timeout=effective_timeout)
             ) as probe:
                 result = await self._probe_single_server_with_interpretation(
-                    probe, ctx, key, cfg, tiers
+                    probe, ctx, key, cfg
                 )
                 results.append(result)
         return results
@@ -79,17 +78,16 @@ class McpStatusService:
         ctx: AgentContext,
         key: str,
         cfg: Any,
-        tiers: dict[str, str],
     ) -> McpProbeResult:
         """Probe a single MCP server and return its status result with interpretation fields."""
         auth = bool(cfg.auth_token)
         _reg = ctx.services_required.runtime_tools
-        _server_tools = [
-            t.name
+        _server_tool_tiers = [
+            str(t.agent_safety_tier)
             for t in (_reg.all_tools() if _reg is not None else [])
             if t.server_key == key
         ]
-        tier = _tier_for_server(_server_tools, tiers)
+        tier = _tier_for_server(_server_tool_tiers)
         (
             availability,
             sandbox_backend,
@@ -315,21 +313,20 @@ class McpStatusService:
         )
 
 
-def _tier_for_server(tool_names: list[str], tiers: dict[str, str]) -> McpTier:
-    """Return the highest-risk McpTier for a server based on its tool_safety_tiers.
+def _tier_for_server(declared_tiers: list[str]) -> McpTier:
+    """Return the highest-risk McpTier from each tool's declared agent_safety_tier.
 
+    Agentcfg003 REQ-004 (AC-04): the tiers come from the registered RuntimeTool
+    entries their producers declared, not from a configuration map.
     Raises McpProbeError for unknown tier strings.
-    Falls back to READ_ONLY when tiers is empty or no tool is classified.
+    Falls back to READ_ONLY when the server has no registered tools.
     """
     best = McpTier.READ_ONLY
-    for name in tool_names:
-        raw = tiers.get(name)
-        if raw is None:
-            continue
+    for raw in declared_tiers:
         try:
             tier = McpTier(raw)
         except ValueError:
-            raise McpProbeError(f"Unknown tier {raw!r} for tool {name!r}")
+            raise McpProbeError(f"Unknown declared tier {raw!r}")
         if _TIER_PRIORITY.get(tier, 0) > _TIER_PRIORITY.get(best, 0):
             best = tier
     return best

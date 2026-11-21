@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 from shared.runtime_tool import RuntimeTool, build_runtime_tool
+from shared.tool_metadata import TOOL_FIELD_SET_VERSION
 
 from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
 
@@ -33,8 +34,14 @@ class TestRuntimeTool:
             is_write=True,
             requires_serial=True,
             resource_scope_kind="filesystem",
-            resource_scope_keys=("path",),
+            resource_scope_keys={"path": "path"},
             agent_safety_tier="WRITE_DANGEROUS",
+            side_effect_class="external_write",
+            retry_policy="never",
+            reconciliation_policy="external_state",
+            idempotency_required=True,
+            preview_capability="dry_run",
+            policy_version=TOOL_FIELD_SET_VERSION,
             enabled_for_llm=True,
         )
         assert tool.name == "delete_file"
@@ -47,8 +54,14 @@ class TestRuntimeTool:
         assert tool.is_write is True
         assert tool.requires_serial is True
         assert tool.resource_scope_kind == "filesystem"
-        assert tool.resource_scope_keys == ("path",)
+        assert tool.resource_scope_keys == {"path": "path"}
         assert tool.agent_safety_tier == "WRITE_DANGEROUS"
+        assert tool.side_effect_class == "external_write"
+        assert tool.retry_policy == "never"
+        assert tool.reconciliation_policy == "external_state"
+        assert tool.idempotency_required is True
+        assert tool.preview_capability == "dry_run"
+        assert tool.policy_version == TOOL_FIELD_SET_VERSION
         assert tool.enabled_for_llm is True
 
     def test_safe_defaults_when_unannotated(self) -> None:
@@ -79,7 +92,7 @@ class TestRuntimeTool:
         name, server_key = _minimal_kwargs()
         tool = build_fixture_runtime_tool(name=name, server_key=server_key)
         with pytest.raises(dataclasses.FrozenInstanceError):
-            tool.name = "changed"  # type: ignore[misc]
+            tool.name = "changed"
 
     def test_input_schema_and_raw_definition_default_to_empty_dict_not_shared_object(
         self,
@@ -107,15 +120,20 @@ class TestRuntimeTool:
         tool = build_fixture_runtime_tool(name="t", server_key="s")
         assert tool.resource_scope_kind == ""
 
-    def test_resource_scope_keys_defaults_to_empty_tuple(self) -> None:
+    def test_resource_scope_keys_defaults_to_empty_mapping(self) -> None:
         tool = build_fixture_runtime_tool(name="t", server_key="s")
-        assert tool.resource_scope_keys == ()
+        assert tool.resource_scope_keys == {}
 
-    def test_resource_scope_keys_stored_as_tuple_from_sequence(self) -> None:
+    def test_resource_scope_keys_stored_as_declared_mapping(self) -> None:
         tool = build_fixture_runtime_tool(
-            name="t", server_key="s", resource_scope_keys=("path", "destination")
+            name="t",
+            server_key="s",
+            resource_scope_keys={"path": "path", "destination": "non_escalating"},
         )
-        assert tool.resource_scope_keys == ("path", "destination")
+        assert tool.resource_scope_keys == {
+            "path": "path",
+            "destination": "non_escalating",
+        }
 
     def test_allow_extra_fields_defaults_to_false(self) -> None:
         tool = build_fixture_runtime_tool(name="t", server_key="s")
@@ -167,26 +185,41 @@ _STRICT_FIELDS = (
     "requires_serial",
     "resource_scope_kind",
     "resource_scope_keys",
+    "agent_safety_tier",
+    "side_effect_class",
+    "retry_policy",
+    "reconciliation_policy",
+    "idempotency_required",
+    "preview_capability",
+    "policy_version",
 )
 
 
 def _full_kwargs() -> dict[str, object]:
-    """Keyword arguments carrying all four required execution metadata fields."""
+    """Keyword arguments carrying all required execution metadata fields."""
     return {
         "name": "t",
         "server_key": "s",
         "is_write": False,
         "requires_serial": True,
         "resource_scope_kind": "",
-        "resource_scope_keys": (),
+        "resource_scope_keys": {},
+        "agent_safety_tier": "WRITE_DANGEROUS",
+        "side_effect_class": "external_write",
+        "retry_policy": "never",
+        "reconciliation_policy": "external_state",
+        "idempotency_required": True,
+        "preview_capability": "none",
+        "policy_version": TOOL_FIELD_SET_VERSION,
     }
 
 
 class TestStrictBuilder:
-    """Fail-closed contracts for `build_runtime_tool` (row 01 of the rtool008 batch).
+    """Fail-closed contracts for `build_runtime_tool` (agentcfg003 required field set).
 
-    These tests run red until row 01 lands; the permissive builder currently
-    accepts omitted and `None` values (procedure ordering note).
+    Every required field must be declared: omission raises `TypeError` and an
+    explicit `None` raises `ValueError`. No default value exists for any required
+    field, so no default can lower risk.
     """
 
     @pytest.mark.parametrize("field", _STRICT_FIELDS)
@@ -213,7 +246,7 @@ class TestFixtureBuilderEquivalence:
         assert omitted.is_write is False
         assert omitted.requires_serial is True
         assert omitted.resource_scope_kind == ""
-        assert omitted.resource_scope_keys == ()
+        assert omitted.resource_scope_keys == {}
 
         explicit_write = build_fixture_runtime_tool(
             name="t", server_key="s", is_write=True
@@ -229,6 +262,17 @@ class TestFixtureBuilderEquivalence:
 
         strict = build_runtime_tool(**_full_kwargs())  # type: ignore[arg-type]
         assert omitted == strict
+
+    def test_fixture_policy_defaults_never_lower_risk(self) -> None:
+        """The fixture defaults are the most conservative value of each closed set."""
+        tool = build_fixture_runtime_tool(name="t", server_key="s")
+        assert tool.agent_safety_tier == "WRITE_DANGEROUS"
+        assert tool.side_effect_class == "external_write"
+        assert tool.retry_policy == "never"
+        assert tool.reconciliation_policy == "external_state"
+        assert tool.idempotency_required is True
+        assert tool.preview_capability == "none"
+        assert tool.policy_version == TOOL_FIELD_SET_VERSION
 
 
 def test_scripts_do_not_import_the_fixture_builder() -> None:

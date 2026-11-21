@@ -7,10 +7,6 @@ entries:
   hot_reloadable: true
   section: tool
   validator: validate_allowed_tools
-- field: approval_dry_run_tools
-  hot_reloadable: true
-  section: approval
-  validator: null
 - field: approval_github_allowed_repos
   hot_reloadable: true
   section: approval
@@ -23,14 +19,6 @@ entries:
   hot_reloadable: true
   section: approval
   validator: null
-- field: approval_resource_keys
-  hot_reloadable: true
-  section: approval
-  validator: null
-- field: approval_risk_rules
-  hot_reloadable: true
-  section: approval
-  validator: validate_approval_risk_rules
 - field: approval_shell_safe_prefixes
   hot_reloadable: true
   section: approval
@@ -143,10 +131,6 @@ entries:
   hot_reloadable: true
   section: tool
   validator: validate_tool_result_max_llm_chars
-- field: tool_safety_tiers
-  hot_reloadable: true
-  section: approval
-  validator: validate_tool_safety_tiers
 - field: use_memory_layer
   hot_reloadable: false
   section: memory

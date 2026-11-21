@@ -257,7 +257,6 @@ shared/route_resolver.py	missing separator
 shared/runtime_paths.py	missing separator
 shared/sse_parser.py	empty description
 shared/token_counter.py	empty description
-shared/tool_constants.py	empty description
 shared/tool_executor.py	missing separator
 shared/tool_registry.py	empty description
 shared/tool_routing_validation.py	empty description

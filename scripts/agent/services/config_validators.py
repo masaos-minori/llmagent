@@ -247,29 +247,6 @@ def validate_diagnostics_sensitive_fields(cfg: DiagnosticsConfig) -> None:
         raise ValueError("sensitive_fields must be a frozenset of strings")
 
 
-def validate_approval_risk_rules(cfg: ApprovalConfig) -> None:
-    """Validate that all approval_risk_rules values are valid."""
-    _valid_risk = {"none", "medium", "high"}
-    bad = {k: v for k, v in cfg.approval_risk_rules.items() if v not in _valid_risk}
-    if bad:
-        raise ValueError(
-            f"approval_risk_rules: invalid levels {bad}; must be 'none', 'medium', or 'high'"
-        )
-
-
-def validate_tool_safety_tiers(cfg: ApprovalConfig) -> None:
-    """Validate that all tool_safety_tiers values are valid."""
-    _valid_tiers = {"READ_ONLY", "WRITE_SAFE", "WRITE_DANGEROUS", "ADMIN"}
-    bad_tiers = {
-        k: v for k, v in cfg.tool_safety_tiers.items() if v not in _valid_tiers
-    }
-    if bad_tiers:
-        raise ValueError(
-            f"tool_safety_tiers: invalid tier values {bad_tiers};"
-            " must be READ_ONLY, WRITE_SAFE, WRITE_DANGEROUS, or ADMIN"
-        )
-
-
 def validate_allowed_root(cfg: ApprovalConfig) -> None:
     """Validate that allowed_root is a non-empty absolute path.
 

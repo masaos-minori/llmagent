@@ -74,31 +74,23 @@ class _ConfigDisplayMixin(MixinBase):
         )
 
     def _print_approval_settings(self, ctx: AgentContext) -> None:
-        """Print approval and risk rule settings."""
+        """Print approval settings.
+
+        Agentcfg003 REQ-005: the risk-rules and dry-run-tool lines are removed —
+        risk and dry-run capability are declared per tool, not configured.
+        """
         self._out.write("Approval settings:")
-        rules = ctx.cfg.approval.approval_risk_rules
-        if rules:
-            rule_str = ", ".join(f"{k}={v}" for k, v in sorted(rules.items()))
-            pairs = [("risk_rules", rule_str)]
-        else:
-            pairs = [("risk_rules", "(none)")]
-        pairs.extend(
-            [
-                (
-                    "protected_paths",
-                    ", ".join(ctx.cfg.approval.approval_protected_paths),
-                ),
-                (
-                    "high_risk_branches",
-                    ", ".join(ctx.cfg.approval.approval_high_risk_branches),
-                ),
-            ]
-        )
-        dry_run_tools = ctx.cfg.approval.approval_dry_run_tools
+        pairs = [
+            (
+                "protected_paths",
+                ", ".join(ctx.cfg.approval.approval_protected_paths),
+            ),
+            (
+                "high_risk_branches",
+                ", ".join(ctx.cfg.approval.approval_high_risk_branches),
+            ),
+        ]
         masked = ctx.cfg.tool.masked_fields
-        pairs.append(
-            ("dry_run_tools", ", ".join(dry_run_tools) if dry_run_tools else "(none)")
-        )
         pairs.append(("masked_fields", ", ".join(masked) if masked else "(none)"))
         self._out.write_kv(pairs, key_width=20)
 
@@ -115,8 +107,6 @@ class _ConfigDisplayMixin(MixinBase):
             pairs.append(
                 ("github_allowed_repos", "(Fail-Closed — all write ops denied)")
             )
-        tier_count = len(ctx.cfg.approval.tool_safety_tiers)
-        pairs.append(("tool_safety_tiers", f"{tier_count} tools classified"))
         allowed_tools = ctx.cfg.tool.allowed_tools
         if allowed_tools:
             pairs.append(("allowed_tools", ", ".join(allowed_tools)))

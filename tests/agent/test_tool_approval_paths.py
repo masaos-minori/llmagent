@@ -7,23 +7,30 @@ Covers path-based root jail detection before risk classification.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.tool_approval import check_approval
+from shared.runtime_tool import AgentSafetyTier
+from shared.runtime_tool_registry import RuntimeTool, RuntimeToolRegistry
+from shared.tool_metadata import (
+    TOOL_FIELD_SET_VERSION,
+    PreviewCapability,
+    ResourceKeyKind,
+    SideEffectClass,
+)
 from shared.transport_dto import ToolCallResult
 
 from tests.agent._config_test_defaults import (
-    ALL_APPROVAL_RISK_RULES,
     ALL_TOOL_NAMES,
-    ALL_TOOL_SAFETY_TIERS,
     PERMISSIVE_ALLOWED_ROOT,
     PERMISSIVE_SQLITE_VEC_SO,
     SHIPPED_APPROVAL_PROTECTED_PATHS,
 )
+from tests.agent._producer_registry import PRODUCER_TIERS
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -54,14 +61,55 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
                 }
             },
             # Standard tier classification; mirrors config/agent.toml defaults
-            "tool_safety_tiers": ALL_TOOL_SAFETY_TIERS,
-            "approval_risk_rules": ALL_APPROVAL_RISK_RULES,
             "allowed_root": PERMISSIVE_ALLOWED_ROOT,
             "sqlite_vec_so": PERMISSIVE_SQLITE_VEC_SO,
             **overrides,
         }
     )
     return base
+
+
+# Declared metadata mirroring the producers' registration (agentcfg003 REQ-008):
+# name -> (resource_scope_keys, preview_capability). Tiers come from the
+# producer-declared tier map (PRODUCER_TIERS).
+_DECLARED: dict[str, tuple[dict[str, ResourceKeyKind], str]] = {
+    "write_file": ({"path": "path"}, "dry_run"),
+    "edit_file": ({"path": "path"}, "dry_run"),
+    "move_file": ({"source": "path", "destination": "path"}, "dry_run"),
+    "delete_file": ({"path": "path"}, "dry_run"),
+}
+
+
+def _make_reg() -> RuntimeToolRegistry:
+    """RuntimeToolRegistry seeded with the tools used in this file."""
+    return RuntimeToolRegistry(
+        tools={
+            name: RuntimeTool(
+                name=name,
+                server_key="file_server",
+                server_url="",
+                description="",
+                input_schema={},
+                raw_definition={},
+                status="active",
+                is_write=True,
+                requires_serial=False,
+                resource_scope_kind="filesystem",
+                resource_scope_keys=keys,
+                agent_safety_tier=cast(AgentSafetyTier, PRODUCER_TIERS[name]),
+                side_effect_class=cast(SideEffectClass, "local_write"),
+                retry_policy="same_logical_call_only",
+                reconciliation_policy="local_state",
+                idempotency_required=True,
+                preview_capability=cast(PreviewCapability, preview),
+                policy_version=TOOL_FIELD_SET_VERSION,
+                enabled_for_llm=True,
+                capabilities=(),
+            )
+            for name, (keys, preview) in _DECLARED.items()
+        },
+        allowed_servers=frozenset({"file_server"}),
+    )
 
 
 def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
@@ -73,6 +121,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.session.session_id = None
     ctx.services_required.audit_logger = None
     ctx.services_required.tools = AsyncMock()
+    ctx.services_required.runtime_tools = _make_reg()
     return ctx
 
 
@@ -156,9 +205,11 @@ class TestCheckApprovalAllowedRoot:
 
 
 class TestProtectedPathEscalation:
-    """Pin that a ruled path-bearing tool on a shipped protected path inside
-    allowed_root resolves to HIGH via the escalation branch, while a
-    protected path outside the jail is denied by the jail check first."""
+    """Pin that a declared path-bearing WRITE_DANGEROUS tool on a shipped
+    protected path inside allowed_root resolves to HIGH via the escalation
+    branch, while a protected path outside the jail is denied by the jail check
+    first (agentcfg003 REQ-004: the declared tier is the risk source; a
+    tier-NONE tool short-circuits before escalation)."""
 
     IN_JAIL_PROTECTED_PATH = "/opt/llm/config/app.toml"
 
@@ -183,7 +234,7 @@ class TestProtectedPathEscalation:
         return ctx
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("tool", ["write_file", "edit_file", "move_file"])
+    @pytest.mark.parametrize("tool", ["delete_file"])
     async def test_in_jail_protected_path_resolves_high(self, tool: str) -> None:
         ctx = self._ctx_with_audit(_make_ctx(cfg=self._escalation_cfg()))
         # HIGH risk requires the full word "yes" (_prompt_user_approval).
@@ -199,11 +250,31 @@ class TestProtectedPathEscalation:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("tool", ["write_file", "edit_file", "move_file"])
+    async def test_tier_none_tool_is_not_escalated(self, tool: str) -> None:
+        """agentcfg003 risk delta: the shipped WRITE_SAFE tools map to tier NONE
+        and auto-approve on the same protected path — the removed per-tool risk
+        rules no longer escalate them."""
+        args: dict[str, Any] = (
+            {"source": self.IN_JAIL_PROTECTED_PATH, "destination": "/opt/llm/other"}
+            if tool == "move_file"
+            else {"path": self.IN_JAIL_PROTECTED_PATH}
+        )
+        ctx = self._ctx_with_audit(_make_ctx(cfg=self._escalation_cfg()))
+        read = AsyncMock(return_value="yes")
+        with patch("agent.tool_approval._approval_read", new=read):
+            result = await check_approval(ctx, tool, args)
+        assert result is True
+        read.assert_not_awaited()
+        logged = ctx.services_required.audit_logger.info.call_args[0][0]
+        assert '"risk":"none"' in logged
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("tool", ["delete_file"])
     async def test_same_path_without_protected_paths_stays_medium(
         self, tool: str
     ) -> None:
         """Branch provenance: removing the protected paths from the same config
-        keeps the same call at the ruled medium level, proving the HIGH above
+        keeps the same call at the declared medium level, proving the HIGH above
         came from the escalation branch."""
         cfg = _make_cfg(allowed_root="/opt/llm", approval_protected_paths=[])
         ctx = self._ctx_with_audit(_make_ctx(cfg=cfg))
@@ -226,7 +297,7 @@ class TestProtectedPathEscalation:
         ctx = self._ctx_with_audit(_make_ctx(cfg=self._escalation_cfg()))
         read = AsyncMock(return_value="y")
         with patch("agent.tool_approval._approval_read", new=read):
-            result = await check_approval(ctx, "write_file", {"path": "/etc/cron.d/x"})
+            result = await check_approval(ctx, "delete_file", {"path": "/etc/cron.d/x"})
         assert result is False
         read.assert_not_awaited()
         logged = ctx.services_required.audit_logger.info.call_args[0][0]

@@ -1,5 +1,6 @@
 """tests/test_tool_constants.py
-Unit tests for shared/tool_constants.py: canonical tool classification sets.
+Unit tests for shared/tool_constants.py: reference-data tool-name sets and
+cross-source drift detection.
 """
 
 from __future__ import annotations
@@ -99,11 +100,13 @@ class TestRagToolClassification:
         assert RAG_READ_TOOLS.isdisjoint(RAG_WRITE_TOOLS)
 
 
-class TestRetryClassConfigConsistency:
-    """Cross-source consistency: RETRYABLE_TOOLS is the owner classification and
-    the repository config/mcp_dedup.toml [retry_class] map is its load-validated
-    mirror. Parsed with tomllib directly (not load_dedup_config) so the two
-    source artifacts are compared independently of the loader gate.
+class TestRetryClassDriftConsistency:
+    """Cross-source drift detection: RETRYABLE_TOOLS is reference data, not the
+    retry-classification owner (the declared `retry_policy` field is the
+    authority). This test compares the reference data against the declarations
+    in config/mcp_dedup.toml [retry_class] and reports any drift between the
+    two. Parsed with tomllib directly (not load_dedup_config) so the two source
+    artifacts are compared independently of the loader gate.
     """
 
     _CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "mcp_dedup.toml"

@@ -9,6 +9,7 @@ current architectural decision — see ADR-003 Decision Detail #15 / INV-04
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from shared.runtime_tool_registry import RuntimeToolRegistry
     from shared.tool_registry import ToolRegistry
 
 
@@ -45,37 +46,46 @@ def validate_routing_against_live(
 
 def check_tool_safety_tiers(
     registry: "ToolRegistry | None" = None,
-    tool_safety_tiers: dict[str, str] | None = None,
+    runtime_registry: "RuntimeToolRegistry | None" = None,
 ) -> list[str]:
-    """Return warning messages for registered tools missing a safety tier declaration.
+    """Return drift findings for reference-seed tools with no declared safety tier.
 
-    Only checks when tool_safety_tiers is non-empty (i.e., tier declarations are in use).
-    Returns empty list when tool_safety_tiers is not configured.
+    Compares the reference seed registry with the live `RuntimeToolRegistry`:
+    every live entry carries the `agent_safety_tier` its producer declared (the
+    strict builder rejects an undeclared tier), so a seed tool with no live
+    entry has no declared tier and is reported as drift. The result is a drift
+    finding only — no caller may use it to classify a tool (agentcfg003: tiers
+    are declared values, not configuration-derived ones).
+
+    Returns an empty list when no runtime registry is available (nothing has
+    been declared yet, so there is nothing to compare).
     """
-    if not tool_safety_tiers:
+    if runtime_registry is None or not runtime_registry.all_tools():
         return []
     registry = _resolve_registry(registry)
-    missing = [
-        t for t in sorted(registry.get_all_tool_names()) if t not in tool_safety_tiers
-    ]
+    declared = {tool.name for tool in runtime_registry.all_tools()}
+    missing = [t for t in sorted(registry.get_all_tool_names()) if t not in declared]
     return [
-        f"Tool {t!r} registered in ToolRegistry but missing from tool_safety_tiers"
+        f"Tool {t!r} registered in ToolRegistry but missing from declared safety tiers"
         for t in missing
     ]
 
 
 def check_unknown_tool_safety_tiers(
     registry: "ToolRegistry | None" = None,
-    tool_safety_tiers: dict[str, str] | None = None,
+    runtime_registry: "RuntimeToolRegistry | None" = None,
 ) -> list[str]:
-    """Return the tool_safety_tiers keys that are not registered tool names.
+    """Return declared live tools that are absent from the reference seed registry.
 
-    Detects stale or misconfigured entries (e.g. a server key like "mdq"
-    used instead of its individual tool names). Returns empty list when
-    tool_safety_tiers is not configured.
+    The mirror of `check_tool_safety_tiers()`: a live declared entry naming a
+    tool the reference data does not seed is stale or newly added reference
+    data, and is reported as a drift finding — never as a classification.
+    Returns an empty list when no runtime registry is available.
     """
-    if not tool_safety_tiers:
+    if runtime_registry is None or not runtime_registry.all_tools():
         return []
     registry = _resolve_registry(registry)
     known = registry.get_all_tool_names()
-    return sorted(set(tool_safety_tiers) - known)
+    return sorted(
+        tool.name for tool in runtime_registry.all_tools() if tool.name not in known
+    )

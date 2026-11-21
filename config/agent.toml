@@ -93,9 +93,10 @@ otel_service_name = "llm-agent"
 # ── Security ──────────────────────────────────────────────────────────────────
 
 masked_fields = ["content", "old_text", "new_text"]
-# Explicit extension of the plan-mode block: the tool_safety_tiers rule is the
-# authority (only READ_ONLY tools pass); this list adds tools blocked regardless
-# of tier, redundant under the current tiers by design (DT-03 Option A).
+# Documented exception denylist on top of each tool's declared agent_safety_tier
+# (agentcfg003 REQ-005/REQ-011): plan mode blocks these tools regardless of the
+# tier their producer declares (DT-03 Option A retained as an operational
+# exception, not a tier read).
 plan_blocked_tools = [
   "write_file",
   "create_directory",
@@ -198,27 +199,8 @@ allowed_tools = [
   "git_pull",
   "git_push",
 ]
-approval_dry_run_tools = [
-  "write_file",
-  "edit_file",
-  "create_directory",
-  "delete_file",
-  "delete_directory",
-  "move_file",
-  "git_checkout",
-  "git_push",
-  "github_create_branch",
-  "github_create_or_update_file",
-  "github_push_files",
-  "github_delete_file",
-  "github_create_issue",
-  "github_add_issue_comment",
-  "github_create_pull_request",
-  "github_update_pull_request",
-  "github_merge_pull_request",
-  "trigger_workflow",
-  "shell_run",
-]
+# Dry-run capability is declared per tool (preview_capability in the tool's
+# producer); no dry-run tool list exists in configuration (agentcfg003 REQ-005).
 allowed_root = "/opt/llm"
 # Empty list denies ALL GitHub writes by design (deny-all default; pinned by
 # tests/agent/test_tool_approval_repos.py).
@@ -244,115 +226,6 @@ retention_days = 30
 default  = "あなたは有能なエンジニアアシスタントです。必要に応じてツールを使って情報を収集し、正確に回答してください。"
 strict   = "あなたは厳格なエンジニアアシスタントです。事実のみを回答し、不確かな情報は「不明」と答えてください。ツールを積極的に使用して情報を確認してください。"
 creative = "あなたは創造的なエンジニアアシスタントです。複数のアプローチや代替案を提案し、自由な発想で問題解決を支援してください。"
-
-# approval_risk_rules is authoritative for approval risk: rules are consulted
-# first, and a tool's tool_safety_tiers value is only consulted when no rule
-# matches it.
-[approval_risk_rules]
-write_file = "medium"
-edit_file = "medium"
-create_directory = "medium"
-move_file = "medium"
-delete_file = "high"
-delete_directory = "high"
-shell_run = "high"
-github_push_files = "high"
-github_create_or_update_file = "high"
-github_delete_file = "high"
-github_merge_pull_request = "high"
-github_create_branch = "medium"
-github_create_pull_request = "medium"
-github_update_pull_request = "medium"
-github_create_issue = "medium"
-github_add_issue_comment = "medium"
-git_checkout = "high"
-git_pull = "high"
-git_push = "high"
-
-[approval_resource_keys]
-path_keys = [
-  "path",
-  "file_path",
-  "directory_path",
-  "source",
-  "destination",
-]
-branch_keys = [
-  "branch",
-  "base",
-  "head",
-]
-
-# Tier entries for approval-rule-eligible tools exist for plan-mode blocking and
-# the ADR-003 tier-vs-write classification, not for approval-risk escalation
-# (defense-in-depth; DT-01 Option A).
-[tool_safety_tiers]
-read_text_file           = "READ_ONLY"
-list_directory           = "READ_ONLY"
-directory_tree           = "READ_ONLY"
-search_files             = "READ_ONLY"
-grep_files               = "READ_ONLY"
-write_file               = "WRITE_SAFE"
-edit_file                = "WRITE_SAFE"
-create_directory         = "WRITE_SAFE"
-move_file                = "WRITE_SAFE"
-delete_file              = "WRITE_DANGEROUS"
-delete_directory         = "WRITE_DANGEROUS"
-shell_run                = "ADMIN"
-search_web               = "READ_ONLY"
-browser_fetch            = "READ_ONLY"
-github_search_repositories   = "READ_ONLY"
-github_search_code           = "READ_ONLY"
-github_get_file_contents     = "READ_ONLY"
-github_list_issues           = "READ_ONLY"
-github_list_branches         = "READ_ONLY"
-github_create_branch         = "WRITE_SAFE"
-github_create_issue          = "WRITE_SAFE"
-github_add_issue_comment     = "WRITE_SAFE"
-github_push_files            = "WRITE_DANGEROUS"
-github_create_or_update_file = "WRITE_DANGEROUS"
-github_delete_file           = "WRITE_DANGEROUS"
-github_create_pull_request   = "WRITE_DANGEROUS"
-github_update_pull_request   = "WRITE_DANGEROUS"
-github_merge_pull_request    = "WRITE_DANGEROUS"
-search_docs              = "READ_ONLY"
-get_chunk                = "READ_ONLY"
-outline                  = "READ_ONLY"
-stats                    = "READ_ONLY"
-grep_docs                = "READ_ONLY"
-index_paths              = "WRITE_SAFE"
-refresh_index            = "WRITE_SAFE"
-rag_run_pipeline         = "READ_ONLY"
-rag_debug_pipeline       = "READ_ONLY"
-get_file_info            = "READ_ONLY"
-github_get_commit        = "READ_ONLY"
-github_get_issue         = "READ_ONLY"
-github_get_pull_request  = "READ_ONLY"
-github_list_commits      = "READ_ONLY"
-github_list_pull_requests = "READ_ONLY"
-github_search_issues     = "READ_ONLY"
-github_search_pull_requests = "READ_ONLY"
-list_directory_with_sizes = "READ_ONLY"
-read_media_file          = "READ_ONLY"
-read_multiple_files      = "READ_ONLY"
-rag_list_documents       = "READ_ONLY"
-rag_delete_document      = "WRITE_DANGEROUS"
-get_workflow_runs        = "READ_ONLY"
-get_workflow_status      = "READ_ONLY"
-get_workflow_logs        = "READ_ONLY"
-trigger_workflow         = "WRITE_DANGEROUS"
-git_status               = "READ_ONLY"
-git_log                  = "READ_ONLY"
-git_diff                 = "READ_ONLY"
-git_branch               = "READ_ONLY"
-git_show                 = "READ_ONLY"
-git_add                  = "WRITE_SAFE"
-git_commit               = "WRITE_SAFE"
-git_checkout             = "WRITE_DANGEROUS"
-git_pull                 = "WRITE_DANGEROUS"
-git_push                 = "WRITE_DANGEROUS"
-
-# ── MCP server transport entries ──────────────────────────────────────────────
 
 [mcp_servers.shell]
 transport        = "http"

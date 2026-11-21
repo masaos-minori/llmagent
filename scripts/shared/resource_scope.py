@@ -7,8 +7,8 @@ Resource-scope resolution and schema-2.0 contract validation.
 `resource_scope_kind`/`resource_scope_keys` plus a call's actual arguments into a tuple of
 kind-prefixed scope strings. `_scopes_conflict()` is the overlap predicate consumed later
 by `scripts/agent/tool_scheduler.py`'s conflict-graph grouping.
-`validate_tool_schema_v2()` validates a raw MCP tool-list entry against the schema-2.0
-contract.
+`validate_tool_schema_v2()` validates a raw MCP tool-list entry against the schema-2.1
+contract (schema-2.0 fields unchanged plus the declared policy fields).
 
 Import-layer design decisions: this module is part of the `shared` leaf layer and MUST
 NOT import `agent`, `mcp_servers`, `rag`, or `db` (enforced by the `shared-is-leaf`
@@ -23,9 +23,17 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import PurePosixPath
-from typing import Any
+from typing import Any, get_args
 
-from shared.runtime_tool import RuntimeTool
+from shared.runtime_tool import AgentSafetyTier, RuntimeTool
+from shared.tool_metadata import (
+    PREVIEW_CAPABILITY_VALUES,
+    RECONCILIATION_POLICY_VALUES,
+    RESOURCE_KEY_KIND_VALUES,
+    RETRY_POLICY_VALUES,
+    SIDE_EFFECT_CLASS_VALUES,
+    TOOL_FIELD_SET_VERSION,
+)
 
 # Known `resource_scope_kind` vocabulary, per the plan's Design section scope-string
 # examples and the Affected-areas table's per-server kind assignments. `""` denotes an
@@ -59,6 +67,10 @@ _COMPOSED_KIND_SEPARATORS = {
     "github_repo": "/",
     "cicd_workflow": ":",
 }
+
+# Declared agent-safety tiers the schema validator accepts (same Literal the builder
+# types against; `shared` reads `runtime_tool`, never `agent`).
+_KNOWN_AGENT_SAFETY_TIERS: frozenset[str] = frozenset(get_args(AgentSafetyTier))
 
 
 def resolve_resource_scopes(
@@ -130,17 +142,24 @@ def _scope_keys_problems(
     if "resource_scope_keys" not in entry:
         return ["resource_scope_keys is required"]
     resource_scope_keys = entry["resource_scope_keys"]
-    if not isinstance(resource_scope_keys, list) or not all(
-        isinstance(key, str) for key in resource_scope_keys
+    if not isinstance(resource_scope_keys, dict) or not all(
+        isinstance(key, str) and isinstance(kind, str)
+        for key, kind in resource_scope_keys.items()
     ):
-        return ["resource_scope_keys must be a list[str]"]
+        return ["resource_scope_keys must be a mapping of key name to ResourceKeyKind"]
+    problems = [
+        f"resource_scope_key {key!r} kind {kind!r} is not in the closed value set"
+        for key, kind in resource_scope_keys.items()
+        if kind not in RESOURCE_KEY_KIND_VALUES
+    ]
     if properties is None:
-        return []
-    return [
+        return problems
+    problems.extend(
         f"resource_scope_key {key!r} not in inputSchema.properties"
         for key in resource_scope_keys
         if key not in properties
-    ]
+    )
+    return problems
 
 
 def _scope_problems(
@@ -166,17 +185,50 @@ def _scope_problems(
     return problems
 
 
+def _policy_problems(entry: dict[str, Any]) -> list[str]:
+    """Return the problems with *entry*'s declared policy fields."""
+    problems: list[str] = []
+    closed_set_fields: tuple[tuple[str, frozenset[str]], ...] = (
+        ("side_effect_class", SIDE_EFFECT_CLASS_VALUES),
+        ("retry_policy", RETRY_POLICY_VALUES),
+        ("reconciliation_policy", RECONCILIATION_POLICY_VALUES),
+        ("preview_capability", PREVIEW_CAPABILITY_VALUES),
+        ("agent_safety_tier", _KNOWN_AGENT_SAFETY_TIERS),
+    )
+    for field, allowed in closed_set_fields:
+        if field not in entry:
+            problems.append(f"{field} is required")
+        elif entry[field] not in allowed:
+            problems.append(f"{field} must be one of {sorted(allowed)}")
+
+    if "idempotency_required" not in entry:
+        problems.append("idempotency_required is required")
+    elif not isinstance(entry["idempotency_required"], bool):
+        problems.append("idempotency_required must be a bool")
+
+    if "policy_version" not in entry:
+        problems.append("policy_version is required")
+    elif entry["policy_version"] != TOOL_FIELD_SET_VERSION:
+        problems.append(f"policy_version must be {TOOL_FIELD_SET_VERSION!r}")
+    return problems
+
+
 def validate_tool_schema_v2(entry: dict[str, Any]) -> list[str]:
-    """Validate a raw MCP tool-list *entry* against the schema-2.0 contract.
+    """Validate a raw MCP tool-list *entry* against the schema-2.1 contract.
 
     Returns a list of human-readable problem strings; an empty list means the entry is
     valid. Never coerces or defaults a missing/mistyped field — this is the last line of
     defense before an incomplete or malformed tool declaration reaches the registry, so it
     must reject rather than silently accept.
 
-    All four fields `is_write`, `requires_serial`, `resource_scope_kind` and
-    `resource_scope_keys` must be present; empty values (`""`, `[]`) are valid. An entry
-    carrying the legacy singular `resource_scope` key is rejected.
+    Required fields: `is_write`, `requires_serial`, `resource_scope_kind`,
+    `resource_scope_keys` (schema 2.0, unchanged), plus the declared policy fields
+    `agent_safety_tier`, `side_effect_class`, `retry_policy`, `reconciliation_policy`,
+    `idempotency_required`, `preview_capability` and `policy_version`. Vocabulary fields
+    must carry a value from the closed value sets in `shared.tool_metadata`;
+    `policy_version` must equal `TOOL_FIELD_SET_VERSION`. Empty values (`""`, `{}`) are
+    valid for the scope fields. An entry carrying the legacy singular `resource_scope`
+    key is rejected.
     """
     problems: list[str] = []
 
@@ -206,5 +258,6 @@ def validate_tool_schema_v2(entry: dict[str, Any]) -> list[str]:
         problems.append("requires_serial must be a bool")
 
     problems.extend(_scope_problems(entry, properties))
+    problems.extend(_policy_problems(entry))
 
     return problems

@@ -29,6 +29,7 @@ from tests.agent._config_test_defaults import (
     PERMISSIVE_ALLOWED_ROOT,
     PERMISSIVE_SQLITE_VEC_SO,
 )
+from tests.agent._producer_registry import make_producer_registry
 
 _CALL_ID = "018f0000-0000-7000-8000-000000000005"  # logical call id fixture (REQ-008)
 
@@ -75,16 +76,9 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.session.session_id = None
     ctx.services_required.audit_logger = None
     # Registry None: classify_operation_type fails closed to UNKNOWN for
-    # unregistered tools; static write/delete tools still classify as WRITE/DELETE.
+    # unregistered tools (REQ-007 authority inversion: declarations only).
     ctx.services_required.runtime_tools = None
     return ctx
-
-
-def _read_registry() -> Any:
-    """Registry mock whose get() reports is_write=False: explicit READ classification."""
-    registry = MagicMock()
-    registry.get.return_value = MagicMock(is_write=False)
-    return registry
 
 
 class TestAuditApprovalInv11:
@@ -100,7 +94,10 @@ class TestAuditApprovalInv11:
             ctx, "write_file", RiskLevel.MEDIUM, {"path": "/tmp/x.txt"}, decision
         )
         ctx.services_required.audit_logger.info.assert_called_once()
-        return json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        payload: dict[str, Any] = json.loads(
+            ctx.services_required.audit_logger.info.call_args[0][0]
+        )
+        return payload
 
     def test_approved_decision_is_recorded_with_workflow_context(self) -> None:
         event = self._logged_event(ApprovalDecisionType.APPROVED)
@@ -169,6 +166,65 @@ class TestAuditToolExec:
         ctx.services_required.audit_logger.info.assert_called_once()
         logged = ctx.services_required.audit_logger.info.call_args[0][0]
         assert '"source":"agent"' in logged or '"source": "agent"' in logged
+
+    def test_resource_scope_from_declared_path_key(self) -> None:
+        """REQ-004/REQ-008: scope keys come from the declared mapping only."""
+        ctx = _make_ctx()
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.runtime_tools = make_producer_registry()
+        ctx.cfg.tool.masked_fields = []
+        audit_tool_exec(
+            ctx,
+            "write_file",
+            {"path": "/tmp/x"},
+            False,
+            "req-1",
+            idempotency_key=_CALL_ID,
+        )
+        payload = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert payload["resource_scope"] == {"path": "/tmp/x"}
+
+    def test_declared_path_list_joined_with_semicolon(self) -> None:
+        """Declared path-kind list values keep the ';'-joined recording."""
+        ctx = _make_ctx()
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.runtime_tools = make_producer_registry()
+        ctx.cfg.tool.masked_fields = []
+        audit_tool_exec(
+            ctx,
+            "read_multiple_files",
+            {"paths": ["/tmp/a", "", "/tmp/b"]},
+            False,
+            "req-1",
+        )
+        payload = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert payload["resource_scope"] == {"paths": "/tmp/a;/tmp/b"}
+
+    def test_non_escalating_key_not_in_audit_scope(self) -> None:
+        """T-04/T-06: `non_escalating` and undeclared args are never recorded."""
+        ctx = _make_ctx()
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.runtime_tools = make_producer_registry()
+        ctx.cfg.tool.masked_fields = []
+        audit_tool_exec(
+            ctx,
+            "github_create_pull_request",
+            {"owner": "org", "repo": "r", "base": "main"},
+            False,
+            "req-1",
+            idempotency_key=_CALL_ID,
+        )
+        payload = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert payload["resource_scope"] == {"repo": "r"}
+
+    def test_unknown_tool_yields_empty_scope(self) -> None:
+        """No registry means no scope: the config-map fallback is removed."""
+        ctx = _make_ctx()  # runtime_tools None
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.cfg.tool.masked_fields = []
+        audit_tool_exec(ctx, "mystery_tool", {"path": "/tmp/x"}, False, "req-1")
+        payload = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert payload["resource_scope"] == {}
 
 
 def _args_preview_after_write(writer: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -549,10 +605,12 @@ class TestMandatoryAuditForSideEffects:
         ctx.services_required.audit_logger = MagicMock()
         ctx.cfg.tool.masked_fields = []
         ctx.cfg.approval.approval_resource_keys = {}
+        ctx.services_required.runtime_tools = make_producer_registry()
         return ctx
 
     def test_write_with_missing_audit_logger_raises(self) -> None:
         ctx = _make_ctx()  # audit_logger = None
+        ctx.services_required.runtime_tools = make_producer_registry()
         ctx.services_required.tools.execute = MagicMock()
         with pytest.raises(AuditUnavailableError, match="write_file"):
             audit_tool_exec(
@@ -567,6 +625,7 @@ class TestMandatoryAuditForSideEffects:
 
     def test_delete_with_missing_audit_logger_raises(self) -> None:
         ctx = _make_ctx()
+        ctx.services_required.runtime_tools = make_producer_registry()
         with pytest.raises(AuditUnavailableError, match="delete_file"):
             audit_tool_exec(
                 ctx,
@@ -580,7 +639,7 @@ class TestMandatoryAuditForSideEffects:
 
     def test_read_only_with_missing_audit_logger_stays_silent(self) -> None:
         ctx = _make_ctx()
-        ctx.services_required.runtime_tools = _read_registry()
+        ctx.services_required.runtime_tools = make_producer_registry()
         audit_tool_exec(
             ctx,
             "read_text_file",
@@ -598,7 +657,7 @@ class TestMandatoryAuditForSideEffects:
 
     def test_read_only_with_empty_logical_id_still_emits(self) -> None:
         ctx = self._logged_ctx()
-        ctx.services_required.runtime_tools = _read_registry()
+        ctx.services_required.runtime_tools = make_producer_registry()
         audit_tool_exec(ctx, "read_text_file", {"path": "/tmp/f"}, False, "req-1")
         ctx.services_required.audit_logger.info.assert_called_once()
 

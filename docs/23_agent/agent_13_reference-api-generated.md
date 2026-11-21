@@ -171,8 +171,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `emit_plan_blocked` | `def emit_plan_blocked(tool_name, args_json, output) -> None` | Write plan-mode block notification. |
 |  | `emit_skipped` | `def emit_skipped(tool_name, output) -> None` | Write the 'skipped' confirmation after user denies a tool call. |
 | `scripts/agent/tool_policy.py` | `classify_operation_type` | `def classify_operation_type(tool_name, registry) -> OperationType` | Return the operation type for a tool. |
-|  | `check_write_classification` | `def check_write_classification(registry) -> list[str]` | Return one finding per tool whose RuntimeTool write flag disagrees with the static sets. |
-|  | `is_plan_mode_blocked` | `def is_plan_mode_blocked(cfg, tool_name) -> bool` | Return True when plan mode must reject the tool call. |
+|  | `check_write_classification` | `def check_write_classification(registry) -> list[str]` | Return one finding per tool whose declared write classification disagrees with the reference sets. |
+|  | `is_plan_mode_blocked` | `def is_plan_mode_blocked(cfg, tool_name, registry) -> bool` | Return True when plan mode must reject the tool call. |
 |  | `classify_risk` | `def classify_risk(cfg, tool_name, args, registry) -> RiskLevel` | Return the risk level for a tool call. |
 |  | `check_allowed_root` | `def check_allowed_root(cfg, tool_name, args, registry) -> bool` | Return False when any path argument is outside cfg.approval.allowed_root. |
 |  | `check_allowed_repo` | `def check_allowed_repo(cfg, tool_name, args) -> bool` | Return False when a GitHub write tool targets a repo not in the allowlist. |

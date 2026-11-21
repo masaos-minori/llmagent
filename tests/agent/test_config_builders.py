@@ -25,7 +25,6 @@ from agent.config_section_builders import (
     _build_tool_config,
     _get_or_default,
     _get_str_or_default,
-    _validate_dry_run_tools,
 )
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.typed_validators import _get_int, _get_str
@@ -267,10 +266,11 @@ class TestBuildMemoryConfig:
 
 
 class TestBuildApprovalConfig:
+    """agentcfg003 REQ-005: the builder produces only the kept operational
+    fields; the removed per-tool maps are rejected upstream as unknown keys."""
+
     def test_empty_dict_returns_defaults(self) -> None:
         cfg = _build_approval_config({"allowed_root": "/opt/llm"})
-        assert "write_file" in cfg.approval_risk_rules
-        assert cfg.approval_risk_rules["delete_file"] == "high"
         assert cfg.approval_protected_paths == [
             "/opt/",
             "/etc/",
@@ -293,37 +293,36 @@ class TestBuildApprovalConfig:
             "find",
             "grep",
         ]
-        assert cfg.approval_resource_keys == {
-            "path_keys": [
-                "path",
-                "file_path",
-                "directory_path",
-                "source",
-                "destination",
-            ],
-            "branch_keys": ["branch", "base", "head"],
-        }
-        assert cfg.approval_dry_run_tools == [
-            "write_file",
-            "edit_file",
-            "create_directory",
-            "delete_file",
-            "delete_directory",
-            "move_file",
-            "github_create_or_update_file",
-            "github_push_files",
-            "github_delete_file",
-            "github_create_issue",
-            "github_add_issue_comment",
-            "github_create_pull_request",
-            "github_update_pull_request",
-            "github_merge_pull_request",
-            "github_create_branch",
-        ]
-        assert cfg.tool_safety_tiers == {}
         assert cfg.allowed_root == "/opt/llm"
         assert cfg.approval_github_allowed_repos == []
         assert cfg.gitops_push_blocked is False
+
+    def test_removed_map_fields_are_not_built(self) -> None:
+        cfg = _build_approval_config({"allowed_root": "/opt/llm"})
+        for removed in (
+            "approval_risk_rules",
+            "approval_resource_keys",
+            "approval_dry_run_tools",
+            "tool_safety_tiers",
+        ):
+            assert not hasattr(cfg, removed), removed
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "tool_safety_tiers",
+            "approval_risk_rules",
+            "approval_resource_keys",
+            "approval_dry_run_tools",
+        ],
+    )
+    def test_removed_key_is_rejected_as_unknown_key(self, key: str) -> None:
+        """REQ-011: a stale deployed config still naming a removed map is
+        rejected with the key named, not silently ignored."""
+        from agent.production_config_validator import ProductionConfigValidator
+
+        result = ProductionConfigValidator().validate({**_MIN_CFG, key: {}})
+        assert any(key in e for e in result.errors), result.errors
 
     def test_empty_allowed_root_rejected(self) -> None:
         with pytest.raises(ValueError, match="allowed_root"):
@@ -333,24 +332,11 @@ class TestBuildApprovalConfig:
         with pytest.raises(ValueError, match="allowed_root"):
             _build_approval_config({})
 
-    def test_invalid_risk_level_raises_value_error(self) -> None:
-        with pytest.raises(ValueError, match="invalid levels"):
-            _build_approval_config(
-                {
-                    "allowed_root": "/opt/llm",
-                    "approval_risk_rules": {"write_file": "extreme"},
-                }
-            )
-
     def test_every_field_override_is_independently_reflected(self) -> None:
         overrides: dict = {
-            "approval_risk_rules": {"write_file": "none"},
             "approval_protected_paths": ["/custom/"],
             "approval_high_risk_branches": ["custom-branch"],
             "approval_shell_safe_prefixes": ["custom-cmd"],
-            "approval_resource_keys": {"path_keys": ["p"], "branch_keys": ["b"]},
-            "approval_dry_run_tools": ["write_file"],
-            "tool_safety_tiers": {"some_tool": "READ_ONLY"},
             "allowed_root": "/custom/root",
             "approval_github_allowed_repos": ["org/repo"],
             "gitops_push_blocked": True,
@@ -361,23 +347,6 @@ class TestBuildApprovalConfig:
 
 
 # ── _build_diagnostics_config ─────────────────────────────────────────────────
-
-
-class TestValidateDryRunTools:
-    def test_unsupported_tool_is_dropped_with_warning(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        with caplog.at_level(logging.WARNING, logger="agent.config_builders"):
-            result = _validate_dry_run_tools(["write_file", "totally_unknown_tool"])
-        assert result == ["write_file"]
-        assert any(
-            "totally_unknown_tool" in r.message and r.levelno == logging.WARNING
-            for r in caplog.records
-        )
-
-    def test_all_supported_tools_pass_through_unchanged(self) -> None:
-        result = _validate_dry_run_tools(["write_file", "delete_file"])
-        assert result == ["write_file", "delete_file"]
 
 
 class TestBuildDiagnosticsConfig:
@@ -609,24 +578,6 @@ class TestBusinessRuleValidations:
             ConfigReloadValidationError, match="memory_max_inject_episodic"
         ):
             _build_memory_config(cfg)
-
-    def test_tool_safety_tiers_invalid_value_rejected(self) -> None:
-        cfg = {**_MIN_CFG, "tool_safety_tiers": {"test_key": "INVALID_TIER"}}
-        with pytest.raises(ConfigReloadValidationError, match="tool_safety_tiers"):
-            _build_approval_config(cfg)
-
-    def test_tool_safety_tiers_valid_values_accepted(self) -> None:
-        cfg = {
-            **_MIN_CFG,
-            "tool_safety_tiers": {
-                "read_op": "READ_ONLY",
-                "write_op": "WRITE_SAFE",
-                "danger_op": "WRITE_DANGEROUS",
-                "admin_op": "ADMIN",
-            },
-        }
-        result = _build_approval_config(cfg)
-        assert result.tool_safety_tiers == cfg["tool_safety_tiers"]
 
 
 # ── Resolver wiring + PyYAML dependency (REQ-002 / REQ-005) ───────────────────

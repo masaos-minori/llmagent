@@ -79,7 +79,9 @@ def _default_runtime_tools() -> MagicMock:
     which now runs unconditionally before approval/execution and requires a
     real registry (fail-closed) — resolves any tool name to an unscoped,
     non-write ToolSpec since these tests exercise the RAG tool-call
-    round-trip, not scheduling/scope behavior.
+    round-trip, not scheduling/scope behavior. The declared tier is READ_ONLY:
+    classify_risk() reads the declaration (agentcfg003 REQ-004), which maps to
+    RiskLevel.NONE so the approval gate auto-approves the tool under test.
     """
     registry = MagicMock()
 
@@ -88,6 +90,9 @@ def _default_runtime_tools() -> MagicMock:
         tool.is_write = False
         tool.input_schema = {"type": "object", "properties": {}}
         tool.allow_extra_fields = True
+        tool.agent_safety_tier = "READ_ONLY"
+        tool.side_effect_class = "read_only"
+        tool.resource_scope_keys = {}
         return tool
 
     def _spec_for_call(call_id: str, name: str, args: dict) -> ToolSpec:
@@ -104,9 +109,9 @@ def _make_turn_ctx(
     """MagicMock ctx with a real AgentConfig() so the real approval gate
     inside execute_all_tool_calls() (check_preflight/classify_risk) resolves
     cleanly instead of choking on auto-generated MagicMock sub-attributes.
-    risk_none_for tools get an explicit "none" approval_risk_rules entry so
-    check_approval() auto-approves them instead of hitting the interactive
-    dry-run-preview path (absent tools default to "medium", fail-closed).
+    risk_none_for tools are allowed through cfg.tool.allowed_tools; their NONE
+    risk comes from the READ_ONLY tier declared by the runtime-tools stub
+    (agentcfg003 REQ-004: the removed approval_risk_rules map no longer exists).
     """
     ctx = MagicMock()
     # memory_embed_enabled now defaults to True, which requires a non-empty
@@ -117,8 +122,6 @@ def _make_turn_ctx(
     ctx.cfg.tool.serial_tool_calls = True
     # REQ-002: empty allowed_tools denies every call, so allow the tools under test.
     ctx.cfg.tool.allowed_tools = list(risk_none_for)
-    for name in risk_none_for:
-        ctx.cfg.approval.approval_risk_rules[name] = "none"
     ctx.conv = ConversationState(plan_mode=False)
     ctx.stats.stat_tool_calls = 0
     ctx.stats.stat_tool_errors = 0

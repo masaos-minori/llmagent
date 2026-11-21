@@ -85,7 +85,18 @@ def _build_runtime_tools(
             is_write=entry["is_write"],  # type: ignore[arg-type]  # — bool, verified by validate_tool_schema_v2()
             requires_serial=entry["requires_serial"],  # type: ignore[arg-type]  # — bool, verified by validate_tool_schema_v2()
             resource_scope_kind=str(entry["resource_scope_kind"]),
-            resource_scope_keys=tuple(entry["resource_scope_keys"]),  # type: ignore[arg-type]  # — list, verified by validate_tool_schema_v2()
+            resource_scope_keys=entry["resource_scope_keys"],  # type: ignore[arg-type]  # — key-to-kind mapping, verified by validate_tool_schema_v2()
+            # Schema-2.1 declared policy fields (agentcfg003 REQ-002/REQ-003): the
+            # values the producer declared are passed unchanged. No default is
+            # supplied here, so an entry that omits one is rejected by
+            # build_runtime_tool() before registration.
+            agent_safety_tier=entry["agent_safety_tier"],  # type: ignore[arg-type]  # — closed-set str, verified by validate_tool_schema_v2()
+            side_effect_class=entry["side_effect_class"],  # type: ignore[arg-type]  # — closed-set str, verified by validate_tool_schema_v2()
+            retry_policy=entry["retry_policy"],  # type: ignore[arg-type]  # — closed-set str, verified by validate_tool_schema_v2()
+            reconciliation_policy=entry["reconciliation_policy"],  # type: ignore[arg-type]  # — closed-set str, verified by validate_tool_schema_v2()
+            idempotency_required=entry["idempotency_required"],  # type: ignore[arg-type]  # — bool, verified by validate_tool_schema_v2()
+            preview_capability=entry["preview_capability"],  # type: ignore[arg-type]  # — closed-set str, verified by validate_tool_schema_v2()
+            policy_version=str(entry["policy_version"]),
             enabled_for_llm=bool(entry.get("enabled", True)),
             capabilities=tuple(entry.get("capabilities", []) or []),  # type: ignore[arg-type]  # — list when present, verified by _entry_optional_field_error()
         )
@@ -105,9 +116,10 @@ def _dedupe_and_build(
     FATAL finding — tool is unusable when duplicated across servers.
 
     Every entry reaching this function has already passed `_validate_entry()`'s hard
-    schema-2.0 requirement, so `is_write`/`requires_serial`/`resource_scope_kind`/
-    `resource_scope_keys` are guaranteed present — they are indexed directly
-    (`entry[...]`), not defaulted via `.get()`.
+    schema-2.1 requirement, so the required field set — `is_write`, `requires_serial`,
+    `resource_scope_kind`, `resource_scope_keys` and the declared policy fields — is
+    guaranteed present; they are indexed directly (`entry[...]`), not defaulted via
+    `.get()`.
 
     `allowed_servers` travels exactly like `unavailable_servers` and reaches the registry unchanged:
     this module transports the gate, it does not decide it.

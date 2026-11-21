@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections.abc import Mapping
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -24,9 +25,7 @@ from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolExecutionContext
 
 from tests.agent._config_test_defaults import (
-    ALL_APPROVAL_RISK_RULES,
     ALL_TOOL_NAMES,
-    ALL_TOOL_SAFETY_TIERS,
     PERMISSIVE_ALLOWED_ROOT,
     PERMISSIVE_SQLITE_VEC_SO,
 )
@@ -415,8 +414,8 @@ class TestGrantVerificationAtGateway:
         assert result is expected
 
 
-def _stub_registry(**tools: tuple[str, ...]) -> MagicMock:
-    """Minimal registry stub: get(name) -> object with resource_scope_keys."""
+def _stub_registry(**tools: Mapping[str, str]) -> MagicMock:
+    """Minimal registry stub: get(name) -> object with the declared resource_scope_keys mapping."""
 
     def _get(name: str) -> MagicMock:
         if name not in tools:
@@ -453,8 +452,6 @@ def _make_real_cfg(**overrides: object):
                     "auth_token": "test-token",
                 }
             },
-            "tool_safety_tiers": ALL_TOOL_SAFETY_TIERS,
-            "approval_risk_rules": ALL_APPROVAL_RISK_RULES,
             "allowed_root": PERMISSIVE_ALLOWED_ROOT,
             "sqlite_vec_so": PERMISSIVE_SQLITE_VEC_SO,
             **overrides,
@@ -473,13 +470,14 @@ class TestWriteGateDeclaredPathKeys:
         cfg = _make_real_cfg(
             allowed_tools=["write_file"],
             allowed_root="/tmp",
-            approval_resource_keys={"path_keys": [], "branch_keys": []},
         )
         executor = AsyncMock()
         executor.execute = AsyncMock(return_value=MagicMock(is_error=False))
         gw = _make_gateway(cfg=cfg, executor=executor)
         ctx = _make_ctx()
-        ctx.services_required.runtime_tools = _stub_registry(write_file=("paths",))
+        ctx.services_required.runtime_tools = _stub_registry(
+            write_file={"paths": "path"}
+        )
         with patch(
             "agent.repository_gateway.classify_operation_type",
             return_value=OperationType.WRITE,
@@ -500,14 +498,15 @@ class TestWriteGateDeclaredPathKeys:
         cfg = _make_real_cfg(
             allowed_tools=["write_file"],
             allowed_root="/tmp",
-            approval_resource_keys={"path_keys": [], "branch_keys": []},
         )
         expected = MagicMock(is_error=False, output="written")
         executor = AsyncMock()
         executor.execute = AsyncMock(return_value=expected)
         gw = _make_gateway(cfg=cfg, executor=executor)
         ctx = _make_ctx()
-        ctx.services_required.runtime_tools = _stub_registry(write_file=("paths",))
+        ctx.services_required.runtime_tools = _stub_registry(
+            write_file={"paths": "path"}
+        )
         with patch(
             "agent.repository_gateway.classify_operation_type",
             return_value=OperationType.WRITE,

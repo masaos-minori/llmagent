@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 from shared.tool_constants import MDQ_TOOLS
 
@@ -77,40 +75,30 @@ class TestMdqSafetyTiers:
         overlap = read_only & _WRITE_TOOLS
         assert not overlap, f"Read-only tools found in _WRITE_TOOLS: {overlap}"
 
-    def test_mdq_safety_tiers_from_config(self) -> None:
-        """Verify agent.toml has a per-tool tier entry for every MDQ tool.
+    def test_mdq_safety_tiers_declared_in_tool_list(self) -> None:
+        """Verify every MDQ tool declares its tier in the producer TOOL_LIST.
 
-        A coarse `mdq = "WRITE_DANGEROUS"` server-key entry previously stood in
-        for this (removed 2026-07-20): every individual MDQ tool now has its own
-        entry, matching the per-tool convention used by every other server in
-        this table, and `shared.tool_routing_validation.check_unknown_tool_safety_tiers`
-        explicitly flags a bare server key like "mdq" as a misconfiguration.
+        Agentcfg003 REQ-011: the agent.toml [tool_safety_tiers] map is removed;
+        the per-tool declaration is now the single tier source. A coarse
+        `mdq = "WRITE_DANGEROUS"` server-key entry previously stood in for the
+        per-tool entries (removed 2026-07-20); the per-tool convention carries
+        into the producer declaration unchanged.
         """
-        import tomllib
+        from mcp_servers.mdq.mdq_tools import TOOL_LIST
 
-        agent_toml_path = (
-            Path(__file__).parent.parent.parent.parent / "config" / "agent.toml"
-        )
-        with open(agent_toml_path, "rb") as f:
-            agent_config = tomllib.load(f)
-
-        safety_tiers = agent_config.get("tool_safety_tiers", {})
-        assert "mdq" not in safety_tiers, (
-            "stray server-key 'mdq' entry should not exist in [tool_safety_tiers]; "
-            "each MDQ tool has its own per-tool entry"
-        )
+        declared = {t["name"]: t["agent_safety_tier"] for t in TOOL_LIST}
         for tool_name in MDQ_TOOLS:
-            assert tool_name in safety_tiers, (
-                f"MDQ tool '{tool_name}' missing from agent.toml [tool_safety_tiers]"
+            assert tool_name in declared, (
+                f"MDQ tool '{tool_name}' has no declared agent_safety_tier in TOOL_LIST"
             )
         write_safe = {"index_paths", "refresh_index"}
         for tool_name in write_safe:
-            assert safety_tiers[tool_name] == "WRITE_SAFE", (
-                f"{tool_name} should be WRITE_SAFE, got {safety_tiers[tool_name]}"
+            assert declared[tool_name] == "WRITE_SAFE", (
+                f"{tool_name} should be WRITE_SAFE, got {declared[tool_name]}"
             )
         for tool_name in MDQ_TOOLS - write_safe:
-            assert safety_tiers[tool_name] == "READ_ONLY", (
-                f"{tool_name} should be READ_ONLY, got {safety_tiers[tool_name]}"
+            assert declared[tool_name] == "READ_ONLY", (
+                f"{tool_name} should be READ_ONLY, got {declared[tool_name]}"
             )
 
 

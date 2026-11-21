@@ -56,6 +56,8 @@ from shared.tool_constants import (
 from shared.tool_registry import get_registry
 from shared.tool_routing_validation import validate_routing_against_live
 
+from tests.agent._producer_registry import make_producer_registry
+
 
 def _dispatch_keys(table: Mapping[str, Callable[..., Any]]) -> set[str]:
     return set(table)
@@ -381,10 +383,11 @@ def test_write_tools_flagged_is_write(server_key: str) -> None:
     of the schema-2.0 rollout (see ToolSpec.is_write in agent/tool_scheduler.py).
     The remaining servers' schemas do not declare the key at all; for those, the
     schema-independent runtime classification is agent.tool_policy.classify_operation_type(),
-    so the equivalent guardrail is verifying the write-tool set is recognized there
-    instead — this is the same class of bug this whole test module (and the
-    classify_operation_type fix) guards against, applied to the other
-    serialization mechanism.
+    which reads the declared side_effect_class from the runtime registry
+    (agentcfg003 REQ-007 authority inversion), so the equivalent guardrail is
+    verifying the write-tool set is recognized there instead — this is the same
+    class of bug this whole test module (and the classify_operation_type fix)
+    guards against, applied to the other serialization mechanism.
     """
     layers = _SERVERS[server_key]
     if layers.schema_declares_flags:
@@ -392,8 +395,9 @@ def test_write_tools_flagged_is_write(server_key: str) -> None:
             if t["name"] in layers.write_tools:
                 assert t.get("is_write") is True
     else:
+        registry = make_producer_registry()
         for name in layers.write_tools:
-            assert classify_operation_type(name) in {
+            assert classify_operation_type(name, registry) in {
                 OperationType.WRITE,
                 OperationType.DELETE,
                 OperationType.EXECUTE,

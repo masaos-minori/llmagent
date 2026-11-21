@@ -147,6 +147,17 @@ def test_a_row_with_no_authored_content_is_reported_and_stops_the_write(
 def test_missing_plan_exits_two_and_an_absent_marker_records_one_on_the_real_run(
     tmp_path: Path,
 ) -> None:
+    # This test does not use the `plan` fixture, so it clears the assembly tables
+    # itself; with pytest-randomly an earlier test's registered content must not
+    # leak into it.
+    for table in (
+        tool.PRODUCER_CONTENT,
+        tool.BASE_CONTENT,
+        tool.TEST_CONTENT,
+        tool.DOC_CONTENT,
+        tool.COMPANIONS,
+    ):
+        table.clear()
     assert tool.main([str(tmp_path / "no-plan.md")]) == 2
 
     plan = tmp_path / "plans" / "plan.md"

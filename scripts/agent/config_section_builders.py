@@ -2,7 +2,7 @@
 """scripts/agent/config_section_builders.py — Default-resolution helpers and per-section config builders.
 
 Owns the key-reading half of agent config construction: `_or_default`,
-`_get_or_default`, `_get_str_or_default`, `_validate_dry_run_tools`,
+`_get_or_default`, `_get_str_or_default`,
 `_build_model`, and the `_build_*_config` functions for the llm, rag, tool,
 memory, approval and diagnostics sections. `agent.config_builders` delegates to
 them; the assembly entry point (`build_agent_config`, `load_config`,
@@ -31,11 +31,8 @@ from agent.config_dataclasses import (
     ToolConfig,
 )
 from agent.constants import (
-    _DEFAULT_APPROVAL_RISK_RULES,
-    _DEFAULT_DRY_RUN_TOOLS,
     _DEFAULT_PLAN_BLOCKED_TOOLS,
     _DEFAULT_PROTECTED_PATHS,
-    _DEFAULT_RESOURCE_KEYS,
     _DEFAULT_SHELL_SAFE_PREFIXES,
 )
 from agent.services.config_validators import check_agent_refiner_keys
@@ -88,19 +85,6 @@ def _get_str_or_default(cfg: dict[str, Any], key: str, default: str = "") -> str
 def get_str_or_default(cfg: dict[str, Any], key: str, default: str = "") -> str:
     """Public wrapper around ``_get_str_or_default`` for cross-module use."""
     return _get_str_or_default(cfg, key, default)
-
-
-def _validate_dry_run_tools(tools: list[str]) -> list[str]:
-    """Validate dry-run tools against known capabilities; warn on unsupported
-    entries."""
-    supported = set(_DEFAULT_DRY_RUN_TOOLS)
-    filtered: list[str] = []
-    for tool in tools:
-        if tool not in supported:
-            logger.warning("Dry-run tool '%s' is not supported; ignoring", tool)
-        else:
-            filtered.append(tool)
-    return filtered
 
 
 # ---------------------------------------------------------------------------
@@ -278,10 +262,12 @@ def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
 
 
 def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
-    """Build ApprovalConfig from a raw config dict."""
-    approval_risk_rules = _get_or_default(
-        cfg, "approval_risk_rules", _get_dict, _DEFAULT_APPROVAL_RISK_RULES
-    )
+    """Build ApprovalConfig from a raw config dict.
+
+    Agentcfg003 REQ-005: the removed per-tool maps are not built here; a stale
+    key in the config is rejected as an unknown key by ProductionConfigValidator
+    (REQ-011).
+    """
     approval_protected_paths = _get_or_default(
         cfg, "approval_protected_paths", _get_list, list(_DEFAULT_PROTECTED_PATHS)
     )
@@ -294,15 +280,6 @@ def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
         _get_list,
         list(_DEFAULT_SHELL_SAFE_PREFIXES),
     )
-    approval_resource_keys = _get_or_default(
-        cfg, "approval_resource_keys", _get_dict, _DEFAULT_RESOURCE_KEYS
-    )
-    approval_dry_run_tools = _validate_dry_run_tools(
-        _get_or_default(
-            cfg, "approval_dry_run_tools", _get_list, _DEFAULT_DRY_RUN_TOOLS
-        ),
-    )
-    tool_safety_tiers = _get_or_default(cfg, "tool_safety_tiers", _get_dict, {})
     allowed_root = _get_str_or_default(cfg, "allowed_root")
     if not allowed_root.strip():
         raise ConfigReloadValidationError(
@@ -314,13 +291,9 @@ def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
     gitops_push_blocked = _get_or_default(cfg, "gitops_push_blocked", _get_bool, False)
     return _build_model(
         ApprovalConfig,
-        approval_risk_rules=approval_risk_rules,
         approval_protected_paths=approval_protected_paths,
         approval_high_risk_branches=approval_high_risk_branches,
         approval_shell_safe_prefixes=approval_shell_safe_prefixes,
-        approval_resource_keys=approval_resource_keys,
-        approval_dry_run_tools=approval_dry_run_tools,
-        tool_safety_tiers=tool_safety_tiers,
         allowed_root=allowed_root,
         approval_github_allowed_repos=approval_github_allowed_repos,
         gitops_push_blocked=gitops_push_blocked,

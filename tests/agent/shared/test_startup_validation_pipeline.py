@@ -314,15 +314,37 @@ def reset_registry():
 
 
 def test_check_routing_safety_tiers_context():
+    """Agentcfg003 drift shape: before services are wired there is no live
+    declaration to compare, so the report is empty (REQ-007 / AC-10)."""
     ctx = MagicMock()
-    cfg = MagicMock()
-    server = MagicMock()
-    server.tool_names = ["tool_a", "tool_b"]
-    cfg.mcp.mcp_servers = {"srv1": server}
-    cfg.approval.tool_safety_tiers = {}
-    ctx.cfg = cfg
+    ctx.services = None
+    assert check_routing_safety_tiers(ctx) == []
+
+
+def test_check_routing_safety_tiers_reports_seed_tools_without_live_declaration() -> (
+    None
+):
+    """A seed-registered tool with no live declared entry is a drift finding;
+    the removed config tier map is no longer consulted."""
+    from shared.runtime_tool_registry import RuntimeToolRegistry
+    from shared.tool_registry import get_registry
+
+    from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
+
+    seed_names = sorted(get_registry().get_all_tool_names())
+    assert seed_names
+    live_name = seed_names[0]
+    ctx = MagicMock()
+    ctx.services = MagicMock()
+    ctx.services.runtime_tools = RuntimeToolRegistry(
+        tools={
+            name: build_fixture_runtime_tool(name, "git") for name in seed_names[1:]
+        },
+        allowed_servers=frozenset({"git"}),
+    )
     msgs = check_routing_safety_tiers(ctx)
-    assert msgs == []
+    assert any(live_name in msg for msg in msgs)
+    assert all(name not in msg for name in seed_names[1:] for msg in msgs)
 
 
 # --- RAG consistency check tests ---

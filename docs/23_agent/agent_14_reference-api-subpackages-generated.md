@@ -119,8 +119,6 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `validate_diagnostics_encryption_key` | `def validate_diagnostics_encryption_key(cfg) -> None` | Validate encryption_key is a valid Fernet key when configured (empty = disabled). |
 |  | `validate_diagnostics_retention_days` | `def validate_diagnostics_retention_days(cfg) -> None` | Validate retention_days is an int (<= 0 disables purge). |
 |  | `validate_diagnostics_sensitive_fields` | `def validate_diagnostics_sensitive_fields(cfg) -> None` | Validate sensitive_fields is a frozenset of strings. |
-|  | `validate_approval_risk_rules` | `def validate_approval_risk_rules(cfg) -> None` | Validate that all approval_risk_rules values are valid. |
-|  | `validate_tool_safety_tiers` | `def validate_tool_safety_tiers(cfg) -> None` | Validate that all tool_safety_tiers values are valid. |
 |  | `validate_allowed_root` | `def validate_allowed_root(cfg) -> None` | Validate that allowed_root is a non-empty absolute path. |
 |  | `validate_llm_http_timeout` | `def validate_llm_http_timeout(cfg) -> None` | Validate that http_timeout is positive. |
 |  | `validate_llm_context_token_limit` | `def validate_llm_context_token_limit(cfg) -> None` | Validate that context_token_limit is non-negative. |
@@ -182,7 +180,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `compare_fingerprint` | `def compare_fingerprint(server_key, posture) -> PostureValidationResult` | Report whether a server's fingerprint changed since the last posture seen for that key. |
 |  | `reset_fingerprint_state` | `def reset_fingerprint_state() -> None` | Clear the process-local fingerprint map, for tests. |
 | `scripts/agent/services/rag_maintenance_service.py` | `RagMaintenanceService` | `class RagMaintenanceService` | Maintenance operations scoped exclusively to rag.sqlite. |
-| `scripts/agent/services/routing_drift.py` | `check_routing_safety_tiers` | `def check_routing_safety_tiers(ctx) -> list[str]` | Check that all registered tools have a declared safety tier. |
+| `scripts/agent/services/routing_drift.py` | `check_routing_safety_tiers` | `def check_routing_safety_tiers(ctx) -> list[str]` | Return tier-drift findings comparing the seed registry with live declarations. |
 | `scripts/agent/services/session_restore.py` | `repair_orphan_tool_calls` | `def repair_orphan_tool_calls(messages, session_id, *, boundary_index) -> tuple[list[LLMMessage], int]` | Pair assistant tool_calls rows with tool-result rows at load time. |
 |  | `restore_session` | `async def restore_session(ctx, session_id) -> SessionRestoreResult` | Restore session: rebuild history, switch session ID, reset stats. |
 | `scripts/agent/services/session_title.py` | `SessionTitleService` | `class SessionTitleService` | Generate a short LLM-based title for a session and persist it. |

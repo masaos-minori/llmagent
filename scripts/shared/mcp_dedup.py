@@ -350,7 +350,17 @@ class DedupStore(DedupLedger):
 
 
 def retry_class(tool_name: str, config: DedupConfig | None = None) -> str:
-    """Return the retry classification for a tool; unknown tools are non_retryable."""
+    """Return the dispatcher-side retry classification for a tool name.
+
+    Reads the `[retry_class]` mirror from the dedup config; unknown tools are
+    non_retryable (fail-safe). This is the dispatcher's own gate: the authority
+    for retry classification elsewhere is each tool's declared `retry_policy`
+    field (shared.tool_metadata.RetryPolicy), which the Agent's tool_runner
+    resolves from the registered tool metadata and passes to this module's
+    call paths (agentcfg003). This module reads no static classification set;
+    drift between the mirror and the declarations is reported by
+    `shared.mcp_dedup_config`, never applied here.
+    """
     if config is None:
         config = load_dedup_config()
     return config.retry_class.get(tool_name, "non_retryable")

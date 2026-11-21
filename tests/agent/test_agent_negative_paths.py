@@ -16,6 +16,9 @@ from agent.memory.scoring import recency_boost
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.tool_enums import RiskLevel
 from agent.tool_policy import classify_risk
+from shared.runtime_tool_registry import RuntimeToolRegistry
+
+from tests.agent.test_tool_policy import _runtime_tool
 
 
 def _cfg(**overrides: Any) -> AgentConfig:
@@ -27,8 +30,6 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "tool_result_max_llm_chars": 4000,
         "masked_fields": [],
         "allowed_tools": ["shell_execute"],
-        "tool_safety_tiers": {},
-        "approval_risk_rules": {},
         "approval_shell_safe_prefixes": ["/bin/", "/usr/bin/"],
         "approval_github_allowed_repos": [],
         "allowed_root": "/opt/llm",
@@ -107,34 +108,29 @@ class TestRecencyDaysBoundary:
 
 
 class TestForceOverwriteClobberRisk:
-    """AGENT-4: force/overwrite/clobber should not elevate read-type tools."""
+    """AGENT-4: force/overwrite/clobber should not elevate read-type tools.
 
-    def test_read_tool_force_flag_not_elevated(self) -> None:
-        cfg = _cfg(approval_risk_rules={"read_file": "none"})
-        result = classify_risk(cfg, "read_file", {"force": True})
+    agentcfg003 REQ-004/REQ-011: the base risk comes from the declared tier
+    (the removed approval_risk_rules map no longer exists); the flag escalation
+    applies only to tools whose declared tier carries a base risk."""
+
+    @staticmethod
+    def _registry(tier: str, *, is_write: bool, name: str) -> RuntimeToolRegistry:
+        tool = _runtime_tool(name, tier=tier, is_write=is_write)
+        return RuntimeToolRegistry(
+            tools={name: tool}, allowed_servers=frozenset({tool.server_key})
+        )
+
+    @pytest.mark.parametrize("flag", ["force", "overwrite", "clobber"])
+    def test_read_tool_flag_not_elevated(self, flag: str) -> None:
+        cfg = _cfg()
+        reg = self._registry("READ_ONLY", is_write=False, name="read_file")
+        result = classify_risk(cfg, "read_file", {flag: True}, reg)
         assert result == RiskLevel.NONE
 
-    def test_read_tool_overwrite_flag_not_elevated(self) -> None:
-        cfg = _cfg(approval_risk_rules={"read_file": "none"})
-        result = classify_risk(cfg, "read_file", {"overwrite": True})
-        assert result == RiskLevel.NONE
-
-    def test_read_tool_clobber_flag_not_elevated(self) -> None:
-        cfg = _cfg(approval_risk_rules={"read_file": "none"})
-        result = classify_risk(cfg, "read_file", {"clobber": True})
-        assert result == RiskLevel.NONE
-
-    def test_write_tool_force_flag_elevated(self) -> None:
-        cfg = _cfg(approval_risk_rules={"write_file": "medium"})
-        result = classify_risk(cfg, "write_file", {"force": True})
-        assert result == RiskLevel.HIGH
-
-    def test_write_tool_overwrite_flag_elevated(self) -> None:
-        cfg = _cfg(approval_risk_rules={"write_file": "medium"})
-        result = classify_risk(cfg, "write_file", {"overwrite": True})
-        assert result == RiskLevel.HIGH
-
-    def test_write_tool_clobber_flag_elevated(self) -> None:
-        cfg = _cfg(approval_risk_rules={"write_file": "medium"})
-        result = classify_risk(cfg, "write_file", {"clobber": True})
+    @pytest.mark.parametrize("flag", ["force", "overwrite", "clobber"])
+    def test_write_tool_flag_elevated(self, flag: str) -> None:
+        cfg = _cfg()
+        reg = self._registry("WRITE_DANGEROUS", is_write=True, name="write_file")
+        result = classify_risk(cfg, "write_file", {flag: True}, reg)
         assert result == RiskLevel.HIGH

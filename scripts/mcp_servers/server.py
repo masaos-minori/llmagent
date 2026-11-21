@@ -54,17 +54,28 @@ MCP_MAX_RESPONSE_BYTES: int = 512 * 1024
 
 # Schema version advertised in each server's /v1/tools response; bump when the
 # tool-schema shape changes in a way that matters to Agent-side discovery/validation.
-# See TOOL_SCHEMA_V2_FIELDS below for the separate per-tool schema-2.0 field set.
+# See TOOL_SCHEMA_V2_FIELDS below for the separate per-tool field set.
 MCP_TOOL_SCHEMA_VERSION: str = "1.0"
 
-# Per-tool schema-2.0 metadata field names (distinct from the envelope version
-# above): every TOOL_LIST entry across all 10 MCP servers must declare these 4
-# fields. See scripts/shared/resource_scope.py for the validator that enforces this.
+# Per-tool metadata field names (distinct from the envelope version above):
+# every TOOL_LIST entry across all 13 producer modules must declare these
+# fields. Schema 2.1 (agentcfg003) keeps the four schema-2.0 names unchanged and
+# adds the declared policy fields; the `policy_version` value each entry declares
+# is `shared.tool_metadata.TOOL_FIELD_SET_VERSION`, read from that vocabulary
+# module. See scripts/shared/resource_scope.py for the validator that enforces
+# this contract.
 TOOL_SCHEMA_V2_FIELDS: tuple[str, ...] = (
     "is_write",
     "requires_serial",
     "resource_scope_kind",
     "resource_scope_keys",
+    "agent_safety_tier",
+    "side_effect_class",
+    "retry_policy",
+    "reconciliation_policy",
+    "idempotency_required",
+    "preview_capability",
+    "policy_version",
 )
 
 

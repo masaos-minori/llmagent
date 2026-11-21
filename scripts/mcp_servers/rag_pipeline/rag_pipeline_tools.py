@@ -6,6 +6,8 @@ MCP tool schema definitions for rag-pipeline-mcp server (inputSchema format).
 
 from __future__ import annotations
 
+from shared.tool_metadata import TOOL_FIELD_SET_VERSION
+
 from mcp_servers.models import McpTool
 
 TOOL_LIST: list[McpTool] = [
@@ -31,9 +33,16 @@ TOOL_LIST: list[McpTool] = [
         "status": "production",
         "config_dependent": False,
         "is_write": False,
+        "agent_safety_tier": "READ_ONLY",
+        "side_effect_class": "read_only",
+        "retry_policy": "safe_read_retry",
+        "reconciliation_policy": "not_required",
+        "idempotency_required": False,
+        "preview_capability": "none",
+        "policy_version": TOOL_FIELD_SET_VERSION,
         "requires_serial": False,
         "resource_scope_kind": "",
-        "resource_scope_keys": [],
+        "resource_scope_keys": {},
     },
     {
         "name": "rag_debug_pipeline",
@@ -53,9 +62,16 @@ TOOL_LIST: list[McpTool] = [
         "status": "production",
         "config_dependent": False,
         "is_write": False,
+        "agent_safety_tier": "READ_ONLY",
+        "side_effect_class": "read_only",
+        "retry_policy": "safe_read_retry",
+        "reconciliation_policy": "not_required",
+        "idempotency_required": False,
+        "preview_capability": "none",
+        "policy_version": TOOL_FIELD_SET_VERSION,
         "requires_serial": False,
         "resource_scope_kind": "",
-        "resource_scope_keys": [],
+        "resource_scope_keys": {},
     },
     {
         "name": "rag_list_documents",
@@ -77,9 +93,16 @@ TOOL_LIST: list[McpTool] = [
         "status": "production",
         "config_dependent": False,
         "is_write": False,
+        "agent_safety_tier": "READ_ONLY",
+        "side_effect_class": "read_only",
+        "retry_policy": "safe_read_retry",
+        "reconciliation_policy": "not_required",
+        "idempotency_required": False,
+        "preview_capability": "none",
+        "policy_version": TOOL_FIELD_SET_VERSION,
         "requires_serial": False,
         "resource_scope_kind": "",
-        "resource_scope_keys": [],
+        "resource_scope_keys": {},
     },
     {
         "name": "rag_delete_document",
@@ -97,8 +120,15 @@ TOOL_LIST: list[McpTool] = [
         "status": "production",
         "config_dependent": False,
         "is_write": True,
+        "agent_safety_tier": "WRITE_DANGEROUS",
+        "side_effect_class": "local_write",
+        "retry_policy": "same_logical_call_only",
+        "reconciliation_policy": "local_state",
+        "idempotency_required": True,
+        "preview_capability": "none",
+        "policy_version": TOOL_FIELD_SET_VERSION,
         "requires_serial": True,
         "resource_scope_kind": "rag_store",
-        "resource_scope_keys": [],
+        "resource_scope_keys": {},
     },
 ]

@@ -13,7 +13,7 @@ from agent.commands.exceptions import UnknownSubcommandError
 from agent.lifecycle import LifecycleState
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.mcp_health import McpServerHealthState
-from shared.runtime_tool import RuntimeTool
+from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 
 
@@ -392,7 +392,7 @@ class TestCmdMcpStatusNewColumns:
         # tool_names field); expose the two write tools on this server so the WRITE
         # column resolves to WRITE_SAFE.
         ctx.services_required.runtime_tools = _registry_with(
-            RuntimeTool(
+            build_runtime_tool(
                 name="write_file",
                 server_key="writer",
                 server_url="",
@@ -403,12 +403,18 @@ class TestCmdMcpStatusNewColumns:
                 is_write=True,
                 requires_serial=False,
                 resource_scope_kind="",
-                resource_scope_keys=(),
+                resource_scope_keys={},
                 agent_safety_tier="WRITE_SAFE",
+                policy_version="2.1",
+                preview_capability="none",
+                idempotency_required=True,
+                reconciliation_policy="local_state",
+                retry_policy="never",
+                side_effect_class="local_write",
                 enabled_for_llm=True,
                 capabilities=(),
             ),
-            RuntimeTool(
+            build_runtime_tool(
                 name="edit_file",
                 server_key="writer",
                 server_url="",
@@ -419,8 +425,14 @@ class TestCmdMcpStatusNewColumns:
                 is_write=True,
                 requires_serial=False,
                 resource_scope_kind="",
-                resource_scope_keys=(),
+                resource_scope_keys={},
                 agent_safety_tier="WRITE_SAFE",
+                policy_version="2.1",
+                preview_capability="none",
+                idempotency_required=True,
+                reconciliation_policy="local_state",
+                retry_policy="never",
+                side_effect_class="local_write",
                 enabled_for_llm=True,
                 capabilities=(),
             ),
@@ -589,7 +601,7 @@ class TestCmdMcpStatusToolDiagnostics:
         """Both disabled and enabled tools appear in the diagnostics table."""
         ctx = _Ctx({"svc": _http()})
         registry = _registry_with(
-            RuntimeTool(
+            build_runtime_tool(
                 name="read_file",
                 server_key="file_read",
                 server_url="http://127.0.0.1:8001",
@@ -600,12 +612,18 @@ class TestCmdMcpStatusToolDiagnostics:
                 is_write=False,
                 requires_serial=True,
                 resource_scope_kind="",
-                resource_scope_keys=(),
+                resource_scope_keys={},
                 agent_safety_tier="READ_ONLY",
+                policy_version="2.1",
+                preview_capability="none",
+                idempotency_required=False,
+                reconciliation_policy="not_required",
+                retry_policy="safe_read_retry",
+                side_effect_class="read_only",
                 enabled_for_llm=True,
                 capabilities=(),
             ),
-            RuntimeTool(
+            build_runtime_tool(
                 name="git_push",
                 server_key="git",
                 server_url="http://127.0.0.1:8002",
@@ -616,8 +634,14 @@ class TestCmdMcpStatusToolDiagnostics:
                 is_write=True,
                 requires_serial=True,
                 resource_scope_kind="",
-                resource_scope_keys=(),
+                resource_scope_keys={},
                 agent_safety_tier="WRITE_DANGEROUS",
+                policy_version="2.1",
+                preview_capability="none",
+                idempotency_required=True,
+                reconciliation_policy="external_state",
+                retry_policy="reconcile_then_retry",
+                side_effect_class="external_write",
                 enabled_for_llm=False,
                 capabilities=(),
             ),
@@ -686,7 +710,7 @@ class TestCmdMcpStatusToolDiagnostics:
         RuntimeToolRegistry.diagnostics(), not the static config count."""
         ctx = _Ctx({"svc": _http()})
         registry = _registry_with(
-            RuntimeTool(
+            build_runtime_tool(
                 name="read_file",
                 server_key="file_read",
                 server_url="http://127.0.0.1:8001",
@@ -697,12 +721,18 @@ class TestCmdMcpStatusToolDiagnostics:
                 is_write=False,
                 requires_serial=True,
                 resource_scope_kind="",
-                resource_scope_keys=(),
+                resource_scope_keys={},
                 agent_safety_tier="READ_ONLY",
+                policy_version="2.1",
+                preview_capability="none",
+                idempotency_required=False,
+                reconciliation_policy="not_required",
+                retry_policy="safe_read_retry",
+                side_effect_class="read_only",
                 enabled_for_llm=True,
                 capabilities=(),
             ),
-            RuntimeTool(
+            build_runtime_tool(
                 name="git_push",
                 server_key="git",
                 server_url="http://127.0.0.1:8002",
@@ -713,12 +743,18 @@ class TestCmdMcpStatusToolDiagnostics:
                 is_write=True,
                 requires_serial=True,
                 resource_scope_kind="",
-                resource_scope_keys=(),
+                resource_scope_keys={},
                 agent_safety_tier="WRITE_DANGEROUS",
+                policy_version="2.1",
+                preview_capability="none",
+                idempotency_required=True,
+                reconciliation_policy="external_state",
+                retry_policy="reconcile_then_retry",
+                side_effect_class="external_write",
                 enabled_for_llm=False,
                 capabilities=(),
             ),
-            RuntimeTool(
+            build_runtime_tool(
                 name="blocked_tool",
                 server_key="blocked",
                 server_url="http://127.0.0.1:8003",
@@ -729,8 +765,14 @@ class TestCmdMcpStatusToolDiagnostics:
                 is_write=False,
                 requires_serial=True,
                 resource_scope_kind="",
-                resource_scope_keys=(),
+                resource_scope_keys={},
                 agent_safety_tier="READ_ONLY",
+                policy_version="2.1",
+                preview_capability="none",
+                idempotency_required=False,
+                reconciliation_policy="not_required",
+                retry_policy="safe_read_retry",
+                side_effect_class="read_only",
                 enabled_for_llm=False,
                 capabilities=(),
             ),

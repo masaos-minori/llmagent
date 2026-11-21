@@ -18,15 +18,9 @@ from typing import TYPE_CHECKING, Any
 
 from shared.tool_constants import (
     ALL_SIDE_EFFECTING_TOOLS,
-    CICD_WRITE_TOOLS,
     DELETE_TOOLS,
-    GIT_WRITE_TOOLS,
     GITHUB_DANGEROUS_TOOLS,
     GITHUB_WRITE_TOOLS,
-    MDQ_WRITE_TOOLS,
-    RAG_WRITE_TOOLS,
-    SHELL_TOOLS,
-    WRITE_TOOLS,
 )
 
 from agent.tool_enums import OperationType, RiskLevel
@@ -73,20 +67,14 @@ _SAFE_SHELL_SHAPES: dict[str, _ShellShapeRule] = {
 }
 _GITHUB_MUTATION_TOOLS: frozenset[str] = GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
 
-# Per-server write-tool sets not covered by the generic WRITE_TOOLS frozenset
-# (which only lists the file[read/write/delete] server's write tools).
-# See shared/tool_constants.py for the source of each set.
-_ALL_WRITE_TOOLS: frozenset[str] = (
-    WRITE_TOOLS | MDQ_WRITE_TOOLS | RAG_WRITE_TOOLS | CICD_WRITE_TOOLS | GIT_WRITE_TOOLS
-)
-
 # Side-effect membership delegated to the shared canonical set (ADR-004,
 # sideeffect001): identical members, now shared with dispatch dedup and the
-# HTTP fail-closed gate. The granular tier sets above stay the source for
-# WRITE/DELETE/EXECUTE/API_WRITE operation-type resolution.
+# HTTP fail-closed gate. The granular sets are reference data: they sub-classify
+# declared side-effect classes into DELETE/EXECUTE/API_WRITE/WRITE and feed the
+# drift findings in check_write_classification(); they never decide READ vs write.
 _STATIC_SIDE_EFFECT_TOOLS: frozenset[str] = ALL_SIDE_EFFECTING_TOOLS
 
-# Maps tool_safety_tiers tier → default approval risk level
+# Maps the tool's declared agent_safety_tier to the default approval risk level
 _TIER_TO_RISK: dict[str, RiskLevel] = {
     "READ_ONLY": RiskLevel.NONE,
     "WRITE_SAFE": RiskLevel.NONE,
@@ -100,42 +88,54 @@ def classify_operation_type(
 ) -> OperationType:
     """Return the operation type for a tool.
 
-    When registry is provided, consults RuntimeToolRegistry for the UNKNOWN/READ
-    decision (ADR-003 Decision #8). When registry is None, fails closed to UNKNOWN
+    The registered tool's declared ``side_effect_class`` is the decision input
+    (REQ-007 authority inversion): ``read_only`` resolves to READ, and a
+    side-effect class is sub-classified with the reference sets in
+    ``shared.tool_constants`` into DELETE/EXECUTE/API_WRITE/WRITE. The static
+    sets are reference data only; disagreement with the declaration is reported
+    by ``check_write_classification()`` and changes no decision here.
+    When registry is None or the tool is unregistered, fails closed to UNKNOWN
     (ADR-003 Decision #6: no static-registry fallback).
     """
-    if tool_name in _ALL_WRITE_TOOLS:
-        return OperationType.WRITE
-    if tool_name in DELETE_TOOLS:
-        return OperationType.DELETE
-    if tool_name in _EXEC_TOOLS:
-        return OperationType.EXECUTE
-    if tool_name in _GITHUB_MUTATION_TOOLS:
-        return OperationType.API_WRITE
     if registry is None:
         return OperationType.UNKNOWN
     try:
         tool = registry.get(tool_name)
     except KeyError:
         return OperationType.UNKNOWN
-    if tool.is_write:
-        return OperationType.WRITE
-    return OperationType.READ
+    if tool.side_effect_class == "read_only":
+        return OperationType.READ
+    if tool_name in DELETE_TOOLS:
+        return OperationType.DELETE
+    if tool_name in _EXEC_TOOLS:
+        return OperationType.EXECUTE
+    if tool_name in _GITHUB_MUTATION_TOOLS:
+        return OperationType.API_WRITE
+    return OperationType.WRITE
 
 
 def check_write_classification(registry: RuntimeToolRegistry) -> list[str]:
-    """Return one finding per tool whose RuntimeTool write flag disagrees with the static sets.
+    """Return one finding per tool whose declared write classification disagrees with the reference sets.
 
     ADR-003 INV-03: approval and audit classification must not diverge from the
-    registry's write attribute.
+    registry entry. REQ-007 (AC-10): both comparisons are drift reports — the value
+    the producer declared is the authority, the static tool sets are reference data,
+    and a finding never changes a decision.
     """
     findings: list[str] = []
     for tool in registry.all_tools():
         static_write = tool.name in _STATIC_SIDE_EFFECT_TOOLS
         if tool.is_write != static_write:
             findings.append(
-                f"{tool.name}: RuntimeTool.is_write={tool.is_write} but the static "
-                f"tool sets classify it as side_effect={static_write}"
+                f"{tool.name}: declared is_write={tool.is_write} disagrees with the "
+                f"reference tool sets (listed_as_side_effect={static_write})"
+            )
+        declared_write = tool.side_effect_class != "read_only"
+        if declared_write != static_write:
+            findings.append(
+                f"{tool.name}: declared side_effect_class={tool.side_effect_class} "
+                f"disagrees with the reference tool sets "
+                f"(listed_as_side_effect={static_write})"
             )
     return findings
 
@@ -162,32 +162,24 @@ def _resolve_path_keys(
     tool_name: str,
     registry: RuntimeToolRegistry | None,
 ) -> list[str] | None:
-    """Return the checked path argument names: configured path_keys unioned with the
-    registered tool's declared resource_scope_keys.
+    """Return the checked path argument names: the registered tool's declared keys
+    whose kind is ``path``.
 
-    `registry=None` returns the configured keys only (optional-registry callers/tests
-    keep configured-key behavior). A supplied registry whose tool is unregistered
-    (`KeyError`) returns `None` so the caller fails closed; no lookup error escapes the
-    policy. Order is stable: configured keys first.
+    REQ-008: the declared key-to-kind mapping is the only key source; the removed
+    ``approval_resource_keys`` lists no longer contribute, so a path argument and
+    a branch argument of the same tool resolve differently. `cfg` stays in the
+    signature for the policy-call surface. A `registry=None` call or a supplied
+    registry whose tool is unregistered (`KeyError`) returns `None`: the declared
+    scope is unknown and the caller fails closed; no lookup error escapes the
+    policy.
     """
-    keys = list(cfg.approval.approval_resource_keys.get("path_keys", []))
     if registry is None:
-        return keys
+        return None
     try:
         tool = registry.get(tool_name)
     except KeyError:
         return None
-    keys.extend(key for key in tool.resource_scope_keys if key not in keys)
-    return keys
-
-
-def _configured_path_keys(cfg: AgentConfig) -> list[str]:
-    """The configured ``approval_resource_keys.path_keys`` with no registry lookup.
-
-    Used to validate a path argument when the tool is unregistered: the declared
-    scope is unknown, so only configured keys can be checked.
-    """
-    return list(cfg.approval.approval_resource_keys.get("path_keys", []))
+    return [key for key, kind in tool.resource_scope_keys.items() if kind == "path"]
 
 
 def _iter_path_arg_values(args: dict[str, Any], keys: list[str]) -> Iterator[str]:
@@ -329,17 +321,19 @@ def _escalate_for_path(
 ) -> RiskLevel | None:
     """Return HIGH when any path arg is under a protected directory, else None.
 
-    The checked key set is the configured path_keys unioned with the registered
-    tool's declared scope keys; every element of a list-valued arg is checked and a
-    not-inspectable value escalates (fail closed).
+    The checked key set is the registered tool's declared path-kind keys
+    (REQ-008); every element of a list-valued arg is checked and a
+    not-inspectable value escalates (fail closed). When the declared scope is
+    unknown (`keys is None`) the tool is unregistered and `classify_risk()` has
+    already resolved a `HIGH` base; the escalation returns HIGH here too rather
+    than silently checking nothing.
     """
     if base == RiskLevel.HIGH:
         return None
-    protected = cfg.approval.approval_protected_paths
     keys = _resolve_path_keys(cfg, tool_name, registry)
     if keys is None:
-        # Unregistered tool: declared scope unknown; check configured keys only.
-        keys = _configured_path_keys(cfg)
+        return RiskLevel.HIGH
+    protected = cfg.approval.approval_protected_paths
     try:
         for val in _iter_path_arg_values(args, keys):
             if any(val.startswith(p) for p in protected):
@@ -354,12 +348,33 @@ def _escalate_for_github_branch(
     tool_name: str,
     base: RiskLevel,
     args: dict[str, Any],
+    registry: RuntimeToolRegistry | None = None,
 ) -> RiskLevel | None:
-    """Return HIGH when the target GitHub branch is in high_risk_branches, else None."""
-    if not tool_name.startswith("github_") or base == RiskLevel.HIGH:
+    """Return HIGH when a declared branch-kind argument is in high_risk_branches.
+
+    REQ-008: the checked keys are the registered tool's declared branch-kind keys,
+    not a tool-name prefix or a global config list; a tool that declares no
+    branch key is not branch-escalated.
+    """
+    if base == RiskLevel.HIGH:
         return None
-    branch_keys = cfg.approval.approval_resource_keys.get("branch_keys", [])
-    for val in _iter_string_arg_values(args, branch_keys):
+    keys = None
+    if registry is not None:
+        try:
+            tool = registry.get(tool_name)
+        except KeyError:
+            tool = None
+        if tool is not None:
+            keys = [
+                key
+                for key, kind in tool.resource_scope_keys.items()
+                if kind == "branch"
+            ]
+    if keys is None:
+        # Unregistered tool: declared scope unknown, no branch decision possible.
+        # classify_risk() has already resolved a HIGH base for this case.
+        return None
+    for val in _iter_string_arg_values(args, keys):
         if val in cfg.approval.approval_high_risk_branches:
             return RiskLevel.HIGH
     return None
@@ -410,12 +425,15 @@ def _special_case_risk(
     return None
 
 
-def is_plan_mode_blocked(cfg: AgentConfig, tool_name: str) -> bool:
+def is_plan_mode_blocked(
+    cfg: AgentConfig, tool_name: str, registry: RuntimeToolRegistry | None = None
+) -> bool:
     """Return True when plan mode must reject the tool call.
 
-    Plan mode permits read-only tools only: the tool_safety_tiers rule is the
-    authority — a tool is blocked unless its tier is READ_ONLY, so a tool without
-    a tier entry (including an unknown tool name) fails closed.
+    Plan mode permits read-only tools only: the tool's declared ``agent_safety_tier``
+    is the authority (REQ-006) — a tool is blocked unless its declared tier is
+    READ_ONLY, so a tool absent from the registry (including an unknown tool name)
+    fails closed.
     cfg.tool.plan_blocked_tools is an explicit operational extension naming
     tools blocked regardless of their tier; under the shipped tiers every entry
     is already blocked by the tier rule (redundant-by-design).
@@ -423,7 +441,13 @@ def is_plan_mode_blocked(cfg: AgentConfig, tool_name: str) -> bool:
     """
     if tool_name in cfg.tool.plan_blocked_tools:
         return True
-    return cfg.approval.tool_safety_tiers.get(tool_name) != "READ_ONLY"
+    if registry is None:
+        return True
+    try:
+        tool = registry.get(tool_name)
+    except KeyError:
+        return True
+    return tool.agent_safety_tier != "READ_ONLY"
 
 
 def classify_risk(
@@ -434,50 +458,41 @@ def classify_risk(
 ) -> RiskLevel:
     """Return the risk level for a tool call.
 
-    Lookup order: approval_risk_rules → tool_safety_tiers →
-    scripts/shared/tool_constants.py default → MEDIUM fallback. A base of
-    RiskLevel.NONE returns before _special_case_risk(), _escalate_for_path(), and
-    _escalate_for_github_branch(), so a tier-NONE tool (index_paths, refresh_index,
-    git_add, git_commit, every READ_ONLY tool) is never escalated by
-    approval_protected_paths. A ruled path-bearing tool whose path is protected
-    (write_file, edit_file, move_file under the shipped approval_protected_paths)
-    escalates to HIGH; check_allowed_root() rejects jail-external paths first, and
-    an empty approval_github_allowed_repos denies all GitHub writes
-    (check_allowed_repo()).
+    Lookup order: the registered tool's declared ``agent_safety_tier`` mapped
+    through ``_TIER_TO_RISK``, then `_special_case_risk()`, `_escalate_for_path()`
+    and `_escalate_for_github_branch()`. A base of RiskLevel.NONE returns before
+    those, so a tier-NONE tool (index_paths, refresh_index, git_add, git_commit,
+    write_file, edit_file, create_directory, move_file, every READ_ONLY tool) is
+    never escalated by approval_protected_paths. A tier-MEDIUM path-bearing tool
+    whose path is protected (delete_file, delete_directory, the git writes under
+    the shipped approval_protected_paths) escalates to HIGH; check_allowed_root()
+    rejects jail-external paths first, and an empty approval_github_allowed_repos
+    denies all GitHub writes (check_allowed_repo()).
+    A tool absent from the registry, and a call without a registry, resolves to
+    HIGH: with no declaration there is nothing to consult (fail closed).
+    The removed per-tool approval risk rules no longer exist: the declared tier
+    is the single risk source (REQ-004, REQ-011).
     Canonical policy: docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md
-
-    The registry parameter is threaded through to Priority 3 (operation type
-    classification) so UNKNOWN/READ decisions use RuntimeToolRegistry instead
-    of the static ToolRegistry.
     """
     base: RiskLevel | None = None
-    raw_rule = cfg.approval.approval_risk_rules.get(tool_name)
-    if raw_rule is not None:
-        base = RiskLevel(raw_rule)
-    # Priority 2: tool_safety_tiers
-    if base is None and tool_name in cfg.approval.tool_safety_tiers:
-        tier = cfg.approval.tool_safety_tiers[tool_name]
-        base = _TIER_TO_RISK.get(tier, RiskLevel.MEDIUM)
-    # Priority 3: tool_constants.py classification
+    if registry is not None:
+        try:
+            tool = registry.get(tool_name)
+        except KeyError:
+            tool = None
+        if tool is not None:
+            base = _TIER_TO_RISK.get(tool.agent_safety_tier, RiskLevel.MEDIUM)
     if base is None:
-        if classify_operation_type(tool_name, registry) == OperationType.UNKNOWN:
-            # Fail-safe: a tool name absent from the registry entirely (not just
-            # untiered) is treated as maximally risky rather than defaulting to
-            # MEDIUM like a real-but-untiered tool would.
-            base = RiskLevel.HIGH
-        elif tool_name in DELETE_TOOLS or tool_name in SHELL_TOOLS:
-            base = RiskLevel.HIGH
-        elif tool_name in WRITE_TOOLS:
-            base = RiskLevel.MEDIUM
-        else:
-            base = RiskLevel.MEDIUM  # Priority 4: unchanged default
+        # Fail-safe: a tool name absent from the registry entirely (or no registry
+        # supplied) is treated as maximally risky rather than inferred from a name.
+        base = RiskLevel.HIGH
     if base == RiskLevel.NONE:
         return RiskLevel.NONE
     if override := _special_case_risk(cfg, tool_name, args):
         return override
     if escalated := _escalate_for_path(cfg, tool_name, base, args, registry):
         return escalated
-    if escalated := _escalate_for_github_branch(cfg, tool_name, base, args):
+    if escalated := _escalate_for_github_branch(cfg, tool_name, base, args, registry):
         return escalated
     return base
 
@@ -490,20 +505,19 @@ def check_allowed_root(
 ) -> bool:
     """Return False when any path argument is outside cfg.approval.allowed_root.
 
-    The checked key set is the configured path_keys unioned with the registered
-    tool's declared scope keys; every element of a list-valued arg is checked and a
-    not-inspectable value denies (fail closed). An empty `allowed_root` denies a
-    call that carries a path argument (nothing can be confined); a call with no
-    path argument passes.
+    The checked key set is the registered tool's declared path-kind keys (REQ-008:
+    the removed configured lists no longer contribute); every element of a
+    list-valued arg is checked and a not-inspectable value denies (fail closed).
+    An empty `allowed_root` denies a call that carries a path argument (nothing can
+    be confined); a call with no path argument passes. A tool whose declared scope
+    cannot be resolved (no registry, or not registered) denies: the jail cannot be
+    verified against an unknown scope (fail closed).
     """
     keys = _resolve_path_keys(cfg, tool_name, registry)
     if keys is None:
-        # Unregistered tool: declared scope unknown. Deny when it carries a path
-        # argument (cannot be verified against declared scope); a path-less call
-        # passes the root-jail check.
-        for _ in _iter_path_arg_values(args, _configured_path_keys(cfg)):
-            return False
-        return True
+        # Unregistered tool or no registry: declared scope unknown, so no argument
+        # set can be verified against it; deny rather than skip the jail check.
+        return False
     if not cfg.approval.allowed_root:
         try:
             next(_iter_path_arg_values(args, keys))

@@ -36,12 +36,13 @@ from agent.tool_runner import (
     execute_one_tool_call,
 )
 from agent.tool_scheduler import ExecutionPlan, ScheduledBatch, ScheduledGroup
-from shared.tool_constants import RETRYABLE_TOOLS
+from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS, READ_TOOLS
 from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult, ToolExecutionContext
 
 from tests.agent._config_test_defaults import ALL_TOOL_NAMES, PERMISSIVE_ALLOWED_ROOT
+from tests.agent._producer_registry import make_producer_registry
 
 
 def _cfg(**overrides: Any) -> AgentConfig:
@@ -109,8 +110,19 @@ def _default_runtime_tools() -> MagicMock:
         return ToolSpec(call_id=call_id, name=name, args=args, is_write=False)
 
     def _get(name: str) -> MagicMock:
+        # Declared-metadata mock (agentcfg003 REQ-007): names outside the
+        # shipped classification are unregistered (KeyError -> UNKNOWN
+        # fail-closed); known tools carry the policy fields the middleware reads.
+        if name not in READ_TOOLS | ALL_SIDE_EFFECTING_TOOLS:
+            raise KeyError(name)
+        side_effecting = name in ALL_SIDE_EFFECTING_TOOLS
         tool = MagicMock()
-        tool.is_write = False
+        tool.is_write = side_effecting
+        tool.side_effect_class = "external_state" if side_effecting else "read_only"
+        tool.retry_policy = (
+            "same_logical_call_only" if side_effecting else "safe_read_retry"
+        )
+        tool.agent_safety_tier = "WRITE_DANGEROUS" if side_effecting else "READ_ONLY"
         tool.input_schema = {"type": "object", "properties": {}}
         tool.allow_extra_fields = True
         return tool
@@ -2508,13 +2520,14 @@ class TestToolCallStateProducer:
 
     @pytest.mark.asyncio
     async def test_retry_class_from_agent_local_classifier(self) -> None:
-        """SEQ-04: the recorded retry_class is resolved from the Agent's canonical
-        set shared.tool_constants.RETRYABLE_TOOLS (not the dispatcher's
-        config/mcp_dedup.toml): dispatch-capable tools retryable, read tools and
-        everything else non_retryable.
+        """REQ-004/REQ-007: the recorded retry_class is resolved from the
+        registered tool's declared retry_policy (not the dispatcher's
+        config/mcp_dedup.toml): same_logical_call_only -> retryable,
+        safe_read_retry -> non_retryable.
         """
         recorder = FakeRecorder()
         ctx = _state_ctx(recorder)
+        ctx.services_required.runtime_tools = make_producer_registry()
 
         await _execute_with_dag(
             ctx,
@@ -2531,17 +2544,17 @@ class TestToolCallStateProducer:
 
         recorded_write, recorded_read = recorder.records()
         assert recorded_write[4] == "retryable"
-        assert "write_file" in RETRYABLE_TOOLS
         assert recorded_read[4] == "non_retryable"
-        assert "read_text_file" not in RETRYABLE_TOOLS
 
     @pytest.mark.asyncio
     async def test_retry_class_unknown_tool_is_non_retryable(self) -> None:
-        """SEQ-04: an unknown/unlisted tool defaults to non_retryable (fail-safe),
-        never retryable — a future or unclassified tool is unreplayable until named.
+        """REQ-007 fail-safe: an unregistered tool defaults to non_retryable,
+        never retryable — a future or unclassified tool is unreplayable until
+        its declaration registers a retryable policy.
         """
         recorder = FakeRecorder()
         ctx = _state_ctx(recorder)
+        ctx.services_required.runtime_tools = make_producer_registry()
 
         await _execute_with_dag(
             ctx,
@@ -2552,7 +2565,6 @@ class TestToolCallStateProducer:
 
         (recorded_unknown,) = recorder.records()
         assert recorded_unknown[4] == "non_retryable"
-        assert "tool_that_does_not_exist" not in RETRYABLE_TOOLS
 
     @pytest.mark.asyncio
     async def test_identical_content_distinct_calls_distinct_keys(self) -> None:
@@ -2864,7 +2876,10 @@ class TestAttemptSideEffectFlag:
 
     @pytest.mark.asyncio
     async def test_unclassified_tool_sets_flag(self) -> None:
-        """UNKNOWN (registry raises KeyError) counts as a side effect (conservative)."""
+        """UNKNOWN (registry raises KeyError) counts as a side effect (conservative):
+        the flag is set before the call is attempted, and the call is then denied
+        by the fail-closed root-jail check (REQ-007: an unregistered tool's declared
+        scope cannot be verified, so the gateway-less fallback denies it)."""
         # `mystery_tool` is not a registered tool, so it must be allowed explicitly
         # to reach the registry-lookup path instead of the allowed_tools preflight.
         ctx = self._ctx_with_real_turn(
@@ -2874,13 +2889,16 @@ class TestAttemptSideEffectFlag:
         registry.get = MagicMock(side_effect=KeyError("mystery_tool"))
         ctx.services_required.runtime_tools = registry
 
-        await execute_one_tool_call(
-            ctx,
-            _pc("mystery_tool", {}, call_id="call_m"),
-            guard=ToolLoopGuard(ctx),
-        )
+        with pytest.raises(PolicyViolationError) as exc_info:
+            await execute_one_tool_call(
+                ctx,
+                _pc("mystery_tool", {}, call_id="call_m"),
+                guard=ToolLoopGuard(ctx),
+            )
 
+        assert exc_info.value.audit_decision == "denied_root_jail"
         assert ctx.turn.attempt_side_effect is True
+        ctx.services_required.tools.execute.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_no_gateway_branch_sets_flag_and_runs_preflight(self) -> None:
@@ -3161,7 +3179,8 @@ class TestFallbackPreflightDeclaredPathKeys:
                 raise KeyError(name)
             tool = MagicMock()
             tool.is_write = True
-            tool.resource_scope_keys = ("paths",)
+            tool.side_effect_class = "local_write"
+            tool.resource_scope_keys = {"paths": "path"}
             return tool
 
         registry.get = MagicMock(side_effect=_get)

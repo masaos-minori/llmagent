@@ -10,6 +10,7 @@ from __future__ import annotations
 import dataclasses
 import logging
 import time
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from shared.execution_snapshot import build_execution_snapshot, snapshot_json
@@ -58,27 +59,29 @@ def _extract_resource_scope(
     masked: dict,
     tool_name: str | None = None,
 ) -> dict[str, str]:
-    """Pull path/branch keys from masked args for audit events.
+    """Pull resource keys from masked args for audit events.
 
-    Path keys are the configured path_keys unioned with the registered tool's
-    declared resource_scope_keys; a list value is recorded as its non-empty
-    elements joined with ';'. An unknown tool name (KeyError) or an absent
-    registry falls back to the configured keys only.
+    The key set and its handling come from the registered tool's declared
+    `resource_scope_keys` mapping alone (agentcfg003 REQ-004/REQ-008, REQ-011:
+    no configuration-map source). A `path`-kind list value is recorded as its
+    non-empty elements joined with ';'; `branch`- and `repo`-kind values are
+    recorded as plain strings; `non_escalating` keys are never written. An
+    unknown tool name (KeyError) or an absent registry yields an empty scope:
+    there is no configuration source to fall back to.
     """
-    path_keys = set(ctx.cfg.approval.approval_resource_keys.get("path_keys", []))
+    declared: Mapping[str, str] = {}
     runtime_tools = ctx.services_required.runtime_tools
     if tool_name is not None and runtime_tools is not None:
         try:
-            declared = runtime_tools.get(tool_name)
-            path_keys |= set(declared.resource_scope_keys)
+            declared = runtime_tools.get(tool_name).resource_scope_keys
         except KeyError:
-            pass
-    branch_keys = set(ctx.cfg.approval.approval_resource_keys.get("branch_keys", []))
+            declared = {}
     scope: dict[str, str] = {}
     for key, value in masked.items():
-        if key not in path_keys | branch_keys:
+        kind = declared.get(key)
+        if kind is None or kind == "non_escalating":
             continue
-        if key in path_keys and isinstance(value, list):
+        if kind == "path" and isinstance(value, list):
             entries = [str(item) for item in value if str(item)]
             if entries:
                 scope[key] = ";".join(entries)

@@ -1,18 +1,20 @@
 """tests/shared/test_resource_scope.py
 Unit tests for resource_scope: scope-kind resolution, the scope-overlap conflict
-predicate, and the schema-2.0 contract validator.
+predicate, and the schema-2.1 contract validator.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+import pytest
 from shared.resource_scope import (
     _scopes_conflict,
     resolve_resource_scopes,
     validate_tool_schema_v2,
 )
 from shared.runtime_tool import RuntimeTool
+from shared.tool_metadata import TOOL_FIELD_SET_VERSION
 
 from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
 
@@ -21,14 +23,15 @@ def _tool(**overrides: Any) -> RuntimeTool:
     """Build a RuntimeTool fixture, terse for scope-resolution tests."""
     overrides.setdefault("name", "t")
     overrides.setdefault("server_key", "s")
-    return build_fixture_runtime_tool(**overrides)
+    tool: RuntimeTool = build_fixture_runtime_tool(**overrides)
+    return tool
 
 
 class TestResolveResourceScopes:
     def test_filesystem_exact_match_resolves_single_scope(self) -> None:
         tool = _tool(
             resource_scope_kind="filesystem",
-            resource_scope_keys=("path",),
+            resource_scope_keys={"path": "path"},
             is_write=True,
         )
         result = resolve_resource_scopes(tool, {"path": "/data/a.txt"})
@@ -37,7 +40,7 @@ class TestResolveResourceScopes:
     def test_filesystem_ancestor_descendant_pair_resolves_distinct_scopes(self) -> None:
         tool = _tool(
             resource_scope_kind="filesystem",
-            resource_scope_keys=("path",),
+            resource_scope_keys={"path": "path"},
             is_write=True,
         )
         ancestor = resolve_resource_scopes(tool, {"path": "/data"})
@@ -49,7 +52,7 @@ class TestResolveResourceScopes:
     def test_move_file_resolves_dual_source_destination_scopes(self) -> None:
         tool = _tool(
             resource_scope_kind="filesystem",
-            resource_scope_keys=("source", "destination"),
+            resource_scope_keys={"source": "path", "destination": "path"},
             is_write=True,
         )
         result = resolve_resource_scopes(
@@ -57,12 +60,21 @@ class TestResolveResourceScopes:
         )
         assert result == ("filesystem:/a/x.txt", "filesystem:/b/y.txt")
 
+    def test_non_escalating_key_still_resolves_a_scope_string(self) -> None:
+        tool = _tool(
+            resource_scope_kind="filesystem",
+            resource_scope_keys={"path": "path", "owner": "non_escalating"},
+            is_write=True,
+        )
+        result = resolve_resource_scopes(tool, {"path": "/data/a.txt", "owner": "org"})
+        assert result == ("filesystem:/data/a.txt", "filesystem:org")
+
     def test_git_repo_same_and_different_repo_paths_resolve_distinct_scopes(
         self,
     ) -> None:
         tool = _tool(
             resource_scope_kind="git_repo",
-            resource_scope_keys=("repo_path",),
+            resource_scope_keys={"repo_path": "repo"},
             is_write=True,
         )
         same_a = resolve_resource_scopes(tool, {"repo_path": "/repos/x"})
@@ -74,7 +86,7 @@ class TestResolveResourceScopes:
     def test_github_repo_scope_composes_owner_and_repo(self) -> None:
         tool = _tool(
             resource_scope_kind="github_repo",
-            resource_scope_keys=("owner", "repo"),
+            resource_scope_keys={"owner": "non_escalating", "repo": "repo"},
             is_write=True,
         )
         result = resolve_resource_scopes(tool, {"owner": "org", "repo": "name"})
@@ -83,7 +95,11 @@ class TestResolveResourceScopes:
     def test_cicd_workflow_scope_composes_repo_workflow_ref(self) -> None:
         tool = _tool(
             resource_scope_kind="cicd_workflow",
-            resource_scope_keys=("repo", "workflow", "ref"),
+            resource_scope_keys={
+                "repo": "repo",
+                "workflow": "non_escalating",
+                "ref": "branch",
+            },
             is_write=True,
         )
         result = resolve_resource_scopes(
@@ -94,7 +110,7 @@ class TestResolveResourceScopes:
     def test_rag_store_resolves_fixed_scope(self) -> None:
         tool = _tool(
             resource_scope_kind="rag_store",
-            resource_scope_keys=("store",),
+            resource_scope_keys={"store": "non_escalating"},
             is_write=True,
         )
         result = resolve_resource_scopes(tool, {"store": "default"})
@@ -103,7 +119,7 @@ class TestResolveResourceScopes:
     def test_mdq_store_resolves_fixed_scope(self) -> None:
         tool = _tool(
             resource_scope_kind="mdq_store",
-            resource_scope_keys=("store",),
+            resource_scope_keys={"store": "non_escalating"},
             is_write=True,
         )
         result = resolve_resource_scopes(tool, {"store": "default"})
@@ -112,7 +128,7 @@ class TestResolveResourceScopes:
     def test_shell_fixed_process_scope_ignores_args(self) -> None:
         tool = _tool(
             resource_scope_kind="process",
-            resource_scope_keys=("scope",),
+            resource_scope_keys={"scope": "non_escalating"},
             is_write=True,
         )
         result = resolve_resource_scopes(tool, {"scope": "global"})
@@ -129,7 +145,7 @@ class TestResolveResourceScopes:
         tool = _tool(
             name="delete_file",
             resource_scope_kind="filesystem",
-            resource_scope_keys=("path",),
+            resource_scope_keys={"path": "path"},
             is_write=True,
         )
         result = resolve_resource_scopes(tool, {})
@@ -155,6 +171,25 @@ class TestScopesConflict:
         assert _scopes_conflict("git_repo:/x", "git_repo:/y") is False
 
 
+_VALID_POLICY_FIELDS: dict[str, Any] = {
+    "agent_safety_tier": "WRITE_DANGEROUS",
+    "side_effect_class": "external_write",
+    "retry_policy": "never",
+    "reconciliation_policy": "external_state",
+    "idempotency_required": True,
+    "preview_capability": "dry_run",
+    "policy_version": TOOL_FIELD_SET_VERSION,
+}
+
+_CLOSED_SET_FIELDS = (
+    "agent_safety_tier",
+    "side_effect_class",
+    "retry_policy",
+    "reconciliation_policy",
+    "preview_capability",
+)
+
+
 class TestValidateToolSchemaV2:
     def _valid_entry(self) -> dict[str, Any]:
         return {
@@ -163,7 +198,8 @@ class TestValidateToolSchemaV2:
             "is_write": True,
             "requires_serial": True,
             "resource_scope_kind": "filesystem",
-            "resource_scope_keys": ["path"],
+            "resource_scope_keys": {"path": "path"},
+            **_VALID_POLICY_FIELDS,
         }
 
     def test_accepts_fully_declared_entry(self) -> None:
@@ -215,14 +251,32 @@ class TestValidateToolSchemaV2:
         self,
     ) -> None:
         entry = self._valid_entry()
-        entry["resource_scope_keys"] = ["path", "missing_key"]
+        entry["resource_scope_keys"] = {"path": "path", "missing_key": "path"}
         problems = validate_tool_schema_v2(entry)
         assert any("missing_key" in p for p in problems)
+
+    def test_rejects_resource_scope_keys_as_legacy_key_list(self) -> None:
+        entry = self._valid_entry()
+        entry["resource_scope_keys"] = ["path"]
+        problems = validate_tool_schema_v2(entry)
+        assert any("mapping" in p for p in problems)
+
+    def test_rejects_resource_scope_key_kind_outside_closed_set(self) -> None:
+        entry = self._valid_entry()
+        entry["resource_scope_keys"] = {"path": "bogus_kind"}
+        problems = validate_tool_schema_v2(entry)
+        assert any("bogus_kind" in p for p in problems)
+
+    def test_accepts_non_escalating_key_kind(self) -> None:
+        entry = self._valid_entry()
+        entry["inputSchema"]["properties"]["run_id"] = {"type": "string"}
+        entry["resource_scope_keys"] = {"path": "path", "run_id": "non_escalating"}
+        assert validate_tool_schema_v2(entry) == []
 
     def test_accepts_empty_resource_scope_kind_and_keys(self) -> None:
         entry = self._valid_entry()
         entry["resource_scope_kind"] = ""
-        entry["resource_scope_keys"] = []
+        entry["resource_scope_keys"] = {}
         assert validate_tool_schema_v2(entry) == []
 
     def test_rejects_missing_resource_scope_kind(self) -> None:
@@ -243,3 +297,31 @@ class TestValidateToolSchemaV2:
         problems = validate_tool_schema_v2(entry)
         assert problems != []
         assert any("legacy" in p and "resource_scope" in p for p in problems)
+
+    @pytest.mark.parametrize(
+        "field", (*_CLOSED_SET_FIELDS, "idempotency_required", "policy_version")
+    )
+    def test_rejects_missing_declared_policy_field(self, field: str) -> None:
+        entry = self._valid_entry()
+        del entry[field]
+        problems = validate_tool_schema_v2(entry)
+        assert any(p.startswith(field) for p in problems)
+
+    @pytest.mark.parametrize("field", _CLOSED_SET_FIELDS)
+    def test_rejects_policy_field_value_outside_closed_set(self, field: str) -> None:
+        entry = self._valid_entry()
+        entry[field] = "bogus_value"
+        problems = validate_tool_schema_v2(entry)
+        assert any(p.startswith(field) for p in problems)
+
+    def test_rejects_non_bool_idempotency_required(self) -> None:
+        entry = self._valid_entry()
+        entry["idempotency_required"] = "yes"
+        problems = validate_tool_schema_v2(entry)
+        assert any("idempotency_required" in p for p in problems)
+
+    def test_rejects_policy_version_that_is_not_the_field_set_version(self) -> None:
+        entry = self._valid_entry()
+        entry["policy_version"] = "1.9"
+        problems = validate_tool_schema_v2(entry)
+        assert any("policy_version" in p for p in problems)

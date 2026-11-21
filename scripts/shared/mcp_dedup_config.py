@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,6 +19,8 @@ from typing import Any
 from shared.config_errors import ConfigMissingError, ConfigParseError
 from shared.runtime_paths import resolve_config_dir
 from shared.tool_constants import RETRYABLE_TOOLS, get_all_mcp_tool_names
+
+logger = logging.getLogger(__name__)
 
 # Same fallback-literal shape as the workflow_db_path default in
 # scripts/db/config.py; the shared-leaf contract forbids importing scripts/db here.
@@ -87,6 +90,15 @@ def _validated_int(
 
 
 def _validated_retry_class(filename: str, retry_section: Any) -> dict[str, str]:
+    """Validate the `[retry_class]` mirror and report drift against reference data.
+
+    The declared `retry_policy` carried by each tool's metadata is the authority
+    for retry classification (agentcfg003). This config map is the dispatcher's
+    own mirror; a disagreement with the `RETRYABLE_TOOLS` reference set is
+    reported as a drift finding and never changes the classification loaded
+    for a call. Structural validation (table shape, known tool names, allowed
+    values) stays fail-closed.
+    """
     if not isinstance(retry_section, dict):
         raise ConfigParseError(
             filename, ValueError("[retry_class] section must be a table")
@@ -111,11 +123,12 @@ def _validated_retry_class(filename: str, retry_section: Any) -> dict[str, str]:
                 ),
             )
         if (tool_name in RETRYABLE_TOOLS) != (cls == "retryable"):
-            raise ConfigParseError(
-                filename,
-                ValueError(
-                    f"retry_class.{tool_name} contradicts RETRYABLE_TOOLS membership"
-                ),
+            logger.warning(
+                "[retry_class] drift finding: retry_class.%s = %r contradicts "
+                "RETRYABLE_TOOLS reference membership; the declared "
+                "retry_policy field is the authority",
+                tool_name,
+                cls,
             )
         retry_class[str(tool_name)] = cls
     return retry_class

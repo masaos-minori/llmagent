@@ -57,7 +57,6 @@ def svc() -> object:
     ctx.cfg = AgentConfig(llm=llm_cfg, rag=rag_cfg, tool=tool_cfg)
     ctx.cfg.memory = MemoryConfig(memory_embed_enabled=False)
     ctx.cfg.approval = MagicMock()
-    ctx.cfg.approval.tool_safety_tiers = {}
     ctx.cfg.approval.require_approval_for = []
     ctx.cfg.approval.plan_mode_enabled = False
     ctx.cfg.mcp = MagicMock()
@@ -294,37 +293,24 @@ class TestConfigReloadAtomicity:
         assert "tool" in outcome.applied
         assert "approval" in outcome.applied
 
-    def test_invalid_tool_safety_tier_rejected(
+    def test_removed_map_reload_keys_are_ignored(
         self, svc_with_ctx: tuple[object, MagicMock]
     ) -> None:
-        from agent.services.exceptions import ConfigReloadValidationError
-
+        """agentcfg003 REQ-005/REQ-011: a reload payload naming a removed map is
+        not a registry field — it changes nothing and is not applied (the reload
+        path has no reader for it; the config-load path rejects it upstream)."""
         svc, ctx = svc_with_ctx
-        before = {"read_file": "READ_ONLY"}
-        ctx.cfg.approval.tool_safety_tiers = dict(before)
-
-        with pytest.raises(ConfigReloadValidationError):
-            svc.apply_config_dict(  # type: ignore[attr-defined]
-                {"tool_safety_tiers": {"read_file": "SUPERUSER"}}
-            )
-
-        assert ctx.cfg.approval.tool_safety_tiers == before
-
-    def test_invalid_approval_risk_level_rejected(
-        self, svc_with_ctx: tuple[object, MagicMock]
-    ) -> None:
-        from agent.services.exceptions import ConfigReloadValidationError
-
-        svc, ctx = svc_with_ctx
-        before = {"write_file": "high"}
-        ctx.cfg.approval.approval_risk_rules = dict(before)
-
-        with pytest.raises(ConfigReloadValidationError):
-            svc.apply_config_dict(  # type: ignore[attr-defined]
-                {"approval_risk_rules": {"write_file": "extreme"}}
-            )
-
-        assert ctx.cfg.approval.approval_risk_rules == before
+        paths_before = list(ctx.cfg.approval.approval_protected_paths)
+        outcome = svc.apply_config_dict(  # type: ignore[attr-defined]
+            {
+                "tool_safety_tiers": {"read_file": "SUPERUSER"},
+                "approval_risk_rules": {"write_file": "extreme"},
+            }
+        )
+        assert "approval" not in outcome.applied
+        assert not hasattr(ctx.cfg.approval, "tool_safety_tiers")
+        assert not hasattr(ctx.cfg.approval, "approval_risk_rules")
+        assert list(ctx.cfg.approval.approval_protected_paths) == paths_before
 
     def test_empty_allowed_root_rejected(
         self, svc_with_ctx: tuple[object, MagicMock]
@@ -377,20 +363,20 @@ class TestConfigReloadAtomicity:
         from agent.services.exceptions import ConfigReloadValidationError
 
         svc, ctx = svc_with_ctx
-        tiers_before = {"read_file": "READ_ONLY"}
+        paths_before = list(ctx.cfg.approval.approval_protected_paths)
         turns_before = ctx.cfg.tool.max_tool_turns
-        ctx.cfg.approval.tool_safety_tiers = dict(tiers_before)
+        ctx.cfg.approval.allowed_root = "/opt/llm"
 
         with pytest.raises(ConfigReloadValidationError):
             svc.apply_config_dict(  # type: ignore[attr-defined]
                 {
                     "max_tool_turns": turns_before + 3,
-                    "tool_safety_tiers": {"read_file": "SUPERUSER"},
+                    "allowed_root": "",
                 }
             )
 
         assert ctx.cfg.tool.max_tool_turns == turns_before
-        assert ctx.cfg.approval.tool_safety_tiers == tiers_before
+        assert list(ctx.cfg.approval.approval_protected_paths) == paths_before
 
 
 class TestDiffMcpServerConfig:
@@ -629,7 +615,6 @@ class TestRuntimeToolPolicyReapplication:
         from agent.services.config_reload import ConfigReloadService
 
         ctx = MagicMock()
-        ctx.cfg.approval.tool_safety_tiers = {"delete_file": "ADMIN"}
         ctx.cfg.tool.allowed_tools = []
         ctx.cfg.tool.tool_policy_mode = "explicit_allowlist"
         ctx.cfg.tool.disabled_tools = []
@@ -639,11 +624,12 @@ class TestRuntimeToolPolicyReapplication:
         ctx.services_required.runtime_tools = MagicMock() if with_registry else None
         return ConfigReloadService(ctx), ctx
 
-    def test_apply_policy_called_with_current_tier_map_and_allowed_tools(self) -> None:
+    def test_apply_policy_called_with_current_allowed_tools_policy(self) -> None:
+        """agentcfg003 REQ-005: apply_policy is re-applied without a tier_map —
+        the tier each entry carries is the one its producer declared."""
         svc, ctx = self._make_svc()
         svc._sync_services({}, None, None, ctx.services_required.runtime_tools)  # type: ignore[attr-defined]
         ctx.services_required.runtime_tools.apply_policy.assert_called_once_with(
-            tier_map=ctx.cfg.approval.tool_safety_tiers,
             allowed_tools=ctx.cfg.tool.allowed_tools,
             tool_policy_mode=ctx.cfg.tool.tool_policy_mode,
             disabled_tools=ctx.cfg.tool.disabled_tools,
@@ -713,8 +699,10 @@ class TestRuntimeToolPolicyReapplication:
         assert read_tool.agent_safety_tier == "READ_ONLY"
         assert read_tool.enabled_for_llm is True
 
+        # Declared tier survives the policy re-apply (no tier_map); the tool is
+        # hidden only because it is outside allowed_tools.
         delete_tool = real_registry.get("delete_file")
-        assert delete_tool.agent_safety_tier == "ADMIN"
+        assert delete_tool.agent_safety_tier == "WRITE_DANGEROUS"
         assert delete_tool.enabled_for_llm is False
 
         ctx.services_required.http.get.assert_not_called()  # type: ignore[attr-defined]
@@ -795,10 +783,6 @@ class TestRuntimeToolPolicyReapplication:
 
         svc, ctx = svc_with_ctx
         ctx.cfg.approval.allowed_root = "/"
-        ctx.cfg.approval.approval_resource_keys = {
-            "path_keys": ["path"],
-            "branch_keys": [],
-        }
 
         try:
             svc.apply_config_dict({"allowed_root": ""})  # type: ignore[attr-defined]
@@ -1063,7 +1047,6 @@ class TestRegistryFieldClassification:
         ctx.cfg = AgentConfig(llm=llm_cfg, rag=rag_cfg, tool=tool_cfg)
         ctx.cfg.memory = MemoryConfig(memory_embed_enabled=False)
         ctx.cfg.approval = MagicMock()
-        ctx.cfg.approval.tool_safety_tiers = {}
         ctx.cfg.approval.require_approval_for = []
         ctx.cfg.approval.plan_mode_enabled = False
         ctx.cfg.mcp = MagicMock()
@@ -1159,13 +1142,9 @@ class TestRegistryFieldClassification:
             if entry.section_path == "approval"
         ]
         expected = {
-            "approval_risk_rules",
             "approval_protected_paths",
             "approval_high_risk_branches",
             "approval_shell_safe_prefixes",
-            "approval_resource_keys",
-            "approval_dry_run_tools",
-            "tool_safety_tiers",
             "allowed_root",
             "approval_github_allowed_repos",
             "gitops_push_blocked",

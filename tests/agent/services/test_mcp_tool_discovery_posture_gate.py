@@ -28,7 +28,7 @@ def _resp(status_code: int = 200, json_value: object = None) -> MagicMock:
 
 
 def _tools_body(*names: str) -> dict[str, object]:
-    """Build a schema-2.0 /v1/tools body carrying one entry per name."""
+    """Build a schema-2.1 /v1/tools body carrying one complete entry per name."""
     return {
         "schema_version": "1.0",
         "tools": [
@@ -39,7 +39,14 @@ def _tools_body(*names: str) -> dict[str, object]:
                 "is_write": False,
                 "requires_serial": False,
                 "resource_scope_kind": "",
-                "resource_scope_keys": [],
+                "resource_scope_keys": {},
+                "agent_safety_tier": "READ_ONLY",
+                "side_effect_class": "read_only",
+                "retry_policy": "safe_read_retry",
+                "reconciliation_policy": "not_required",
+                "idempotency_required": False,
+                "preview_capability": "none",
+                "policy_version": "2.1",
             }
             for name in names
         ],

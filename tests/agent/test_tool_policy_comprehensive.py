@@ -1,5 +1,10 @@
 """tests/test_tool_policy_comprehensive.py
 Comprehensive unit tests for agent/tool_policy.py: risk classification and pre-flight checks.
+
+agentcfg003: tier, risk, and resource-key decisions read the registered tool's
+declared metadata through the RuntimeToolRegistry; the removed per-tool config
+maps (tool_safety_tiers, approval_risk_rules, approval_resource_keys) no longer
+exist, and the static reference sets only report drift.
 """
 
 from __future__ import annotations
@@ -24,20 +29,19 @@ from agent.tool_policy import (
     classify_operation_type,
     classify_risk,
 )
-from shared.runtime_tool_registry import RuntimeTool, RuntimeToolRegistry
+from shared.runtime_tool_registry import RuntimeToolRegistry
 
-from tests.agent._config_test_defaults import (
-    ALL_APPROVAL_RISK_RULES,
-    ALL_TOOL_SAFETY_TIERS,
-)
+from tests.agent._producer_registry import make_producer_registry
+from tests.agent.test_tool_policy import _runtime_tool, _stub_registry, _write_registry
 
-# Config-derived set: registered tools whose shipped tier maps to RiskLevel.NONE
-# and that carry no approval_risk_rules entry — the tier-NONE population the
-# short-circuit in classify_risk() protects (Plan row 12).
-_TIER_NONE_UNRULED_TOOLS = sorted(
-    name
-    for name, tier in ALL_TOOL_SAFETY_TIERS.items()
-    if _TIER_TO_RISK.get(tier) is RiskLevel.NONE and name not in ALL_APPROVAL_RISK_RULES
+# Producer-declared tools whose shipped tier maps to RiskLevel.NONE — the
+# population the NONE short-circuit in classify_risk() protects (Plan row 12
+# lineage; the removed approval_risk_rules map is gone, the declarations are
+# the source).
+_TIER_NONE_DECLARED_TOOLS = sorted(
+    tool.name
+    for tool in make_producer_registry().all_tools()
+    if _TIER_TO_RISK.get(tool.agent_safety_tier) is RiskLevel.NONE
 )
 
 
@@ -45,10 +49,10 @@ def _cfg(**overrides: Any) -> AgentConfig:
     """Build an AgentConfig for tool_policy.py unit tests.
 
     This intentionally bypasses ProductionConfigValidator (patched below):
-    these tests construct deliberately empty/narrow allowed_tools,
-    tool_safety_tiers, and approval_risk_rules to exercise tool_policy.py's
-    own fallback logic, which is a different concern from whether the
-    resulting config would be accepted as production-ready.
+    these tests construct deliberately empty/narrow allowed_tools and approval
+    settings to exercise tool_policy.py's own fallback logic, which is a
+    different concern from whether the resulting config would be accepted as
+    production-ready.
     """
     defaults: dict[str, Any] = {
         "context_char_limit": 8000,
@@ -59,13 +63,10 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "masked_fields": [],
         "allowed_tools": ["shell_execute"],
         "tool_definitions": [],
-        "tool_safety_tiers": {},
-        "approval_risk_rules": {},
         "approval_protected_paths": [],
         "approval_github_allowed_repos": [],
         "approval_high_risk_branches": [],
         "approval_shell_safe_prefixes": [],
-        "approval_resource_keys": {"path_keys": [], "branch_keys": []},
         "allowed_root": "/",
         # memory_embed_enabled now defaults to True; embed_url must be non-empty
         # to satisfy AgentConfig.__post_init__'s cross-field validation.
@@ -86,79 +87,107 @@ def _cfg(**overrides: Any) -> AgentConfig:
 
 
 class TestEscalateForPath:
+    """REQ-008: the checked keys are the registered tool's declared path-kind
+    keys; an unknown declared scope (no registry, unregistered tool) escalates
+    fail closed."""
+
     def test_already_high_base_risk_no_escalation(self) -> None:
         cfg = _cfg()
         assert _escalate_for_path(cfg, "write_file", "high", {}) is None
 
     def test_no_matching_path_key_returns_none(self) -> None:
-        cfg = _cfg(approval_resource_keys={"path_keys": [], "branch_keys": []})
+        cfg = _cfg()
+        reg = _stub_registry(write_file={"path": "path"})
         assert (
-            _escalate_for_path(cfg, "write_file", "medium", {"path": "/opt/llm/x"})
+            _escalate_for_path(
+                cfg, "write_file", "medium", {"other": "/opt/llm/x"}, reg
+            )
             is None
         )
 
-    def test_protected_path_escalates_to_high(self) -> None:
-        cfg = _cfg(
-            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
-            approval_protected_paths=["/opt/llm/"],
-        )
+    def test_unregistered_tool_fails_closed_to_high(self) -> None:
+        cfg = _cfg()
         assert (
-            _escalate_for_path(cfg, "write_file", "medium", {"path": "/opt/llm/config"})
+            _escalate_for_path(cfg, "write_file", "medium", {"path": "/opt/llm/x"})
+            == "high"
+        )
+
+    def test_protected_path_escalates_to_high(self) -> None:
+        cfg = _cfg(approval_protected_paths=["/opt/llm/"])
+        reg = _stub_registry(write_file={"path": "path"})
+        assert (
+            _escalate_for_path(
+                cfg, "write_file", "medium", {"path": "/opt/llm/config"}, reg
+            )
             == "high"
         )
 
     def test_non_protected_path_no_escalation(self) -> None:
-        cfg = _cfg(
-            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
-            approval_protected_paths=["/opt/llm/"],
-        )
+        cfg = _cfg(approval_protected_paths=["/opt/llm/"])
+        reg = _stub_registry(write_file={"path": "path"})
         assert (
             _escalate_for_path(
-                cfg, "write_file", "medium", {"path": "/home/user/file.txt"}
+                cfg, "write_file", "medium", {"path": "/home/user/file.txt"}, reg
             )
             is None
         )
 
     def test_multiple_protected_paths(self) -> None:
-        cfg = _cfg(
-            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
-            approval_protected_paths=["/opt/llm/", "/etc/"],
-        )
+        cfg = _cfg(approval_protected_paths=["/opt/llm/", "/etc/"])
+        reg = _stub_registry(write_file={"path": "path"})
         assert (
-            _escalate_for_path(cfg, "write_file", "medium", {"path": "/etc/passwd"})
+            _escalate_for_path(
+                cfg, "write_file", "medium", {"path": "/etc/passwd"}, reg
+            )
             == "high"
         )
 
 
 class TestEscalateForGithubBranch:
-    def test_non_github_tool_returns_none(self) -> None:
-        cfg = _cfg()
-        assert _escalate_for_github_branch(cfg, "write_file", "medium", {}) is None
+    """REQ-008: only declared branch-kind keys are checked; a tool declaring no
+    branch key is never branch-escalated."""
+
+    def test_tool_with_no_declared_branch_key_returns_none(self) -> None:
+        cfg = _cfg(approval_high_risk_branches=["main", "production"])
+        reg = _stub_registry(write_file={"path": "path"})
+        assert (
+            _escalate_for_github_branch(
+                cfg, "write_file", "medium", {"branch": "main"}, reg
+            )
+            is None
+        )
 
     def test_already_high_base_risk_no_escalation(self) -> None:
         cfg = _cfg()
         assert _escalate_for_github_branch(cfg, "github_push_files", "high", {}) is None
 
     def test_high_risk_branch_escalates(self) -> None:
-        cfg = _cfg(
-            approval_high_risk_branches=["main", "production"],
-            approval_resource_keys={"path_keys": [], "branch_keys": ["branch"]},
-        )
+        cfg = _cfg(approval_high_risk_branches=["main", "production"])
+        reg = _stub_registry(github_push_files={"branch": "branch"})
         assert (
             _escalate_for_github_branch(
-                cfg, "github_push_files", "medium", {"branch": "main"}
+                cfg, "github_push_files", "medium", {"branch": "main"}, reg
             )
             == "high"
         )
 
     def test_non_risk_branch_no_escalation(self) -> None:
-        cfg = _cfg(
-            approval_high_risk_branches=["main"],
-            approval_resource_keys={"path_keys": [], "branch_keys": ["branch"]},
-        )
+        cfg = _cfg(approval_high_risk_branches=["main"])
+        reg = _stub_registry(github_push_files={"branch": "branch"})
         assert (
             _escalate_for_github_branch(
-                cfg, "github_push_files", "medium", {"branch": "feature"}
+                cfg, "github_push_files", "medium", {"branch": "feature"}, reg
+            )
+            is None
+        )
+
+    def test_unregistered_tool_no_branch_decision(self) -> None:
+        """classify_risk() resolves an unregistered tool to HIGH before this point;
+        the escalation itself reports no branch decision (None)."""
+        cfg = _cfg(approval_high_risk_branches=["main"])
+        assert (
+            _escalate_for_github_branch(
+                cfg, "github_push_files", "medium", {"branch": "main"}
             )
             is None
         )
@@ -201,109 +230,124 @@ class TestSpecialCaseRisk:
 
 
 class TestClassifyOperationType:
+    """REQ-007 authority inversion: the registered tool's declared
+    side_effect_class decides; the reference sets only sub-classify side effects
+    and report disagreement via check_write_classification()."""
+
     @staticmethod
-    def _registry_with(*tools: str, is_write: bool = False) -> RuntimeToolRegistry:
-        tool_map: dict[str, RuntimeTool] = {}
-        for t in tools:
-            tool_map[t] = RuntimeTool(
-                name=t,
-                server_key="test_server",
-                server_url="",
-                description="",
-                input_schema={},
-                raw_definition={},
-                status="active",
-                is_write=is_write,
-                requires_serial=False,
-                resource_scope_kind="",
-                resource_scope_keys=(),
-                agent_safety_tier="READ_ONLY",
-                enabled_for_llm=True,
-                capabilities=(),
-            )
+    def _registry_with(
+        *names: str, side_effect_class: str = "read_only"
+    ) -> RuntimeToolRegistry:
+        is_write = side_effect_class != "read_only"
+        tier = "WRITE_DANGEROUS" if is_write else "READ_ONLY"
         return RuntimeToolRegistry(
-            tools=tool_map, allowed_servers=frozenset({"test_server"})
+            tools={
+                name: _runtime_tool(
+                    name,
+                    {},
+                    is_write=is_write,
+                    tier=tier,
+                    side_effect_class=side_effect_class,
+                )
+                for name in names
+            },
+            allowed_servers=frozenset({"test_server"}),
         )
 
-    def test_registered_write_tool_outside_static_sets_is_not_read(self) -> None:
-        """ADR-003 INV-03: a registry write tool is never classified as READ."""
-        reg = self._registry_with("new_write_tool", is_write=True)
-        assert classify_operation_type("new_write_tool", reg) == "write"
-
-    def test_registered_read_tool_is_read(self) -> None:
-        reg = self._registry_with("new_read_tool", is_write=False)
+    def test_declared_read_only_resolves_to_read(self) -> None:
+        reg = self._registry_with("new_read_tool")
         assert classify_operation_type("new_read_tool", reg) == "read"
 
-    def test_write_classification_reports_mismatch(self) -> None:
-        mismatched = self._registry_with("write_file", is_write=False)
-        assert any("write_file" in m for m in check_write_classification(mismatched))
-        assert any(
-            "new_write_tool" in m
-            for m in check_write_classification(
-                self._registry_with("new_write_tool", is_write=True)
-            )
-        )
+    def test_declared_write_tool_outside_reference_sets_is_write(self) -> None:
+        """ADR-003 INV-03: a declared side effect is never classified as READ,
+        even when no reference set names the tool."""
+        reg = self._registry_with("new_write_tool", side_effect_class="local_write")
+        assert classify_operation_type("new_write_tool", reg) == "write"
 
-    def test_write_classification_clean_when_consistent(self) -> None:
-        reg = self._registry_with("write_file", is_write=True)
+    def test_declaration_decides_when_reference_data_disagrees(self) -> None:
+        """A disagreement changes no decision here (REQ-007): write_file is a
+        reference WRITE tool, yet its declared read_only class resolves to READ,
+        and check_write_classification() reports the mismatch as a finding."""
+        mismatched = self._registry_with("write_file")
+        assert classify_operation_type("write_file", mismatched) == "read"
+        assert any("write_file" in m for m in check_write_classification(mismatched))
+        extra = self._registry_with("new_write_tool", side_effect_class="local_write")
+        assert any("new_write_tool" in m for m in check_write_classification(extra))
+
+    def test_write_classification_clean_when_declaration_matches_reference(
+        self,
+    ) -> None:
+        reg = self._registry_with("write_file", side_effect_class="local_write")
         assert check_write_classification(reg) == []
 
+    def test_no_registry_or_unregistered_fails_closed(self) -> None:
+        """ADR-003 Decision #6: no static-set fallback — no declaration means UNKNOWN."""
+        assert classify_operation_type("write_file") == "unknown"
+        assert (
+            classify_operation_type("write_file", self._registry_with("other"))
+            == "unknown"
+        )
+
     def test_static_side_effect_membership_is_canonical(self) -> None:
-        """sideeffect001 REQ-004: static membership delegates to the canonical set."""
+        """sideeffect001 REQ-004: the reference set delegates to the canonical set;
+        it is drift-detection input only, never a classification fallback."""
         from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS
 
         assert _STATIC_SIDE_EFFECT_TOOLS == ALL_SIDE_EFFECTING_TOOLS
         for name in ("index_paths", "refresh_index"):
             assert name in _STATIC_SIDE_EFFECT_TOOLS
-            assert classify_operation_type(name, None) == "write"
+            assert classify_operation_type(name, None) == "unknown"
 
-    def test_write_tools(self) -> None:
-        for name in ("write_file", "edit_file", "create_directory", "move_file"):
-            assert classify_operation_type(name) == "write"
+    def test_producer_declarations_classify_every_write_family(self) -> None:
+        """The shipped declarations resolve each reference family to its operation
+        type through the live registry."""
+        reg = make_producer_registry()
+        for name in (
+            "write_file",
+            "edit_file",
+            "create_directory",
+            "move_file",
+            "index_paths",
+            "refresh_index",
+            "rag_delete_document",
+            "trigger_workflow",
+            "git_add",
+            "git_commit",
+            "git_checkout",
+            "git_pull",
+            "git_push",
+        ):
+            assert classify_operation_type(name, reg) == "write", name
+        for name in ("delete_file", "delete_directory"):
+            assert classify_operation_type(name, reg) == "delete", name
+        assert classify_operation_type("shell_run", reg) == "execute"
+        for name in (
+            "github_push_files",
+            "github_create_pull_request",
+            "github_merge_pull_request",
+        ):
+            assert classify_operation_type(name, reg) == "api_write", name
+        for name in ("list_directory", "read_text_file", "search_web"):
+            assert classify_operation_type(name, reg) == "read", name
 
-    def test_mdq_write_tools(self) -> None:
-        # MDQ_WRITE_TOOLS (shared/tool_constants.py) must classify as write,
-        # not fall through to the default "read".
-        for name in ("index_paths", "refresh_index"):
-            assert classify_operation_type(name) == "write"
-
-    def test_rag_write_tools(self) -> None:
-        # RAG_WRITE_TOOLS (shared/tool_constants.py) must classify as write.
-        assert classify_operation_type("rag_delete_document") == "write"
-
-    def test_cicd_write_tools(self) -> None:
-        # CICD_WRITE_TOOLS (shared/tool_constants.py) must classify as write.
-        assert classify_operation_type("trigger_workflow") == "write"
-
-    def test_git_write_tools(self) -> None:
-        # GIT_WRITE_TOOLS (shared/tool_constants.py) must classify as write.
-        for name in ("git_add", "git_commit", "git_checkout", "git_pull", "git_push"):
-            assert classify_operation_type(name) == "write"
-
-    def test_git_checkout_pull_push_resolve_to_high_risk(self) -> None:
-        """REQ-006: approval_risk_rules overrides raise these three tools to "high"
-        (full-word "yes" confirmation), above the WRITE_DANGEROUS tier's "medium"
-        default (config/agent.toml::approval_risk_rules)."""
-        cfg = _cfg(
-            tool_safety_tiers={
-                "git_checkout": "WRITE_DANGEROUS",
-                "git_pull": "WRITE_DANGEROUS",
-                "git_push": "WRITE_DANGEROUS",
-            },
-            approval_risk_rules={
-                "git_checkout": "high",
-                "git_pull": "high",
-                "git_push": "high",
-            },
-        )
+    def test_git_checkout_pull_push_risk_is_declared_tier(self) -> None:
+        """agentcfg003 REQ-004/REQ-011: the removed approval_risk_rules override no
+        longer raises these tools above their declaration — the shipped
+        WRITE_DANGEROUS tier maps to medium, which satisfies the production risk
+        floor (ProductionConfigValidator._check_approval_risk_floor)."""
+        cfg = _cfg()
+        reg = make_producer_registry()
         for name in ("git_checkout", "git_pull", "git_push"):
-            assert classify_risk(cfg, name, {"repo_path": "/tmp/repo"}) == "high"
+            assert (
+                classify_risk(cfg, name, {"repo_path": "/tmp/repo"}, reg) == "medium"
+            ), name
 
-    def test_real_config_resolves_git_tools_to_high_risk(
+    def test_real_config_without_runtime_registry_fails_closed_to_high(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """REQ-002: The shipped config/agent.toml resolves git_checkout/git_pull/git_push
-        to HIGH through the actual risk-classification pipeline."""
+        """With no runtime registry there is no declaration to consult:
+        classify_risk() resolves every git tool to HIGH (fail-safe), exactly what
+        the validator floor relies on before discovery runs."""
         from agent.config_builders import build_agent_config
 
         # config/agent.toml's [mcp.mcp_servers.git] resolves auth_token from
@@ -319,47 +363,32 @@ class TestClassifyOperationType:
         for name in ("git_checkout", "git_pull", "git_push"):
             assert classify_risk(cfg, name, {"repo_path": "/tmp/repo"}) == "high"
 
-    def test_delete_tools(self) -> None:
-        assert classify_operation_type("delete_file") == "delete"
-        assert classify_operation_type("delete_directory") == "delete"
-
-    def test_execute_tools(self) -> None:
-        assert classify_operation_type("shell_run") == "execute"
-
-    def test_api_write_tools(self) -> None:
-        assert classify_operation_type("github_push_files") == "api_write"
-        assert classify_operation_type("github_create_pull_request") == "api_write"
-        assert classify_operation_type("github_merge_pull_request") == "api_write"
-
-    def test_read_tools(self) -> None:
-        reg = self._registry_with("list_directory", "read_text_file", "search_web")
-        assert classify_operation_type("list_directory", reg) == "read"
-        assert classify_operation_type("read_text_file", reg) == "read"
-        assert classify_operation_type("search_web", reg) == "read"
-
 
 class TestCheckAllowedRootEdgeCases:
+    """REQ-008: the jail checks the declared path-kind keys; an unknown declared
+    scope (no registry, unregistered tool) denies."""
+
+    def test_unregistered_tool_denies(self) -> None:
+        cfg = _cfg(allowed_root="/home")
+        assert not check_allowed_root(cfg, "write_file", {"path": "/home/x"})
+
     def test_invalid_path_returns_false(self) -> None:
-        cfg = _cfg(
-            allowed_root="/home",
-            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
-        )
-        assert not check_allowed_root(cfg, "write_file", {"path": "\0invalid"})
+        cfg = _cfg(allowed_root="/home")
+        reg = _stub_registry(write_file={"path": "path"})
+        assert not check_allowed_root(cfg, "write_file", {"path": "\0invalid"}, reg)
 
     def test_absolute_path_outside_root(self) -> None:
-        cfg = _cfg(
-            allowed_root="/home/user",
-            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
-        )
-        assert not check_allowed_root(cfg, "write_file", {"path": "/etc/passwd"})
+        cfg = _cfg(allowed_root="/home/user")
+        reg = _stub_registry(write_file={"path": "path"})
+        assert not check_allowed_root(cfg, "write_file", {"path": "/etc/passwd"}, reg)
 
     def test_relative_path_resolved_correctly(self) -> None:
-        cfg = _cfg(
-            allowed_root="/home/user",
-            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
-        )
+        cfg = _cfg(allowed_root="/home/user")
+        reg = _stub_registry(write_file={"path": "path"})
         # This should resolve to a path outside the root
-        assert not check_allowed_root(cfg, "write_file", {"path": "../../etc/passwd"})
+        assert not check_allowed_root(
+            cfg, "write_file", {"path": "../../etc/passwd"}, reg
+        )
 
 
 class TestCheckPreflightEdgeCases:
@@ -372,55 +401,34 @@ class TestCheckPreflightEdgeCases:
 
     def test_none_values_in_args(self) -> None:
         cfg = _cfg(allowed_root="/tmp", allowed_tools=["write_file"])
-        # Test with None values in args — should not fail because the path check doesn't trigger on None
-        check_preflight(
-            cfg, "write_file", {"path": None}
-        )  # Should not deny when path is None
+        reg = _stub_registry(write_file={"path": "path"})
+        # None values are skipped by the declared-key path iteration: no denial.
+        check_preflight(cfg, "write_file", {"path": None}, reg)  # does not raise
 
     def test_path_with_special_characters(self) -> None:
-        cfg = _cfg(
-            allowed_root="/tmp",
-            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
-        )
+        cfg = _cfg(allowed_root="/tmp")
+        reg = _stub_registry(write_file={"path": "path"})
         # Test with path containing special characters - should allow valid paths
-        assert check_allowed_root(cfg, "write_file", {"path": "/tmp/valid_file"})
+        assert check_allowed_root(cfg, "write_file", {"path": "/tmp/valid_file"}, reg)
 
     def test_empty_repo_in_allowlist(self) -> None:
-        cfg = _cfg(approval_github_allowed_repos=[])
+        cfg = _cfg(
+            allowed_tools=["github_push_files"], approval_github_allowed_repos=[]
+        )
         with pytest.raises(PolicyViolationError):  # Should deny due to empty allowlist
             check_preflight(cfg, "github_push_files", {"owner": "org", "repo": "repo"})
 
     def test_missing_required_keys(self) -> None:
-        cfg = _cfg(
-            allowed_root="/tmp",
-            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
-        )
+        cfg = _cfg(allowed_root="/tmp")
+        reg = _stub_registry(write_file={"path": "path"})
         # Test missing path key
-        assert check_allowed_root(cfg, "write_file", {"other": "/tmp/file"})
+        assert check_allowed_root(cfg, "write_file", {"other": "/tmp/file"}, reg)
 
     @staticmethod
     def _reg_with(*names: str) -> RuntimeToolRegistry:
-        tools = {
-            name: RuntimeTool(
-                name=name,
-                server_key="test_server",
-                server_url="",
-                description="",
-                input_schema={},
-                raw_definition={},
-                status="active",
-                is_write=False,
-                requires_serial=False,
-                resource_scope_kind="",
-                resource_scope_keys=(),
-                agent_safety_tier="READ_ONLY",
-                enabled_for_llm=True,
-                capabilities=(),
-            )
-            for name in names
-        }
         return RuntimeToolRegistry(
-            tools=tools, allowed_servers=frozenset({"test_server"})
+            tools={name: _runtime_tool(name) for name in names},
+            allowed_servers=frozenset({"test_server"}),
         )
 
     def test_discovered_mode_allows_registered_tool(self) -> None:
@@ -449,39 +457,55 @@ class TestCheckPreflightEdgeCases:
 
 class TestClassifyRiskEdgeCases:
     def test_mixed_tier_classification(self) -> None:
-        cfg = _cfg(
-            tool_safety_tiers={
-                "read_text_file": "READ_ONLY",
-                "write_file": "WRITE_SAFE",
-                "delete_file": "WRITE_DANGEROUS",
-            }
+        reg = RuntimeToolRegistry(
+            tools={
+                "read_text_file": _runtime_tool("read_text_file"),
+                "write_file": _runtime_tool(
+                    "write_file",
+                    {"path": "path"},
+                    is_write=True,
+                    tier="WRITE_SAFE",
+                    side_effect_class="local_write",
+                ),
+                "delete_file": _runtime_tool(
+                    "delete_file",
+                    {"path": "path"},
+                    is_write=True,
+                    tier="WRITE_DANGEROUS",
+                    side_effect_class="local_write",
+                ),
+            },
+            allowed_servers=frozenset({"test_server"}),
         )
 
-        assert classify_risk(cfg, "read_text_file", {}) == "none"  # READ_ONLY -> none
-        assert classify_risk(cfg, "write_file", {}) == "none"  # WRITE_SAFE -> none
         assert (
-            classify_risk(cfg, "delete_file", {}) == "medium"
+            classify_risk(cfg := _cfg(), "read_text_file", {}, reg) == "none"
+        )  # READ_ONLY -> none
+        assert classify_risk(cfg, "write_file", {}, reg) == "none"  # WRITE_SAFE -> none
+        assert (
+            classify_risk(cfg, "delete_file", {}, reg) == "medium"
         )  # WRITE_DANGEROUS -> medium
 
-        # Test that a tool not in the safety tiers defaults to WRITE_DANGEROUS
+        # shell_run is unregistered here: no declaration to consult, so the
+        # fail-safe base is HIGH (the missing command arg also special-cases HIGH).
         result = classify_risk(cfg, "shell_run", {})
-        assert result == "high"  # No command arg -> _special_case_risk returns HIGH
+        assert result == "high"
 
     def test_complex_nested_args(self) -> None:
-        cfg = _cfg(
-            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
-            approval_protected_paths=["/opt/llm/"],
-        )
+        cfg = _cfg(approval_protected_paths=["/opt/llm/"])
+        reg = _write_registry(delete_file={"path": "path"})
 
-        # Complex args with nested structures
+        # Complex args with nested structures. delete_file declares WRITE_DANGEROUS
+        # (tier-MEDIUM base); the protected path escalates it to HIGH.
         result = classify_risk(
             cfg,
-            "write_file",
+            "delete_file",
             {
                 "path": "/opt/llm/config.json",
                 "metadata": {"author": "test", "version": 1},
                 "options": ["--debug", "--verbose"],
             },
+            reg,
         )
         assert result == "high"  # Escalated due to protected path
 
@@ -647,7 +671,6 @@ class TestSpecialCaseRiskReq001Req002Req003Req004:
         cfg = _cfg(
             approval_shell_safe_prefixes=["cat"],
             allowed_root="/tmp",
-            approval_resource_keys={"path_keys": [], "branch_keys": []},
         )
         result = _special_case_risk(cfg, "shell_run", {"command": "cat /etc/passwd"})
         assert result == "high"
@@ -656,7 +679,6 @@ class TestSpecialCaseRiskReq001Req002Req003Req004:
         cfg = _cfg(
             approval_shell_safe_prefixes=["cat"],
             allowed_root="/tmp",
-            approval_resource_keys={"path_keys": [], "branch_keys": []},
         )
         result = _special_case_risk(cfg, "shell_run", {"command": "cat /tmp/file.txt"})
         assert result == "none"
@@ -670,7 +692,6 @@ class TestSpecialCaseRiskReq001Req002Req003Req004:
         cfg = _cfg(
             approval_shell_safe_prefixes=["cat"],
             allowed_root="/tmp",
-            approval_resource_keys={"path_keys": [], "branch_keys": []},
         )
         # Null byte in path should trigger ValueError during Path.resolve()
         result = _special_case_risk(cfg, "shell_run", {"command": "cat \x00invalid"})
@@ -772,7 +793,6 @@ class TestPathArgumentConstraintsComprehensive:
         """REQ-003: cat on a protected path must escalate to HIGH."""
         cfg = _cfg(
             approval_shell_safe_prefixes=["cat"],
-            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
             approval_protected_paths=["/etc/"],
         )
         result = classify_risk(cfg, "shell_run", {"command": "cat /etc/shadow"})
@@ -783,48 +803,53 @@ class TestPathArgumentConstraintsComprehensive:
         cfg = _cfg(
             approval_shell_safe_prefixes=["cat"],
             allowed_root="/home/user",
-            approval_resource_keys={"path_keys": ["path"], "branch_keys": []},
         )
         result = classify_risk(cfg, "shell_run", {"command": "cat /home/user/file.txt"})
         assert result == "none"
 
 
 class TestClassifyRiskConfigPosture:
-    """REQ-001/REQ-003 properties over the shipped approval tables in
-    tests/agent/_config_test_defaults.py (mirror of config/agent.toml): a future
-    config change surfaces as a test failure, not silent policy drift (Plan row
-    12)."""
+    """REQ-004/REQ-007 properties over the producer-declared tier data
+    (make_producer_registry mirrors every shipped TOOL_LIST declaration): a
+    future declaration change surfaces as a test failure, not silent policy
+    drift (Plan row 12 lineage)."""
 
     @staticmethod
     def _shipped_cfg() -> AgentConfig:
-        return _cfg(
-            tool_safety_tiers=ALL_TOOL_SAFETY_TIERS,
-            approval_risk_rules=ALL_APPROVAL_RISK_RULES,
-            approval_protected_paths=["/opt/", "/etc/"],
-            approval_resource_keys={
-                "path_keys": ["path", "repo_path"],
-                "branch_keys": ["branch"],
-            },
-        )
+        return _cfg(approval_protected_paths=["/opt/", "/etc/"])
 
-    @pytest.mark.parametrize(("tool", "rule"), sorted(ALL_APPROVAL_RISK_RULES.items()))
-    def test_rule_value_wins_over_tier_value(self, tool: str, rule: str) -> None:
-        """Provenance: for every ruled tool the level comes from the
-        approval_risk_rules branch (Priority 1), not the tier branch — e.g.
-        github_create_branch (WRITE_SAFE tier → none) resolves to medium."""
+    def test_declared_tier_maps_to_expected_risk_for_every_producer_tool(self) -> None:
+        """Provenance: with no per-tool config maps left, every shipped tool
+        resolves to exactly _TIER_TO_RISK[declared tier] when consulted through
+        the live registry (no extra args)."""
         cfg = self._shipped_cfg()
-        assert classify_risk(cfg, tool, {}) == rule
+        reg = make_producer_registry()
+        for tool in sorted(reg.all_tools(), key=lambda t: t.name):
+            expected = _TIER_TO_RISK[tool.agent_safety_tier]
+            assert classify_risk(cfg, tool.name, {}, reg) is expected, tool.name
 
-    @pytest.mark.parametrize("tool", _TIER_NONE_UNRULED_TOOLS)
-    def test_tier_none_unruled_tool_never_escalates(self, tool: str) -> None:
+    def test_declared_none_tier_superset_matches_expected_tool_sets(self) -> None:
+        """Provenance: the tier-NONE population is exactly the tools the shipped
+        tiers declare READ_ONLY or WRITE_SAFE — the declaration is the only source."""
+        reg = make_producer_registry()
+        expected = sorted(
+            tool.name
+            for tool in reg.all_tools()
+            if tool.agent_safety_tier in ("READ_ONLY", "WRITE_SAFE")
+        )
+        assert _TIER_NONE_DECLARED_TOOLS == expected
+
+    @pytest.mark.parametrize("tool", _TIER_NONE_DECLARED_TOOLS)
+    def test_tier_none_declared_tool_never_escalates(self, tool: str) -> None:
         """Provenance: the NONE short-circuit returns before _special_case_risk()
         and _escalate_for_path() — a tier-NONE tool stays none even with a
         protected-path argument."""
         cfg = self._shipped_cfg()
+        reg = make_producer_registry()
         with (
             patch("agent.tool_policy._special_case_risk") as special,
             patch("agent.tool_policy._escalate_for_path") as escalate,
         ):
-            assert classify_risk(cfg, tool, {"path": "/opt/local/data"}) == "none"
+            assert classify_risk(cfg, tool, {"path": "/opt/local/data"}, reg) == "none"
             special.assert_not_called()
             escalate.assert_not_called()

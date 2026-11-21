@@ -667,6 +667,13 @@ class TestStaticFieldImmutability:
             requires_serial=False,
             resource_scope_kind="path",
             resource_scope_keys=("path",),
+            policy_version="2.1",
+            preview_capability="none",
+            idempotency_required=False,
+            reconciliation_policy="not_required",
+            retry_policy="safe_read_retry",
+            side_effect_class="read_only",
+            agent_safety_tier="READ_ONLY",
             enabled_for_llm=True,
         )
         tool_b = build_runtime_tool(
@@ -676,6 +683,13 @@ class TestStaticFieldImmutability:
             requires_serial=True,
             resource_scope_kind="path",
             resource_scope_keys=("path",),
+            policy_version="2.1",
+            preview_capability="none",
+            idempotency_required=True,
+            reconciliation_policy="local_state",
+            retry_policy="never",
+            side_effect_class="local_write",
+            agent_safety_tier="WRITE_SAFE",
             enabled_for_llm=True,
         )
         registry = RuntimeToolRegistry(

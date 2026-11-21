@@ -166,21 +166,25 @@ class StartupValidationPipeline:
         # Synchronous; reads no network state, so it costs nothing here.
         _check_component_mandatoriness(ctx, pipeline)
 
-        # 5b. Routing safety tiers
-        # A registered tool without a declared tier is Fail-Closed (ADR-004 INV-07).
+        # 5b. Routing tier drift
+        # Drift report comparing the reference seed registry with the live
+        # declared tools (agentcfg003 AC-10): findings are reported, never
+        # consulted for a tool decision. At this pre-discovery point the live
+        # registry is empty, so the stage reports nothing until tools exist.
         try:
             for msg in check_routing_safety_tiers(ctx):
                 pipeline.add_fatal(
-                    "routing_safety_tiers",
+                    "routing_drift",
                     msg,
                     remediation=(
-                        "Declare a safety tier for the tool under [tool_safety_tiers] "
-                        "in config/agent.toml (ADR-004 INV-07)."
+                        "Register the tool through its producer with a declared "
+                        "agent_safety_tier; declared metadata is the only tier "
+                        "source (ADR-004 INV-07)."
                     ),
                 )
-        except Exception as exc:  # noqa: BLE001 — Safety Tier failures are Fail-Closed per INV-07; broad catch handles RuntimeError from check_tool_safety_tiers
+        except Exception as exc:  # noqa: BLE001 — Safety Tier failures are Fail-Closed per INV-07; broad catch keeps a report-path failure from changing startup behaviour
             pipeline.add_fatal(
-                "routing_safety_tiers", f"Routing safety tier check failed: {exc}"
+                "routing_drift", f"Routing tier drift check failed: {exc}"
             )
 
         return pipeline

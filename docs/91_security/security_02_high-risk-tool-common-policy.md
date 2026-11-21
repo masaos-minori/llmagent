@@ -116,13 +116,13 @@ This generalizes the symlink-traversal prevention language from the mdq docs to 
 
 ## Approval requirements mapped explicitly to risk tiers
 
-The following table summarizes the approval-to-tier mapping defined in `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Risk Tier Classification (the tier supplies a default approval risk; `approval_risk_rules` can override it):
+The following table summarizes the approval-to-tier mapping defined in `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Risk Tier Classification. The tier is the value each tool's producer declares as `agent_safety_tier`; it maps to the approval risk through `_TIER_TO_RISK`, and no per-tool configuration overrides it:
 
 | Risk Tier | Description | Approval Required | Example Tools |
 |---|---|---|---|
 | `READ_ONLY` | Read-only operations; no side effects | None (auto-approved, risk `none`) | `read_text_file`, `list_directory`, `github_list_issues` |
-| `WRITE_SAFE` | Write operations with limited blast radius | Auto-approved by default (risk `none`); `y/N` prompt when `approval_risk_rules` sets `medium` | `write_file`, `create_directory`, `github_create_issue` |
-| `WRITE_DANGEROUS` | Destructive or high-impact writes | User approval (mandatory): `y/N` by default (risk `medium`), full `yes` when `approval_risk_rules` sets `high` | `delete_file`, `delete_directory`, `github_push_files`, `github_merge_pull_request` |
+| `WRITE_SAFE` | Write operations with limited blast radius | Auto-approved (risk `none`) | `write_file`, `create_directory`, `github_create_issue` |
+| `WRITE_DANGEROUS` | Destructive or high-impact writes | User approval (mandatory): `y/N` (risk `medium`); full `yes` when a protected path or high-risk branch escalates the call to `high` | `delete_file`, `delete_directory`, `github_push_files`, `github_merge_pull_request` |
 | `ADMIN` | Administrative/privileged operations | Full-word `yes` approval (risk `high`); approval decisions are audited | `shell_run` |
 
 **Cross-linked with approval-execution flow**: `agent_06_01_tool-execution-and-approval-execution.md` and `agent_06_02_tool-execution-and-approval-approval.md` define how approval is requested, granted, and audited.
@@ -153,9 +153,9 @@ unconditionally in every environment.
 
 | Restriction | Enforcement |
 |---|---|
-| Tool safety tiers unknown keys | Fatal error (fail-closed) |
+| Missing or unrecognized declared `agent_safety_tier` in a tool definition | Rejected at registration (fail-closed) |
+| Config naming a removed per-tool map (for example `tool_safety_tiers`) | Rejected at load as an unknown key (fail-closed) |
 | `approval_github_allowed_repos` empty | Deny all GitHub write operations |
-| `tool_safety_tiers` missing keys | Fatal error |
 | MCP server bind address | Loopback (`127.0.0.1`/`::1`) only, unconditionally — any other host raises `ValueError` at startup |
 | Bearer token (`auth_token`) | Required and non-empty for every HTTP MCP server — an empty token raises `ValueError` at startup |
 
@@ -169,7 +169,7 @@ This is cross-linked with `security_01_architecture-and-trust-boundaries.md` Fai
 
 The fail-closed posture applies to:
 - Allowlist checks (empty = deny)
-- Unknown tool safety tiers (fatal in production)
+- Missing or unrecognized declared tool safety tiers (rejected at registration)
 - Unknown command prefixes (denied)
 - Path resolution outside allowlist (denied)
 - Missing approval for `WRITE_DANGEROUS`/`ADMIN` tools (denied)

@@ -17,47 +17,36 @@ from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
 
 class TestTierForServer:
+    """Agentcfg003 REQ-004: _tier_for_server consumes the declared tiers of the
+    server's registered tools, not a configuration map."""
+
     def test_no_tools_returns_read_only(self) -> None:
-        assert _tier_for_server([], {}) == McpTier.READ_ONLY
+        assert _tier_for_server([]) == McpTier.READ_ONLY
 
     def test_read_only_tool_returns_read_only(self) -> None:
-        tiers = {"read_file": "READ_ONLY"}
-        assert _tier_for_server(["read_file"], tiers) == McpTier.READ_ONLY
+        assert _tier_for_server(["READ_ONLY"]) == McpTier.READ_ONLY
 
     def test_write_safe_tool_returns_write_safe(self) -> None:
-        tiers = {"write_file": "WRITE_SAFE"}
-        assert _tier_for_server(["write_file"], tiers) == McpTier.WRITE_SAFE
+        assert _tier_for_server(["WRITE_SAFE"]) == McpTier.WRITE_SAFE
 
     def test_dangerous_tool_returns_write_dangerous(self) -> None:
-        tiers = {"delete_file": "WRITE_DANGEROUS"}
-        assert _tier_for_server(["delete_file"], tiers) == McpTier.WRITE_DANGEROUS
+        assert _tier_for_server(["WRITE_DANGEROUS"]) == McpTier.WRITE_DANGEROUS
 
     def test_admin_tool_returns_admin(self) -> None:
-        tiers = {"shell_run": "ADMIN"}
-        assert _tier_for_server(["shell_run"], tiers) == McpTier.ADMIN
+        assert _tier_for_server(["ADMIN"]) == McpTier.ADMIN
 
     def test_highest_tier_wins(self) -> None:
-        tiers = {"read_file": "READ_ONLY", "delete_file": "WRITE_DANGEROUS"}
         assert (
-            _tier_for_server(["read_file", "delete_file"], tiers)
+            _tier_for_server(["READ_ONLY", "WRITE_DANGEROUS"])
             == McpTier.WRITE_DANGEROUS
         )
 
     def test_admin_beats_dangerous(self) -> None:
-        tiers = {"shell_run": "ADMIN", "delete_file": "WRITE_DANGEROUS"}
-        assert _tier_for_server(["shell_run", "delete_file"], tiers) == McpTier.ADMIN
+        assert _tier_for_server(["ADMIN", "WRITE_DANGEROUS"]) == McpTier.ADMIN
 
-    def test_unclassified_tool_treated_as_read_only(self) -> None:
-        tiers = {}
-        assert _tier_for_server(["unknown_tool"], tiers) == McpTier.READ_ONLY
-
-    def test_empty_tiers_returns_read_only(self) -> None:
-        assert _tier_for_server(["write_file", "delete_file"], {}) == McpTier.READ_ONLY
-
-    def test_unknown_tier_string_raises_mcp_probe_error(self) -> None:
-        tiers = {"my_tool": "SUPER_DANGEROUS"}
-        with pytest.raises(McpProbeError, match="Unknown tier"):
-            _tier_for_server(["my_tool"], tiers)
+    def test_unknown_declared_tier_raises_mcp_probe_error(self) -> None:
+        with pytest.raises(McpProbeError, match="Unknown declared tier"):
+            _tier_for_server(["SUPER_DANGEROUS"])
 
 
 class TestTierLabels:
@@ -233,7 +222,6 @@ class TestProbeAllTierDerivation:
             auth_token="test-token",
         )
         ctx = MagicMock()
-        ctx.cfg.approval.tool_safety_tiers = {}
         ctx.cfg.mcp.mcp_servers = {"srv": cfg}
         ctx.services_required.runtime_tools = None
 
@@ -256,11 +244,12 @@ class TestProbeAllTierDerivation:
             auth_token="test-token",
         )
         ctx = MagicMock()
-        ctx.cfg.approval.tool_safety_tiers = {"write_file": "WRITE_SAFE"}
         ctx.cfg.mcp.mcp_servers = {"srv": cfg}
         ctx.services_required.runtime_tools = MagicMock()
         ctx.services_required.runtime_tools.all_tools.return_value = [
-            SimpleNamespace(name="write_file", server_key="srv"),
+            SimpleNamespace(
+                name="write_file", server_key="srv", agent_safety_tier="WRITE_SAFE"
+            ),
         ]
 
         with patch("agent.services.mcp_status.httpx.AsyncClient", _FakeAsyncClient):

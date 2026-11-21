@@ -227,33 +227,38 @@ class TestConfigValidatorsToolFields:
 
 
 class TestApprovalConfigValidation:
+    """Agentcfg003 REQ-005: the four removed per-tool maps have no fields and no
+    validators; the operational-exception fields remain asserted."""
+
     def test_defaults_are_valid(self) -> None:
         cfg = ApprovalConfig()
-        assert "write_file" in cfg.approval_risk_rules
+        assert "write_file" not in getattr(cfg, "approval_protected_paths", [])
+        assert cfg.approval_high_risk_branches == ["main", "master"]
 
-    def test_invalid_risk_level_raises(self) -> None:
-        with pytest.raises(ValueError, match="approval_risk_rules"):
-            ApprovalConfig(approval_risk_rules={"write_file": "extreme"})
+    @pytest.mark.parametrize(
+        "removed_field",
+        [
+            "approval_risk_rules",
+            "tool_safety_tiers",
+            "approval_resource_keys",
+            "approval_dry_run_tools",
+        ],
+    )
+    def test_removed_map_fields_are_gone(self, removed_field: str) -> None:
+        """REQ-005: the dataclass no longer carries the removed maps (REQ-011:
+        no compatibility field)."""
+        assert not hasattr(ApprovalConfig(), removed_field)
+        with pytest.raises(TypeError, match="unexpected keyword argument"):
+            ApprovalConfig(**{removed_field: {}})
 
-    def test_invalid_safety_tier_raises(self) -> None:
-        with pytest.raises(ValueError, match="tool_safety_tiers"):
-            ApprovalConfig(tool_safety_tiers={"write_file": "UNKNOWN"})
-
-    def test_valid_safety_tiers_accepted(self) -> None:
+    def test_operational_exception_fields_accepted(self) -> None:
         cfg = ApprovalConfig(
-            tool_safety_tiers={
-                "write_file": "WRITE_SAFE",
-                "shell_run": "ADMIN",
-                "read_file": "READ_ONLY",
-            }
+            approval_protected_paths=["/opt/"],
+            approval_shell_safe_prefixes=["ls"],
+            approval_github_allowed_repos=[],
         )
-        assert cfg.tool_safety_tiers["shell_run"] == "ADMIN"
-
-    def test_multiple_invalid_risk_levels_all_reported(self) -> None:
-        with pytest.raises(ValueError, match="approval_risk_rules"):
-            ApprovalConfig(
-                approval_risk_rules={"tool_a": "extreme", "tool_b": "critical"}
-            )
+        assert cfg.approval_protected_paths == ["/opt/"]
+        assert cfg.approval_shell_safe_prefixes == ["ls"]
 
 
 # ── AgentConfig cross-field validation ────────────────────────────────────────

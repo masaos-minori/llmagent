@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-"""scripts/shared/tool_constants.py
+"""scripts/shared/tool_constants.py — Reference-data frozensets for MCP tool names (agentcfg003, REQ-007).
 
-Canonical frozenset definitions for MCP tool classification.
+Reference-data frozensets for MCP tool names (agentcfg003, REQ-007).
 
-These sets serve two purposes:
-  shared/tool_registry.py   — registry seed data (auto-populates ToolRegistry at import time)
-  agent/tool_policy.py      — risk classification and approval logic
-
-Not a routing source. Routing is driven only by live `/v1/tools` discovery
-(RuntimeToolRegistry); ToolRegistry, seeded from these sets, is drift-detection input only.
-Centralised here to avoid silent drift when tool lists change.
-All sets are frozensets; treat them as read-only.
+These sets are reference data for drift detection and tests only: they give the
+drift checks something to compare a tool's declared metadata against. No runtime
+decision reads them. Runtime decisions read the declared fields carried by each
+`RuntimeTool` (`is_write`, `side_effect_class`, `retry_policy`,
+`agent_safety_tier`, ...), built by `shared.runtime_tool.build_runtime_tool()`
+from the producers' declarations.
 
 Per-consumer status:
   - registry seed: a one-time import-time seed for ToolRegistry, not a fallback.
-  - parallel/serial scheduling of tool calls reads ToolSpec.is_write (resolved from
-    RuntimeToolRegistry) in agent/tool_scheduler.py::build_execution_groups(), not these sets.
-  - risk classification: agent.tool_policy.classify_operation_type() checks these
-    frozensets directly and first, for the WRITE/DELETE/EXECUTE/API_WRITE tiers.
+  - routing and scheduling: driven only by live `/v1/tools` discovery
+    (RuntimeToolRegistry) and ToolSpec fields resolved from it
+    (agent/tool_scheduler.py::build_execution_groups()), not these sets.
+  - risk classification and retry classification: driven by the declared fields;
+    these sets only report drift against the declarations.
+Centralised here to avoid silent drift when tool lists change.
+All sets are frozensets; treat them as read-only.
 """
 
 from __future__ import annotations
@@ -171,15 +172,15 @@ GITHUB_TOOLS: frozenset[str] = (
     GITHUB_READ_TOOLS | GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
 )
 
-# Retry-classification owner (ADR-004, dispatch retry policy; ADR-008 owns the
-# disposable dedup-store semantics this classification feeds). A tool in this set is
-# 'retryable' (dispatch-capable: a failed call can be safely re-dispatched and
-# deduplicated); every other tool — including unknown ones — is 'non_retryable'
-# (fail-safe). This frozenset is the single source of truth shared by the
-# dispatcher's dedup config and the Agent's tool_runner, so both resolve the same
-# classification without the Agent importing the dispatcher's mcp_dedup.toml
-# (config isolation). Keep it in sync with config/mcp_dedup.toml
-# [retry_class]; see implementation 20261111-111905_04.
+# Retry-classification reference data (ADR-004, dispatch retry policy; ADR-008
+# owns the disposable dedup-store semantics this classification feeds). The
+# authority for retry classification is now each tool's declared `retry_policy`
+# field (shared.tool_metadata.RetryPolicy); this frozenset remains as reference
+# data so the drift tests can compare the declarations against a cross-check
+# (config/mcp_dedup.toml [retry_class]; see implementation 20261111-111905_04).
+# A tool in this set is 'retryable' (dispatch-capable: a failed call can be
+# safely re-dispatched and deduplicated); every other tool — including unknown
+# ones — is 'non_retryable' (fail-safe).
 RETRYABLE_TOOLS: frozenset[str] = frozenset(
     {
         # file_write server (file_write)
@@ -213,13 +214,15 @@ RETRYABLE_TOOLS: frozenset[str] = frozenset(
     }
 )
 
-# Canonical side-effect classification set (ADR-004, sideeffect001): the single
-# source of side-effect membership for the dispatch dedup gate, the HTTP
-# fail-closed write gate, the tool_policy static classification, and the
-# server.py REQ-004 idempotency-key boundary. Independent of the retry-class
-# dimension (RETRYABLE_TOOLS above) and of approval tiers; do not conflate
-# them. Routing authority remains this module's docstring; this set
-# classifies tools, it does not route them.
+# Side-effect-classification reference data (ADR-004, sideeffect001): reference
+# membership for the drift checks around the dispatch dedup gate, the HTTP
+# fail-closed write gate, and the server.py REQ-004 idempotency-key boundary.
+# The authority for side-effect membership is each tool's declared
+# `side_effect_class` field (shared.tool_metadata.SideEffectClass); this set only
+# detects drift against those declarations. Independent of the retry-class
+# dimension (RETRYABLE_TOOLS above) and of the safety tier — the declared fields
+# are separate dimensions and must not be conflated. This set reports drift, it
+# does not decide or route anything.
 ALL_SIDE_EFFECTING_TOOLS: frozenset[str] = (
     WRITE_TOOLS
     | DELETE_TOOLS
@@ -236,8 +239,10 @@ ALL_SIDE_EFFECTING_TOOLS: frozenset[str] = (
 def get_all_mcp_tool_names() -> frozenset[str]:
     """Return all known MCP tool names for conflict checking.
 
-    This is the source of truth for the full set of MCP tool names,
-    used to verify tool-name coverage and detect naming conflicts.
+    Reference data for name-coverage and naming-conflict drift checks. The live
+    `/v1/tools` declarations (RuntimeToolRegistry) are the authority for which
+    tools exist; a mismatch with this set is reported as drift, not resolved by
+    this set.
     """
     return (
         READ_TOOLS

@@ -31,12 +31,11 @@ from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult, ToolExecutionContext
 
 from tests.agent._config_test_defaults import (
-    ALL_APPROVAL_RISK_RULES,
     ALL_TOOL_NAMES,
-    ALL_TOOL_SAFETY_TIERS,
     PERMISSIVE_ALLOWED_ROOT,
     PERMISSIVE_SQLITE_VEC_SO,
 )
+from tests.agent._producer_registry import make_producer_registry as _make_reg
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -68,9 +67,6 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
                     "auth_token": "test-token",
                 }
             },
-            # Standard tier classification; mirrors config/agent.toml defaults
-            "tool_safety_tiers": ALL_TOOL_SAFETY_TIERS,
-            "approval_risk_rules": ALL_APPROVAL_RISK_RULES,
             **overrides,
         }
     )
@@ -85,7 +81,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.workflow.workflow_id = "wf-test-id"
     ctx.session.session_id = None
     ctx.services_required.audit_logger = None
-    ctx.services_required.runtime_tools = None
+    ctx.services_required.runtime_tools = _make_reg()
     ctx.services_required.tools = AsyncMock()
     return ctx
 
@@ -117,7 +113,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
         ):
-            result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True
 
     @pytest.mark.asyncio
@@ -135,7 +131,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="n")
         ):
-            result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is False
 
     @pytest.mark.asyncio
@@ -153,7 +149,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="yes")
         ):
-            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "shell_run", {"command": "rm /tmp/x"})
         assert result is True
 
     @pytest.mark.asyncio
@@ -172,7 +168,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
         ):
-            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "shell_run", {"command": "rm /tmp/x"})
         assert result is False
 
     @pytest.mark.asyncio
@@ -192,7 +188,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
         ):
-            await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+            await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         audit.info.assert_called_once()
         logged = audit.info.call_args[0][0]
         assert "tool_approval" in logged
@@ -215,7 +211,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="n")
         ):
-            await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+            await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         logged = audit.info.call_args[0][0]
         assert "denied" in logged
 
@@ -246,7 +242,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
         ):
-            result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True
 
     @pytest.mark.asyncio
@@ -255,7 +251,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="")
         ):
-            result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is False
 
     @pytest.mark.asyncio
@@ -264,7 +260,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value=" y ")
         ):
-            result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True
 
     @pytest.mark.asyncio
@@ -282,7 +278,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="")
         ):
-            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "shell_run", {"command": "rm /tmp/x"})
         assert result is False
 
     @pytest.mark.asyncio
@@ -300,7 +296,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value=" yes ")
         ):
-            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "shell_run", {"command": "rm /tmp/x"})
         assert result is True
 
     @pytest.mark.asyncio
@@ -319,7 +315,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="yes")
         ):
-            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "shell_run", {"command": "rm /tmp/x"})
         assert result is True
 
     @pytest.mark.asyncio
@@ -341,7 +337,7 @@ class TestCheckApproval:
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
         ):
             with pytest.raises(RuntimeError, match="audit error"):
-                await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+                await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
 
     @pytest.mark.asyncio
     async def test_medium_risk_uppercase_y_approved(self) -> None:
@@ -358,7 +354,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="Y")
         ):
-            result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True
 
     @pytest.mark.asyncio
@@ -376,7 +372,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="YES")
         ):
-            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "shell_run", {"command": "rm /tmp/x"})
         assert result is True
 
     @pytest.mark.asyncio
@@ -385,7 +381,7 @@ class TestCheckApproval:
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="yes")
         ):
-            result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is False
 
 
@@ -515,8 +511,11 @@ class TestAuditApproval:
         import orjson
 
         event = orjson.loads(audit.info.call_args[0][0])
-        assert "base" in event["resource_scope"]
-        assert "owner" not in event["resource_scope"]
+        # Declared keys of github_create_pull_request: owner (non_escalating),
+        # repo (repo kind). The repo identifier is in scope; assertion on the
+        # kind-based filtering itself lives in tests/agent/test_tool_audit.py
+        # (row 24 removes the config-map union this scope currently unions with).
+        assert event["resource_scope"].get("repo") == "r"
 
 
 # ── check_approval() dry_run flow ─────────────────────────────────────────────
@@ -545,9 +544,7 @@ class TestCheckApprovalDryRun:
                 "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
             ),
         ):
-            result = await check_approval(
-                ctx, "write_file", {"path": "/tmp/f.txt", "content": "hi"}
-            )
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
 
         assert result is True
         combined = " ".join(printed)
@@ -555,14 +552,14 @@ class TestCheckApprovalDryRun:
         ctx.services_required.tools.execute.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_create_directory_dry_run_result_appended_to_preview(self) -> None:
-        """create_directory dry_run execution output should be included in preview before prompt."""
+    async def test_delete_directory_dry_run_result_appended_to_preview(self) -> None:
+        """delete_directory declares dry_run; its output lands in the preview."""
         cfg = _make_cfg()
         ctx = _make_ctx(cfg=cfg)
         ctx.services_required.tools = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
-                output="Dry-run: /tmp/newdir (0 bytes) [new directory]",
+                output="Dry-run: /tmp/newdir (0 bytes) [would delete]",
                 is_error=False,
                 request_id="",
                 server_key="",
@@ -577,7 +574,7 @@ class TestCheckApprovalDryRun:
             ),
         ):
             result = await check_approval(
-                ctx, "create_directory", {"path": "/tmp/newdir"}
+                ctx, "delete_directory", {"path": "/tmp/newdir"}
             )
 
         assert result is True
@@ -586,17 +583,20 @@ class TestCheckApprovalDryRun:
 
     @pytest.mark.asyncio
     async def test_dry_run_skipped_for_non_dry_run_tool(self) -> None:
-        """shell_run is not in approval_dry_run_tools; dry_run must not be called."""
-        cfg = _make_cfg(approval_dry_run_tools=[])
+        """rag_delete_document declares no dry_run capability; execute is not called."""
+        cfg = _make_cfg()
         ctx = _make_ctx(cfg=cfg)
         ctx.services_required.tools = MagicMock()
         ctx.services_required.tools.execute = AsyncMock()
 
         with patch(
-            "agent.tool_approval._approval_read", new=AsyncMock(return_value="yes")
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
         ):
-            await check_approval(ctx, "shell_run", {"command": "rm /tmp/x"})
+            result = await check_approval(
+                ctx, "rag_delete_document", {"doc_id": "doc-1"}
+            )
 
+        assert result is True
         ctx.services_required.tools.execute.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -615,21 +615,19 @@ class TestCheckApprovalDryRun:
                 "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
             ),
         ):
-            result = await check_approval(
-                ctx, "write_file", {"path": "/tmp/f.txt", "content": "hi"}
-            )
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
 
         assert result is True  # approval still proceeds
 
     @pytest.mark.asyncio
-    async def test_dry_run_for_create_directory(self) -> None:
-        """create_directory in approval_dry_run_tools must trigger dry_run before prompt."""
+    async def test_dry_run_for_delete_directory(self) -> None:
+        """delete_directory declares preview_capability dry_run: execute runs first."""
         cfg = _make_cfg()
         ctx = _make_ctx(cfg=cfg)
         ctx.services_required.tools = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
-                output="Dry-run: /tmp/newdir [would create]",
+                output="Dry-run: /tmp/newdir [would delete]",
                 is_error=False,
                 request_id="",
                 server_key="",
@@ -644,7 +642,7 @@ class TestCheckApprovalDryRun:
             ),
         ):
             result = await check_approval(
-                ctx, "create_directory", {"path": "/tmp/newdir"}
+                ctx, "delete_directory", {"path": "/tmp/newdir"}
             )
 
         assert result is True
@@ -652,18 +650,18 @@ class TestCheckApprovalDryRun:
         assert "Dry-run" in combined
         ctx.services_required.tools.execute.assert_awaited_once()
         call_args = ctx.services_required.tools.execute.await_args[0]
-        assert call_args[0] == "create_directory"
+        assert call_args[0] == "delete_directory"
         assert call_args[1]["dry_run"] is True
 
     @pytest.mark.asyncio
     async def test_github_tool_triggers_dry_run(self) -> None:
-        """github_create_issue is dry_run-capable; dry-run output enriches the preview."""
+        """github_push_files declares dry_run; dry-run output enriches the preview."""
         cfg = _make_cfg(approval_github_allowed_repos=["octocat/hello-world"])
         ctx = _make_ctx(cfg=cfg)
         ctx.services_required.tools = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
-                output="Dry-run: issue #1 created [dry run]",
+                output="Dry-run: push ok [dry run]",
                 is_error=False,
                 request_id="",
                 server_key="",
@@ -679,8 +677,8 @@ class TestCheckApprovalDryRun:
         ):
             result = await check_approval(
                 ctx,
-                "github_create_issue",
-                {"owner": "octocat", "repo": "hello-world", "title": "Bug report"},
+                "github_push_files",
+                {"owner": "octocat", "repo": "hello-world", "branch": "main"},
             )
 
         assert result is True
@@ -688,7 +686,7 @@ class TestCheckApprovalDryRun:
         assert "Dry-run" in combined
         ctx.services_required.tools.execute.assert_awaited_once()
         call_args = ctx.services_required.tools.execute.await_args[0]
-        assert call_args[0] == "github_create_issue"
+        assert call_args[0] == "github_push_files"
         assert call_args[1]["dry_run"] is True
 
     @pytest.mark.asyncio
@@ -731,7 +729,7 @@ class TestCheckApprovalDryRun:
                 server_key="",
             )
 
-        cfg = _make_cfg(approval_dry_run_tools=["write_file"])
+        cfg = _make_cfg()
         ctx = _make_ctx(cfg=cfg)
         ctx.services_required.tools = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
@@ -744,14 +742,12 @@ class TestCheckApprovalDryRun:
                 "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
             ),
         ):
-            result = await check_approval(
-                ctx, "write_file", {"path": "/tmp/f.txt", "content": "hi"}
-            )
+            result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
 
         assert result is True
         ctx.services_required.tools.execute.assert_awaited_once()
         call_args = ctx.services_required.tools.execute.await_args[0]
-        assert call_args[0] == "write_file"
+        assert call_args[0] == "delete_file"
         assert call_args[1]["dry_run"] is True
         assert mutations == []  # dry_run=True suppressed the write
 
@@ -791,25 +787,11 @@ class TestAuditToolExec:
 # ── execute_one_tool_call() ───────────────────────────────────────────────────
 
 
-def _read_registry() -> MagicMock:
-    """Registry stub classifying every tool as non-write (READ).
-
-    mcpdl001 REQ-006: with runtime_tools None, classify_operation_type fails
-    closed to UNKNOWN and the execution gate demands an ApprovalGrant; these
-    tests exercise the plain read path, so they need a read-classifying stub.
-    """
-    registry = MagicMock()
-    tool = MagicMock()
-    tool.is_write = False
-    registry.get.return_value = tool
-    return registry
-
-
 class TestExecuteOneToolCall:
     @pytest.mark.asyncio
     async def test_unpacks_three_tuple_from_execute(self) -> None:
         ctx = _make_ctx()
-        ctx.services_required.runtime_tools = _read_registry()
+        ctx.services_required.runtime_tools = _make_reg()
         ctx.services_required.tools = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
@@ -842,7 +824,7 @@ class TestExecuteOneToolCall:
     @pytest.mark.asyncio
     async def test_audit_tool_exec_called_with_x_request_id(self) -> None:
         ctx = _make_ctx()
-        ctx.services_required.runtime_tools = _read_registry()
+        ctx.services_required.runtime_tools = _make_reg()
         ctx.services_required.tools = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
@@ -885,10 +867,8 @@ def _pc(name: str, args: dict, call_id: str = "call_1") -> PreparedToolCall:
 class TestRunApprovalChecks:
     @pytest.mark.asyncio
     async def test_approved_calls_returned(self) -> None:
-        cfg = _make_cfg(
-            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "list_directory": "none"}
-        )
-        ctx = _make_ctx(cfg)
+        # list_directory is declared READ_ONLY -> tier NONE -> auto-approved.
+        ctx = _make_ctx()
         prepared = [_pc("list_directory", {"path": "/tmp"})]
         approved, denied = await run_approval_checks(ctx, prepared)
         assert len(approved) == 1
@@ -896,12 +876,10 @@ class TestRunApprovalChecks:
 
     @pytest.mark.asyncio
     async def test_denied_calls_collected(self) -> None:
-        cfg = _make_cfg(
-            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "medium"}
-        )
-        ctx = _make_ctx(cfg)
+        # delete_file is declared WRITE_DANGEROUS -> tier MEDIUM -> prompt denied.
+        ctx = _make_ctx()
         ctx.services_required.audit_logger = MagicMock()
-        prepared = [_pc("write_file", {"path": "/tmp/f"})]
+        prepared = [_pc("delete_file", {"path": "/tmp/f"})]
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="n")
         ):
@@ -911,10 +889,7 @@ class TestRunApprovalChecks:
 
     @pytest.mark.asyncio
     async def test_plan_mode_blocks_configured_tools(self) -> None:
-        cfg = _make_cfg(
-            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "medium"},
-            plan_blocked_tools=["write_file"],
-        )
+        cfg = _make_cfg(plan_blocked_tools=["write_file"])
         ctx = _make_ctx(cfg)
         ctx.conv.plan_mode = True
         ctx.services_required.audit_logger = MagicMock()
@@ -928,10 +903,7 @@ class TestRunApprovalChecks:
 
     @pytest.mark.asyncio
     async def test_plan_mode_does_not_block_unlisted_tools(self) -> None:
-        cfg = _make_cfg(
-            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "list_directory": "none"},
-            plan_blocked_tools=["write_file"],
-        )
+        cfg = _make_cfg(plan_blocked_tools=["write_file"])
         ctx = _make_ctx(cfg)
         ctx.conv.plan_mode = True
         ctx.services_required.audit_logger = MagicMock()
@@ -1011,8 +983,9 @@ class TestRunApprovalChecks:
 
     def test_is_plan_mode_blocked_honors_configured_read_only_tool(self) -> None:
         cfg = _make_cfg(plan_blocked_tools=["list_directory"])
-        assert is_plan_mode_blocked(cfg, "list_directory") is True
-        assert is_plan_mode_blocked(cfg, "read_text_file") is False
+        reg = _make_reg()
+        assert is_plan_mode_blocked(cfg, "list_directory", reg) is True
+        assert is_plan_mode_blocked(cfg, "read_text_file", reg) is False
 
     @pytest.mark.asyncio
     async def test_gateway_bypass_gap_resolved(self) -> None:
@@ -1050,14 +1023,14 @@ class TestRunApprovalChecks:
         cfg = _make_cfg(allowed_tools=["read_text_file"])
 
         with pytest.raises(PolicyViolationError):
-            check_preflight(cfg, "write_file", {})
+            check_preflight(cfg, "write_file", {}, _make_reg())
 
     def test_t02_preflight_fires_when_path_outside_allowed_root(self):
         """T-02: Preflight gate fires when path is outside `allowed_root`."""
         cfg = _make_cfg(allowed_tools=["write_file"], allowed_root="/tmp")
 
         with pytest.raises(PolicyViolationError):
-            check_preflight(cfg, "write_file", {"path": "/etc/passwd"})
+            check_preflight(cfg, "write_file", {"path": "/etc/passwd"}, _make_reg())
 
     def test_t03_preflight_fires_when_repo_not_in_allowlist(self):
         """T-03: Preflight gate fires when repo is not in GitHub allowlist."""
@@ -1072,6 +1045,7 @@ class TestRunApprovalChecks:
                 cfg,
                 "github_push_files",
                 {"owner": "owner", "repo": "unauthorized-repo"},
+                _make_reg(),
             )
 
     def test_t04_gateway_bypass_gap_resolved(self):
@@ -1084,38 +1058,39 @@ class TestRunApprovalChecks:
         # Non-READ operation without gateway should be denied by preflight
         cfg = _make_cfg(allowed_tools=["read_text_file"])
         with pytest.raises(PolicyViolationError) as exc_info:
-            check_preflight(cfg, "write_file", {})
+            check_preflight(cfg, "write_file", {}, _make_reg())
         assert exc_info.value.audit_decision == "denied_allowed_tools"
 
         # READ operation should still pass (per REQ-09 exemption)
         cfg = _make_cfg(allowed_tools=["read_text_file"])
-        check_preflight(cfg, "read_text_file", {"path": "/tmp/f"})  # does not raise
+        check_preflight(cfg, "read_text_file", {"path": "/tmp/f"}, _make_reg())
 
     def test_t06_read_remains_exempt(self):
         """T-06: READ operations remain preflight-exempt."""
         cfg = _make_cfg()
         # READ operations should not trigger preflight regardless of allowed_tools/root/repo
-        check_preflight(cfg, "read_text_file", {"path": "/tmp/f"})  # does not raise
+        check_preflight(cfg, "read_text_file", {"path": "/tmp/f"}, _make_reg())
 
     def test_t07_regression_existing_preflight_tests_pass(self):
         """T-07: Regression tests confirm existing Agent tests still pass after adding new coverage."""
+        reg = _make_reg()
         # Existing test: allowed_tools passes for included tool
         cfg = _make_cfg(allowed_tools=["read_text_file"])
-        check_preflight(cfg, "read_text_file", {"path": "/tmp/f"})
+        check_preflight(cfg, "read_text_file", {"path": "/tmp/f"}, reg)
 
         # Existing test: allowed_tools denies excluded tool
         cfg = _make_cfg(allowed_tools=["read_text_file"])
         with pytest.raises(PolicyViolationError):
-            check_preflight(cfg, "write_file", {})
+            check_preflight(cfg, "write_file", {}, reg)
 
         # Existing test: allowed_root passes for path within root
-        cfg = _make_cfg(allowed_tools=["any_tool"], allowed_root="/tmp")
-        check_preflight(cfg, "any_tool", {})
+        cfg = _make_cfg(allowed_tools=["write_file"], allowed_root="/tmp")
+        check_preflight(cfg, "write_file", {"path": "/tmp/inside"}, reg)
 
         # Existing test: allowed_root denies path outside root
         cfg = _make_cfg(allowed_tools=["write_file"], allowed_root="/tmp")
         with pytest.raises(PolicyViolationError):
-            check_preflight(cfg, "write_file", {"path": "/etc/passwd"})
+            check_preflight(cfg, "write_file", {"path": "/etc/passwd"}, reg)
 
         # Existing test: allowed_repo passes for authorized repo
         cfg = _make_cfg(
@@ -1123,7 +1098,12 @@ class TestRunApprovalChecks:
             allowed_root=PERMISSIVE_ALLOWED_ROOT,
             approval_github_allowed_repos=["owner/repo"],
         )
-        check_preflight(cfg, "github_push_files", {"owner": "owner", "repo": "repo"})
+        check_preflight(
+            cfg,
+            "github_push_files",
+            {"owner": "owner", "repo": "repo"},
+            reg,
+        )
 
         # Existing test: allowed_repo denies unauthorized repo
         cfg = _make_cfg(
@@ -1133,38 +1113,21 @@ class TestRunApprovalChecks:
         )
         with pytest.raises(PolicyViolationError):
             check_preflight(
-                cfg, "github_push_files", {"owner": "other", "repo": "repo"}
+                cfg, "github_push_files", {"owner": "other", "repo": "repo"}, reg
             )
-
-
-def _stub_registry(**tools: tuple[str, ...]) -> MagicMock:
-    """Minimal registry stub: get(name) -> object with resource_scope_keys."""
-
-    def _get(name: str) -> MagicMock:
-        if name not in tools:
-            raise KeyError(name)
-        registered = MagicMock()
-        registered.resource_scope_keys = tools[name]
-        return registered
-
-    stub = MagicMock()
-    stub.get.side_effect = _get
-    return stub
 
 
 class TestApprovalPreflightDeclaredPathKeys:
     """REQ-003 (pathkeys001): check_approval threads the runtime registry into
     check_preflight so declared resource_scope_keys and list elements are checked
-    at the middleware call site."""
+    at the middleware call site. The registry is seeded from the producers'
+    declarations (read_multiple_files scopes on "paths")."""
 
     @pytest.mark.asyncio
     async def test_list_element_outside_allowed_root_denied(self) -> None:
         """Declared key `paths` list element outside allowed_root denies the call."""
         cfg = _make_cfg(allowed_tools=["read_multiple_files"], allowed_root="/tmp")
         ctx = _make_ctx(cfg=cfg)
-        ctx.services_required.runtime_tools = _stub_registry(
-            read_multiple_files=("paths",)
-        )
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
         ):
@@ -1178,9 +1141,6 @@ class TestApprovalPreflightDeclaredPathKeys:
         """All elements inside allowed_root proceed to the approval decision."""
         cfg = _make_cfg(allowed_tools=["read_multiple_files"], allowed_root="/tmp")
         ctx = _make_ctx(cfg=cfg)
-        ctx.services_required.runtime_tools = _stub_registry(
-            read_multiple_files=("paths",)
-        )
         ctx.services_required.tools = MagicMock()
         ctx.services_required.tools.execute = AsyncMock(
             return_value=ToolCallResult(
@@ -1224,26 +1184,26 @@ def _pc_with_context(
     )
 
 
-def _read_registry() -> MagicMock:
-    """Registry mock whose tools report is_write=False: explicit READ classification."""
-    registry = MagicMock()
-    registry.get.return_value = MagicMock(is_write=False)
-    return registry
-
-
 class TestApprovalGrantIssuance:
     """Approved non-READ calls reach execution grant-bound; denied and READ
     calls carry no grant (REQ-006, AC-4)."""
 
     @pytest.mark.asyncio
     async def test_interactive_approved_write_call_carries_grant(self) -> None:
-        cfg = _make_cfg(
-            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "medium"}
-        )
-        ctx = _make_ctx(cfg)
+        # delete_file is declared WRITE_DANGEROUS -> tier MEDIUM -> interactive approval.
+        ctx = _make_ctx()
         ctx.conv.plan_mode = False
         ctx.services_required.audit_logger = MagicMock()
-        pc = _pc_with_context("write_file", {"path": "/tmp/f"})
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f [would delete]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+        pc = _pc_with_context("delete_file", {"path": "/tmp/f"})
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
         ):
@@ -1252,17 +1212,15 @@ class TestApprovalGrantIssuance:
         granted = approved[0]
         grant = granted.grant
         assert grant is not None
-        assert grant.tool == "write_file"
+        assert grant.tool == "delete_file"
         assert grant.args_hash == _canonical_args_hash({"path": "/tmp/f"})
         assert grant.mode == ApprovalDecisionType.APPROVED.value
         assert grant.expires_at - grant.issued_at == _GRANT_TTL_SECONDS
 
     @pytest.mark.asyncio
     async def test_auto_approved_write_call_grant_mode_auto(self) -> None:
-        cfg = _make_cfg(
-            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "none"}
-        )
-        ctx = _make_ctx(cfg)
+        # write_file is declared WRITE_SAFE -> tier NONE -> auto-approved.
+        ctx = _make_ctx()
         ctx.conv.plan_mode = False
         ctx.services_required.audit_logger = MagicMock()
         approved, denied = await run_approval_checks(
@@ -1275,12 +1233,8 @@ class TestApprovalGrantIssuance:
 
     @pytest.mark.asyncio
     async def test_read_call_stays_grantless(self) -> None:
-        cfg = _make_cfg(
-            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "read_text_file": "none"}
-        )
-        ctx = _make_ctx(cfg)
+        ctx = _make_ctx()
         ctx.conv.plan_mode = False
-        ctx.services_required.runtime_tools = _read_registry()
         ctx.services_required.audit_logger = MagicMock()
         approved, denied = await run_approval_checks(
             ctx, [_pc_with_context("read_text_file", {"path": "/tmp/f"})]
@@ -1290,13 +1244,20 @@ class TestApprovalGrantIssuance:
 
     @pytest.mark.asyncio
     async def test_denied_call_never_carries_grant(self) -> None:
-        cfg = _make_cfg(
-            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "medium"}
-        )
-        ctx = _make_ctx(cfg)
+        # delete_file is declared WRITE_DANGEROUS -> tier MEDIUM -> denial path.
+        ctx = _make_ctx()
         ctx.conv.plan_mode = False
         ctx.services_required.audit_logger = MagicMock()
-        pc = _pc_with_context("write_file", {"path": "/tmp/f"})
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/f [would delete]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+        pc = _pc_with_context("delete_file", {"path": "/tmp/f"})
         with patch(
             "agent.tool_approval._approval_read", new=AsyncMock(return_value="n")
         ):
@@ -1310,10 +1271,7 @@ class TestApprovalGrantIssuance:
         self,
     ) -> None:
         """AC-4: a re-bound/edited call fails the gateway's hash comparison."""
-        cfg = _make_cfg(
-            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "none"}
-        )
-        ctx = _make_ctx(cfg)
+        ctx = _make_ctx()
         ctx.conv.plan_mode = False
         ctx.services_required.audit_logger = MagicMock()
         pc = _pc_with_context("write_file", {"path": "/tmp/f"})
@@ -1332,10 +1290,7 @@ class TestApprovalGrantIssuance:
         """REQ-008/AC-2: the tool_approval event carries the logical call id."""
         import json
 
-        cfg = _make_cfg(
-            approval_risk_rules={**ALL_APPROVAL_RISK_RULES, "write_file": "none"}
-        )
-        ctx = _make_ctx(cfg)
+        ctx = _make_ctx()
         ctx.conv.plan_mode = False
         ctx.services_required.audit_logger = MagicMock()
         await run_approval_checks(

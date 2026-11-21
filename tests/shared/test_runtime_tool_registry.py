@@ -83,6 +83,13 @@ class TestRuntimeToolRegistry:
             requires_serial=True,
             resource_scope_kind="filesystem",
             resource_scope_keys=("path",),
+            policy_version="2.1",
+            preview_capability="none",
+            idempotency_required=True,
+            reconciliation_policy="local_state",
+            retry_policy="never",
+            side_effect_class="local_write",
+            agent_safety_tier="WRITE_SAFE",
         )
         reg = _registry_with(tool)
         spec = reg.tool_spec_map()["delete_file"]
@@ -140,14 +147,21 @@ class TestRuntimeToolRegistry:
         with pytest.raises(KeyError):
             reg.tool_spec_for_call(call_id="call-1", name="nope", args={})
 
-    def test_apply_policy_updates_tier_and_llm_visibility(self) -> None:
+    def test_apply_policy_preserves_declared_tier_and_updates_llm_visibility(
+        self,
+    ) -> None:
+        """agentcfg003 REQ-002/REQ-004: the entry keeps the tier its producer
+        declared; the removed tier_map would have produced ADMIN here."""
         tool = build_fixture_runtime_tool(
-            name="shell_run", server_key="s", enabled_for_llm=True
+            name="shell_run",
+            server_key="s",
+            agent_safety_tier="WRITE_SAFE",
+            enabled_for_llm=True,
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={"shell_run": "ADMIN"}, allowed_tools=["shell_run"])
+        reg.apply_policy(allowed_tools=["shell_run"])
         updated = reg.get("shell_run")
-        assert updated.agent_safety_tier == "ADMIN"
+        assert updated.agent_safety_tier == "WRITE_SAFE"
         assert updated.enabled_for_llm is True
 
     def test_apply_policy_disables_tools_not_in_allowed_list(self) -> None:
@@ -155,7 +169,7 @@ class TestRuntimeToolRegistry:
             name="search_web", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={}, allowed_tools=["other_tool"])
+        reg.apply_policy(allowed_tools=["other_tool"])
         assert reg.get("search_web").enabled_for_llm is False
 
     def test_apply_policy_empty_allowed_tools_disables_all(self) -> None:
@@ -163,7 +177,7 @@ class TestRuntimeToolRegistry:
             name="search_web", server_key="s", enabled_for_llm=True
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={}, allowed_tools=())
+        reg.apply_policy(allowed_tools=())
         assert reg.get("search_web").enabled_for_llm is False
 
     def test_apply_policy_keeps_hidden_tool_disabled_when_allowed(self) -> None:
@@ -174,7 +188,7 @@ class TestRuntimeToolRegistry:
             llm_visibility_base=False,
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={}, allowed_tools=["hidden_tool"])
+        reg.apply_policy(allowed_tools=["hidden_tool"])
         assert reg.get("hidden_tool").enabled_for_llm is False
 
     def test_apply_policy_logs_warning_when_hidden_tool_would_otherwise_be_enabled(
@@ -188,7 +202,7 @@ class TestRuntimeToolRegistry:
         )
         reg = _registry_with(tool)
         with caplog.at_level(logging.WARNING, logger="shared.runtime_tool_registry"):
-            reg.apply_policy(tier_map={}, allowed_tools=["hidden_tool"])
+            reg.apply_policy(allowed_tools=["hidden_tool"])
         assert "hidden_tool" in caplog.text
 
     def test_apply_policy_does_not_log_warning_for_visible_tool(
@@ -199,26 +213,27 @@ class TestRuntimeToolRegistry:
         )
         reg = _registry_with(tool)
         with caplog.at_level(logging.WARNING, logger="shared.runtime_tool_registry"):
-            reg.apply_policy(tier_map={}, allowed_tools=["visible_tool"])
+            reg.apply_policy(allowed_tools=["visible_tool"])
         assert "visible_tool" not in caplog.text
 
-    def test_apply_policy_updates_tier_to_read_only(self) -> None:
+    def test_apply_policy_keeps_declared_tier(self) -> None:
         tool = build_fixture_runtime_tool(
-            name="read_file", server_key="s", enabled_for_llm=True
+            name="read_file",
+            server_key="s",
+            agent_safety_tier="READ_ONLY",
+            enabled_for_llm=True,
         )
         reg = _registry_with(tool)
-        reg.apply_policy(
-            tier_map={"read_file": "READ_ONLY"}, allowed_tools=["read_file"]
-        )
+        reg.apply_policy(allowed_tools=["read_file"])
         updated = reg.get("read_file")
         assert updated.agent_safety_tier == "READ_ONLY"
 
-    def test_apply_policy_keeps_current_tier_when_absent_from_tier_map(self) -> None:
+    def test_apply_policy_keeps_declared_tier_across_repeated_calls(self) -> None:
         tool = build_fixture_runtime_tool(
             name="read_file", server_key="s", agent_safety_tier="READ_ONLY"
         )
         reg = _registry_with(tool)
-        reg.apply_policy(tier_map={}, allowed_tools=["read_file"])
+        reg.apply_policy(allowed_tools=["read_file"])
         assert reg.get("read_file").agent_safety_tier == "READ_ONLY"
 
     def test_apply_policy_discovered_mode_allows_registered_tool_with_empty_allowlist(
@@ -231,7 +246,6 @@ class TestRuntimeToolRegistry:
         )
         reg = _registry_with(tool)
         reg.apply_policy(
-            tier_map={},
             allowed_tools=(),
             tool_policy_mode="discovered",
         )
@@ -244,7 +258,6 @@ class TestRuntimeToolRegistry:
         )
         reg = _registry_with(tool)
         reg.apply_policy(
-            tier_map={},
             allowed_tools=(),
             tool_policy_mode="discovered",
             disabled_tools=["read_file"],
@@ -261,7 +274,6 @@ class TestRuntimeToolRegistry:
         )
         reg = _registry_with(tool)
         reg.apply_policy(
-            tier_map={},
             allowed_tools=(),
             tool_policy_mode="discovered",
         )
@@ -414,10 +426,10 @@ class TestRuntimeToolRegistry:
         )
         reg = _registry_with(tool)
         # First call: disable the tool
-        reg.apply_policy(tier_map={}, allowed_tools=["other"])
+        reg.apply_policy(allowed_tools=["other"])
         assert reg.get("t").enabled_for_llm is False
         # Second call: re-enable it
-        reg.apply_policy(tier_map={}, allowed_tools=["t"])
+        reg.apply_policy(allowed_tools=["t"])
         assert reg.get("t").enabled_for_llm is True
 
     def test_atomic_single_swap_identity_change(self) -> None:
@@ -426,7 +438,7 @@ class TestRuntimeToolRegistry:
         )
         reg = _registry_with(tool)
         old_id = id(reg._tools)
-        reg.apply_policy(tier_map={}, allowed_tools=("t",))
+        reg.apply_policy(allowed_tools=("t",))
         new_id = id(reg._tools)
         assert old_id != new_id
 
@@ -453,7 +465,7 @@ class TestRuntimeToolRegistry:
             side_effect=_raising_replace,
         ):
             with pytest.raises(ValueError):
-                reg.apply_policy(tier_map={}, allowed_tools=())
+                reg.apply_policy(allowed_tools=())
 
         assert reg.get("tool_a") is original_a
         assert reg.get("tool_b") is original_b
@@ -482,9 +494,9 @@ class TestRuntimeToolRegistry:
         reader.start()
         for i in range(5000):
             if i % 2 == 0:
-                reg.apply_policy(tier_map={"t": "ADMIN"}, allowed_tools=("t",))
+                reg.apply_policy(allowed_tools=("t",))
             else:
-                reg.apply_policy(tier_map={"t": "READ_ONLY"}, allowed_tools=("t",))
+                reg.apply_policy(allowed_tools=("t",))
         stop.set()
         reader.join()
 
@@ -533,10 +545,10 @@ class TestApplyPolicyReversibility:
         )
         reg = _registry_with(tool)
         # First call: disable the tool
-        reg.apply_policy(tier_map={}, allowed_tools=["other_tool"])
+        reg.apply_policy(allowed_tools=["other_tool"])
         assert reg.get("shell_run").enabled_for_llm is False
         # Second call: re-enable the tool
-        reg.apply_policy(tier_map={}, allowed_tools=["shell_run"])
+        reg.apply_policy(allowed_tools=["shell_run"])
         assert reg.get("shell_run").enabled_for_llm is True
 
     def test_atomic_single_swap_per_call(self) -> None:
@@ -546,7 +558,7 @@ class TestApplyPolicyReversibility:
         )
         reg = _registry_with(tool)
         old_id = id(reg._tools)
-        reg.apply_policy(tier_map={}, allowed_tools=[])
+        reg.apply_policy(allowed_tools=[])
         new_id = id(reg._tools)
         assert old_id != new_id
         assert len(reg._tools) == 1

@@ -9,11 +9,12 @@ the sole routing authority — no fallback to `shared.tool_registry.ToolRegistry
 exists.
 
 Import-layer design decisions (do not "fix" these by adding the imports back):
-  - `apply_policy()` takes plain, duck-typed primitives (`tier_map`,
-    `allowed_tools`) instead of `agent.config_dataclasses.ToolConfig` /
-    `ApprovalConfig`, for the same `shared-is-leaf` reason. Whichever later
-    requirement wires this to real config is responsible for extracting these
-    primitives from `ToolConfig`/`agent.toml` and passing them in.
+  - `apply_policy()` takes plain, duck-typed primitives (`allowed_tools`) instead of
+    `agent.config_dataclasses.ToolConfig` / `ApprovalConfig`, for the same
+    `shared-is-leaf` reason. Whichever later requirement wires this to real config
+    is responsible for extracting these primitives from `ToolConfig`/`agent.toml`
+    and passing them in. The safety tier is never a policy input here: each entry
+    carries the tier its producer declared, and `apply_policy()` does not overwrite it.
   - The Security Posture gate arrives as `allowed_servers`, a plain set of server
     keys, for the same `shared-is-leaf` reason: `shared` cannot read the Agent's
     posture DTOs, and `agent.services.mcp_health` already reduces a posture to a
@@ -24,11 +25,11 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any
 
 from shared.resource_scope import resolve_resource_scopes
-from shared.runtime_tool import AgentSafetyTier, RuntimeTool, _or_default
+from shared.runtime_tool import RuntimeTool, _or_default
 from shared.tool_spec import ToolSpec
 
 logger = logging.getLogger(__name__)
@@ -205,17 +206,17 @@ class RuntimeToolRegistry:
 
     def apply_policy(
         self,
-        tier_map: Mapping[str, AgentSafetyTier],
         allowed_tools: Sequence[str],
         tool_policy_mode: str = "explicit_allowlist",
         disabled_tools: Sequence[str] = (),
     ) -> None:
-        """Apply a tier/allowlist policy to all registered tools, in place.
+        """Apply an allowlist policy to all registered tools, in place.
 
-        `tier_map` maps tool name to `AgentSafetyTier`; tools absent from
-        `tier_map` keep their current tier. `allowed_tools` is an allowlist of
-        tool names; an empty sequence means no tool is allowed (fail closed,
-        ADR-004: mirrors `tool_policy.check_preflight`).
+        The tier each entry carries is the tier its producer declared; no
+        configuration-derived tier is applied here (ADR-003 Decision 9,
+        agentcfg003: `agent_safety_tier` is a declared value). `allowed_tools` is
+        an allowlist of tool names; an empty sequence means no tool is allowed
+        (fail closed, ADR-004: mirrors `tool_policy.check_preflight`).
 
         `tool_policy_mode` selects the visibility model: `discovered` keeps each
         tool's base visibility minus `disabled_tools`; `explicit_allowlist`
@@ -225,7 +226,6 @@ class RuntimeToolRegistry:
         new_tools: dict[str, RuntimeTool] = {}
         explicit = tool_policy_mode == "explicit_allowlist"
         for name, tool in list(self._tools.items()):
-            tier = tier_map.get(name, tool.agent_safety_tier)
             resolved_llm_visibility_base = _or_default(tool.llm_visibility_base, True)
             if explicit:
                 allowed_alone = name in allowed_tools
@@ -242,7 +242,6 @@ class RuntimeToolRegistry:
             new_enabled = resolved_llm_visibility_base and allowed_alone
             new_tools[name] = dataclasses.replace(
                 tool,
-                agent_safety_tier=tier,
                 enabled_for_llm=new_enabled,
             )
         self._tools = new_tools

@@ -36,7 +36,7 @@ Human approval is decided before a Tool executes, by the tool-level approval in 
 
 #### Behavior
 
-- Risk classification uses `approval_risk_rules` per tool; a tool without a rule falls back to its safety-tier default.
+- Risk classification uses each tool's declared `agent_safety_tier`, mapped to its risk level; a tool absent from the registry resolves to `high` (fail-safe).
 - The gate applies per tool call, for MEDIUM and HIGH risk tools only.
 - Every decision, approved or denied, is written to the audit log as a `tool_approval` event that carries the `workflow_id` and the turn ID in its `task_id` field; no separate approval table is kept.
 - A workflow definition that contains the `require_approval` key is rejected at load time.
@@ -76,7 +76,7 @@ presented as an LLM error.
 
 ## Known Limitations
 
-- A tool without an `approval_risk_rules` entry falls back to its safety-tier default (see [agent_06_02](agent_06_02_tool-execution-and-approval-approval.md))
+- The risk level comes from the tool's declared tier mapping (see [agent_06_02](agent_06_02_tool-execution-and-approval-approval.md))
 - Partial completion is not automatically resumed — manual user intervention is required
 
 ## Keywords

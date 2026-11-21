@@ -139,8 +139,7 @@ class TestStartupOrchestratorSetupPrompt:
 # Cross-reference for docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md's
 # severity-mapping table. Proves each documented severity is actually produced under its
 # documented condition, for the 6 pipeline sources _check_services() records:
-# mcp_auth, readiness, mcp_tool_discovery, routing_drift, routing_safety_tiers,
-# rag_consistency.
+# mcp_auth, readiness, mcp_tool_discovery, routing_drift, rag_consistency.
 
 
 def _make_startup_ctx(
@@ -404,7 +403,7 @@ class TestCheckServicesSeverityClassification:
             StartupCheckOutcome("mcp_tool_discovery", StartupCheckStatus.OK)
         ]
 
-    # ── routing_safety_tiers ─────────────────────────────────────────────────
+    # ── routing_drift ─────────────────────────────────────────────────
 
     @pytest.mark.asyncio
     async def test_routing_safety_tiers_gap_is_fatal(self) -> None:
@@ -417,7 +416,7 @@ class TestCheckServicesSeverityClassification:
             ),
         )
         assert exc is not None
-        outcomes = [o for o in pipeline.outcomes if o.source == "routing_safety_tiers"]
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
         assert len(outcomes) == 1
         assert outcomes[0].status == StartupCheckStatus.FATAL
 
@@ -429,7 +428,7 @@ class TestCheckServicesSeverityClassification:
             ctx, check_routing_safety_tiers=MagicMock(return_value=[])
         )
         assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "routing_safety_tiers"]
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
         assert outcomes == []
 
     # ── routing_drift_live ───────────────────────────────────────────────────

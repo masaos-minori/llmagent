@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import dataclasses
 import json
-import tomllib
 import uuid
 from pathlib import Path
 from typing import Any
@@ -233,18 +232,41 @@ def test_write_dangerous_tool_emits_audit_record(
     assert record["outcome"] == "ok"
 
 
-def test_parametrization_matches_config_write_dangerous() -> None:
-    """The parametrized (server, tool) set must equal the config's WRITE_DANGEROUS set."""
-    data = tomllib.loads(
-        (_REPO_ROOT / "config" / "agent.toml").read_text(encoding="utf-8")
+def test_parametrization_matches_declared_write_dangerous() -> None:
+    """The parametrized (server, tool) set must equal the producers' declared WRITE_DANGEROUS set.
+
+    Agentcfg003 REQ-011: the config/agent.toml [tool_safety_tiers] map is removed;
+    each producer's TOOL_LIST `agent_safety_tier` declaration is the source."""
+    from mcp_servers.cicd.cicd_tools import TOOL_LIST as CICD_TOOLS
+    from mcp_servers.file.delete_tools import TOOL_LIST as DELETE_TOOLS
+    from mcp_servers.git.git_tools import TOOL_LIST as GIT_TOOLS
+    from mcp_servers.github.github_tools import TOOL_LIST as _github_tools
+    from mcp_servers.rag_pipeline.rag_pipeline_tools import (
+        TOOL_LIST as RAG_PIPELINE_TOOLS,
     )
-    config_tools = {
-        name
-        for name, tier in data["tool_safety_tiers"].items()
-        if tier == "WRITE_DANGEROUS"
+
+    producer_lists = [
+        CICD_TOOLS,
+        DELETE_TOOLS,
+        GIT_TOOLS,
+        _github_tools,
+        RAG_PIPELINE_TOOLS,
+    ]
+    declared_tools = {
+        tool["name"]
+        for tool_list in producer_lists
+        for tool in tool_list
+        if tool["agent_safety_tier"] == "WRITE_DANGEROUS"
     }
     parametrized_tools = {tool for _, tool in _CASES}
-    assert parametrized_tools == config_tools
+    assert parametrized_tools == declared_tools
+    for tool_list in producer_lists:
+        for tool in tool_list:
+            if tool["name"] in parametrized_tools:
+                assert tool["agent_safety_tier"] == "WRITE_DANGEROUS", (
+                    f"{tool['name']} is parametrized here but declares "
+                    f"{tool['agent_safety_tier']!r}"
+                )
     # Every tool maps to exactly one server (no duplicates in the map).
     flat = [tool for tools in _SERVER_TOOLS.values() for tool in tools]
     assert len(flat) == len(set(flat))

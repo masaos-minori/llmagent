@@ -40,18 +40,16 @@ Documents design decisions for approval flows, risk classification, and plan mod
 
 ### Risk Classification Design Decisions
 
-`classify_risk(cfg, tool_name, args)` determines base risk with the following priority:
+`classify_risk(cfg, tool_name, args, registry)` determines base risk with the following priority:
 
-1. `approval_risk_rules[tool_name]` (Explicit rules)
-2. `tool_safety_tiers[tool_name]` (Tier mapping)
-3. Fallback to `tool_constants.py` classification: `DELETE_TOOLS`/`SHELL_TOOLS` → `high`, `WRITE_TOOLS` → `medium`, others → `medium` (default)
-4. `medium` remains the final fallback for a registered-but-untiered, unruled tool; a tool absent from the registry entirely resolves to `high` (Fail-safe)
+1. The registered tool's declared `agent_safety_tier`, mapped through `_TIER_TO_RISK` (see the Tier-Risk Mapping table)
+2. A tool absent from the registry, and a call without a registry, resolves to `high` (Fail-safe): with no declaration there is nothing to consult, and risk is never inferred from a tool name
 
-**Evaluation order**: the lookup is strictly `approval_risk_rules` → `tool_safety_tiers` → `tool_constants.py` default → `medium` fallback, evaluated in `classify_risk()` (`agent/tool_policy.py`). **A base of `RiskLevel.NONE` returns before Special Risk Overrides and Risk Escalation** — a tier-derived `none` (see the Tier-Risk Mapping table) is never raised by a protected path or a special-case flag. A tool with an explicit rule and a tier entry resolves to the rule value; the tier entry stays in the config for plan-mode blocking and the ADR-003 tier-vs-write classification, not for risk escalation.
+**Evaluation order**: the base risk is the declared tier mapping above, evaluated in `classify_risk()` (`agent/tool_policy.py`). **A base of `RiskLevel.NONE` returns before Special Risk Overrides and Risk Escalation** — a tier-derived `none` (see the Tier-Risk Mapping table) is never raised by a protected path or a special-case flag. The removed per-tool config maps no longer contribute: the declared tier is the single risk source (ADR-003, agentcfg003).
 
-**Vocabulary**: the *safety tier* (`READ_ONLY`/`WRITE_SAFE`/`WRITE_DANGEROUS`/`ADMIN`, from `tool_safety_tiers`) and the *approval risk* (`none`/`medium`/`high`, `RiskLevel`) are distinct. Only the approval risk decides whether a prompt is shown; the tier supplies its default value. An `approval_risk_rules` entry overrides the tier default in either direction (for example, `WRITE_SAFE` file write tools carry a `medium` rule and therefore prompt, while `WRITE_SAFE` tools without a rule, such as `git_add`, do not).
+**Vocabulary**: the *safety tier* (`READ_ONLY`/`WRITE_SAFE`/`WRITE_DANGEROUS`/`ADMIN`, the `agent_safety_tier` each tool declares) and the *approval risk* (`none`/`medium`/`high`, `RiskLevel`) are distinct. Only the approval risk decides whether a prompt is shown; the tier maps to it through `_TIER_TO_RISK` (for example, `write_file` declares `WRITE_SAFE` and resolves to `none`, `delete_file` declares `WRITE_DANGEROUS` and resolves to `medium`).
 
-**Design judgment**: a tool registered but missing from `tool_safety_tiers` is rejected by startup validation (fatal). If classification is still reached for an untiered tool, it falls back to the constants-based rule above, and a tool absent from the registry entirely is classified `high` (**Fail-safe**). An unrecognized tier string maps to `medium`.
+**Design judgment**: each tool's tier is declared by its producer and validated against the closed tier value set at registration, so an untiered or mis-typed tool never reaches classification. A tool absent from the registry entirely is classified `high` (**Fail-safe**).
 
 #### Tier-Risk Mapping
 
@@ -90,7 +88,7 @@ After special case risk determination, the following are further evaluated as es
 - Path is included in `approval_protected_paths` → Escalate to `high`
 - GitHub branch is in `approval_high_risk_branches` → Escalate to `high`
 
-**Protected-path scope**: escalation only ever sees paths inside `allowed_root` — a path outside the jail is rejected by `check_allowed_root()` at the pre-check stage, before risk classification runs (`check_approval()`, `agent/tool_approval.py`). Under the shipped config, every ruled path-bearing tool (`write_file`, `edit_file`, `move_file`) therefore resolves to `high` on a protected path in-jail, and a protected path outside the jail never reaches the prompt: the two mechanisms stay distinct — the jail denies, the escalation prompts.
+**Protected-path scope**: escalation only ever sees paths inside `allowed_root` — a path outside the jail is rejected by `check_allowed_root()` at the pre-check stage, before risk classification runs (`check_approval()`, `agent/tool_approval.py`). Because a tier-derived base of `none` returns before escalation, escalation applies only to tools whose declared tier maps to `medium` or above: under the shipped tiers `delete_file`, `delete_directory` and the git write tools resolve to `high` on a protected path in-jail, and a protected path outside the jail never reaches the prompt: the two mechanisms stay distinct — the jail denies, the escalation prompts.
 
 ### GitOps Flags
 
@@ -98,7 +96,7 @@ After special case risk determination, the following are further evaluated as es
 
 ### Dry Run Preview
 
-- Tools in `approval_dry_run_tools` are executed beforehand with `dry_run=True` before the approval prompt.
+- A tool that declares `preview_capability="dry_run"` is executed beforehand with `dry_run=True` before the approval prompt. A tool declaring `preview_capability="none"` is never pre-executed and gets a static preview.
 - If dry run result is `is_error=True`, tools with `RiskLevel.HIGH` are immediately rejected.
 
 ### Handling Denials
@@ -109,8 +107,8 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 
 `/plan` toggles `ctx.conv.plan_mode`:
 
-- When `True`: only tools in the `READ_ONLY` safety tier (`cfg.approval.tool_safety_tiers`) may run. Every other tool is rejected automatically, without a prompt and before the approval flow. A tool with no tier entry, including an unknown tool name, is rejected (fail-closed).
-- Tools in `cfg.tool.plan_blocked_tools` are rejected in addition, whatever their tier. The list is an explicit extension: an empty list does not relax the tier rule.
+- When `True`: only tools whose declared `agent_safety_tier` is `READ_ONLY` may run. Every other tool is rejected automatically, without a prompt and before the approval flow. A tool absent from the registry, including an unknown tool name, is rejected (fail-closed).
+- Tools in `cfg.tool.plan_blocked_tools` are rejected in addition, whatever their tier. The list is an operational exception on top of the tier rule: an empty list does not relax the tier rule.
 - The rule covers the file write, edit, move and delete tools, `shell_run`, the Git write tools (`git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push`), the GitHub write tools, and the RAG and MDQ index-changing tools, because none of them is `READ_ONLY`.
 
 **Design judgment**: Plan mode lets the LLM read and reason without changing anything: it is a read-only guarantee derived from the safety tiers, not a configured name list.
@@ -122,14 +120,14 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 ## Key Constraints
 
 - Fail-closed: GitHub repository allowlist, `gitops_push_blocked`
-- Fail-safe: tools missing from `tool_safety_tiers` are rejected at startup; at classification time a tool absent from the registry is `high`
+- Fail-safe: a tool absent from the registry is classified `high` at classification time and rejected in plan mode
 - Base risk `none` skips the override and escalation checks and returns `none` immediately
 
 ## Known Limitations
 
-- The dry-run preview is built by executing the tool with `dry_run=True` **before** the user approves. `check_approval` builds the preview in `scripts/agent/tool_approval.py` (L174), then emits the prompt (L186) and reads the decision (L188). A tool therefore runs once before approval; its server must treat `dry_run=True` as a hard no-op (no write/delete/network/database side effect).
-- Whitelist membership (`_KNOWN_DRY_RUN_CAPABLE_TOOLS`) is a per-tool contract: each member's server must guarantee zero write/delete/network/database side effects under `dry_run=True`, verified during the approval subsystem's tool audit. A tool that cannot guarantee a no-op degrades to a text-only preview rather than being blocked.
-- GitHub write tools are listed in `approval_dry_run_tools`, but this path is dormant today: `approval_github_allowed_repos` is empty, so `check_allowed_repo` (in `scripts/agent/tool_policy.py`) fails closed at preflight and denies every GitHub write tool before the dry-run preview runs.
+- The dry-run preview is built by executing the tool with `dry_run=True` **before** the user approves. `check_approval` builds the preview through `_build_preview_with_dry_run` in `scripts/agent/tool_approval.py`, then emits the prompt and reads the decision. A tool with declared dry-run capability therefore runs once before approval; its server must treat `dry_run=True` as a hard no-op (no write/delete/network/database side effect).
+- The `preview_capability="dry_run"` declaration is a per-tool contract: each declaring tool's server must guarantee zero write/delete/network/database side effects under `dry_run=True`, verified during the approval subsystem's tool audit. A tool that cannot guarantee a no-op must declare `preview_capability="none"` and takes the static text-only preview instead.
+- GitHub write tools declare dry-run preview capability, but this path is dormant today: `approval_github_allowed_repos` is empty, so `check_allowed_repo` (in `scripts/agent/tool_policy.py`) fails closed at preflight and denies every GitHub write tool before the dry-run preview runs.
 
 ## Keywords
 

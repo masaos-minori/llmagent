@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from shared.runtime_tool import AgentSafetyTier
-
     from agent.context import AgentContext
 
 
@@ -73,10 +70,9 @@ class ServiceSyncer:
             result.applied.append("hist_mgr")
 
         if ctx.services_required.runtime_tools is not None:
+            # Agentcfg003 REQ-005/REQ-011: no tier_map is passed — the tier each
+            # entry carries is the one its producer declared.
             ctx.services_required.runtime_tools.apply_policy(
-                tier_map=cast(
-                    Mapping[str, "AgentSafetyTier"], ctx.cfg.approval.tool_safety_tiers
-                ),
                 allowed_tools=ctx.cfg.tool.allowed_tools,
                 tool_policy_mode=ctx.cfg.tool.tool_policy_mode,
                 disabled_tools=ctx.cfg.tool.disabled_tools,

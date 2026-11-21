@@ -1,68 +1,17 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+from typing import Any
+
 import pytest
 from agent.production_config_validator import ProductionConfigValidator
 from shared.component_mandatoriness import (
     ComponentClassification,
     load_component_mandatoriness,
 )
+from shared.runtime_tool_registry import RuntimeToolRegistry
 
-
-class TestProductionConfigValidatorSafetyTiers:
-    """Tests for bidirectional tool_safety_tiers validation."""
-
-    def test_missing_safety_tier_produces_error_in_production(self) -> None:
-        known_tools = {"shell_execute", "file_read"}
-        config = {
-            "tool_safety_tiers": {"shell_execute": "low"},
-            "known_tools": known_tools,
-        }
-        result = ProductionConfigValidator().validate(config, known_tools=known_tools)
-        assert any("'file_read'" in err for err in result.errors)
-        assert result.warnings == []
-
-    def test_unknown_safety_tier_key_produces_error_in_production(self) -> None:
-        known_tools = {"shell_execute", "file_read"}
-        config = {
-            "tool_safety_tiers": {"unknown_tool": "high"},
-            "known_tools": known_tools,
-        }
-        result = ProductionConfigValidator().validate(config, known_tools=known_tools)
-        assert any("unknown_tool" in err for err in result.errors)
-        assert result.warnings == []
-
-    def test_both_missing_and_unknown_produce_errors_in_production(self) -> None:
-        known_tools = {"shell_execute", "file_read", "github_search"}
-        config = {
-            "tool_safety_tiers": {"unknown_tool": "high"},
-            "known_tools": known_tools,
-        }
-        result = ProductionConfigValidator().validate(config, known_tools=known_tools)
-        assert any(
-            "missing" in err.lower() or "'file_read'" in err for err in result.errors
-        )
-        assert any(
-            "unknown" in err.lower() or "unknown_tool" in err for err in result.errors
-        )
-
-    def test_no_safety_tiers_config_no_tier_errors(self) -> None:
-        config: dict[str, object] = {}
-        result = ProductionConfigValidator().validate(config)
-        assert not any("safety tier" in err.lower() for err in result.errors)
-
-    def test_empty_safety_tiers_dict_no_tier_errors(self) -> None:
-        config: dict[str, object] = {"tool_safety_tiers": {}, "known_tools": set()}
-        result = ProductionConfigValidator().validate(config, known_tools=set())
-        assert not any("safety tier" in err.lower() for err in result.errors)
-
-    def test_all_tiers_present_no_errors(self) -> None:
-        known_tools = {"shell_execute", "file_read"}
-        config = {
-            "tool_safety_tiers": {"shell_execute": "low", "file_read": "medium"},
-            "known_tools": known_tools,
-        }
-        result = ProductionConfigValidator().validate(config, known_tools=known_tools)
-        assert not any("safety tier" in err.lower() for err in result.errors)
+from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
 
 
 class TestProductionConfigValidatorRegistryLookupFailClosed:
@@ -82,12 +31,9 @@ class TestProductionConfigValidatorRegistryLookupFailClosed:
             raise exception_type("registry unavailable")
 
         monkeypatch.setattr("shared.tool_registry.get_registry", _raise)
-        config = {"tool_safety_tiers": {"mystery_tool": "low"}}
+        config: dict[str, object] = {}
         result = ProductionConfigValidator().validate(config)
         assert any("Tool registry resolution failed" in err for err in result.errors)
-        # Safety tier checks should NOT produce additional errors since they were
-        # short-circuited by the registry failure error already recorded
-        assert not any("safety tier" in err.lower() for err in result.errors)
 
 
 class TestProductionConfigValidatorAllowedTools:
@@ -121,132 +67,128 @@ class TestProductionConfigValidatorAllowedTools:
 
 
 class TestProductionConfigValidatorApprovalRiskFloor:
-    """Tests for the git write-tool approval risk floor check (REQ-001)."""
+    """Git write-tool risk floor read from declared metadata (REQ-004, REQ-011).
+
+    The floor is a lower bound on the declared tier's mapped risk: the named git
+    write tools must not declare a tier that maps to NONE, and a registered tool
+    with no usable declaration is reported fail-closed. The removed config maps
+    no longer feed the check.
+    """
 
     GIT_TOOLS = {"git_checkout", "git_pull", "git_push"}
 
-    def test_all_git_tools_high_no_issue(self) -> None:
-        config = {
-            "approval_risk_rules": {
-                "git_checkout": "high",
-                "git_pull": "high",
-                "git_push": "high",
-            },
-        }
-        result = ProductionConfigValidator().validate(
-            config, known_tools=self.GIT_TOOLS
+    @staticmethod
+    def _registry(entries: dict[str, Any]) -> RuntimeToolRegistry:
+        return RuntimeToolRegistry(
+            tools=dict(entries), allowed_servers=frozenset({"git"})
         )
-        assert not any("Effective risk below HIGH" in err for err in result.errors)
 
-    def test_one_git_tool_medium_produces_error_in_production(self) -> None:
-        config = {
-            "approval_risk_rules": {
-                "git_checkout": "medium",
-                "git_pull": "high",
-                "git_push": "high",
-            },
+    def _floor(self, tiers: dict[str, str]):
+        registry = self._registry(
+            {
+                name: build_fixture_runtime_tool(name, "git", agent_safety_tier=tier)
+                for name, tier in tiers.items()
+            }
+        )
+        return ProductionConfigValidator().validate(
+            {}, known_tools=self.GIT_TOOLS, runtime_tools=registry
+        )
+
+    def _floor_errors(self, result) -> list[str]:
+        return [err for err in result.errors if "below floor" in err]
+
+    def test_all_git_tools_declare_write_dangerous_no_issue(self) -> None:
+        """The shipped declaration (WRITE_DANGEROUS -> MEDIUM) clears the floor."""
+        result = self._floor({tool: "WRITE_DANGEROUS" for tool in self.GIT_TOOLS})
+        assert self._floor_errors(result) == []
+
+    def test_admin_tier_no_issue(self) -> None:
+        result = self._floor({tool: "ADMIN" for tool in self.GIT_TOOLS})
+        assert self._floor_errors(result) == []
+
+    def test_none_risk_declared_tier_produces_error_in_production(self) -> None:
+        """A git write tool declaring a NONE-risk tier breaks the floor."""
+        tiers = {tool: "WRITE_DANGEROUS" for tool in self.GIT_TOOLS}
+        tiers["git_checkout"] = "WRITE_SAFE"
+        result = self._floor(tiers)
+        floor_errors = self._floor_errors(result)
+        assert any("git_checkout" in err for err in floor_errors)
+
+    def test_missing_declared_tier_fail_closed(self) -> None:
+        """A registered git tool without the declared field is reported, not skipped."""
+        entries: dict[str, object] = {
+            name: build_fixture_runtime_tool(name, "git")
+            for name in ("git_pull", "git_push")
         }
+        entries["git_checkout"] = SimpleNamespace(name="git_checkout", server_key="git")
         result = ProductionConfigValidator().validate(
-            config, known_tools=self.GIT_TOOLS
+            {}, known_tools=self.GIT_TOOLS, runtime_tools=self._registry(entries)
+        )
+        floor_errors = self._floor_errors(result)
+        assert any(
+            "git_checkout" in err and "missing declared agent_safety_tier" in err
+            for err in floor_errors
+        )
+
+    def test_unrecognized_declared_tier_produces_error(self) -> None:
+        """A tier value outside the closed set is reported rather than defaulted."""
+        entries: dict[str, object] = {
+            name: build_fixture_runtime_tool(name, "git")
+            for name in ("git_pull", "git_push")
+        }
+        entries["git_checkout"] = SimpleNamespace(
+            name="git_checkout", server_key="git", agent_safety_tier="BOGUS"
+        )
+        result = ProductionConfigValidator().validate(
+            {}, known_tools=self.GIT_TOOLS, runtime_tools=self._registry(entries)
+        )
+        floor_errors = self._floor_errors(result)
+        assert any(
+            "git_checkout" in err and "unrecognized declared tier" in err
+            for err in floor_errors
+        )
+
+    def test_git_tool_absent_from_runtime_registry_not_flagged(self) -> None:
+        """classify_risk() resolves an unregistered tool to HIGH (UNKNOWN
+        fail-safe), so the floor must not flag what the registry does not carry."""
+        registry = self._registry(
+            {
+                "git_checkout": build_fixture_runtime_tool(
+                    "git_checkout", "git", agent_safety_tier="WRITE_DANGEROUS"
+                )
+            }
+        )
+        result = ProductionConfigValidator().validate(
+            {}, known_tools=self.GIT_TOOLS, runtime_tools=registry
+        )
+        assert self._floor_errors(result) == []
+
+    def test_no_runtime_registry_defers_the_floor(self) -> None:
+        """Config build runs before discovery: without a registry there is no
+        declared source, and enforcement defers to the schema gate,
+        classify_risk() and the drift report."""
+        result = ProductionConfigValidator().validate({}, known_tools=self.GIT_TOOLS)
+        assert self._floor_errors(result) == []
+
+    def test_removed_maps_no_longer_feed_the_floor(self) -> None:
+        """REQ-011: a stale tool_safety_tiers entry cannot satisfy or break the
+        floor — the map is rejected as an unknown key instead."""
+        registry = self._registry(
+            {
+                name: build_fixture_runtime_tool(name, "git")
+                for name in ("git_checkout", "git_pull")
+            }
+        )
+        result = ProductionConfigValidator().validate(
+            {"tool_safety_tiers": {"git_push": "READ_ONLY"}},
+            known_tools=self.GIT_TOOLS,
+            runtime_tools=registry,
         )
         assert any(
-            "Effective risk below HIGH" in err and "git_checkout" in err
+            "Unknown config keys" in err and "tool_safety_tiers" in err
             for err in result.errors
         )
-        assert result.warnings == []
-
-    def test_one_git_tool_invalid_value_produces_error_in_production(self) -> None:
-        """'low' is not a valid RiskLevel — classify_risk() would raise ValueError
-        at call time in production, so the floor check must flag it rather than
-        silently skip it."""
-        config = {
-            "approval_risk_rules": {
-                "git_checkout": "low",
-                "git_pull": "high",
-                "git_push": "high",
-            },
-        }
-        result = ProductionConfigValidator().validate(
-            config, known_tools=self.GIT_TOOLS
-        )
-        assert any(
-            "Effective risk below HIGH" in err and "git_checkout" in err
-            for err in result.errors
-        )
-
-    def test_git_tool_absent_from_rules_falls_back_to_tier_default(self) -> None:
-        """No approval_risk_rules entry but tool_safety_tiers=WRITE_DANGEROUS
-        implicitly resolves to MEDIUM and must still be flagged."""
-        config = {
-            "approval_risk_rules": {"git_pull": "high", "git_push": "high"},
-            "tool_safety_tiers": {"git_checkout": "WRITE_DANGEROUS"},
-        }
-        result = ProductionConfigValidator().validate(
-            config, known_tools=self.GIT_TOOLS
-        )
-        assert any(
-            "Effective risk below HIGH" in err and "git_checkout" in err
-            for err in result.errors
-        )
-
-    def test_git_tools_absent_from_both_no_issue(self) -> None:
-        """No override anywhere: classify_risk()'s UNKNOWN path treats this as
-        HIGH, so the floor check must not flag it."""
-        config: dict[str, object] = {}
-        result = ProductionConfigValidator().validate(
-            config, known_tools=self.GIT_TOOLS
-        )
-        assert not any("Effective risk below HIGH" in err for err in result.errors)
-
-    def test_approval_risk_rules_absent_still_checks_tier_fallback(self) -> None:
-        """The floor check must run even when approval_risk_rules is entirely
-        absent from config, not only when it is an empty/partial Mapping."""
-        config = {"tool_safety_tiers": {"git_checkout": "WRITE_DANGEROUS"}}
-        result = ProductionConfigValidator().validate(
-            config, known_tools=self.GIT_TOOLS
-        )
-        assert any(
-            "Effective risk below HIGH" in err and "git_checkout" in err
-            for err in result.errors
-        )
-
-    def test_rule_takes_precedence_over_tier(self) -> None:
-        """DT-01 Option A characterization: the rule is authoritative — a git tool
-        ruled high passes the floor check even with a sub-HIGH tier entry, exactly
-        as classify_risk() resolves it."""
-        config = {
-            "approval_risk_rules": {
-                "git_checkout": "high",
-                "git_pull": "high",
-                "git_push": "high",
-            },
-            "tool_safety_tiers": {tool: "WRITE_DANGEROUS" for tool in self.GIT_TOOLS},
-        }
-        result = ProductionConfigValidator().validate(
-            config, known_tools=self.GIT_TOOLS
-        )
-        assert not any("Effective risk below HIGH" in err for err in result.errors)
-
-
-class TestProductionConfigValidatorValidateUnknownToolSafetyTiers:
-    """Tests for standalone validate_unknown_tool_safety_tiers method."""
-
-    def test_empty_list_returns_no_errors(self) -> None:
-        result = ProductionConfigValidator().validate_unknown_tool_safety_tiers([])
-        assert result.errors == []
-
-    def test_single_unknown_key(self) -> None:
-        result = ProductionConfigValidator().validate_unknown_tool_safety_tiers(["mdq"])
-        assert len(result.errors) == 1
-        assert "mdq" in result.errors[0]
-
-    def test_multiple_unknown_keys(self) -> None:
-        result = ProductionConfigValidator().validate_unknown_tool_safety_tiers(
-            ["mdq", "unknown_tool"]
-        )
-        assert len(result.errors) == 2
-        assert "mdq" in result.errors[0] or "mdq" in result.errors[1]
-        assert "unknown_tool" in result.errors[0] or "unknown_tool" in result.errors[1]
+        assert self._floor_errors(result) == []
 
 
 class TestProductionConfigValidatorUnknownTopLevelKeys:
@@ -341,14 +283,6 @@ class TestProductionConfigValidatorConfigValidationResultIdentity:
 
         assert PCVResult is CVResult
 
-    def test_validate_unknown_tool_safety_tiers_single_arg_construction(self) -> None:
-        """REQ-004: validate_unknown_tool_safety_tiers()'s single-arg construction still works."""
-        validator = ProductionConfigValidator()
-        result = validator.validate_unknown_tool_safety_tiers(["unknown_tool"])
-        assert isinstance(result, object)
-        assert hasattr(result, "errors")
-        assert hasattr(result, "warnings")
-
 
 class TestProductionConfigValidatorValidKeySetUnchanged:
     """Tests for valid-key set stability after REQ-006 schema consolidation."""
@@ -365,6 +299,19 @@ class TestProductionConfigValidatorValidKeySetUnchanged:
         assert "routing_drift_strict" not in keys
         assert "embed_url" in keys
         assert "refiner_max_tokens" not in keys
+
+    def test_agentcfg003_removed_maps_are_out_of_the_valid_key_set(self) -> None:
+        """REQ-011: the removed per-tool maps are subtracted from the introspected set."""
+        from agent.production_config_validator import _get_valid_production_keys
+
+        keys = _get_valid_production_keys()
+        for key in (
+            "tool_safety_tiers",
+            "approval_risk_rules",
+            "approval_resource_keys",
+            "approval_dry_run_tools",
+        ):
+            assert key not in keys
 
 
 @pytest.mark.integration
@@ -495,6 +442,21 @@ class TestRemovedKeysRejected:
             {"allowed_root": "/opt/llm", "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so"}
         )
         assert result.errors == []
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "tool_safety_tiers",
+            "approval_risk_rules",
+            "approval_resource_keys",
+            "approval_dry_run_tools",
+        ],
+    )
+    def test_agentcfg003_removed_map_is_fatal(self, key: str) -> None:
+        """REQ-011 (AC-05): a config that still sets a removed per-tool map is
+        fatal with the key named — no compatibility reader keeps it alive."""
+        result = ProductionConfigValidator().validate({key: {}})
+        assert any("Unknown config keys" in err and key in err for err in result.errors)
 
 
 class TestProductionConfigValidatorVecSoRequirement:

@@ -10,6 +10,7 @@ import re
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
 from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.command_defs_list import _COMMANDS
 from agent.config_dataclasses import ApprovalConfig, LLMConfig
@@ -224,22 +225,22 @@ class TestPrintConfigValues:
         assert "llm_stream_retry_on_heartbeat_timeout" in out
         assert "llm_stream_retry_on_malformed_chunk" in out
 
-    def test_dry_run_tools_printed(self, capsys: Any) -> None:
+    def test_dry_run_tools_not_printed(self, capsys: Any) -> None:
+        """Agentcfg003 REQ-005: dry-run capability is declared per tool; the
+        config display no longer prints a dry-run tool list."""
         ctx = self._make_cfg_ctx()
         cmd = _FakeCmd(ctx)
         cmd._print_config_values()
         out = capsys.readouterr().out
-        assert "dry_run_tools" in out
-        assert "write_file" in out
+        assert "dry_run_tools" not in out
 
-    def test_empty_dry_run_tools_shows_none(self, capsys: Any) -> None:
+    def test_risk_rules_not_printed(self, capsys: Any) -> None:
+        """REQ-005: the removed approval_risk_rules line is gone from the display."""
         ctx = self._make_cfg_ctx()
-        ctx.cfg.approval.approval_dry_run_tools = []
         cmd = _FakeCmd(ctx)
         cmd._print_config_values()
         out = capsys.readouterr().out
-        assert "dry_run_tools" in out
-        assert "(none)" in out
+        assert "risk_rules" not in out
 
 
 # ── _apply_config_params ──────────────────────────────────────────────────────
@@ -323,21 +324,22 @@ class TestApplyConfigDict:
         assert call_kwargs.get("stream_retry_on_heartbeat_timeout") is False
         assert call_kwargs.get("stream_retry_on_malformed_chunk") is True
 
-    def test_approval_resource_keys_applied(self) -> None:
+    @pytest.mark.parametrize(
+        "removed_key",
+        ["approval_resource_keys", "approval_dry_run_tools"],
+    )
+    def test_removed_approval_maps_not_applied_on_reload(
+        self, removed_key: str
+    ) -> None:
+        """Agentcfg003 REQ-011: a reload payload naming a removed map is ignored
+        as an unrecognized key; the live config never gains the field."""
         ctx = _make_ctx()
         ctx.conv.history = []
-        ConfigReloadService(ctx).apply_config_dict(
-            {**_DUMMY_MCP, "approval_resource_keys": {"github_push": "high"}}
+        outcome = ConfigReloadService(ctx).apply_config_dict(
+            {**_DUMMY_MCP, removed_key: {"github_push": "high"}}
         )
-        assert ctx.cfg.approval.approval_resource_keys == {"github_push": "high"}
-
-    def test_approval_dry_run_tools_applied(self) -> None:
-        ctx = _make_ctx()
-        ctx.conv.history = []
-        ConfigReloadService(ctx).apply_config_dict(
-            {**_DUMMY_MCP, "approval_dry_run_tools": ["write_file", "delete_file"]}
-        )
-        assert ctx.cfg.approval.approval_dry_run_tools == ["write_file", "delete_file"]
+        assert not hasattr(ctx.cfg.approval, removed_key)
+        assert removed_key not in outcome.applied
 
     def test_hist_mgr_token_limit_synced(self) -> None:
         ctx = _make_ctx()

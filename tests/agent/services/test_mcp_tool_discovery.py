@@ -105,7 +105,7 @@ def _make_ctx(
     return ctx
 
 
-# ── write-classification mismatch (ADR-003 INV-03) ───────────────────────────
+# ── declared write classification drift (ADR-003 INV-03) ─────────────────────
 
 
 class TestWriteClassificationFinding:
@@ -125,7 +125,14 @@ class TestWriteClassificationFinding:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -137,13 +144,19 @@ class TestWriteClassificationFinding:
             ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
         ).discover_all()
 
-        mismatches = [
+        drift = [
             f
             for f in result.findings
-            if f.message.startswith("Write classification mismatch")
+            if f.message.startswith("Declared write classification drift")
         ]
-        assert len(mismatches) == 1
-        assert mismatches[0].status == StartupCheckStatus.FATAL
+        assert len(drift) == 2
+        assert all(f.status == StartupCheckStatus.FATAL for f in drift)
+        # AC-10: the finding is a report only — the entry is still registered with the
+        # values its producer declared, and no classification is changed by the drift.
+        tool = result.registry.get("write_file")
+        assert tool is not None
+        assert tool.is_write is False
+        assert tool.side_effect_class == "read_only"
 
 
 # ── discover_all() happy path ─────────────────────────────────────────────────
@@ -166,7 +179,14 @@ class TestDiscoverAllHappyPath:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -187,7 +207,7 @@ class TestDiscoverAllHappyPath:
         assert tool.is_write is False
         assert tool.requires_serial is False  # declared, not defaulted
         assert tool.resource_scope_kind == ""
-        assert tool.resource_scope_keys == ()
+        assert tool.resource_scope_keys == {}
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         assert len(mcp_findings) >= 0
         assert result.unreachable == []
@@ -208,7 +228,14 @@ class TestDiscoverAllHappyPath:
                             "is_write": True,
                             "requires_serial": True,
                             "resource_scope_kind": "process",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "WRITE_SAFE",
+                            "side_effect_class": "local_write",
+                            "retry_policy": "never",
+                            "reconciliation_policy": "local_state",
+                            "idempotency_required": True,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -224,7 +251,16 @@ class TestDiscoverAllHappyPath:
         assert tool.is_write is True
         assert tool.requires_serial is True
         assert tool.resource_scope_kind == "process"
-        assert tool.resource_scope_keys == ()
+        assert tool.resource_scope_keys == {}
+        # agentcfg003 REQ-002/REQ-003: every declared policy value round-trips
+        # unchanged into the registered entry.
+        assert tool.agent_safety_tier == "WRITE_SAFE"
+        assert tool.side_effect_class == "local_write"
+        assert tool.retry_policy == "never"
+        assert tool.reconciliation_policy == "local_state"
+        assert tool.idempotency_required is True
+        assert tool.preview_capability == "none"
+        assert tool.policy_version == "2.1"
 
 
 # ── enabled_for_llm derivation from `enabled` key ─────────────────────────────
@@ -286,7 +322,14 @@ class TestDiscoverAllEnabledForLlm:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -317,7 +360,14 @@ class TestDiscoverAllEnabledForLlm:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -349,7 +399,14 @@ class TestDiscoverAllEnabledForLlm:
                             "is_write": True,
                             "requires_serial": True,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "WRITE_SAFE",
+                            "side_effect_class": "local_write",
+                            "retry_policy": "never",
+                            "reconciliation_policy": "local_state",
+                            "idempotency_required": True,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -510,7 +567,14 @@ class TestDiscoverAllMalformedEntries:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         },
                     ],
                 },
@@ -532,10 +596,10 @@ class TestDiscoverAllMalformedEntries:
 
 
 class TestDiscoverAllSchemaV2Contract:
-    """Schema-2.0 four-field contract: required, not defaulted."""
+    """Schema-2.1 required-field contract: required, not defaulted (agentcfg003 REQ-002/REQ-003)."""
 
     @pytest.mark.asyncio
-    async def test_complete_declaration_round_trips_all_four_fields(self) -> None:
+    async def test_complete_declaration_round_trips_all_required_fields(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = _async_result(
             _resp(
@@ -556,7 +620,17 @@ class TestDiscoverAllSchemaV2Contract:
                             "is_write": True,
                             "requires_serial": True,
                             "resource_scope_kind": "filesystem",
-                            "resource_scope_keys": ["source", "destination"],
+                            "resource_scope_keys": {
+                                "source": "path",
+                                "destination": "path",
+                            },
+                            "agent_safety_tier": "WRITE_SAFE",
+                            "side_effect_class": "local_write",
+                            "retry_policy": "never",
+                            "reconciliation_policy": "local_state",
+                            "idempotency_required": True,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -572,7 +646,14 @@ class TestDiscoverAllSchemaV2Contract:
         assert tool.is_write is True
         assert tool.requires_serial is True
         assert tool.resource_scope_kind == "filesystem"
-        assert tool.resource_scope_keys == ("source", "destination")
+        assert tool.resource_scope_keys == {"source": "path", "destination": "path"}
+        assert tool.agent_safety_tier == "WRITE_SAFE"
+        assert tool.side_effect_class == "local_write"
+        assert tool.retry_policy == "never"
+        assert tool.reconciliation_policy == "local_state"
+        assert tool.idempotency_required is True
+        assert tool.preview_capability == "none"
+        assert tool.policy_version == "2.1"
 
     @pytest.mark.asyncio
     async def test_missing_is_write_produces_warning_and_is_excluded(self) -> None:
@@ -589,7 +670,7 @@ class TestDiscoverAllSchemaV2Contract:
                             "inputSchema": {"type": "object", "properties": {}},
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
                         }
                     ],
                 },
@@ -621,7 +702,7 @@ class TestDiscoverAllSchemaV2Contract:
                             "inputSchema": {"type": "object", "properties": {}},
                             "is_write": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
                         }
                     ],
                 },
@@ -653,7 +734,7 @@ class TestDiscoverAllSchemaV2Contract:
                             "inputSchema": {"type": "object", "properties": {}},
                             "is_write": False,
                             "requires_serial": False,
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
                         }
                     ],
                 },
@@ -701,6 +782,56 @@ class TestDiscoverAllSchemaV2Contract:
         assert any("resource_scope_keys" in f.message for f in result.findings)
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "missing_field",
+        [
+            "agent_safety_tier",
+            "side_effect_class",
+            "retry_policy",
+            "reconciliation_policy",
+            "idempotency_required",
+            "preview_capability",
+            "policy_version",
+        ],
+    )
+    async def test_missing_declared_policy_field_produces_warning_and_is_excluded(
+        self,
+        missing_field: str,
+    ) -> None:
+        """Agentcfg003 REQ-002/REQ-003 (AC-02, AC-03): an entry omitting one declared
+        policy field is rejected before registration; no default fills it in."""
+        entry: dict[str, object] = {
+            "name": "incomplete_tool",
+            "description": "d",
+            "inputSchema": {"type": "object", "properties": {}},
+            "is_write": False,
+            "requires_serial": False,
+            "resource_scope_kind": "",
+            "resource_scope_keys": {},
+            "agent_safety_tier": "READ_ONLY",
+            "side_effect_class": "read_only",
+            "retry_policy": "safe_read_retry",
+            "reconciliation_policy": "not_required",
+            "idempotency_required": False,
+            "preview_capability": "none",
+            "policy_version": "2.1",
+        }
+        del entry[missing_field]
+
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(200, {"schema_version": "1.0", "tools": [entry]})
+        )
+        ctx = _make_ctx({"srv": _server()}, http)
+
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
+
+        assert result.registry.all_tools() == []
+        assert any(missing_field in f.message for f in result.findings)
+
+    @pytest.mark.asyncio
     async def test_resource_scope_keys_referencing_unknown_arg_produces_warning_and_is_excluded(
         self,
     ) -> None:
@@ -721,7 +852,17 @@ class TestDiscoverAllSchemaV2Contract:
                             "is_write": True,
                             "requires_serial": True,
                             "resource_scope_kind": "filesystem",
-                            "resource_scope_keys": ["path", "missing_arg"],
+                            "resource_scope_keys": {
+                                "path": "path",
+                                "missing_arg": "path",
+                            },
+                            "agent_safety_tier": "WRITE_SAFE",
+                            "side_effect_class": "local_write",
+                            "retry_policy": "never",
+                            "reconciliation_policy": "local_state",
+                            "idempotency_required": True,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -871,7 +1012,14 @@ class TestDiscoverAllUnreachableServers:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -972,7 +1120,14 @@ class TestDiscoverAllDuplicates:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -1195,7 +1350,7 @@ async def test_legacy_singular_resource_scope_rejected_synthetic() -> None:
                         "is_write": False,
                         "requires_serial": False,
                         "resource_scope_kind": "",
-                        "resource_scope_keys": [],
+                        "resource_scope_keys": {},
                     }
                 ],
             },
@@ -1225,7 +1380,7 @@ async def test_legacy_singular_resource_scope_rejected_synthetic() -> None:
                         "is_write": False,
                         "requires_serial": False,
                         "resource_scope_kind": "",
-                        "resource_scope_keys": [],
+                        "resource_scope_keys": {},
                     }
                 ],
             },
@@ -1289,7 +1444,14 @@ async def test_enabled_type_checked_when_present_synthetic() -> None:
                         "is_write": False,
                         "requires_serial": False,
                         "resource_scope_kind": "",
-                        "resource_scope_keys": [],
+                        "resource_scope_keys": {},
+                        "agent_safety_tier": "READ_ONLY",
+                        "side_effect_class": "read_only",
+                        "retry_policy": "safe_read_retry",
+                        "reconciliation_policy": "not_required",
+                        "idempotency_required": False,
+                        "preview_capability": "none",
+                        "policy_version": "2.1",
                     }
                 ],
             },
@@ -1325,7 +1487,14 @@ async def test_enabled_type_checked_when_present_synthetic() -> None:
                         "is_write": False,
                         "requires_serial": False,
                         "resource_scope_kind": "",
-                        "resource_scope_keys": [],
+                        "resource_scope_keys": {},
+                        "agent_safety_tier": "READ_ONLY",
+                        "side_effect_class": "read_only",
+                        "retry_policy": "safe_read_retry",
+                        "reconciliation_policy": "not_required",
+                        "idempotency_required": False,
+                        "preview_capability": "none",
+                        "policy_version": "2.1",
                     }
                 ],
             },
@@ -1356,7 +1525,14 @@ async def test_missing_schema_version_rejected() -> None:
                         "is_write": False,
                         "requires_serial": False,
                         "resource_scope_kind": "",
-                        "resource_scope_keys": [],
+                        "resource_scope_keys": {},
+                        "agent_safety_tier": "READ_ONLY",
+                        "side_effect_class": "read_only",
+                        "retry_policy": "safe_read_retry",
+                        "reconciliation_policy": "not_required",
+                        "idempotency_required": False,
+                        "preview_capability": "none",
+                        "policy_version": "2.1",
                     }
                 ]
             },
@@ -1394,7 +1570,14 @@ async def test_unsupported_schema_version_rejected() -> None:
                         "is_write": False,
                         "requires_serial": False,
                         "resource_scope_kind": "",
-                        "resource_scope_keys": [],
+                        "resource_scope_keys": {},
+                        "agent_safety_tier": "READ_ONLY",
+                        "side_effect_class": "read_only",
+                        "retry_policy": "safe_read_retry",
+                        "reconciliation_policy": "not_required",
+                        "idempotency_required": False,
+                        "preview_capability": "none",
+                        "policy_version": "2.1",
                     }
                 ],
             },
@@ -1430,7 +1613,7 @@ async def test_input_schema_only_rejected() -> None:
                         "is_write": False,
                         "requires_serial": False,
                         "resource_scope_kind": "",
-                        "resource_scope_keys": [],
+                        "resource_scope_keys": {},
                     }
                 ],
             },
@@ -1465,7 +1648,14 @@ async def test_missing_capabilities_tolerated() -> None:
                         "is_write": False,
                         "requires_serial": False,
                         "resource_scope_kind": "",
-                        "resource_scope_keys": [],
+                        "resource_scope_keys": {},
+                        "agent_safety_tier": "READ_ONLY",
+                        "side_effect_class": "read_only",
+                        "retry_policy": "safe_read_retry",
+                        "reconciliation_policy": "not_required",
+                        "idempotency_required": False,
+                        "preview_capability": "none",
+                        "policy_version": "2.1",
                     }
                 ],
             },
@@ -1500,7 +1690,14 @@ async def test_capabilities_present_and_valid_normalizes_to_tuple() -> None:
                         "is_write": True,
                         "requires_serial": True,
                         "resource_scope_kind": "",
-                        "resource_scope_keys": [],
+                        "resource_scope_keys": {},
+                        "agent_safety_tier": "WRITE_SAFE",
+                        "side_effect_class": "local_write",
+                        "retry_policy": "never",
+                        "reconciliation_policy": "local_state",
+                        "idempotency_required": True,
+                        "preview_capability": "none",
+                        "policy_version": "2.1",
                     }
                 ],
             },
@@ -1534,7 +1731,14 @@ async def test_malformed_capabilities_produces_warning_not_fatal() -> None:
                         "is_write": False,
                         "requires_serial": False,
                         "resource_scope_kind": "",
-                        "resource_scope_keys": [],
+                        "resource_scope_keys": {},
+                        "agent_safety_tier": "READ_ONLY",
+                        "side_effect_class": "read_only",
+                        "retry_policy": "safe_read_retry",
+                        "reconciliation_policy": "not_required",
+                        "idempotency_required": False,
+                        "preview_capability": "none",
+                        "policy_version": "2.1",
                     }
                 ],
             },
@@ -1573,7 +1777,14 @@ async def test_malformed_capabilities_produces_warning_for_non_required_server()
                         "is_write": False,
                         "requires_serial": False,
                         "resource_scope_kind": "",
-                        "resource_scope_keys": [],
+                        "resource_scope_keys": {},
+                        "agent_safety_tier": "READ_ONLY",
+                        "side_effect_class": "read_only",
+                        "retry_policy": "safe_read_retry",
+                        "reconciliation_policy": "not_required",
+                        "idempotency_required": False,
+                        "preview_capability": "none",
+                        "policy_version": "2.1",
                     }
                 ],
             },
@@ -1617,7 +1828,14 @@ class TestDriftDetection:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -1665,7 +1883,14 @@ class TestDriftDetection:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -1710,7 +1935,14 @@ class TestDriftDetection:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -1769,7 +2001,14 @@ class TestDriftDetection:
                                     "is_write": False,
                                     "requires_serial": False,
                                     "resource_scope_kind": "",
-                                    "resource_scope_keys": [],
+                                    "resource_scope_keys": {},
+                                    "agent_safety_tier": "READ_ONLY",
+                                    "side_effect_class": "read_only",
+                                    "retry_policy": "safe_read_retry",
+                                    "reconciliation_policy": "not_required",
+                                    "idempotency_required": False,
+                                    "preview_capability": "none",
+                                    "policy_version": "2.1",
                                 }
                             ],
                         },
@@ -1786,7 +2025,14 @@ class TestDriftDetection:
                                 "is_write": False,
                                 "requires_serial": False,
                                 "resource_scope_kind": "",
-                                "resource_scope_keys": [],
+                                "resource_scope_keys": {},
+                                "agent_safety_tier": "READ_ONLY",
+                                "side_effect_class": "read_only",
+                                "retry_policy": "safe_read_retry",
+                                "reconciliation_policy": "not_required",
+                                "idempotency_required": False,
+                                "preview_capability": "none",
+                                "policy_version": "2.1",
                             }
                         ],
                     },
@@ -1842,7 +2088,14 @@ class TestDriftDetection:
                                     "is_write": False,
                                     "requires_serial": False,
                                     "resource_scope_kind": "",
-                                    "resource_scope_keys": [],
+                                    "resource_scope_keys": {},
+                                    "agent_safety_tier": "READ_ONLY",
+                                    "side_effect_class": "read_only",
+                                    "retry_policy": "safe_read_retry",
+                                    "reconciliation_policy": "not_required",
+                                    "idempotency_required": False,
+                                    "preview_capability": "none",
+                                    "policy_version": "2.1",
                                 }
                             ],
                         },
@@ -1859,7 +2112,14 @@ class TestDriftDetection:
                                 "is_write": False,
                                 "requires_serial": False,
                                 "resource_scope_kind": "",
-                                "resource_scope_keys": [],
+                                "resource_scope_keys": {},
+                                "agent_safety_tier": "READ_ONLY",
+                                "side_effect_class": "read_only",
+                                "retry_policy": "safe_read_retry",
+                                "reconciliation_policy": "not_required",
+                                "idempotency_required": False,
+                                "preview_capability": "none",
+                                "policy_version": "2.1",
                             }
                         ],
                     },
@@ -1916,7 +2176,14 @@ class TestUnifiedSeverity:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         }
                     ],
                 },
@@ -2059,7 +2326,7 @@ class TestRequiredServerMalformedEntryFatalEscalation:
                             "inputSchema": {"type": "object", "properties": {}},
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
                         },
                         {
                             "name": "valid_tool",
@@ -2068,7 +2335,14 @@ class TestRequiredServerMalformedEntryFatalEscalation:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         },
                     ],
                 },
@@ -2116,7 +2390,7 @@ class TestRequiredServerMalformedEntryFatalEscalation:
                             "inputSchema": {"type": "object", "properties": {}},
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
                         },
                         {
                             "name": "valid_tool",
@@ -2125,7 +2399,14 @@ class TestRequiredServerMalformedEntryFatalEscalation:
                             "is_write": False,
                             "requires_serial": False,
                             "resource_scope_kind": "",
-                            "resource_scope_keys": [],
+                            "resource_scope_keys": {},
+                            "agent_safety_tier": "READ_ONLY",
+                            "side_effect_class": "read_only",
+                            "retry_policy": "safe_read_retry",
+                            "reconciliation_policy": "not_required",
+                            "idempotency_required": False,
+                            "preview_capability": "none",
+                            "policy_version": "2.1",
                         },
                     ],
                 },
@@ -2171,7 +2452,14 @@ class TestRequiredCapabilityCheck:
             "is_write": False,
             "requires_serial": False,
             "resource_scope_kind": "",
-            "resource_scope_keys": [],
+            "resource_scope_keys": {},
+            "agent_safety_tier": "READ_ONLY",
+            "side_effect_class": "read_only",
+            "retry_policy": "safe_read_retry",
+            "reconciliation_policy": "not_required",
+            "idempotency_required": False,
+            "preview_capability": "none",
+            "policy_version": "2.1",
             "capabilities": capabilities,
         }
 
@@ -2545,7 +2833,14 @@ _ENTRY_SCHEMA: dict[str, object] = {
     "is_write": False,
     "requires_serial": False,
     "resource_scope_kind": "",
-    "resource_scope_keys": [],
+    "resource_scope_keys": {},
+    "agent_safety_tier": "READ_ONLY",
+    "side_effect_class": "read_only",
+    "retry_policy": "safe_read_retry",
+    "reconciliation_policy": "not_required",
+    "idempotency_required": False,
+    "preview_capability": "none",
+    "policy_version": "2.1",
 }
 
 

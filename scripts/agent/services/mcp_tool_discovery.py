@@ -201,12 +201,17 @@ class McpToolDiscoveryService:
     def _build_write_classification_findings(
         self, registry: RuntimeToolRegistry
     ) -> list[StartupCheckOutcome]:
-        """Report tools whose RuntimeTool write flag disagrees with the static tool sets (ADR-003 INV-03)."""
+        """Report tools whose declared write classification disagrees with the reference tool sets.
+
+        ADR-003 INV-03 as a drift report (agentcfg003 REQ-007, AC-10): the value the
+        tool's producer declared is the authority, the static tool sets are comparison
+        data only, and the finding changes no decision in the policy layer.
+        """
         messages = check_write_classification(registry)
         if not messages:
             return []
         return _unified_findings(
-            (f"Write classification mismatch: {msg}" for msg in messages),
+            (f"Declared write classification drift: {msg}" for msg in messages),
             StartupCheckStatus.FATAL,
         )
 

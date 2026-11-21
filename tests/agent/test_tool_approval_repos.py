@@ -7,22 +7,29 @@ Covers check_approval() GitHub write tool gating via allowed_repos and gitops_pu
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.tool_approval import check_approval
+from shared.runtime_tool import AgentSafetyTier
+from shared.runtime_tool_registry import RuntimeTool, RuntimeToolRegistry
+from shared.tool_metadata import (
+    TOOL_FIELD_SET_VERSION,
+    PreviewCapability,
+    ResourceKeyKind,
+    SideEffectClass,
+)
 from shared.transport_dto import ToolCallResult
 
 from tests.agent._config_test_defaults import (
-    ALL_APPROVAL_RISK_RULES,
     ALL_TOOL_NAMES,
-    ALL_TOOL_SAFETY_TIERS,
     PERMISSIVE_ALLOWED_ROOT,
     PERMISSIVE_SQLITE_VEC_SO,
 )
+from tests.agent._producer_registry import PRODUCER_TIERS
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -53,14 +60,88 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
                 }
             },
             # Standard tier classification; mirrors config/agent.toml defaults
-            "tool_safety_tiers": ALL_TOOL_SAFETY_TIERS,
-            "approval_risk_rules": ALL_APPROVAL_RISK_RULES,
             "allowed_root": PERMISSIVE_ALLOWED_ROOT,
             "sqlite_vec_so": PERMISSIVE_SQLITE_VEC_SO,
             **overrides,
         }
     )
     return base
+
+
+# Declared metadata mirroring the producers' registration (agentcfg003 REQ-008):
+# name -> (resource_scope_keys, side_effect_class, preview_capability). Tiers
+# come from the producer-declared tier map (PRODUCER_TIERS).
+_DECLARED: dict[str, tuple[dict[str, ResourceKeyKind], str, str]] = {
+    "read_text_file": ({"path": "path"}, "read_only", "none"),
+    "github_create_or_update_file": (
+        {"owner": "non_escalating", "repo": "repo"},
+        "external_write",
+        "dry_run",
+    ),
+    "github_push_files": (
+        {"owner": "non_escalating", "repo": "repo"},
+        "external_write",
+        "dry_run",
+    ),
+    "github_delete_file": (
+        {"owner": "non_escalating", "repo": "repo"},
+        "external_write",
+        "dry_run",
+    ),
+    "github_create_issue": (
+        {"owner": "non_escalating", "repo": "repo"},
+        "external_write",
+        "dry_run",
+    ),
+    "github_add_issue_comment": (
+        {"owner": "non_escalating", "repo": "repo"},
+        "external_write",
+        "dry_run",
+    ),
+    "github_merge_pull_request": (
+        {"owner": "non_escalating", "repo": "repo"},
+        "external_write",
+        "dry_run",
+    ),
+}
+
+
+def _make_reg() -> RuntimeToolRegistry:
+    """RuntimeToolRegistry seeded with the tools used in this file."""
+    return RuntimeToolRegistry(
+        tools={
+            name: RuntimeTool(
+                name=name,
+                server_key="github_server",
+                server_url="",
+                description="",
+                input_schema={},
+                raw_definition={},
+                status="active",
+                is_write=effect != "read_only",
+                requires_serial=False,
+                resource_scope_kind="github"
+                if name.startswith("github_")
+                else "filesystem",
+                resource_scope_keys=keys,
+                agent_safety_tier=cast(AgentSafetyTier, PRODUCER_TIERS[name]),
+                side_effect_class=cast(SideEffectClass, effect),
+                retry_policy="safe_read_retry"
+                if effect == "read_only"
+                else "same_logical_call_only",
+                reconciliation_policy="not_required"
+                if effect == "read_only"
+                else "external_state",
+                idempotency_required=effect != "read_only",
+                preview_capability=cast(PreviewCapability, preview),
+                policy_version=TOOL_FIELD_SET_VERSION,
+                enabled_for_llm=True,
+                capabilities=(),
+            )
+            for name, (keys, effect, preview) in _DECLARED.items()
+        },
+        allowed_servers=frozenset({"github_server"}),
+    )
 
 
 def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
@@ -72,6 +153,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.session.session_id = None
     ctx.services_required.audit_logger = None
     ctx.services_required.tools = AsyncMock()
+    ctx.services_required.runtime_tools = _make_reg()
     # A working tools service returns a successful ToolCallResult. Without this,
     # the bare AsyncMock yields a truthy MagicMock for is_error, which trips the
     # HIGH-risk dry-run blocking path for github_push_files (now dry-run-capable).
@@ -119,8 +201,10 @@ class TestCheckApprovalGitHubAllowlist:
         cfg = _make_cfg(approval_github_allowed_repos=["org/repo"])
         ctx = _make_ctx(cfg=cfg)
 
+        # github_push_files is declared WRITE_DANGEROUS -> MEDIUM risk, which
+        # prompts with [y/N] (agentcfg003: the declared tier is the risk source).
         with patch(
-            "agent.tool_approval._approval_read", new=AsyncMock(return_value="yes")
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
         ):
             result = await check_approval(
                 ctx, "github_push_files", {"owner": "org", "repo": "repo"}

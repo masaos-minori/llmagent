@@ -1,12 +1,16 @@
 """tests/mcp_servers/test_tool_schema_contract.py
 
-Schema-2.0 contract coverage across all MCP server TOOL_LIST modules.
+Schema-2.1 contract coverage across all MCP server TOOL_LIST modules.
 
 Validates every tool dict exported by every MCP server's TOOL_LIST against the
-schema-2.0 per-tool metadata contract (is_write, requires_serial,
-resource_scope_kind, resource_scope_keys) via
-scripts/shared/resource_scope.py::validate_tool_schema_v2(), and cross-checks full
-tool-name coverage against shared.tool_constants.get_all_mcp_tool_names().
+schema-2.1 per-tool metadata contract (the schema-2.0 fields is_write,
+requires_serial, resource_scope_kind, resource_scope_keys, plus the declared
+policy fields agent_safety_tier, side_effect_class, retry_policy,
+reconciliation_policy, idempotency_required, preview_capability,
+policy_version) via scripts/shared/resource_scope.py::validate_tool_schema_v2(),
+asserts every required field is carried explicitly by the entry (no field is
+supplied by a default), and cross-checks full tool-name coverage against
+shared.tool_constants.get_all_mcp_tool_names().
 
 See also tests/mcp_servers/test_tool_schema.py for the narrower, pre-schema-2.0
 field-presence check limited to the 4 file+git modules.
@@ -20,6 +24,23 @@ from typing import Any
 import pytest
 from shared.resource_scope import validate_tool_schema_v2
 from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS, get_all_mcp_tool_names
+
+# Fields every producer entry must carry explicitly (schema-2.1 required set).
+_REQUIRED_DECLARED_FIELDS: frozenset[str] = frozenset(
+    {
+        "is_write",
+        "requires_serial",
+        "resource_scope_kind",
+        "resource_scope_keys",
+        "agent_safety_tier",
+        "side_effect_class",
+        "retry_policy",
+        "reconciliation_policy",
+        "idempotency_required",
+        "preview_capability",
+        "policy_version",
+    }
+)
 
 _TOOL_LIST_MODULES: list[tuple[str, str]] = [
     ("mcp_servers.file.read_tools", "TOOL_LIST"),
@@ -40,12 +61,18 @@ _TOOL_LIST_MODULES: list[tuple[str, str]] = [
 
 @pytest.mark.parametrize("module_path, attr_name", _TOOL_LIST_MODULES)
 def test_all_tools_pass_schema_v2_contract(module_path: str, attr_name: str) -> None:
-    """Assert every tool entry in module's TOOL_LIST passes the schema-2.0 contract."""
+    """Assert every tool entry in module's TOOL_LIST passes the schema-2.1 contract
+    and carries every required field explicitly (agentcfg003: no field may be
+    supplied by a default)."""
     mod = importlib.import_module(module_path)
     tool_list: list[dict[str, Any]] = getattr(mod, attr_name)
     for tool in tool_list:
         violations = validate_tool_schema_v2(tool)
         assert violations == [], f"{module_path}::{tool['name']}: {violations}"
+        missing = _REQUIRED_DECLARED_FIELDS - set(tool)
+        assert not missing, (
+            f"{module_path}::{tool['name']}: undeclared {sorted(missing)}"
+        )
 
 
 def test_tool_name_coverage_matches_tool_constants() -> None:
@@ -65,12 +92,26 @@ APPROVED_EXCEPTIONS: frozenset[str] = frozenset()
 
 
 def test_side_effect_parity_matches_canonical() -> None:
-    """Assert TOOL_LIST is_write=True entries exactly equal ALL_SIDE_EFFECTING_TOOLS."""
-    found: set[str] = set()
+    """Cross-check: the union of entries declaring a non-read_only
+    `side_effect_class` (the authority, agentcfg003) must equal
+    ALL_SIDE_EFFECTING_TOOLS, the reference set that only detects drift.
+
+    `is_write` and the declared class must agree: every is_write=True entry
+    declares local_write or external_write, and no read_only entry is
+    is_write=True."""
+    declared: set[str] = set()
+    writes: set[str] = set()
     for module_path, attr_name in _TOOL_LIST_MODULES:
         mod = importlib.import_module(module_path)
-        found |= {t["name"] for t in getattr(mod, attr_name) if t["is_write"]}
+        for tool in getattr(mod, attr_name):
+            if tool["side_effect_class"] != "read_only":
+                declared.add(tool["name"])
+            if tool["is_write"]:
+                writes.add(tool["name"])
     expected = set(ALL_SIDE_EFFECTING_TOOLS)
-    assert found - set(APPROVED_EXCEPTIONS) == expected, (
-        f"drift: {found.symmetric_difference(expected)}"
+    assert declared - set(APPROVED_EXCEPTIONS) == expected, (
+        f"side_effect_class drift: {declared.symmetric_difference(expected)}"
+    )
+    assert writes - set(APPROVED_EXCEPTIONS) == expected, (
+        f"is_write drift: {writes.symmetric_difference(expected)}"
     )

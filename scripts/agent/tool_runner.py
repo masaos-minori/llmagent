@@ -20,9 +20,11 @@ from uuid import uuid4
 from shared.json_utils import (
     dumps as _json_dumps,
 )
-from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS, RETRYABLE_TOOLS
+from shared.runtime_tool_registry import RuntimeToolRegistry
+from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS
 from shared.tool_executor import ToolExecutor
 from shared.tool_executor_helpers import tool_hash_key
+from shared.tool_metadata import retry_policy_is_retryable
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
 
@@ -165,16 +167,13 @@ def _side_effecting(tool_name: str) -> bool:
     return tool_name in ALL_SIDE_EFFECTING_TOOLS
 
 
-def _classify_retry_class(tool_name: str) -> str:
-    """Return the retry classification for a tool using the Agent's canonical set.
-
-    Single source of truth is shared.tool_constants.RETRYABLE_TOOLS (ADR-008):
-    dispatch-capable tools are 'retryable'; every other tool — including
-    unknown ones — is 'non_retryable' (fail-safe). Resolving locally (rather
-    than importing shared.mcp_dedup) keeps the Agent from reading the
-    dispatcher's config/mcp_dedup.toml.
-    """
-    return "retryable" if tool_name in RETRYABLE_TOOLS else "non_retryable"
+def _classify_retry_class(tool_name: str, registry: RuntimeToolRegistry | None) -> str:
+    """Declared retry_policy decides the dedup retry class; fail-safe non_retryable."""
+    try:
+        declared = registry.get(tool_name).retry_policy if registry else None
+    except KeyError:
+        declared = None
+    return "retryable" if retry_policy_is_retryable(declared) else "non_retryable"
 
 
 def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None:
@@ -200,7 +199,12 @@ def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None
             )
         return None
     try:
-        recorder.record_tool_call(task_id, key, pc.name, _classify_retry_class(pc.name))
+        recorder.record_tool_call(
+            task_id,
+            key,
+            pc.name,
+            _classify_retry_class(pc.name, ctx.services_required.runtime_tools),
+        )
     except Exception as exc:  # noqa: BLE001 — classification decides fail-closed vs best-effort
         if side_effecting:
             raise IntentRecordUnavailableError(
