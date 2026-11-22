@@ -85,6 +85,7 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
     ConfigFieldRegistry("allowed_root", "approval", True, validate_allowed_root),
     ConfigFieldRegistry("approval_github_allowed_repos", "approval", True),
     ConfigFieldRegistry("gitops_push_blocked", "approval", False),
+    ConfigFieldRegistry("approval_medium_preview_fallback", "approval", False),
     # Memory section
     ConfigFieldRegistry("memory_retention_days", "memory", True),
     ConfigFieldRegistry("memory_max_pinned", "memory", True),

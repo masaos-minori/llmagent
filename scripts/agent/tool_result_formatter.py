@@ -64,8 +64,9 @@ def _mask_value(value: object, masked_fields: list[str]) -> object:
 def mask_args(args: dict[str, Any], masked_fields: list[str]) -> dict[str, Any]:
     """Return a copy of args with masked_fields keys replaced by '***' at any depth.
 
-    Masking is applied before logging and audit writes; it is not applied to the
-    interactive approval preview built by build_preview. String values under any
+    Masking is applied before logging, audit writes and the interactive approval
+    preview (tool_approval masks the arguments before calling build_preview, so
+    redaction precedes truncation). String values under any
     other key are additionally scrubbed for content-pattern secrets
     (agent/secrets_masker.py), so audit previews, logger writes and REPL
     tool-call lines never carry a secret embedded in a free-form argument.

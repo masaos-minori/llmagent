@@ -222,14 +222,14 @@ def test_mcp_registered_subcommands_equal_the_handler_valid_set() -> None:
     assert set(exc_info.value.valid) == {s.name for s in mcp.subcommands}
 
 
-def test_memory_registered_subcommands_equal_the_handler_valid_set() -> None:
+async def test_memory_registered_subcommands_equal_the_handler_valid_set() -> None:
     import pytest
     from agent.commands.exceptions import UnknownSubcommandError
 
     registry = _make_registry()
     registry._ctx.services_required.memory = MagicMock()
     with pytest.raises(UnknownSubcommandError) as exc_info:
-        registry._cmd_memory("no-such-subcommand")
+        await registry._cmd_memory("no-such-subcommand")
     memory = next(c for c in _COMMANDS if c.name == "/memory")
     # "status" is handled before the dispatch table, so it is not in `valid`.
     registered = {s.name for s in memory.subcommands} - {"status"}

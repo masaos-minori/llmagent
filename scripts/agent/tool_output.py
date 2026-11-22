@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from agent.commands.output_port import CliOutputPort, OutputPort
 from agent.output_tags import OutputTag
+from agent.secrets_masker import _mask_secrets
 
 _DEFAULT_OUT: OutputPort = CliOutputPort()
 
@@ -32,18 +33,26 @@ def emit_tool_result(name: str, display: str, output: OutputPort | None = None) 
 
 
 def emit_approval_prompt(
-    risk: str, tool_name: str, preview: str, output: OutputPort | None = None
+    risk: str,
+    tool_name: str,
+    preview: str,
+    output: OutputPort | None = None,
+    *,
+    request_id: str = "",
+    preview_source: str = "",
 ) -> None:
-    """Write the approval prompt header and preview."""
+    """Write the approval prompt header and preview (masked as a last defense)."""
     out = _resolve_out(output)
-    out.write(f"{OutputTag.APPROVAL} {risk} risk: {tool_name}")
-    out.write(f"    preview: {preview}")
+    ref = f" (req {request_id[:8]})" if request_id else ""
+    source = f" ({preview_source})" if preview_source else ""
+    out.write(f"{OutputTag.APPROVAL} {risk} risk: {tool_name}{ref}")
+    out.write(f"    preview{source}: {_mask_secrets(preview)}")
 
 
 def emit_denied(reason: str, output: OutputPort | None = None) -> None:
     """Write the denial line for a tool call. `reason` must include the tool name."""
     out = _resolve_out(output)
-    out.write(f"{OutputTag.DENIED} {reason}")
+    out.write(f"{OutputTag.DENIED} {_mask_secrets(reason)}")
 
 
 def emit_plan_blocked(

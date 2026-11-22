@@ -291,6 +291,9 @@ class ApprovalConfig:
     approval_github_allowed_repos: list[str] = field(default_factory=list)
     # Block all GitHub write operations globally when True
     gitops_push_blocked: bool = False
+    # MEDIUM risk only: allow the static preview when the dry-run preview fails
+    # (HIGH risk never falls back and denies instead)
+    approval_medium_preview_fallback: bool = True
 
 
 @dataclass

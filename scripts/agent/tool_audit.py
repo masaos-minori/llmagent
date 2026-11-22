@@ -115,8 +115,15 @@ def audit_approval(
     args: dict,
     decision: ApprovalDecisionType | str,
     idempotency_key: str = "",
+    *,
+    request_id: str = "",
+    preview_source: str = "",
+    fallback_reason: str = "",
 ) -> None:
     """Write a structured tool_approval event to the audit log.
+
+    ``request_id``, ``preview_source`` and ``fallback_reason`` record approval
+    provenance; the operator's answer text has no parameter and is never logged.
 
     ``idempotency_key`` carries the logical call id (mcpdl001 REQ-008, AC-2):
     the same value the transport sends as X-Idempotency-Key and the state
@@ -144,6 +151,9 @@ def audit_approval(
         workflow_id=workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
         idempotency_key=idempotency_key,
+        request_id=request_id,
+        preview_source=preview_source,
+        fallback_reason=fallback_reason,
     )
     ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 

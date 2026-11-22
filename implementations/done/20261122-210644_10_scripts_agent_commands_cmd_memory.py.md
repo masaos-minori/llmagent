@@ -9,7 +9,7 @@ In scope: `scripts/agent/commands/cmd_memory.py` and `tests/agent/commands/test_
 
 ## Assumptions
 
-- Verified: `_cmd_memory` builds a dict of lambdas and calls `handler()` synchronously (`scripts/agent/commands/cmd_memory.py:80-124`); the registry awaits coroutine handlers (`scripts/agent/commands/registry.py:139-154`, Plan Reference Files).
+- Verified: `_cmd_memory` builds a dict of lambdas and calls `handler()` synchronously (`scripts/agent/commands/cmd_memory.py:80-124`); the registry awaits a handler only when `CommandDef.is_async` is true and rejects a mismatch at construction (`scripts/agent/commands/registry.py:80-90,130-137`); the `/memory` flag is changed by the `command_defs_list.py` procedure (seq 31), which must land with this one (Step 3b correction).
 
 ## Design decisions
 
@@ -68,9 +68,9 @@ Other `/memory` subcommands' behavior.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion test files included) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-213733 | 20261122-213733 | Changed: scripts/agent/commands/cmd_memory.py (and companions) |
+| 2 | Add or update tests per Validation plan (companion test files included) | Completed | 20261122-213733 | 20261122-213733 | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261122-213733 | 20261122-213733 | ruff, mypy, lint-imports, bandit clean; full suite 13377 passed; diff-cover 91% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

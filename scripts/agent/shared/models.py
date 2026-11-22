@@ -27,6 +27,12 @@ class ToolApprovalEvent:
     # Logical call id (uuid7) generated at preparation; the same value the
     # transport sends as X-Idempotency-Key and the state store keys on.
     idempotency_key: str = ""
+    # Approval provenance: the input request that asked the operator, where the
+    # preview came from (static or dry_run), and why a fallback happened (if any).
+    # The operator's answer text is deliberately not recorded.
+    request_id: str = ""
+    preview_source: str = ""
+    fallback_reason: str = ""
 
 
 @dataclass(frozen=True)

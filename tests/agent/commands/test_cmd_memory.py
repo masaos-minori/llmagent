@@ -51,6 +51,7 @@ class _MockDataOps:
 
     def __init__(self, out):
         self._out = out
+        self.awaited: list[tuple[str, list[str]]] = []
 
     def memory_list(self, mem, sub_tokens=None):
         pass
@@ -64,11 +65,11 @@ class _MockDataOps:
     def memory_pin(self, mem, sub_tokens=None, pin=None):
         pass
 
-    def memory_delete(self, mem, sub_tokens=None):
-        pass
+    async def memory_delete(self, mem, sub_tokens=None):
+        self.awaited.append(("delete", list(sub_tokens or [])))
 
-    def memory_prune(self, mem, ctx, sub_tokens=None):
-        pass
+    async def memory_prune(self, mem, ctx, sub_tokens=None):
+        self.awaited.append(("prune", list(sub_tokens or [])))
 
 
 def _make_mixin():
@@ -142,7 +143,7 @@ def _make_memory_store():
 
 
 class TestMemoryRebuild:
-    def test_memory_rebuild_dry_run_mentions_archive(self):
+    async def test_memory_rebuild_dry_run_mentions_archive(self):
         """Dry-run rebuild output should reference JSONL archive."""
         mixin, messages = _make_mixin()
         mem = _make_memory_store()
@@ -151,13 +152,13 @@ class TestMemoryRebuild:
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)
         ):
-            mixin._cmd_memory("rebuild --dry-run")
+            await mixin._cmd_memory("rebuild --dry-run")
 
         assert any("archive" in msg.lower() for msg in messages), (
             f"Dry-run output should mention 'archive', got: {messages}"
         )
 
-    def test_memory_rebuild_actual_mentions_archive(self):
+    async def test_memory_rebuild_actual_mentions_archive(self):
         """Actual rebuild output should reference JSONL archive."""
         mixin, messages = _make_mixin()
         mem = _make_memory_store()
@@ -166,7 +167,7 @@ class TestMemoryRebuild:
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
         ):
-            mixin._cmd_memory("rebuild --confirm")
+            await mixin._cmd_memory("rebuild --confirm")
 
         assert any("archive" in msg.lower() for msg in messages), (
             f"Rebuild output should mention 'archive', got: {messages}"
@@ -176,7 +177,7 @@ class TestMemoryRebuild:
 class TestMemoryDispatch:
     """No-args→status, disabled→M-02, removed-subcommand rejection, reindex routing."""
 
-    def test_no_args_runs_status(self):
+    async def test_no_args_runs_status(self):
         """A bare /memory runs status (not help)."""
         mixin, messages = _make_mixin()
         # Provide a mem whose embed_client is absent so status takes the
@@ -194,35 +195,35 @@ class TestMemoryDispatch:
             get_activation_mode=lambda: "",
         )
 
-        mixin._cmd_memory("")
+        await mixin._cmd_memory("")
 
         joined = " ".join(messages)
         assert "embed_client not available" in joined, (
             f"Expected status output, got: {messages}"
         )
 
-    def test_disabled_non_status_writes_m02(self):
+    async def test_disabled_non_status_writes_m02(self):
         """With the layer disabled, a non-status subcommand prints M-02 and changes nothing."""
         mixin, messages = _make_mixin()
         mixin._ctx.services_required.memory = None  # type: ignore[attr-defined] — ctx is a SimpleNamespace stub; memory assigned dynamically
 
-        mixin._cmd_memory("list")
+        await mixin._cmd_memory("list")
 
         joined = " ".join(messages)
         assert "M-02" in joined, f"Expected M-02, got: {messages}"
 
-    def test_status_runs_even_when_disabled(self):
+    async def test_status_runs_even_when_disabled(self):
         """status remains reachable when the layer is disabled."""
         mixin, messages = _make_mixin()
         mixin._ctx.services_required.memory = None  # type: ignore[attr-defined] — ctx is a SimpleNamespace stub; memory assigned dynamically
 
-        mixin._cmd_memory("status")
+        await mixin._cmd_memory("status")
 
         assert any("disabled" in m.lower() for m in messages), (
             f"status should report disabled, got: {messages}"
         )
 
-    def test_removed_subcommand_raises(self):
+    async def test_removed_subcommand_raises(self):
         """A removed subcommand raises UnknownSubcommandError over the reduced set."""
         from agent.commands.exceptions import UnknownSubcommandError
 
@@ -231,7 +232,7 @@ class TestMemoryDispatch:
         mixin._ctx.services_required.memory = mem
 
         with pytest.raises(UnknownSubcommandError) as exc_info:
-            mixin._cmd_memory("search")
+            await mixin._cmd_memory("search")
 
         assert exc_info.value.sub == "search"
         for kept in ("list", "delete", "pin", "unpin", "prune", "reindex", "rebuild"):
@@ -240,14 +241,40 @@ class TestMemoryDispatch:
             )
         assert "search" not in exc_info.value.valid
 
-    def test_reindex_routes_to_rebuild_ops(self):
+    async def test_reindex_routes_to_rebuild_ops(self):
         """reindex routes to MemoryRebuildOps.reindex with the sub tokens."""
         mixin, messages = _make_mixin()
         mem = _make_memory_store()
         mixin._ctx.services_required.memory = mem
 
-        mixin._cmd_memory("reindex --fts")
+        await mixin._cmd_memory("reindex --fts")
 
         assert mixin._rebuild_ops.reindex_calls == [(mem, ["--fts"])], (
             f"reindex should route to rebuild_ops.reindex, got: {mixin._rebuild_ops.reindex_calls}"
         )
+
+
+class TestAsyncHandlersAreAwaited:
+    async def test_delete_and_prune_coroutines_are_awaited(self):
+        mixin, _messages = _make_mixin()
+        await mixin._cmd_memory("delete abc123")
+        await mixin._cmd_memory("prune --days 7")
+        assert mixin._data_ops.awaited == [
+            ("delete", ["abc123"]),
+            ("prune", ["--days", "7"]),
+        ]
+
+    async def test_sync_handlers_still_work_without_awaiting(self):
+        mixin, _messages = _make_mixin()
+        await mixin._cmd_memory("list")
+        assert mixin._data_ops.awaited == []
+
+    def test_cmd_memory_is_a_coroutine_function_matching_its_command_def(self):
+        import inspect
+
+        from agent.commands.cmd_memory import _MemoryMixin
+        from agent.commands.command_defs_list import _COMMANDS
+
+        memory = next(c for c in _COMMANDS if c.name == "/memory")
+        assert memory.is_async is True
+        assert inspect.iscoroutinefunction(_MemoryMixin._cmd_memory)

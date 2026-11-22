@@ -8,12 +8,21 @@ Handles: readline, multiline continuation, shutdown event racing, command routin
 
 import asyncio
 import sqlite3
+import sys
 from collections.abc import Callable
-from typing import TYPE_CHECKING, cast
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any, cast
 
 from agent.output_tags import OutputTag
+from agent.repl_input_controller import (
+    InputOutcome,
+    InputRequest,
+    InputResult,
+    PromptKind,
+    ReplInputController,
+    get_input_controller,
+)
 from agent.session import SchemaMissingError
-from agent.stdin_reader import get_stdin_reader
 from agent.turn_persistence import ConversationPersistenceError
 
 if TYPE_CHECKING:
@@ -25,15 +34,12 @@ if TYPE_CHECKING:
 _REPL_RESERVED_COMMANDS = frozenset(["/exit"])
 
 
-class _InputAborted(Exception):
-    """Internal sentinel: input reading was interrupted by Ctrl-C/SystemExit.
+class _TurnFlow(StrEnum):
+    """How the REPL loop goes on after a turn."""
 
-    CPython's Task.__step() re-raises a raw (KeyboardInterrupt, SystemExit) through
-    the event loop's own callback machinery instead of storing it as a normal,
-    retrievable Task exception — catching it inside _input_task()'s own coroutine
-    step and converting it to a plain Exception subclass avoids that special-cased
-    escape path entirely.
-    """
+    NEXT = "next"
+    CONTINUE = "continue"
+    BREAK = "break"
 
 
 class ReplInputLoop:
@@ -66,8 +72,9 @@ class ReplInputLoop:
         self._view = view
         self._shutdown_event = shutdown_event
         self._turn_active: bool = False
-        self._input_coro: asyncio.Task[str] | None = None
-        self._stdin_reader = get_stdin_reader()
+        self._input_coro: asyncio.Task[InputResult] | None = None
+        self._input: ReplInputController = get_input_controller()
+        self._turn_cancel_requested: bool = False
         self._cmds: CommandRegistry | None = None
         self._orchestrator: Orchestrator | None = None
 
@@ -134,19 +141,29 @@ class ReplInputLoop:
         """
         self._view.write_fatal(f"{exc.__class__.__name__}: {exc}")
 
+    def _map_outcome(self, result: InputResult) -> str | None:
+        """Map a read outcome to a line, or None when the loop must end.
+
+        A cancelled or timed-out request is discarded: an empty line makes the loop
+        prompt again. The abandoned read still owns the terminal line, so the line
+        typed next is consumed and dropped before the new prompt reads.
+        """
+        if result.outcome is InputOutcome.COMPLETED:
+            return result.text.strip()
+        if result.outcome in (InputOutcome.EOF, InputOutcome.SHUTDOWN):
+            self._abort_input()
+            return None
+        self._view.write_warning(
+            "Input discarded; press Enter once, the next line you type is dropped."
+        )
+        return ""
+
     async def _read_input(self, loop: asyncio.AbstractEventLoop) -> str | None:
-        """Read a single input line, handling EOF/keyboard interrupt and multiline continuation."""
+        """Read a single input line through the controller, with multiline continuation."""
+        request = InputRequest(PromptKind.NORMAL, "> ")
         shutdown_event = self._shutdown_event
         if shutdown_event is not None:
-
-            async def _input_task() -> str:
-                """Read one line of user input via executor."""
-                try:
-                    return await self._stdin_reader.read(prompt="> ")
-                except (KeyboardInterrupt, SystemExit) as exc:
-                    raise _InputAborted from exc
-
-            input_coro = asyncio.ensure_future(_input_task())
+            input_coro = asyncio.ensure_future(self._input.submit(request))
             self._input_coro = input_coro
             shutdown_done = False
 
@@ -176,28 +193,29 @@ class ReplInputLoop:
                 self._abort_input()
                 return None
             try:
-                raw = input_coro.result()
+                result = input_coro.result()
             except asyncio.CancelledError:
                 # Input was cancelled by signal handler — treat as shutdown
                 self._abort_input()
                 return None
-            except EOFError:
-                self._abort_input()
-                return None
-            except _InputAborted:
-                self._abort_input()
-                return None
         else:
-            try:
-                raw = await self._stdin_reader.read(prompt="> ")
-            except (EOFError, KeyboardInterrupt):
-                self._view.write_turn_end()
-                return None
-        line = raw.strip()
-        if line.endswith("\\"):
-            line = await self._view.read_multiline(loop, line)
-            line = line.strip()
-        return line
+            result = await self._input.submit(request)
+        line = self._map_outcome(result)
+        if line is None or not line.endswith("\\"):
+            return line
+        multiline = await self._input.collect_multiline(
+            line, self._view.write_warning, sys.stdin.isatty()
+        )
+        return self._map_outcome(multiline)
+
+    def _turn_cancel_pending(self) -> bool:
+        """True when Ctrl-C (not shutdown) cancelled the running turn."""
+        return self._turn_cancel_requested
+
+    def _turn_cancelled(self) -> None:
+        """Report a Ctrl-C turn cancellation and clear its flag."""
+        self._turn_cancel_requested = False
+        self._view.write_warning("Turn cancelled (Ctrl-C).")
 
     def _should_exit(self, line: str, ctx: "AgentContext") -> bool:
         """Return True when the REPL loop should terminate."""
@@ -227,6 +245,103 @@ class ReplInputLoop:
                     "Partial LLM completion stored. Use /stats to see count."
                 )
 
+    def _begin_turn_state(self, dispatch_task: "asyncio.Future[None]") -> None:
+        """Tell the controller a turn runs; Ctrl-C then cancels exactly this task."""
+
+        def _cancel_turn() -> None:
+            self._turn_cancel_requested = True
+            dispatch_task.cancel()
+
+        self._turn_cancel_requested = False
+        self._input.begin_turn(_cancel_turn)
+
+    async def _await_turn(
+        self, dispatch_task: "asyncio.Future[Any]", ctx: "AgentContext"
+    ) -> "_TurnFlow":
+        """Wait for one turn, racing it against shutdown; report how the loop goes on."""
+        if self._shutdown_event is not None and not self._shutdown_event.is_set():
+            shutdown_task: asyncio.Future[Any] = asyncio.ensure_future(
+                self._shutdown_event.wait()
+            )
+            done, pending = await asyncio.wait(
+                {dispatch_task, shutdown_task},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if dispatch_task in done and shutdown_task not in done:
+                # dispatch finished first and shutdown has not (yet)
+                # fired — the normal, no-shutdown-race case.
+                if dispatch_task.cancelled() and self._turn_cancel_pending():
+                    shutdown_task.cancel()
+                    self._turn_cancelled()
+                    return _TurnFlow.CONTINUE
+                dispatch_task.result()  # propagate exception if any
+                if shutdown_task in pending:
+                    shutdown_task.cancel()
+                return _TurnFlow.CONTINUE
+            # shutdown_task completed first, or both completed in the
+            # same tick (dispatch finishing right as shutdown fires) —
+            # either way, exit rather than looping back to _read_input.
+            if dispatch_task in done:
+                dispatch_task.result()  # propagate exception if any
+            if shutdown_task in pending:
+                shutdown_task.cancel()
+            if dispatch_task in pending:
+                dispatch_task.cancel()
+                try:
+                    await asyncio.wait_for(
+                        dispatch_task, timeout=self._GRACEFUL_TIMEOUT_S
+                    )
+                except asyncio.CancelledError:
+                    pass
+                except TimeoutError:
+                    self._log_graceful_shutdown_timeout()
+            return _TurnFlow.BREAK
+        # _shutdown_event is None or already set — await the already-created dispatch_task
+        shutting_down = ctx.conv.shutdown_requested or (
+            self._shutdown_event is not None and self._shutdown_event.is_set()
+        )
+        try:
+            await asyncio.wait_for(
+                dispatch_task,
+                timeout=self._GRACEFUL_TIMEOUT_S if shutting_down else None,
+            )
+        except TimeoutError:
+            if shutting_down:
+                self._log_graceful_shutdown_timeout()
+                return _TurnFlow.BREAK
+            raise
+        return _TurnFlow.NEXT
+
+    async def _guarded_turn(self, line: str, ctx: "AgentContext") -> "_TurnFlow":
+        """Run one turn, containing per-turn errors so the session stays usable."""
+        self._turn_active = True
+        ctx.conv.is_processing = True
+        try:
+            dispatch_task = asyncio.ensure_future(self._dispatch_line(line, ctx))
+            self._begin_turn_state(dispatch_task)
+            return await self._await_turn(dispatch_task, ctx)
+        except TimeoutError:
+            if ctx.conv.shutdown_requested:
+                self._log_graceful_shutdown_timeout()
+                return _TurnFlow.BREAK
+            raise
+        except asyncio.CancelledError:
+            if not self._turn_cancel_pending():
+                raise
+            self._turn_cancelled()
+        except (
+            ConversationPersistenceError
+        ):  # seq 10: compensated turn; surface distinctly before the generic handler
+            self._view.write_turn_not_persisted()
+        except Exception as exc:  # noqa: BLE001 — contain unexpected per-turn errors so the interactive session stays usable after a failing turn
+            self._surface_turn_error(exc)
+        finally:
+            self._turn_active = False
+            self._input.end_turn()
+            self._turn_cancel_requested = False
+            ctx.conv.is_processing = False
+        return _TurnFlow.NEXT
+
     async def _repl_loop(self) -> None:
         """Process user input lines until /exit, EOF, or shutdown request."""
         ctx = self._ctx
@@ -249,76 +364,10 @@ class ReplInputLoop:
                 self._view.write_warning(
                     f"{OutputTag.NON_FATAL} Memory is disabled for this session."
                 )
-            self._turn_active = True
-            ctx.conv.is_processing = True
-            try:
-                dispatch_task = asyncio.ensure_future(self._dispatch_line(line, ctx))
-                if (
-                    self._shutdown_event is not None
-                    and not self._shutdown_event.is_set()
-                ):
-                    shutdown_task = asyncio.ensure_future(self._shutdown_event.wait())
-                    done, pending = await asyncio.wait(
-                        {dispatch_task, shutdown_task},
-                        return_when=asyncio.FIRST_COMPLETED,
-                    )
-                    if dispatch_task in done and shutdown_task not in done:
-                        # dispatch finished first and shutdown has not (yet)
-                        # fired — the normal, no-shutdown-race case.
-                        dispatch_task.result()  # propagate exception if any
-                        if shutdown_task in pending:
-                            shutdown_task.cancel()
-                        continue
-                    # shutdown_task completed first, or both completed in the
-                    # same tick (dispatch finishing right as shutdown fires) —
-                    # either way, exit rather than looping back to _read_input.
-                    if dispatch_task in done:
-                        dispatch_task.result()  # propagate exception if any
-                    if shutdown_task in pending:
-                        shutdown_task.cancel()
-                    if dispatch_task in pending:
-                        dispatch_task.cancel()
-                        try:
-                            await asyncio.wait_for(
-                                dispatch_task, timeout=self._GRACEFUL_TIMEOUT_S
-                            )
-                        except asyncio.CancelledError:
-                            pass
-                        except TimeoutError:
-                            self._log_graceful_shutdown_timeout()
-                    break
-                else:
-                    # _shutdown_event is None or already set — await the already-created dispatch_task
-                    try:
-                        await asyncio.wait_for(
-                            dispatch_task,
-                            timeout=self._GRACEFUL_TIMEOUT_S
-                            if ctx.conv.shutdown_requested
-                            or (
-                                self._shutdown_event is not None
-                                and self._shutdown_event.is_set()
-                            )
-                            else None,
-                        )
-                    except TimeoutError:
-                        if ctx.conv.shutdown_requested or (
-                            self._shutdown_event is not None
-                            and self._shutdown_event.is_set()
-                        ):
-                            self._log_graceful_shutdown_timeout()
-                            break
-                        raise
-            except TimeoutError:
-                if ctx.conv.shutdown_requested:
-                    self._log_graceful_shutdown_timeout()
-                    break
-                raise
-            except ConversationPersistenceError:  # seq 10: compensated turn; surface distinctly before the generic handler
-                self._view.write_turn_not_persisted()
-            except Exception as exc:  # noqa: BLE001 — contain unexpected per-turn errors so the interactive session stays usable after a failing turn
-                self._surface_turn_error(exc)
-            finally:
-                self._turn_active = False
-                ctx.conv.is_processing = False
+            flow = await self._guarded_turn(line, ctx)
+            if flow is _TurnFlow.BREAK:
+                break
+            if flow is _TurnFlow.CONTINUE:
+                continue
             if ctx.conv.shutdown_requested:
                 break

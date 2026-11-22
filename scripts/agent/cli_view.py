@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """scripts/agent/cli_view.py
 
-CLI presentation layer: readline setup, multiline continuation input,
-and progress display.
+CLI presentation layer: readline setup and progress display.
 
-The Reader Protocol allows test doubles and alternative I/O backends
-to replace the default terminal implementation without touching callers.
-Writer functionality is now provided via delegation to an OutputPort instance.
+CLIView renders only: stdin ownership, multiline input, and input state live in
+agent.repl_input_controller. Writer functionality is provided via delegation to an
+OutputPort instance.
 """
 
 import asyncio
@@ -14,14 +13,11 @@ import logging
 import readline
 from abc import ABC
 from pathlib import Path
-from typing import Protocol, runtime_checkable
 
 from agent.commands.output_port import CliOutputPort, OutputPort
-from agent.stdin_reader import get_stdin_reader
 
 logger = logging.getLogger(__name__)
 
-_INPUT_TIMEOUT_S = 30
 _SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
 
@@ -73,22 +69,8 @@ class WriterBase(ABC):
         raise NotImplementedError("write_startup_banner must be implemented")
 
 
-@runtime_checkable
-class Reader(Protocol):
-    """Input-side interface for multiline continuation prompts."""
-
-    async def read_multiline(
-        self,
-        loop: asyncio.AbstractEventLoop,
-        first_line: str,
-    ) -> str:
-        """Collect continuation lines when first_line ends with backslash."""
-        ...
-
-
 class CLIView(WriterBase):
-    """Manages terminal I/O: readline history, tab completion, multiline
-    continuation input, and progress status line.
+    """Manages terminal output: readline history, tab completion, and progress status line.
 
     Delegates output operations to an OutputPort instance for separation of
     concerns between terminal management and output formatting.
@@ -112,7 +94,6 @@ class CLIView(WriterBase):
         self._port = port or CliOutputPort()
         self._spinner_task: asyncio.Task[None] | None = None
         self._stop_spinner_event: asyncio.Event | None = None
-        self._stdin_reader = get_stdin_reader()
 
     @property
     def port(self) -> OutputPort:
@@ -264,38 +245,3 @@ class CLIView(WriterBase):
     def write_stderr(self, text: str) -> None:
         """Write text to stderr."""
         self._port.write_stderr(text)
-
-    async def read_multiline(
-        self,
-        loop: asyncio.AbstractEventLoop,
-        first_line: str,
-    ) -> str:
-        """Collect continuation lines when first_line ends with backslash.
-
-        Strips the trailing backslash and joins all parts with newlines.
-        Stops on a line without trailing backslash, an empty line, or EOF.
-
-        Timeout protection: wraps the read with asyncio.wait_for() so a blocked read
-        cannot hang the caller; the read runs on a daemon thread, so an abandoned read
-        does not delay process exit. On TimeoutError, the accumulated text read so far
-        is returned (same degradation as the EOF path) instead of raising.
-        """
-        parts = [first_line[:-1]]
-        while True:
-            try:
-                cont = await asyncio.wait_for(
-                    self._stdin_reader.read(prompt="... "), timeout=_INPUT_TIMEOUT_S
-                )
-            except TimeoutError:
-                logger.warning("Multiline input timed out")
-                break
-            except (EOFError, KeyboardInterrupt):
-                break
-            if not cont:
-                break
-            if cont.endswith("\\"):
-                parts.append(cont[:-1])
-            else:
-                parts.append(cont)
-                break
-        return "\n".join(parts)

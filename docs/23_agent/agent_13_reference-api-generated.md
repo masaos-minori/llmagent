@@ -37,8 +37,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `AuditEventEmitter` | `class AuditEventEmitter` | Constructs and emits audit events for turn lifecycle boundaries. |
 | `scripts/agent/bg_task_monitor.py` | `BgTaskMonitor` | `class BgTaskMonitor` | Monitors background task failures and enforces threshold-based policies. |
 | `scripts/agent/cli_view.py` | `WriterBase` | `class WriterBase` | Base class providing default implementations for output methods. |
-|  | `Reader` | `class Reader` | Input-side interface for multiline continuation prompts. |
-|  | `CLIView` | `class CLIView` | Manages terminal I/O: readline history, tab completion, multiline |
+|  | `CLIView` | `class CLIView` | Manages terminal output: readline history, tab completion, and progress status line. |
 | `scripts/agent/config_builders.py` | `resolved_config_dir` | `def resolved_config_dir() -> Path` | Return the resolved agent config directory via the shared resolver. |
 |  | `load_config` | `def load_config() -> dict[str, Any]` | Load configuration from files.  No module-level cache — always fresh. |
 |  | `build_agent_config` | `def build_agent_config(cfg_override) -> AgentConfig` | Construct AgentConfig from a config dict. |
@@ -118,6 +117,16 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `completion_command_names` | `def completion_command_names() -> frozenset[str]` | Return all commands available for tab completion. |
 |  | `AgentREPL` | `class AgentREPL` | Thin composition facade over extracted REPL concern classes. |
 |  | `main` | `def main() -> None` | Start the interactive REPL. |
+| `scripts/agent/repl_input_controller.py` | `PromptKind` | `class PromptKind` | What a request asks the operator for. |
+|  | `InputOutcome` | `class InputOutcome` | How a request ended. |
+|  | `InputState` | `class InputState` | What the REPL is doing; Ctrl-C acts by this state. |
+|  | `InterruptAction` | `class InterruptAction` | What ``handle_interrupt`` did. |
+|  | `InputBusyError` | `class InputBusyError` | A request was refused because another read is active or unresolved. |
+|  | `InputRequest` | `class InputRequest` | One immutable prompt request. |
+|  | `InputResult` | `class InputResult` | The outcome of one request; ``text`` is set only when it completed. |
+|  | `ReplInputController` | `class ReplInputController` | Owns stdin: one active request at a time, results bound to their request. |
+|  | `get_input_controller` | `def get_input_controller() -> ReplInputController` | Return the process-shared controller, creating it on first use. |
+|  | `reset_input_controller` | `def reset_input_controller() -> None` | Drop the shared instance so the next get_input_controller() builds a fresh one. |
 | `scripts/agent/repl_input_loop.py` | `ReplInputLoop` | `class ReplInputLoop` | Manages REPL input reading, dispatch, and exit conditions. |
 | `scripts/agent/repository_gateway.py` | `RepositoryGateway` | `class RepositoryGateway` | Agent-side enforcement boundary for all repository mutation operations. |
 | `scripts/agent/resource_shutdown_coordinator.py` | `ResourceShutdownCoordinator` | `class ResourceShutdownCoordinator` | Coordinates resource shutdown across all subsystems. |
@@ -126,7 +135,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `AgentSession` | `class AgentSession` | Manages REPL session and message persistence in SQLite. |
 | `scripts/agent/session_message_repo.py` | `SessionMessageRepository` | `class SessionMessageRepository` | Repository for session message operations. |
 | `scripts/agent/session_persister.py` | `SessionPersister` | `class SessionPersister` | Handles persistence of session-level data at shutdown. |
-| `scripts/agent/signal_handler.py` | `SignalHandler` | `class SignalHandler` | Encapsulates platform-specific signal handling for graceful shutdown. |
+| `scripts/agent/signal_handler.py` | `SignalHandler` | `class SignalHandler` | Encapsulates platform-specific signal handling for the REPL. |
 | `scripts/agent/startup.py` | `StartupInterrupted` | `class StartupInterrupted` | Raised when a SIGINT/SIGTERM shutdown request interrupts the startup sequence. |
 |  | `StartupOrchestrator` | `class StartupOrchestrator` | Runs the full agent startup sequence before the REPL input loop begins. |
 | `scripts/agent/startup_banner.py` | `StartupBanner` | `class StartupBanner` | Handles startup display and banner printing. |
@@ -138,12 +147,13 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/stdin_reader.py` | `StdinReader` | `class StdinReader` | Owns one daemon thread that performs one blocking read per request. |
 |  | `get_stdin_reader` | `def get_stdin_reader() -> StdinReader` | Return the process-shared reader, creating it on first use. |
 |  | `reset_stdin_reader` | `def reset_stdin_reader() -> None` | Drop the shared instance so the next get_stdin_reader() builds a fresh reader. |
-| `scripts/agent/tool_approval.py` | `check_approval` | `async def check_approval(ctx, tool_name, args, idempotency_key) -> bool` | Return True when the tool call may proceed. |
+| `scripts/agent/tool_approval.py` | `PreviewResult` | `class PreviewResult` | An approval preview with its provenance. |
+|  | `check_approval` | `async def check_approval(ctx, tool_name, args, idempotency_key) -> bool` | Return True when the tool call may proceed. |
 |  | `run_approval_checks` | `async def run_approval_checks(ctx, prepared_calls) -> tuple[list[PreparedToolCall], list[str]]` | Run plan-mode block and interactive approval for each prepared tool call. |
 | `scripts/agent/tool_arg_validator.py` | `ValidationResult` | `class ValidationResult` | Result of validating tool call arguments against an MCP input schema. |
 |  | `validate_tool_arguments` | `def validate_tool_arguments(tool_name, args, input_schema, allow_extra_fields) -> ValidationResult` | Validate tool call arguments against the MCP tool's input schema. |
 |  | `register_custom_validator` | `def register_custom_validator(tool_name) -> Callable[[CustomValidator], CustomValidator]` | Decorator that registers a custom validation hook for tool_name. |
-| `scripts/agent/tool_audit.py` | `audit_approval` | `def audit_approval(ctx, tool_name, risk, args, decision, idempotency_key) -> None` | Write a structured tool_approval event to the audit log. |
+| `scripts/agent/tool_audit.py` | `audit_approval` | `def audit_approval(ctx, tool_name, risk, args, decision, idempotency_key, *, request_id, preview_source, fallback_reason) -> None` | Write a structured tool_approval event to the audit log. |
 |  | `audit_workflow_start` | `def audit_workflow_start(ctx, task_id, workflow_version, workflow_id, session_id) -> None` | Write workflow_start event to audit log. |
 |  | `audit_stage_completed` | `def audit_stage_completed(ctx, task_id, stage_id, elapsed_ms, workflow_id, session_id) -> None` | Write stage_completed event to audit log. |
 |  | `audit_tool_exec` | `def audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type, artifact_uri, source, idempotency_key, task_linkage, dedup_state) -> None` | Write a tool_exec event with mcp_request_id to the audit log. |
@@ -169,7 +179,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `GuardDecision` | `class GuardDecision` | Result of a tool-loop guard check. |
 | `scripts/agent/tool_output.py` | `emit_tool_call` | `def emit_tool_call(name, args_json, output) -> None` | Write a tool invocation line. |
 |  | `emit_tool_result` | `def emit_tool_result(name, display, output) -> None` | Write a tool result summary line. |
-|  | `emit_approval_prompt` | `def emit_approval_prompt(risk, tool_name, preview, output) -> None` | Write the approval prompt header and preview. |
+|  | `emit_approval_prompt` | `def emit_approval_prompt(risk, tool_name, preview, output, *, request_id, preview_source) -> None` | Write the approval prompt header and preview (masked as a last defense). |
 |  | `emit_denied` | `def emit_denied(reason, output) -> None` | Write the denial line for a tool call. `reason` must include the tool name. |
 |  | `emit_plan_blocked` | `def emit_plan_blocked(tool_name, args_json, output) -> None` | Write plan-mode block notification. |
 |  | `emit_skipped` | `def emit_skipped(tool_name, output) -> None` | Write the 'skipped' confirmation after user denies a tool call. |

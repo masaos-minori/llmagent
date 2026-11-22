@@ -15,6 +15,10 @@ entries:
   hot_reloadable: true
   section: approval
   validator: null
+- field: approval_medium_preview_fallback
+  hot_reloadable: false
+  section: approval
+  validator: null
 - field: approval_protected_paths
   hot_reloadable: true
   section: approval

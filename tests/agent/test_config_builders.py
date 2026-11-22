@@ -276,6 +276,7 @@ class TestBuildApprovalConfig:
         assert cfg.allowed_root == "/opt/llm"
         assert cfg.approval_github_allowed_repos == []
         assert cfg.gitops_push_blocked is False
+        assert cfg.approval_medium_preview_fallback is True
 
     def test_removed_map_fields_are_not_built(self) -> None:
         cfg = _build_approval_config({"allowed_root": "/opt/llm"})
@@ -320,6 +321,7 @@ class TestBuildApprovalConfig:
             "allowed_root": "/custom/root",
             "approval_github_allowed_repos": ["org/repo"],
             "gitops_push_blocked": True,
+            "approval_medium_preview_fallback": False,
         }
         cfg = _build_approval_config(overrides)
         for key, value in overrides.items():

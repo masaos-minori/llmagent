@@ -105,6 +105,7 @@ The safety tier (`READ_ONLY` / `WRITE_SAFE` / `WRITE_DANGEROUS` / `ADMIN`) is no
 
 - `approval_github_allowed_repos`: allowlist for GitHub writes; empty = deny all.
 - `gitops_push_blocked`: globally blocks all writes to GitHub.
+- `approval_medium_preview_fallback`: boolean, default `true`. When a MEDIUM-risk dry-run preview fails, `true` shows the static preview and still prompts; `false` denies the call. HIGH risk ignores it and always denies on a failed preview.
 - `allowed_root`: file path jail; required key, an empty value fails config load, and the path jail is never skipped.
 
 ### Observability Configuration

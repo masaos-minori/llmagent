@@ -1,15 +1,15 @@
 ## Goal
 
-Document the new MEDIUM preview-fallback field next to the other approval settings (REQ-009).
+Document request-bound approval, required versus optional previews, HIGH fail-closed, the MEDIUM setting, masking, and audit provenance (REQ-009).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-In scope: `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md` only; documentation text is written in English (`skills/DESIGN.md` Output language).
+In scope: `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md` only; documentation text is written in English (`skills/DESIGN.md` Output language).
 
 ## Assumptions
 
-- Verified: the approval settings list sits near line 107 (`gitops_push_blocked`).
+- Verified: the document lists fail-closed items at lines 95 and 122 (allowlist and `gitops_push_blocked`) and has no section on preview failure or request binding.
 
 ## Design decisions
 
@@ -21,16 +21,19 @@ N/A: documentation-only change.
 
 ## Implementation
 ### Target file
-`docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`
+`docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md`
 
 ### Procedure
-1. Add a bullet for the new field: type, default (allowed), effect on MEDIUM only, and that HIGH never falls back.
+1. Add a subsection on approval request binding (request id, operation id, outcomes that deny).
+2. Add preview rules: required for HIGH and failing closed on any preview failure; MEDIUM static fallback follows the setting; static previews and dry-run text are masked before truncation.
+3. Add audit fields: request id, preview source, fallback reason, decision; no answer text.
+4. Add the new items to the fail-closed list.
 
 ### Method
 Edit the named sections in place; keep the front matter and keyword lists consistent.
 
 ### Details
-- Keep any generated configuration table untouched; regenerate only if the checker requires it.
+- Name the new denial reasons exactly as the approval procedure defines them.
 
 ## Compatibility considerations
 
@@ -50,7 +53,7 @@ N/A: revert the commit.
 
 ## Completion criteria
 
-- The field is documented with its default; checkers pass.
+- The document matches the approval procedure's behavior; checkers pass.
 
 ## Out of Scope
 
@@ -61,8 +64,8 @@ Code changes and the CLI docs consolidation Issue.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-213744 | 20261122-213744 | Changed: docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file | Completed | 20261122-213744 | 20261122-213744 | ruff, mypy, lint-imports, bandit clean; full suite 13377 passed; diff-cover 91% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -76,10 +79,10 @@ Code changes and the CLI docs consolidation Issue.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-009` (new approval configuration field)
+- **Requirement ID**: `REQ-009` (approval request binding and fail-closed preview)
 - **Source issue**: issues/20261119-145259_cliplc001_repl-input-controller.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261122-210208_cliplc001_repl-input-controller.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261122-210644
-- **Related target files**: `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`
+- **Related target files**: `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md`

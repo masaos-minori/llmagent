@@ -64,8 +64,8 @@ Code changes and the CLI docs consolidation Issue.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-213744 | 20261122-213744 | Changed: docs/23_agent/agent_07_05_cli-and-commands-repl-io.md |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file | Completed | 20261122-213744 | 20261122-213744 | ruff, mypy, lint-imports, bandit clean; full suite 13377 passed; diff-cover 91% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -15,6 +15,13 @@ from agent.memory.pin_ops import pin as pin_mem
 from agent.memory.pin_ops import unpin as unpin_mem
 from agent.memory.types import MemoryEntry, MemoryQuery
 from agent.memory.write_ops import delete as write_delete
+from agent.repl_input_controller import (
+    InputBusyError,
+    InputOutcome,
+    InputRequest,
+    PromptKind,
+    get_input_controller,
+)
 
 if TYPE_CHECKING:
     from agent.memory.services import MemoryServices
@@ -44,13 +51,23 @@ def _emit_prune_event(memory_id: str) -> None:
 _MIN_SHORT_ID = 8
 
 
-def _confirm(prompt: str) -> bool:
-    """Return True only for a y/yes answer; EOFError or any other answer returns False."""
+async def _confirm(
+    prompt: str, kind: PromptKind, operation_id: str, out: OutputPort
+) -> bool:
+    """Ask one destructive confirmation through the input controller.
+
+    True only for a completed ``y``/``yes`` answer to this request; a timed-out,
+    cancelled, EOF, or shutdown outcome, or a refusal because stdin is busy, is False.
+    """
+    request = InputRequest(kind, prompt, operation_id=operation_id, destructive=True)
     try:
-        answer = input(prompt)
-    except EOFError:
+        result = await get_input_controller().submit(request)
+    except InputBusyError:
+        out.write("  [memory] Input is busy; confirmation refused")
         return False
-    return answer.strip().lower() in {"y", "yes"}
+    if result.outcome is not InputOutcome.COMPLETED:
+        return False
+    return result.text.strip().lower() in {"y", "yes"}
 
 
 @dataclass(frozen=True)
@@ -318,7 +335,7 @@ class MemoryDataOps:
         else:
             self._out.write(f"  [memory] Entry not found: {mid!r}")
 
-    def memory_delete(self, mem: MemoryServices, args: list[str]) -> None:
+    async def memory_delete(self, mem: MemoryServices, args: list[str]) -> None:
         """Delete one entry."""
         dry_run = "--dry-run" in args
         ids = [a for a in args if not a.startswith("--")]
@@ -348,7 +365,9 @@ class MemoryDataOps:
                 ),
             )
             return
-        if not _confirm(f"Delete memory {mid}? [y/N]: "):
+        if not await _confirm(
+            f"Delete memory {mid}? [y/N]: ", PromptKind.MEMORY_DELETE, mid, self._out
+        ):
             self._out.write("  [memory] Cancelled: nothing was deleted")
             return
         ok = write_delete(mid, db_config=self._ctx.cfg.db)
@@ -360,7 +379,7 @@ class MemoryDataOps:
             self._ctx, MemoryOpResult(ok=ok, memory_id=mid, action="deleted")
         )
 
-    def memory_prune(
+    async def memory_prune(
         self, mem: MemoryServices, ctx: AgentContext, args: list[str]
     ) -> None:
         """Delete entries older than N days."""
@@ -394,8 +413,11 @@ class MemoryDataOps:
             self._out.write("  [memory] Nothing is prunable")
             return
 
-        if not _confirm(
-            f"Delete {count} memories not updated for {days} days? [y/N]: "
+        if not await _confirm(
+            f"Delete {count} memories not updated for {days} days? [y/N]: ",
+            PromptKind.MEMORY_PRUNE,
+            f"prune:{days}d",
+            self._out,
         ):
             self._out.write("  [memory] Cancelled: nothing was deleted")
             return

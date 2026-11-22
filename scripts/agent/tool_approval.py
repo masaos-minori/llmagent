@@ -10,14 +10,21 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
 from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import GITHUB_DANGEROUS_TOOLS, GITHUB_WRITE_TOOLS
 
+from agent.repl_input_controller import (
+    InputBusyError,
+    InputOutcome,
+    InputRequest,
+    PromptKind,
+    get_input_controller,
+)
+from agent.secrets_masker import _mask_secrets
 from agent.shared.models import ApprovalGrant
-from agent.stdin_reader import get_stdin_reader
 from agent.tool_audit import audit_approval
 from agent.tool_enums import ApprovalDecisionType, OperationType, RiskLevel
 from agent.tool_exceptions import (
@@ -88,58 +95,105 @@ def _declared_dry_run_capable(ctx: AgentContext, tool_name: str) -> bool:
     return tool.preview_capability == "dry_run"
 
 
+_DRY_RUN_TEXT_LIMIT = 300
+_DRY_RUN_ERROR_LIMIT = 200
+
+
+@dataclass(frozen=True)
+class PreviewResult:
+    """An approval preview with its provenance.
+
+    ``required`` is True for HIGH risk: a failed required preview denies. The
+    ``fallback_reason`` is set only when the static preview replaced a failed dry run.
+    """
+
+    text: str
+    source: str
+    required: bool
+    fallback_reason: str = ""
+
+
+def _static_preview(ctx: AgentContext, tool_name: str, args: dict[str, Any]) -> str:
+    """Build the static preview from masked arguments (redaction before truncation)."""
+    return build_preview(tool_name, mask_args(args, ctx.cfg.tool.masked_fields))
+
+
 async def _build_preview_with_dry_run(
     ctx: AgentContext,
     tool_name: str,
     args: dict[str, Any],
-) -> str:
-    """Return preview string, optionally enriched with dry-run output.
+    required: bool = False,
+) -> PreviewResult:
+    """Return the preview, optionally enriched with masked dry-run output.
 
     Raises ApprovalPreviewError when dry-run execution fails, unless the tool
-    declares no dry_run capability or tools is unavailable.
+    declares no dry_run capability or tools is unavailable. Dry-run output and error
+    text pass the shared masker before they are truncated; exception text never
+    reaches the message, only its masked form reaches the log.
     """
-    preview = build_preview(tool_name, args)
+    preview = _static_preview(ctx, tool_name, args)
     if ctx.services_required.tools is None:
-        return preview
+        return PreviewResult(preview, "static", required)
     if not _declared_dry_run_capable(ctx, tool_name):
         logger.warning(
             "Tool %s does not declare dry_run preview capability; using static preview",
             tool_name,
         )
-        return preview
+        return PreviewResult(preview, "static", required)
     try:
         result = await ctx.services_required.tools.execute(
             tool_name,
             {**args, "dry_run": True},
         )
-        dry_text = result.output
-        is_error = result.is_error
-        if is_error:
-            raise ApprovalPreviewBlockingError(
-                f"Dry-run for {tool_name!r} returned an error: {dry_text[:200]}"
-            )
-        preview += f"\n    dry-run: {dry_text[:300]}"
-    except ApprovalPreviewError:
-        raise
     except (RuntimeError, OSError) as e:
+        logger.warning(
+            "Dry-run execution failed for %r: %s", tool_name, _mask_secrets(str(e))
+        )
         raise ApprovalPreviewError(
-            f"Dry-run execution failed for {tool_name!r}: {e}"
-        ) from e
-    return preview
+            f"Dry-run execution failed for {tool_name!r}"
+        ) from None
+    if result.is_error:
+        logger.warning(
+            "Dry-run for %r returned an error: %s",
+            tool_name,
+            _mask_secrets(str(result.output))[:_DRY_RUN_ERROR_LIMIT],
+        )
+        raise ApprovalPreviewBlockingError(
+            f"Dry-run for {tool_name!r} returned an error"
+        )
+    dry_text = _mask_secrets(str(result.output))[:_DRY_RUN_TEXT_LIMIT]
+    return PreviewResult(f"{preview}\n    dry-run: {dry_text}", "dry_run", required)
 
 
-async def _approval_read(prompt: str) -> str:
-    """Read one approval answer on the shared daemon reader thread."""
-    return await get_stdin_reader().read(prompt=prompt)
+async def _approval_read(request: InputRequest) -> str:
+    """Read one approval answer through the input controller, bound to ``request``.
+
+    Returns the answer text only for a completed request; a timed-out, cancelled,
+    EOF, or shutdown outcome, or a refusal because stdin is busy, returns "" (deny).
+    """
+    try:
+        result = await get_input_controller().submit(request)
+    except InputBusyError:
+        logger.warning("Approval refused: an earlier stdin read is unresolved")
+        return ""
+    return result.text if result.outcome is InputOutcome.COMPLETED else ""
 
 
-async def _prompt_user_approval(risk: RiskLevel) -> bool:
+async def _prompt_user_approval(
+    risk: RiskLevel, request: InputRequest | None = None
+) -> bool:
     """Prompt the user interactively; HIGH requires full word 'yes'."""
-    if risk == RiskLevel.HIGH:
-        answer = (await _approval_read("  Execute? [yes/no]: ")).strip().lower()
-        return answer == "yes"
-    answer = (await _approval_read("  Execute? [y/N]: ")).strip().lower()
-    return answer == "y"
+    bound = request if request is not None else _approval_request(risk, "")
+    answer = (await _approval_read(bound)).strip().lower()
+    return answer == ("yes" if risk == RiskLevel.HIGH else "y")
+
+
+def _approval_request(risk: RiskLevel, operation_id: str) -> InputRequest:
+    """Create the immutable request that carries one approval prompt."""
+    prompt = "  Execute? [yes/no]: " if risk == RiskLevel.HIGH else "  Execute? [y/N]: "
+    return InputRequest(
+        PromptKind.TOOL_APPROVAL, prompt, operation_id=operation_id, destructive=True
+    )
 
 
 async def check_approval(
@@ -157,9 +211,9 @@ async def check_approval(
     ``idempotency_key`` (the logical call id) is stamped onto every approval
     audit event (mcpdl001 REQ-008, AC-2).
 
-    Note: dry-run preview failures downgrade to text-only preview rather
-    than failing the entire approval, to avoid blocking approvals when the
-    MCP server has a connection issue.
+    Preview failures: HIGH risk fails closed (denied) on any dry-run failure; MEDIUM
+    falls back to the static preview only while ``approval_medium_preview_fallback``
+    allows it. Previews are built from masked arguments.
     """
     if ctx.cfg.approval.gitops_push_blocked and tool_name in _GITOPS_BLOCKABLE_TOOLS:
         audit_approval(
@@ -202,34 +256,53 @@ async def check_approval(
         )
         return True
 
+    required = risk == RiskLevel.HIGH
     try:
-        preview = await _build_preview_with_dry_run(ctx, tool_name, args)
-    except ApprovalPreviewBlockingError as e:
-        if risk == RiskLevel.HIGH:
+        preview = await _build_preview_with_dry_run(ctx, tool_name, args, required)
+    except ApprovalPreviewError as e:
+        blocking = isinstance(e, ApprovalPreviewBlockingError)
+        reason = "dry_run_error" if blocking else "dry_run_failed"
+        fallback_allowed = ctx.cfg.approval.approval_medium_preview_fallback
+        if required or not fallback_allowed:
             audit_approval(
                 ctx,
                 tool_name,
                 risk,
                 args,
-                "denied_dry_run_error",
+                "denied_dry_run_error" if blocking else "denied_preview_failed",
                 idempotency_key=idempotency_key,
+                fallback_reason=reason,
             )
-            emit_denied(f"{tool_name}: dry-run reported an error: {e}")
+            emit_denied(f"{tool_name}: approval preview unavailable ({reason})")
             return False
-        logger.warning("Dry-run preview unavailable for %r: %s", tool_name, e)
-        preview = build_preview(tool_name, args)
-    except ApprovalPreviewError as e:
-        logger.warning("Dry-run preview unavailable for %r: %s", tool_name, e)
-        preview = build_preview(tool_name, args)
+        logger.warning("Dry-run preview unavailable for %r: %s", tool_name, reason)
+        preview = PreviewResult(
+            _static_preview(ctx, tool_name, args), "static", False, reason
+        )
 
-    emit_approval_prompt(risk, tool_name, preview)
+    request = _approval_request(risk, idempotency_key)
+    emit_approval_prompt(
+        risk,
+        tool_name,
+        preview.text,
+        request_id=request.request_id,
+        preview_source=preview.source,
+    )
 
-    approved = await _prompt_user_approval(risk)
+    approved = await _prompt_user_approval(risk, request)
     decision = (
         ApprovalDecisionType.APPROVED if approved else ApprovalDecisionType.DENIED
     )
     audit_approval(
-        ctx, tool_name, risk, args, decision, idempotency_key=idempotency_key
+        ctx,
+        tool_name,
+        risk,
+        args,
+        decision,
+        idempotency_key=idempotency_key,
+        request_id=request.request_id,
+        preview_source=preview.source,
+        fallback_reason=preview.fallback_reason,
     )
     if not approved:
         emit_skipped(tool_name)

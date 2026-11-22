@@ -19,10 +19,12 @@ import asyncio
 import ctypes
 import os
 import signal
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from agent.repl_input_controller import InterruptAction
 from agent.signal_handler import SignalHandler
 
 
@@ -132,3 +134,148 @@ class TestRealSignalTransport:
             _remove_handlers(loop, before)
         assert ctx.conv.shutdown_requested is True
         assert _dispositions() == before
+
+
+class _StubController:
+    """Records interrupt handling; returns a scripted action."""
+
+    def __init__(self, action: InterruptAction = InterruptAction.DISCARD_INPUT) -> None:
+        self.action = action
+        self.interrupts = 0
+        self.shutdowns = 0
+
+    def handle_interrupt(self) -> InterruptAction:
+        self.interrupts += 1
+        return self.action
+
+    def shutdown(self) -> None:
+        self.shutdowns += 1
+
+
+def _handler(
+    action: InterruptAction = InterruptAction.DISCARD_INPUT, **kwargs: Any
+) -> tuple[SignalHandler, _StubController, Any]:
+    ctx = MagicMock()
+    ctx.conv.shutdown_requested = False
+    stub = _StubController(action)
+    return SignalHandler(ctx, asyncio.Event(), controller=stub, **kwargs), stub, ctx  # type: ignore[arg-type] — stub mirrors the two controller methods used
+
+
+class TestInterruptByState:
+    def test_sigint_acts_by_state_and_does_not_start_shutdown(self) -> None:
+        for action in (
+            InterruptAction.DISCARD_INPUT,
+            InterruptAction.CANCEL_TURN,
+            InterruptAction.CANCEL_JOB,
+        ):
+            handler, stub, ctx = _handler(action)
+            handler._sigint_handler()
+            assert stub.interrupts == 1
+            assert ctx.conv.shutdown_requested is False
+            assert not handler._shutdown_event.is_set()  # type: ignore[union-attr] — the event is set by _handler
+
+    def test_sigterm_begins_graceful_shutdown_and_marks_the_controller(self) -> None:
+        handler, stub, ctx = _handler()
+        handler._sigterm_handler()
+        assert ctx.conv.shutdown_requested is True
+        assert handler._shutdown_event.is_set()  # type: ignore[union-attr] — the event is set by _handler
+        assert stub.shutdowns == 1
+        assert stub.interrupts == 0
+
+    @pytest.mark.asyncio
+    async def test_register_routes_each_signal_to_its_own_handler(self) -> None:
+        handler, _stub, _ctx = _handler()
+        loop = asyncio.get_running_loop()
+        bound: dict[int, Any] = {}
+        with patch.object(
+            loop, "add_signal_handler", side_effect=lambda s, h: bound.update({s: h})
+        ):
+            handler.register(loop)
+        assert bound[signal.SIGTERM] == handler._sigterm_handler
+        assert bound[signal.SIGINT] == handler._sigint_handler
+
+
+class TestForceExit:
+    def test_second_interrupt_during_shutdown_does_not_exit_by_default(self) -> None:
+        exits: list[int] = []
+        handler, _stub, _ctx = _handler(
+            InterruptAction.SHUTDOWN_IN_PROGRESS, force_exit=exits.append
+        )
+        handler._sigint_handler()
+        assert exits == []
+
+    def test_second_interrupt_during_shutdown_forces_exit_when_enabled(self) -> None:
+        exits: list[int] = []
+        handler, _stub, _ctx = _handler(
+            InterruptAction.SHUTDOWN_IN_PROGRESS,
+            force_exit_on_second_sigint=True,
+            force_exit=exits.append,
+        )
+        handler._sigint_handler()
+        assert exits == [130]
+
+    def test_interrupt_in_other_states_never_forces_exit(self) -> None:
+        exits: list[int] = []
+        handler, _stub, _ctx = _handler(
+            InterruptAction.CANCEL_TURN,
+            force_exit_on_second_sigint=True,
+            force_exit=exits.append,
+        )
+        handler._sigint_handler()
+        assert exits == []
+
+
+class TestWindowsControlEvents:
+    @pytest.mark.parametrize("event", [0, 1])
+    def test_ctrl_c_and_break_act_as_interrupt(self, event: int) -> None:
+        handler, stub, ctx = _handler()
+        assert handler._dispatch_control_event(event) is True
+        assert stub.interrupts == 1
+        assert ctx.conv.shutdown_requested is False
+
+    @pytest.mark.parametrize("event", [2, 5, 6])
+    def test_close_logoff_shutdown_begin_graceful_shutdown(self, event: int) -> None:
+        handler, stub, ctx = _handler()
+        assert handler._dispatch_control_event(event) is True
+        assert ctx.conv.shutdown_requested is True
+        assert stub.shutdowns == 1
+
+    def test_unknown_event_is_not_handled(self) -> None:
+        handler, stub, _ctx = _handler()
+        assert handler._dispatch_control_event(99) is False
+        assert stub.interrupts == 0 and stub.shutdowns == 0
+
+    def test_ctypes_callback_has_no_unbound_name(self) -> None:
+        """The ctypes path must not reference win32con (unbound when pywin32 is missing)."""
+        handler, stub, _ctx = _handler()
+        registered: list[Any] = []
+
+        def _winfunctype(*_types: Any) -> Any:
+            return lambda fn: registered.append(fn) or fn
+
+        fake_windll = MagicMock()
+        mock_loop = MagicMock()
+        mock_loop.call_soon_threadsafe.side_effect = lambda fn, *a: fn(*a)
+        with (
+            patch.object(
+                mock_loop, "add_signal_handler", side_effect=NotImplementedError()
+            ),
+            patch("sys.frozen", True, create=True),
+            patch.dict(
+                ctypes.__dict__,
+                {
+                    "WINFUNCTYPE": _winfunctype,
+                    "windll": fake_windll,
+                    "wintypes": SimpleNamespace(BOOL=object, DWORD=object),
+                },
+            ),
+        ):
+            handler.register(mock_loop)
+        assert len(registered) == 1
+        assert registered[0](0) is True  # Ctrl-C, no NameError
+        assert stub.interrupts == 1
+        assert registered[0](2) is True  # close event
+        assert stub.shutdowns == 1
+        assert registered[0](99) is False
+        fake_windll.kernel32.SetConsoleCtrlHandler.assert_called_once()
+        assert handler._ctypes_callback is registered[0]

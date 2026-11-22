@@ -86,10 +86,10 @@ class TestRequestDrivenRead:
 
 class TestCancelledRequestDelivery:
     @pytest.mark.asyncio
-    async def test_line_after_cancel_goes_to_the_newest_request_without_a_second_read(
+    async def test_line_after_cancel_is_discarded_and_the_next_request_reads_afresh(
         self,
     ) -> None:
-        fake = _FakeInput(["late"], block=True)
+        fake = _FakeInput(["late", "fresh"], block=True)
         reader = StdinReader(read_fn=fake)
         first = asyncio.ensure_future(reader.read())
         await asyncio.sleep(0.05)
@@ -99,9 +99,26 @@ class TestCancelledRequestDelivery:
         second = asyncio.ensure_future(reader.read("... "))
         await asyncio.sleep(0.05)
         fake.release.set()
-        assert await asyncio.wait_for(second, 1.0) == "late"
+        assert await asyncio.wait_for(second, 1.0) == "fresh"
+        assert fake.prompts == ["", "... "]
+
+    @pytest.mark.asyncio
+    async def test_orphaned_read_is_true_only_while_an_ended_request_blocks(
+        self,
+    ) -> None:
+        fake = _FakeInput(["late", "next"], block=True)
+        reader = StdinReader(read_fn=fake)
+        assert reader.orphaned_read is False
+        first = asyncio.ensure_future(reader.read())
         await asyncio.sleep(0.05)
-        assert len(fake.prompts) == 1
+        assert reader.orphaned_read is False
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        assert reader.orphaned_read is True
+        fake.release.set()
+        await asyncio.sleep(0.1)
+        assert reader.orphaned_read is False
 
     @pytest.mark.asyncio
     async def test_line_after_cancel_is_discarded_when_nobody_waits(self) -> None:

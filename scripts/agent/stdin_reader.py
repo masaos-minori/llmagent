@@ -39,8 +39,9 @@ class StdinReader:
     A default-executor or pool worker blocked in input() is joined at interpreter exit,
     so a cancelled read would hold the process open until a key is pressed. A plain
     daemon thread is not joined. The worker never reads ahead: it performs one read per
-    request and keeps at most one read outstanding. A line that arrives after its request
-    was cancelled goes to the newest pending request, and is discarded when none exists.
+    request and keeps at most one read outstanding. A line is delivered only to the
+    request that started its read: a line that arrives after that request was cancelled or
+    timed out is discarded, and a later request waits for a fresh read.
     """
 
     def __init__(
@@ -54,6 +55,18 @@ class StdinReader:
         self._thread: threading.Thread | None = None
         self._waiter: _Waiter | None = None
         self._reading = False
+        self._reading_waiter: _Waiter | None = None
+
+    @property
+    def orphaned_read(self) -> bool:
+        """True while a blocked read belongs to a request that already ended."""
+        with self._lock:
+            started_for = self._reading_waiter
+            return (
+                self._reading
+                and started_for is not None
+                and (started_for is not self._waiter or started_for.future.done())
+            )
 
     async def read(self, prompt: str | None = None) -> str:
         """Read one line; raises RuntimeError when a request is already pending."""
@@ -86,15 +99,20 @@ class StdinReader:
                     self._waiter = None
 
     def _run(self) -> None:
-        """Worker loop: wait for a request, perform one read, deliver the outcome."""
+        """Worker loop: wait for a request, perform one read, deliver the outcome.
+
+        The waiter is captured before the blocking read starts and is the only
+        delivery target, so a line never reaches a request that began later.
+        """
         while True:
             self._wake.wait()
             self._wake.clear()
             with self._lock:
                 waiter = self._waiter
-                if waiter is None or self._reading:
+                if waiter is None or self._reading or waiter.future.done():
                     continue
                 self._reading = True
+                self._reading_waiter = waiter
             line: str | None = None
             exc: BaseException | None = None
             try:
@@ -103,12 +121,19 @@ class StdinReader:
                 exc = caught
             with self._lock:
                 self._reading = False
-                target = self._waiter
-            if target is not None:
-                try:
-                    target.loop.call_soon_threadsafe(_deliver, target.future, line, exc)
-                except RuntimeError:
-                    pass  # the loop is closed: nobody is waiting for this line
+                self._reading_waiter = None
+                pending = self._waiter
+                restart = (
+                    pending is not None
+                    and pending is not waiter
+                    and not pending.future.done()
+                )
+            try:
+                waiter.loop.call_soon_threadsafe(_deliver, waiter.future, line, exc)
+            except RuntimeError:
+                pass  # the loop is closed: nobody is waiting for this line
+            if restart:
+                self._wake.set()
 
 
 _shared_reader: StdinReader | None = None

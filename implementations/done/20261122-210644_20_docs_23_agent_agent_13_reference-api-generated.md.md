@@ -62,8 +62,8 @@ Hand edits, other generated domains.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run `uv run python tools/generate_reference_table.py --check` and the documentation checkers | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-213744 | 20261122-213744 | Changed: docs/23_agent/agent_13_reference-api-generated.md |
+| 2 | Run `uv run python tools/generate_reference_table.py --check` and the documentation checkers | Completed | 20261122-213744 | 20261122-213744 | ruff, mypy, lint-imports, bandit clean; full suite 13377 passed; diff-cover 91% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

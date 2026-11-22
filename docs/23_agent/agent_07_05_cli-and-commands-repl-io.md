@@ -34,15 +34,17 @@ Documents the design intent and operational decisions for the REPL input/output 
 - **Prompt:** `> ` (fixed string)
 - **Normal Input:** Any text → forwarded to `Orchestrator.handle_turn()`
 - **Slash Commands:** Lines starting with `/` → `CommandRegistry.dispatch(line)`
-- **Multi-line Input:** Lines ending with `\` → continued with `... ` prompt
+- **Multi-line Input:** Lines ending with `\` → continued with `... ` prompt; the continuation is collected by the input controller and bounded by a timeout, and partial text is never submitted automatically after a timeout (interactive: send, continue, or discard is offered; non-interactive: discarded) (`TestMultilineTimeoutThenNextPrompt`)
 - **EOF / Ctrl-D:** Graceful shutdown (REPL input returns `None` and exits the loop)
-- **Ctrl-C:** Caught within input; during input wait, it leads to REPL termination similar to EOF (asserted by `TestSignalDuringPromptEndsLoop`)
-- **Input Reader:** Every interactive prompt read runs on a daemon reader thread owned by its caller, not on the loop executor, so a read that is cancelled or still pending when the loop exits does not hold the process open (`TestPromptReadDoesNotUseAnExecutor`, `TestAbandonedReadDoesNotDelayProcessExit`)
-- **Hand-off After Timeout:** A multiline continuation read is bounded by a timeout in the CLI view; on timeout the request is abandoned and the partial text is still returned. A line typed while or after that read is abandoned is not lost: every interactive prompt (`> `, `... `, and the approval prompts) reads through one process-shared reader instance, and the reader hands a late line to the newest pending request; the line is discarded only when no later read ever happens (`TestReadMultilineTimeout`, `TestCancelledRequestDelivery`)
+- **Ctrl-C:** Acts by input state (`ReplInputController.handle_interrupt`): at the prompt it discards the line and prompts again, during a turn it cancels only that turn, during a maintenance job it requests job cancellation (the job seam is wired by the maintenance-job work), and while shutdown is in progress it does nothing unless the opt-in force exit is enabled (`TestInterruptByState`)
+- **Ctrl-D, `/exit`, SIGTERM, console close:** Ctrl-D (EOF) and `/exit` end the loop normally; SIGTERM and the Windows close, logoff, and shutdown events begin graceful shutdown (`TestSignalDuringPromptEndsLoop`)
+- **Input Controller:** `ReplInputController` (`agent/repl_input_controller.py`) is the only owner of stdin. Every prompt (normal, multiline, tool approval, Memory delete, Memory prune) is one immutable request with a request id, kind, creation time, and operation id, and ends with exactly one outcome: `completed`, `timed_out`, `cancelled`, `eof`, or `shutdown`. At most one request is active, and a destructive confirmation is refused while an earlier blocking read is unresolved (`TestSingleOwner`)
+- **Input Reader:** Reads run on one daemon reader thread, not on the loop executor, so a read that is cancelled or still pending when the loop exits does not hold the process open (`TestPromptReadDoesNotUseAnExecutor`, `TestAbandonedReadDoesNotDelayProcessExit`)
+- **Late Lines Are Discarded:** A read result is delivered only to the request that started it. A line that arrives after its request timed out or was cancelled is dropped and never reaches a later prompt, so a stale `y` cannot answer an approval or confirmation (`TestCancelledRequestDelivery`). A blocking stdin read cannot be interrupted, so the abandoned read still owns the terminal line: the next line typed after Ctrl-C or a timeout is consumed and dropped before the following prompt reads, and the prompt says so
 
 ### Shutdown Behavior
 
-- On a signal the `shutdown_requested` flag and the shared shutdown event are set. At the prompt this ends the loop immediately (`TestSignalDuringPromptEndsLoop`); during a turn the in-flight dispatch is cancelled and the wait for that cancellation is bounded by `_GRACEFUL_TIMEOUT_S` before the loop exits (`TestMidTurnSignalIsBounded`). `/exit` and the shutdown flag both end the loop (Explicit in code — `scripts/agent/repl.py`). Process exit time is bounded by this shutdown path, not by a keystroke arriving at an idle prompt (`TestAbandonedReadDoesNotDelayProcessExit`).
+- On SIGTERM the `shutdown_requested` flag and the shared shutdown event are set. At the prompt this ends the loop immediately (`TestSignalDuringPromptEndsLoop`); during a turn the in-flight dispatch is cancelled and the wait for that cancellation is bounded by `_GRACEFUL_TIMEOUT_S` before the loop exits (`TestMidTurnSignalIsBounded`). `/exit` and the shutdown flag both end the loop (Explicit in code — `scripts/agent/repl.py`). Process exit time is bounded by this shutdown path, not by a keystroke arriving at an idle prompt (`TestAbandonedReadDoesNotDelayProcessExit`).
 
 ## Responsibility Boundary
 
@@ -51,7 +53,7 @@ Documents the design intent and operational decisions for the REPL input/output 
 ## Key Constraints
 
 - The prompt is a fixed string `"> "` and does not display session ID or status; the `... ` continuation prompt is specific to multi-line input.
-- Ctrl-C while waiting for input terminates the entire REPL rather than interrupting the current line (`TestSignalDuringPromptEndsLoop`).
+- Ctrl-C never ends the REPL by itself: it discards the prompt line, cancels the current turn, or requests job cancellation; only SIGTERM, console close, Ctrl-D, and `/exit` shut down (`TestInterruptByState`).
 
 ## Keywords
 

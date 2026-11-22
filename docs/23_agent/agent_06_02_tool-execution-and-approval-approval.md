@@ -97,7 +97,14 @@ After special case risk determination, the following are further evaluated as es
 ### Dry Run Preview
 
 - A tool that declares `preview_capability="dry_run"` is executed beforehand with `dry_run=True` before the approval prompt. A tool declaring `preview_capability="none"` is never pre-executed and gets a static preview.
-- If dry run result is `is_error=True`, tools with `RiskLevel.HIGH` are immediately rejected.
+- A HIGH-risk preview is required and fails closed: a dry-run error result, or a dry-run execution failure, denies the call without a prompt (`denied_dry_run_error`, `denied_preview_failed`).
+- A MEDIUM-risk dry-run failure falls back to the static preview only while `approval_medium_preview_fallback` is true (the default); when it is false the call is denied.
+- The static preview is built from masked arguments, and dry-run output and error text pass the shared secret masker before truncation, so tokens, signed URLs, and raw exceptions do not appear in a prompt. The denial message carries a reason code, not the exception text.
+
+### Request Binding and Audit
+
+- Each prompt is a controller request bound to the call's logical id (operation id) and a fresh request id. Only a `completed` outcome whose answer is `yes` (HIGH) or `y` (MEDIUM) approves; a timed-out, cancelled, EOF, or shutdown outcome, or a refusal because an earlier stdin read is unresolved, denies. A late line from an earlier request is dropped and never approves a later call.
+- The `tool_approval` audit event records `request_id`, `preview_source` (`static` or `dry_run`), `fallback_reason`, and the decision. The operator's answer text is never recorded.
 
 ### Handling Denials
 
@@ -119,7 +126,7 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 
 ## Key Constraints
 
-- Fail-closed: GitHub repository allowlist, `gitops_push_blocked`
+- Fail-closed: GitHub repository allowlist, `gitops_push_blocked`, a failed HIGH-risk preview
 - Fail-safe: a tool absent from the registry is classified `high` at classification time and rejected in plan mode
 - Base risk `none` skips the override and escalation checks and returns `none` immediately
 

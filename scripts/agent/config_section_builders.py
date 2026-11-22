@@ -267,6 +267,9 @@ def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
         cfg, "approval_github_allowed_repos", _get_list, []
     )
     gitops_push_blocked = _get_or_default(cfg, "gitops_push_blocked", _get_bool, False)
+    approval_medium_preview_fallback = _get_or_default(
+        cfg, "approval_medium_preview_fallback", _get_bool, True
+    )
     return _build_model(
         ApprovalConfig,
         approval_protected_paths=approval_protected_paths,
@@ -275,6 +278,7 @@ def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
         allowed_root=allowed_root,
         approval_github_allowed_repos=approval_github_allowed_repos,
         gitops_push_blocked=gitops_push_blocked,
+        approval_medium_preview_fallback=approval_medium_preview_fallback,
     )
 
 

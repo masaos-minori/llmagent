@@ -1216,6 +1216,7 @@ class TestRegistryFieldClassification:
             "allowed_root",
             "approval_github_allowed_repos",
             "gitops_push_blocked",
+            "approval_medium_preview_fallback",
         }
         assert set(approval_fields) == expected
 

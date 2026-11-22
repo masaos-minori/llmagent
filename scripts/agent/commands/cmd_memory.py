@@ -16,6 +16,7 @@ Subcommands:
 
 from __future__ import annotations
 
+import inspect
 import logging
 import time
 from dataclasses import dataclass, field
@@ -85,7 +86,7 @@ class _MemoryMixin(MixinBase):
         self._data_ops = MemoryDataOps(self._ctx, self._out)
         self._rebuild_ops = MemoryRebuildOps(self._ctx, self._out)
 
-    def _cmd_memory(self, args: str) -> None:
+    async def _cmd_memory(self, args: str) -> None:
         """Dispatch memory subcommands: status, list, delete, pin, unpin, prune, reindex, rebuild."""
         ctx = self._ctx
         raw_tokens = args.strip().split()
@@ -120,7 +121,9 @@ class _MemoryMixin(MixinBase):
         }
         handler = dispatch.get(sub)
         if handler:
-            handler()
+            outcome = handler()
+            if inspect.isawaitable(outcome):
+                await outcome
         else:
             raise UnknownSubcommandError(sub, tuple(dispatch.keys()))
 

@@ -13,10 +13,17 @@ import json
 import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 from agent.commands.memory_data_ops import MemoryDataOps
+from agent.repl_input_controller import (
+    InputBusyError,
+    InputOutcome,
+    InputRequest,
+    InputResult,
+    PromptKind,
+)
 from db.helper import SQLiteHelper
 from db.maintenance import MaintenanceMode, MaintenanceResult
 from shared.config_loader import ConfigLoader
@@ -39,6 +46,17 @@ def _make_entry(
     entry.summary = summary
     entry.content = content
     return entry
+
+
+def _controller_answering(
+    text: str, outcome: InputOutcome = InputOutcome.COMPLETED
+) -> MagicMock:
+    """A stand-in input controller whose submit returns one scripted result."""
+    ctl = MagicMock()
+    ctl.submit = AsyncMock(
+        return_value=InputResult(InputRequest(PromptKind.NORMAL, ""), outcome, text)
+    )
+    return ctl
 
 
 def _make_ops() -> tuple[MemoryDataOps, MagicMock]:
@@ -201,17 +219,17 @@ class TestResolveId:
 
 
 class TestMemoryDeleteShortId:
-    def test_unknown_writes_m03(self) -> None:
+    async def test_unknown_writes_m03(self) -> None:
         ops, out = _make_ops()
         mem = MagicMock()
         mem.store.get_by_id.return_value = None
         mem.store.list_entries.return_value = []
         with patch("agent.commands.memory_data_ops.write_delete", return_value=False):
-            ops.memory_delete(mem, ["abcdef12"])
+            await ops.memory_delete(mem, ["abcdef12"])
         lines = [c.args[0] for c in out.write.call_args_list]
         assert any("M-03" in line for line in lines)
 
-    def test_ambiguous_writes_m04(self) -> None:
+    async def test_ambiguous_writes_m04(self) -> None:
         ops, out = _make_ops()
         mem = MagicMock()
         mem.store.get_by_id.return_value = None
@@ -220,22 +238,25 @@ class TestMemoryDeleteShortId:
             _make_entry(memory_id="abcdef12bb"),
         ]
         with patch("agent.commands.memory_data_ops.write_delete", return_value=False):
-            ops.memory_delete(mem, ["abcdef12"])
+            await ops.memory_delete(mem, ["abcdef12"])
         lines = [c.args[0] for c in out.write.call_args_list]
         assert any("M-04" in line for line in lines)
 
-    def test_short_id_resolves_before_delete(self) -> None:
+    async def test_short_id_resolves_before_delete(self) -> None:
         ops, out = _make_ops()
         mem = MagicMock()
         mem.store.get_by_id.return_value = None
         mem.store.list_entries.return_value = [_make_entry(memory_id="abcdef1234")]
         with (
-            patch("builtins.input", return_value="y"),
+            patch(
+                "agent.commands.memory_data_ops.get_input_controller",
+                return_value=_controller_answering("y"),
+            ),
             patch(
                 "agent.commands.memory_data_ops.write_delete", return_value=True
             ) as wd,
         ):
-            ops.memory_delete(mem, ["abcdef12"])
+            await ops.memory_delete(mem, ["abcdef12"])
         wd.assert_called_once_with("abcdef1234", db_config=ops._ctx.cfg.db)
         # no M-code emitted on success path
         lines = [c.args[0] for c in out.write.call_args_list]
@@ -367,7 +388,7 @@ class TestMemoryPinLimit:
 
 
 class TestMemoryPruneEvents:
-    def test_prune_appends_delete_event_per_id(self) -> None:
+    async def test_prune_appends_delete_event_per_id(self) -> None:
         ops, _ = _make_ops()
         ctx = SimpleNamespace(
             cfg=SimpleNamespace(memory=SimpleNamespace(memory_retention_days=30)),
@@ -388,7 +409,10 @@ class TestMemoryPruneEvents:
                 return_value=["id-aaa", "id-bbb"],
             ),
             patch("db.maintenance.prune_old_memories", return_value=prune_result),
-            patch("builtins.input", return_value="y"),
+            patch(
+                "agent.commands.memory_data_ops.get_input_controller",
+                return_value=_controller_answering("y"),
+            ),
             patch("agent.commands.memory_data_ops._emit_prune_event") as emit,
         ):
             mock_h = MagicMock()
@@ -396,10 +420,10 @@ class TestMemoryPruneEvents:
             mock_h.__exit__ = MagicMock(return_value=False)
             mock_h.open.return_value = mock_h
             mock_helper_cls.return_value = mock_h
-            ops.memory_prune(MagicMock(), ctx, ["--days", "14"])
+            await ops.memory_prune(MagicMock(), ctx, ["--days", "14"])
         emit.assert_has_calls([call("id-aaa"), call("id-bbb")])
 
-    def test_prune_no_pruned_ids_emits_no_events(self) -> None:
+    async def test_prune_no_pruned_ids_emits_no_events(self) -> None:
         ops, out = _make_ops()
         ctx = SimpleNamespace(
             cfg=SimpleNamespace(memory=SimpleNamespace(memory_retention_days=30)),
@@ -427,7 +451,7 @@ class TestMemoryPruneEvents:
             mock_h.__exit__ = MagicMock(return_value=False)
             mock_h.open.return_value = mock_h
             mock_helper_cls.return_value = mock_h
-            ops.memory_prune(MagicMock(), ctx, ["--days", "14"])
+            await ops.memory_prune(MagicMock(), ctx, ["--days", "14"])
         emit.assert_not_called()
         # count==0 path writes a plain message and returns before write_success
         lines = [c.args[0] for c in out.write.call_args_list]
@@ -524,7 +548,7 @@ class TestMemoryPruneRealLoader:
         monkeypatch.setattr(ConfigLoader, "_allowed_files", None)
         return archive_dir
 
-    def test_prune_appends_delete_event_per_id(
+    async def test_prune_appends_delete_event_per_id(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
@@ -557,9 +581,12 @@ class TestMemoryPruneRealLoader:
             patch(  # mock-patch-ok: memory_prune binds SQLiteHelper via a local import (line 357); real temp-file DB backs prune_old_memories
                 "db.helper.SQLiteHelper", return_value=helper
             ),
-            patch("builtins.input", return_value="y"),
+            patch(
+                "agent.commands.memory_data_ops.get_input_controller",
+                return_value=_controller_answering("y"),
+            ),
         ):
-            ops.memory_prune(MagicMock(), ctx, ["--days", "14"])
+            await ops.memory_prune(MagicMock(), ctx, ["--days", "14"])
 
         # One delete event per pruned id lands under the resolved archive.
         archive_file = archive_dir / "memories.jsonl"
@@ -577,3 +604,88 @@ class TestMemoryPruneRealLoader:
         # Rows actually deleted from the DB by the real prune_old_memories.
         remaining = conn.execute("SELECT count(*) FROM memories").fetchone()[0]
         assert remaining == 1
+
+
+class TestDeleteConfirmationThroughController:
+    @staticmethod
+    def _mem() -> MagicMock:
+        mem = MagicMock()
+        mem.store.get_by_id.return_value = None
+        mem.store.list_entries.return_value = [_make_entry(memory_id="abcdef1234")]
+        return mem
+
+    @pytest.mark.parametrize(
+        "outcome",
+        [
+            InputOutcome.TIMED_OUT,
+            InputOutcome.CANCELLED,
+            InputOutcome.EOF,
+            InputOutcome.SHUTDOWN,
+        ],
+    )
+    async def test_non_completed_outcome_never_deletes(
+        self, outcome: InputOutcome
+    ) -> None:
+        ops, out = _make_ops()
+        with (
+            patch(
+                "agent.commands.memory_data_ops.get_input_controller",
+                return_value=_controller_answering("y", outcome),
+            ),
+            patch("agent.commands.memory_data_ops.write_delete") as wd,
+        ):
+            await ops.memory_delete(self._mem(), ["abcdef12"])
+        wd.assert_not_called()
+        lines = [c.args[0] for c in out.write.call_args_list]
+        assert any("Cancelled" in line for line in lines)
+
+    async def test_other_answer_does_not_delete(self) -> None:
+        ops, _out = _make_ops()
+        with (
+            patch(
+                "agent.commands.memory_data_ops.get_input_controller",
+                return_value=_controller_answering("n"),
+            ),
+            patch("agent.commands.memory_data_ops.write_delete") as wd,
+        ):
+            await ops.memory_delete(self._mem(), ["abcdef12"])
+        wd.assert_not_called()
+
+    async def test_request_is_destructive_and_bound_to_the_memory_id(self) -> None:
+        ops, _out = _make_ops()
+        ctl = _controller_answering("yes")
+        with (
+            patch(
+                "agent.commands.memory_data_ops.get_input_controller",
+                return_value=ctl,
+            ),
+            patch("agent.commands.memory_data_ops.write_delete", return_value=True),
+        ):
+            await ops.memory_delete(self._mem(), ["abcdef12"])
+        request = ctl.submit.await_args.args[0]
+        assert request.prompt_kind is PromptKind.MEMORY_DELETE
+        assert request.operation_id == "abcdef1234"
+        assert request.destructive is True
+
+    async def test_busy_stdin_refuses_the_confirmation(self) -> None:
+        ops, out = _make_ops()
+        ctl = MagicMock()
+        ctl.submit = AsyncMock(side_effect=InputBusyError("unresolved"))
+        with (
+            patch(
+                "agent.commands.memory_data_ops.get_input_controller",
+                return_value=ctl,
+            ),
+            patch("agent.commands.memory_data_ops.write_delete") as wd,
+        ):
+            await ops.memory_delete(self._mem(), ["abcdef12"])
+        wd.assert_not_called()
+        lines = [c.args[0] for c in out.write.call_args_list]
+        assert any("busy" in line for line in lines)
+        assert any("Cancelled" in line for line in lines)
+
+    def test_no_direct_input_call_remains(self) -> None:
+        import agent.commands.memory_data_ops as module
+
+        source = Path(module.__file__).read_text(encoding="utf-8")
+        assert "input(" not in source.replace("get_input_controller(", "")

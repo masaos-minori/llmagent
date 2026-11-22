@@ -43,10 +43,12 @@ Token output stops the spinner first, so streaming tokens always interrupt the s
 ## Responsibility Boundary
 
 - **Presentation Layer Only**: Does not hold state management or business logic.
-- **Test Protocols**: By defining `Writer` (output operations) and `Reader` (multi-line input) protocols, different implementations can be injected during testing.
+- **No Input Policy**: `CLIView` does not read stdin, own multiline continuation, or hold input state; stdin ownership and Ctrl-C state live in the input controller (see the REPL input/output document).
+- **Test Protocols**: The `Writer` base (`WriterBase`, output operations) lets partial test doubles stand in during testing.
 
 ## Keywords
 
 - CLIView
+- render only
 - responsibility boundary
 - callbacks

@@ -21,14 +21,10 @@ entries:
   summary: Base class providing default implementations for output methods.
 - file: scripts/agent/cli_view.py
   kind: class
-  name: Reader
-  signature: class Reader
-  summary: Input-side interface for multiline continuation prompts.
-- file: scripts/agent/cli_view.py
-  kind: class
   name: CLIView
   signature: class CLIView
-  summary: 'Manages terminal I/O: readline history, tab completion, multiline'
+  summary: 'Manages terminal output: readline history, tab completion, and progress
+    status line.'
 - file: scripts/agent/commands/cmd_memory.py
   kind: class
   name: MemoryOpResult
@@ -621,6 +617,57 @@ entries:
   name: main
   signature: def main() -> None
   summary: Start the interactive REPL.
+- file: scripts/agent/repl_input_controller.py
+  kind: class
+  name: PromptKind
+  signature: class PromptKind
+  summary: What a request asks the operator for.
+- file: scripts/agent/repl_input_controller.py
+  kind: class
+  name: InputOutcome
+  signature: class InputOutcome
+  summary: How a request ended.
+- file: scripts/agent/repl_input_controller.py
+  kind: class
+  name: InputState
+  signature: class InputState
+  summary: What the REPL is doing; Ctrl-C acts by this state.
+- file: scripts/agent/repl_input_controller.py
+  kind: class
+  name: InterruptAction
+  signature: class InterruptAction
+  summary: What ``handle_interrupt`` did.
+- file: scripts/agent/repl_input_controller.py
+  kind: class
+  name: InputBusyError
+  signature: class InputBusyError
+  summary: A request was refused because another read is active or unresolved.
+- file: scripts/agent/repl_input_controller.py
+  kind: class
+  name: InputRequest
+  signature: class InputRequest
+  summary: One immutable prompt request.
+- file: scripts/agent/repl_input_controller.py
+  kind: class
+  name: InputResult
+  signature: class InputResult
+  summary: The outcome of one request; ``text`` is set only when it completed.
+- file: scripts/agent/repl_input_controller.py
+  kind: class
+  name: ReplInputController
+  signature: class ReplInputController
+  summary: 'Owns stdin: one active request at a time, results bound to their request.'
+- file: scripts/agent/repl_input_controller.py
+  kind: function
+  name: get_input_controller
+  signature: def get_input_controller() -> ReplInputController
+  summary: Return the process-shared controller, creating it on first use.
+- file: scripts/agent/repl_input_controller.py
+  kind: function
+  name: reset_input_controller
+  signature: def reset_input_controller() -> None
+  summary: Drop the shared instance so the next get_input_controller() builds a fresh
+    one.
 - file: scripts/agent/repl_input_loop.py
   kind: class
   name: ReplInputLoop
@@ -1322,7 +1369,7 @@ entries:
   kind: class
   name: SignalHandler
   signature: class SignalHandler
-  summary: Encapsulates platform-specific signal handling for graceful shutdown.
+  summary: Encapsulates platform-specific signal handling for the REPL.
 - file: scripts/agent/startup.py
   kind: class
   name: StartupInterrupted
@@ -1381,6 +1428,11 @@ entries:
   summary: Drop the shared instance so the next get_stdin_reader() builds a fresh
     reader.
 - file: scripts/agent/tool_approval.py
+  kind: class
+  name: PreviewResult
+  signature: class PreviewResult
+  summary: An approval preview with its provenance.
+- file: scripts/agent/tool_approval.py
   kind: async function
   name: check_approval
   signature: async def check_approval(ctx, tool_name, args, idempotency_key) -> bool
@@ -1411,8 +1463,8 @@ entries:
 - file: scripts/agent/tool_audit.py
   kind: function
   name: audit_approval
-  signature: def audit_approval(ctx, tool_name, risk, args, decision, idempotency_key)
-    -> None
+  signature: def audit_approval(ctx, tool_name, risk, args, decision, idempotency_key,
+    *, request_id, preview_source, fallback_reason) -> None
   summary: Write a structured tool_approval event to the audit log.
 - file: scripts/agent/tool_audit.py
   kind: function
@@ -1548,8 +1600,9 @@ entries:
 - file: scripts/agent/tool_output.py
   kind: function
   name: emit_approval_prompt
-  signature: def emit_approval_prompt(risk, tool_name, preview, output) -> None
-  summary: Write the approval prompt header and preview.
+  signature: def emit_approval_prompt(risk, tool_name, preview, output, *, request_id,
+    preview_source) -> None
+  summary: Write the approval prompt header and preview (masked as a last defense).
 - file: scripts/agent/tool_output.py
   kind: function
   name: emit_denied

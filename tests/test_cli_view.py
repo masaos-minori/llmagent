@@ -9,17 +9,12 @@ calls are patched so tests run without a real terminal or history file.
 from __future__ import annotations
 
 import asyncio
-import logging
-import threading
-import time
-from collections.abc import Iterator
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.cli_view import CLIView, WriterBase
 from agent.commands.output_port import CliOutputPort, OutputPort
-from agent.stdin_reader import get_stdin_reader, reset_stdin_reader
 
 if TYPE_CHECKING:
     from pytest import CaptureFixture
@@ -38,14 +33,6 @@ def mock_rl():
 @pytest.fixture
 def view(mock_rl: MagicMock) -> CLIView:
     return CLIView(["/help", "/exit", "/session"])
-
-
-@pytest.fixture(autouse=True)
-def _isolate_shared_reader() -> Iterator[None]:
-    """CLIView now shares the module reader: reset it so each test gets a fresh one."""
-    reset_stdin_reader()
-    yield
-    reset_stdin_reader()
 
 
 # ── setup_readline() ─────────────────────────────────────────────────────────
@@ -103,148 +90,22 @@ class TestWriteHistory:
         view.write_history()  # must not raise
 
 
-# ── read_multiline() ─────────────────────────────────────────────────────────
+# ── input ownership ──────────────────────────────────────────────────────────
 
 
-class TestReadMultiline:
-    def _run(self, coro: object) -> str:
-        return asyncio.get_event_loop().run_until_complete(coro)  # type: ignore[arg-type]
+class TestCliViewHoldsNoInputPolicy:
+    def test_view_has_no_multiline_reader_or_timeout(self, view: CLIView) -> None:
+        import agent.cli_view as cli_view_module
 
-    def test_joins_continuation_lines(self, view: CLIView) -> None:
-        # first_line ends with "\" → continuation expected
-        # next input is "world" (no trailing \)
-        with patch("builtins.input", side_effect=["world"]):
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(view.read_multiline(loop, "hello\\"))
-            loop.close()
-        assert result == "hello\nworld"
+        assert not hasattr(view, "read_multiline")
+        assert not hasattr(view, "_stdin_reader")
+        assert not hasattr(cli_view_module, "Reader")
+        assert not hasattr(cli_view_module, "_INPUT_TIMEOUT_S")
 
-    def test_stops_on_empty_line(self, view: CLIView) -> None:
-        with patch("builtins.input", side_effect=[""]):
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(view.read_multiline(loop, "first\\"))
-            loop.close()
-        assert result == "first"
+    def test_view_does_not_import_the_stdin_reader(self) -> None:
+        import agent.cli_view as cli_view_module
 
-    def test_chained_continuation(self, view: CLIView) -> None:
-        with patch("builtins.input", side_effect=["line2\\", "line3"]):
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(view.read_multiline(loop, "line1\\"))
-            loop.close()
-        assert result == "line1\nline2\nline3"
-
-    def test_stops_on_eof(self, view: CLIView) -> None:
-        with patch("builtins.input", side_effect=EOFError):
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(view.read_multiline(loop, "partial\\"))
-            loop.close()
-        assert result == "partial"
-
-    def test_stops_on_keyboard_interrupt(self, view: CLIView) -> None:
-        with patch("builtins.input", side_effect=KeyboardInterrupt):
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(view.read_multiline(loop, "partial\\"))
-            loop.close()
-        assert result == "partial"
-
-
-class TestReadMultilineTimeout:
-    def test_input_timeout_returns_partial(
-        self,
-        view: CLIView,
-        monkeypatch: pytest.MonkeyPatch,
-        caplog: pytest.LogCaptureFixture,
-    ) -> None:
-        monkeypatch.setattr("agent.cli_view._INPUT_TIMEOUT_S", 0.2)
-        release = threading.Event()
-        non_daemon_before = {t for t in threading.enumerate() if not t.daemon}
-        loop = asyncio.new_event_loop()
-        try:
-            with (
-                patch(
-                    "builtins.input", side_effect=lambda p: (release.wait(5), "x")[1]
-                ),
-                caplog.at_level(logging.WARNING, logger="agent.cli_view"),
-            ):
-                result = loop.run_until_complete(view.read_multiline(loop, "hello\\"))
-        finally:
-            release.set()
-            loop.close()
-        assert result == "hello"
-        assert "Multiline input timed out" in caplog.text
-        assert {t for t in threading.enumerate() if not t.daemon} == non_daemon_before
-
-    def test_timeout_then_second_read(
-        self,
-        view: CLIView,
-        monkeypatch: pytest.MonkeyPatch,
-        caplog: pytest.LogCaptureFixture,
-    ) -> None:
-        monkeypatch.setattr("agent.cli_view._INPUT_TIMEOUT_S", 0.2)
-        release = threading.Event()
-        loop = asyncio.new_event_loop()
-        try:
-            # Phase 1: the continuation read times out and returns the partial text.
-            with (
-                patch(
-                    "builtins.input", side_effect=lambda p: (release.wait(5), "x")[1]
-                ),
-                caplog.at_level(logging.WARNING, logger="agent.cli_view"),
-            ):
-                first = loop.run_until_complete(view.read_multiline(loop, "hello\\"))
-            # Free the stale worker thread with a discardable line so it returns to
-            # its idle wait; the next read on the same view must not raise
-            # "a stdin read is already pending".
-            release.set()
-            time.sleep(0.2)
-            # Phase 2: a fresh read on the same CLIView completes without
-            # "a stdin read is already pending".
-            with patch("builtins.input", side_effect=["end"]):
-                second = loop.run_until_complete(view.read_multiline(loop, "world\\"))
-        finally:
-            release.set()
-            loop.close()
-        assert first == "hello"
-        assert second == "world\nend"
-
-    def test_timeout_then_fresh_view_receives_typed_line(
-        self,
-        view: CLIView,
-        monkeypatch: pytest.MonkeyPatch,
-        caplog: pytest.LogCaptureFixture,
-    ) -> None:
-        monkeypatch.setattr("agent.cli_view._INPUT_TIMEOUT_S", 0.2)
-        release = threading.Event()
-        loop = asyncio.new_event_loop()
-        try:
-            with (
-                patch(
-                    "builtins.input",
-                    side_effect=lambda p: (release.wait(5), "typed")[1],
-                ),
-                caplog.at_level(logging.WARNING, logger="agent.cli_view"),
-            ):
-                # Phase 1: the continuation read times out while the worker stays
-                # blocked in input(), which stands for the line the user is typing.
-                first = loop.run_until_complete(view.read_multiline(loop, "hello\\"))
-                # Phase 2: a fresh CLIView registers its read on the same shared
-                # reader; call_soon releases the blocked worker only after the
-                # read coroutine has run its first step, so the timed-out line is
-                # delivered to the new request (hand-off), with no timing sleeps.
-                fresh = CLIView(["/help", "/exit", "/session"])
-                assert view._stdin_reader is get_stdin_reader()
-                assert fresh._stdin_reader is view._stdin_reader
-                second = loop.create_task(fresh.read_multiline(loop, "next\\"))
-                loop.call_soon(release.set)
-                result = loop.run_until_complete(second)
-        finally:
-            release.set()
-            loop.close()
-        assert first == "hello"
-        assert result == "next\ntyped"
-
-
-# ── display helpers ────────────────────────────────────────────────────────────
+        assert not hasattr(cli_view_module, "get_stdin_reader")
 
 
 class TestDisplayHelpers:

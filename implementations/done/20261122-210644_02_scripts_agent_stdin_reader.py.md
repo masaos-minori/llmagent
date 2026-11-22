@@ -74,9 +74,9 @@ Controller logic, CLIView and loop changes, docs.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion test files included) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-212457 | 20261122-213733 | Changed: scripts/agent/stdin_reader.py (and companions) |
+| 2 | Add or update tests per Validation plan (companion test files included) | Completed | 20261122-212457 | 20261122-213733 | targeted tests pass (647 in the affected directories) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261122-212457 | 20261122-213733 | ruff, mypy, lint-imports, bandit clean; full suite 13377 passed; diff-cover 91% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

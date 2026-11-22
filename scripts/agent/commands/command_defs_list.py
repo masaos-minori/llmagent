@@ -159,7 +159,7 @@ _COMMANDS: list[CommandDef] = [
     CommandDef(
         name="/memory",
         prefix=True,
-        is_async=False,
+        is_async=True,
         handler="_cmd_memory",
         help="status|list|delete|pin|unpin|prune|reindex|rebuild  Manage long-term memory entries",
         subcommands=[

@@ -22,6 +22,7 @@ import pytest
 from agent.commands.registry import CommandRegistry
 from agent.context import RuntimeStats
 from agent.repl import AgentREPL, main
+from agent.repl_input_controller import reset_input_controller
 from agent.repl_input_loop import ReplInputLoop
 from agent.startup_banner import StartupBanner
 from agent.stdin_reader import reset_stdin_reader
@@ -32,8 +33,10 @@ from db.models import WalCheckpointCounts
 def _isolate_shared_reader() -> Iterator[None]:
     """ReplInputLoop now shares the module reader: reset it so each test gets a fresh one."""
     reset_stdin_reader()
+    reset_input_controller()
     yield
     reset_stdin_reader()
+    reset_input_controller()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -85,7 +88,6 @@ def _make_bare_repl() -> AgentREPL:
     from agent.wal_checkpoint_manager import WalCheckpointManager
 
     view = MagicMock()
-    view.read_multiline = AsyncMock(return_value="")
     repl._view = view
     repl._signal = SignalHandler(ctx, repl._shutdown_event)
     repl._banner = StartupBanner(ctx, view)
@@ -522,7 +524,6 @@ class TestPersistSessionDiagnostics:
         repl._ctx = ctx
         repl._diagnostic_store = MagicMock()
         view = MagicMock()
-        view.read_multiline = AsyncMock(return_value="")
         repl._view = view
         from agent.session_persister import SessionPersister
 
@@ -655,7 +656,6 @@ def _make_repl_for_shutdown() -> AgentREPL:
     ctx.conv.shutdown_requested = False
     repl._ctx = ctx
     view = MagicMock()
-    view.read_multiline = AsyncMock(return_value="")
     repl._view = view
     repl._cmds = AsyncMock()
     repl._cmds.dispatch = AsyncMock(return_value=True)
@@ -1713,7 +1713,6 @@ class TestAgentREPLRunSubprocessTermination:
             mock_startup_instance.run = AsyncMock(side_effect=_run_then_rollback)
             MockStartup.return_value = mock_startup_instance
             repl._shutdown_event = asyncio.Event()
-            repl._view.read_multiline = AsyncMock(return_value="")
             with pytest.raises(RuntimeError, match="startup failed"):
                 await repl.run()
 
@@ -1821,3 +1820,103 @@ class TestRunResourceCleanup:
 
         assert calls == ["input_loop.run", "persist_session_state", "close_resources"]
         repl._view.write_warning.assert_called_once()
+
+
+# ── Ctrl-C acts by state; cancelled input is discarded ────────────────────────
+
+
+class TestInterruptByState:
+    @pytest.mark.asyncio
+    async def test_ctrl_c_at_the_prompt_discards_the_line_and_prompts_again(
+        self,
+    ) -> None:
+        repl = _make_bare_repl()
+        release = threading.Event()
+        answers = iter(["typed-before-ctrl-c", "/exit"])
+
+        def _input(_prompt: str) -> str:
+            release.wait(5)
+            return next(answers)
+
+        async def _ctrl_c() -> None:
+            await asyncio.sleep(0.05)
+            assert repl._input_loop._input.handle_interrupt().value == "discard_input"
+            release.set()
+
+        task = asyncio.ensure_future(_ctrl_c())
+        with patch("builtins.input", side_effect=_input):
+            await asyncio.wait_for(repl._input_loop.run(MagicMock()), timeout=3.0)
+        await task
+        repl._orchestrator.handle_turn.assert_not_called()
+        warnings = [c.args[0] for c in repl._view.write_warning.call_args_list]
+        assert any("Input discarded" in w for w in warnings)
+        assert repl._ctx.conv.shutdown_requested is False
+
+    @pytest.mark.asyncio
+    async def test_ctrl_c_during_a_turn_cancels_only_the_turn(self) -> None:
+        repl = _make_bare_repl()
+        started = asyncio.Event()
+
+        async def _handle_turn(_line: str) -> None:
+            started.set()
+            await asyncio.sleep(30)
+
+        repl._orchestrator.handle_turn = AsyncMock(side_effect=_handle_turn)
+        repl._input_loop._orchestrator = repl._orchestrator
+        answers = iter(["hello", "/exit"])
+
+        async def _ctrl_c() -> None:
+            await started.wait()
+            assert repl._input_loop._input.handle_interrupt().value == "cancel_turn"
+
+        task = asyncio.ensure_future(_ctrl_c())
+        with patch("builtins.input", side_effect=lambda _p: next(answers)):
+            await asyncio.wait_for(repl._input_loop.run(MagicMock()), timeout=3.0)
+        await task
+        warnings = [c.args[0] for c in repl._view.write_warning.call_args_list]
+        assert any("Turn cancelled" in w for w in warnings)
+        assert repl._ctx.conv.shutdown_requested is False
+        assert repl._ctx.conv.is_processing is False
+
+    @pytest.mark.asyncio
+    async def test_eof_ends_the_loop_through_the_controller(self) -> None:
+        repl = _make_bare_repl()
+        with patch("builtins.input", side_effect=EOFError):
+            await asyncio.wait_for(repl._input_loop.run(MagicMock()), timeout=2.0)
+        repl._view.write_turn_end.assert_called()
+
+
+class TestMultilineTimeoutThenNextPrompt:
+    @pytest.mark.asyncio
+    async def test_timed_out_multiline_is_never_dispatched(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("agent.repl_input_controller.MULTILINE_TIMEOUT_S", 0.05)
+        repl = _make_bare_repl()
+        release = threading.Event()
+        answers = iter(["abandoned", "/exit"])
+        calls = iter(["first\\"])
+
+        def _input(prompt: str) -> str:
+            if prompt == "> ":
+                try:
+                    return next(calls)
+                except StopIteration:
+                    return next(answers)
+            release.wait(5)
+            return next(answers)
+
+        async def _free_later() -> None:
+            await asyncio.sleep(0.2)
+            release.set()
+
+        task = asyncio.ensure_future(_free_later())
+        with (
+            patch("builtins.input", side_effect=_input),
+            patch("sys.stdin.isatty", return_value=False),
+        ):
+            await asyncio.wait_for(repl._input_loop.run(MagicMock()), timeout=3.0)
+        await task
+        repl._orchestrator.handle_turn.assert_not_called()
+        warnings = [c.args[0] for c in repl._view.write_warning.call_args_list]
+        assert any("discarded" in w for w in warnings)
