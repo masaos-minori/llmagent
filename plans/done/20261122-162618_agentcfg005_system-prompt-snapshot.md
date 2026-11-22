@@ -256,12 +256,12 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: single source and typed model | In Progress | — | — | RU-1 not involved; passes validation alone |
-| 2 | Phase 2: startup path | In Progress | — | — | — |
-| 3 | Phase 3: reload path | In Progress | — | — | — |
-| 4 | Phase 4: config-layer removal (RU-1) | In Progress | — | — | cannot be validated alone |
-| 5 | Phase 5: standard file and test migration (RU-1) | In Progress | — | — | releases RU-1 |
-| 6 | Phase 6: deployment, generated manifest, docs, gates | In Progress | — | — | `registry/` rsynced, no `deploy.sh` change |
+| 1 | Phase 1: single source and typed model | Completed | — | 20261122-183626 | RU-1 not involved; passes validation alone |
+| 2 | Phase 2: startup path | Completed | — | 20261122-183626 | — |
+| 3 | Phase 3: reload path | Completed | — | 20261122-183626 | — |
+| 4 | Phase 4: config-layer removal (RU-1) | Completed | — | 20261122-183626 | cannot be validated alone |
+| 5 | Phase 5: standard file and test migration (RU-1) | Completed | — | 20261122-183626 | releases RU-1 |
+| 6 | Phase 6: deployment, generated manifest, docs, gates | Completed | — | 20261122-183626 | `registry/` rsynced, no `deploy.sh` change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -271,29 +271,29 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261122-165517_01_config_agent.toml.md | 5 | Procedure | Pending | — | — |
-| implementations/20261122-165517_02_registry_manifests_prompt_source.toml.md | 1 | Procedure | Pending | — | — |
-| implementations/20261122-165517_03_scripts_agent_prompt_source.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261122-165517_04_scripts_agent_config_dataclasses.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261122-165517_05_scripts_agent_config_section_builders.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261122-165517_06_scripts_agent_config_builders.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261122-165517_07_scripts_agent_services_config_field_registry.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261122-165517_08_registry_manifests_config_ownership.yaml.md | 6 | Procedure | Pending | — | — |
-| implementations/20261122-165517_09_scripts_agent_production_config_validator.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261122-165517_10_scripts_agent_services_config_reload.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261122-165517_11_scripts_agent_startup_prompt_setup.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261122-165517_12_tests_agent_test_prompt_source.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261122-165517_13_tests_agent_test_config_effective_snapshot.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261122-165517_14_tests_agent_test_config_builders.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261122-165517_15_tests_agent_services_test_config_reload.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261122-165517_16_tests_agent_services_test_config_reload_classification.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261122-165517_17_tests_agent_test_production_config_validator.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261122-165517_18_tests_agent_test_startup_prompt_setup.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261122-165517_19_tests_agent_test_startup.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261122-165517_20_tests_agent_commands_test_agent_cmd_context.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261122-165517_21_tests_agent_services_test_conversation_service.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261122-165517_22_docs_23_agent_agent_08_01_configuration-loading-agent-config.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261122-165517_23_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261122-165517_01_config_agent.toml.md | 5 | Procedure | Completed | — | — |
+| implementations/20261122-165517_02_registry_manifests_prompt_source.toml.md | 1 | Procedure | Completed | — | — |
+| implementations/20261122-165517_03_scripts_agent_prompt_source.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261122-165517_04_scripts_agent_config_dataclasses.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261122-165517_05_scripts_agent_config_section_builders.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261122-165517_06_scripts_agent_config_builders.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261122-165517_07_scripts_agent_services_config_field_registry.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261122-165517_08_registry_manifests_config_ownership.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261122-165517_09_scripts_agent_production_config_validator.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261122-165517_10_scripts_agent_services_config_reload.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261122-165517_11_scripts_agent_startup_prompt_setup.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261122-165517_12_tests_agent_test_prompt_source.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261122-165517_13_tests_agent_test_config_effective_snapshot.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261122-165517_14_tests_agent_test_config_builders.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261122-165517_15_tests_agent_services_test_config_reload.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261122-165517_16_tests_agent_services_test_config_reload_classification.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261122-165517_17_tests_agent_test_production_config_validator.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261122-165517_18_tests_agent_test_startup_prompt_setup.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261122-165517_19_tests_agent_test_startup.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261122-165517_20_tests_agent_commands_test_agent_cmd_context.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261122-165517_21_tests_agent_services_test_conversation_service.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261122-165517_22_docs_23_agent_agent_08_01_configuration-loading-agent-config.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261122-165517_23_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 6 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

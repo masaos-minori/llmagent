@@ -63,9 +63,9 @@ Add the frozen prompt-source model and the reader, and nothing else.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | names must match row 12 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | covered by row 12 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | includes `lint-imports` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-180330 | 20261122-180330 | names must match row 12 names: PromptSource (frozen model), PromptSourceError, load_prompt_source; ruff/mypy/check_docstrings/lint-imports pass on this module |
+| 2 | Add or update tests per Validation plan | Completed | 20261122-180330 | 20261122-180330 | covered by row 12 no test change here; covered by row 12 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261122-180330 | 20261122-183359 | includes `lint-imports` per-module checks pass; row 12 tests and full suite at batch end end-of-batch full-suite run: 13333 passed, 2 failed — b04 concurrent-writes flaky (3 reruns pass, unrelated to this batch), and an unlisted positional _build_tool_config call site in test_tool_result_formatter.py:77 fixed (finding recorded on row 14); diff-cover 100% (>=90) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

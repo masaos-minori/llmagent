@@ -5,6 +5,7 @@ Error-path tests for ConfigReloadService.apply_config().
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 from typing import cast
 from unittest.mock import MagicMock
 
@@ -20,6 +21,22 @@ from shared.mcp_config import StartupMode
 from shared.runtime_tool_registry import RuntimeToolRegistry
 
 from tests.agent._config_test_defaults import MIN_DB_CONFIG, MIN_MAINTENANCE_CONFIG
+
+
+@pytest.fixture(autouse=True)
+def prompt_source_env(tmp_path, monkeypatch) -> None:
+    """Point the prompt reader at a temporary source for every test (row 15).
+
+    The reload path reads prompt content through ``agent.prompt_source``; tests
+    must not depend on the committed ``registry/manifests/prompt_source.toml``,
+    so the resolved directory is redirected to a per-test fixture.
+    """
+    manifest_dir = tmp_path / "manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    (manifest_dir / "prompt_source.toml").write_text(
+        'default = "fixture default prompt"\n', encoding="utf-8"
+    )
+    monkeypatch.setenv("LLMAGENT_REGISTRY_DIR", str(tmp_path))
 
 
 @pytest.fixture()
@@ -48,7 +65,6 @@ def svc() -> object:
         llm_stream_retry_on_malformed_chunk=False,
     )
     tool_cfg = ToolConfig(
-        system_prompts={},
         masked_fields=[],
     )
     ctx = MagicMock()
@@ -98,7 +114,6 @@ def svc_with_ctx() -> tuple[object, MagicMock]:
         llm_stream_retry_on_malformed_chunk=False,
     )
     tool_cfg = ToolConfig(
-        system_prompts={},
         masked_fields=[],
     )
     ctx = MagicMock()
@@ -269,10 +284,12 @@ class TestConfigReloadAtomicity:
         before_allowed = list(ctx.cfg.tool.allowed_tools)
         before_masked = list(ctx.cfg.tool.masked_fields)
         before_system = ctx.conv.system_prompt_content
+        # Prompt content now comes from the typed fixture source; the tool field
+        # fails validation in the prepare phase, so no prompt update and no
+        # other mutation is applied.
         payload = {
             "allowed_tools": ["a", "b"],
             "masked_fields": ["api_key"],
-            "system_prompt_tool": "new system prompt",
             "max_tool_turns": 0,
         }
         with pytest.raises(ConfigReloadValidationError):
@@ -317,7 +334,6 @@ class TestConfigReloadAtomicity:
                 "memory_embed_url": "http://localhost:8081/embed",
                 "max_tool_turns": 7,
                 "allowed_tools": ["read_file"],
-                "system_prompt_tool": "new prompt",
                 "gitops_push_blocked": True,
             }
         )
@@ -325,11 +341,33 @@ class TestConfigReloadAtomicity:
         assert ctx.cfg.memory.memory_embed_url == "http://localhost:8081/embed"
         assert ctx.cfg.tool.max_tool_turns == 7
         assert ctx.cfg.tool.allowed_tools == ["read_file"]
-        assert ctx.conv.system_prompt_content == "new prompt"
+        # The prompt update comes from the typed fixture source, not from a
+        # config key: the fixture default differs from the runtime value, so the
+        # commit-phase pending update is applied.
+        assert ctx.conv.system_prompt_content == "fixture default prompt"
         assert "llm" in outcome.applied
         assert "memory" in outcome.applied
         assert "tool" in outcome.applied
         assert "approval" in outcome.applied
+
+    def test_prompt_source_read_error_leaves_ctx_unchanged(
+        self, svc_with_ctx: tuple[object, MagicMock], tmp_path: Path, monkeypatch
+    ) -> None:
+        """A source read error in the candidate phase mutates nothing (AC-4)."""
+        from agent.prompt_source import PromptSourceError
+
+        svc, ctx = svc_with_ctx
+        ctx.conv.system_prompt_content = "original prompt"
+        before_allowed = list(ctx.cfg.tool.allowed_tools)
+        # Point the reader at an empty directory: the read boundary raises there.
+        empty_dir = tmp_path / "empty-registry"
+        empty_dir.mkdir()
+        monkeypatch.setenv("LLMAGENT_REGISTRY_DIR", str(empty_dir))
+        payload = {"allowed_tools": ["a", "b"], "max_tool_turns": 7}
+        with pytest.raises(PromptSourceError, match="not found"):
+            svc.apply_config_dict(payload)  # type: ignore[attr-defined]
+        assert list(ctx.cfg.tool.allowed_tools) == before_allowed
+        assert ctx.conv.system_prompt_content == "original prompt"
 
     def test_removed_map_reload_keys_are_ignored(
         self, svc_with_ctx: tuple[object, MagicMock]
@@ -928,7 +966,6 @@ class TestApprovalGitopsPushBlocked:
 
         ctx = MagicMock()
         ctx.cfg.approval = ApprovalConfig(gitops_push_blocked=gitops_push_blocked)
-        ctx.cfg.tool.system_prompts = {}
         ctx.cfg.tool.masked_fields = []
         ctx.cfg.llm.llm_url = ""
         ctx.cfg.llm.llm_max_tokens = 1000
@@ -1078,7 +1115,6 @@ class TestRegistryFieldClassification:
             llm_stream_retry_on_malformed_chunk=False,
         )
         tool_cfg = ToolConfig(
-            system_prompts={},
             masked_fields=[],
         )
         ctx = MagicMock()
@@ -1159,8 +1195,6 @@ class TestRegistryFieldClassification:
             "tool_result_max_llm_chars",
             "serial_tool_calls",
             "plan_blocked_tools",
-            "system_prompt_tool",
-            "system_prompts",
             "allowed_tools",
             "tool_policy_mode",
             "disabled_tools",

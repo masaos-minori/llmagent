@@ -1,22 +1,22 @@
 ## Goal
-Remove the config-field prompt fixture from the context-command test (REQ-006, single-line test row).
+Remove the unused config-field prompt fixture parameter and its default from the conversation-service test helper (REQ-006, single-function test row).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
 - Companion judgement: condition 2 fails — no other row's `Related Tests` cell names this file — so it keeps its own document.
-- The command under test displays `ctx.conv.system_prompt_name` only (`scripts/agent/commands/cmd_context.py` line 75), so this fixture has no consumer and its removal changes nothing the test asserts.
+- `scripts/agent/services/conversation_service.py` reads no prompt config field (`rg` — no match); the helper's prompt fixture has no consumer, and no call site passes the parameter, so removal changes nothing observable.
 ## Design decisions
-- N/A: one fixture line removed.
+- N/A: dead fixture removal.
 ## Alternatives considered
-- Keeping the fixture as harmless noise: rejected, it keeps a reference to a field that no longer exists.
+- Keeping the parameter with an empty dict: rejected, the field no longer exists.
 
 ## Implementation
 ### Target file
-`tests/agent/commands/test_agent_cmd_context.py`
+`tests/agent/services/test_conversation_service.py`
 ### Procedure
-Delete `ctx.cfg.tool.system_prompts = {...}` at line 51; the `ctx.conv` fixtures at lines 40-41 stay because those are the runtime values the command reads.
+Delete the `system_prompts: dict | None = None` parameter (line 16) and the `ctx.cfg.tool.system_prompts = ...` assignment (lines 26-29); keep `ctx.conv.system_prompt_name` and `ctx.conv.system_prompt_content`, which the service and the assertions use.
 
 ## Compatibility considerations
 - N/A: internal test change only.
@@ -25,19 +25,19 @@ Delete `ctx.cfg.tool.system_prompts = {...}` at line 51; the `ctx.conv` fixtures
 ## Rollback considerations
 - N/A: revert the commit.
 ## Validation plan
-- `uv run pytest tests/agent/commands/test_agent_cmd_context.py`; `uv run ruff check tests/agent/commands/test_agent_cmd_context.py`.
+- `uv run pytest tests/agent/services/test_conversation_service.py`; `uv run ruff check tests/agent/services/test_conversation_service.py`.
 ## Completion criteria
-- No reference to `ctx.cfg.tool.system_prompts` remains and the command output assertions still pass (AC-4).
+- No reference to a config-layer prompt field remains in this file and the service assertions still pass (AC-4).
 ## Out of Scope
-- Prompt-name selection features (Plan UNK-04).
+- Any change to `scripts/agent/services/conversation_service.py` (not a target row, confirmed not affected).
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure | Completed | 20261122-182736 | 20261122-182736 | batch-run; dead parameter and fixture assignment removed; ctx.conv prompt values kept |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | "20261122-182736" | 11 passed, ruff clean; full suite at batch end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -57,4 +57,4 @@ Delete `ctx.cfg.tool.system_prompts = {...}` at line 51; the `ctx.conv` fixtures
 - **Source plan**: `plans/20261122-162618_agentcfg005_system-prompt-snapshot.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261122-165517
-- **Related target files**: `tests/agent/commands/test_agent_cmd_context.py`
+- **Related target files**: `tests/agent/services/test_conversation_service.py`

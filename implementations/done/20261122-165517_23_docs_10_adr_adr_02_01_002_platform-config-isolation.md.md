@@ -36,8 +36,8 @@ Delete `system_prompt_tool` from the example key list at line 85; leave the rema
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure | Pending | — | — | commit with row 01 for the config-key check |
-| 3 | Run the validation sequence (`rules/tool-gates.md`) | Pending | — | — | the docs and ADR checkers listed in Validation plan |
+| 1 | Implement the change described in Implementation > Procedure | Completed | 20261122-182914 | 20261122-182914 | commit with row 01 for the config-key check batch-run; example key removed; no replacement added |
+| 3 | Run the validation sequence (`rules/tool-gates.md`) | Completed | — | 20261122-182914 | the docs and ADR checkers listed in Validation plan docs+ADR gates pass (pre-existing agent_14 warning unchanged). Finding: the edited table row is inside '## Decision' (subsection 'Per-Process Required Files and Keys'), contradicting the assumption that Decision text is unchanged; check_adr_preservation warns (exit 0) and requires a sentence-level mapping. Mapping: Decision > Per-Process Required Files and Keys > Agent row, Empty-Allowed Keys list: removed the entry 'system_prompt_tool' (key deleted by row 01, field removed by row 04); no other sentence changed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -212,8 +212,6 @@ approval_github_allowed_repos = []
 
 # ── System prompts ────────────────────────────────────────────────────────────
 
-system_prompt_tool = "あなたは有能なエンジニアアシスタントです。必要に応じてツールを使って情報を収集し、正確に回答してください。"
-
 # ── Diagnostics ───────────────────────────────────────────────────────────────
 
 [diagnostics]
@@ -225,11 +223,6 @@ system_prompt_tool = "あなたは有能なエンジニアアシスタントで�
 encryption_key = ""
 # session_diagnostics rows older than this are purged lazily on each save().
 retention_days = 30
-
-[system_prompts]
-default  = "あなたは有能なエンジニアアシスタントです。必要に応じてツールを使って情報を収集し、正確に回答してください。"
-strict   = "あなたは厳格なエンジニアアシスタントです。事実のみを回答し、不確かな情報は「不明」と答えてください。ツールを積極的に使用して情報を確認してください。"
-creative = "あなたは創造的なエンジニアアシスタントです。複数のアプローチや代替案を提案し、自由な発想で問題解決を支援してください。"
 
 [mcp_servers.shell]
 transport        = "http"

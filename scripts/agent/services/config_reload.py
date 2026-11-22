@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from agent.prompt_source import load_prompt_source
 from agent.services.config_outcome_classification import (
     classify_mcp_server_changes,
     classify_startup_only_fields,
@@ -135,10 +136,13 @@ class ConfigReloadService:
         )
 
         pending_conv_updates: list[Any] = []
-        if "system_prompt_tool" in new_cfg:
-            value = new_cfg["system_prompt_tool"]
+        # Read boundary of the single source (agent.prompt_source): the read and
+        # the comparison happen here, before any mutation, so a missing or
+        # invalid source raises in the candidate phase and mutates nothing.
+        resolved_prompt = load_prompt_source().content(ctx.conv.system_prompt_name)
+        if resolved_prompt != ctx.conv.system_prompt_content:
             pending_conv_updates.append(
-                lambda v=value: setattr(ctx.conv, "system_prompt_content", v)
+                lambda v=resolved_prompt: setattr(ctx.conv, "system_prompt_content", v)
             )
 
         # ── Commit phase: safe, no validation error path exists ──

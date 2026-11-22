@@ -19,7 +19,6 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.llm.llm_max_tokens = 4096
     ctx.cfg.llm.context_char_limit = 100_000
     ctx.cfg.mcp.mcp_servers = {}
-    ctx.cfg.tool.system_prompts = {}
     ctx.cfg.tool.masked_fields = []
     ctx.services_required.llm = None
     ctx.services_required.hist_mgr = None

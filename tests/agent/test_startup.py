@@ -34,9 +34,32 @@ from shared.mcp_config import (
 
 from tests.agent._config_test_defaults import SHIPPED_DB_PATH_KEYS
 
+# ── Prompt source fixture ─────────────────────────────────────────────────────
+
+
+@pytest.fixture()
+def prompt_source_env(tmp_path, monkeypatch) -> None:
+    """Point the prompt reader at a temporary typed source (row 19).
+
+    ``_setup_prompt()`` resolves the prompt through ``agent.prompt_source``; tests
+    must not depend on the committed ``registry/manifests/prompt_source.toml``, so
+    the resolved directory is redirected to a per-test fixture. Its ``default``
+    entry carries the prompt content these assertions check. Scoped to the
+    prompt-class cases only, so other startup tests keep the default registry
+    resolution (their mandatoriness lookbacks read the committed registry).
+    """
+    manifest_dir = tmp_path / "manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    (manifest_dir / "prompt_source.toml").write_text(
+        'default = "Initial prompt"\n', encoding="utf-8"
+    )
+    monkeypatch.setenv("LLMAGENT_REGISTRY_DIR", str(tmp_path))
+
+
 # ── _setup_prompt() regression tests ────────────────────────────────────────────
 
 
+@pytest.mark.usefixtures("prompt_source_env")
 class TestStartupOrchestratorSetupPrompt:
     """Regression tests for _setup_prompt() — pinned notes must NOT be injected."""
 
@@ -47,7 +70,6 @@ class TestStartupOrchestratorSetupPrompt:
         ctx.services_required.memory = None  # memory disabled
         ctx.conv = ConversationState()
         ctx.conv.system_prompt_name = "default"
-        ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
         view = MagicMock()
         startup = StartupOrchestrator(ctx, view)
 
@@ -69,7 +91,6 @@ class TestStartupOrchestratorSetupPrompt:
         ctx.session.session_id = 1
         ctx.conv = ConversationState()
         ctx.conv.system_prompt_name = "default"
-        ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
         ctx.cfg.agent_memory_max_startup_snippets = 10
         view = MagicMock()
         startup = StartupOrchestrator(ctx, view)
@@ -87,7 +108,6 @@ class TestStartupOrchestratorSetupPrompt:
         ctx.services_required.memory = None
         ctx.conv = ConversationState()
         ctx.conv.system_prompt_name = "default"
-        ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
         view = MagicMock()
         startup = StartupOrchestrator(ctx, view)
 
@@ -103,7 +123,6 @@ class TestStartupOrchestratorSetupPrompt:
         ctx.services_required.memory = None
         ctx.conv = ConversationState()
         ctx.conv.system_prompt_name = "default"
-        ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
         view = MagicMock()
         startup = StartupOrchestrator(ctx, view)
 
@@ -124,7 +143,6 @@ class TestStartupOrchestratorSetupPrompt:
         ctx.session.session_id = 1
         ctx.conv = ConversationState()
         ctx.conv.system_prompt_name = "default"
-        ctx.cfg.tool.system_prompts = {"default": "Initial prompt"}
         ctx.cfg.agent_memory_max_startup_snippets = 10
         view = MagicMock()
         startup = StartupOrchestrator(ctx, view)

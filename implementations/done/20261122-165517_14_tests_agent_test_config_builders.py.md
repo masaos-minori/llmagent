@@ -51,8 +51,8 @@ Drop the prompt cases and the prompt argument.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | RU-1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-181526 | 20261122-183417 | RU-1 batch-run; 61 passed. Finding: an unlisted call site existed at line 709 (_build_tool_config with positional 'default' argument); removed it; procedure's line list missed positional call sites (corrected here) additional finding: positional prompt call site also existed outside this file's target scope at tests/agent/test_tool_result_formatter.py:77 (not a plan target row); fixed during end-of-batch run, 47 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261122-181526 | targeted run passes; full suite at batch end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

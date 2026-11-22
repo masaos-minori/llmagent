@@ -48,7 +48,6 @@ def _make_ctx() -> MagicMock:
     ctx.cfg.llm.context_char_limit = 8000
     ctx.cfg.llm.context_token_limit = 0
     ctx.cfg.llm.tokenize_url = ""
-    ctx.cfg.tool.system_prompts = {"default": "You are helpful.", "coding": "You code."}
     ctx.cfg.tool.allowed_tools = ("git_diff",)
     return ctx
 

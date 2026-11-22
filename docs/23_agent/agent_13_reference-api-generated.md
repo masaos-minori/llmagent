@@ -109,6 +109,10 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/orchestrator.py` | `Orchestrator` | `class Orchestrator` | Turn-level coordinator: compression -> LLM loop -> tool dispatch. |
 | `scripts/agent/output_tags.py` | `OutputTag` | `class OutputTag` | Bracketed prefix tags for REPL/CLI status messages. |
 | `scripts/agent/production_config_validator.py` | `ProductionConfigValidator` | `class ProductionConfigValidator` | Validate configuration against production security requirements. |
+| `scripts/agent/prompt_source.py` | `PromptSourceError` | `class PromptSourceError` | Base error for any missing, unparseable, or malformed prompt source. |
+|  | `PromptSource` | `class PromptSource` | Prompt name to content, as read from the single source (read-only). |
+|  | `default_source_path` | `def default_source_path() -> Path` | Return the source file path for the resolved registry directory. |
+|  | `load_prompt_source` | `def load_prompt_source(path) -> PromptSource` | Load and validate the single prompt source. |
 | `scripts/agent/repl.py` | `builtin_command_names` | `def builtin_command_names() -> frozenset[str]` | Return names of all built-in commands from _COMMANDS. |
 |  | `reserved_repl_command_names` | `def reserved_repl_command_names() -> frozenset[str]` | Return names of REPL-reserved commands. |
 |  | `completion_command_names` | `def completion_command_names() -> frozenset[str]` | Return all commands available for tab completion. |

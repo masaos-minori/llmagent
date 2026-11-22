@@ -10,6 +10,7 @@ extracted to PromptSetup (REQ-006).
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -21,20 +22,41 @@ from agent.startup_prompt_setup import PromptSetup
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
+@pytest.fixture(autouse=True)
+def prompt_source_env(tmp_path, monkeypatch) -> Path:
+    """Point the prompt reader at a temporary typed source for every test (row 18).
+
+    ``setup_prompt()`` resolves the initial prompt through ``agent.prompt_source``;
+    tests must not depend on the committed ``registry/manifests/prompt_source.toml``,
+    so the resolved directory is redirected to a per-test fixture whose ``default``
+    entry carries the prompt content these tests assert on.
+    """
+    manifest_dir = tmp_path / "manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    (manifest_dir / "prompt_source.toml").write_text(
+        'default = "Initial prompt"\n', encoding="utf-8"
+    )
+    monkeypatch.setenv("LLMAGENT_REGISTRY_DIR", str(tmp_path))
+    return tmp_path
+
+
 def _make_prompt_setup(
     memory=None,
     system_prompt_name="default",
-    system_prompt_tool="Initial prompt",
     max_snippets=10,
     session_id="test-session",
     memory_disabled=False,
 ) -> tuple[PromptSetup, MagicMock, MagicMock]:
-    """Return a PromptSetup with mocked ctx/view for setup_prompt() tests."""
+    """Return a PromptSetup with mocked ctx/view for setup_prompt() tests.
+
+    The prompt content is supplied by the typed source fixture (the autouse
+    ``prompt_source_env``), not by ``ctx.cfg.tool``; the reader resolves it the
+    same way production does.
+    """
     ctx = MagicMock()
     ctx.services_required.memory = memory
     ctx.conv = ConversationState()
     ctx.conv.system_prompt_name = system_prompt_name
-    ctx.cfg.tool.system_prompts = {system_prompt_name: system_prompt_tool}
     ctx.cfg.agent_memory_max_startup_snippets = max_snippets
     ctx.session.session_id = session_id
     ctx.conv.memory_disabled = memory_disabled
@@ -153,6 +175,22 @@ class TestPromptSetupSetupPrompt:
 
         assert len(ctx.conv.history) == 1
         assert ctx.conv.history[0] == {"role": "system", "content": "Initial prompt"}
+
+    @pytest.mark.asyncio
+    async def test_explicit_name_resolves_from_typed_source(
+        self, prompt_source_env: Path
+    ) -> None:
+        """An explicit name resolves to its entry in the typed source (AC-4)."""
+        source = prompt_source_env / "manifests" / "prompt_source.toml"
+        source.write_text(
+            'default = "Initial prompt"\nstrict = "Strict prompt"\n', encoding="utf-8"
+        )
+        ps, ctx, _ = _make_prompt_setup(system_prompt_name="strict")
+
+        await ps.setup_prompt()
+
+        assert ctx.conv.system_prompt_content == "Strict prompt"
+        assert ctx.conv.history[0] == {"role": "system", "content": "Strict prompt"}
 
     @pytest.mark.asyncio
     async def test_memory_snippets_truncated_when_exceeds_limit(self) -> None:

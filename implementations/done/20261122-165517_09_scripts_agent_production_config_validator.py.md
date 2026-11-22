@@ -37,8 +37,8 @@ Delete `valid_keys.add("system_prompt_tool")` (line 172) and the comment naming 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure | Pending | — | — | RU-1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure | Completed | 20261122-180615 | 20261122-180615 | RU-1 batch-run; explicit exception and its comment removed; prompt keys now rejected via dataclass-derived set after row 04 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261122-180615 | 20261122-183359 | tests are row 17; validation deferred to end-of-batch run end-of-batch full-suite run: 13333 passed, 2 failed — b04 concurrent-writes flaky (3 reruns pass, unrelated to this batch), and an unlisted positional _build_tool_config call site in test_tool_result_formatter.py:77 fixed (finding recorded on row 14); diff-cover 100% (>=90) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

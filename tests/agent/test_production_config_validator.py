@@ -194,12 +194,16 @@ class TestProductionConfigValidatorApprovalRiskFloor:
 class TestProductionConfigValidatorUnknownTopLevelKeys:
     """Tests for general unknown top-level key rejection (REQ-004)."""
 
-    def test_valid_keys_only_no_errors(self) -> None:
+    def test_removed_prompt_keys_are_rejected_as_unknown(self) -> None:
         config = {
             "system_prompt_tool": "",
+            "system_prompts": {"default": ""},
         }
         result = ProductionConfigValidator().validate(config)
-        assert not any("Unknown config keys" in err for err in result.errors)
+        for name in ("system_prompt_tool", "system_prompts"):
+            assert any(
+                "Unknown config keys" in err and name in err for err in result.errors
+            )
 
     def test_workflow_db_path_key_is_accepted(self) -> None:
         """workflow_db_path is a registered subsystem DB path key (scripts/db/):
@@ -293,7 +297,8 @@ class TestProductionConfigValidatorValidKeySetUnchanged:
 
         keys = _get_valid_production_keys()
         assert "agent_memory_max_startup_snippets" in keys
-        assert "system_prompt_tool" in keys
+        assert "system_prompt_tool" not in keys
+        assert "system_prompts" not in keys
         assert "security_profile" not in keys
         assert "tool_definitions_strict" not in keys
         assert "routing_drift_strict" not in keys

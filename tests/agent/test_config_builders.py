@@ -141,15 +141,9 @@ _TOOL_DEFAULTS = {
 
 class TestBuildToolConfig:
     def test_empty_dict_returns_defaults(self) -> None:
-        cfg = _build_tool_config({}, system_prompt_tool="")
+        cfg = _build_tool_config({})
         for key, value in _TOOL_DEFAULTS.items():
             assert getattr(cfg, key) == value, key
-        assert cfg.system_prompts == {"default": ""}
-        assert cfg.system_prompt_tool == ""
-
-    def test_system_prompt_tool_is_set(self) -> None:
-        cfg = _build_tool_config({}, system_prompt_tool="You are an assistant.")
-        assert cfg.system_prompt_tool == "You are an assistant."
 
     def test_every_field_override_is_independently_reflected(self) -> None:
         overrides = {
@@ -165,13 +159,11 @@ class TestBuildToolConfig:
             "max_tool_turns": 9,
             "tool_result_max_llm_chars": 9,
             "tool_results_turn_max_chars": 9,
-            "system_prompts": {"default": "custom"},
             "allowed_tools": ["tool_a"],
         }
-        cfg = _build_tool_config(overrides, system_prompt_tool="base-prompt")
+        cfg = _build_tool_config(overrides)
         for key, value in overrides.items():
             assert getattr(cfg, key) == value, key
-        assert cfg.system_prompt_tool == "base-prompt"
 
 
 # ── _build_memory_config ──────────────────────────────────────────────────────
@@ -425,16 +417,6 @@ class TestBuildAgentConfig:
         from agent.config_dataclasses import MCPConfig
 
         assert "security_lockdown_enabled" not in {f.name for f in fields(MCPConfig)}
-
-    def test_system_prompt_tool_propagates(self) -> None:
-        cfg = build_agent_config(
-            {
-                **_MIN_CFG,
-                "system_prompt_tool": "You are a helpful agent.",
-                "allowed_tools": ["some_tool"],
-            }
-        )
-        assert cfg.tool.system_prompt_tool == "You are a helpful agent."
 
     def test_production_validation_passes_without_exit(self) -> None:
         # Companion to test_production_validation_errors_raises: proves the
@@ -724,4 +706,4 @@ class TestBuilderExceptionTypeUniformity:
 
     def test_tool_builder_wraps_a_zero_dedup_limit(self) -> None:
         with pytest.raises(ConfigReloadValidationError, match="tool_dedup_max_repeats"):
-            _build_tool_config({"tool_dedup_max_repeats": 0}, "default")
+            _build_tool_config({"tool_dedup_max_repeats": 0})

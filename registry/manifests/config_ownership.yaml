@@ -115,14 +115,6 @@ entries:
   hot_reloadable: true
   section: llm
   validator: validate_llm_sse_reconnect_max
-- field: system_prompt_tool
-  hot_reloadable: true
-  section: tool
-  validator: null
-- field: system_prompts
-  hot_reloadable: true
-  section: tool
-  validator: null
 - field: tool_policy_mode
   hot_reloadable: true
   section: tool

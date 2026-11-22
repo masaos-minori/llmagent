@@ -51,8 +51,8 @@ Run the generator and commit its output.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | run the generator, do not hand-edit |
-| 3 | Run the validation sequence (`rules/tool-gates.md`) | Pending | — | — | `generate_reference_table.py --check` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-180557 | 20261122-180557 | run the generator, do not hand-edit generator run; only the two prompt rows removed. Finding: the generator also re-rendered agent_api.yaml and the agent_13 docs block because row 03 adds new top-level symbols; those generated outputs are committed with the batch, contradicting the 'no documentation block is re-rendered' claim (corrected here) |
+| 3 | Run the validation sequence (`rules/tool-gates.md`) | Completed | 20261122-180557 | 20261122-183359 | `generate_reference_table.py --check` --check exit 0; docs gates run at batch end end-of-batch full-suite run: 13333 passed, 2 failed — b04 concurrent-writes flaky (3 reruns pass, unrelated to this batch), and an unlisted positional _build_tool_config call site in test_tool_result_formatter.py:77 fixed (finding recorded on row 14); diff-cover 100% (>=90) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -36,8 +36,8 @@ Delete the `system_prompts` and `system_prompt_tool` field declarations (lines 1
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure | Pending | — | — | RU-1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure | Completed | 20261122-180355 | 20261122-180355 | RU-1 fields deleted at batch-run; consumer updates land in rows 05/06/10/11 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261122-180355 | 20261122-183359 | validation deferred to end-of-batch RU-1 run (row 14 tests) end-of-batch full-suite run: 13333 passed, 2 failed — b04 concurrent-writes flaky (3 reruns pass, unrelated to this batch), and an unlisted positional _build_tool_config call site in test_tool_result_formatter.py:77 fixed (finding recorded on row 14); diff-cover 100% (>=90) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

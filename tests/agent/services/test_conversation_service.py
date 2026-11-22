@@ -13,7 +13,6 @@ from agent.services.enums import ConversationActionType
 
 def _make_ctx(
     history: list | None = None,
-    system_prompts: dict | None = None,
 ) -> MagicMock:
     ctx = MagicMock()
     ctx.conv.history = (
@@ -23,10 +22,6 @@ def _make_ctx(
     )
     ctx.conv.system_prompt_name = "default"
     ctx.conv.system_prompt_content = "You are helpful."
-    ctx.cfg.tool.system_prompts = system_prompts or {
-        "default": "You are helpful.",
-        "coding": "You code well.",
-    }
     ctx.stats.stat_turns = 5
     ctx.stats.stat_tool_calls = 3
     ctx.stats.stat_tool_errors = 1

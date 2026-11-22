@@ -191,8 +191,6 @@ class ToolConfig:
     tool_result_max_llm_chars: int = 8000
     # Max total chars of all tool results within one turn
     tool_results_turn_max_chars: int = 50000
-    system_prompts: dict[str, str] = field(default_factory=dict)
-    system_prompt_tool: str = ""
     # Exposure contract is mode-dependent (tool_policy_mode): empty is valid and
     # non-denying in discovered, but fatal in explicit_allowlist. Non-empty limits
     # visibility to the listed tools in both modes.

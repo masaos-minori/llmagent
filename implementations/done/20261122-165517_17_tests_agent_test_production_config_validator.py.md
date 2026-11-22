@@ -51,8 +51,8 @@ Convert the accepted-key cases into unknown-key rejection cases.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | RU-1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-182327 | 20261122-182327 | RU-1 batch-run; accepted-key case inverted to unknown-key rejection for both prompt names; valid-key set assertion inverted to negative. Finding: 'valid_keys_only_no_errors' name no longer fits the inverted case; renamed to test_removed_prompt_keys_are_rejected_as_unknown |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261122-182327 | 20261122-183400 | 46 passed incl. integration real-file case (also validates row 09); full suite at batch end end-of-batch full-suite run: 13333 passed, 2 failed — b04 concurrent-writes flaky (3 reruns pass, unrelated to this batch), and an unlisted positional _build_tool_config call site in test_tool_result_formatter.py:77 fixed (finding recorded on row 14); diff-cover 100% (>=90) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

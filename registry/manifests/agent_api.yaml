@@ -576,6 +576,26 @@ entries:
   name: ProductionConfigValidator
   signature: class ProductionConfigValidator
   summary: Validate configuration against production security requirements.
+- file: scripts/agent/prompt_source.py
+  kind: class
+  name: PromptSourceError
+  signature: class PromptSourceError
+  summary: Base error for any missing, unparseable, or malformed prompt source.
+- file: scripts/agent/prompt_source.py
+  kind: class
+  name: PromptSource
+  signature: class PromptSource
+  summary: Prompt name to content, as read from the single source (read-only).
+- file: scripts/agent/prompt_source.py
+  kind: function
+  name: default_source_path
+  signature: def default_source_path() -> Path
+  summary: Return the source file path for the resolved registry directory.
+- file: scripts/agent/prompt_source.py
+  kind: function
+  name: load_prompt_source
+  signature: def load_prompt_source(path) -> PromptSource
+  summary: Load and validate the single prompt source.
 - file: scripts/agent/repl.py
   kind: function
   name: builtin_command_names

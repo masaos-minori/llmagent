@@ -52,8 +52,8 @@ Point the helper's prompt fixture at the typed source.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-182459 | 20261122-182459 | batch-run; helper prompt fixture replaced with autouse typed-source fixture (LLMAGENT_REGISTRY_DIR); config-field read removed; explicit-name case added per completion criteria; memory assertions unchanged |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261122-182459 | 20261122-183400 | 27 passed; ruff clean; check_mock_patch_targets no findings; mypy/full suite at batch end end-of-batch full-suite run: 13333 passed, 2 failed — b04 concurrent-writes flaky (3 reruns pass, unrelated to this batch), and an unlisted positional _build_tool_config call site in test_tool_result_formatter.py:77 fixed (finding recorded on row 14); diff-cover 100% (>=90) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

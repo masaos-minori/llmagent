@@ -114,16 +114,13 @@ def _run_production_validation(
         logger.warning(warning)
 
 
-def _assemble_agent_config(
-    cfg: dict[str, Any],
-    system_prompt_tool: str,
-) -> AgentConfig:
+def _assemble_agent_config(cfg: dict[str, Any]) -> AgentConfig:
     """Assemble AgentConfig by delegating to builder functions."""
     otel_enabled = _get_or_default(cfg, "otel_enabled", _get_bool, False)
     structured_log = _get_or_default(cfg, "structured_log", _get_bool, False)
     return AgentConfig(
         llm=_build_llm_config(cfg),
-        tool=_build_tool_config(cfg, system_prompt_tool),
+        tool=_build_tool_config(cfg),
         memory=_build_memory_config(cfg),
         mcp=MCPConfig(mcp_servers=_build_mcp_servers(cfg)),
         approval=_build_approval_config(cfg),
@@ -157,6 +154,5 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
     Otherwise configuration is loaded from files via load_config().
     """
     cfg, known_tools = _resolve_config_source_and_registry(cfg_override)
-    system_prompt_tool = cfg.get("system_prompt_tool", "")
     _run_production_validation(cfg, known_tools)
-    return _assemble_agent_config(cfg, system_prompt_tool)
+    return _assemble_agent_config(cfg)

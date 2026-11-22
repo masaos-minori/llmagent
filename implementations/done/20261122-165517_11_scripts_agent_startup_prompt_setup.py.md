@@ -58,9 +58,9 @@ Replace the config-field read with the typed single-source read.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | covered by rows 18, 19, 20, 21 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-180805 | 20261122-180805 | batch-run; config-field read replaced by typed model read; memory injection order unchanged; ruff/mypy pass |
+| 2 | Add or update tests per Validation plan | Completed | 20261122-180805 | 20261122-180805 | covered by rows 18, 19, 20, 21 no test change here; covered by rows 18-21 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261122-180805 | 20261122-183359 | tests are rows 18/19; validation deferred to end-of-batch run end-of-batch full-suite run: 13333 passed, 2 failed — b04 concurrent-writes flaky (3 reruns pass, unrelated to this batch), and an unlisted positional _build_tool_config call site in test_tool_result_formatter.py:77 fixed (finding recorded on row 14); diff-cover 100% (>=90) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

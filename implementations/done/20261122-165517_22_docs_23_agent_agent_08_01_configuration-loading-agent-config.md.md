@@ -36,8 +36,8 @@ Rewrite the prompt mapping line as the single-source contract: prompt content is
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure | Pending | — | — | commit with row 01 for the config-key check |
-| 3 | Run the validation sequence (`rules/tool-gates.md`) | Pending | — | — | the docs checkers listed in Validation plan |
+| 1 | Implement the change described in Implementation > Procedure | Completed | 20261122-182817 | 20261122-182817 | commit with row 01 for the config-key check batch-run; line rewritten as single-source contract; removed key not named |
+| 3 | Run the validation sequence (`rules/tool-gates.md`) | Completed | — | 20261122-182820 | the docs checkers listed in Validation plan docs gates pass; consistency warning is pre-existing at baseline (agent_14 line 49), not caused by this change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

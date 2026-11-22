@@ -61,8 +61,8 @@ Create the snapshot test and the precedence test.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | counts must be re-measured at execution time |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-181419 | 20261122-181419 | counts must be re-measured at execution time test written against execution-time state; re-measured inventory = recorded contract 18 equal / 12 differing / 2 absent; ruff clean after import sort |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261122-181419 | integration gate run passed (2 passed); full suite + diff-cover at batch end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

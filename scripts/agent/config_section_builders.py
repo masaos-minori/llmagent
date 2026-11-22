@@ -146,8 +146,8 @@ def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
     )
 
 
-def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConfig:
-    """Build ToolConfig from a raw config dict and system prompt template."""
+def _build_tool_config(cfg: dict[str, Any]) -> ToolConfig:
+    """Build ToolConfig from a raw config dict."""
     return _build_model(
         ToolConfig,
         serial_tool_calls=_get_or_default(cfg, "serial_tool_calls", _get_bool, False),
@@ -180,10 +180,6 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
         tool_results_turn_max_chars=_get_or_default(
             cfg, "tool_results_turn_max_chars", _get_int, 50000
         ),
-        system_prompts=_get_or_default(
-            cfg, "system_prompts", _get_dict, {"default": system_prompt_tool}
-        ),
-        system_prompt_tool=system_prompt_tool,
         allowed_tools=_get_or_default(cfg, "allowed_tools", _get_list, []),
         tool_policy_mode=_get_or_default(
             cfg, "tool_policy_mode", _get_str, "explicit_allowlist"

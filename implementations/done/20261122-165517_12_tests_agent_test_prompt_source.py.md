@@ -58,8 +58,8 @@ Create the test module for the typed model and the reader.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | depends on row 03 landing first |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261122-180859 | 20261122-180859 | depends on row 03 landing first 6 passed; names match row 03 (PromptSource/PromptSourceError/load_prompt_source); ruff clean after import sort |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261122-180859 | 20261122-183359 | targeted run passes; full suite + diff-cover at batch end end-of-batch full-suite run: 13333 passed, 2 failed — b04 concurrent-writes flaky (3 reruns pass, unrelated to this batch), and an unlisted positional _build_tool_config call site in test_tool_result_formatter.py:77 fixed (finding recorded on row 14); diff-cover 100% (>=90) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

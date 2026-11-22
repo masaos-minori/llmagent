@@ -36,8 +36,8 @@ Delete the `ctx.cfg.tool.system_prompts` assignment at line 22; no assertion is 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure | Pending | — | — | RU-1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure | Completed | 20261122-182249 | 20261122-182249 | RU-1 batch-run; fixture line removed; no prompt reference left |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261122-182249 | targeted run 6 passed, ruff clean; full suite at batch end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

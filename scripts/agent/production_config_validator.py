@@ -168,9 +168,6 @@ def _get_valid_production_keys() -> frozenset[str]:
         for f in dataclass_fields(cls):
             valid_keys.add(f.name)
 
-    # build_agent_config() direct keys (not mapped to any sub-config)
-    valid_keys.add("system_prompt_tool")
-
     # Nested-table section key: _build_diagnostics_config() reads cfg["diagnostics"]
     # as a whole table, so the section name itself (not its inner fields, already
     # added above via DiagnosticsConfig) is a valid top-level key.

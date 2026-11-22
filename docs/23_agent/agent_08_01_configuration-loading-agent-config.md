@@ -48,7 +48,7 @@ Documents the `AgentConfig` structure, configuration file ownership, and classif
 
 - LLMClient: temperature, max_tokens, max_retries, retry_base_delay, SSE parameters
 - HistoryManager: context_char_limit, context_compress_turns, context_token_limit, tokenize_url
-- System Prompt: system_prompt_tool → `ctx.conv.system_prompt_content`
+- System Prompt: prompt content is read from the single source (`registry/manifests/prompt_source.toml`) through the typed model; `ctx.conv.system_prompt_content` is the live copy, updated only in the reload commit phase
 
 ### Operational Impact of Changes
 

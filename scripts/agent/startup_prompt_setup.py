@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from agent.memory.snippet_filter import build_memory_block
 from agent.output_tags import OutputTag
+from agent.prompt_source import load_prompt_source
 
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
@@ -64,10 +65,10 @@ class PromptSetup:
         logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
         ctx = self._ctx
-        initial_prompt = ctx.cfg.tool.system_prompts.get(
-            ctx.conv.system_prompt_name,
-            ctx.cfg.tool.system_prompt_tool,
-        )
+        # Read boundary of the single source (agent.prompt_source): a missing
+        # source or missing default entry raises here, at the read, with no
+        # code-level fallback.
+        initial_prompt = load_prompt_source().content(ctx.conv.system_prompt_name)
         if ctx.services_required.memory is not None:
             try:
                 memory_snippets = ctx.services_required.memory.on_session_start(

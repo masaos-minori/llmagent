@@ -75,8 +75,6 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
     ),
     ConfigFieldRegistry("serial_tool_calls", "tool", True),
     ConfigFieldRegistry("plan_blocked_tools", "tool", True),
-    ConfigFieldRegistry("system_prompt_tool", "tool", True),
-    ConfigFieldRegistry("system_prompts", "tool", True),
     ConfigFieldRegistry("allowed_tools", "tool", True, validate_allowed_tools),
     ConfigFieldRegistry("tool_policy_mode", "tool", True, validate_tool_policy_mode),
     ConfigFieldRegistry("disabled_tools", "tool", True, validate_disabled_tools),

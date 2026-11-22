@@ -74,7 +74,7 @@ class TestMaskArgsDefaultConfig:
         }
 
     def test_builder_fallback_matches_dataclass_default(self) -> None:
-        tool_cfg = _build_tool_config({}, "")
+        tool_cfg = _build_tool_config({})
         assert tool_cfg.masked_fields == ["content", "old_text", "new_text"]
         assert tool_cfg.masked_fields == ToolConfig().masked_fields
 
