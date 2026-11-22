@@ -43,21 +43,21 @@ This table is the canonical, frozen source of implementation scope for this Plan
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/agent/repl_input_controller.py | create: new module holding `ReplInputController`, request model, outcome enum, process-shared accessor | New file. A single owner of stdin does not exist; the reader, CLIView, and approval each hold their own entry point (checked in Step 3) | REQ-001, REQ-002, REQ-003; AC-1, AC-2, AC-3 | `get_stdin_reader` consumers: `cli_view.py:115`, `repl_input_loop.py:70`, `tool_approval.py:133` (`tools/scan_change_consumers.py`, checked in Step 3) | tests/agent/test_repl_input_controller.py | Verified |
-| scripts/agent/stdin_reader.py | modify: bind delivery to the waiter captured at read start; discard late lines; keep one daemon thread | Remove newest-waiter delivery | REQ-002; AC-1 | `_run` re-reads `self._waiter` after `input()` returns (`stdin_reader.py:104-109`); docstring `:39-43` (checked in Step 2) | tests/agent/test_stdin_reader.py | Verified |
-| scripts/agent/cli_view.py | modify: remove `read_multiline`, `Reader` protocol, `_INPUT_TIMEOUT_S`, the reader dependency | CLIView renders only | REQ-003; AC-3 | `cli_view.py:20,24,76-86,115,268-301` (checked in Step 2) | tests/test_cli_view.py | Verified |
-| scripts/agent/repl_input_loop.py | modify: read lines and multiline continuation through the controller; map outcomes; Ctrl-C state reporting | Loop is the normal-prompt caller | REQ-001, REQ-003, REQ-008; AC-3, AC-5 | `repl_input_loop.py:70,137-200` (`_read_input` CC 11; `_repl_loop` CC 31, radon, checked in Step 5) | tests/agent/test_repl.py | Verified |
-| scripts/agent/signal_handler.py | modify: state-dependent SIGINT, SIGTERM and console-close shutdown, ctypes fallback fix, optional force exit | SIGINT currently equals SIGTERM; ctypes handler references an unbound name | REQ-008; AC-5 | `signal_handler.py:54-63,101` (checked in Step 2) | tests/agent/test_signal_handler.py | Verified |
-| scripts/agent/tool_approval.py | modify: request-bound approval, required/optional preview, HIGH fail-closed on any preview failure, masked static preview, mask before truncating dry-run text, audit provenance | Core of the approval boundary | REQ-005, REQ-006, REQ-007; AC-1, AC-4 | `tool_approval.py:91-136,205-227` (checked in Step 2) | tests/agent/test_tool_approval_request_binding.py | Verified |
-| scripts/agent/tool_output.py | modify: render request id and preview provenance in the approval prompt through the one masker | Prompt rendering must not print unmasked text | REQ-005, REQ-006; AC-4 | `emit_approval_prompt` writes `preview` verbatim (`tool_output.py:34-40`, checked in Step 2) | tests/agent/test_tool_approval_request_binding.py | Verified |
-| scripts/agent/tool_result_formatter.py | modify: correct the `mask_args` docstring that says masking is not applied to the approval preview; no behavior change expected | The documented gap becomes false | REQ-006; AC-4 | `tool_result_formatter.py:64-71` (checked in Step 2) | tests/agent/test_tool_approval_request_binding.py | Verified |
-| scripts/agent/commands/memory_data_ops.py | modify: async delete/prune; replace `_confirm` with a controller request | Second stdin reader and event-loop block | REQ-001, REQ-004; AC-2 | `memory_data_ops.py:47-53,321-414` (checked in Step 2) | tests/agent/commands/test_memory_data_ops.py | Verified |
-| scripts/agent/commands/cmd_memory.py | modify: `_cmd_memory` becomes async and awaits the async handlers | Handlers are called from a sync dispatch table | REQ-004; AC-2 | `cmd_memory.py:80-124`; the registry awaits coroutine handlers (`registry.py:139-154`, checked in Step 3) | tests/agent/commands/test_cmd_memory.py | Verified |
-| scripts/agent/shared/models.py | modify: add request id, preview source, fallback reason to `ToolApprovalEvent` (defaulted) | Audit provenance | REQ-007; AC-4 | `shared/models.py:13-28` (checked in Step 3) | tests/agent/test_tool_approval_request_binding.py | Verified |
-| scripts/agent/tool_audit.py | modify: `audit_approval` accepts and writes the new fields, never the answer text | Audit provenance | REQ-007; AC-4 | `tool_audit.py:111-148` (checked in Step 2) | tests/agent/test_tool_approval_request_binding.py | Verified |
-| scripts/agent/config_dataclasses.py | modify: add the explicit MEDIUM preview-fallback field to `ApprovalConfig` | Explicit setting | REQ-005; AC-4 | `config_dataclasses.py:266-293`, precedent `gitops_push_blocked` (checked in Step 3) | tests/agent/test_config_builders.py | Verified |
-| scripts/agent/config_section_builders.py | modify: build the new field with the default | Config build path | REQ-005; AC-4 | `config_section_builders.py:269,277` (checked in Step 3) | tests/agent/test_config_builders.py | Verified |
-| scripts/agent/services/config_field_registry.py | modify: register the field and its reload class | Registry lists every approval field | REQ-005; AC-4 | `config_field_registry.py:87` (checked in Step 3) | tests/agent/test_config_builders.py | Verified |
+| scripts/agent/repl_input_controller.py | create: new module holding `ReplInputController`, request model, outcome enum, process-shared accessor | New file. A single owner of stdin does not exist; the reader, CLIView, and approval each hold their own entry point (checked in Step 3) | REQ-001, REQ-002, REQ-003; AC-1, AC-2, AC-3 | `get_stdin_reader` consumers: `cli_view.py:115`, `repl_input_loop.py:70`, `tool_approval.py:133` (`tools/scan_change_consumers.py`, checked in Step 3) | `tests/agent/test_repl_input_controller.py` | Verified |
+| scripts/agent/stdin_reader.py | modify: bind delivery to the waiter captured at read start; discard late lines; keep one daemon thread | Remove newest-waiter delivery | REQ-002; AC-1 | `_run` re-reads `self._waiter` after `input()` returns (`stdin_reader.py:104-109`); docstring `:39-43` (checked in Step 2) | `tests/agent/test_stdin_reader.py` | Verified |
+| scripts/agent/cli_view.py | modify: remove `read_multiline`, `Reader` protocol, `_INPUT_TIMEOUT_S`, the reader dependency | CLIView renders only | REQ-003; AC-3 | `cli_view.py:20,24,76-86,115,268-301` (checked in Step 2) | `tests/test_cli_view.py` | Verified |
+| scripts/agent/repl_input_loop.py | modify: read lines and multiline continuation through the controller; map outcomes; Ctrl-C state reporting | Loop is the normal-prompt caller | REQ-001, REQ-003, REQ-008; AC-3, AC-5 | `repl_input_loop.py:70,137-200` (`_read_input` CC 11; `_repl_loop` CC 31, radon, checked in Step 5) | `tests/agent/test_repl.py` | Verified |
+| scripts/agent/signal_handler.py | modify: state-dependent SIGINT, SIGTERM and console-close shutdown, ctypes fallback fix, optional force exit | SIGINT currently equals SIGTERM; ctypes handler references an unbound name | REQ-008; AC-5 | `signal_handler.py:54-63,101` (checked in Step 2) | `tests/agent/test_signal_handler.py` | Verified |
+| scripts/agent/tool_approval.py | modify: request-bound approval, required/optional preview, HIGH fail-closed on any preview failure, masked static preview, mask before truncating dry-run text, audit provenance | Core of the approval boundary | REQ-005, REQ-006, REQ-007; AC-1, AC-4 | `tool_approval.py:91-136,205-227` (checked in Step 2) | `tests/agent/test_tool_approval_request_binding.py` | Verified |
+| scripts/agent/tool_output.py | modify: render request id and preview provenance in the approval prompt through the one masker | Prompt rendering must not print unmasked text | REQ-005, REQ-006; AC-4 | `emit_approval_prompt` writes `preview` verbatim (`tool_output.py:34-40`, checked in Step 2) | `tests/agent/test_tool_approval_request_binding.py` | Verified |
+| scripts/agent/tool_result_formatter.py | modify: correct the `mask_args` docstring that says masking is not applied to the approval preview; no behavior change expected | The documented gap becomes false | REQ-006; AC-4 | `tool_result_formatter.py:64-71` (checked in Step 2) | `tests/agent/test_tool_approval_request_binding.py` | Verified |
+| scripts/agent/commands/memory_data_ops.py | modify: async delete/prune; replace `_confirm` with a controller request | Second stdin reader and event-loop block | REQ-001, REQ-004; AC-2 | `memory_data_ops.py:47-53,321-414` (checked in Step 2) | `tests/agent/commands/test_memory_data_ops.py` | Verified |
+| scripts/agent/commands/cmd_memory.py | modify: `_cmd_memory` becomes async and awaits the async handlers | Handlers are called from a sync dispatch table | REQ-004; AC-2 | `cmd_memory.py:80-124`; the registry awaits coroutine handlers (`registry.py:139-154`, checked in Step 3) | `tests/agent/commands/test_cmd_memory.py` | Verified |
+| scripts/agent/shared/models.py | modify: add request id, preview source, fallback reason to `ToolApprovalEvent` (defaulted) | Audit provenance | REQ-007; AC-4 | `shared/models.py:13-28` (checked in Step 3) | `tests/agent/test_tool_approval_request_binding.py` | Verified |
+| scripts/agent/tool_audit.py | modify: `audit_approval` accepts and writes the new fields, never the answer text | Audit provenance | REQ-007; AC-4 | `tool_audit.py:111-148` (checked in Step 2) | `tests/agent/test_tool_approval_request_binding.py` | Verified |
+| scripts/agent/config_dataclasses.py | modify: add the explicit MEDIUM preview-fallback field to `ApprovalConfig` | Explicit setting | REQ-005; AC-4 | `config_dataclasses.py:266-293`, precedent `gitops_push_blocked` (checked in Step 3) | `tests/agent/test_config_builders.py` | Verified |
+| scripts/agent/config_section_builders.py | modify: build the new field with the default | Config build path | REQ-005; AC-4 | `config_section_builders.py:269,277` (checked in Step 3) | `tests/agent/test_config_builders.py` | Verified |
+| scripts/agent/services/config_field_registry.py | modify: register the field and its reload class | Registry lists every approval field | REQ-005; AC-4 | `config_field_registry.py:87` (checked in Step 3) | `tests/agent/test_config_builders.py` | Verified |
 | docs/23_agent/agent_07_02_cli-and-commands-cliview.md | modify: CLIView renders only; remove the `Reader` protocol claim | Responsibility boundary | REQ-009; AC-6 | Lines "Test Protocols" and "Presentation Layer Only" (checked in Step 2) | N/A: documentation | Verified |
 | docs/23_agent/agent_07_05_cli-and-commands-repl-io.md | modify: remove the hand-off specification; document outcomes and Ctrl-C semantics | Stale hand-off specification | REQ-009; AC-6 | `agent_07_05...md:39,41,54` (checked in Step 2) | N/A: documentation | Verified |
 | docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md | modify: document request binding and fail-closed preview behavior | Approval behavior changes | REQ-009; AC-6 | `agent_06_02...md:95,122` fail-closed list (checked in Step 3) | N/A: documentation | Verified |
@@ -118,6 +118,7 @@ Yes (REQ-009). Target docs are those named by `docs/00_index.md` "Document Refer
 | UNK-02 | Default of the MEDIUM static-fallback setting | Issue marks it `不明` | Design default keeps today's behavior (fallback allowed); owner confirms at review | False |
 | UNK-03 | Real Windows console behavior of control events | No Windows host; Issue says `不明` | Tested only through the control-event abstraction; stop and report if a path cannot be tested | False |
 | UNK-04 | Exact shape of the job-cancel seam the maintenance-job Plan will consume | cliplc003 has no Plan yet | Define the seam here as a callback registration; cliplc003 adapts at its own Plan | False |
+| UNK-05 | The line submitted after Ctrl-C at a prompt or after a multiline timeout is consumed by the abandoned blocking read, so the next prompt shows only after that line | Terminal line ownership of an uninterruptible `input()`; no way to clear the pending buffer was found | Procedures print a notice that the next line is discarded; owner confirms the behavior is acceptable at review | False |
 
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
@@ -222,13 +223,13 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Input ownership and delivery binding | Pending | — | — | |
-| 2 | Normal and multiline prompts | Pending | — | — | |
-| 3 | Memory confirmation | Pending | — | — | |
-| 4 | Approval binding, preview, audit, config | Pending | — | — | |
-| 5 | Signals | Pending | — | — | |
-| 6 | Documentation | Pending | — | — | |
-| 7 | Deployment and verification | Pending | — | — | |
+| 1 | Input ownership and delivery binding | In Progress | — | — |  |
+| 2 | Normal and multiline prompts | In Progress | — | — |  |
+| 3 | Memory confirmation | In Progress | — | — |  |
+| 4 | Approval binding, preview, audit, config | In Progress | — | — |  |
+| 5 | Signals | In Progress | — | — |  |
+| 6 | Documentation | In Progress | — | — |  |
+| 7 | Deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -238,7 +239,29 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261122-210644_01_scripts_agent_repl_input_controller.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261122-210644_02_scripts_agent_stdin_reader.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261122-210644_03_scripts_agent_cli_view.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261122-210644_04_scripts_agent_repl_input_loop.py.md | 2, 5 | Procedure | Pending | — | — |
+| implementations/20261122-210644_05_scripts_agent_signal_handler.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261122-210644_06_scripts_agent_tool_approval.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-210644_07_scripts_agent_tool_output.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-210644_08_scripts_agent_tool_result_formatter.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-210644_09_scripts_agent_commands_memory_data_ops.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261122-210644_10_scripts_agent_commands_cmd_memory.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261122-210644_11_scripts_agent_shared_models.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-210644_12_scripts_agent_tool_audit.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-210644_13_scripts_agent_config_dataclasses.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-210644_14_scripts_agent_config_section_builders.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-210644_15_scripts_agent_services_config_field_registry.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-210644_16_docs_23_agent_agent_07_02_cli-and-commands-cliview.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261122-210644_17_docs_23_agent_agent_07_05_cli-and-commands-repl-io.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261122-210644_18_docs_23_agent_agent_06_02_tool-execution-and-approval-approval.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261122-210644_19_docs_23_agent_agent_08_04_configuration-mcp-approval-obs.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261122-210644_20_docs_23_agent_agent_13_reference-api-generated.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261122-210644_22_tests_agent_test_tool_approval_request_binding.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-210644_29_tests_agent_commands_test_agent_cmd_memory.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261122-210644_30_tests_agent_test_config_builders.py.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -278,3 +301,5 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | REQ-009 | Documentation Impact | docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md | Phase 6 | AC-6 | `rules/tool-gates.md` checkers | Derived from confirmed evidence |
 | REQ-009 | Documentation Impact | docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md | Phase 6 | AC-6 | `rules/tool-gates.md` checkers | Derived from confirmed evidence |
 | REQ-009 | Documentation Impact | docs/23_agent/agent_13_reference-api-generated.md | Phase 6 | AC-6 | `generate_reference_table.py --check` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261122-210644 -->
