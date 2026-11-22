@@ -19,6 +19,72 @@ _SERVER_LOGGER_NAMES = (
     "mcp_servers.web_search.web_search_server",
 )
 
+# Every module that declares a TOOL_LIST with the required retry_policy field.
+_TOOL_LIST_MODULES = (
+    "mcp_servers.cicd.cicd_tools",
+    "mcp_servers.file.delete_tools",
+    "mcp_servers.file.read_tools",
+    "mcp_servers.file.write_tools",
+    "mcp_servers.git.git_tools",
+    "mcp_servers.github.github_tools",
+    "mcp_servers.mdq.mdq_tools",
+    "mcp_servers.rag_pipeline.rag_pipeline_tools",
+    "mcp_servers.shell.shell_tools",
+    "mcp_servers.web_search.web_search_tools",
+)
+
+
+def _declared_retry_policies() -> dict[str, str]:
+    """Union of the declared retry_policy metadata across all TOOL_LISTs."""
+    from importlib import import_module
+
+    policies: dict[str, str] = {}
+    for name in _TOOL_LIST_MODULES:
+        for entry in getattr(import_module(name), "TOOL_LIST", ()):
+            policies[str(entry["name"])] = str(entry["retry_policy"])
+    return policies
+
+
+@pytest.fixture(autouse=True)
+def _emulate_dedup_bootstrap() -> Iterator[None]:
+    """Emulate the server bootstrap seams for TestClient-based endpoint tests.
+
+    A live MCP server calls ``configure_dedup()`` and
+    ``configure_tool_retry_policies()`` inside ``run_http()`` (mcpdl003
+    REQ-001/REQ-005); these tests construct server apps directly and skip that
+    bootstrap. Without it, side-effecting tools fail closed on the
+    ``not_configured`` degradation path. The store config comes from the
+    session's isolated config copy (its ``[dedup]`` db_path is rewritten into
+    the isolation root), matching what each server file would inject in
+    production.
+    """
+    import os
+    import tomllib
+    from pathlib import Path
+
+    import mcp_servers.dispatch as dispatch_mod
+    from shared.mcp_dedup import load_dedup_section
+
+    cfg_dir = Path(
+        os.environ.get("LLMAGENT_CONFIG_DIR")
+        or Path(__file__).resolve().parents[2] / "config"
+    )
+    own_file = "shell_mcp_server.toml"
+    data = tomllib.loads((cfg_dir / own_file).read_text(encoding="utf-8"))
+    store_config = load_dedup_section(data.get("dedup"), own_file)
+    dispatch_mod.configure_dedup(store_config)
+    dispatch_mod._tool_retry_policies = _declared_retry_policies()
+    yield
+    opened = dispatch_mod._dedup_store
+    if opened is not None:
+        opened.close()
+    dispatch_mod._dedup_store = None
+    dispatch_mod._dedup_config = None
+    dispatch_mod._dedup_disabled = False
+    dispatch_mod._dedup_start_state = None
+    dispatch_mod._purge_done = False
+    dispatch_mod._tool_retry_policies = {}
+
 
 @pytest.fixture(autouse=True)
 def _propagate_server_loggers(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
@@ -32,27 +98,25 @@ def _propagate_server_loggers(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]
 def isolated_dedup(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> Iterator[pathlib.Path]:
-    """Point dispatch_tool's durable-dedup store at a throwaway tmp DB.
+    """Give dispatch_tool's durable-dedup store a throwaway tmp DB.
 
-    Server endpoint tests route through ``dispatch_tool``; without isolation they
-    fall back to the production ``mcp_dedup.sqlite``, which the autouse
-    ``_forbid_production_paths`` guard rejects (raising inside ``open_dedup_store``
-    and degrading dedup to unavailable). A fresh isolated store keeps dedup
-    initializing cleanly so side-effecting calls dispatch normally and never
-    touch a production path. Opt in by adding ``isolated_dedup`` to a test's
-    parameters.
+    Server endpoint tests route through ``dispatch_tool``; the injection-only
+    contract (mcpdl003 REQ-001) leaves an unconfigured dispatcher fail-closed
+    (`not_configured`), so this fixture builds a `DedupStoreConfig` and injects
+    the opened store through the dispatch module's configure seam rather than
+    relying on any config discovery. Opt in by adding ``isolated_dedup`` to a
+    test's parameters.
     """
     import mcp_servers.dispatch as dispatch_mod
-    from shared.mcp_dedup import DedupConfig, DedupStore
+    from shared.mcp_dedup import DedupStore, DedupStoreConfig
 
     db_path = tmp_path / "mcp_dedup.sqlite"
     db_str = str(db_path)
     store = DedupStore(db_str)
-    config = DedupConfig(
+    config = DedupStoreConfig(
         db_path=db_str,
         retention_days=14,
         pending_timeout_minutes=10,
-        retry_class={},
     )
     monkeypatch.setattr(dispatch_mod, "_dedup_store", store)
     monkeypatch.setattr(dispatch_mod, "_dedup_config", config)

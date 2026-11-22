@@ -183,6 +183,7 @@ def _setup_isolation() -> Path:
     else:
         root = Path(str(existing))
     os.environ["LLMAGENT_CONFIG_DIR"] = str(root / "config")
+    os.environ["LLMAGENT_DB_DIR"] = str(root / "db")
     os.environ["EVENTBUS_CONFIG_PATH"] = str(root / "config" / "eventbus.toml")
     os.environ["EVENTBUS_SCHEMA_PATH"] = str(root / "schemas" / "event_envelope.json")
     os.environ["LLMAGENT_LOG_DIR"] = str(root / "logs")
@@ -195,6 +196,7 @@ def _setup_isolation() -> Path:
 _ISOLATED_ROOT = _setup_isolation()
 _ISOLATION_ENV_VARS = (
     "LLMAGENT_CONFIG_DIR",
+    "LLMAGENT_DB_DIR",
     "EVENTBUS_CONFIG_PATH",
     "EVENTBUS_SCHEMA_PATH",
     "LLMAGENT_LOG_DIR",

@@ -254,6 +254,18 @@ class ProductionConfigValidator:
             )
             self._record(errors, warnings, msg)
 
+        # Approval grant horizon (mcpdl003 REQ-002/REQ-006): production posture
+        # rejects a degenerate near-zero or absurdly long grant TTL; an absent
+        # key keeps the 300.0 default.
+        if "approval_grant_ttl_seconds" in config:
+            grant_ttl = config["approval_grant_ttl_seconds"]
+            if isinstance(grant_ttl, bool) or not isinstance(grant_ttl, (int, float)):
+                msg = "approval_grant_ttl_seconds must be a number"
+                self._record(errors, warnings, msg)
+            elif not 60.0 <= float(grant_ttl) <= 3600.0:
+                msg = f"approval_grant_ttl_seconds out of range 60..3600: {grant_ttl!r}"
+                self._record(errors, warnings, msg)
+
         # Refiner keys: after _build_rag_config() was removed this is the only
         # path that can see the top-level refiner keys, and it is the path that
         # keeps the asserted message instead of a generic unknown-key error, so

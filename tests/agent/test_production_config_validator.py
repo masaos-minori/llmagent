@@ -514,3 +514,46 @@ class TestProductionConfigValidatorVecSoRequirement:
             {"allowed_root": "/opt/llm", "sqlite_vec_so": "/nonexistent/vec0.so"}
         )
         assert result.errors == []
+
+
+class TestProductionConfigValidatorGrantTtl:
+    """mcpdl003 REQ-006: approval_grant_ttl_seconds key + 60..3600 range check."""
+
+    def test_in_range_value_accepted_and_key_whitelisted(self) -> None:
+        result = ProductionConfigValidator().validate(
+            {"approval_grant_ttl_seconds": 300.0}
+        )
+        assert not any("approval_grant_ttl_seconds" in err for err in result.errors)
+
+    def test_below_range_rejected(self) -> None:
+        result = ProductionConfigValidator().validate(
+            {"approval_grant_ttl_seconds": 59}
+        )
+        assert any(
+            "approval_grant_ttl_seconds" in err and "60..3600" in err
+            for err in result.errors
+        )
+
+    def test_above_range_rejected(self) -> None:
+        result = ProductionConfigValidator().validate(
+            {"approval_grant_ttl_seconds": 3601}
+        )
+        assert any(
+            "approval_grant_ttl_seconds" in err and "60..3600" in err
+            for err in result.errors
+        )
+
+    def test_non_numeric_value_rejected(self) -> None:
+        result = ProductionConfigValidator().validate(
+            {"approval_grant_ttl_seconds": "five minutes"}
+        )
+        assert any(
+            "approval_grant_ttl_seconds must be a number" in err
+            for err in result.errors
+        )
+
+    def test_absent_key_reports_nothing(self) -> None:
+        result = ProductionConfigValidator().validate(
+            {"allowed_root": "/opt/llm", "sqlite_vec_so": "/nonexistent/vec0.so"}
+        )
+        assert not any("approval_grant_ttl_seconds" in err for err in result.errors)

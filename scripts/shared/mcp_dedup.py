@@ -26,9 +26,10 @@ marker, and operator resolution) and re-exports the public surface; every
 (REQ-010), shared/mcp_dedup_schema.py the canonical DDL and state vocabularies,
 shared/mcp_dedup_rows.py the row/result records and typed errors, and
 shared/mcp_dedup_ledger.py the call-ledger state machine (the DedupLedger base
-of DedupStore). `retry_class` deliberately lives in this facade so its
-no-config fallback resolves `load_dedup_config` through this module namespace
-(the seam the dispatcher's degraded branch and its tests patch).
+of DedupStore). The store opens only through an injected `DedupStoreConfig`
+(REQ-001): this module performs no config discovery and keeps no cache
+(REQ-003). The fingerprint written at first init is compared on every reopen
+(`identity_mismatch` refusal, REQ-007).
 """
 
 from __future__ import annotations
@@ -50,10 +51,9 @@ from shared.mcp_dedup_config import (
     DEFAULT_MAX_ATTEMPTS,
     DEFAULT_PENDING_TIMEOUT_MINUTES,
     DEFAULT_RETENTION_DAYS,
-    DedupConfig,
+    DedupStoreConfig,
     _config_fingerprint,
-    clear_dedup_config_cache,
-    load_dedup_config,
+    load_dedup_section,
 )
 from shared.mcp_dedup_ledger import DedupLedger
 from shared.mcp_dedup_rows import (
@@ -90,22 +90,20 @@ __all__ = [
     "DEFAULT_MAX_ATTEMPTS",
     "DEFAULT_PENDING_TIMEOUT_MINUTES",
     "DEFAULT_RETENTION_DAYS",
-    "DedupConfig",
     "DedupLeaseConflict",
     "DedupRow",
     "DedupStore",
+    "DedupStoreConfig",
     "DedupStoreError",
     "RESULT_MAX_CHARS",
     "RESULT_PREVIEW_CHARS",
     "START_STATES",
     "TERMINAL_STATES",
     "classify_interrupted",
-    "clear_dedup_config_cache",
-    "load_dedup_config",
+    "load_dedup_section",
     "open_dedup_store",
     "read_store_identity",
     "resolve_store",
-    "retry_class",
 ]
 
 
@@ -129,7 +127,7 @@ class DedupStore(DedupLedger):
         lease_seconds: int = DEFAULT_LEASE_SECONDS,
         max_attempts: int = DEFAULT_MAX_ATTEMPTS,
         busy_timeout_ms: int = 5000,
-        config: DedupConfig | None = None,
+        config: DedupStoreConfig | None = None,
     ) -> None:
         self._db_path = str(db_path)
         self._config = config
@@ -263,7 +261,8 @@ class DedupStore(DedupLedger):
                 f"{self._marker_path.name} is missing; identity unverifiable",
             )
         rec = conn.execute(
-            "SELECT store_uuid, generation, schema_fingerprint FROM store_meta"
+            "SELECT store_uuid, generation, schema_fingerprint, config_fingerprint"
+            " FROM store_meta"
         ).fetchone()
         if rec is None:
             raise DedupStoreError(
@@ -279,6 +278,24 @@ class DedupStore(DedupLedger):
                 f"installation marker records {marker_meta[0][:8]}; a foreign store "
                 "replaced this path",
             )
+        if self._config is not None:
+            # REQ-007 reopen gate: the fingerprint written at first init must
+            # match the injected validated set. A process whose [dedup]
+            # semantics drifted from the store's must not start. The
+            # config-less DedupStore seam (operator resolution, test
+            # fixtures) carries no validated injection, so identity checks
+            # alone govern there and the fingerprint is not compared.
+            stored_fp = str(rec["config_fingerprint"])
+            effective_fp = _config_fingerprint(self._config)
+            if stored_fp != effective_fp:
+                raise DedupStoreError(
+                    "identity_mismatch",
+                    f"the store was initialized under a different validated "
+                    f"parameter set (stored config fingerprint {stored_fp[:12]}..., "
+                    f"injected {effective_fp[:12]}...); a shared store cannot be "
+                    f"reopened with drifted semantics. {REFUSAL_MESSAGE} For this "
+                    "store the resolution is archive-and-recreate via resolve_store.",
+                )
         try:
             assert_matches(conn, _CANONICAL_DDL, label="mcp_dedup.sqlite")
         except RuntimeError as exc:
@@ -295,10 +312,10 @@ class DedupStore(DedupLedger):
         tmp.write_text(f"{store_uuid}\n{generation}\n", encoding="utf-8")
         os.replace(tmp, self._marker_path)
 
-    def _effective_config(self) -> DedupConfig:
+    def _effective_config(self) -> DedupStoreConfig:
         if self._config is not None:
             return self._config
-        return DedupConfig(
+        return DedupStoreConfig(
             db_path=self._db_path,
             lease_seconds=self._lease_seconds,
             max_attempts=self._max_attempts,
@@ -349,23 +366,6 @@ class DedupStore(DedupLedger):
         self._write_marker(str(self._identity["store_uuid"]), generation)
 
 
-def retry_class(tool_name: str, config: DedupConfig | None = None) -> str:
-    """Return the dispatcher-side retry classification for a tool name.
-
-    Reads the `[retry_class]` mirror from the dedup config; unknown tools are
-    non_retryable (fail-safe). This is the dispatcher's own gate: the authority
-    for retry classification elsewhere is each tool's declared `retry_policy`
-    field (shared.tool_metadata.RetryPolicy), which the Agent's tool_runner
-    resolves from the registered tool metadata and passes to this module's
-    call paths (agentcfg003). This module reads no static classification set;
-    drift between the mirror and the declarations is reported by
-    `shared.mcp_dedup_config`, never applied here.
-    """
-    if config is None:
-        config = load_dedup_config()
-    return config.retry_class.get(tool_name, "non_retryable")
-
-
 def _read_marker(marker_path: Path) -> tuple[str, int] | None:
     try:
         raw = marker_path.read_text(encoding="utf-8")
@@ -409,18 +409,21 @@ def read_store_identity(db_path: str | Path) -> tuple[int, str] | None:
 
 
 def open_dedup_store(
-    config: DedupConfig | str, *, busy_timeout_ms: int = 5000
+    config: DedupStoreConfig, *, busy_timeout_ms: int = 5000
 ) -> DedupStore:
-    """Open (and initialize) a store handle for the configured db_path."""
-    if isinstance(config, DedupConfig):
-        return DedupStore(
-            config.db_path,
-            lease_seconds=config.lease_seconds,
-            max_attempts=config.max_attempts,
-            busy_timeout_ms=busy_timeout_ms,
-            config=config,
-        )
-    return DedupStore(config, busy_timeout_ms=busy_timeout_ms)
+    """Open (and initialize) a store handle for an injected store config.
+
+    The injected `DedupStoreConfig` is the only way to open a store through
+    this entry point (REQ-001): no path string, no discovery fallback, no
+    cache (REQ-003).
+    """
+    return DedupStore(
+        config.db_path,
+        lease_seconds=config.lease_seconds,
+        max_attempts=config.max_attempts,
+        busy_timeout_ms=busy_timeout_ms,
+        config=config,
+    )
 
 
 def resolve_store(db_path: str | Path) -> None:

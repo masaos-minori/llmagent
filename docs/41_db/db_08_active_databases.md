@@ -65,7 +65,8 @@ Each database is owned by a single component (see the **Owner** line of each sec
 ## mcp_dedup.sqlite
 
 - **Owner**: the shared MCP dispatcher (`scripts/mcp_servers/dispatch.py`)
-- **Config source**: `db_path` in `config/mcp_dedup.toml` only; `agent.toml` carries no dedup path
+- **Config source**: `db_path` in the `[dedup]` table of each `config/*_mcp_server.toml`
+  (ten per-server tables, one shared store); `agent.toml` carries no dedup path
 - **Schema authority**: `scripts/shared/mcp_dedup_schema.py` (canonical DDL: `dedup_call_state`,
   `store_meta`, `call_attempt_history`); creation also stamps the store identity: a `store_meta`
   row (store uuid + generation), `PRAGMA user_version = 1`, and the external installation marker

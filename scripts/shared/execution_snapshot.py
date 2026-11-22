@@ -14,7 +14,8 @@ Captures a component-keyed fingerprint of the running deployment at call start
   endian) of each known DB file; no sqlite3 connection is opened (scripts/shared
   boundary rule); equals ``PRAGMA user_version`` for committed databases.
 - ``dedup``: the dedup store identity (``gen=<generation>;schema=<fingerprint>``)
-  read through the shared dedup loader from ``config/mcp_dedup.toml``; a store
+  read strictly read-only at the dedup database directory contract path
+  (``dedup_db_dir() / "mcp_dedup.sqlite"``); a store
   swap or generation rollover breaks snapshot equality. The read never creates
   or mutates the store; an unconfigured or identity-less store yields
   ``"absent"``.
@@ -142,21 +143,23 @@ def _schema_versions(db_paths: Mapping[str, str]) -> str:
     )
 
 
-def _dedup_component(cfg_dir: Path) -> str:
+def _dedup_component() -> str:
     """Dedup store identity component: ``gen=<generation>;schema=<fingerprint>``.
 
-    Read through the shared dedup loader (import is deferred: `shared.mcp_dedup`
-    itself imports this module at module level). The read is strictly
-    read-only — building a snapshot never creates or mutates the store.
-    Unconfigured, unopenable, or identity-less stores yield ``absent``.
+    Reads the identity at the dedup database directory contract path
+    (``dedup_db_dir() / "mcp_dedup.sqlite"``, ``LLMAGENT_DB_DIR``-overridable)
+    through the strictly read-only identity reader — building a snapshot never
+    creates or mutates the store, and this builder performs no config
+    discovery (REQ-003). Imports are deferred: `shared.mcp_dedup` imports this
+    module at module level. An absent or identity-less store yields ``absent``.
     """
     try:
-        from shared.mcp_dedup import load_dedup_config, read_store_identity
+        from shared.mcp_dedup import read_store_identity
+        from shared.mcp_dedup_config import dedup_db_dir
 
-        config = load_dedup_config(cfg_dir / "mcp_dedup.toml")
+        identity = read_store_identity(dedup_db_dir() / "mcp_dedup.sqlite")
     except (OSError, ValueError):
         return _ABSENT
-    identity = read_store_identity(config.db_path)
     if identity is None:
         return _ABSENT
     generation, fingerprint = identity
@@ -194,7 +197,7 @@ def build_execution_snapshot(
         "git_sha": git_sha,
         "config_hash": _config_hash(cfg_dir),
         "schema_versions": _schema_versions(resolved_db_paths),
-        "dedup": _dedup_component(cfg_dir),
+        "dedup": _dedup_component(),
     }
 
 

@@ -17,3 +17,12 @@ max_search_results = 200
 # server refuse to start (fail closed).
 auth_token = "${ENV:MCP_FILE_READ_AUTH_TOKEN}"
 
+
+# [dedup]: shared dedup store settings owned by this process (mcpdl003). Values
+# must stay identical across all ten *_mcp_server.toml files: the store identity
+# fingerprint gate refuses a reopen with drifted values.
+[dedup]
+db_path = "/opt/llm/db/mcp_dedup.sqlite"
+retention_days = 14
+lease_seconds = 30
+max_attempts = 3

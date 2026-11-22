@@ -5,6 +5,7 @@ LLMConfig, ToolConfig, ApprovalConfig, AgentConfig.
 
 from __future__ import annotations
 
+import dataclasses
 import re
 from typing import Any
 
@@ -315,6 +316,17 @@ class TestAgentConfigValidation:
             memory=MemoryConfig(memory_embed_url="http://localhost:8080")
         )
         assert cfg.agent_memory_max_startup_snippets == 10
+
+    def test_approval_grant_ttl_seconds_default_and_declared_field(self) -> None:
+        # mcpdl003 REQ-002: grant horizon is a config field, default equal to
+        # the retired tool_approval._GRANT_TTL_SECONDS constant.
+        cfg = _agent_config(
+            memory=MemoryConfig(memory_embed_url="http://localhost:8080")
+        )
+        assert cfg.approval_grant_ttl_seconds == 300.0
+        assert "approval_grant_ttl_seconds" in {
+            f.name for f in dataclasses.fields(AgentConfig)
+        }
 
 
 # ── DiagnosticsConfig ─────────────────────────────────────────────────────────

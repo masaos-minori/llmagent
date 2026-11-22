@@ -5,9 +5,6 @@ cross-source drift detection.
 
 from __future__ import annotations
 
-import tomllib
-from pathlib import Path
-
 from shared.tool_constants import (
     CICD_TOOLS,
     DELETE_TOOLS,
@@ -29,6 +26,7 @@ from shared.tool_constants import (
     WRITE_TOOLS,
     get_all_mcp_tool_names,
 )
+from shared.tool_metadata import retry_policy_is_retryable
 
 
 class TestToolConstants:
@@ -103,30 +101,50 @@ class TestRagToolClassification:
 class TestRetryClassDriftConsistency:
     """Cross-source drift detection: RETRYABLE_TOOLS is reference data, not the
     retry-classification owner (the declared `retry_policy` field is the
-    authority). This test compares the reference data against the declarations
-    in config/mcp_dedup.toml [retry_class] and reports any drift between the
-    two. Parsed with tomllib directly (not load_dedup_config) so the two source
-    artifacts are compared independently of the loader gate.
+    authority, mcpdl003 REQ-005). This test compares the reference data against
+    the retry_policy declarations in the ten TOOL_LIST modules and reports any
+    drift between the two. Parsed directly (no dispatcher globals) so the two
+    source artifacts are compared independently.
     """
 
-    _CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "mcp_dedup.toml"
+    _TOOL_LIST_MODULES = (
+        "mcp_servers.cicd.cicd_tools",
+        "mcp_servers.file.delete_tools",
+        "mcp_servers.file.read_tools",
+        "mcp_servers.file.write_tools",
+        "mcp_servers.git.git_tools",
+        "mcp_servers.github.github_tools",
+        "mcp_servers.mdq.mdq_tools",
+        "mcp_servers.rag_pipeline.rag_pipeline_tools",
+        "mcp_servers.shell.shell_tools",
+        "mcp_servers.web_search.web_search_tools",
+    )
 
-    def _retry_class_map(self) -> dict[str, str]:
-        data = tomllib.loads(self._CONFIG_PATH.read_text(encoding="utf-8"))
-        return data["retry_class"]
+    def _declared_policies(self) -> dict[str, str]:
+        from importlib import import_module
 
-    def test_retryable_keys_equal_retryable_tools(self) -> None:
-        retry_keys = {k for k, v in self._retry_class_map().items() if v == "retryable"}
-        assert retry_keys == set(RETRYABLE_TOOLS)
+        policies: dict[str, str] = {}
+        for name in self._TOOL_LIST_MODULES:
+            for entry in getattr(import_module(name), "TOOL_LIST", ()):
+                policies[str(entry["name"])] = str(entry["retry_policy"])
+        return policies
 
-    def test_every_key_is_a_known_tool_name(self) -> None:
-        unknown = set(self._retry_class_map()) - set(get_all_mcp_tool_names())
-        assert not unknown, f"unknown [retry_class] keys: {unknown}"
-
-    def test_non_retryable_keys_outside_retryable_tools(self) -> None:
-        contradicted = {
-            k
-            for k, v in self._retry_class_map().items()
-            if v == "non_retryable" and k in RETRYABLE_TOOLS
+    def test_retryable_reference_equals_declared_retryable(self) -> None:
+        declared = {
+            name
+            for name, policy in self._declared_policies().items()
+            if retry_policy_is_retryable(policy)
         }
-        assert not contradicted, f"contradicted keys: {contradicted}"
+        assert declared == set(RETRYABLE_TOOLS)
+
+    def test_every_declaration_is_a_known_tool_name(self) -> None:
+        unknown = set(self._declared_policies()) - set(get_all_mcp_tool_names())
+        assert not unknown, f"unknown retry_policy declarations: {unknown}"
+
+    def test_declared_non_retryable_outside_retryable_tools(self) -> None:
+        contradicted = {
+            name
+            for name, policy in self._declared_policies().items()
+            if not retry_policy_is_retryable(policy) and name in RETRYABLE_TOOLS
+        }
+        assert not contradicted, f"contradicted names: {contradicted}"

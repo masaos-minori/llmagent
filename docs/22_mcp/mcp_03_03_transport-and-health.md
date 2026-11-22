@@ -61,7 +61,8 @@ Failure semantics at the dispatcher boundary: a key reused with different conten
 tool or arguments) is rejected as `error_type="idempotency_key_reused"` before dispatch, on both
 the overlay and the durable row. A live lease held by another caller is refused as
 `error_type="dedup_in_progress"`. An expired-lease or `interrupted` call is replayed only for
-tools classified `retryable` in `config/mcp_dedup.toml` (an expired `pending` lease goes through
+tools whose declared `retry_policy` is retryable (`same_logical_call_only` or
+`reconcile_then_retry`; an expired `pending` lease goes through
 the audited reconciliation step first); `non_retryable` tools, and terminal rows that cannot be
 safely replayed (`replay_unavailable`, `outcome_unknown`), are refused with
 `error_type="dedup_unreplayable"`. Store unavailability — including a store whose identity is

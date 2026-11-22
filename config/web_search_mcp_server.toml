@@ -26,3 +26,12 @@ browser_timeout_sec = 15
 # config/agent.toml's [mcp_servers.web_search].auth_token value (shared secret).
 # An empty or missing value makes the server refuse to start.
 auth_token = "${ENV:MCP_WEB_SEARCH_AUTH_TOKEN}"
+
+# [dedup]: shared dedup store settings owned by this process (mcpdl003). Values
+# must stay identical across all ten *_mcp_server.toml files: the store identity
+# fingerprint gate refuses a reopen with drifted values.
+[dedup]
+db_path = "/opt/llm/db/mcp_dedup.sqlite"
+retention_days = 14
+lease_seconds = 30
+max_attempts = 3

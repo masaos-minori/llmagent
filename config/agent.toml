@@ -30,6 +30,10 @@ sqlite_quarantine_max_age_days = 90  # quarantine age cap; 0 disables age rule
 # workflow_engine.py via AgentConfig.pending_timeout_minutes.
 pending_timeout_minutes = 10
 
+# Agent-side approval-grant horizon in seconds; read by tool_approval via
+# AgentConfig.approval_grant_ttl_seconds (range 60..3600 in production).
+approval_grant_ttl_seconds = 300.0
+
 # ── LLM endpoints ─────────────────────────────────────────────────────────────
 
 llm_url = "http://192.168.11.228:8080"

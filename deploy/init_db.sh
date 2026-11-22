@@ -118,16 +118,38 @@ echo "OK: workflow.sqlite, rag.sqlite, session.sqlite match the canonical schema
 echo "--- dedup store 初期化 ---"
 if ! (cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true \
     uv run "${UV_PROD_FLAGS[@]}" python - <<'PY'
+import glob
 import sqlite3
 import sys
+import tomllib
 from pathlib import Path
 
-from shared.mcp_dedup import DedupStoreError, load_dedup_config, open_dedup_store
+from shared.config_errors import ConfigMissingError, ConfigParseError
+from shared.mcp_dedup import DedupStoreError, open_dedup_store
+from shared.mcp_dedup_config import load_dedup_section
 from shared.mcp_dedup_schema import _INSTALL_MARKER_NAME
+from shared.runtime_paths import resolve_config_dir
 
-config = load_dedup_config()  # resolves config/mcp_dedup.toml (LLMAGENT_CONFIG_DIR honored)
+# Every deployed *_mcp_server.toml must carry a valid [dedup] table; all ten
+# sections are fingerprint-identical, so the store is initialized once through
+# the first one after the whole set is validated (deployment-wide check).
+config_dir = resolve_config_dir()
+sections = []
 try:
-    store = open_dedup_store(config)
+    for path in sorted(glob.glob(str(config_dir / "*_mcp_server.toml"))):
+        name = Path(path).name
+        with open(path, "rb") as fh:
+            data = tomllib.load(fh)
+        sections.append((name, load_dedup_section(data.get("dedup"), name)))
+except (ConfigMissingError, ConfigParseError) as exc:
+    print(f"[gate] dedup config validation failed: {exc}", file=sys.stderr)
+    sys.exit(1)
+if not sections:
+    print(f"[gate] no [dedup] table found in any {config_dir}/*_mcp_server.toml", file=sys.stderr)
+    sys.exit(1)
+print(f"dedup config: validated {len(sections)} server [dedup] table(s)")
+try:
+    store = open_dedup_store(sections[0][1])
 except DedupStoreError as exc:
     print(f"[gate] {exc}", file=sys.stderr)
     print(

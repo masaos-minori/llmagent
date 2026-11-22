@@ -1,8 +1,7 @@
 """scripts/mcp_servers/dispatch.py
 
-Tool dispatch helpers extracted from mcp/server.py.
-Kept separate so MCP servers can import dispatch_tool without pulling in the
-full MCPServer base class.
+Tool dispatch helpers extracted from mcp/server.py, so MCP servers can import
+dispatch_tool without pulling in the full MCPServer base class.
 """
 
 from __future__ import annotations
@@ -14,22 +13,21 @@ import secrets
 import sqlite3
 import time
 from collections import OrderedDict
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass
 from hashlib import sha256
 from typing import Any
 
 from shared.execution_snapshot import build_execution_snapshot
 from shared.mcp_dedup import (
-    DedupConfig,
     DedupLeaseConflict,
     DedupStore,
+    DedupStoreConfig,
     DedupStoreError,
-    load_dedup_config,
     open_dedup_store,
-    retry_class,
 )
 from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS
+from shared.tool_metadata import retry_policy_is_retryable
 
 from mcp_servers.models import CallToolResponse
 
@@ -154,56 +152,71 @@ def _is_side_effecting(tool_name: str) -> bool:
 
 # --- Durable dedup store -------------------------------------------
 #
-# Lazily opened process-wide singleton. If the config or store cannot be
-# opened, durable dedup is disabled and behavior falls back to the in-process
-# overlay (the original shape). A start-state refusal (lost / replaced /
-# legacy_or_unverified / schema_mismatch) is captured as a typed state so the
-# dispatcher can name it in the refusal/degradation audit. Tests replace the
-# globals below.
+# Inject-only process-wide store: the server bootstrap calls configure_dedup()
+# with its own `[dedup]` table before serving (REQ-001); never configured ->
+# `not_configured` start state and the in-process overlay. A store refusal
+# (lost / replaced / legacy_or_unverified / schema_mismatch / identity_mismatch)
+# is captured as a typed start state for the audit.
 
 _dedup_store: DedupStore | None = None
-_dedup_config: DedupConfig | None = None
+_dedup_config: DedupStoreConfig | None = None
 _dedup_disabled = False
 _dedup_start_state: str | None = None
 _purge_done = False
+_tool_retry_policies: dict[str, str] = {}
 
 
-def _dedup_context() -> tuple[DedupStore | None, DedupConfig | None]:
-    """Return the (store, config) pair, or (None, None) when durable dedup is disabled."""
+def configure_dedup(store_config: DedupStoreConfig) -> None:
+    """Open the shared store once from the injected config (bootstrap seam).
+
+    `DedupStoreError` start states propagate: a process whose validated
+    `[dedup]` values disagree with the store must not start (REQ-007).
+    """
     global _dedup_store, _dedup_config, _dedup_disabled, _dedup_start_state
+    _dedup_store = open_dedup_store(store_config)
+    _dedup_config = store_config
+    _dedup_disabled = False
+    _dedup_start_state = None
+
+
+def configure_tool_retry_policies(entries: Iterable[Mapping[str, Any]]) -> None:
+    """Inject this process's declared retry_policy metadata (bootstrap seam).
+
+    Declared `retry_policy` is the retry authority (REQ-005); tools absent
+    from the map stay non-retryable (fail-safe, no fallback constant). Entries
+    without a name or retry_policy are skipped (non-production tool tables
+    only; production validation rejects them).
+    """
+    global _tool_retry_policies
+    _tool_retry_policies = {
+        str(entry["name"]): str(entry["retry_policy"])
+        for entry in entries
+        if entry.get("name") and entry.get("retry_policy")
+    }
+
+
+def _retryable(name: str) -> bool:
+    """Declared-policy lookup; a tool with no policy entry is non-retryable."""
+    return retry_policy_is_retryable(_tool_retry_policies.get(name))
+
+
+def _dedup_context() -> tuple[DedupStore | None, DedupStoreConfig | None]:
+    """Return the (store, config) pair, or (None, None) when durable dedup is disabled."""
+    global _dedup_disabled, _dedup_start_state
     if _dedup_store is not None and _dedup_config is not None:
         return _dedup_store, _dedup_config
     if _dedup_disabled:
         return None, None
-    try:
-        config = load_dedup_config()
-        _dedup_store = open_dedup_store(config)
-        _dedup_config = config
-    except DedupStoreError as exc:
-        # Typed start-state refusal (REQ-006): the state names why the store
-        # refused the open; the dispatcher routes it through the same
-        # refusal/degradation asymmetry as a store failure.
-        _dedup_disabled = True
-        _dedup_start_state = exc.state
-        logger.warning(
-            "durable dedup store refused at open (start state=%s): %s; "
-            "overlay-only fallback",
-            exc.state,
-            exc,
-        )
-        return None, None
-    except Exception as exc:  # noqa: BLE001 -- fail-open by design (plan Risks: a dedup
-        # store failure must not stall tool calls); overlay-only behavior is the audited
-        # fallback and is asserted by tests/mcp_servers/test_mcp_dispatch.py.
-        _dedup_disabled = True
-        logger.warning(
-            "durable dedup store unavailable: %s; overlay-only fallback", exc
-        )
-        return None, None
-    return _dedup_store, _dedup_config
+    _dedup_disabled = True
+    _dedup_start_state = "not_configured"
+    logger.warning(
+        "durable dedup store not configured: configure_dedup() was never called; "
+        "overlay-only fallback"
+    )
+    return None, None
 
 
-def _purge_once(store: DedupStore, config: DedupConfig) -> None:
+def _purge_once(store: DedupStore, config: DedupStoreConfig) -> None:
     """Run the retention sweep at most once per process."""
     global _purge_done
     if _purge_done:
@@ -261,7 +274,7 @@ def _renew_lease_if_needed(
 
 def _dedup_decision(
     store: DedupStore,
-    config: DedupConfig,
+    config: DedupStoreConfig,
     key: str,
     name: str,
     args_hash: str,
@@ -324,7 +337,7 @@ def _dedup_decision(
             ),
             "in_progress",
         )
-    retryable = retry_class(name, config) == "retryable"
+    retryable = _retryable(name)
     if acq.status == "reconciliation_required":
         if retryable:
             # Canonical replay for retryable tools: reconcile the expired lease
@@ -522,7 +535,7 @@ async def dispatch_tool(
                 logger.warning("dedup acquisition failed: %s", exc)
                 early = None
                 dedup_state = "store_error"
-                if retry_class(name, config) != "retryable":
+                if not _retryable(name):
                     early = DispatchResult(
                         output=(
                             f"Dedup store unavailable; call to tool {name!r} refused"
@@ -539,11 +552,9 @@ async def dispatch_tool(
             # Init failure / disabled (typed start state captured in
             # _dedup_start_state): the audited asymmetry is unchanged.
             # Non-retryable tools fail closed; retryable tools
-            # degrade to overlay-only store_error.
-            try:
-                is_retryable = retry_class(name) == "retryable"
-            except Exception:  # noqa: BLE001 -- default closed on config error
-                is_retryable = False
+            # degrade to overlay-only store_error. No injected policy
+            # entry -> non-retryable (fail closed, no fallback constant).
+            is_retryable = _retryable(name)
             if not is_retryable:
                 logger.warning(
                     "Durable dedup unavailable (start state=%s); call to tool %r "

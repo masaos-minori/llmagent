@@ -78,14 +78,15 @@ def test_detects_mcp_dedup_path_not_named_after_database(
     (cfg / "eventbus.toml").write_text(
         'db_path = "/d/eventbus.sqlite"\n', encoding="utf-8"
     )
-    (cfg / "mcp_dedup.toml").write_text(
+    (cfg / "shell_mcp_server.toml").write_text(
         '[dedup]\ndb_path = "/d/dedup_store.sqlite"\n', encoding="utf-8"
     )
     monkeypatch.setattr(mod, "CONFIG_DIR", cfg)
     monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
     problems = mod.check_db_paths()
     assert any(
-        "mcp_dedup.toml" in p and "not named mcp_dedup.sqlite" in p for p in problems
+        "shell_mcp_server.toml" in p and "not named mcp_dedup.sqlite" in p
+        for p in problems
     )
 
 
@@ -103,7 +104,7 @@ def test_detects_mcp_dedup_shared_path_with_core_db(
     (cfg / "eventbus.toml").write_text(
         'db_path = "/d/eventbus.sqlite"\n', encoding="utf-8"
     )
-    (cfg / "mcp_dedup.toml").write_text(
+    (cfg / "shell_mcp_server.toml").write_text(
         '[dedup]\ndb_path = "/d/mcp_dedup.sqlite"\n', encoding="utf-8"
     )
     monkeypatch.setattr(mod, "CONFIG_DIR", cfg)

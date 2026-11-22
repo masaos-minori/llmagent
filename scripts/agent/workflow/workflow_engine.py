@@ -31,10 +31,9 @@ _ERROR_KIND_LLM_FAILURE = "llm_failure"
 _LEASE_MARGIN_SEC = 30
 
 # Default stale-pending timeout window (minutes) when no Agent-config value is
-# supplied. Mirrors shared.mcp_dedup.DEFAULT_PENDING_TIMEOUT_MINUTES (10) and
-# config/agent.toml's pending_timeout_minutes default; kept local so this module
-# never imports the dispatcher's dedup config. orchestrator.py supplies
-# the real value via AgentConfig.pending_timeout_minutes in production.
+# supplied. Kept local to this module; orchestrator.py supplies the real value
+# via AgentConfig.pending_timeout_minutes (whose own default is 10) in
+# production.
 _DEFAULT_PENDING_TIMEOUT_MINUTES = 10
 
 StageCallback = Callable[[], Awaitable[str | None]]  # returns artifact URI or None
@@ -139,8 +138,8 @@ class WorkflowEngine:
     ) -> None:
         """Initialize the workflow engine with its definition, state store, and optional tracer.
 
-        *pending_timeout_minutes* is the Agent-side stale-pending timeout window: sourced from AgentConfig, never from the dispatcher's
-        mcp_dedup.toml. Defaults to 10 so direct constructions in tests stay green;
+        *pending_timeout_minutes* is the Agent-side stale-pending timeout window:
+        sourced from AgentConfig. Defaults to 10 so direct constructions in tests stay green;
         orchestrator.py passes the real config value.
         """
         self._wdef = workflow_def

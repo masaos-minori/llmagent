@@ -42,11 +42,15 @@ writes into `mdq.sqlite` or `rag.sqlite`.
 Contract details (owned by the `scripts/shared/mcp_dedup*.py` module family; `shared.mcp_dedup`
 is the public facade):
 
-- File location: the config file is resolved through `resolve_config_dir()` (overridable with
-  `LLMAGENT_CONFIG_DIR`), like every other config consumer. The store database is `dedup.db_path` in
-  `config/mcp_dedup.toml`, default `/opt/llm/db/mcp_dedup.sqlite` — the same fallback-literal shape the
-  other platform databases use. A missing config file raises `ConfigMissingError`; bad values raise
-  `ConfigParseError`.
+- File location: each MCP server process owns its store reference in the `[dedup]` table of
+  its own `config/{server}_mcp_server.toml` (ten tables, one shared store). At bootstrap the
+  server validates its table with `load_dedup_section()` (`scripts/shared/mcp_dedup_config.py`)
+  and injects the typed `DedupStoreConfig` into the dispatcher; there is no shared dedup config
+  file and no config discovery. A missing table raises `ConfigMissingError` and a bad value
+  raises `ConfigParseError`, both aborting startup before any socket is created. `dedup.db_path`
+  is pinned to `dedup_db_dir()/mcp_dedup.sqlite`, where `dedup_db_dir()` is `LLMAGENT_DB_DIR`
+  or the default `/opt/llm/db` — the same fallback-literal shape the other platform databases
+  use. The contract pins the filename too: the installation marker is directory-scoped.
 - Bootstrap and identity stamp: the store creates its canonical tables and indexes on open
   (`scripts/shared/mcp_dedup_schema.py`) and stamps its identity as a three-part handshake:
   a `store_meta` identity row (random `store_uuid` + generation), `PRAGMA user_version = 1`,
@@ -57,11 +61,13 @@ is the public facade):
   `first_initialization` (genuinely new; writes the identity stamp), `healthy` (stamp, identity
   row, marker, and canonical fingerprint all agree), or a typed refusal: `lost` (a known
   generation's file is gone), `replaced` (the marker names a different store),
-  `legacy_or_unverified` (pre-change shape, no identity row, or a missing marker), and
-  `schema_mismatch` (fingerprint or `user_version` drift). Refusals raise
+  `legacy_or_unverified` (pre-change shape, no identity row, or a missing marker),
+  `schema_mismatch` (fingerprint or `user_version` drift), and `identity_mismatch` (the
+  injected config's validated fingerprint drifts from the installed store's identity). Refusals raise
   `DedupStoreError` with the shared archive-and-recreate guidance; nothing is migrated,
-  stamped, or repaired automatically. `resolve_store` is the operator-runbook path
-  for archive-and-recreate.
+  stamped, or repaired automatically. For `identity_mismatch` the recovery is to correct the
+  server's `[dedup]` values (never the store file); `resolve_store` remains the operator-runbook
+  path for archive-and-recreate.
 - Concurrency: WAL journal mode (set only after a successful classification, so refused opens
   stay strictly read-only), `PRAGMA busy_timeout` (default 5000 ms), `synchronous = NORMAL`,
   one held connection guarded by a `threading.Lock`, and every write runs under `BEGIN IMMEDIATE`.
@@ -92,10 +98,12 @@ is the public facade):
   truncated sentinel (`{"truncated": true, "sha256": <full-payload hash>, "preview": <first 1000 chars>}`).
   A truncated stored payload is never served as a replay result; acquisition reports it as
   `replay_unavailable` (refused), not a fresh attempt.
-- Retry classification: `RETRYABLE_TOOLS` in `scripts/shared/tool_constants.py` owns the
-  classification; `[retry_class]` in `config/mcp_dedup.toml` is its mirror, load-validated
-  against the owner (unknown tool names, disallowed values, and contradictions with the owner
-  are rejected). Unlisted tools default to `non_retryable` at lookup (fail-safe unreplayable).
+- Retry classification: the declared `retry_policy` field in each tool's `TOOL_LIST` metadata
+  (`shared.tool_metadata.RetryPolicy`) is the sole authority; the dispatcher maps
+  `same_logical_call_only`/`reconcile_then_retry` to retryable and everything else, including
+  unknown tools, to non-retryable (fail-safe unreplayable). `RETRYABLE_TOOLS` in
+  `scripts/shared/tool_constants.py` remains only as reference data, drift-checked against the
+  declarations in tests; there is no config-file `[retry_class]` mirror.
 - Retention sweep: `purge_expired(retention_days)` deletes terminal rows older than the retention
   window (default 14 days) together with their `call_attempt_history` entries. Pending rows are
   never purged; their timeout path is lease classification. The dispatcher purges once per
@@ -106,13 +114,12 @@ is the public facade):
   derivations collided. A row whose stored `tool_name`/`args_hash` disagree with the incoming
   call is rejected as `idempotency_key_reused` before any dispatch.
 
-Config keys (all in `config/mcp_dedup.toml`): `dedup.db_path`, `dedup.retention_days` (14),
-`dedup.pending_timeout_minutes` (10), `dedup.lease_seconds` (30, accepted range 1..3600),
-`dedup.max_attempts` (3, accepted range 1..10), and the `[retry_class]` map (load-validated
-against `RETRYABLE_TOOLS` and the known MCP tool names). The same timeout value is
-the source for the agent-side stale-pending classification in `workflow.sqlite`. The config file is
-read once per process: after the first successful load the parsed config is cached until the service
-restarts, and a failed load is not cached.
+Config keys (in the `[dedup]` table of each `config/{server}_mcp_server.toml`): `db_path`
+(pinned to the dedup database directory contract above), `retention_days` (14), `lease_seconds`
+(30, accepted range 1..3600), and `max_attempts` (3, accepted range 1..10). The table is read
+once per process at bootstrap and injected as an immutable `DedupStoreConfig`. The
+stale-pending timeout is Agent-side only: `pending_timeout_minutes` (10) in
+`config/agent.toml` via `AgentConfig.pending_timeout_minutes`.
 
 ## `tool_call_state` (workflow.sqlite); `execution_snapshots` retired
 

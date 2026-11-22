@@ -14,3 +14,12 @@ auth_token = "${ENV:MCP_FILE_DELETE_AUTH_TOKEN}"
 # all. The actual delete-audit log path is hardcoded in delete_service.py as
 # "/opt/llm/logs/delete_audit.log" (same value as this key coincidentally had), not
 # sourced from config. Re-add only alongside an implementation that reads it.
+
+# [dedup]: shared dedup store settings owned by this process (mcpdl003). Values
+# must stay identical across all ten *_mcp_server.toml files: the store identity
+# fingerprint gate refuses a reopen with drifted values.
+[dedup]
+db_path = "/opt/llm/db/mcp_dedup.sqlite"
+retention_days = 14
+lease_seconds = 30
+max_attempts = 3

@@ -393,6 +393,8 @@ class AgentConfig:
     messages: MessageRoleConfig = field(default_factory=MessageRoleConfig)
     agent_memory_max_startup_snippets: int = 10
     pending_timeout_minutes: int = 10
+    # Grant horizon consumed by tool_approval._issue_grant (replaces _GRANT_TTL_SECONDS).
+    approval_grant_ttl_seconds: float = 300.0
 
     def __post_init__(self) -> None:
         """Validate cross-field dependencies between sub-configs."""

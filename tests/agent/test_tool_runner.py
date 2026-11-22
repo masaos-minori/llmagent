@@ -2527,8 +2527,8 @@ class TestToolCallStateProducer:
     @pytest.mark.asyncio
     async def test_retry_class_from_agent_local_classifier(self) -> None:
         """REQ-004/REQ-007: the recorded retry_class is resolved from the
-        registered tool's declared retry_policy (not the dispatcher's
-        config/mcp_dedup.toml): same_logical_call_only -> retryable,
+        registered tool's declared retry_policy (its only authority, mcpdl003
+        REQ-005): same_logical_call_only -> retryable,
         safe_read_retry -> non_retryable.
         """
         recorder = FakeRecorder()

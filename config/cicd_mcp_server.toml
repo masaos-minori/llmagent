@@ -27,3 +27,12 @@ auth_token = "${ENV:MCP_CICD_AUTH_TOKEN}"
 # github_token: fallback when GITHUB_TOKEN env var is unset (not recommended)
 # Prefer setting GITHUB_TOKEN via environment variable or config file
 github_token = ""
+
+# [dedup]: shared dedup store settings owned by this process (mcpdl003). Values
+# must stay identical across all ten *_mcp_server.toml files: the store identity
+# fingerprint gate refuses a reopen with drifted values.
+[dedup]
+db_path = "/opt/llm/db/mcp_dedup.sqlite"
+retention_days = 14
+lease_seconds = 30
+max_attempts = 3

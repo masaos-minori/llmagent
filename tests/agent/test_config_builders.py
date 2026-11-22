@@ -383,6 +383,15 @@ class TestBuildAgentConfig:
         )
         assert isinstance(cfg, AgentConfig)
 
+    def test_approval_grant_ttl_seconds_default_when_absent(self) -> None:
+        # mcpdl003 REQ-002: absent key keeps the retired constant's value.
+        cfg = build_agent_config({**_MIN_CFG})
+        assert cfg.approval_grant_ttl_seconds == 300.0
+
+    def test_approval_grant_ttl_seconds_read_from_mapping(self) -> None:
+        cfg = build_agent_config({**_MIN_CFG, "approval_grant_ttl_seconds": 120})
+        assert cfg.approval_grant_ttl_seconds == 120.0
+
     @pytest.mark.parametrize(
         "key",
         ["tool_definitions_strict", "routing_drift_strict", "security_profile"],

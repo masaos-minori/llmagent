@@ -13,7 +13,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
-from agent.tool_approval import check_approval
+from agent.tool_approval import (
+    _GRANT_TTL_SECONDS,
+    check_approval,
+    run_approval_checks,
+)
+from agent.tool_enums import ApprovalDecisionType
+from agent.tool_preparation import PreparedToolCall, _canonical_args_hash
 from shared.runtime_tool import AgentSafetyTier
 from shared.runtime_tool_registry import RuntimeTool, RuntimeToolRegistry
 from shared.tool_metadata import (
@@ -22,7 +28,8 @@ from shared.tool_metadata import (
     ResourceKeyKind,
     SideEffectClass,
 )
-from shared.transport_dto import ToolCallResult
+from shared.tool_spec import ToolSpec
+from shared.transport_dto import ToolCallResult, ToolExecutionContext
 
 from tests.agent._config_test_defaults import (
     ALL_TOOL_NAMES,
@@ -305,3 +312,52 @@ class TestProtectedPathEscalation:
         read.assert_not_awaited()
         logged = ctx.services_required.audit_logger.info.call_args[0][0]
         assert "denied_root_jail" in logged
+
+
+# ── run_approval_checks(): grant horizon from config (mcpdl003 REQ-002) ──────
+
+
+def _grant_pc(name: str, args: dict[str, Any]) -> PreparedToolCall:
+    """PreparedToolCall carrying the preparation-phase execution context."""
+    return PreparedToolCall(
+        call_id="call_1",
+        name=name,
+        args=args,
+        spec=ToolSpec(call_id="call_1", name=name, args=args),
+        original_call={"id": "call_1", "function": {"name": name, "arguments": "{}"}},
+        context=ToolExecutionContext(
+            call_id="call_1",
+            tool=name,
+            args_hash=_canonical_args_hash(args),
+            operation="call_tool",
+        ),
+    )
+
+
+class TestGrantTtlFromConfig:
+    @pytest.mark.asyncio
+    async def test_configured_ttl_sets_grant_horizon(self) -> None:
+        ctx = _make_ctx(cfg=_make_cfg(approval_grant_ttl_seconds=120.0))
+        ctx.conv.plan_mode = False
+        ctx.services_required.audit_logger = MagicMock()
+        approved, denied = await run_approval_checks(
+            ctx, [_grant_pc("write_file", {"path": "/tmp/f"})]
+        )
+        assert denied == []
+        grant = approved[0].grant
+        assert grant is not None
+        assert grant.expires_at - grant.issued_at == 120.0
+
+    @pytest.mark.asyncio
+    async def test_default_ttl_matches_retired_constant(self) -> None:
+        ctx = _make_ctx()
+        ctx.conv.plan_mode = False
+        ctx.services_required.audit_logger = MagicMock()
+        approved, denied = await run_approval_checks(
+            ctx, [_grant_pc("write_file", {"path": "/tmp/f"})]
+        )
+        assert denied == []
+        grant = approved[0].grant
+        assert grant is not None
+        assert grant.expires_at - grant.issued_at == _GRANT_TTL_SECONDS
+        assert grant.mode == ApprovalDecisionType.AUTO.value

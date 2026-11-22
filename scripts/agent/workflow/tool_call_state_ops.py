@@ -139,7 +139,7 @@ def classify_stale_pending(
     them are transitioned, and the transition happens inside the WHERE-guarded
     UPDATE (optimistic-lock style, same discipline as ``recover_stale_attempts``).
     Returns the rows this call transitioned. The timeout value comes from the
-    caller (the dispatcher-side ``pending_timeout_minutes`` config), not read
+    caller (the Agent-side ``AgentConfig.pending_timeout_minutes``), not read
     here — this module stays config-free.
     """
     cutoff = time.time() - timeout_seconds

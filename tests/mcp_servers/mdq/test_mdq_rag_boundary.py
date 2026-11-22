@@ -78,8 +78,8 @@ class TestMdqRagBoundary:
             # mdq.sqlite or rag.sqlite. Added for dbmig001 (shared migration framework).
             "db_migrations.py",
             # Shared tool-call-state store (toolexec001): sqlite3.connect() only on
-            # its own tool_call_state DB file (config/mcp_dedup.toml db_path, default
-            # /opt/llm/db/mcp_dedup.sqlite); never opens mdq.sqlite or rag.sqlite.
+            # its own store file (the [dedup] db_path contract:
+            # dedup_db_dir()/mcp_dedup.sqlite); never opens mdq.sqlite or rag.sqlite.
             "mcp_dedup.py",
         }  # add a filename here only with an inline comment explaining the reviewed exception
         forbidden = ("mdq.sqlite", "rag.sqlite", "sqlite3.connect")

@@ -44,6 +44,7 @@ from agent.production_config_validator import ProductionConfigValidator
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.typed_validators import (
     _get_bool,
+    _get_float,
     _get_int,
 )
 
@@ -143,6 +144,9 @@ def _assemble_agent_config(cfg: dict[str, Any]) -> AgentConfig:
         ),
         pending_timeout_minutes=_get_or_default(
             cfg, "pending_timeout_minutes", _get_int, 10
+        ),
+        approval_grant_ttl_seconds=_get_or_default(
+            cfg, "approval_grant_ttl_seconds", _get_float, 300.0
         ),
     )
 

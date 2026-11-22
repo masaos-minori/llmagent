@@ -14,7 +14,8 @@ separated:
      files named after their database (`rag.sqlite`, ..., `mcp_dedup.sqlite`),
      and every registered db path key under `config/*.toml` points to the file
      named after its database (the `*_db_path` regex plus the explicit
-     DB_PATH_REGISTRATIONS for bare `db_path` keys like mcp_dedup.toml).
+     DB_PATH_REGISTRATIONS for bare `db_path` keys like the per-server
+     `[dedup]` tables).
   4. sqlite-vec scope: `vec0` virtual tables exist only where the inventory
      registers them, `SQLiteHelper` loads the extension by default only for `rag`
      and `session` (the databases that own a vec0 table),
@@ -124,7 +125,18 @@ _DB_PATH_KEY_RE = re.compile(r"^(?P<db>rag|session|workflow|eventbus)_db_path$")
 # regex tight instead of matching every bare `db_path`).
 DB_PATH_REGISTRATIONS: dict[tuple[str, str], str] = {
     ("eventbus.toml", "db_path"): "eventbus",
-    ("mcp_dedup.toml", "db_path"): "mcp_dedup",
+    # Per-server [dedup] tables (REQ-003): each of the ten MCP server configs
+    # owns its own reference to the one shared mcp_dedup store.
+    ("cicd_mcp_server.toml", "db_path"): "mcp_dedup",
+    ("file_delete_mcp_server.toml", "db_path"): "mcp_dedup",
+    ("file_read_mcp_server.toml", "db_path"): "mcp_dedup",
+    ("file_write_mcp_server.toml", "db_path"): "mcp_dedup",
+    ("git_mcp_server.toml", "db_path"): "mcp_dedup",
+    ("github_mcp_server.toml", "db_path"): "mcp_dedup",
+    ("mdq_mcp_server.toml", "db_path"): "mcp_dedup",
+    ("rag_pipeline_mcp_server.toml", "db_path"): "mcp_dedup",
+    ("shell_mcp_server.toml", "db_path"): "mcp_dedup",
+    ("web_search_mcp_server.toml", "db_path"): "mcp_dedup",
 }
 
 
@@ -223,15 +235,33 @@ def check_db_paths() -> list[str]:
                     "is not named eventbus.sqlite"
                 )
     # mcp_dedup.sqlite belongs to the disposable dedup store: its path is the
-    # db_path of config/mcp_dedup.toml ([dedup] table; DB_PATH_REGISTRATIONS).
-    dedup_toml = CONFIG_DIR / "mcp_dedup.toml"
-    if dedup_toml.is_file():
-        dedup_data = tomllib.loads(dedup_toml.read_text(encoding="utf-8"))
-        dedup_table = dedup_data.get("dedup")
+    # db_path of every config/*_mcp_server.toml [dedup] table
+    # (DB_PATH_REGISTRATIONS); an existing server file without the table, or
+    # server files disagreeing on the path, is a finding.
+    dedup_paths: dict[str, str] = {}
+    for (toml_name, _leaf_key), db_name in DB_PATH_REGISTRATIONS.items():
+        if db_name != "mcp_dedup":
+            continue
+        server_toml = CONFIG_DIR / toml_name
+        if not server_toml.is_file():
+            continue
+        server_data = tomllib.loads(server_toml.read_text(encoding="utf-8"))
+        dedup_table = server_data.get("dedup")
         if isinstance(dedup_table, dict) and isinstance(
             dedup_table.get("db_path"), str
         ):
-            paths["mcp_dedup"] = dedup_table["db_path"]
+            dedup_paths[toml_name] = dedup_table["db_path"]
+        else:
+            problems.append(
+                f"[db-path] config/{toml_name}: carries no [dedup] db_path table"
+            )
+    if dedup_paths:
+        paths["mcp_dedup"] = next(iter(dedup_paths.values()))
+        if len(set(dedup_paths.values())) > 1:
+            problems.append(
+                "[db-path] server [dedup].db_path values disagree: "
+                + ", ".join(f"{k}={v!r}" for k, v in sorted(dedup_paths.items()))
+            )
     agent_toml = CONFIG_DIR / "agent.toml"
     if agent_toml.is_file():
         data = tomllib.loads(agent_toml.read_text(encoding="utf-8"))

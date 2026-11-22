@@ -43,17 +43,15 @@ _ENV_REF_RE = re.compile(r"\$\{ENV:([A-Za-z_][A-Za-z0-9_]*)\}")
 _LOADER_ENV_VARS = ("LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH")
 
 # Configuration files whose `${ENV:...}` references a subprocess server actually reads: the
-# servers load agent.toml plus their own *_mcp_server.toml, and the rag_pipeline server imports
-# scripts/rag/ingestion, which reads the three ingestion files below. mcp_dedup.toml is read by
-# every subprocess server through scripts/mcp_servers/dispatch.py's dedup store loader
-# (toolexec001).
+# servers load agent.toml plus their own *_mcp_server.toml (which carries the server's
+# [dedup] table, mcpdl003 REQ-001), and the rag_pipeline server imports
+# scripts/rag/ingestion, which reads the three ingestion files below.
 _SUBPROCESS_REACHABLE_CONFIGS: frozenset[str] = frozenset(
     {
         "agent.toml",
         "crawler.toml",
         "chunk_splitter.toml",
         "ingester.toml",
-        "mcp_dedup.toml",
     }
 )
 _SUBPROCESS_REACHABLE_PATTERNS: tuple[str, ...] = ("*_mcp_server.toml",)

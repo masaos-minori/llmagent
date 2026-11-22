@@ -189,13 +189,18 @@ def _write_config(tmp_path: pathlib.Path, db_dir: pathlib.Path) -> pathlib.Path:
         eventbus_toml.read_text(encoding="utf-8").replace("/opt/llm/db/", f"{db_dir}/"),
         encoding="utf-8",
     )
-    # The dedup store resolves its database the same way (shared.mcp_dedup loader on
-    # mcp_dedup.toml), so init_db.sh's dedup step stays inside the sandbox db dir.
-    dedup_toml = cfg_dir / "mcp_dedup.toml"
-    dedup_toml.write_text(
-        dedup_toml.read_text(encoding="utf-8").replace("/opt/llm/db/", f"{db_dir}/"),
-        encoding="utf-8",
-    )
+    # The dedup store resolves its database from the per-server [dedup] tables
+    # (load_dedup_section against the LLMAGENT_DB_DIR contract dir), so the
+    # sandbox copies must point db_path into db_dir and the driver exports
+    # LLMAGENT_DB_DIR accordingly (otherwise init_db.sh's dedup step would
+    # address /opt/llm/db).
+    for server_toml in cfg_dir.glob("*_mcp_server.toml"):
+        server_toml.write_text(
+            server_toml.read_text(encoding="utf-8").replace(
+                "/opt/llm/db/", f"{db_dir}/"
+            ),
+            encoding="utf-8",
+        )
     return cfg_dir
 
 
@@ -237,6 +242,7 @@ def _write_driver(
         f'export DEPLOY_SCRIPTS="{scripts_dir}"',
         f'export DEPLOY_DB="{db_dir}"',
         f'export LLMAGENT_CONFIG_DIR="{cfg_dir}"',
+        f'export LLMAGENT_DB_DIR="{db_dir}"',
         f'export EVENTBUS_CONFIG_PATH="{cfg_dir / "eventbus.toml"}"',
         f'export LLMAGENT_LOG_DIR="{log_dir}"',
     ]

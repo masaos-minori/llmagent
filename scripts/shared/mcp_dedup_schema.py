@@ -19,6 +19,7 @@ START_STATES = frozenset(
         "replaced",
         "legacy_or_unverified",
         "schema_mismatch",
+        "identity_mismatch",
     }
 )
 ACQUISITION_STATES = frozenset(

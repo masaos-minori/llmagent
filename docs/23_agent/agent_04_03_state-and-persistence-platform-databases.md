@@ -75,7 +75,7 @@ Boundaries:
 
 | Table | Responsibility |
 |---|---|
-| `tool_call_state` | Agent-side lifecycle of each dispatched tool call (`pending` / `completed` / `failed` / `interrupted`), keyed by the composed state key (the transport idempotency key with `task_id` appended), which enforces per-task separation of identical calls; stale `pending` rows past `dedup.pending_timeout_minutes` are transitioned to `interrupted` and surfaced to the next LLM turn as a control message. |
+| `tool_call_state` | Agent-side lifecycle of each dispatched tool call (`pending` / `completed` / `failed` / `interrupted`), keyed by the composed state key (the transport idempotency key with `task_id` appended), which enforces per-task separation of identical calls; stale `pending` rows past `pending_timeout_minutes` in `config/agent.toml` are transitioned to `interrupted` and surfaced to the next LLM turn as a control message. |
 
 The former `execution_snapshots` table is retired: no code path ever wrote it, fresh databases no longer create it or the `tool_call_state.snapshot_id` foreign key, and a legacy database that still carries the empty table fails startup under exact fingerprint matching and is archived and recreated by the operator.
 

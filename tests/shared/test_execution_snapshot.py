@@ -26,7 +26,6 @@ from shared.execution_snapshot import (
 )
 from shared.mcp_dedup import (
     DedupStore,
-    clear_dedup_config_cache,
     resolve_store,
 )
 
@@ -48,8 +47,15 @@ def _make_db(path: Path, user_version: int = 1) -> Path:
 
 
 @pytest.fixture
-def fx(tmp_path: Path) -> dict[str, Any]:
-    """Self-contained fixture set: DEPLOYED_REV, config dir, three versioned DBs."""
+def fx(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    """Self-contained fixture set: DEPLOYED_REV, config dir, three versioned DBs.
+
+    ``LLMAGENT_DB_DIR`` points the dedup database directory contract at a scratch
+    dir so snapshot builds never touch the production store (and subprocess
+    builds inherit the same contract path).
+    """
+    dedup_dir = tmp_path / "dedup"
+    monkeypatch.setenv("LLMAGENT_DB_DIR", str(dedup_dir))
     deploy_rev = tmp_path / "DEPLOYED_REV"
     deploy_rev.write_text(
         json.dumps(
@@ -77,6 +83,7 @@ def fx(tmp_path: Path) -> dict[str, Any]:
         "deploy_rev": deploy_rev,
         "config_dir": config_dir,
         "db_paths": {"rag": rag_db, "session": session_db, "workflow": workflow_db},
+        "dedup_db": dedup_dir / "mcp_dedup.sqlite",
     }
 
 
@@ -316,32 +323,15 @@ class TestDeterminism:
         assert subprocess_json == snapshot_json(_build(fx))
 
 
-def _write_dedup_config(fx: dict[str, Any], db_path: object) -> None:
-    """Point config/mcp_dedup.toml in the fixture config dir at db_path."""
-    (fx["config_dir"] / "mcp_dedup.toml").write_text(
-        f'[dedup]\ndb_path = "{db_path}"\n'
-    )
-    clear_dedup_config_cache()
-
-
 class TestDedupComponent:
-    def test_without_dedup_config_component_is_absent(self, fx: dict[str, Any]) -> None:
-        snap = _build(fx)
-        assert snap["dedup"] == "absent"
-
-    def test_config_without_store_file_is_absent_and_not_created(
-        self, fx: dict[str, Any]
-    ) -> None:
-        store_path = fx["tmp"] / "dedup" / "mcp_dedup.sqlite"
-        _write_dedup_config(fx, store_path)
+    def test_without_store_file_component_is_absent(self, fx: dict[str, Any]) -> None:
         snap = _build(fx)
         assert snap["dedup"] == "absent"
         # The snapshot build is read-only: it must not initialize the store.
-        assert not store_path.exists()
+        assert not fx["dedup_db"].exists()
 
     def test_identity_component_format(self, fx: dict[str, Any]) -> None:
-        store_path = fx["tmp"] / "dedup" / "mcp_dedup.sqlite"
-        _write_dedup_config(fx, store_path)
+        store_path = fx["dedup_db"]
         store = DedupStore(str(store_path))
         try:
             fingerprint = store.schema_fingerprint
@@ -352,8 +342,7 @@ class TestDedupComponent:
 
     def test_generation_rollover_flags_only_dedup(self, fx: dict[str, Any]) -> None:
         """AC-7: snapshots before and after a generation rollover are unequal."""
-        store_path = fx["tmp"] / "dedup" / "mcp_dedup.sqlite"
-        _write_dedup_config(fx, store_path)
+        store_path = fx["dedup_db"]
         DedupStore(str(store_path)).close()
         base = _build(fx)
         assert base["dedup"].startswith("gen=1;schema=")
@@ -367,8 +356,7 @@ class TestDedupComponent:
     def test_store_swap_to_identityless_file_reads_absent(
         self, fx: dict[str, Any]
     ) -> None:
-        store_path = fx["tmp"] / "dedup" / "mcp_dedup.sqlite"
-        _write_dedup_config(fx, store_path)
+        store_path = fx["dedup_db"]
         DedupStore(str(store_path)).close()
         base = _build(fx)
         store_path.unlink()
@@ -377,8 +365,3 @@ class TestDedupComponent:
         after = _build(fx)
         assert after["dedup"] == "absent"
         assert mismatching_components(base, after) == ["dedup"]
-
-    def test_malformed_dedup_config_reads_absent(self, fx: dict[str, Any]) -> None:
-        (fx["config_dir"] / "mcp_dedup.toml").write_text("[dedup\ndb_path = ")
-        snap = _build(fx)
-        assert snap["dedup"] == "absent"

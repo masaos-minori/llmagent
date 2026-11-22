@@ -122,6 +122,10 @@ def _write_init_db_driver(
                 f'export DEPLOY_SCRIPTS="{scripts_dir}"',
                 f'export DEPLOY_DB="{db_dir}"',
                 f'export LLMAGENT_CONFIG_DIR="{cfg_dir}"',
+                # The dedup [dedup] tables' db_path is pinned to the LLMAGENT_DB_DIR
+                # contract dir (mcpdl003); point it at the sandbox like the rewritten
+                # config copies do.
+                f'export LLMAGENT_DB_DIR="{db_dir}"',
                 f'export EVENTBUS_CONFIG_PATH="{cfg_dir / "eventbus.toml"}"',
                 f'export LLMAGENT_LOG_DIR="{log_dir}"',
                 f'bash "{_INIT_DB}"',

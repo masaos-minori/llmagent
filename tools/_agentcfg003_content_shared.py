@@ -204,7 +204,7 @@ add(
     ],
     completion=[
         "No runtime decision reads a set in this module; only drift comparisons and tests read it.",
-        "The drift test against `config/mcp_dedup.toml` still compares declarations with this data.",
+        "The drift test against the shared dedup config `[retry_class]` mirror still compares declarations with this data.",
     ],
     compat=[
         "Tests that assert ownership of `RETRYABLE_TOOLS` are updated by the companion test file listed on "
@@ -217,7 +217,7 @@ add(
     goal="Take the retry classification from the caller-supplied declared policy instead of from a static "
     "reference set (REQ-007, REQ-010; AC-09).",
     assumptions=[
-        "The `[retry_class]` mirror in `config/mcp_dedup.toml` stays as a drift comparison; its removal is "
+        "The `[retry_class]` mirror in the shared dedup config stays as a drift comparison; its removal is "
         "decided by the open dedup configuration issue (UNK-06).",
         "The call-state contract itself stays with the MCP two-layer defense issues (REQ-010).",
         "The lease/identity contract in this module is covered by "
@@ -226,7 +226,7 @@ add(
     ],
     design=[
         "The module receives the classification as an argument; it keeps no ownership of retry behaviour.",
-        "The comparison against `config/mcp_dedup.toml` stays, but its result is reported as a disagreement "
+        "The comparison against the shared dedup config mirror stays, but its result is reported as a disagreement "
         "and cannot change the classification used for a call.",
     ],
     procedure="Change the classification input from the reference set to the declared policy value, and turn the "
@@ -238,7 +238,7 @@ add(
         "drift finding.",
     ],
     details=[
-        "Verified 2026-11-21: the cross-check reads `config/mcp_dedup.toml` `[retry_class]` against "
+        "Verified 2026-11-21: the cross-check reads the shared dedup config's `[retry_class]` map against "
         "`RETRYABLE_TOOLS`; this is the reconciliation coupling the issue describes, not "
         "`scripts/db/recovery.py`."
     ],

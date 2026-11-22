@@ -174,10 +174,10 @@ GITHUB_TOOLS: frozenset[str] = (
 
 # Retry-classification reference data (ADR-004, dispatch retry policy; ADR-008
 # owns the disposable dedup-store semantics this classification feeds). The
-# authority for retry classification is now each tool's declared `retry_policy`
+# authority for retry classification is each tool's declared `retry_policy`
 # field (shared.tool_metadata.RetryPolicy); this frozenset remains as reference
-# data so the drift tests can compare the declarations against a cross-check
-# (config/mcp_dedup.toml [retry_class]; see implementation 20261111-111905_04).
+# data, drift-checked against the declarations in tests/shared/test_tool_constants.py
+# (mcpdl003 REQ-005 retired the shared config `[retry_class]` mirror).
 # A tool in this set is 'retryable' (dispatch-capable: a failed call can be
 # safely re-dispatched and deduplicated); every other tool — including unknown
 # ones — is 'non_retryable' (fail-safe).

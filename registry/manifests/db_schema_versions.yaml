@@ -16,7 +16,7 @@ entries:
   name: eventbus
   source: scripts/eventbus/schema.sql
   version: unversioned
-- content_hash: ccbf4c3d35fd16160573ebe5868df096e91c15df5d2262b28b343b41b933f50c
+- content_hash: 6fffdeb7b4c6b44eadd72867efbff405dc3a74a98929f91e6683a128d919fd8d
   kind: schema
   name: mcp_dedup
   source: scripts/shared/mcp_dedup_schema.py

@@ -338,9 +338,14 @@ class MCPServer:
             )
 
         if self.own_config_file:
+            from shared.config_errors import ConfigMissingError
             from shared.config_loader import ConfigLoader
 
             ConfigLoader.restrict_to(self.own_config_file)
+            try:
+                own_data = ConfigLoader().load(self.own_config_file)
+            except ConfigMissingError:
+                own_data = None
         else:
             from shared.config_errors import ConfigPermissionError
 
@@ -348,6 +353,30 @@ class MCPServer:
                 "Config Isolation: own_config_file is falsy — "
                 "cannot start without config isolation"
             )
+
+        # Dedup bootstrap (mcpdl003 REQ-001/REQ-006): validate this server's own
+        # [dedup] table and inject it (and the declared retry_policy of its own
+        # tools) before the posture gate and before any socket exists. Typed
+        # config errors propagate fail-fast; an unconfigured dispatcher would
+        # otherwise degrade to overlay-only mid-service. A missing own config
+        # file (test fixture servers) leaves the dispatcher unconfigured, which
+        # fails side-effecting calls closed in dispatch.
+        from shared.mcp_dedup import load_dedup_section
+
+        from mcp_servers.dispatch import configure_dedup, configure_tool_retry_policies
+
+        if own_data is not None:
+            configure_dedup(
+                load_dedup_section(own_data.get("dedup"), self.own_config_file)
+            )
+        else:
+            logger.warning(
+                "event=dedup_bootstrap_missing_config server=%s config=%s — "
+                "dedup left unconfigured",
+                self.server_name,
+                self.own_config_file,
+            )
+        configure_tool_retry_policies(getattr(self, "mcp_tools", ()))
 
         self._enforce_startup_posture_gate()
 

@@ -308,3 +308,25 @@ def test_launcher_template_restricts_config_before_the_server_import() -> None:
     restrict = text.index('ConfigLoader.restrict_to("${cfg}")')
     server_import = text.index("from ${module} import ${cls}")
     assert restrict < server_import
+
+
+def test_mcp_servers_never_reference_the_removed_dedup_loader() -> None:
+    """Pin the inject-only contract (mcpdl003 REQ-001/REQ-003, AC-002).
+
+    Any reintroduction of config-discovery imports (or the removed symbols
+    themselves) in `scripts/mcp_servers/` fails here: the dedup store is only
+    ever configured by injection at bootstrap.
+    """
+    removed = ("load_dedup_config", "get_dedup_config", "clear_dedup_config_cache")
+    offenders: list[str] = []
+    for py in sorted((_SCRIPTS / "mcp_servers").rglob("*.py")):
+        text = py.read_text(encoding="utf-8")
+        for name in removed:
+            if re.search(rf"\b{name}\b", text):
+                offenders.append(f"{py.relative_to(_ROOT)}: {name}")
+    assert not offenders, f"removed dedup loader referenced: {offenders}"
+
+    import shared.mcp_dedup as facade
+
+    for name in removed:
+        assert not hasattr(facade, name), f"facade still exports {name}"

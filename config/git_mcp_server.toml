@@ -39,3 +39,12 @@ protected_branches = ["main", "master", "release"]
 # while the repository is in a detached HEAD state (subject to dry_run and the
 # dirty-worktree/protected-branch checks above). Default false (fail-closed).
 allow_detached_head = false
+
+# [dedup]: shared dedup store settings owned by this process (mcpdl003). Values
+# must stay identical across all ten *_mcp_server.toml files: the store identity
+# fingerprint gate refuses a reopen with drifted values.
+[dedup]
+db_path = "/opt/llm/db/mcp_dedup.sqlite"
+retention_days = 14
+lease_seconds = 30
+max_attempts = 3

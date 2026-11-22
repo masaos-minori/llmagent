@@ -12,7 +12,6 @@ All SQLite access is on tmp_path files; /opt/llm/db/ is never touched.
 
 from __future__ import annotations
 
-import logging
 import sqlite3
 import subprocess
 import sys
@@ -23,17 +22,16 @@ import pytest
 from shared.config_errors import ConfigMissingError, ConfigParseError
 from shared.mcp_dedup import (
     DEFAULT_DB_PATH,
-    DedupConfig,
     DedupLeaseConflict,
     DedupStore,
+    DedupStoreConfig,
     DedupStoreError,
     classify_interrupted,
-    clear_dedup_config_cache,
-    load_dedup_config,
+    load_dedup_section,
     open_dedup_store,
     read_store_identity,
-    retry_class,
 )
+from shared.mcp_dedup_config import dedup_db_dir
 
 # Component-keyed snapshot (execution_snapshot.COMPONENT_KEYS shape).
 _SNAP = {
@@ -572,199 +570,86 @@ class TestStartStateClassification:
         assert excinfo.value.state == "lost"
 
 
-class TestConfigValidation:
-    def test_missing_file_raises_typed_error(self, tmp_path):
+class TestDedupSectionValidation:
+    def test_missing_table_raises_typed_error(self):
         with pytest.raises(ConfigMissingError):
-            load_dedup_config(tmp_path / "absent.toml")
+            load_dedup_section(None, "cicd_mcp_server.toml")
 
-    def test_malformed_toml_raises_parse_error(self, tmp_path):
-        bad = tmp_path / "mcp_dedup.toml"
-        bad.write_text("[[ broken toml", encoding="utf-8")
+    def test_non_table_section_raises_parse_error(self):
         with pytest.raises(ConfigParseError):
-            load_dedup_config(bad)
+            load_dedup_section("not a table", "cicd_mcp_server.toml")
 
-    def test_wrong_type_raises_parse_error(self, tmp_path):
-        bad = tmp_path / "mcp_dedup.toml"
-        bad.write_text('[dedup]\nretention_days = "fourteen"\n', encoding="utf-8")
+    def test_wrong_value_type_raises_parse_error(self):
         with pytest.raises(ConfigParseError):
-            load_dedup_config(bad)
+            load_dedup_section({"retention_days": "fourteen"}, "x_mcp_server.toml")
 
-    def test_bad_section_types_raise_parse_error(self, tmp_path):
-        bad1 = tmp_path / "mcp_dedup.toml"
-        bad1.write_text('dedup = "not a table"\n', encoding="utf-8")
-        with pytest.raises(ConfigParseError):
-            load_dedup_config(bad1)
-        bad2 = tmp_path / "mcp_dedup.toml"
-        bad2.write_text('[dedup]\ndb_path = ""\n', encoding="utf-8")
-        with pytest.raises(ConfigParseError):
-            load_dedup_config(bad2)
-        bad3 = tmp_path / "mcp_dedup.toml"
-        bad3.write_text("[dedup]\n[retry_class]\nwrite_file = 5\n", encoding="utf-8")
-        with pytest.raises(ConfigParseError):
-            load_dedup_config(bad3)
+    def test_empty_db_path_rejected(self):
+        with pytest.raises(ConfigParseError, match="db_path"):
+            load_dedup_section({"db_path": ""}, "x_mcp_server.toml")
 
-    def test_partial_config_gets_defaults(self, tmp_path):
-        partial = tmp_path / "mcp_dedup.toml"
-        partial.write_text('[dedup]\ndb_path = "/tmp/x.sqlite"\n', encoding="utf-8")
-        cfg = load_dedup_config(partial)
+    def test_lease_seconds_out_of_range_rejected(self):
+        with pytest.raises(ConfigParseError, match="lease_seconds"):
+            load_dedup_section({"lease_seconds": 0}, "x_mcp_server.toml")
+
+    def test_max_attempts_out_of_range_rejected(self):
+        with pytest.raises(ConfigParseError, match="max_attempts"):
+            load_dedup_section({"max_attempts": 11}, "x_mcp_server.toml")
+
+    def test_retention_days_out_of_range_rejected(self):
+        with pytest.raises(ConfigParseError, match="retention_days"):
+            load_dedup_section({"retention_days": 0}, "x_mcp_server.toml")
+
+    def test_unknown_dedup_key_rejected(self):
+        with pytest.raises(ConfigParseError, match="unknown dedup keys"):
+            load_dedup_section({"sentinel_mode": 1}, "x_mcp_server.toml")
+
+    def test_partial_section_gets_defaults(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("LLMAGENT_DB_DIR", str(tmp_path))
+        cfg = load_dedup_section(
+            {"db_path": str(tmp_path / "mcp_dedup.sqlite")}, "x_mcp_server.toml"
+        )
         assert cfg.retention_days == 14
         assert cfg.pending_timeout_minutes == 10
         assert cfg.lease_seconds == 30
         assert cfg.max_attempts == 3
-        assert cfg.retry_class == {}
 
-    def test_lease_seconds_out_of_range_rejected(self, tmp_path):
-        bad = tmp_path / "mcp_dedup.toml"
-        bad.write_text("[dedup]\nlease_seconds = 0\n", encoding="utf-8")
-        with pytest.raises(ConfigParseError, match="lease_seconds"):
-            load_dedup_config(bad)
+    def test_db_path_outside_contract_dir_rejected(self, tmp_path):
+        with pytest.raises(ConfigParseError, match="canonical dedup store path"):
+            load_dedup_section(
+                {"db_path": str(tmp_path / "outside.sqlite")}, "x_mcp_server.toml"
+            )
 
-    def test_max_attempts_out_of_range_rejected(self, tmp_path):
-        bad = tmp_path / "mcp_dedup.toml"
-        bad.write_text("[dedup]\nmax_attempts = 11\n", encoding="utf-8")
-        with pytest.raises(ConfigParseError, match="max_attempts"):
-            load_dedup_config(bad)
+    def test_relative_db_path_rejected(self):
+        with pytest.raises(ConfigParseError, match="absolute path"):
+            load_dedup_section({"db_path": "relative.sqlite"}, "x_mcp_server.toml")
 
-    def test_unknown_dedup_key_rejected(self, tmp_path):
-        bad = tmp_path / "mcp_dedup.toml"
-        bad.write_text("[dedup]\nsentinel_mode = 1\n", encoding="utf-8")
-        with pytest.raises(ConfigParseError, match="unknown dedup keys"):
-            load_dedup_config(bad)
-
-    def test_retry_class_lookup(self, tmp_path):
-        cfg_file = tmp_path / "mcp_dedup.toml"
-        cfg_file.write_text(
-            '[dedup]\n[retry_class]\nwrite_file = "retryable"\nshell_run = "non_retryable"\n',
-            encoding="utf-8",
+    def test_store_opens_from_injected_config(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("LLMAGENT_DB_DIR", str(tmp_path))
+        cfg = load_dedup_section(
+            {"db_path": str(tmp_path / "mcp_dedup.sqlite")}, "x_mcp_server.toml"
         )
-        cfg = load_dedup_config(cfg_file)
-        assert retry_class("write_file", cfg) == "retryable"
-        assert retry_class("shell_run", cfg) == "non_retryable"
-        # Unknown tools are never retried blindly.
-        assert retry_class("some_new_tool", cfg) == "non_retryable"
-
-    def test_retry_class_unknown_tool_name_rejected(self, tmp_path):
-        bad = tmp_path / "mcp_dedup.toml"
-        bad.write_text(
-            '[dedup]\n[retry_class]\nnot_a_tool = "retryable"\n', encoding="utf-8"
-        )
-        with pytest.raises(ConfigParseError, match="not_a_tool"):
-            load_dedup_config(bad)
-
-    def test_retry_class_disallowed_value_rejected(self, tmp_path):
-        bad = tmp_path / "mcp_dedup.toml"
-        bad.write_text(
-            '[dedup]\n[retry_class]\nwrite_file = "sometimes"\n', encoding="utf-8"
-        )
-        with pytest.raises(ConfigParseError, match="write_file"):
-            load_dedup_config(bad)
-
-    def test_retry_class_reference_drift_is_reported_not_fatal(self, tmp_path, caplog):
-        # agentcfg003: the declared retry_policy is the authority; a mirror entry
-        # disagreeing with the RETRYABLE_TOOLS reference set is a drift finding,
-        # not a load failure, and the loaded classification stands.
-        drift = tmp_path / "mcp_dedup.toml"
-        drift.write_text(
-            '[dedup]\n[retry_class]\nwrite_file = "non_retryable"\n', encoding="utf-8"
-        )
-        with caplog.at_level(logging.WARNING):
-            cfg = load_dedup_config(drift)
-        assert cfg.retry_class["write_file"] == "non_retryable"
-        assert retry_class("write_file", cfg) == "non_retryable"
-        assert any("drift finding" in record.message for record in caplog.records)
-
-    def test_retry_class_membership_contradiction_reports_drift(self, tmp_path, caplog):
-        # agentcfg003 replaced the fail-closed gate: a mirror entry contradicting
-        # the RETRYABLE_TOOLS reference set loads with a drift finding.
-        bad = tmp_path / "mcp_dedup.toml"
-        bad.write_text(
-            '[dedup]\n[retry_class]\nsearch_web = "retryable"\n', encoding="utf-8"
-        )
-        with caplog.at_level(logging.WARNING):
-            cfg = load_dedup_config(bad)
-        assert cfg.retry_class["search_web"] == "retryable"
-        assert any("search_web" in record.message for record in caplog.records)
-
-    def test_store_opens_from_config_db_path(self, tmp_path):
-        cfg_file = tmp_path / "mcp_dedup.toml"
-        cfg_file.write_text(
-            f'[dedup]\ndb_path = "{tmp_path / "from_cfg.sqlite"}"\n', encoding="utf-8"
-        )
-        cfg = load_dedup_config(cfg_file)
         store = open_dedup_store(cfg)
         res = store.try_acquire_execution("k1", "web_search", "h1", _SNAP, "owner-a")
         assert res.status == "acquired"
         store.close()
-        assert (tmp_path / "from_cfg.sqlite").exists()
+        assert (tmp_path / "mcp_dedup.sqlite").exists()
 
-
-class TestConfigResolutionAndCache:
-    @pytest.fixture(autouse=True)
-    def _reset_config_cache(self):
-        clear_dedup_config_cache()
-        yield
-        clear_dedup_config_cache()
-
-    def test_default_path_honors_llmagent_config_dir(self, tmp_path, monkeypatch):
-        cfg_dir = tmp_path / "cfg"
-        cfg_dir.mkdir()
-        (cfg_dir / "mcp_dedup.toml").write_text(
-            "[dedup]\nretention_days = 21\n", encoding="utf-8"
+    def test_lease_and_attempt_knobs_flow_to_store(self, tmp_path):
+        # DedupStoreConfig is the single source for the lease/attempt knobs.
+        cfg = DedupStoreConfig(
+            db_path=str(tmp_path / "x.sqlite"), lease_seconds=45, max_attempts=2
         )
-        monkeypatch.setenv("LLMAGENT_CONFIG_DIR", str(cfg_dir))
-        cfg = load_dedup_config()
-        assert cfg.retention_days == 21
-
-    def test_explicit_path_still_loads(self, tmp_path):
-        cfg_file = tmp_path / "mcp_dedup.toml"
-        cfg_file.write_text("[dedup]\nretention_days = 7\n", encoding="utf-8")
-        cfg = load_dedup_config(cfg_file)
-        assert cfg.retention_days == 7
-
-    def test_second_load_serves_cache_without_file(self, tmp_path):
-        cfg_file = tmp_path / "mcp_dedup.toml"
-        cfg_file.write_text("[dedup]\nretention_days = 7\n", encoding="utf-8")
-        first = load_dedup_config(cfg_file)
-        cfg_file.unlink()
-        assert load_dedup_config(cfg_file) is first
-
-    def test_cache_clear_forces_reload(self, tmp_path):
-        cfg_file = tmp_path / "mcp_dedup.toml"
-        cfg_file.write_text("[dedup]\nretention_days = 7\n", encoding="utf-8")
-        assert load_dedup_config(cfg_file).retention_days == 7
-        cfg_file.write_text("[dedup]\nretention_days = 30\n", encoding="utf-8")
-        clear_dedup_config_cache()
-        assert load_dedup_config(cfg_file).retention_days == 30
-
-    def test_missing_file_error_not_cached(self, tmp_path):
-        missing = tmp_path / "absent.toml"
-        with pytest.raises(ConfigMissingError):
-            load_dedup_config(missing)
-        with pytest.raises(ConfigMissingError):
-            load_dedup_config(missing)
-
-    def test_db_path_fallback_matches_convention(self, tmp_path):
-        import dataclasses
-
-        from db.config import DbConfig
-
-        cfg_file = tmp_path / "mcp_dedup.toml"
-        cfg_file.write_text("[dedup]\nretention_days = 14\n", encoding="utf-8")
-        cfg = load_dedup_config(cfg_file)
-        assert cfg.db_path == DEFAULT_DB_PATH == "/opt/llm/db/mcp_dedup.sqlite"
-        own_parent = Path(DEFAULT_DB_PATH).parent
-        fallbacks = [
-            f.default
-            for f in dataclasses.fields(DbConfig)
-            if f.name == "workflow_db_path"
-        ]
-        assert fallbacks and all(Path(v).parent == own_parent for v in fallbacks)
+        store = open_dedup_store(cfg)
+        assert store._lease_seconds == 45
+        assert store._max_attempts == 2
+        store.close()
 
 
-def test_dedup_config_fields_match_loader(tmp_path):
-    # DedupConfig is the single source for the lease/attempt knobs.
-    cfg = DedupConfig(db_path="/tmp/x.sqlite", lease_seconds=45, max_attempts=2)
-    store = open_dedup_store(cfg)
-    assert store._lease_seconds == 45
-    assert store._max_attempts == 2
-    store.close()
+class TestDedupDbDirContract:
+    def test_default_dir_is_db_path_parent(self, monkeypatch):
+        monkeypatch.delenv("LLMAGENT_DB_DIR", raising=False)
+        assert dedup_db_dir() == Path(DEFAULT_DB_PATH).parent
+
+    def test_env_override_relocates_contract_dir(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("LLMAGENT_DB_DIR", str(tmp_path))
+        assert dedup_db_dir() == tmp_path

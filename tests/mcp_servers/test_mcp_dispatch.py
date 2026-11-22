@@ -17,6 +17,7 @@ from mcp_servers.dispatch import (
     _is_side_effecting,
     dispatch_tool,
 )
+from shared.mcp_dedup import DedupStoreError
 
 
 class TestDispatchTool:
@@ -109,15 +110,25 @@ class TestDispatchIdempotencyCache:
 
     @pytest.fixture(autouse=True)
     def _clear_idem_cache(self, monkeypatch: Any) -> Iterator[None]:
-        # Overlay-only isolation: with the resolver-based config default the conftest
-        # isolation config makes the durable store openable in-process, which would
-        # turn these fixed-key cases into store hits. Disable it explicitly here.
+        # Overlay-only isolation: the durable store is never opened in-process
+        # here, which would turn these fixed-key cases into store hits. Disable
+        # it explicitly, and inject the declared retry_policy these tools carry
+        # so the degraded overlay path mirrors a configured bootstrap process.
         import mcp_servers.dispatch as dispatch_mod
 
         _duplicate_cache.clear()
         monkeypatch.setattr(dispatch_mod, "_dedup_store", None)
         monkeypatch.setattr(dispatch_mod, "_dedup_config", None)
         monkeypatch.setattr(dispatch_mod, "_dedup_disabled", True)
+        monkeypatch.setattr(
+            dispatch_mod,
+            "_tool_retry_policies",
+            {
+                "write_file": "same_logical_call_only",
+                "index_paths": "same_logical_call_only",
+                "refresh_index": "same_logical_call_only",
+            },
+        )
         yield
         _duplicate_cache.clear()
 
@@ -331,21 +342,25 @@ class TestDurableDedup:
     @pytest.fixture()
     def durable(self, tmp_path: Any, monkeypatch: Any) -> Iterator[dict[str, Any]]:
         import mcp_servers.dispatch as dispatch_mod
-        from shared.mcp_dedup import DedupConfig, DedupStore
+        from shared.mcp_dedup import DedupStore, DedupStoreConfig
 
         db_path = str(tmp_path / "mcp_dedup.sqlite")
         store = DedupStore(db_path)
-        config = DedupConfig(
+        config = DedupStoreConfig(
             db_path=db_path,
             retention_days=14,
             pending_timeout_minutes=10,
-            retry_class={self.TOOL: "retryable"},
         )
         _duplicate_cache.clear()
         monkeypatch.setattr(dispatch_mod, "_dedup_store", store)
         monkeypatch.setattr(dispatch_mod, "_dedup_config", config)
         monkeypatch.setattr(dispatch_mod, "_dedup_disabled", False)
         monkeypatch.setattr(dispatch_mod, "_purge_done", False)
+        monkeypatch.setattr(
+            dispatch_mod,
+            "_tool_retry_policies",
+            {self.TOOL: "same_logical_call_only"},
+        )
         state = {
             "store": store,
             "config": config,
@@ -530,7 +545,7 @@ class TestDurableDedup:
         calls: list[int] = []
         import time
 
-        durable["mod"]._dedup_config = replace(durable["config"], retry_class={})
+        durable["mod"]._tool_retry_policies = {}
         args_hash = durable["mod"]._normalize_args_hash({"p": "a"})
         acq = durable["store"].try_acquire_execution(
             "k1",
@@ -566,16 +581,17 @@ class TestDurableDedup:
         import time
 
         import mcp_servers.dispatch as dispatch_mod
-        from shared.mcp_dedup import DedupConfig, DedupStore
+        from shared.mcp_dedup import DedupStore, DedupStoreConfig
 
         db_path = str(tmp_path / "cap_dedup.sqlite")
         store = DedupStore(db_path, max_attempts=1)
-        config = DedupConfig(db_path=db_path, retry_class={})
+        config = DedupStoreConfig(db_path=db_path)
         _duplicate_cache.clear()
         monkeypatch.setattr(dispatch_mod, "_dedup_store", store)
         monkeypatch.setattr(dispatch_mod, "_dedup_config", config)
         monkeypatch.setattr(dispatch_mod, "_dedup_disabled", False)
         monkeypatch.setattr(dispatch_mod, "_purge_done", False)
+        monkeypatch.setattr(dispatch_mod, "_tool_retry_policies", {})
         try:
             args_hash = dispatch_mod._normalize_args_hash({"p": "a"})
             store.try_acquire_execution(
@@ -599,9 +615,7 @@ class TestDurableDedup:
             assert len(calls) == 0
 
             # Retryable classification: audited degraded dispatch, no ownership.
-            dispatch_mod._dedup_config = replace(
-                config, retry_class={self.TOOL: "retryable"}
-            )
+            dispatch_mod._tool_retry_policies = {self.TOOL: "same_logical_call_only"}
             _duplicate_cache.clear()
             calls2: list[int] = []
             r2 = await dispatch_tool(
@@ -671,7 +685,7 @@ class TestDurableDedup:
         assert len(calls) == 1
 
         calls2: list[int] = []
-        durable["mod"]._dedup_config = replace(durable["config"], retry_class={})
+        durable["mod"]._tool_retry_policies = {}
         r2 = await dispatch_tool(
             {self.TOOL: self._handler(calls2)},
             self.TOOL,
@@ -683,36 +697,20 @@ class TestDurableDedup:
         assert len(calls2) == 0
 
     @pytest.mark.asyncio
-    async def test_init_failure_fail_closed_and_degrade(
+    async def test_not_configured_fails_closed_and_degrades(
         self, durable: dict, monkeypatch: Any
     ) -> None:
-        """Store initialization failure (dedup unavailable): non-retryable tools
-        fail closed with dedup_store_error; retryable tools degrade to
-        store_error and proceed overlay-only (REQ-001/REQ-002). Mirrors the
-        lookup-failure test but forces the (None, None) init-failure path."""
-        import shared.mcp_dedup as dedup_mod
-
+        """A dispatcher whose bootstrap never ran (store never injected): non-
+        retryable tools fail closed with dedup_store_error; retryable tools
+        degrade to store_error and proceed overlay-only (REQ-001/REQ-002)."""
         mod = durable["mod"]
-        # Force the (None, None) init-failure path: clear any cached context so
-        # _dedup_context() re-enters init, point load_dedup_config at a valid
-        # config, then make open_dedup_store raise so init fails open.
         mod._dedup_store = None
         mod._dedup_config = None
         mod._dedup_disabled = False
-        monkeypatch.setattr(mod, "load_dedup_config", lambda: durable["config"])
-
-        def _boom(*a: Any, **kw: Any) -> None:
-            raise sqlite3.OperationalError("init failed")
-
-        monkeypatch.setattr(mod, "open_dedup_store", _boom)
-
-        def _cfg(retry: dict[str, str]) -> Any:
-            return replace(durable["config"], retry_class=retry)
+        mod._dedup_start_state = None
 
         # Retryable tool: degrade to store_error and proceed overlay-only (REQ-002).
-        monkeypatch.setattr(
-            dedup_mod, "load_dedup_config", lambda: _cfg({self.TOOL: "retryable"})
-        )
+        mod._tool_retry_policies = {self.TOOL: "same_logical_call_only"}
         calls: list[int] = []
         r = await dispatch_tool(
             {self.TOOL: self._handler(calls)},
@@ -722,10 +720,11 @@ class TestDurableDedup:
         )
         assert not r.is_error
         assert r.dedup_state == "store_error"
+        assert mod._dedup_start_state == "not_configured"
         assert len(calls) == 1
 
         # Non-retryable tool: fail closed (REQ-001).
-        monkeypatch.setattr(dedup_mod, "load_dedup_config", lambda: _cfg({}))
+        mod._tool_retry_policies = {}
         calls2: list[int] = []
         r2 = await dispatch_tool(
             {self.TOOL: self._handler(calls2)},
@@ -738,109 +737,58 @@ class TestDurableDedup:
         assert len(calls2) == 0
 
     @pytest.mark.asyncio
-    async def test_lost_store_start_state_refused_retryable_degrades(
+    async def test_lost_store_refuses_bootstrap_open(
         self, durable: dict, monkeypatch: Any
     ) -> None:
         """A lost store (file gone while the installation marker remains) refuses
-        the open with the typed 'lost' start state: non-retryable tools fail
-        closed, retryable tools degrade overlay-only (REQ-006/REQ-007)."""
+        the injected bootstrap open with the typed 'lost' start state: the MCP
+        process must not start (REQ-006/REQ-007)."""
         import os
-
-        import shared.mcp_dedup as dedup_mod
 
         mod = durable["mod"]
         # Simulate a lost store: delete the DB file, leave .mcp_dedup_installed.
         durable["store"].close()
         os.remove(durable["db_path"])
-        # Force re-init: _dedup_context() re-opens and the store refuses with 'lost'.
-        mod._dedup_store = None
-        mod._dedup_config = None
-        mod._dedup_disabled = False
-        mod._dedup_start_state = None
-        monkeypatch.setattr(mod, "load_dedup_config", lambda: durable["config"])
-        monkeypatch.setattr(
-            dedup_mod,
-            "load_dedup_config",
-            lambda: replace(durable["config"], retry_class={}),
-        )
-
-        # Non-retryable: refused without executing (fail closed).
-        calls: list[int] = []
-        r = await dispatch_tool(
-            {self.TOOL: self._handler(calls)},
-            self.TOOL,
-            {"p": "a"},
-            idempotency_key="k1",
-        )
-        assert r.is_error
-        assert r.error_type == "dedup_store_error"
-        assert r.dedup_state == "store_error"
-        assert mod._dedup_start_state == "lost"
-        assert len(calls) == 0
-
-        # Retryable: degrade to store_error and proceed overlay-only.
-        monkeypatch.setattr(
-            dedup_mod,
-            "load_dedup_config",
-            lambda: replace(durable["config"], retry_class={self.TOOL: "retryable"}),
-        )
-        calls2: list[int] = []
-        r2 = await dispatch_tool(
-            {self.TOOL: self._handler(calls2)},
-            self.TOOL,
-            {"p": "b"},
-            idempotency_key="k2",
-        )
-        assert not r2.is_error
-        assert r2.dedup_state == "store_error"
-        assert len(calls2) == 1
+        with pytest.raises(DedupStoreError) as excinfo:
+            mod.configure_dedup(durable["config"])
+        assert excinfo.value.state == "lost"
 
     @pytest.mark.asyncio
-    async def test_replaced_store_start_state_refused(
-        self, durable: dict, monkeypatch: Any
-    ) -> None:
+    async def test_replaced_store_refuses_bootstrap_open(self, durable: dict) -> None:
         """A store file whose store_meta uuid contradicts the installation marker
-        is classified 'replaced' and refuses the open: non-retryable tools fail
-        closed (REQ-006)."""
-        import shared.mcp_dedup as dedup_mod
-
+        is classified 'replaced' and refuses the bootstrap open (REQ-006)."""
         mod = durable["mod"]
         durable["store"].close()
         raw = sqlite3.connect(durable["db_path"])
         raw.execute("UPDATE store_meta SET store_uuid = 'foreign-uuid-0000'")
         raw.commit()
         raw.close()
-        mod._dedup_store = None
-        mod._dedup_config = None
-        mod._dedup_disabled = False
-        mod._dedup_start_state = None
-        cfg = replace(durable["config"], retry_class={})
-        monkeypatch.setattr(mod, "load_dedup_config", lambda: cfg)
-        monkeypatch.setattr(dedup_mod, "load_dedup_config", lambda: cfg)
-
-        calls: list[int] = []
-        r = await dispatch_tool(
-            {self.TOOL: self._handler(calls)},
-            self.TOOL,
-            {"p": "a"},
-            idempotency_key="k1",
-        )
-        assert r.is_error
-        assert r.error_type == "dedup_store_error"
-        assert r.dedup_state == "store_error"
-        assert mod._dedup_start_state == "replaced"
-        assert len(calls) == 0
+        with pytest.raises(DedupStoreError) as excinfo:
+            mod.configure_dedup(durable["config"])
+        assert excinfo.value.state == "replaced"
 
     @pytest.mark.asyncio
-    async def test_legacy_store_start_state_refused(
-        self, durable: dict, monkeypatch: Any
-    ) -> None:
-        """A pre-change store shape (no store_meta identity row) is classified
-        'legacy_or_unverified' and refuses the open: non-retryable tools fail
-        closed, never first-initialization (REQ-006)."""
-        import os
+    async def test_drifted_config_refuses_bootstrap_open(self, durable: dict) -> None:
+        """Reopening the shared store under a [dedup] table whose values drifted
+        from the first-initialization fingerprint refuses with 'identity_mismatch'
+        (REQ-007 reopen gate)."""
+        mod = durable["mod"]
+        durable["store"].close()
+        from shared.mcp_dedup import DedupStore as _Store
 
-        import shared.mcp_dedup as dedup_mod
+        first = _Store(durable["db_path"], config=durable["config"])
+        first.close()
+        drifted = replace(durable["config"], lease_seconds=45)
+        with pytest.raises(DedupStoreError) as excinfo:
+            mod.configure_dedup(drifted)
+        assert excinfo.value.state == "identity_mismatch"
+
+    @pytest.mark.asyncio
+    async def test_legacy_store_refuses_bootstrap_open(self, durable: dict) -> None:
+        """A pre-change store shape (no store_meta identity row) is classified
+        'legacy_or_unverified' and refuses the bootstrap open, never first-
+        initialization (REQ-006)."""
+        import os
 
         mod = durable["mod"]
         durable["store"].close()
@@ -854,26 +802,9 @@ class TestDurableDedup:
         raw.execute("CREATE TABLE dedup_call_state (key TEXT PRIMARY KEY, status TEXT)")
         raw.commit()
         raw.close()
-        mod._dedup_store = None
-        mod._dedup_config = None
-        mod._dedup_disabled = False
-        mod._dedup_start_state = None
-        cfg = replace(durable["config"], retry_class={})
-        monkeypatch.setattr(mod, "load_dedup_config", lambda: cfg)
-        monkeypatch.setattr(dedup_mod, "load_dedup_config", lambda: cfg)
-
-        calls: list[int] = []
-        r = await dispatch_tool(
-            {self.TOOL: self._handler(calls)},
-            self.TOOL,
-            {"p": "a"},
-            idempotency_key="k1",
-        )
-        assert r.is_error
-        assert r.error_type == "dedup_store_error"
-        assert r.dedup_state == "store_error"
-        assert mod._dedup_start_state == "legacy_or_unverified"
-        assert len(calls) == 0
+        with pytest.raises(DedupStoreError) as excinfo:
+            mod.configure_dedup(durable["config"])
+        assert excinfo.value.state == "legacy_or_unverified"
 
     @pytest.mark.asyncio
     async def test_first_ever_key_executes_once_on_fresh_store(
@@ -882,7 +813,7 @@ class TestDurableDedup:
         """A genuinely fresh store (no installation marker) classifies as
         first_initialization and executes a never-seen key once (REQ-006)."""
         assert durable["store"].start_state == "first_initialization"
-        durable["mod"]._dedup_config = replace(durable["config"], retry_class={})
+        durable["mod"]._tool_retry_policies = {}
         calls: list[int] = []
         r = await dispatch_tool(
             {self.TOOL: self._handler(calls)},
@@ -904,7 +835,7 @@ class TestDurableDedup:
             raise sqlite3.OperationalError("disk I/O error")
 
         monkeypatch.setattr(durable["store"], "try_acquire_execution", _boom)
-        durable["mod"]._dedup_config = replace(durable["config"], retry_class={})
+        durable["mod"]._tool_retry_policies = {}
         calls: list[int] = []
         r = await dispatch_tool(
             {self.TOOL: self._handler(calls)},
@@ -1022,16 +953,21 @@ class TestDurableDedupDryRunClear:
     @pytest.fixture()
     def durable(self, tmp_path: Any, monkeypatch: Any) -> Iterator[dict[str, Any]]:
         import mcp_servers.dispatch as dispatch_mod
-        from shared.mcp_dedup import DedupConfig, DedupStore
+        from shared.mcp_dedup import DedupStore, DedupStoreConfig
 
         db_path = str(tmp_path / "mcp_dedup.sqlite")
         store = DedupStore(db_path)
-        config = DedupConfig(db_path=db_path, retry_class={self.TOOL: "retryable"})
+        config = DedupStoreConfig(db_path=db_path)
         _duplicate_cache.clear()
         monkeypatch.setattr(dispatch_mod, "_dedup_store", store)
         monkeypatch.setattr(dispatch_mod, "_dedup_config", config)
         monkeypatch.setattr(dispatch_mod, "_dedup_disabled", False)
         monkeypatch.setattr(dispatch_mod, "_purge_done", False)
+        monkeypatch.setattr(
+            dispatch_mod,
+            "_tool_retry_policies",
+            {self.TOOL: "same_logical_call_only"},
+        )
         yield {"store": store, "mod": dispatch_mod}
         store.close()
         _duplicate_cache.clear()

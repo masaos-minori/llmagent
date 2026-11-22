@@ -310,13 +310,17 @@ async def check_approval(
 
 
 def _issue_grant(
-    pc: PreparedToolCall, decision: ApprovalDecisionType
+    pc: PreparedToolCall,
+    decision: ApprovalDecisionType,
+    grant_ttl_seconds: float = _GRANT_TTL_SECONDS,
 ) -> PreparedToolCall:
     """Return a copy of *pc* carrying a fresh ApprovalGrant (REQ-006, AC-4).
 
     `args_hash` reuses the preparation phase's canonical-JSON hash function —
     the exact value `ToolExecutionContext.args_hash` carries — so the gateway
-    comparison (row 3) holds for any args payload.
+    comparison (row 3) holds for any args payload. The grant horizon comes
+    from the caller's config (mcpdl003 REQ-002); the module constant is only
+    the fallback default.
     """
     now = time.time()
     grant = ApprovalGrant(
@@ -324,7 +328,7 @@ def _issue_grant(
         args_hash=_canonical_args_hash(pc.args),
         mode=decision.value,
         issued_at=now,
-        expires_at=now + _GRANT_TTL_SECONDS,
+        expires_at=now + grant_ttl_seconds,
     )
     return replace(pc, grant=grant)
 
@@ -374,5 +378,7 @@ async def run_approval_checks(
             if risk == RiskLevel.NONE
             else ApprovalDecisionType.APPROVED
         )
-        approved_calls.append(_issue_grant(pc, decision))
+        approved_calls.append(
+            _issue_grant(pc, decision, ctx.cfg.approval_grant_ttl_seconds)
+        )
     return approved_calls, denied_ids
