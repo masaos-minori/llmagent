@@ -14,11 +14,12 @@ from agent.config_dataclasses import (
     ApprovalConfig,
     LLMConfig,
     MemoryConfig,
-    RAGConfig,
     ToolConfig,
 )
 from shared.mcp_config import StartupMode
 from shared.runtime_tool_registry import RuntimeToolRegistry
+
+from tests.agent._config_test_defaults import MIN_DB_CONFIG, MIN_MAINTENANCE_CONFIG
 
 
 @pytest.fixture()
@@ -46,16 +47,21 @@ def svc() -> object:
         llm_stream_retry_on_heartbeat_timeout=True,
         llm_stream_retry_on_malformed_chunk=False,
     )
-    rag_cfg = RAGConfig(
-        embed_url="http://localhost:8080/embed",
-    )
     tool_cfg = ToolConfig(
         system_prompts={},
         masked_fields=[],
     )
     ctx = MagicMock()
-    ctx.cfg = AgentConfig(llm=llm_cfg, rag=rag_cfg, tool=tool_cfg)
-    ctx.cfg.memory = MemoryConfig(memory_embed_enabled=False)
+    # The Memory section owns the embedding endpoint, so the Memory fixture carries it.
+    ctx.cfg = AgentConfig(
+        llm=llm_cfg,
+        memory=MemoryConfig(
+            memory_embed_enabled=True, memory_embed_url="http://localhost:8080/embed"
+        ),
+        tool=tool_cfg,
+        db=MIN_DB_CONFIG,
+        maintenance=MIN_MAINTENANCE_CONFIG,
+    )
     ctx.cfg.approval = MagicMock()
     ctx.cfg.approval.require_approval_for = []
     ctx.cfg.approval.plan_mode_enabled = False
@@ -91,16 +97,21 @@ def svc_with_ctx() -> tuple[object, MagicMock]:
         llm_stream_retry_on_heartbeat_timeout=True,
         llm_stream_retry_on_malformed_chunk=False,
     )
-    rag_cfg = RAGConfig(
-        embed_url="http://localhost:8080/embed",
-    )
     tool_cfg = ToolConfig(
         system_prompts={},
         masked_fields=[],
     )
     ctx = MagicMock()
-    ctx.cfg = AgentConfig(llm=llm_cfg, rag=rag_cfg, tool=tool_cfg)
-    ctx.cfg.memory = MemoryConfig(memory_embed_enabled=False)
+    # The Memory section owns the embedding endpoint, so the Memory fixture carries it.
+    ctx.cfg = AgentConfig(
+        llm=llm_cfg,
+        memory=MemoryConfig(
+            memory_embed_enabled=True, memory_embed_url="http://localhost:8080/embed"
+        ),
+        tool=tool_cfg,
+        db=MIN_DB_CONFIG,
+        maintenance=MIN_MAINTENANCE_CONFIG,
+    )
     ctx.cfg.approval = ApprovalConfig()
     ctx.cfg.mcp = MagicMock()
     ctx.cfg.mcp.mcp_servers = {}
@@ -209,17 +220,44 @@ class TestConfigReloadAtomicity:
         svc, ctx = svc_with_ctx
         svc._sync_services = MagicMock()  # type: ignore[method-assign]
         before_llm = copy.deepcopy(ctx.cfg.llm)
-        before_rag = copy.deepcopy(ctx.cfg.rag)
+        before_memory = copy.deepcopy(ctx.cfg.memory)
         payload = {
             "llm_temperature": 0.5,
-            "embed_url": "http://localhost:8081/embed",
+            "memory_embed_url": "http://localhost:8081/embed",
             "max_tool_turns": 0,
         }
         with pytest.raises(ConfigReloadValidationError):
             svc.apply_config_dict(payload)  # type: ignore[attr-defined]
         assert ctx.cfg.llm == before_llm
-        assert ctx.cfg.rag == before_rag
+        assert ctx.cfg.memory == before_memory
         svc._sync_services.assert_not_called()  # type: ignore[attr-defined]
+
+    def test_invalid_memory_embed_url_leaves_live_memory_unchanged(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        """The typed Memory candidate is validated before commit: an empty endpoint
+        while embedding is enabled raises before any section is applied (REQ-002, AC-002)."""
+        from agent.services.exceptions import ConfigReloadValidationError
+
+        svc, ctx = svc_with_ctx
+        svc._sync_services = MagicMock()  # type: ignore[method-assign]
+        before_memory = copy.deepcopy(ctx.cfg.memory)
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict({"memory_embed_url": ""})  # type: ignore[attr-defined]
+        assert ctx.cfg.memory == before_memory
+        svc._sync_services.assert_not_called()  # type: ignore[attr-defined]
+
+    def test_valid_memory_embed_url_is_applied_after_validation(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        """A valid endpoint passes the candidate's validation and is committed (REQ-002)."""
+        svc, ctx = svc_with_ctx
+        svc._sync_services = MagicMock()  # type: ignore[method-assign]
+        outcome = svc.apply_config_dict(  # type: ignore[attr-defined]
+            {"memory_embed_url": "http://localhost:8082/embed"}
+        )
+        assert ctx.cfg.memory.memory_embed_url == "http://localhost:8082/embed"
+        assert "memory" in outcome.applied
 
     def test_direct_fields_unchanged_on_later_failure(
         self, svc_with_ctx: tuple[object, MagicMock]
@@ -276,7 +314,7 @@ class TestConfigReloadAtomicity:
         outcome = svc.apply_config_dict(  # type: ignore[attr-defined]
             {
                 "llm_temperature": 0.5,
-                "embed_url": "http://localhost:8081/embed",
+                "memory_embed_url": "http://localhost:8081/embed",
                 "max_tool_turns": 7,
                 "allowed_tools": ["read_file"],
                 "system_prompt_tool": "new prompt",
@@ -284,12 +322,12 @@ class TestConfigReloadAtomicity:
             }
         )
         assert ctx.cfg.llm.llm_temperature == 0.5
-        assert ctx.cfg.rag.embed_url == "http://localhost:8081/embed"
+        assert ctx.cfg.memory.memory_embed_url == "http://localhost:8081/embed"
         assert ctx.cfg.tool.max_tool_turns == 7
         assert ctx.cfg.tool.allowed_tools == ["read_file"]
         assert ctx.conv.system_prompt_content == "new prompt"
         assert "llm" in outcome.applied
-        assert "rag" in outcome.applied
+        assert "memory" in outcome.applied
         assert "tool" in outcome.applied
         assert "approval" in outcome.applied
 
@@ -983,12 +1021,15 @@ class TestApprovalGitopsPushBlocked:
         result = svc.apply_config(req)  # type: ignore[attr-defined]
         assert result is not None
 
-    def test_empty_embed_url_does_not_raise(self, svc: object) -> None:
+    def test_empty_memory_embed_url_raises_when_embedding_is_enabled(
+        self, svc: object
+    ) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
         from agent.services.models import ConfigReloadRequest
 
-        req = ConfigReloadRequest(rag_tool={"embed_url": ""})
-        result = svc.apply_config(req)  # type: ignore[attr-defined]
-        assert result is not None
+        req = ConfigReloadRequest(rag_tool={"memory_embed_url": ""})
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config(req)  # type: ignore[attr-defined]
 
     def test_invalid_max_tool_turns_raises(self, svc: object) -> None:
         from agent.services.exceptions import ConfigReloadValidationError
@@ -1036,16 +1077,22 @@ class TestRegistryFieldClassification:
             llm_stream_retry_on_heartbeat_timeout=True,
             llm_stream_retry_on_malformed_chunk=False,
         )
-        rag_cfg = RAGConfig(
-            embed_url="http://localhost:8080/embed",
-        )
         tool_cfg = ToolConfig(
             system_prompts={},
             masked_fields=[],
         )
         ctx = MagicMock()
-        ctx.cfg = AgentConfig(llm=llm_cfg, rag=rag_cfg, tool=tool_cfg)
-        ctx.cfg.memory = MemoryConfig(memory_embed_enabled=False)
+        # The Memory section owns the embedding endpoint, so the Memory fixture carries it.
+        ctx.cfg = AgentConfig(
+            llm=llm_cfg,
+            memory=MemoryConfig(
+                memory_embed_enabled=True,
+                memory_embed_url="http://localhost:8080/embed",
+            ),
+            tool=tool_cfg,
+            db=MIN_DB_CONFIG,
+            maintenance=MIN_MAINTENANCE_CONFIG,
+        )
         ctx.cfg.approval = MagicMock()
         ctx.cfg.approval.require_approval_for = []
         ctx.cfg.approval.plan_mode_enabled = False
@@ -1098,19 +1145,6 @@ class TestRegistryFieldClassification:
             "llm_stream_retry_on_malformed_chunk",
         }
         assert set(llm_fields) == expected
-
-    def test_rag_section_fields_are_classified_correctly(self) -> None:
-        from agent.services.config_field_registry import CONFIG_FIELD_REGISTRY
-
-        rag_fields = [
-            entry.name
-            for entry in CONFIG_FIELD_REGISTRY.values()
-            if entry.section_path == "rag"
-        ]
-        expected = {
-            "embed_url",
-        }
-        assert set(rag_fields) == expected
 
     def test_tool_section_fields_are_classified_correctly(self) -> None:
         from agent.services.config_field_registry import CONFIG_FIELD_REGISTRY
@@ -1165,6 +1199,7 @@ class TestRegistryFieldClassification:
             "memory_local_only",
             "use_memory_layer",
             "memory_embed_enabled",
+            "memory_embed_url",
         }
         assert set(memory_fields) == expected
 
@@ -1225,11 +1260,13 @@ class TestRegistryFieldClassification:
         svc_with_mocked_mcp.apply_config_dict({"llm_temperature": 0.8})
         assert svc_with_mocked_mcp._ctx.cfg.llm.llm_temperature == 0.8
 
-    def test_apply_config_dict_applies_rag_fields_via_registry(
+    def test_apply_config_dict_applies_memory_fields_via_registry(
         self, svc_with_mocked_mcp: object
     ) -> None:
-        svc_with_mocked_mcp.apply_config_dict({"embed_url": "http://embed:8081"})
-        assert svc_with_mocked_mcp._ctx.cfg.rag.embed_url == "http://embed:8081"
+        svc_with_mocked_mcp.apply_config_dict({"memory_embed_url": "http://embed:8081"})
+        assert svc_with_mocked_mcp._ctx.cfg.memory.memory_embed_url == (
+            "http://embed:8081"
+        )
 
     def test_apply_config_dict_applies_tool_fields_via_registry(
         self, svc_with_mocked_mcp: object
@@ -1247,7 +1284,9 @@ class TestRegistryFieldClassification:
         self, svc_with_mocked_mcp: object
     ) -> None:
         svc_with_mocked_mcp.apply_config_dict(
-            {"llm_temperature": 0.9, "embed_url": "http://embed:8081"}
+            {"llm_temperature": 0.9, "memory_embed_url": "http://embed:8081"}
         )
         assert svc_with_mocked_mcp._ctx.cfg.llm.llm_temperature == 0.9
-        assert svc_with_mocked_mcp._ctx.cfg.rag.embed_url == "http://embed:8081"
+        assert svc_with_mocked_mcp._ctx.cfg.memory.memory_embed_url == (
+            "http://embed:8081"
+        )

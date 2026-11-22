@@ -125,24 +125,24 @@ def _refusal(entry: Callable[[], object]) -> str | None:
 
 @contextmanager
 def _rag_entry_patches(db_file: Path, canonical: str):
+    """Yield the typed configuration the entry point is given; no configuration file is read."""
     cfg = DbConfig(rag_db_path=str(db_file), session_db_path=str(db_file.parent / "s"))
     with (
-        patch("db.helper.build_db_config", return_value=cfg),
         patch("db.create_schema.build_rag_schema_sql", return_value=canonical),
         patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
     ):
-        yield
+        yield cfg
 
 
 @contextmanager
 def _session_entry_patches(db_file: Path, canonical: str):
+    """Yield the typed configuration the entry point is given; no configuration file is read."""
     cfg = DbConfig(rag_db_path=str(db_file.parent / "r"), session_db_path=str(db_file))
     with (
-        patch("db.helper.build_db_config", return_value=cfg),
         patch("db.create_schema.build_session_schema_sql", return_value=canonical),
         patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
     ):
-        yield
+        yield cfg
 
 
 _RAG_CANONICAL = _without_vec0(build_rag_schema_sql(8))
@@ -151,17 +151,23 @@ _MDQ_CANONICAL = ";\n".join(_CREATE_STATEMENTS) + ";"
 
 
 def _entry_rag(path: Path) -> str | None:
-    with _rag_entry_patches(path, _RAG_CANONICAL):
-        return _refusal(create_rag_schema)
+    with _rag_entry_patches(path, _RAG_CANONICAL) as cfg:
+        return _refusal(lambda: create_rag_schema(cfg))
 
 
 def _entry_session(path: Path) -> str | None:
-    with _session_entry_patches(path, _SESSION_CANONICAL):
-        return _refusal(create_session_schema)
+    with _session_entry_patches(path, _SESSION_CANONICAL) as cfg:
+        return _refusal(lambda: create_session_schema(cfg))
 
 
 def _entry_workflow(path: Path) -> str | None:
-    result = check_workflow_schema(str(path))
+    """The typed configuration the workflow entry is given; no configuration file is read."""
+    cfg = DbConfig(
+        rag_db_path=str(path.parent / "r"),
+        session_db_path=str(path.parent / "s"),
+        workflow_db_path=str(path),
+    )
+    result = check_workflow_schema(cfg)
     return None if result.valid else result.error
 
 

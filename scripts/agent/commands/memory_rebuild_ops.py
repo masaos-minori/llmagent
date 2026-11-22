@@ -117,7 +117,11 @@ class MemoryRebuildOps:
             )
 
         _, inserted = import_from_jsonl(
-            jsonl_store, dry_run=False, backup=True, allow_loss=allow_loss
+            jsonl_store,
+            dry_run=False,
+            backup=True,
+            allow_loss=allow_loss,
+            db_config=self._ctx.cfg.db,
         )
         self._out.write_success(
             f"Imported {inserted} entries from {jsonl_count} JSONL archive records."
@@ -159,7 +163,7 @@ class MemoryRebuildOps:
         if idx == "vec" and not embed_enabled:
             self._out.write("  [memory] embedding disabled — cannot rebuild vec index")
             return
-        count = _reindex(idx)
+        count = _reindex(idx, db_config=self._ctx.cfg.db)
         self._out.write_success(f"memories_{idx} rebuilt: {count} rows [Memory]")
         _emit_memory_audit(
             self._ctx,

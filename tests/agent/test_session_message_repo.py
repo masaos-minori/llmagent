@@ -15,6 +15,8 @@ from unittest.mock import patch
 import pytest
 from agent.session_message_repo import _DEFAULT_VALID_ROLES, SessionMessageRepository
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 
 def _msgs(result):
     """Unwrap (messages, session_found) tuple returned by fetch_messages."""
@@ -124,11 +126,11 @@ def repo() -> Generator[SessionMessageRepository]:
     conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()
 
-    def _make(target: str = "rag") -> _FakeSQLiteHelper:
+    def _make(target: str = "rag", db_config=None) -> _FakeSQLiteHelper:
         return _FakeSQLiteHelper(conn)
 
     with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
-        yield SessionMessageRepository(session_id=1)
+        yield SessionMessageRepository(session_id=1, db_config=MIN_DB_CONFIG)
 
 
 class TestSave:
@@ -157,7 +159,7 @@ class TestSave:
         assert msgs[0]["tool_call_id"] == "call_1"
 
     def test_noop_when_session_id_none(self) -> None:
-        r = SessionMessageRepository(session_id=None)
+        r = SessionMessageRepository(session_id=None, db_config=MIN_DB_CONFIG)
         with patch("agent.session_message_repo.SQLiteHelper") as mock_helper:
             r.save("user", "should not save")
             mock_helper.assert_not_called()
@@ -202,7 +204,7 @@ class TestSaveMany:
         assert msgs[0]["content"] == "valid"
 
     def test_noop_when_session_id_none(self) -> None:
-        r = SessionMessageRepository(session_id=None)
+        r = SessionMessageRepository(session_id=None, db_config=MIN_DB_CONFIG)
         with patch("agent.session_message_repo.SQLiteHelper") as mock_helper:
             r.save_many([("user", "x", None, None)])
             mock_helper.assert_not_called()
@@ -246,16 +248,18 @@ def strict_repo() -> Generator[SessionMessageRepository]:
     conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()
 
-    def _make(target: str = "rag") -> _FakeSQLiteHelper:
+    def _make(target: str = "rag", db_config=None) -> _FakeSQLiteHelper:
         return _FakeSQLiteHelper(conn)
 
     with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
-        yield SessionMessageRepository(session_id=1, strict_mode=True)
+        yield SessionMessageRepository(
+            session_id=1, strict_mode=True, db_config=MIN_DB_CONFIG
+        )
 
 
 class TestCountersAndStrictMode:
     def test_save_increments_no_session_counter(self) -> None:
-        r = SessionMessageRepository(session_id=None)
+        r = SessionMessageRepository(session_id=None, db_config=MIN_DB_CONFIG)
         r.save("user", "hello")
         assert r.stat_skipped_no_session == 1
 
@@ -266,7 +270,7 @@ class TestCountersAndStrictMode:
         assert repo.stat_skipped_invalid_role == 1
 
     def test_save_many_increments_no_session_counter(self) -> None:
-        r = SessionMessageRepository(session_id=None)
+        r = SessionMessageRepository(session_id=None, db_config=MIN_DB_CONFIG)
         r.save_many([("user", "x", None, None)])
         assert r.stat_skipped_no_session == 1
 
@@ -277,7 +281,9 @@ class TestCountersAndStrictMode:
         assert repo.stat_skipped_invalid_role == 1
 
     def test_strict_mode_save_raises_on_no_session(self) -> None:
-        r = SessionMessageRepository(session_id=None, strict_mode=True)
+        r = SessionMessageRepository(
+            session_id=None, strict_mode=True, db_config=MIN_DB_CONFIG
+        )
         with pytest.raises(RuntimeError, match="no session_id"):
             r.save("user", "hello")
 
@@ -288,7 +294,9 @@ class TestCountersAndStrictMode:
             strict_repo.save("bad_role", "x")
 
     def test_strict_mode_save_many_raises_on_no_session(self) -> None:
-        r = SessionMessageRepository(session_id=None, strict_mode=True)
+        r = SessionMessageRepository(
+            session_id=None, strict_mode=True, db_config=MIN_DB_CONFIG
+        )
         with pytest.raises(RuntimeError, match="no session_id"):
             r.save_many([("user", "x", None, None)])
 
@@ -331,11 +339,11 @@ class TestFetchMessages:
         )
         conn.commit()
 
-        def _make(target: str = "rag") -> _FakeSQLiteHelper:
+        def _make(target: str = "rag", db_config=None) -> _FakeSQLiteHelper:
             return _FakeSQLiteHelper(conn)
 
         with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
-            r = SessionMessageRepository(session_id=1)
+            r = SessionMessageRepository(session_id=1, db_config=MIN_DB_CONFIG)
             msgs = _msgs(r.fetch_messages(1))
         logging.disable(logging.NOTSET)
         assert msgs is not None  # non-empty list
@@ -518,14 +526,14 @@ class TestReplaceMessages:
         conn.executescript(_SCHEMA_SQL)
         conn.commit()
 
-        def _make(target: str = "session") -> _FakeSQLiteHelper:
+        def _make(target: str = "session", db_config=None) -> _FakeSQLiteHelper:
             return _FakeSQLiteHelper(conn)
 
         from agent.session import AgentSession
 
         with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
             with patch("agent.session.SQLiteHelper", side_effect=_make):
-                agent_session = AgentSession()
+                agent_session = AgentSession(db_config=MIN_DB_CONFIG)
                 agent_session.replace_messages([{"role": "user", "content": "test"}])
 
     def test_replace_messages_with_tool_calls(
@@ -580,11 +588,11 @@ class TestReplaceMessages:
         conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
         conn.commit()
 
-        def _make(target: str = "session") -> _FakeSQLiteHelper:
+        def _make(target: str = "session", db_config=None) -> _FakeSQLiteHelper:
             return _FakeSQLiteHelper(conn)
 
         with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
-            r = SessionMessageRepository(session_id=1)
+            r = SessionMessageRepository(session_id=1, db_config=MIN_DB_CONFIG)
             r.replace_messages(
                 1,
                 [
@@ -628,11 +636,11 @@ class TestReplaceMessages:
         )
         conn.commit()
 
-        def _make(target: str = "session") -> _FakeSQLiteHelper:
+        def _make(target: str = "session", db_config=None) -> _FakeSQLiteHelper:
             return _FakeSQLiteHelper(conn)
 
         with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
-            r = SessionMessageRepository(session_id=1)
+            r = SessionMessageRepository(session_id=1, db_config=MIN_DB_CONFIG)
             result = r.replace_messages(
                 1,
                 [
@@ -660,11 +668,11 @@ class TestReplaceMessages:
         conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
         conn.commit()
 
-        def _make(target: str = "session") -> _FakeSQLiteHelper:
+        def _make(target: str = "session", db_config=None) -> _FakeSQLiteHelper:
             return _FakeSQLiteHelper(conn)
 
         with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
-            r = SessionMessageRepository(session_id=1)
+            r = SessionMessageRepository(session_id=1, db_config=MIN_DB_CONFIG)
             r.replace_messages(1, [{"role": "user", "content": "u"}])
             messages, found, floor = r.fetch_messages(1)
             assert found is True
@@ -680,11 +688,11 @@ class TestReplaceMessages:
         conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
         conn.commit()
 
-        def _make(target: str = "session") -> _FakeSQLiteHelper:
+        def _make(target: str = "session", db_config=None) -> _FakeSQLiteHelper:
             return _FakeSQLiteHelper(conn)
 
         with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
-            r = SessionMessageRepository(session_id=1)
+            r = SessionMessageRepository(session_id=1, db_config=MIN_DB_CONFIG)
             messages, found, floor = r.fetch_messages(1)
             assert found is True
             assert floor == 0
@@ -707,12 +715,12 @@ class TestFetchMessagesConnectionLifecycle:
         )
         conn.commit()
 
-        def _make(target: str = "session") -> _ClosingFakeSQLiteHelper:
+        def _make(target: str = "session", db_config=None) -> _ClosingFakeSQLiteHelper:
             return _ClosingFakeSQLiteHelper(conn)
 
         with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
             messages, found, floor = SessionMessageRepository(
-                session_id=1
+                session_id=1, db_config=MIN_DB_CONFIG
             ).fetch_messages(1)
         assert found is True
         assert floor == 0
@@ -721,11 +729,13 @@ class TestFetchMessagesConnectionLifecycle:
     def test_missing_session_returns_not_found_with_closing_helper(self) -> None:
         conn = self._repo_conn()
 
-        def _make(target: str = "session") -> _ClosingFakeSQLiteHelper:
+        def _make(target: str = "session", db_config=None) -> _ClosingFakeSQLiteHelper:
             return _ClosingFakeSQLiteHelper(conn)
 
         with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
-            result = SessionMessageRepository(session_id=1).fetch_messages(999)
+            result = SessionMessageRepository(
+                session_id=1, db_config=MIN_DB_CONFIG
+            ).fetch_messages(999)
         assert result == ([], False, 0)
 
 
@@ -733,7 +743,7 @@ class TestCustomRoles:
     def test_custom_roles_injection(self) -> None:
         custom = frozenset({"custom_role"})
         repo = SessionMessageRepository(
-            session_id=1, strict_mode=True, roles_source=custom
+            session_id=1, strict_mode=True, roles_source=custom, db_config=MIN_DB_CONFIG
         )
         assert repo.get_valid_roles() == custom
         with pytest.raises(RuntimeError):
@@ -749,6 +759,7 @@ class TestCustomRoles:
             session_id=1,
             strict_mode=True,
             roles_source=custom,
+            db_config=MIN_DB_CONFIG,
         )
         with pytest.raises(RuntimeError, match="Cannot save message"):
             repo.save("invalid_role", "content")
@@ -766,13 +777,17 @@ def grouped_repo() -> Generator[
 
     state: dict[str, int] = {"fail_next": 0}
 
-    def _make(target: str = "session") -> _FakeSQLiteHelper:  # noqa: ARG001 — target selects the fake's backing store but is unused in the body
+    def _make(target: str = "session", db_config=None) -> _FakeSQLiteHelper:  # noqa: ARG001 — target selects the fake's backing store but is unused in the body
         fake = _FakeSQLiteHelper(conn)
         fake._state = state
         return fake
 
     with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
-        yield SessionMessageRepository(session_id=1), conn, state
+        yield (
+            SessionMessageRepository(session_id=1, db_config=MIN_DB_CONFIG),
+            conn,
+            state,
+        )
 
 
 class TestTurnStartMarker:
@@ -784,15 +799,17 @@ class TestTurnStartMarker:
                 ("tool", "c", None, "x"),
             ]
         )
-        assert SessionMessageRepository.turn_start_marker(1) == 3
+        assert repo.turn_start_marker(1) == 3
 
     def test_returns_zero_when_no_messages(
         self, repo: SessionMessageRepository
     ) -> None:
-        assert SessionMessageRepository.turn_start_marker(1) == 0
+        assert repo.turn_start_marker(1) == 0
 
-    def test_returns_zero_when_session_none(self) -> None:
-        assert SessionMessageRepository.turn_start_marker(None) == 0
+    def test_returns_zero_when_session_none(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        assert repo.turn_start_marker(None) == 0
 
 
 class TestDeleteMessagesFrom:
@@ -989,7 +1006,7 @@ class TestSavePhaseGrouped:
         assert len(_msgs(repo.fetch_messages(1))) == 1
 
     def test_noop_when_session_id_none(self) -> None:
-        r = SessionMessageRepository(session_id=None)
+        r = SessionMessageRepository(session_id=None, db_config=MIN_DB_CONFIG)
         with patch("agent.session_message_repo.SQLiteHelper") as mock:
             r.save_phase_grouped([("assistant", "a", None, None)])
             mock.assert_not_called()

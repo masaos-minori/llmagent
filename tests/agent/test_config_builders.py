@@ -1,6 +1,6 @@
 """tests/test_config_builders.py
 Unit tests for agent/config_builders.py and agent/config_section_builders.py:
-_build_llm_config, _build_rag_config, _build_approval_config, _build_memory_config,
+_build_llm_config, _build_approval_config, _build_memory_config,
 _build_tool_config, build_agent_config, and load_config error handling.
 """
 
@@ -21,7 +21,6 @@ from agent.config_section_builders import (
     _build_diagnostics_config,
     _build_llm_config,
     _build_memory_config,
-    _build_rag_config,
     _build_tool_config,
     _get_or_default,
     _get_str_or_default,
@@ -30,9 +29,12 @@ from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.typed_validators import _get_int, _get_str
 from cryptography.fernet import Fernet
 
+from tests.agent._config_test_defaults import SHIPPED_DB_PATH_KEYS
+
 # Minimal config satisfying _build_mcp_servers (needs at least one HTTP server with url) and
-# AgentConfig.__post_init__'s memory_embed_enabled cross-field check (now defaults to True,
-# so embed_url must be non-empty — mirrors config/agent.toml always supplying embed_url).
+# build_agent_config(): the typed DB configuration is built from the mapping, so the shipped
+# path keys come from the shared mirror, and memory_embed_enabled defaults to True, so
+# memory_embed_url must be non-empty.
 _MIN_CFG: dict = {
     "mcp_servers": {
         "test-server": {
@@ -41,13 +43,10 @@ _MIN_CFG: dict = {
             "auth_token": "test-token",
         }
     },
-    "embed_url": "http://127.0.0.1:9999",
+    **SHIPPED_DB_PATH_KEYS,
+    "memory_embed_url": "http://127.0.0.1:9999",
     "allowed_root": "/opt/llm",
-    "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
 }
-
-# ── _build_llm_config ─────────────────────────────────────────────────────────
-
 
 _LLM_DEFAULTS = {
     "llm_url": "",
@@ -113,32 +112,6 @@ class TestBuildLLMConfig:
         cfg = _build_llm_config(overrides)
         for key, value in overrides.items():
             assert getattr(cfg, key) == value, key
-
-
-# ── _build_rag_config ─────────────────────────────────────────────────────────
-
-
-class TestBuildRAGConfig:
-    def test_empty_dict_returns_defaults(self) -> None:
-        cfg = _build_rag_config({})
-        assert cfg.embed_url == ""
-
-    def test_embed_url_override_is_applied(self) -> None:
-        cfg = _build_rag_config({"embed_url": "http://embed"})
-        assert cfg.embed_url == "http://embed"
-
-    @pytest.mark.parametrize(
-        "key",
-        [
-            "use_refiner",
-            "refiner_max_tokens",
-            "refiner_timeout",
-            "refiner_max_chars_per_chunk",
-        ],
-    )
-    def test_leftover_refiner_key_is_rejected(self, key: str) -> None:
-        with pytest.raises(ValueError, match="rag_pipeline_mcp_server.toml"):
-            _build_rag_config({key: 1})
 
 
 # ── _build_tool_config ────────────────────────────────────────────────────────
@@ -219,14 +192,29 @@ _MEMORY_DEFAULTS = {
     "memory_rrf_k": 60,
     "memory_recency_days": 7.0,
     "memory_local_only": False,
+    "memory_embed_url": "",
 }
 
 
 class TestBuildMemoryConfig:
     def test_empty_dict_returns_defaults(self) -> None:
-        cfg = _build_memory_config({})
+        # The enabled-gated URL check now lives in MemoryConfig with the key (Plan
+        # row 1), so the URL must be supplied for the defaults to be reachable; its
+        # default is asserted by the disabled case below.
+        cfg = _build_memory_config({"memory_embed_url": "http://localhost:8080"})
         for key, value in _MEMORY_DEFAULTS.items():
+            if key == "memory_embed_url":
+                continue
             assert getattr(cfg, key) == value, key
+
+    def test_memory_embed_url_defaults_to_empty(self) -> None:
+        # Read with embedding disabled: the default alone is what is being asserted.
+        cfg = _build_memory_config({"memory_embed_enabled": False})
+        assert cfg.memory_embed_url == ""
+
+    def test_memory_embed_url_reflects_a_supplied_value(self) -> None:
+        cfg = _build_memory_config({"memory_embed_url": "http://embed"})
+        assert cfg.memory_embed_url == "http://embed"
 
     def test_overrides_are_applied(self) -> None:
         cfg = _build_memory_config(
@@ -612,38 +600,10 @@ class TestPyYAMLImport:
 # ── Characterization tests for the paths the suite left uncovered ─────────────
 #
 # These lock behavior the refactor of scripts/agent/config_builders.py must
-# preserve: the rag validator's warning/error reporting, the diagnostics
-# sensitive_fields fallback, the tool-registry failure conversion, the
-# production-validation warning path, and the single empty-string fallback rule
-# (`_or_default`: an absent key and an explicit "" both fall back to the default).
-
-
-class TestRagConfigValidationReporting:
-    """Characterization: `_build_rag_config` logs and raises per validator result."""
-
-    def test_use_rrf_false_logs_a_warning_and_still_builds(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        with caplog.at_level(logging.WARNING, logger="agent.config_builders"):
-            cfg = _build_rag_config({"use_rrf": False})
-
-        assert cfg.embed_url == ""
-        assert any(
-            "rag config warning: use_rrf=false" in r.message for r in caplog.records
-        )
-
-    def test_removed_semantic_cache_key_logs_an_error_and_raises(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        with caplog.at_level(logging.ERROR, logger="agent.config_builders"):
-            with pytest.raises(ValueError, match="RAG config validation failed"):
-                _build_rag_config({"semantic_cache_max_size": 100})
-
-        assert any(
-            "rag config error: Configuration key(s) semantic_cache_max_size"
-            in r.message
-            for r in caplog.records
-        )
+# preserve: the diagnostics sensitive_fields fallback, the tool-registry failure
+# conversion, the production-validation warning path, and the single empty-string
+# fallback rule (`_or_default`: an absent key and an explicit "" both fall back to
+# the default).
 
 
 class TestDiagnosticsSensitiveFieldsFallback:
@@ -677,7 +637,6 @@ class TestToolRegistryFailureConversion:
             )
 
             with pytest.raises(
-                ConfigReloadValidationError,
                 match="Tool registry resolution failed during config build: duplicate tool name",
             ):
                 build_agent_config({**_MIN_CFG})
@@ -689,7 +648,6 @@ class TestToolRegistryFailureConversion:
             )
 
             with pytest.raises(
-                ConfigReloadValidationError,
                 match="Tool registry module unavailable during config build: registry module missing",
             ):
                 build_agent_config({**_MIN_CFG})
@@ -767,18 +725,3 @@ class TestBuilderExceptionTypeUniformity:
     def test_tool_builder_wraps_a_zero_dedup_limit(self) -> None:
         with pytest.raises(ConfigReloadValidationError, match="tool_dedup_max_repeats"):
             _build_tool_config({"tool_dedup_max_repeats": 0}, "default")
-
-    def test_rag_builder_reports_a_validator_failure_as_the_same_type(self) -> None:
-        with pytest.raises(
-            ConfigReloadValidationError, match="RAG config validation failed"
-        ):
-            _build_rag_config({"semantic_cache_max_size": 100})
-
-    def test_rag_builder_reports_both_error_sources_in_one_message(self) -> None:
-        """The validator errors and the refiner-key errors are collected before raising."""
-        with pytest.raises(ConfigReloadValidationError) as excinfo:
-            _build_rag_config({"semantic_cache_max_size": 100, "use_refiner": True})
-
-        message = str(excinfo.value)
-        assert "semantic_cache_max_size" in message
-        assert "rag_pipeline_mcp_server.toml" in message

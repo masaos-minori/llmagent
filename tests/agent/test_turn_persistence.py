@@ -36,6 +36,8 @@ from agent.session_message_repo import SessionMessageRepository
 from agent.turn_persistence import ConversationPersistenceError, TurnPersistence
 from db.helper import SQLiteHelper
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS sessions (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,9 +144,11 @@ def wired() -> Generator[tuple[sqlite3.Connection, dict[str, int]]]:
     conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()
 
+    # The fake helper ignores the typed config, so the shared fixture config is
+    # only the constructor contract here (Plan row 15).
     state: dict[str, int] = {"fail_next": 0}
 
-    def _make(target: str = "rag") -> _FakeSQLiteHelper:  # noqa: ARG001 — target selects the fake's backing store but is unused in the body
+    def _make(target: str = "rag", **_kwargs: object) -> _FakeSQLiteHelper:  # noqa: ARG001 — target selects the fake's backing store but is unused in the body
         fake = _FakeSQLiteHelper(conn)
         fake._state = state
         return fake
@@ -169,7 +173,7 @@ async def _boundary(
     session: AgentSession, conv: ConversationState, marker: int
 ) -> TurnPersistence:
     snapshot = await conv.snapshot_messages()
-    repo = SessionMessageRepository(session.session_id)
+    repo = SessionMessageRepository(session.session_id, db_config=MIN_DB_CONFIG)
     session._message_repo = repo
     return TurnPersistence(session, conv, marker, snapshot)
 
@@ -180,7 +184,7 @@ async def _boundary(
 class TestHappyPath:
     async def test_save_phase_grouped_commits_rows(self, wired) -> None:
         conn, _state = wired
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         boundary = await _boundary(session, conv, marker=0)
@@ -201,7 +205,7 @@ class TestHappyPath:
         self, wired
     ) -> None:
         conn, _state = wired
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         boundary = await _boundary(session, conv, marker=0)
@@ -219,7 +223,7 @@ class TestHappyPath:
 class TestExceptionType:
     async def test_db_failure_surfaces_as_persistence_error(self, wired) -> None:
         _conn, state = wired
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         boundary = await _boundary(session, conv, marker=0)
@@ -246,7 +250,7 @@ class TestCompensation:
         )
         conn.commit()
 
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         conv.history = [
@@ -276,7 +280,7 @@ class TestCompensation:
 
     async def test_compensation_leaves_zero_rows_for_fresh_turn(self, wired) -> None:
         conn, state = wired
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         boundary = await _boundary(session, conv, marker=0)
@@ -309,7 +313,7 @@ class TestRollbackPartialTurn:
         )
         conn.commit()
 
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         conv.history = [
@@ -336,7 +340,7 @@ class TestRollbackPartialTurn:
         self, wired
     ) -> None:
         conn, _state = wired
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         conv.history = [{"role": "user", "content": "start"}]
@@ -353,7 +357,7 @@ class TestRollbackPartialTurn:
 class TestSnapshotRestore:
     async def test_memory_restored_to_turn_start_snapshot(self, wired) -> None:
         conn, state = wired
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         conv.history = [{"role": "user", "content": "start"}]
@@ -388,7 +392,7 @@ class TestRewriteCompensation:
             " ORDER BY message_id"
         ).fetchall()
 
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         boundary = await _boundary(session, conv, marker=2)
@@ -417,7 +421,7 @@ class TestRewriteCompensation:
         )
         conn.commit()
 
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         boundary = await _boundary(session, conv, marker=2)
@@ -444,7 +448,7 @@ class TestRewriteCompensation:
         )
         conn.commit()
 
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         boundary = await _boundary(session, conv, marker=2)
@@ -474,7 +478,7 @@ class TestRewriteCompensation:
         )
         conn.commit()
 
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         boundary = await _boundary(session, conv, marker=2)
@@ -495,7 +499,7 @@ class TestRewriteCompensation:
         self, wired
     ) -> None:
         _conn, state = wired
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         conv.undo_floor = 0  # turn-start value
@@ -533,7 +537,7 @@ def file_wired(tmp_path: Path) -> Generator[str]:
     seed.commit()
     seed.close()
 
-    def _make(target: str = "session") -> SQLiteHelper:  # noqa: ARG001 — repo passes target positionally
+    def _make(target: str = "session", **_kwargs: object) -> SQLiteHelper:  # noqa: ARG001 — repo passes target positionally
         return SQLiteHelper(db_path=db_path, sqlite_busy_timeout_ms=2000)
 
     with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
@@ -558,7 +562,7 @@ class TestOffloadedWrites:
             seen.append(threading.get_ident())
             real(self, messages)
 
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         boundary = await _boundary(session, conv, marker=0)
@@ -605,7 +609,7 @@ class TestOffloadedWrites:
         locker.start()
         assert locked.wait(timeout=2)  # lock held before the boundary write starts
 
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
         conv = ConversationState()
         boundary = await _boundary(session, conv, marker=0)

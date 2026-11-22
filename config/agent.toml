@@ -3,12 +3,13 @@
 # security, system_prompts, tools_definitions, and *_mcp_server transport sections.
 
 # ── Infrastructure (common) ───────────────────────────────────────────────────
+# Database paths and the SQLite engine settings. The embedding endpoint is not an
+# infrastructure key: it is owned by the Memory section (memory_embed_url).
 
 rag_db_path = "/opt/llm/db/rag.sqlite"
 session_db_path = "/opt/llm/db/session.sqlite"
 workflow_db_path = "/opt/llm/db/workflow.sqlite"
 sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
-embed_url = "http://192.168.11.228:8081"
 sqlite_timeout = 30
 sqlite_busy_timeout_ms = 30000
 sqlite_wal_checkpoint_mode = "TRUNCATE"
@@ -70,12 +71,15 @@ llm_stream_retry_on_heartbeat_timeout = true
 llm_stream_retry_on_malformed_chunk = false
 
 # ── Memory ────────────────────────────────────────────────────────────────────
+# Owned keys: the memory layer settings including the embedding endpoint
+# (memory_embed_url), which is not an infrastructure key.
 
 use_memory_layer = true
 memory_jsonl_dir = "/opt/llm/memory"
 memory_max_inject_semantic = 5
 memory_max_inject_episodic = 3
 memory_min_importance = 0.5
+memory_embed_url = "http://192.168.11.228:8081"
 memory_embed_enabled = true
 memory_dedup_threshold = 0.3
 memory_local_only = false

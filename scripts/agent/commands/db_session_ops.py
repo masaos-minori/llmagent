@@ -19,7 +19,9 @@ class DbSessionOps:
 
     def health(self) -> None:
         """Print DB health metrics: integrity, size."""
-        info = DbMaintenanceService().health()
+        info = DbMaintenanceService(
+            self._ctx.cfg.db, self._ctx.cfg.maintenance
+        ).health()
         self._out.write_kv(
             [
                 ("integrity_ok", str(info.integrity_ok)),
@@ -30,14 +32,16 @@ class DbSessionOps:
 
     def checkpoint(self, mode: str | None) -> None:
         """Run WAL checkpoint. mode: PASSIVE|FULL|RESTART|TRUNCATE (default from config)."""
-        result = DbMaintenanceService().checkpoint(mode)
+        result = DbMaintenanceService(
+            self._ctx.cfg.db, self._ctx.cfg.maintenance
+        ).checkpoint(mode)
         self._out.write_success(
             f"WAL checkpoint complete: mode={result.mode}, pages_written={result.pages_written} [Session]"
         )
 
     def vacuum(self) -> None:
         """Run VACUUM to rebuild the DB file and reclaim free pages."""
-        DbMaintenanceService().vacuum()
+        DbMaintenanceService(self._ctx.cfg.db, self._ctx.cfg.maintenance).vacuum()
         self._out.write_success("VACUUM complete. [Session]")
 
     def purge(self, rest: str) -> None:
@@ -57,7 +61,9 @@ class DbSessionOps:
         except CommandValidationError:
             self._out.write_validation_error("/session purge …")
             return
-        result = DbMaintenanceService().purge(
+        result = DbMaintenanceService(
+            self._ctx.cfg.db, self._ctx.cfg.maintenance
+        ).purge(
             max_sessions, max_age_days, current_session_id=self._ctx.session.session_id
         )
         if result.kept_active_session is not None:
@@ -72,7 +78,9 @@ class DbSessionOps:
 
     def recover(self, backup_path: str | None) -> None:
         """Run integrity check on session.sqlite; restore from backup_path if corruption found."""
-        result = DbMaintenanceService().recover_session(backup_path)
+        result = DbMaintenanceService(
+            self._ctx.cfg.db, self._ctx.cfg.maintenance
+        ).recover_session(backup_path)
         if result.integrity_ok:
             self._out.write_success(f"Recovery succeeded: {result.detail} [Session]")
         else:

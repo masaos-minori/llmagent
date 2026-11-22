@@ -15,9 +15,10 @@ from agent.config_dataclasses import (
     MCPConfig,
     MemoryConfig,
     ObservabilityConfig,
-    RAGConfig,
     ToolConfig,
 )
+
+from tests.agent._config_test_defaults import SHIPPED_MEMORY_EMBED_URL
 
 
 class _Config(_ConfigMixin):
@@ -28,11 +29,14 @@ class _Config(_ConfigMixin):
 def _make_ctx(**overrides: Any) -> Any:
     ctx = MagicMock()
     ctx.cfg.llm = overrides.get("llm", LLMConfig())
-    ctx.cfg.rag = overrides.get("rag", RAGConfig())
     ctx.cfg.tool = overrides.get("tool", ToolConfig())
     ctx.cfg.mcp = overrides.get("mcp", MCPConfig())
     ctx.cfg.approval = overrides.get("approval", ApprovalConfig())
-    ctx.cfg.memory = overrides.get("memory", MemoryConfig())
+    # MemoryConfig rejects an empty endpoint while embedding is enabled, so the
+    # characterization fixture carries the shipped one; no output assertion reads it.
+    ctx.cfg.memory = overrides.get(
+        "memory", MemoryConfig(memory_embed_url=SHIPPED_MEMORY_EMBED_URL)
+    )
     ctx.cfg.observability = overrides.get("observability", ObservabilityConfig())
     ctx.conv.plan_mode = overrides.get("plan_mode", False)
     return ctx

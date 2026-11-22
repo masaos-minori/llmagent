@@ -32,6 +32,8 @@ from shared.mcp_config import (
     TransportType,
 )
 
+from tests.agent._config_test_defaults import SHIPPED_DB_PATH_KEYS
+
 # ── _setup_prompt() regression tests ────────────────────────────────────────────
 
 
@@ -142,20 +144,14 @@ class TestStartupOrchestratorSetupPrompt:
 # mcp_auth, readiness, mcp_tool_discovery, routing_drift, rag_consistency.
 
 
-def _make_startup_ctx(
-    *,
-    memory_embed_dim: int = 768,
-) -> MagicMock:
+def _make_startup_ctx() -> MagicMock:
     """Return a ctx MagicMock configured for _check_services() tests."""
-    ctx = MagicMock()
-    ctx.cfg.memory.memory_embed_dim = memory_embed_dim
-    return ctx
+    return MagicMock()
 
 
 async def _run_check_services(
     ctx: MagicMock,
     *,
-    embedding_dims: int | None = None,
     stage: str = "services",
     **overrides: object,
 ) -> tuple[StartupValidationResult, Exception | None]:
@@ -179,11 +175,6 @@ async def _run_check_services(
         "RagMaintenanceService": MagicMock(return_value=consistent_rag),
     }
     mocks.update(overrides)
-
-    if embedding_dims is None:
-        embedding_dims = (
-            ctx.cfg.memory.memory_embed_dim
-        )  # clean pass: dims match by default
 
     captured: dict[str, StartupValidationResult] = {}
 
@@ -212,12 +203,6 @@ async def _run_check_services(
             patch(
                 "agent.startup_validation.StartupValidationResult",
                 side_effect=_new_pipeline,
-            )
-        )
-        stack.enter_context(
-            patch(
-                "db.config.build_db_config",
-                return_value=MagicMock(embedding_dims=embedding_dims),
             )
         )
         try:
@@ -823,6 +808,8 @@ class TestUnknownTopLevelKeyRejection:
             {
                 "llm_url": "http://localhost:8080",
                 "allowed_root": "/opt/llm",
+                # build_agent_config() resolves the typed DB configuration from the mapping, so the fixture supplies the mirrored path keys.
+                **SHIPPED_DB_PATH_KEYS,
                 "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
             }
         )

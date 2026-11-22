@@ -258,7 +258,7 @@ def test_rebuild_fts_uses_coalesce(db: _FakeSQLiteHelper) -> None:
     ) as mock_helper_cls:
         mock_helper_cls.return_value.open.return_value.__enter__.return_value = db
         mock_helper_cls.return_value.open.return_value.__exit__ = lambda *_: None
-        RagMaintenanceService().rebuild_fts()
+        RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_fts()
 
     # After rebuild, FTS search should return the row again
     results = fts_search("english", top_k=5, db=db)
@@ -419,7 +419,9 @@ def test_reconcile_url_fts_deletion(db: _FakeSQLiteHelper) -> None:
         "agent.services.rag_maintenance_service.SQLiteHelper"
     ) as mock_helper_cls:
         mock_helper_cls.return_value.open.side_effect = db.open
-        result = RagMaintenanceService().reconcile_url("http://reconcile.example.com")
+        result = RagMaintenanceService(db_config=MIN_DB_CONFIG).reconcile_url(
+            "http://reconcile.example.com"
+        )
 
     assert result == {"found": True, "chunks": 1}
 
@@ -432,6 +434,8 @@ def test_reconcile_url_fts_deletion(db: _FakeSQLiteHelper) -> None:
 # ── REBUILD_VEC: orphaned chunks_vec removal ──────────────────────────────────
 
 from unittest.mock import patch as mock_patch
+
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
 
 
 def test_rebuild_vec_removes_orphaned_chunks_vec_rows(db: _FakeSQLiteHelper) -> None:
@@ -451,7 +455,7 @@ def test_rebuild_vec_removes_orphaned_chunks_vec_rows(db: _FakeSQLiteHelper) -> 
         "agent.services.rag_maintenance_service.SQLiteHelper"
     ) as mock_helper_cls:
         mock_helper_cls.return_value.open.side_effect = db.open
-        count = RagMaintenanceService().rebuild_vec()
+        count = RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_vec()
 
     orphan_after = db.fetchall(
         "SELECT * FROM chunks_vec WHERE chunk_id = ?", (orphan_chunk_id,)
@@ -483,7 +487,7 @@ def test_consistency_forwards_stop_event_to_interrupt_when() -> None:
 
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
-    helper = SQLiteHelper("rag")
+    helper = SQLiteHelper("rag", db_config=MIN_DB_CONFIG)
     helper.conn = conn  # bypass open(): wire a real in-memory connection
 
     stop = threading.Event()
@@ -493,7 +497,7 @@ def test_consistency_forwards_stop_event_to_interrupt_when() -> None:
     ) as mock_helper_cls:
         mock_helper_cls.return_value.open.return_value.__enter__.return_value = helper
         mock_helper_cls.return_value.open.return_value.__exit__ = lambda *_: None
-        result = RagMaintenanceService().consistency(stop=stop)
+        result = RagMaintenanceService(db_config=MIN_DB_CONFIG).consistency(stop=stop)
 
     # Empty DB is inconsistent; the real check ran end-to-end.
     assert result.is_consistent is False

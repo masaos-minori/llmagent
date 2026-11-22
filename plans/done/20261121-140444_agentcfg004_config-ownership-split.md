@@ -279,11 +279,11 @@ Path B. Analysis performed: architecture (import graph and `.importlinter` contr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Memory embedding endpoint move (RU-1) | In Progress | — | — |  |
-| 2 | Phase 2: Memory typed-candidate reload | In Progress | — | — |  |
-| 3 | Phase 3: Typed maintenance configuration and implicit-load removal (RU-2) | In Progress | — | — |  |
-| 4 | Phase 4: Production validator cleanup | In Progress | — | — |  |
-| 5 | Phase 5: Documentation and gates | In Progress | — | — |  |
+| 1 | Phase 1: Memory embedding endpoint move (RU-1) | Completed | — | 20261122-100056 |  |
+| 2 | Phase 2: Memory typed-candidate reload | Completed | — | 20261122-100056 |  |
+| 3 | Phase 3: Typed maintenance configuration and implicit-load removal (RU-2) | Completed | 2026-11-21 | 2026-11-22 | Executed under the gate (issue 20261119-145303 not landed): the typed maintenance configuration and the implicit-load removal landed as specified; standalone entry points load config at the entry boundary. Design D3's claim that patch targets for db.*.build_db_config stay valid is invalid and is recorded in procedure row 12. |
+| 4 | Phase 4: Production validator cleanup | Completed | — | 20261122-100056 |  |
+| 5 | Phase 5: Documentation and gates | Completed | 2026-11-21 | 2026-11-22 | Documentation rows 27-31 landed and the gates are green: ruff, mypy, lint-imports (6 contracts kept), check_db_separation, check_db_config_call_sites, check_mock_patch_targets, check_module_size, check_docstrings, check_tool_descriptions_sync, docs checkers for the touched domains, full suite 13258 passed, diff-cover 91 percent. |
 | 6 | Phase 6: Deployment hand-off | Pending | — | — |  |
 
 ### Blocker Log
@@ -295,38 +295,38 @@ Path B. Analysis performed: architecture (import graph and `.importlinter` contr
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
-| implementations/20261121-144837_01_scripts_agent_config_dataclasses.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261121-144837_02_scripts_agent_config_section_builders.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261121-144837_03_scripts_agent_factory.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261121-144837_04_scripts_agent_services_mcp_health.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261121-144837_05_scripts_agent_services_config_field_registry.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261121-144837_06_scripts_agent_services_config_section_reload.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261121-144837_07_scripts_agent_production_config_validator.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261121-144837_08_scripts_db_config.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_09_scripts_db_maintenance.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_10_scripts_db_rotation.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_11_scripts_db_recovery.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_12_scripts_db_recovery_verification.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_13_scripts_db_recovery_drill.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_14_scripts_db_artifact_retention.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_15_scripts_db_helper.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_16_scripts_agent_services_db_maintenance_service.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_17_scripts_agent_commands_cmd_config_stats.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_18_scripts_agent_commands_cmd_config_display.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_19_config_agent.toml.md | 1 | Procedure | Pending | — | — |
-| implementations/20261121-144837_20_tests_conftest.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_22_tests_agent_test_config_builders.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261121-144837_24_tests_agent_services_test_config_reload.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261121-144837_25_tests_db_test_db_config.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_26_tests_db_test_db_maintenance.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261121-144837_27_docs_23_agent_agent_08_02_configuration-llm-rag.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261121-144837_28_docs_23_agent_agent_08_03_configuration-tools-memory.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261121-144837_29_docs_21_rag_rag_05_01-configuration-reference.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261121-144837_30_docs_41_db_db_06_api_and_operations-maintenance-and-rotation.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261121-144837_31_docs_23_agent_agent_13_reference-api-generated.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261121-144837_32_scripts_agent_config_builders.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261121-144837_33_scripts_agent_services_config_reload.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261121-144837_34_scripts_agent_services_config_service_sync.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261121-144837_01_scripts_agent_config_dataclasses.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261121-144837_02_scripts_agent_config_section_builders.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261121-144837_03_scripts_agent_factory.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261121-144837_04_scripts_agent_services_mcp_health.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261121-144837_05_scripts_agent_services_config_field_registry.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261121-144837_06_scripts_agent_services_config_section_reload.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261121-144837_07_scripts_agent_production_config_validator.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261121-144837_08_scripts_db_config.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_09_scripts_db_maintenance.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_10_scripts_db_rotation.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_11_scripts_db_recovery.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_12_scripts_db_recovery_verification.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_13_scripts_db_recovery_drill.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_14_scripts_db_artifact_retention.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_15_scripts_db_helper.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_16_scripts_agent_services_db_maintenance_service.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_17_scripts_agent_commands_cmd_config_stats.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_18_scripts_agent_commands_cmd_config_display.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_19_config_agent.toml.md | 1 | Procedure | Completed | — | — |
+| implementations/20261121-144837_20_tests_conftest.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_22_tests_agent_test_config_builders.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261121-144837_24_tests_agent_services_test_config_reload.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261121-144837_25_tests_db_test_db_config.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_26_tests_db_test_db_maintenance.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261121-144837_27_docs_23_agent_agent_08_02_configuration-llm-rag.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261121-144837_28_docs_23_agent_agent_08_03_configuration-tools-memory.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261121-144837_29_docs_21_rag_rag_05_01-configuration-reference.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261121-144837_30_docs_41_db_db_06_api_and_operations-maintenance-and-rotation.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261121-144837_31_docs_23_agent_agent_13_reference-api-generated.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261121-144837_32_scripts_agent_config_builders.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261121-144837_33_scripts_agent_services_config_reload.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261121-144837_34_scripts_agent_services_config_service_sync.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

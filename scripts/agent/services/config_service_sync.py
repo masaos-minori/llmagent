@@ -20,7 +20,7 @@ class SyncResult:
 class ServiceSyncer:
     """Propagates config changes to live service instances.
 
-    Accepts typed config objects (ctx.cfg.llm, ctx.cfg.rag, ctx.cfg.tool)
+    Accepts typed config objects (ctx.cfg.llm, ctx.cfg.tool)
     instead of _sync_services()'s current scalar-parameter signature.
     Preserves the exact ConfigReloadOutcome.applied entries.
     """
@@ -31,14 +31,12 @@ class ServiceSyncer:
     def sync_all(
         self,
         llm_cfg: Any,
-        rag_cfg: Any,
         tool_cfg: Any,
     ) -> SyncResult:
-        """Sync all three config sections to live services.
+        """Sync the two config sections to live services.
 
         Args:
             llm_cfg: LLM configuration object.
-            rag_cfg: RAG configuration object.
             tool_cfg: Tool configuration object.
 
         Returns:

@@ -10,6 +10,7 @@ import logging
 import sqlite3
 from typing import TYPE_CHECKING
 
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 from shared.types import LLMMessage
 
@@ -48,7 +49,9 @@ class AgentSession:
         no longer matches the current session_id (e.g. after a session restore)."""
         if self._repo is None or self._repo.session_id != self.session_id:
             self._repo = SessionMessageRepository(
-                self.session_id, strict_mode=self._strict_mode
+                self.session_id,
+                strict_mode=self._strict_mode,
+                db_config=self._db_config,
             )
         return self._repo
 
@@ -61,6 +64,7 @@ class AgentSession:
         *,
         strict_mode: bool = False,
         diagnostics_cfg: DiagnosticsConfig | None = None,
+        db_config: DbConfig,
     ) -> None:
         """Initialize the session manager with optional strict mode and message repository.
 
@@ -70,12 +74,15 @@ class AgentSession:
         never reads ``agent.toml`` per operation (REQ-001 / AC-6). A malformed
         ``[diagnostics]`` table fails closed during this build.
         """
+        self._db_config = db_config
         self.session_id: int | None = None  # current session DB row ID
         self._strict_mode = strict_mode
         self._title_pending: bool = False
         if diagnostics_cfg is None:
             diagnostics_cfg = build_agent_config().diagnostics
-        self._diagnostic_store = DiagnosticStore(diagnostics_cfg=diagnostics_cfg)
+        self._diagnostic_store = DiagnosticStore(
+            diagnostics_cfg=diagnostics_cfg, db_config=self._db_config
+        )
 
     # ── SessionMessageRepository delegation ──────────────────────────────────
 
@@ -153,7 +160,7 @@ class AgentSession:
         :meth:`ConversationState.snapshot_messages`, then returns the
         :class:`TurnPersistence` boundary that owns every write of the turn.
         """
-        marker = SessionMessageRepository.turn_start_marker(self.session_id)
+        marker = self._message_repo.turn_start_marker(self.session_id)
         snapshot = await conv.snapshot_messages()
         return TurnPersistence(self, conv, marker, snapshot)
 
@@ -161,7 +168,9 @@ class AgentSession:
 
     def start(self) -> None:
         """Create a new session record in DB and store its ID. Raises SchemaMissingError on missing schema."""
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True
+        ) as db:
             try:
                 # Pre-flight check: verify required table exists before attempting INSERT
                 cursor = db.execute(
@@ -192,7 +201,7 @@ class AgentSession:
             db.commit()
         logger.info("Session started: id=%s", self.session_id)
         self._message_repo = SessionMessageRepository(
-            self.session_id, strict_mode=self._strict_mode
+            self.session_id, strict_mode=self._strict_mode, db_config=self._db_config
         )
 
     def is_title_pending(self) -> bool:
@@ -212,7 +221,9 @@ class AgentSession:
         self._title_pending = False
         if self.session_id is None:
             return False
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True
+        ) as db:
             db.execute(
                 "UPDATE sessions SET title = ? WHERE session_id = ?",
                 (title[:SESSION_TITLE_MAX_CHARS], self.session_id),
@@ -226,7 +237,9 @@ class AgentSession:
         Each dict: session_id, created_at, title, is_current (bool), message_count (int).
         Raises sqlite3.Error on DB failure.
         """
-        with SQLiteHelper("session").open(row_factory=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            row_factory=True
+        ) as db:
             rows = db.fetchall(
                 "SELECT s.session_id, s.created_at, s.title, COUNT(m.message_id) AS message_count FROM sessions s LEFT JOIN messages m ON m.session_id = s.session_id GROUP BY s.session_id, s.created_at, s.title ORDER BY s.session_id DESC LIMIT ?",
                 (limit,),
@@ -263,7 +276,9 @@ class AgentSession:
         ON DELETE CASCADE removes messages automatically.
         Returns True when found and deleted, False when not found.
         """
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True
+        ) as db:
             row = db.execute(
                 "SELECT session_id FROM sessions WHERE session_id = ?",
                 (session_id,),

@@ -297,8 +297,38 @@ class TestProductionConfigValidatorValidKeySetUnchanged:
         assert "security_profile" not in keys
         assert "tool_definitions_strict" not in keys
         assert "routing_drift_strict" not in keys
-        assert "embed_url" in keys
+        assert "memory_embed_url" in keys
+        assert "embed_url" not in keys
         assert "refiner_max_tokens" not in keys
+        # The maintenance keys are derived through the prefix the file uses: the typed
+        # configuration's fields are the same settings without it, so only the prefixed
+        # form is accepted.
+        assert "sqlite_retention_max_sessions" in keys
+        assert "retention_max_sessions" not in keys
+
+
+class TestProductionConfigValidatorRefinerKeys:
+    """REQ-006: refiner keys are rejected by the named rule, not by key derivation.
+
+    Moved from tests/agent/test_config_builders.py with the RAG builder that reported
+    them; check_agent_refiner_keys() is called from validate(), so the message stays.
+    """
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "use_refiner",
+            "refiner_max_tokens",
+            "refiner_timeout",
+            "refiner_max_chars_per_chunk",
+        ],
+    )
+    def test_leftover_refiner_key_is_rejected(self, key: str) -> None:
+        result = ProductionConfigValidator().validate({key: 1})
+        assert any(
+            "rag_pipeline_mcp_server.toml" in err and key in err
+            for err in result.errors
+        )
 
     def test_agentcfg003_removed_maps_are_out_of_the_valid_key_set(self) -> None:
         """REQ-011: the removed per-tool maps are subtracted from the introspected set."""

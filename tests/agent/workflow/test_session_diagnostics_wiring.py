@@ -47,7 +47,7 @@ def wired(
 ) -> Iterator[tuple[Orchestrator, MagicMock]]:
     """A real orchestrator, engine, and StateStore over a temporary workflow.sqlite.
 
-    The patched database configuration stays active for the whole test, so the
+    The typed database configuration is supplied to the orchestrator's context, so the
     persister's own StateStore opens the same file.
     """
     cfg = DbConfig(
@@ -55,11 +55,8 @@ def wired(
         session_db_path=str(tmp_path / "session.sqlite"),
         workflow_db_path=str(tmp_path / "workflow.sqlite"),
     )
-    with (
-        patch("db.helper.build_db_config", return_value=cfg),
-        patch("agent.orchestrator.WorkflowLoader") as loader,
-    ):
-        create_workflow_schema()
+    with patch("agent.orchestrator.WorkflowLoader") as loader:
+        create_workflow_schema(db_config=cfg)
         loader.return_value.load.return_value = _definition()
         # tests/agent/test_orchestrator.py leaves MagicMock patches of these names
         # behind (its autouse patch is undone before the test's own monkeypatch), so
@@ -73,6 +70,7 @@ def wired(
         )
 
         ctx = _make_ctx()
+        ctx.cfg.db = cfg
         ctx.session.session_id = _SESSION_ID
         # Without these two the summary holds mock values and is not saved.
         ctx.services = None

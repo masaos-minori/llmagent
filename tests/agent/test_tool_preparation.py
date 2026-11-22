@@ -18,7 +18,10 @@ from agent.tool_preparation import PreparedToolCall, prepare_tool_calls
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolExecutionContext
 
-from tests.agent._config_test_defaults import PERMISSIVE_ALLOWED_ROOT
+from tests.agent._config_test_defaults import (
+    PERMISSIVE_ALLOWED_ROOT,
+    SHIPPED_DB_PATH_KEYS,
+)
 
 
 def _cfg(**overrides: Any) -> AgentConfig:
@@ -45,8 +48,10 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_shell_safe_prefixes": [],
         "approval_resource_keys": {"path_keys": [], "branch_keys": []},
         "allowed_root": PERMISSIVE_ALLOWED_ROOT,
+        # build_agent_config() resolves the typed DB configuration from the mapping, so the fixture supplies the mirrored path keys.
+        **SHIPPED_DB_PATH_KEYS,
         "tool_results_turn_max_chars": 0,
-        "embed_url": "http://127.0.0.1:9999",
+        "memory_embed_url": "http://127.0.0.1:9999",
         "mcp_servers": {
             "_dummy": {
                 "transport": "http",

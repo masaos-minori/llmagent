@@ -3,6 +3,7 @@
 
 import logging
 
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 from shared.json_utils import dumps, now_iso
 
@@ -57,6 +58,8 @@ def add(
     entry: MemoryEntry,
     embedding: list[float] | None = None,
     embed_dim: int | None = None,
+    *,
+    db_config: DbConfig,
 ) -> None:
     """Insert a new MemoryEntry; sets created_at/updated_at if empty.
 
@@ -65,7 +68,7 @@ def add(
     """
     now = now_iso()
     stamped = _stamp_entry(entry, now)
-    with SQLiteHelper("session").open(write_mode=True) as db:
+    with SQLiteHelper("session", db_config=db_config).open(write_mode=True) as db:
         with db.begin_immediate():
             db.execute(_INSERT_SQL, _build_row_params(stamped))
             _write_fts(db, stamped)
@@ -78,6 +81,8 @@ def upsert(
     entry: MemoryEntry,
     embedding: list[float] | None = None,
     embed_dim: int | None = None,
+    *,
+    db_config: DbConfig,
 ) -> None:
     """Insert or replace a MemoryEntry; updates updated_at.
 
@@ -92,7 +97,7 @@ def upsert(
         updated_at=now,
         created_at=entry.created_at or now,
     )
-    with SQLiteHelper("session").open(write_mode=True) as db:
+    with SQLiteHelper("session", db_config=db_config).open(write_mode=True) as db:
         with db.begin_immediate():
             db.execute(_UPSERT_SQL, _build_row_params(stamped))
             # Sync FTS5: delete old row (if any) then re-insert
@@ -106,7 +111,7 @@ def upsert(
     logger.debug("MemoryStore.upsert memory_id=%r", entry.memory_id)
 
 
-def delete(memory_id: str) -> bool:
+def delete(memory_id: str, *, db_config: DbConfig) -> bool:
     """Delete one entry by memory_id; return True when found and deleted.
 
     Also removes any ``memory_links`` rows referencing ``memory_id`` in either
@@ -115,7 +120,7 @@ def delete(memory_id: str) -> bool:
     archive after the commit (SQLite-first; a failed append propagates so the
     caller can surface M-07 while the SQLite change stands).
     """
-    with SQLiteHelper("session").open(write_mode=True) as db:
+    with SQLiteHelper("session", db_config=db_config).open(write_mode=True) as db:
         cur = db.execute("DELETE FROM memories WHERE memory_id = ?", (memory_id,))
         deleted = cur.rowcount > 0
         if deleted:

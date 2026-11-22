@@ -1020,20 +1020,12 @@ class TestRunSqliteErrorMessage:
         """Error message includes the sqlite3 error subclass name."""
         import sqlite3
 
-        from db.config import DbConfig
-
         repl = _make_bare_repl()
         repl._orchestrator = MagicMock()
         repl._cmds = MagicMock()
 
         # Patch startup.run() to succeed, then simulate OperationalError during session start
-        valid_cfg = DbConfig(
-            rag_db_path=str(tmp_path / "rag.sqlite"),
-            session_db_path=str(tmp_path / "session.db"),
-            workflow_db_path=str(tmp_path / "workflow.sqlite"),
-        )
         with (
-            patch("db.helper.build_db_config", return_value=valid_cfg),
             patch("agent.repl.StartupOrchestrator") as MockStartup,
         ):
             MockStartup.return_value.run = AsyncMock(
@@ -1077,19 +1069,11 @@ class TestRunSqliteErrorMessage:
         """Raised RuntimeError includes the sqlite3 error subclass name."""
         import sqlite3
 
-        from db.config import DbConfig
-
         repl = _make_bare_repl()
         repl._orchestrator = MagicMock()
         repl._cmds = MagicMock()
 
-        valid_cfg = DbConfig(
-            rag_db_path=str(tmp_path / "rag.sqlite"),
-            session_db_path=str(tmp_path / "session.db"),
-            workflow_db_path=str(tmp_path / "workflow.sqlite"),
-        )
         with (
-            patch("db.helper.build_db_config", return_value=valid_cfg),
             patch("agent.repl.StartupOrchestrator") as MockStartup,
         ):
             MockStartup.return_value.run = AsyncMock(
@@ -1107,16 +1091,6 @@ class TestRunSqliteErrorMessage:
 class TestRunStartupInterrupted:
     """AgentREPL.run() must not label an interrupted startup as a failure."""
 
-    @staticmethod
-    def _valid_db_cfg(tmp_path):
-        from db.config import DbConfig
-
-        return DbConfig(
-            rag_db_path=str(tmp_path / "rag.sqlite"),
-            session_db_path=str(tmp_path / "session.db"),
-            workflow_db_path=str(tmp_path / "workflow.sqlite"),
-        )
-
     @pytest.mark.asyncio
     async def test_startup_interrupted_warns_and_reraises(self, tmp_path) -> None:
         """REQ-002: StartupInterrupted gives a non-fatal message and re-raises."""
@@ -1127,9 +1101,6 @@ class TestRunStartupInterrupted:
         close_resources = AsyncMock()
         with (
             patch.object(repl._shutdown, "close_resources", new=close_resources),
-            patch(
-                "db.helper.build_db_config", return_value=self._valid_db_cfg(tmp_path)
-            ),
             patch("agent.repl.StartupOrchestrator") as MockStartup,
         ):
             MockStartup.return_value.run = AsyncMock(
@@ -1154,9 +1125,6 @@ class TestRunStartupInterrupted:
         close_resources = AsyncMock()
         with (
             patch.object(repl._shutdown, "close_resources", new=close_resources),
-            patch(
-                "db.helper.build_db_config", return_value=self._valid_db_cfg(tmp_path)
-            ),
             patch("agent.repl.StartupOrchestrator") as MockStartup,
         ):
             MockStartup.return_value.run = AsyncMock(

@@ -39,11 +39,11 @@ Generated from `registry/manifests/memory_api.yaml` (`scripts/agent/memory/*.py`
 | File | Class/Function | Signature | Summary |
 |---|---|---|---|
 | `scripts/agent/memory/config_path.py` | `resolve_memory_jsonl_dir` | `def resolve_memory_jsonl_dir() -> str` | Return the flat ``memory_jsonl_dir`` path using the builder default. |
-| `scripts/agent/memory/count_ops.py` | `count_by_type` | `def count_by_type() -> dict[str, int]` | Return {memory_type: count} for all rows in memories. Diagnostic use only. |
-|  | `count_by_source_type` | `def count_by_source_type() -> dict[str, int]` | Return {source_type: count} for all rows in memories. Diagnostic use only. |
-|  | `count_vec` | `def count_vec() -> int` | Return total entry count in memories_vec. Raises sqlite3.OperationalError if unavailable. |
-|  | `count_entries` | `def count_entries() -> int` | Return total entry count across all types. Raises sqlite3.OperationalError on DB error. |
-|  | `count_prunable` | `def count_prunable(days) -> int` | Return count of entries older than `days` days. Raises sqlite3.OperationalError on DB error. |
+| `scripts/agent/memory/count_ops.py` | `count_by_type` | `def count_by_type(*, db_config) -> dict[str, int]` | Return {memory_type: count} for all rows in memories. Diagnostic use only. |
+|  | `count_by_source_type` | `def count_by_source_type(*, db_config) -> dict[str, int]` | Return {source_type: count} for all rows in memories. Diagnostic use only. |
+|  | `count_vec` | `def count_vec(*, db_config) -> int` | Return total entry count in memories_vec. Raises sqlite3.OperationalError if unavailable. |
+|  | `count_entries` | `def count_entries(*, db_config) -> int` | Return total entry count across all types. Raises sqlite3.OperationalError on DB error. |
+|  | `count_prunable` | `def count_prunable(days, *, db_config) -> int` | Return count of entries older than `days` days. Raises sqlite3.OperationalError on DB error. |
 | `scripts/agent/memory/embedding_client.py` | `EmbeddingClientConfig` | `class EmbeddingClientConfig` | Configuration for the embedding client connection. |
 |  | `EmbeddingClientStatus` | `class EmbeddingClientStatus` | Runtime health status of the embedding client. |
 |  | `EmbeddingClient` | `class EmbeddingClient` | Async HTTP client for embedding generation. |
@@ -64,7 +64,7 @@ Generated from `registry/manifests/memory_api.yaml` (`scripts/agent/memory/*.py`
 | `scripts/agent/memory/extract.py` | `ExtractionPolicy` | `class ExtractionPolicy` | Configurable thresholds for memory extraction. |
 |  | `extract_memories` | `def extract_memories(history, session_id, turn_id, project, repo, branch, max_content_chars, policy) -> list[MemoryEntry]` | Extract MemoryEntry candidates from a conversation history list. |
 | `scripts/agent/memory/fts_query.py` | `build_fts_query` | `def build_fts_query(text) -> str` | Build FTS5 MATCH query with token quoting to escape reserved terms. |
-| `scripts/agent/memory/import_ops.py` | `import_from_jsonl` | `def import_from_jsonl(jsonl_store, *, dry_run, embed_dim, backup, allow_loss) -> tuple[int, int]` | Import entries from a JSONL archive into SQLite memories/FTS/vec tables. |
+| `scripts/agent/memory/import_ops.py` | `import_from_jsonl` | `def import_from_jsonl(jsonl_store, *, dry_run, embed_dim, backup, allow_loss, db_config) -> tuple[int, int]` | Import entries from a JSONL archive into SQLite memories/FTS/vec tables. |
 | `scripts/agent/memory/ingestion.py` | `MemoryIngestionService` | `class MemoryIngestionService` | Extracts, deduplicates, and persists memory entries from session history. |
 | `scripts/agent/memory/injection.py` | `InjectionPolicy` | `class InjectionPolicy` | Controls how many semantic/episodic memories are injected per turn. |
 |  | `MemoryInjectionService` | `class MemoryInjectionService` | Injects relevant memory snippets into the LLM context per lifecycle hook. |
@@ -74,11 +74,11 @@ Generated from `registry/manifests/memory_api.yaml` (`scripts/agent/memory/*.py`
 |  | `JsonlRecord` | `class JsonlRecord` | One deserialized record from the JSONL memory store. |
 |  | `ConsistencyReport` | `class ConsistencyReport` | Row counts across memories / memories_fts / memories_vec tables. |
 |  | `MemorySnippet` | `class MemorySnippet` | One memory snippet ready for LLM context injection. |
-| `scripts/agent/memory/pin_ops.py` | `pin` | `def pin(memory_id, conn) -> bool` | Set pinned=1 for memory_id; return True when found. |
-|  | `unpin` | `def unpin(memory_id, conn) -> bool` | Set pinned=0 for memory_id; return True when found. |
-| `scripts/agent/memory/rebuild_ops.py` | `rebuild_fts` | `def rebuild_fts() -> int` | Rebuild memories_fts from the memories table. Returns number of rows inserted. |
-|  | `rebuild_vec` | `def rebuild_vec() -> int` | Rebuild memories_vec from the memories table. Returns number of rows inserted. |
-|  | `reindex` | `def reindex(index_type) -> int` | Rebuild a single memory index ('fts' or 'vec'); return rows inserted. |
+| `scripts/agent/memory/pin_ops.py` | `pin` | `def pin(memory_id, conn, *, db_config) -> bool` | Set pinned=1 for memory_id; return True when found. |
+|  | `unpin` | `def unpin(memory_id, conn, *, db_config) -> bool` | Set pinned=0 for memory_id; return True when found. |
+| `scripts/agent/memory/rebuild_ops.py` | `rebuild_fts` | `def rebuild_fts(*, db_config) -> int` | Rebuild memories_fts from the memories table. Returns number of rows inserted. |
+|  | `rebuild_vec` | `def rebuild_vec(*, db_config) -> int` | Rebuild memories_vec from the memories table. Returns number of rows inserted. |
+|  | `reindex` | `def reindex(index_type, *, db_config) -> int` | Rebuild a single memory index ('fts' or 'vec'); return rows inserted. |
 | `scripts/agent/memory/retriever.py` | `FtsRetriever` | `class FtsRetriever` | FTS5 BM25 search with importance / pin / recency rescoring. |
 |  | `VectorRetriever` | `class VectorRetriever` | KNN search on memories_vec using sqlite-vec extension. |
 |  | `HybridRetriever` | `class HybridRetriever` | FTS5 + optional KNN hybrid search with RRF merge. |
@@ -100,7 +100,7 @@ Generated from `registry/manifests/memory_api.yaml` (`scripts/agent/memory/*.py`
 |  | `MemoryQuery` | `class MemoryQuery` | Search parameters for memory retrieval. |
 |  | `MemoryHit` | `class MemoryHit` | One ranked result from memory retrieval. |
 |  | `EmbeddingResult` | `class EmbeddingResult` | Result of an embedding generation attempt. |
-| `scripts/agent/memory/write_ops.py` | `add` | `def add(entry, embedding, embed_dim) -> None` | Insert a new MemoryEntry; sets created_at/updated_at if empty. |
-|  | `upsert` | `def upsert(entry, embedding, embed_dim) -> None` | Insert or replace a MemoryEntry; updates updated_at. |
-|  | `delete` | `def delete(memory_id) -> bool` | Delete one entry by memory_id; return True when found and deleted. |
+| `scripts/agent/memory/write_ops.py` | `add` | `def add(entry, embedding, embed_dim, *, db_config) -> None` | Insert a new MemoryEntry; sets created_at/updated_at if empty. |
+|  | `upsert` | `def upsert(entry, embedding, embed_dim, *, db_config) -> None` | Insert or replace a MemoryEntry; updates updated_at. |
+|  | `delete` | `def delete(memory_id, *, db_config) -> bool` | Delete one entry by memory_id; return True when found and deleted. |
 <!-- END AUTO-GENERATED -->

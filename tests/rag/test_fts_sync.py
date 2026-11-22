@@ -185,7 +185,7 @@ class TestFtsTriggerSync:
         assert len(rows) == 1
 
     def test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path
     ) -> None:
         """INV-07: FTS trigger and manual rebuild (RagMaintenanceService.rebuild_fts())
         produce identical chunks_fts contents for the same underlying chunk data."""
@@ -220,11 +220,8 @@ class TestFtsTriggerSync:
         ).fetchall()
         conn.close()
 
-        monkeypatch.setattr(
-            "db.helper.build_db_config",
-            lambda: _make_db_cfg(tmp_path, rag_name="rag.sqlite"),
-        )
-        RagMaintenanceService().rebuild_fts()
+        service = RagMaintenanceService(_make_db_cfg(tmp_path, rag_name="rag.sqlite"))
+        service.rebuild_fts()
 
         conn2 = sqlite3.connect(str(db_file))
         after = conn2.execute(

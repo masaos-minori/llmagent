@@ -42,6 +42,8 @@ from shared.mcp_health import McpServerHealthRegistry
 from shared.tool_executor import ToolExecutor
 from shared.tool_spec import ToolSpec
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG, MIN_MAINTENANCE_CONFIG
+
 _TEST_URL = "http://127.0.0.1:19100"
 _HTTP_KEY = "rag_pipeline"
 _RAG_TOOL = "_rag_search"
@@ -115,9 +117,13 @@ def _make_turn_ctx(
     """
     ctx = MagicMock()
     # memory_embed_enabled now defaults to True, which requires a non-empty
-    # rag.embed_url; disable it explicitly since this test exercises the RAG
+    # memory.memory_embed_url; disable it explicitly since this test exercises the RAG
     # tool-call round-trip, not the memory/embedding subsystem.
-    ctx.cfg = AgentConfig(memory=MemoryConfig(memory_embed_enabled=False))
+    ctx.cfg = AgentConfig(
+        memory=MemoryConfig(memory_embed_enabled=False),
+        db=MIN_DB_CONFIG,
+        maintenance=MIN_MAINTENANCE_CONFIG,
+    )
     ctx.cfg.tool.max_tool_turns = 5
     ctx.cfg.tool.serial_tool_calls = True
     # REQ-002: empty allowed_tools denies every call, so allow the tools under test.

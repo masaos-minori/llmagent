@@ -260,7 +260,7 @@ class StartupValidationPipeline:
             rag_check = await asyncio.wait_for(
                 loop.run_in_executor(
                     None,
-                    lambda: RagMaintenanceService().consistency(stop=stop),
+                    lambda: RagMaintenanceService(ctx.cfg.db).consistency(stop=stop),
                 ),
                 timeout=RAG_CONSISTENCY_TIMEOUT_SEC,
             )

@@ -29,6 +29,8 @@ from agent.session_message_repo import SessionMessageRepository
 from agent.turn_persistence import ConversationPersistenceError
 from shared.types import LLMMessage
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 
 def _msgs(result):
     """Unwrap (messages, session_found) tuple returned by fetch_messages."""
@@ -110,7 +112,7 @@ def repo() -> Generator[SessionMessageRepository]:
     fake = _FakeSQLiteHelper(conn)
 
     with patch("agent.session_message_repo.SQLiteHelper", return_value=fake):
-        yield SessionMessageRepository(session_id=1)
+        yield SessionMessageRepository(session_id=1, db_config=MIN_DB_CONFIG)
 
 
 @pytest.fixture
@@ -126,9 +128,11 @@ def session_and_conn() -> Generator[tuple[AgentSession, sqlite3.Connection]]:
         patch("agent.session.SQLiteHelper", return_value=fake),
         patch("agent.session_message_repo.SQLiteHelper", return_value=fake),
     ):
-        s = AgentSession()
+        s = AgentSession(db_config=MIN_DB_CONFIG)
         s.session_id = 1
-        s._message_repo = SessionMessageRepository(session_id=1)
+        s._message_repo = SessionMessageRepository(
+            session_id=1, db_config=MIN_DB_CONFIG
+        )
         yield s, conn
 
 

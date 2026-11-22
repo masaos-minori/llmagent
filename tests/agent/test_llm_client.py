@@ -16,6 +16,8 @@ from shared.llm_exceptions import LLMTransportError
 from shared.sse_parser import RobustSSEParser, _anext_or_done
 from shared.transport_dto import TransportErrorInfo
 
+from tests.agent._config_test_defaults import SHIPPED_DB_PATH_KEYS
+
 # ── LLMTransportError ─────────────────────────────────────────────────────────
 
 
@@ -597,9 +599,11 @@ class TestAgentConfigSseValidation:
             "tool_dedup_max_repeats": 3,
             "tool_cycle_detect_window": 2,
             "tool_error_max_consecutive": 3,
-            # memory_embed_enabled now defaults to True; embed_url must be non-empty
-            # to satisfy AgentConfig.__post_init__'s cross-field validation.
-            "embed_url": "http://localhost:8000",
+            # memory_embed_enabled now defaults to True; memory_embed_url must be non-empty
+            # to satisfy MemoryConfig.__post_init__'s cross-field validation.
+            "memory_embed_url": "http://localhost:8000",
+            # build_agent_config() resolves the typed DB configuration from the mapping, so the fixture supplies the mirrored path keys.
+            **SHIPPED_DB_PATH_KEYS,
             "mcp_servers": {
                 "dummy": {
                     "transport": "http",

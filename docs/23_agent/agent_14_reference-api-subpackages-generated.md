@@ -83,12 +83,12 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `detect_diagnostics_live_fields` | `def detect_diagnostics_live_fields(ctx, new_cfg) -> list[str]` | Return names of diagnostics.* fields that differ between new_cfg and running cfg. |
 | `scripts/agent/services/config_reload.py` | `ConfigReloadOutcome` | `class ConfigReloadOutcome` | Structured report of what changed after a /reload. |
 |  | `ConfigReloadService` | `class ConfigReloadService` | Propagate an updated config dict to live service instances. |
-| `scripts/agent/services/config_section_reload.py` | `prepare_validated_section` | `def prepare_validated_section(ctx, section_path, new_cfg, extra_changed_fields) -> tuple[dict[str, Any], Any]` | Build the dataclasses.replace candidate for a validated section (llm/rag/tool/approval) and run its validators. |
+| `scripts/agent/services/config_section_reload.py` | `prepare_validated_section` | `def prepare_validated_section(ctx, section_path, new_cfg, extra_changed_fields) -> tuple[dict[str, Any], Any]` | Build the dataclasses.replace candidate for a validated section (llm/tool/memory/approval) and run its validators. |
 |  | `apply_validated_section` | `def apply_validated_section(ctx, section_path, candidate) -> None` | Commit a prepared validated-section candidate onto ctx.cfg. |
-|  | `reload_validated_section` | `def reload_validated_section(ctx, section_path, new_cfg) -> list[str]` | Reload a validated section (llm/rag/tool/approval) as a prepare-then-apply composition. |
-|  | `prepare_direct_section` | `def prepare_direct_section(ctx, new_cfg, section_path, field_filter) -> dict[str, Any]` | Collect changed fields for a direct section (memory/mcp). |
+|  | `reload_validated_section` | `def reload_validated_section(ctx, section_path, new_cfg) -> list[str]` | Reload a validated section (llm/tool/memory/approval) as a prepare-then-apply composition. |
+|  | `prepare_direct_section` | `def prepare_direct_section(ctx, new_cfg, section_path, field_filter) -> dict[str, Any]` | Collect changed fields for a direct section (mcp). |
 |  | `apply_direct_section` | `def apply_direct_section(ctx, section_path, changed_fields) -> None` | Commit prepared direct-section changes onto the live section object. |
-|  | `reload_direct_fields` | `def reload_direct_fields(ctx, new_cfg, section_path, field_filter) -> dict[str, Any]` | Reload a direct section (memory/mcp) as a prepare-then-apply composition. |
+|  | `reload_direct_fields` | `def reload_direct_fields(ctx, new_cfg, section_path, field_filter) -> dict[str, Any]` | Reload a direct section (mcp) as a prepare-then-apply composition. |
 | `scripts/agent/services/config_service_sync.py` | `SyncResult` | `class SyncResult` | Result of ServiceSyncer.sync_all(). |
 |  | `ServiceSyncer` | `class ServiceSyncer` | Propagates config changes to live service instances. |
 | `scripts/agent/services/config_validators.py` | `validate_llm_context_char_limit` | `def validate_llm_context_char_limit(cfg) -> None` | Validate that context_char_limit is non-negative. |
@@ -188,7 +188,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 | `scripts/agent/services/undo_service.py` | `undo_last_turn` | `def undo_last_turn(ctx) -> UndoResult` | Roll back the last user+assistant turn, gated by the compression boundary. |
 | `scripts/agent/services/workflow_schema.py` | `check_workflow_definition` | `def check_workflow_definition(workflows_dir) -> None` | Raise RuntimeError if the workflow definition file is missing or invalid. |
 |  | `SchemaCheckResult` | `class SchemaCheckResult` | Result of a workflow schema check. |
-|  | `check_workflow_schema` | `def check_workflow_schema(db_path) -> SchemaCheckResult` | Return SchemaCheckResult indicating whether the workflow DB schema is valid. |
+|  | `check_workflow_schema` | `def check_workflow_schema(db_config, db_path) -> SchemaCheckResult` | Return SchemaCheckResult indicating whether the workflow DB schema is valid. |
 | `scripts/agent/shared/health_models.py` | `ServiceWarning` | `class ServiceWarning` | A warning about a service during startup validation. |
 |  | `HealthCheckResult` | `class HealthCheckResult` | Aggregated health check results with warnings and errors. |
 |  | `McpHealthProbeResult` | `class McpHealthProbeResult` | Structured result of a single /health GET probe to an MCP server. |

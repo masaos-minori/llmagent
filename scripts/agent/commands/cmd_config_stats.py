@@ -51,8 +51,11 @@ def _get_rag_db_configured(ctx) -> bool:
     """Return True when a RAG DB path is configured."""
     try:
         from db.config import build_db_config as _build_db_cfg  # lazy
+        from shared.config_loader import ConfigLoader  # lazy
 
-        _build_db_cfg()
+        # This command module is the Agent-side owner of config/agent.toml, so it
+        # loads the mapping here and supplies it to the typed builder.
+        _build_db_cfg(ConfigLoader().load("agent.toml"))
         return True
     except (ValueError, RuntimeError):
         return False

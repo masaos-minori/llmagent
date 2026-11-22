@@ -22,6 +22,8 @@ from agent.memory.exceptions import JsonlFormatError
 from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.types import MemoryEntry, SourceType
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG, MIN_MAINTENANCE_CONFIG
+
 
 def _make_entry(
     *,
@@ -166,7 +168,12 @@ class TestAgentConfigMemoryValidation:
                 memory=MemoryConfig(
                     use_memory_layer=True,
                     memory_jsonl_dir="",
+                    # MemoryConfig now rejects embed enabled without a URL, so the URL is
+                    # supplied to reach the dir check this test targets.
+                    memory_embed_url="http://example.invalid/embed",
                 ),
+                db=MIN_DB_CONFIG,
+                maintenance=MIN_MAINTENANCE_CONFIG,
             )
 
     def test_validate_passes_when_dir_is_set(self) -> None:
@@ -179,6 +186,8 @@ class TestAgentConfigMemoryValidation:
                 # the embed_url cross-field check exercised by test_memory_embed_without_embed_url_raises.
                 memory_embed_enabled=False,
             ),
+            db=MIN_DB_CONFIG,
+            maintenance=MIN_MAINTENANCE_CONFIG,
         )
 
         cfg._validate_memory_jsonl_dir()  # must not raise

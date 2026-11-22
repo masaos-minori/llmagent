@@ -33,6 +33,7 @@ from shared.tool_metadata import (
     SideEffectClass,
 )
 
+from tests.agent._config_test_defaults import SHIPPED_DB_PATH_KEYS
 from tests.agent._producer_registry import PRODUCER_TIERS
 
 # Every tool name this file passes to the policy functions; the _cfg default
@@ -83,9 +84,11 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_shell_safe_prefixes": [],
         "approval_resource_keys": {"path_keys": [], "branch_keys": []},
         "allowed_root": "/",
-        # memory_embed_enabled now defaults to True; embed_url must be non-empty
-        # to satisfy AgentConfig.__post_init__'s cross-field validation.
-        "embed_url": "http://127.0.0.1:9999",
+        # memory_embed_enabled now defaults to True; memory_embed_url must be non-empty
+        # to satisfy MemoryConfig.__post_init__'s cross-field validation.
+        "memory_embed_url": "http://127.0.0.1:9999",
+        # build_agent_config() resolves the typed DB configuration from the mapping, so the fixture supplies the mirrored path keys.
+        **SHIPPED_DB_PATH_KEYS,
         "mcp_servers": {
             "_dummy": {
                 "transport": "http",

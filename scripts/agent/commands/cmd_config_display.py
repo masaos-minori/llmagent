@@ -167,7 +167,11 @@ class _ConfigDisplayMixin(MixinBase):
         )
 
         try:
-            _db_cfg = _build_db_cfg()
+            from shared.config_loader import ConfigLoader  # lazy
+
+            # This command module is the Agent-side owner of config/agent.toml, so it
+            # loads the mapping here and supplies it to the typed builder.
+            _db_cfg = _build_db_cfg(ConfigLoader().load("agent.toml"))
             pairs = [
                 ("rag_db_path", _db_cfg.rag_db_path),
                 ("session_db_path", _db_cfg.session_db_path),

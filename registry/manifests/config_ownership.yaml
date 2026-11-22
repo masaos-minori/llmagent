@@ -39,10 +39,6 @@ entries:
   hot_reloadable: true
   section: tool
   validator: validate_disabled_tools
-- field: embed_url
-  hot_reloadable: true
-  section: rag
-  validator: null
 - field: gitops_push_blocked
   hot_reloadable: false
   section: approval
@@ -81,6 +77,10 @@ entries:
   validator: validate_tool_max_tool_turns
 - field: memory_embed_enabled
   hot_reloadable: false
+  section: memory
+  validator: null
+- field: memory_embed_url
+  hot_reloadable: true
   section: memory
   validator: null
 - field: memory_local_only

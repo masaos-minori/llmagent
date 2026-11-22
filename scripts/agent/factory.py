@@ -202,7 +202,7 @@ def _build_memory_services(
         ctx, http, EmbeddingClient, EmbeddingClientConfig
     )
     retriever = _build_retriever(ctx, HybridRetriever, embed_client=embed_client)
-    store = MemoryStore(embed_dim=get_embedding_dims())
+    store = MemoryStore(embed_dim=get_embedding_dims(), db_config=ctx.cfg.db)
     jsonl = _build_jsonl_store(ctx, JsonlMemoryStore)
 
     _branch = _resolve_branch_for_memory()
@@ -232,6 +232,7 @@ def _build_memory_services(
         ingestion=ingestion,
         store=store,
         retriever=retriever,
+        db_config=ctx.cfg.db,
     )
 
 
@@ -243,7 +244,7 @@ def _build_embedding_client(
 ) -> EmbeddingClient:
     """Build and return the embedding client instance."""
     cfg = config_cls(
-        embed_url=build_embed_url(ctx.cfg.rag.embed_url),
+        embed_url=build_embed_url(ctx.cfg.memory.memory_embed_url),
         timeout=ctx.cfg.memory.memory_embed_timeout_sec,
         local_only=ctx.cfg.memory.memory_local_only,
     )
@@ -260,6 +261,7 @@ def _build_retriever[T](
         rrf_k=ctx.cfg.memory.memory_rrf_k,
         recency_days=ctx.cfg.memory.memory_recency_days,
         embed_client=embed_client,
+        db_config=ctx.cfg.db,
     )
 
 
@@ -314,6 +316,7 @@ def _build_ingestion_service[T](
         dedup_policy=dedup_policy,
         max_content_chars=ctx.cfg.memory.memory_max_content_chars,
         branch=branch,
+        db_config=ctx.cfg.db,
     )
 
 
@@ -384,7 +387,7 @@ def _wire_plain_repl_intent_store(ctx: AgentContext) -> None:
     """
     if ctx.services is None or ctx.workflow.tool_call_recorder is not None:
         return
-    store = StateStore()
+    store = StateStore(db_config=ctx.cfg.db)
     ctx.services.session_intent_close = store.close
     ctx.workflow.tool_call_recorder = store
     if ctx.workflow.current_task_id is None:

@@ -2,14 +2,14 @@
 """scripts/agent/config_section_builders.py — Default-resolution helpers and per-section config builders.
 
 Owns the key-reading half of agent config construction: `_or_default`,
-`_get_or_default`, `_get_str_or_default`,
-`_build_model`, and the `_build_*_config` functions for the llm, rag, tool,
+`_get_or_default`, `_get_str_or_default`, `_validate_dry_run_tools`,
+`_build_model`, and the `_build_*_config` functions for the llm, tool,
 memory, approval and diagnostics sections. `agent.config_builders` delegates to
 them; the assembly entry point (`build_agent_config`, `load_config`,
 `resolved_config_dir`) stays there.
 
 Import from here:  from agent.config_section_builders import (
-    _build_llm_config, _build_rag_config, _build_tool_config,
+    _build_llm_config, _build_tool_config,
     _build_memory_config, _build_approval_config, _build_diagnostics_config,
 )
 """
@@ -20,14 +20,11 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from shared.config_validator import RagConfigValidator
-
 from agent.config_dataclasses import (
     ApprovalConfig,
     DiagnosticsConfig,
     LLMConfig,
     MemoryConfig,
-    RAGConfig,
     ToolConfig,
 )
 from agent.constants import (
@@ -35,7 +32,6 @@ from agent.constants import (
     _DEFAULT_PROTECTED_PATHS,
     _DEFAULT_SHELL_SAFE_PREFIXES,
 )
-from agent.services.config_validators import check_agent_refiner_keys
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.typed_validators import (
     _get_bool,
@@ -150,22 +146,6 @@ def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
     )
 
 
-def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
-    """Build RAGConfig from a raw config dict."""
-    validator = RagConfigValidator()
-    validation_result = validator.validate(cfg)
-    for warning in validation_result.warnings:
-        logger.warning("rag config warning: %s", warning)
-    for error in validation_result.errors:
-        logger.error("rag config error: %s", error)
-    # Both rag-side sources are collected before raising, so one report names every
-    # rejected key instead of only the first source that failed.
-    errors = [*validation_result.errors, *check_agent_refiner_keys(cfg)]
-    if errors:
-        raise ConfigReloadValidationError(f"RAG config validation failed: {errors}")
-    return _build_model(RAGConfig, embed_url=_get_str_or_default(cfg, "embed_url"))
-
-
 def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConfig:
     """Build ToolConfig from a raw config dict and system prompt template."""
     return _build_model(
@@ -229,6 +209,7 @@ def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
         cfg, "memory_max_content_chars", _get_int, 500
     )
     memory_embed_enabled = _get_or_default(cfg, "memory_embed_enabled", _get_bool, True)
+    memory_embed_url = _get_str_or_default(cfg, "memory_embed_url")
     memory_dedup_threshold = _get_or_default(
         cfg, "memory_dedup_threshold", _get_float, 0.3
     )
@@ -250,6 +231,7 @@ def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
         memory_min_importance=memory_min_importance,
         memory_max_content_chars=memory_max_content_chars,
         memory_embed_enabled=memory_embed_enabled,
+        memory_embed_url=memory_embed_url,
         memory_dedup_threshold=memory_dedup_threshold,
         memory_embed_timeout_sec=memory_embed_timeout_sec,
         memory_retention_days=memory_retention_days,

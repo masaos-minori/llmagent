@@ -13,6 +13,7 @@ from typing import Any
 
 import orjson
 from cryptography.fernet import Fernet, InvalidToken
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 from shared.json_utils import dumps
 
@@ -33,6 +34,8 @@ class DiagnosticStore:
         self,
         diagnostics_cfg: DiagnosticsConfig,
         session_id: int | None = None,
+        *,
+        db_config: DbConfig,
     ) -> None:
         """Initialize the diagnostic store with a validated DiagnosticsConfig
         snapshot and an optional session ID.
@@ -42,6 +45,7 @@ class DiagnosticStore:
         read, which is what keeps AC-6 in force). `session_id` keeps its
         existing `None` default.
         """
+        self._db_config = db_config
         self.diagnostics_cfg = diagnostics_cfg
         self.session_id = session_id
 
@@ -100,7 +104,9 @@ class DiagnosticStore:
         cutoff = (datetime.now(UTC) - timedelta(days=retention_days)).strftime(
             "%Y-%m-%dT%H:%M:%SZ"
         )
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True
+        ) as db:
             cur = db.execute(
                 "DELETE FROM session_diagnostics WHERE created_at < ?",
                 (cutoff,),
@@ -151,7 +157,9 @@ class DiagnosticStore:
             content = self._encrypt_content(content, diagnostics_cfg.encryption_key)
         storage_format = "encrypted" if diagnostics_cfg.encryption_key else "plaintext"
 
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True
+        ) as db:
             db.execute(
                 "INSERT INTO session_diagnostics"
                 " (session_id, kind, content, workflow_id, task_id, storage_format)"
@@ -170,7 +178,9 @@ class DiagnosticStore:
         surfaced as ordinary content.
         """
         cfg = self.diagnostics_cfg
-        with SQLiteHelper("session").open(row_factory=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            row_factory=True
+        ) as db:
             rows = db.fetchall(
                 "SELECT id, session_id, kind, content, storage_format, created_at"
                 " FROM session_diagnostics WHERE session_id = ?"

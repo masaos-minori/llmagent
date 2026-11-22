@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 
 from agent.memory.embedding_client import EmbeddingClient
@@ -71,8 +72,10 @@ class FtsRetriever:
         *,
         fts_limit: int = _FTS_CANDIDATE_LIMIT,
         recency_days: float = 7.0,
+        db_config: DbConfig,
     ) -> None:
         """Initialize FTS5 search with configurable candidate limit and recency window."""
+        self._db_config = db_config
         self._fts_limit = fts_limit
         self._recency_days = recency_days
 
@@ -131,7 +134,9 @@ class FtsRetriever:
         branch: str = "",
     ) -> list[MemoryHit]:
         """Execute query and build scored MemoryHit list."""
-        with SQLiteHelper("session").open(row_factory=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            row_factory=True
+        ) as db:
             rows = db.fetchall(sql, params)
 
         hits: list[MemoryHit] = []
@@ -146,6 +151,10 @@ class FtsRetriever:
 
 class VectorRetriever:
     """KNN search on memories_vec using sqlite-vec extension."""
+
+    def __init__(self, *, db_config: DbConfig) -> None:
+        """Initialize KNN search with the typed DB configuration supplied by the owner."""
+        self._db_config = db_config
 
     def knn_search(
         self,
@@ -181,7 +190,9 @@ class VectorRetriever:
             LIMIT ?
         """  # nosec B608 — type_filter and branch_filter are literal strings; all values use ? placeholders
 
-        with SQLiteHelper("session").open(row_factory=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            row_factory=True
+        ) as db:
             rows = db.fetchall(sql, tuple(params))
 
         hits: list[MemoryHit] = []
@@ -208,10 +219,14 @@ class HybridRetriever:
         rrf_k: int = RRF_K,
         recency_days: float = 7.0,
         embed_client: EmbeddingClient | None = None,
+        db_config: DbConfig,
     ) -> None:
         """Initialize hybrid retrieval with FTS and optional vector search backends."""
-        self._fts = FtsRetriever(fts_limit=fts_limit, recency_days=recency_days)
-        self._vec = VectorRetriever()
+        self._db_config = db_config
+        self._fts = FtsRetriever(
+            fts_limit=fts_limit, recency_days=recency_days, db_config=self._db_config
+        )
+        self._vec = VectorRetriever(db_config=self._db_config)
         self._rrf_k = rrf_k
         self._recency_days = recency_days
         self.embed_client: EmbeddingClient | None = embed_client
@@ -282,7 +297,9 @@ class HybridRetriever:
 
         Pinned entries bypass ``min_importance`` so they reach every session.
         """
-        with SQLiteHelper("session").open(row_factory=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            row_factory=True
+        ) as db:
             rows = db.fetchall(
                 """SELECT memory_id, memory_type, source_type, session_id, turn_id,
                           project, repo, branch, content, summary, tags,

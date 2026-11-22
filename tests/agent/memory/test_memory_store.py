@@ -30,8 +30,9 @@ from agent.memory.types import MemoryEntry
 from agent.memory.write_ops import add, delete, upsert
 from shared.config_loader import ConfigLoader
 
-# ── Schema ────────────────────────────────────────────────────────────────────
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
 
+# ── Schema ────────────────────────────────────────────────────────────────────
 _SCHEMA_SQL = """
 CREATE TABLE memories (
     memory_id   TEXT PRIMARY KEY,
@@ -154,12 +155,12 @@ def store(db_conn: sqlite3.Connection) -> Generator[MemoryStore]:
         patch("agent.memory.store.SQLiteHelper", return_value=fake),
         patch("agent.memory.count_ops.SQLiteHelper", return_value=fake),
     ):
-        yield MemoryStore()
+        yield MemoryStore(db_config=MIN_DB_CONFIG)
 
 
 def test_embed_dim_accessor_mirrors_constructor() -> None:
-    assert MemoryStore(embed_dim=768).embed_dim == 768
-    assert MemoryStore().embed_dim is None
+    assert MemoryStore(embed_dim=768, db_config=MIN_DB_CONFIG).embed_dim == 768
+    assert MemoryStore(db_config=MIN_DB_CONFIG).embed_dim is None
 
 
 # ── add() ─────────────────────────────────────────────────────────────────────
@@ -170,7 +171,7 @@ class TestAdd:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry()
-        add(entry)
+        add(entry, db_config=MIN_DB_CONFIG)
         rows = db_conn.execute("SELECT memory_id FROM memories").fetchall()
         assert len(rows) == 1
         assert rows[0][0] == entry.memory_id
@@ -179,7 +180,7 @@ class TestAdd:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry(content="unique content here")
-        add(entry)
+        add(entry, db_config=MIN_DB_CONFIG)
         rows = db_conn.execute(
             "SELECT memory_id FROM memories_fts WHERE memories_fts MATCH 'unique'"
         ).fetchall()
@@ -189,7 +190,7 @@ class TestAdd:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = dataclasses.replace(_make_entry(), created_at="", updated_at="")
-        add(entry)
+        add(entry, db_config=MIN_DB_CONFIG)
         row = db_conn.execute(
             "SELECT created_at, updated_at FROM memories WHERE memory_id=?",
             (entry.memory_id,),
@@ -201,8 +202,8 @@ class TestAdd:
     def test_add_multiple_unique_ids(
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
-        add(_make_entry())
-        add(_make_entry(memory_type="episodic"))
+        add(_make_entry(), db_config=MIN_DB_CONFIG)
+        add(_make_entry(memory_type="episodic"), db_config=MIN_DB_CONFIG)
         rows = db_conn.execute("SELECT COUNT(*) FROM memories").fetchall()
         assert rows[0][0] == 2
 
@@ -215,7 +216,7 @@ class TestUpsert:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry()
-        upsert(entry)
+        upsert(entry, db_config=MIN_DB_CONFIG)
         rows = db_conn.execute("SELECT memory_id FROM memories").fetchall()
         assert len(rows) == 1
 
@@ -223,9 +224,9 @@ class TestUpsert:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry(content="original", memory_id="fixed-id")
-        upsert(entry)
+        upsert(entry, db_config=MIN_DB_CONFIG)
         entry2 = dataclasses.replace(entry, content="updated")
-        upsert(entry2)
+        upsert(entry2, db_config=MIN_DB_CONFIG)
         rows = db_conn.execute(
             "SELECT content FROM memories WHERE memory_id='fixed-id'"
         ).fetchall()
@@ -236,9 +237,9 @@ class TestUpsert:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry(content="old word", memory_id="fixed-id")
-        upsert(entry)
+        upsert(entry, db_config=MIN_DB_CONFIG)
         entry2 = dataclasses.replace(entry, content="new keyword")
-        upsert(entry2)
+        upsert(entry2, db_config=MIN_DB_CONFIG)
         rows = db_conn.execute(
             "SELECT memory_id FROM memories_fts WHERE memories_fts MATCH 'new'"
         ).fetchall()
@@ -265,21 +266,21 @@ class TestDelete:
 
     def test_delete_existing_returns_true(self, store: MemoryStore) -> None:
         entry = _make_entry()
-        add(entry)
-        assert delete(entry.memory_id) is True
+        add(entry, db_config=MIN_DB_CONFIG)
+        assert delete(entry.memory_id, db_config=MIN_DB_CONFIG) is True
 
     def test_delete_nonexistent_returns_false(
         self, store: MemoryStore, emit: Mock
     ) -> None:
-        assert delete("no-such-id") is False
+        assert delete("no-such-id", db_config=MIN_DB_CONFIG) is False
         emit.assert_not_called()
 
     def test_delete_removes_from_memories(
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry()
-        add(entry)
-        delete(entry.memory_id)
+        add(entry, db_config=MIN_DB_CONFIG)
+        delete(entry.memory_id, db_config=MIN_DB_CONFIG)
         rows = db_conn.execute(
             "SELECT memory_id FROM memories WHERE memory_id=?", (entry.memory_id,)
         ).fetchall()
@@ -289,12 +290,14 @@ class TestDelete:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry()
-        add(entry)  # seeds memories + memories_fts + memories_vec
+        add(
+            entry, db_config=MIN_DB_CONFIG
+        )  # seeds memories + memories_fts + memories_vec
         db_conn.execute(
             "INSERT INTO memory_links(src_id, dst_id) VALUES(?,?)",
             (entry.memory_id, entry.memory_id),
         )
-        delete(entry.memory_id)
+        delete(entry.memory_id, db_config=MIN_DB_CONFIG)
 
         # Plain tables: filter directly.
         assert (
@@ -331,14 +334,14 @@ class TestDelete:
 
     def test_delete_appends_delete_event(self, store: MemoryStore, emit: Mock) -> None:
         entry = _make_entry()
-        add(entry)
-        delete(entry.memory_id)
+        add(entry, db_config=MIN_DB_CONFIG)
+        delete(entry.memory_id, db_config=MIN_DB_CONFIG)
         emit.assert_called_once_with(entry.memory_id)
 
     def test_delete_nonexistent_does_not_emit_event(
         self, store: MemoryStore, emit: Mock
     ) -> None:
-        delete("no-such-id")
+        delete("no-such-id", db_config=MIN_DB_CONFIG)
         emit.assert_not_called()
 
 
@@ -369,9 +372,9 @@ class TestDeleteArchiveRealLoader:
     ) -> None:
         archive_dir = self._isolate_config(tmp_path, monkeypatch)
         entry = _make_entry()
-        add(entry)
+        add(entry, db_config=MIN_DB_CONFIG)
         # Real resolver resolves the archive path; no KeyError on the flat config.
-        assert delete(entry.memory_id) is True
+        assert delete(entry.memory_id, db_config=MIN_DB_CONFIG) is True
         archive_file = archive_dir / "memories.jsonl"
         lines = [
             ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
@@ -394,9 +397,9 @@ class TestDeleteArchiveRealLoader:
             "db.helper.SQLiteHelper", return_value=fake
         ):
             entry = _make_entry()
-            add(entry)
+            add(entry, db_config=MIN_DB_CONFIG)
             # Real resolver resolves the archive path; no KeyError on the flat config.
-            assert pin(entry.memory_id) is True
+            assert pin(entry.memory_id, db_config=MIN_DB_CONFIG) is True
             archive_file = archive_dir / "memories.jsonl"
             lines = [
                 ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
@@ -419,8 +422,8 @@ class TestDeleteArchiveRealLoader:
             "db.helper.SQLiteHelper", return_value=fake
         ):
             entry = _make_entry()
-            add(entry)
-            assert unpin(entry.memory_id) is True
+            add(entry, db_config=MIN_DB_CONFIG)
+            assert unpin(entry.memory_id, db_config=MIN_DB_CONFIG) is True
             archive_file = archive_dir / "memories.jsonl"
             lines = [
                 ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
@@ -505,8 +508,14 @@ class TestSharedEmitterRealLoader:
 
 class TestSearchByType:
     def test_returns_matching_type(self, store: MemoryStore) -> None:
-        add(_make_entry(memory_type="semantic", content="semantic fact"))
-        add(_make_entry(memory_type="episodic", content="episodic note"))
+        add(
+            _make_entry(memory_type="semantic", content="semantic fact"),
+            db_config=MIN_DB_CONFIG,
+        )
+        add(
+            _make_entry(memory_type="episodic", content="episodic note"),
+            db_config=MIN_DB_CONFIG,
+        )
         results = store.search_by_type("semantic")
         assert len(results) == 1
         assert results[0].memory_type == "semantic"
@@ -514,13 +523,17 @@ class TestSearchByType:
 
     def test_respects_limit(self, store: MemoryStore) -> None:
         for _ in range(5):
-            add(_make_entry(memory_type="semantic"))
+            add(_make_entry(memory_type="semantic"), db_config=MIN_DB_CONFIG)
         results = store.search_by_type("semantic", limit=3)
         assert len(results) == 3
 
     def test_respects_min_importance(self, store: MemoryStore) -> None:
-        add(_make_entry(memory_type="semantic", importance=0.2))
-        add(_make_entry(memory_type="semantic", importance=0.8))
+        add(
+            _make_entry(memory_type="semantic", importance=0.2), db_config=MIN_DB_CONFIG
+        )
+        add(
+            _make_entry(memory_type="semantic", importance=0.8), db_config=MIN_DB_CONFIG
+        )
         results = store.search_by_type("semantic", min_importance=0.5)
         assert len(results) == 1
         assert results[0].importance == 0.8
@@ -536,33 +549,46 @@ class TestSearchByType:
 
 class TestListEntries:
     def test_no_filter_returns_all(self, store: MemoryStore) -> None:
-        add(_make_entry(content="one"))
-        add(_make_entry(content="two"))
+        add(_make_entry(content="one"), db_config=MIN_DB_CONFIG)
+        add(_make_entry(content="two"), db_config=MIN_DB_CONFIG)
         results = store.list_entries()
         assert len(results) == 2
 
     def test_filters_by_source_type(self, store: MemoryStore) -> None:
-        add(dataclasses.replace(_make_entry(content="rule one"), source_type="rule"))
+        add(
+            dataclasses.replace(_make_entry(content="rule one"), source_type="rule"),
+            db_config=MIN_DB_CONFIG,
+        )
         add(
             dataclasses.replace(
                 _make_entry(content="conv one"), source_type="conversation"
-            )
+            ),
+            db_config=MIN_DB_CONFIG,
         )
         results = store.list_entries(source_type="rule")
         assert len(results) == 1
         assert results[0].content == "rule one"
 
     def test_filters_by_branch_including_branchless(self, store: MemoryStore) -> None:
-        add(dataclasses.replace(_make_entry(content="on main"), branch="main"))
-        add(dataclasses.replace(_make_entry(content="on other"), branch="other"))
-        add(dataclasses.replace(_make_entry(content="no branch"), branch=""))
+        add(
+            dataclasses.replace(_make_entry(content="on main"), branch="main"),
+            db_config=MIN_DB_CONFIG,
+        )
+        add(
+            dataclasses.replace(_make_entry(content="on other"), branch="other"),
+            db_config=MIN_DB_CONFIG,
+        )
+        add(
+            dataclasses.replace(_make_entry(content="no branch"), branch=""),
+            db_config=MIN_DB_CONFIG,
+        )
         results = store.list_entries(branch="main")
         contents = {r.content for r in results}
         assert contents == {"on main", "no branch"}
 
     def test_respects_limit(self, store: MemoryStore) -> None:
         for _ in range(5):
-            add(_make_entry())
+            add(_make_entry(), db_config=MIN_DB_CONFIG)
         results = store.list_entries(limit=2)
         assert len(results) == 2
 
@@ -575,15 +601,15 @@ class TestListEntries:
 
 class TestCountByType:
     def test_count_by_type(self, store: MemoryStore) -> None:
-        add(_make_entry(memory_type="semantic"))
-        add(_make_entry(memory_type="semantic"))
-        add(_make_entry(memory_type="episodic"))
-        counts = count_by_type()
+        add(_make_entry(memory_type="semantic"), db_config=MIN_DB_CONFIG)
+        add(_make_entry(memory_type="semantic"), db_config=MIN_DB_CONFIG)
+        add(_make_entry(memory_type="episodic"), db_config=MIN_DB_CONFIG)
+        counts = count_by_type(db_config=MIN_DB_CONFIG)
         assert counts.get("semantic") == 2
         assert counts.get("episodic") == 1
 
     def test_empty_returns_empty_dict(self, store: MemoryStore) -> None:
-        assert count_by_type() == {}
+        assert count_by_type(db_config=MIN_DB_CONFIG) == {}
 
 
 # ── count_vec() / count_entries() / count_prunable() ─────────────────────────
@@ -603,20 +629,20 @@ class TestCountVec:
             "INSERT INTO memories_vec (memory_id, embedding) VALUES ('m2', NULL)"
         )
         db_conn.commit()
-        assert count_vec() == 2
+        assert count_vec(db_config=MIN_DB_CONFIG) == 2
 
     def test_empty_returns_zero(self, store: MemoryStore) -> None:
-        assert count_vec() == 0
+        assert count_vec(db_config=MIN_DB_CONFIG) == 0
 
 
 class TestCountEntries:
     def test_counts_all_memory_rows(self, store: MemoryStore) -> None:
-        add(_make_entry(memory_type="semantic"))
-        add(_make_entry(memory_type="episodic"))
-        assert count_entries() == 2
+        add(_make_entry(memory_type="semantic"), db_config=MIN_DB_CONFIG)
+        add(_make_entry(memory_type="episodic"), db_config=MIN_DB_CONFIG)
+        assert count_entries(db_config=MIN_DB_CONFIG) == 2
 
     def test_empty_returns_zero(self, store: MemoryStore) -> None:
-        assert count_entries() == 0
+        assert count_entries(db_config=MIN_DB_CONFIG) == 0
 
 
 class TestCountPrunable:
@@ -624,7 +650,7 @@ class TestCountPrunable:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         old_entry = _make_entry(memory_id="old-1")
-        add(old_entry)
+        add(old_entry, db_config=MIN_DB_CONFIG)
         db_conn.execute(
             "UPDATE memories SET created_at = datetime('now', '-10 days') WHERE memory_id='old-1'"
         )
@@ -632,13 +658,13 @@ class TestCountPrunable:
         recent_entry = dataclasses.replace(
             _make_entry(memory_id="recent-1"), created_at="", updated_at=""
         )
-        add(recent_entry)
+        add(recent_entry, db_config=MIN_DB_CONFIG)
 
-        assert count_prunable(5) == 1
-        assert count_prunable(20) == 0
+        assert count_prunable(5, db_config=MIN_DB_CONFIG) == 1
+        assert count_prunable(20, db_config=MIN_DB_CONFIG) == 0
 
     def test_empty_returns_zero(self, store: MemoryStore) -> None:
-        assert count_prunable(30) == 0
+        assert count_prunable(30, db_config=MIN_DB_CONFIG) == 0
 
 
 # ── pin() / unpin() ──────────────────────────────────────────────────────────
@@ -649,8 +675,8 @@ class TestPinUnpin:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = _make_entry(memory_id="pin-test")
-        add(entry)
-        ok = pin("pin-test", conn=db_conn)
+        add(entry, db_config=MIN_DB_CONFIG)
+        ok = pin("pin-test", conn=db_conn, db_config=MIN_DB_CONFIG)
         assert ok is True
         row = db_conn.execute(
             "SELECT pinned FROM memories WHERE memory_id='pin-test'"
@@ -661,8 +687,8 @@ class TestPinUnpin:
         self, store: MemoryStore, db_conn: sqlite3.Connection
     ) -> None:
         entry = dataclasses.replace(_make_entry(memory_id="unpin-test"), pinned=True)
-        add(entry)
-        ok = unpin("unpin-test", conn=db_conn)
+        add(entry, db_config=MIN_DB_CONFIG)
+        ok = unpin("unpin-test", conn=db_conn, db_config=MIN_DB_CONFIG)
         assert ok is True
         row = db_conn.execute(
             "SELECT pinned FROM memories WHERE memory_id='unpin-test'"
@@ -670,10 +696,10 @@ class TestPinUnpin:
         assert row[0] == 0
 
     def test_pin_nonexistent_returns_false(self, store: MemoryStore) -> None:
-        assert pin("no-such-id") is False
+        assert pin("no-such-id", db_config=MIN_DB_CONFIG) is False
 
     def test_unpin_nonexistent_returns_false(self, store: MemoryStore) -> None:
-        assert unpin("no-such-id") is False
+        assert unpin("no-such-id", db_config=MIN_DB_CONFIG) is False
 
 
 # ── pin() / unpin() event emission (main path) ──────────────────────────────
@@ -703,31 +729,31 @@ class TestPinUnpinEvents:
 
     def test_pin_emits_event_on_success(self, emit: Mock) -> None:
         entry = _make_entry(memory_id="pin-event")
-        add(entry)
-        assert pin("pin-event") is True
+        add(entry, db_config=MIN_DB_CONFIG)
+        assert pin("pin-event", db_config=MIN_DB_CONFIG) is True
         emit.assert_called_once_with("pin", "pin-event")
 
     def test_unpin_emits_event_on_success(self, emit: Mock) -> None:
         entry = dataclasses.replace(_make_entry(memory_id="unpin-event"), pinned=True)
-        add(entry)
-        assert unpin("unpin-event") is True
+        add(entry, db_config=MIN_DB_CONFIG)
+        assert unpin("unpin-event", db_config=MIN_DB_CONFIG) is True
         emit.assert_called_once_with("unpin", "unpin-event")
 
     def test_pin_no_event_on_noop(self, emit: Mock) -> None:
-        assert pin("no-such-id") is False
+        assert pin("no-such-id", db_config=MIN_DB_CONFIG) is False
         emit.assert_not_called()
 
     def test_unpin_no_event_on_noop(self, emit: Mock) -> None:
-        assert unpin("no-such-id") is False
+        assert unpin("no-such-id", db_config=MIN_DB_CONFIG) is False
         emit.assert_not_called()
 
     def test_pin_injected_conn_does_not_emit(
         self, db_conn: sqlite3.Connection, emit: Mock
     ) -> None:
         entry = _make_entry(memory_id="pin-injected")
-        add(entry)
+        add(entry, db_config=MIN_DB_CONFIG)
         # injected-connection callers are unaffected by event emission
-        assert pin("pin-injected", conn=db_conn) is True
+        assert pin("pin-injected", conn=db_conn, db_config=MIN_DB_CONFIG) is True
         emit.assert_not_called()
 
 
@@ -737,7 +763,7 @@ class TestPinUnpinEvents:
 class TestGetById:
     def test_returns_entry_when_found(self, store: MemoryStore) -> None:
         entry = _make_entry(content="unique content", memory_id="gbi-test")
-        add(entry)
+        add(entry, db_config=MIN_DB_CONFIG)
         result = store.get_by_id("gbi-test")
         assert result is not None
         assert result.memory_id == "gbi-test"
@@ -800,10 +826,10 @@ def _make_concurrent_store() -> tuple[MemoryStore, str]:
 
     patcher = patch(
         "agent.memory.write_ops.SQLiteHelper",
-        side_effect=lambda mode: _ConcurrentHelper(),
+        side_effect=lambda mode, db_config=None: _ConcurrentHelper(),
     )
     patcher.start()
-    store = MemoryStore()
+    store = MemoryStore(db_config=MIN_DB_CONFIG)
     return (store, path, patcher)
 
 
@@ -816,7 +842,9 @@ class TestUpsertConcurrency:
             from concurrent.futures import ThreadPoolExecutor
 
             with ThreadPoolExecutor(max_workers=4) as executor:
-                list(executor.map(lambda e: upsert(e), entries))
+                list(
+                    executor.map(lambda e: upsert(e, db_config=MIN_DB_CONFIG), entries)
+                )
 
             conn = sqlite3.connect(path)
             try:
@@ -839,7 +867,9 @@ class TestUpsertConcurrency:
             from concurrent.futures import ThreadPoolExecutor
 
             with ThreadPoolExecutor(max_workers=4) as executor:
-                list(executor.map(lambda e: upsert(e), entries))
+                list(
+                    executor.map(lambda e: upsert(e, db_config=MIN_DB_CONFIG), entries)
+                )
 
             conn = sqlite3.connect(path)
             try:
@@ -862,7 +892,9 @@ class TestUpsertConcurrency:
             from concurrent.futures import ThreadPoolExecutor
 
             with ThreadPoolExecutor(max_workers=4) as executor:
-                list(executor.map(lambda e: upsert(e), entries))
+                list(
+                    executor.map(lambda e: upsert(e, db_config=MIN_DB_CONFIG), entries)
+                )
 
             conn = sqlite3.connect(path)
             try:
@@ -888,7 +920,7 @@ class TestUpsertConcurrency:
             def _upsert_with_embedding(idx: int) -> None:
                 entry = _make_entry(memory_id="vec-id", content=f"vec-content-{idx}")
                 embedding = [float(idx), float(idx + 1), float(idx + 2)]
-                upsert(entry, embedding=embedding)
+                upsert(entry, embedding=embedding, db_config=MIN_DB_CONFIG)
 
             from concurrent.futures import ThreadPoolExecutor
 
@@ -924,7 +956,7 @@ class TestUpsertConcurrency:
                     entry = _make_entry(
                         memory_id=f"busy-{idx}", content=f"content-{idx}"
                     )
-                    upsert(entry)
+                    upsert(entry, db_config=MIN_DB_CONFIG)
                     return None
                 except Exception as exc:  # noqa: BLE001
                     return exc

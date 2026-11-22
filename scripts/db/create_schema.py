@@ -11,10 +11,15 @@ SQLテンプレートはdb/schema_sql.pyに定義（正規DDLソース）。
 サポートしない: 現行スキーマに一致する DB のみ受け付け、それ以外は書き込み前に拒否する。
 
 Functions:
-  create_rag_schema()        — rag.sqlite: documents, chunks, chunks_vec, chunks_fts, triggers
-  create_session_schema()    — session.sqlite: sessions, messages, memory
-  create_workflow_schema()   — workflow.sqlite: tasks, attempts, processed_events, artifacts
-  create_schema()            — convenience wrapper calling all three
+  create_rag_schema(db_config)        — rag.sqlite: documents, chunks, chunks_vec, chunks_fts, triggers
+  create_session_schema(db_config)    — session.sqlite: sessions, messages, memory
+  create_workflow_schema(db_config)   — workflow.sqlite: tasks, attempts, processed_events, artifacts
+  create_schema(db_config)            — convenience wrapper calling all three
+
+Configuration ownership: these functions resolve no configuration file; the typed
+`DbConfig` is supplied by the caller. The `__main__` entry point is the boundary that
+owns config/agent.toml, so it loads it there and passes the typed configuration down
+(REQ-004, AC-004).
 """
 
 import logging
@@ -23,6 +28,7 @@ import sys
 
 from shared.schema_fingerprint import assert_matches
 
+from db.config import DbConfig, build_db_config
 from db.helper import SQLiteHelper
 from db.schema_sql import (
     build_rag_schema_sql,
@@ -80,53 +86,68 @@ def _execute_schema_ddl(db: SQLiteHelper, sql: str, error_label: str) -> None:
         raise
 
 
-def create_rag_schema() -> None:
-    """Create rag.sqlite tables, virtual tables, and triggers."""
+def create_rag_schema(db_config: DbConfig) -> None:
+    """Create rag.sqlite tables, virtual tables, and triggers.
+
+    The database path comes from the supplied typed configuration; this function
+    reads no configuration file.
+    """
     dims = get_embedding_dims()
     ddl = build_rag_schema_sql(dims)
-    with SQLiteHelper("rag").open(write_mode=True) as db:
+    with SQLiteHelper("rag", db_config=db_config).open(write_mode=True) as db:
         _refuse_existing_drift(db, "rag", ddl, "rag.sqlite")
         _execute_schema_ddl(db, ddl, "RAG")
     logger.info("RAG schema created successfully.")
 
 
-def create_session_schema() -> None:
-    """Create session.sqlite tables for conversations and memory."""
+def create_session_schema(db_config: DbConfig) -> None:
+    """Create session.sqlite tables for conversations and memory.
+
+    The database path comes from the supplied typed configuration; this function
+    reads no configuration file.
+    """
     dims = get_embedding_dims()
     ddl = build_session_schema_sql(dims)
-    with SQLiteHelper("session").open(write_mode=True) as db:
+    with SQLiteHelper("session", db_config=db_config).open(write_mode=True) as db:
         _refuse_existing_drift(db, "session", ddl, "session.sqlite")
         _execute_schema_ddl(db, ddl, "session")
     logger.info("Session schema created successfully.")
 
 
-def create_workflow_schema() -> None:
+def create_workflow_schema(db_config: DbConfig) -> None:
     """Create workflow.sqlite tables (tasks, attempts, processed_events, artifacts).
 
     Idempotent current-schema DDL only: no version row, no ledger row, no
     baseline write. Legacy marker tables on an existing database are rejected
     by the workflow shape gate (agent/services/workflow_schema.py), not here.
+
+    The database path comes from the supplied typed configuration; this function
+    reads no configuration file.
     """
     ddl = build_workflow_schema_sql()
-    with SQLiteHelper("workflow").open(write_mode=True) as db:
+    with SQLiteHelper("workflow", db_config=db_config).open(write_mode=True) as db:
         _refuse_existing_drift(db, "workflow", ddl, "workflow.sqlite")
         _execute_schema_ddl(db, ddl, "workflow")
         db.commit()
     logger.info("Workflow schema created successfully.")
 
 
-def create_schema() -> None:
+def create_schema(db_config: DbConfig) -> None:
     """Create schemas for rag.sqlite, session.sqlite, and workflow.sqlite."""
-    create_rag_schema()
-    create_session_schema()
-    create_workflow_schema()
+    create_rag_schema(db_config)
+    create_session_schema(db_config)
+    create_workflow_schema(db_config)
     logger.info("All schemas created successfully.")
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    # Entry boundary: this process owns config/agent.toml, so it loads it here and
+    # passes the typed configuration down. No db/ function performs the load.
+    from shared.config_loader import ConfigLoader
+
     try:
-        create_schema()
+        create_schema(build_db_config(ConfigLoader().load("agent.toml")))
     except (
         RuntimeError,
         sqlite3.OperationalError,

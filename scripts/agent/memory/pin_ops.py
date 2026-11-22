@@ -5,11 +5,16 @@ from __future__ import annotations
 
 import sqlite3
 
+from db.config import DbConfig
 from shared.json_utils import now_iso
 
 
 def _set_pinned(
-    memory_id: str, value: int, conn: sqlite3.Connection | None = None
+    memory_id: str,
+    value: int,
+    conn: sqlite3.Connection | None = None,
+    *,
+    db_config: DbConfig,
 ) -> bool:
     """Set memories.pinned=value for memory_id; return True when found."""
     if conn is not None:
@@ -22,7 +27,7 @@ def _set_pinned(
 
     from db.helper import SQLiteHelper
 
-    with SQLiteHelper("session").open(write_mode=True) as db:
+    with SQLiteHelper("session", db_config=db_config).open(write_mode=True) as db:
         cur = db.execute(
             "UPDATE memories SET pinned=?, updated_at=? WHERE memory_id=?",
             (value, now_iso(), memory_id),
@@ -31,27 +36,31 @@ def _set_pinned(
     return cur.rowcount > 0
 
 
-def pin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
+def pin(
+    memory_id: str, conn: sqlite3.Connection | None = None, *, db_config: DbConfig
+) -> bool:
     """Set pinned=1 for memory_id; return True when found.
 
     Emits a ``pin`` change event to the JSONL archive after the SQLite write
     (SQLite-first) on the main path (no injected ``conn``); a no-op of a missing
     id emits nothing.
     """
-    ok = _set_pinned(memory_id, 1, conn)
+    ok = _set_pinned(memory_id, 1, conn, db_config=db_config)
     if ok and conn is None:
         _emit_event("pin", memory_id)
     return ok
 
 
-def unpin(memory_id: str, conn: sqlite3.Connection | None = None) -> bool:
+def unpin(
+    memory_id: str, conn: sqlite3.Connection | None = None, *, db_config: DbConfig
+) -> bool:
     """Set pinned=0 for memory_id; return True when found.
 
     Emits an ``unpin`` change event to the JSONL archive after the SQLite write
     (SQLite-first) on the main path (no injected ``conn``); a no-op of a missing
     id emits nothing.
     """
-    ok = _set_pinned(memory_id, 0, conn)
+    ok = _set_pinned(memory_id, 0, conn, db_config=db_config)
     if ok and conn is None:
         _emit_event("unpin", memory_id)
     return ok

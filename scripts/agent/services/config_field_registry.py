@@ -65,8 +65,6 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
     ),
     ConfigFieldRegistry("llm_stream_retry_on_heartbeat_timeout", "llm", True),
     ConfigFieldRegistry("llm_stream_retry_on_malformed_chunk", "llm", True),
-    # RAG section
-    ConfigFieldRegistry("embed_url", "rag", True),
     # Tool section
     ConfigFieldRegistry("max_tool_turns", "tool", True, validate_tool_max_tool_turns),
     ConfigFieldRegistry(
@@ -95,6 +93,7 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
     ConfigFieldRegistry("memory_local_only", "memory", True),
     ConfigFieldRegistry("use_memory_layer", "memory", False),
     ConfigFieldRegistry("memory_embed_enabled", "memory", False),
+    ConfigFieldRegistry("memory_embed_url", "memory", True),
 ]
 
 CONFIG_FIELD_REGISTRY: dict[str, ConfigFieldRegistry] = {

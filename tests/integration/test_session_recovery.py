@@ -10,12 +10,10 @@ real, byte-truncated SQLite file rather than a MagicMock connection
 (see tests/test_db_maintenance.py::TestRecoverCorruption for the
 existing mock-based unit coverage this file complements).
 
-Neither AgentSession nor recover_corruption() accept a direct db_path
-override (confirmed by direct read of agent/session.py and db/recovery.py);
-both resolve their target path via SQLiteHelper(target), which calls
-db.config.build_db_config() internally. db/helper.py and db/recovery.py
-each import build_db_config into their own module namespace, so both
-bindings are monkeypatched together by _patch_db_config() below.
+Neither AgentSession nor recover_corruption() accept a direct db_path override (confirmed by
+direct read of agent/session.py and db/recovery.py); both take the typed configuration, so
+`_db_config()` below supplies the config that points their target path at the fixture's
+session DB file.
 """
 
 from __future__ import annotations
@@ -26,49 +24,44 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from db.config import DbConfig
 
 from tests.integration.conftest import apply_session_schema, hold_write_lock
 
 
-def _patch_db_config(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, session_db_path: str
-) -> None:
-    """Point build_db_config() at session_db_path for both db.helper and db.recovery.
+def _db_config(tmp_path: Path, session_db_path: str) -> DbConfig:
+    """Typed configuration pointing at session_db_path.
 
     rag/workflow paths are unused placeholders in tmp_path -- DbConfig
     only requires their parent directory to exist, not the files themselves.
     sqlite_timeout/sqlite_busy_timeout_ms are shortened so lock-contention
     tests (E05) resolve quickly instead of waiting out the 30s default.
     """
-    from db.config import DbConfig
-
-    cfg = DbConfig(
+    return DbConfig(
         rag_db_path=str(tmp_path / "rag.sqlite"),
         session_db_path=session_db_path,
         workflow_db_path=str(tmp_path / "workflow.sqlite"),
         sqlite_timeout=1,
         sqlite_busy_timeout_ms=500,
     )
-    monkeypatch.setattr("db.helper.build_db_config", lambda: cfg)
-    monkeypatch.setattr("db.recovery.build_db_config", lambda: cfg)
 
 
 def test_e01_session_start_on_corrupted_db_raises(
-    corrupt_wal_db: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    corrupt_wal_db: str, tmp_path: Path
 ) -> None:
     """AgentSession.start() on a physically corrupted DB raises, not a silent session_id=None."""
     from agent.session import AgentSession
 
-    _patch_db_config(monkeypatch, tmp_path, corrupt_wal_db)
+    cfg = _db_config(tmp_path, corrupt_wal_db)
 
-    session = AgentSession()
+    session = AgentSession(db_config=cfg)
     with pytest.raises((sqlite3.DatabaseError, sqlite3.OperationalError)):
         session.start()
     assert session.session_id is None
 
 
 def test_e02_recover_corruption_raises_uncaught_database_error(
-    corrupt_wal_db: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    corrupt_wal_db: str, tmp_path: Path
 ) -> None:
     """_run_integrity_check()'s except clause now catches Exception broadly
     (widened since this test was first written, per its own follow-up
@@ -85,19 +78,21 @@ def test_e02_recover_corruption_raises_uncaught_database_error(
     """
     from db.recovery import recover_corruption
 
-    _patch_db_config(monkeypatch, tmp_path, corrupt_wal_db)
+    cfg = _db_config(tmp_path, corrupt_wal_db)
     backup_path = str(tmp_path / "backup.sqlite")
     Path(backup_path).write_bytes(
         b"placeholder backup -- presence is all that matters here"
     )
 
-    result = recover_corruption(backup_path, target="session")
+    result = recover_corruption(
+        db_config=cfg, backup_path=backup_path, target="session"
+    )
     assert result.success is False
     assert result.action == "bad_backup"
 
 
 def test_e03_recover_corruption_no_backup_raises_uncaught_database_error(
-    corrupt_wal_db: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    corrupt_wal_db: str, tmp_path: Path
 ) -> None:
     """Same widened except-clause behavior as test_e02 (see its docstring),
     with no backup_path at all -- the corrupt target is classified rather
@@ -105,15 +100,15 @@ def test_e03_recover_corruption_no_backup_raises_uncaught_database_error(
     action="no_backup"."""
     from db.recovery import recover_corruption
 
-    _patch_db_config(monkeypatch, tmp_path, corrupt_wal_db)
+    cfg = _db_config(tmp_path, corrupt_wal_db)
 
-    result = recover_corruption(None, target="session")
+    result = recover_corruption(db_config=cfg, backup_path=None, target="session")
     assert result.success is False
     assert result.action == "no_backup"
 
 
 def test_e04_recover_corruption_dry_run_raises_before_mutation_check(
-    corrupt_wal_db: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    corrupt_wal_db: str, tmp_path: Path
 ) -> None:
     """Same widened except-clause behavior as test_e02 (see its docstring).
     dry_run=True short-circuits recover_corruption() before it ever reaches
@@ -122,11 +117,13 @@ def test_e04_recover_corruption_dry_run_raises_before_mutation_check(
     guarantee."""
     from db.recovery import recover_corruption
 
-    _patch_db_config(monkeypatch, tmp_path, corrupt_wal_db)
+    cfg = _db_config(tmp_path, corrupt_wal_db)
     before_mtime = Path(corrupt_wal_db).stat().st_mtime
     before_size = Path(corrupt_wal_db).stat().st_size
 
-    result = recover_corruption(None, target="session", dry_run=True)
+    result = recover_corruption(
+        db_config=cfg, backup_path=None, target="session", dry_run=True
+    )
     assert result.success is False
     assert result.dry_run is True
 
@@ -136,9 +133,7 @@ def test_e04_recover_corruption_dry_run_raises_before_mutation_check(
     assert before_size == after_size
 
 
-def test_e05_concurrent_session_start_under_exclusive_lock(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_e05_concurrent_session_start_under_exclusive_lock(tmp_path: Path) -> None:
     """Extends TC-B02's pattern (test_session_sqlite.py), but driven through
     AgentSession.start() itself rather than raw SQL -- confirms the documented
     "no try/except, propagates" behavior is the actual behavior through the
@@ -153,21 +148,19 @@ def test_e05_concurrent_session_start_under_exclusive_lock(
     conn.commit()
     conn.close()
 
-    _patch_db_config(monkeypatch, tmp_path, db_path)
+    cfg = _db_config(tmp_path, db_path)
 
     lock_t = hold_write_lock(db_path, 2.0)
     time.sleep(0.1)  # let lock thread acquire before starting the session
     try:
-        session = AgentSession()
+        session = AgentSession(db_config=cfg)
         with pytest.raises(sqlite3.OperationalError, match="database is locked"):
             session.start()
     finally:
         lock_t.join(timeout=3.0)
 
 
-def test_e06_recover_corruption_unknown_preserves_session_db(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_e06_recover_corruption_unknown_preserves_session_db(tmp_path: Path) -> None:
     """UNKNOWN classification preserves the session DB file untouched."""
     from unittest.mock import patch
 
@@ -176,14 +169,14 @@ def test_e06_recover_corruption_unknown_preserves_session_db(
     session_db = tmp_path / "session.sqlite"
     original_bytes = b"not a real sqlite file, but presence/content is what matters"
     session_db.write_bytes(original_bytes)
-    _patch_db_config(monkeypatch, tmp_path, str(session_db))
+    cfg = _db_config(tmp_path, str(session_db))
 
     with patch(
         "db.recovery._run_integrity_check",
         return_value=(DbCondition.UNKNOWN, "simulated unclassifiable failure"),
     ):
         with patch("db.recovery._restore_from_backup") as mock_restore:
-            result = recover_corruption(target="session")
+            result = recover_corruption(db_config=cfg, target="session")
 
     mock_restore.assert_not_called()
     assert result.success is False
@@ -257,9 +250,7 @@ def _make_orphaned_memory_link_db(tmp_path: Path) -> str:
     return db_path
 
 
-def test_e07_session_logical_verify_failed_on_missing_table(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_e07_session_logical_verify_failed_on_missing_table(tmp_path: Path) -> None:
     """Recovering from a backup missing a required table should fail logical verification."""
     from db.recovery import DbCondition, recover_corruption
 
@@ -279,7 +270,7 @@ CREATE TABLE IF NOT EXISTS sessions(
     backup_conn.close()
     # Corrupt the target DB so recovery is triggered
     session_db.write_bytes(b"corrupted data")
-    _patch_db_config(monkeypatch, tmp_path, str(session_db))
+    cfg = _db_config(tmp_path, str(session_db))
 
     with patch(
         "db.recovery._run_integrity_check",
@@ -294,7 +285,11 @@ CREATE TABLE IF NOT EXISTS sessions(
         # _restore_from_backup() now also probes for nonexistent -wal/-shm
         # sidecar files via Path.exists(), actively harmful to) blanket-patch
         # Path.exists() to always return True.
-        result = recover_corruption(backup_path=str(backup_db), target="session")
+        result = recover_corruption(
+            db_config=cfg,
+            backup_path=str(backup_db),
+            target="session",
+        )
 
     assert result.success is False
     assert result.action == "logical_verify_failed"

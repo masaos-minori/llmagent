@@ -14,7 +14,6 @@ The DDL-vs-constants equality test lives in tests/db/test_create_schema.py.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from agent.workflow import tool_call_state_ops
@@ -51,11 +50,8 @@ def _make_cfg(db_path: str) -> DbConfig:
 @pytest.fixture()
 def workflow_db(tmp_path: Path) -> Path:
     db_path = tmp_path / "workflow.sqlite"
-    with patch(
-        "db.helper.build_db_config",
-        return_value=_make_cfg(str(db_path)),
-    ):
-        create_workflow_schema()
+    cfg = _make_cfg(str(db_path))
+    create_workflow_schema(db_config=cfg)
     return db_path
 
 
@@ -63,8 +59,8 @@ def workflow_db(tmp_path: Path) -> Path:
 def store(workflow_db: Path):
     from agent.workflow.state_store import StateStore
 
-    with patch("db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))):
-        s = StateStore()
+    cfg = _make_cfg(str(workflow_db))
+    s = StateStore(db_config=cfg)
     yield s
     s.close()
 

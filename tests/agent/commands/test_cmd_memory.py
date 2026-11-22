@@ -11,6 +11,8 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 # Backing dir for rebuild backup writes in unit tests.
 _TMP_JSONL_DIR = tempfile.mkdtemp(prefix="mem-cmd-test-jsonl-")
 
@@ -75,7 +77,10 @@ def _make_mixin():
 
     ctx = SimpleNamespace(
         cfg=SimpleNamespace(
-            memory=SimpleNamespace(memory_embed_enabled=True, memory_max_pinned=10)
+            # The command receives the typed configuration from the process that owns
+            # the file; the fixture supplies it directly instead of reading a config file.
+            db=MIN_DB_CONFIG,
+            memory=SimpleNamespace(memory_embed_enabled=True, memory_max_pinned=10),
         ),
         services=SimpleNamespace(audit_logger=None),
         services_required=SimpleNamespace(memory=_make_memory_store()),

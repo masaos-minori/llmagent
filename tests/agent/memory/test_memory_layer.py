@@ -22,6 +22,8 @@ from agent.memory.retriever import HybridRetriever
 from agent.memory.store import MemoryStore
 from agent.memory.types import EmbeddingResult, MemoryEntry, MemoryHit
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 
 def _make_entry(
     memory_type: str = "semantic",
@@ -82,6 +84,7 @@ def _make_ingestion_svc(
         retriever=mock_retriever,
         embed_client=MagicMock(spec=EmbeddingClient),
         dedup_policy=DedupPolicy(threshold=dedup_threshold),
+        db_config=MIN_DB_CONFIG,
     )
     return svc, mock_store, mock_retriever, mock_jsonl
 
@@ -358,6 +361,7 @@ class TestEmbeddingInOnSessionStop:
             jsonl=mock_jsonl,
             retriever=mock_retriever,
             embed_client=MagicMock(spec=EmbeddingClient),
+            db_config=MIN_DB_CONFIG,
         )
         svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
             return_value=EmbeddingResult(success=True, embedding=fake_embedding)
@@ -397,6 +401,7 @@ class TestEmbeddingInOnSessionStop:
             jsonl=mock_jsonl,
             retriever=mock_retriever,
             embed_client=MagicMock(spec=EmbeddingClient),
+            db_config=MIN_DB_CONFIG,
         )
         svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
             return_value=EmbeddingResult(success=False, error_kind="http_error")
@@ -643,6 +648,7 @@ class TestIngestionDedup:
             dedup_policy=DedupPolicy(threshold=0.3),
             project="proj",
             repo="repo",
+            db_config=MIN_DB_CONFIG,
         )
         svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
             return_value=EmbeddingResult(success=True, embedding=fake_embedding)
@@ -680,6 +686,7 @@ class TestIngestionDedup:
             retriever=mock_retriever,
             embed_client=MagicMock(spec=EmbeddingClient),
             dedup_policy=DedupPolicy(threshold=0.3),
+            db_config=MIN_DB_CONFIG,
         )
         svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
             return_value=EmbeddingResult(success=True, embedding=fake_embedding)
@@ -720,6 +727,7 @@ class TestLinkDuplicates:
             retriever=mock_retriever,
             embed_client=MagicMock(spec=EmbeddingClient),
             dedup_policy=DedupPolicy(threshold=0.9),
+            db_config=MIN_DB_CONFIG,
         )
         # knn_search returns empty list → no links
         mock_retriever.knn_search.return_value = []
@@ -740,6 +748,7 @@ class TestLinkDuplicates:
             retriever=mock_retriever,
             embed_client=MagicMock(spec=EmbeddingClient),
             dedup_policy=DedupPolicy(threshold=0.9),
+            db_config=MIN_DB_CONFIG,
         )
         self_entry = dataclasses.replace(_make_entry(), memory_id="mem-1")
         mock_retriever.knn_search.return_value = [
@@ -778,6 +787,7 @@ class TestStatEmbedSkip:
             retriever=mock_retriever,
             embed_client=MagicMock(spec=EmbeddingClient),
             dedup_policy=DedupPolicy(threshold=0.3),
+            db_config=MIN_DB_CONFIG,
         )
         svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
             return_value=EmbeddingResult(success=False, error_kind="http_error")
@@ -810,6 +820,7 @@ class TestStatEmbedSkip:
             jsonl=mock_jsonl,
             retriever=mock_retriever,
             embed_client=MagicMock(spec=EmbeddingClient),
+            db_config=MIN_DB_CONFIG,
         )
         svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
             return_value=EmbeddingResult(success=True, embedding=[0.1])
@@ -855,6 +866,7 @@ class TestStatEmbedSkip:
             retriever=mock_retriever,
             embed_client=MagicMock(spec=EmbeddingClient),
             dedup_policy=DedupPolicy(threshold=0.3),
+            db_config=MIN_DB_CONFIG,
         )
         svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
             return_value=EmbeddingResult(success=False, error_kind="http_error")
@@ -896,6 +908,7 @@ class TestMemoryServicesFacade:
             ingestion=ing,
             store=MagicMock(spec=MemoryStore),
             retriever=MagicMock(spec=HybridRetriever),
+            db_config=MIN_DB_CONFIG,
         )
 
     def test_on_session_start_delegates(self) -> None:

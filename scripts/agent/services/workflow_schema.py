@@ -9,6 +9,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from db.config import DbConfig
 from shared.logger import Logger
 from shared.schema_fingerprint import assert_matches
 
@@ -53,11 +54,17 @@ class SchemaCheckResult:
 # ── Workflow schema validation ────────────────────────────────────────────────
 
 
-def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
-    """Return SchemaCheckResult indicating whether the workflow DB schema is valid."""
+def check_workflow_schema(
+    db_config: DbConfig | None = None, db_path: str | None = None
+) -> SchemaCheckResult:
+    """Return SchemaCheckResult indicating whether the workflow DB schema is valid.
+
+    `db_config` is the typed configuration supplied by the process that owns the
+    configuration file; `db_path` overrides it when a specific file is being checked.
+    """
     from db.helper import SQLiteHelper
 
-    db = SQLiteHelper(target="workflow", db_path=db_path)
+    db = SQLiteHelper(target="workflow", db_config=db_config, db_path=db_path)
 
     # Check DB existence first — sqlite3.connect() creates files automatically.
     # The guard runs on the resolved path (db.DB_PATH) so the default-path case

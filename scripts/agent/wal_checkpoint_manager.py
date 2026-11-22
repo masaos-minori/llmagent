@@ -68,7 +68,9 @@ class WalCheckpointManager:
     def _checkpoint_step(self) -> tuple[bool, list[tuple[str, str]]]:
         """Blocking checkpoint body; the connection never leaves this worker thread."""
         errors: list[tuple[str, str]] = []
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._ctx.cfg.db).open(
+            write_mode=True
+        ) as db:
             wal_mode = db.execute("PRAGMA journal_mode").fetchone()[0]
             if wal_mode.lower() != "wal":
                 logger.debug("WAL checkpoint skipped: journal mode is %r", wal_mode)
@@ -136,7 +138,9 @@ class WalCheckpointManager:
         errors: list[tuple[str, str]] = []
         wal_backup_path: str | None = None
         try:
-            with SQLiteHelper("session").open(write_mode=True) as db:
+            with SQLiteHelper("session", db_config=self._ctx.cfg.db).open(
+                write_mode=True
+            ) as db:
                 db_path = db.execute("PRAGMA database_list").fetchone()[2]
                 if db_path:
                     resolved_db_path = os.path.realpath(db_path)

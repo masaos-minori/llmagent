@@ -137,7 +137,7 @@ class ComponentInitializer:
 
     def _check_workflow_schema(self) -> None:
         """Preflight check for workflow DB schema before Orchestrator.__init__()."""
-        result = check_workflow_schema()
+        result = check_workflow_schema(self._ctx.cfg.db)
         if not result.valid:
             logger.error("Workflow schema preflight failed: %s", result.error)
             raise RuntimeError(result.error)

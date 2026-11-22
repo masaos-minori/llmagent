@@ -20,8 +20,9 @@ from agent.config_dataclasses import DiagnosticsConfig
 from agent.diagnostic_store import DiagnosticStore
 from cryptography.fernet import Fernet, InvalidToken
 
-# ── In-memory schema (session_diagnostics only; no FK to sessions needed) ─────
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
 
+# ── In-memory schema (session_diagnostics only; no FK to sessions needed) ─────
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS session_diagnostics (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,7 +89,9 @@ def _cfg(**overrides: object) -> DiagnosticsConfig:
 
 def _store(**cfg_overrides: object) -> DiagnosticStore:
     """Construct a store wired to an injected DiagnosticsConfig."""
-    return DiagnosticStore(diagnostics_cfg=_cfg(**cfg_overrides))
+    return DiagnosticStore(
+        diagnostics_cfg=_cfg(**cfg_overrides), db_config=MIN_DB_CONFIG
+    )
 
 
 # ── save + fetch ──────────────────────────────────────────────────────────────
@@ -98,7 +101,8 @@ class TestDiagnosticStoreSave:
     def test_save_inserts_one_row(self, fake_db: _FakeSQLiteHelper) -> None:
         store = _store()
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content="v")
         rows = fake_db.fetchall("SELECT * FROM session_diagnostics")
@@ -107,7 +111,8 @@ class TestDiagnosticStoreSave:
     def test_save_with_none_session_id(self, fake_db: _FakeSQLiteHelper) -> None:
         store = _store()
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(None, kind="k", content="v")
         rows = fake_db.fetchall("SELECT session_id FROM session_diagnostics")
@@ -116,7 +121,8 @@ class TestDiagnosticStoreSave:
     def test_multiple_saves_accumulate(self, fake_db: _FakeSQLiteHelper) -> None:
         store = _store()
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content="v")
             store.save(1, kind="k", content="w")
@@ -126,7 +132,8 @@ class TestDiagnosticStoreSave:
     def test_fetch_returns_rows_for_session(self, fake_db: _FakeSQLiteHelper) -> None:
         store = _store()
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content="v")
             store.save(2, kind="k", content="w")
@@ -136,7 +143,8 @@ class TestDiagnosticStoreSave:
     def test_fetch_ignores_other_sessions(self, fake_db: _FakeSQLiteHelper) -> None:
         store = _store()
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content="v")
             store.save(2, kind="k", content="w")
@@ -146,7 +154,8 @@ class TestDiagnosticStoreSave:
     def test_convenience_methods_persist(self, fake_db: _FakeSQLiteHelper) -> None:
         store = _store()
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save_serialization_event(1, "r1", "t1", 3, "mode", 12.0, "reason")
         rows = fake_db.fetchall("SELECT kind FROM session_diagnostics")
@@ -157,7 +166,8 @@ class TestDiagnosticStoreSaveFields:
     def test_stores_json_with_expected_fields(self, fake_db: _FakeSQLiteHelper) -> None:
         store = _store()
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content='{"turn": 1}')
         (row,) = fake_db.fetchall("SELECT content FROM session_diagnostics")
@@ -166,7 +176,8 @@ class TestDiagnosticStoreSaveFields:
     def test_elapsed_ms_is_rounded(self, fake_db: _FakeSQLiteHelper) -> None:
         store = _store()
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save_serialization_event(1, "r1", "t1", 3, "mode", 12.345, "reason")
         (row,) = fake_db.fetchall("SELECT content FROM session_diagnostics")
@@ -175,7 +186,8 @@ class TestDiagnosticStoreSaveFields:
     def test_save_partial_completion(self, fake_db: _FakeSQLiteHelper) -> None:
         store = _store()
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save_partial_completion(1, turn=2, reason="stop", content_length=10)
         (row,) = fake_db.fetchall("SELECT kind, content FROM session_diagnostics")
@@ -185,7 +197,8 @@ class TestDiagnosticStoreSaveFields:
     def test_save_transport_failure(self, fake_db: _FakeSQLiteHelper) -> None:
         store = _store()
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save_transport_failure(1, "tool", "key", "boom")
         (row,) = fake_db.fetchall("SELECT kind FROM session_diagnostics")
@@ -232,7 +245,8 @@ class TestFilterSensitiveFields:
         store = _store()
         payload = json.dumps({"artifacts": ["a", "b"], "rag_stage_outcomes": []})
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="rag_query", content=payload)
             entries = store.fetch(1)
@@ -271,7 +285,8 @@ class TestEncryption:
         key = Fernet.generate_key().decode("utf-8")
         store = _store(encryption_key=key)
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content='{"turn": 1}')
         rows = fake_db.fetchall(
@@ -291,7 +306,8 @@ class TestEncryption:
         plaintext = '{"turn": 1}'
         store = _store(encryption_key=key)
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content=plaintext)
             entries = store.fetch(1)
@@ -305,7 +321,8 @@ class TestEncryption:
     ) -> None:
         store = _store()  # no encryption_key configured
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content='{"turn": 1}')
         rows = fake_db.fetchall(
@@ -333,7 +350,8 @@ class TestPurgeOldDiagnostics:
         fake_db.commit()
         store = _store(retention_days=30)
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="new_kind", content="new content")
         rows = fake_db.fetchall("SELECT kind FROM session_diagnostics")
@@ -355,7 +373,8 @@ class TestPurgeOldDiagnostics:
         fake_db.commit()
         store = _store(retention_days=0)
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="new_kind", content="new content")
         rows = fake_db.fetchall("SELECT kind FROM session_diagnostics")
@@ -376,7 +395,8 @@ class TestPurgeOldDiagnostics:
         fake_db.commit()
         store = _store()  # default retention_days=30
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="new_kind", content="new content")
         rows = fake_db.fetchall("SELECT kind FROM session_diagnostics")
@@ -391,7 +411,10 @@ def test_save_rejects_sensitive_data_without_encryption(
     """Verify refusal when sensitive data is present without a key."""
     store = _store()
     sensitive_content = '{"api_key": "sk-abcdefghijklmnop12345"}'
-    with patch("agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db):
+    with patch(
+        "agent.diagnostic_store.SQLiteHelper",
+        side_effect=lambda _, db_config=None: fake_db,
+    ):
         with pytest.raises(RuntimeError, match="Sensitive information detected"):
             store.save(1, kind="test", content=sensitive_content)
 
@@ -403,7 +426,10 @@ def test_save_successfully_encrypts_when_key_provided(
     key = Fernet.generate_key().decode("utf-8")
     store = _store(encryption_key=key)
     sensitive_content = '{"api_key": "sk-abcdefghijklmnop12345"}'
-    with patch("agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db):
+    with patch(
+        "agent.diagnostic_store.SQLiteHelper",
+        side_effect=lambda _, db_config=None: fake_db,
+    ):
         store.save(1, kind="test", content=sensitive_content)
 
     rows = fake_db.fetchall("SELECT content FROM session_diagnostics")
@@ -416,7 +442,10 @@ def test_save_saves_non_sensitive_data_normally(fake_db: _FakeSQLiteHelper) -> N
     """Verify non-sensitive data is saved normally without encryption."""
     store = _store()
     safe_content = '{"message": "hello world"}'
-    with patch("agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db):
+    with patch(
+        "agent.diagnostic_store.SQLiteHelper",
+        side_effect=lambda _, db_config=None: fake_db,
+    ):
         store.save(1, kind="test", content=safe_content)
 
     rows = fake_db.fetchall("SELECT content FROM session_diagnostics")
@@ -441,7 +470,8 @@ class TestSensitiveFieldsFromConfig:
             }
         )
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content=payload)
             entries = store.fetch(1)
@@ -463,7 +493,8 @@ class TestSensitiveFieldsFromConfig:
             }
         )
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content=payload)
             entries = store.fetch(1)
@@ -485,7 +516,8 @@ class TestSensitiveFieldsFromConfig:
             }
         )
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content=payload)
             entries = store.fetch(1)
@@ -505,7 +537,8 @@ class TestFetchEncryptedRoundTrip:
         plaintext = '{"turn": 1}'
         store = _store(encryption_key=key)
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="encrypted_entry", content=plaintext)
             entries = store.fetch(1)
@@ -520,7 +553,8 @@ class TestFetchEncryptedRoundTrip:
         plaintext = '{"turn": 1}'
         store = _store()
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="plain_entry", content=plaintext)
             entries = store.fetch(1)
@@ -538,13 +572,15 @@ class TestFetchEncryptedRoundTrip:
         # Encrypt with the correct key (as production would when the key was set).
         correct_store = _store(encryption_key=correct_key)
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             correct_store.save(1, kind="bad_decrypt_entry", content=plaintext)
         # Fetch with a store holding a different (rotated/incorrect) key.
         wrong_store = _store(encryption_key=wrong_key)
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             entries = wrong_store.fetch(1)
         assert len(entries) == 1
@@ -573,7 +609,8 @@ class TestInjectedConfigDrivesBehavior:
         fake_db.commit()
         store = _store(retention_days=5)
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="new_kind", content="new content")
         rows = fake_db.fetchall("SELECT kind FROM session_diagnostics")
@@ -584,7 +621,8 @@ class TestInjectedConfigDrivesBehavior:
         key = Fernet.generate_key().decode("utf-8")
         store = _store(encryption_key=key)
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content='{"q": "x"}')
         (content, fmt) = fake_db.fetchall(
@@ -598,7 +636,8 @@ class TestInjectedConfigDrivesBehavior:
     ) -> None:
         store = _store()
         with patch(
-            "agent.diagnostic_store.SQLiteHelper", side_effect=lambda _: fake_db
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
         ):
             store.save(1, kind="k", content="plain")
         (fmt,) = fake_db.fetchall("SELECT storage_format FROM session_diagnostics")

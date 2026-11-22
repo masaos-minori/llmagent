@@ -62,22 +62,18 @@ def _make_wdef(max_attempts: int = 3, retry_wait_sec: int = 0) -> WorkflowDef:
 
 @pytest.fixture()
 def workflow_db(tmp_path: Path) -> Path:
-    from unittest.mock import patch
 
     from db.config import DbConfig
 
     db_path = tmp_path / "workflow.sqlite"
     rag_path = tmp_path / "rag.sqlite"
     session_path = tmp_path / "session.sqlite"
-    with patch(
-        "db.helper.build_db_config",
-        return_value=DbConfig(
-            rag_db_path=str(rag_path),
-            session_db_path=str(session_path),
-            workflow_db_path=str(db_path),
-        ),
-    ):
-        create_workflow_schema()
+    cfg = DbConfig(
+        rag_db_path=str(rag_path),
+        session_db_path=str(session_path),
+        workflow_db_path=str(db_path),
+    )
+    create_workflow_schema(db_config=cfg)
     return db_path
 
 
@@ -85,8 +81,8 @@ def workflow_db(tmp_path: Path) -> Path:
 def store(workflow_db: Path):
     from agent.workflow.state_store import StateStore
 
-    with patch("db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))):
-        s = StateStore()
+    cfg = _make_cfg(str(workflow_db))
+    s = StateStore(db_config=cfg)
     yield s
     s.close()
 

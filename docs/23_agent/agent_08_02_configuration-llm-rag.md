@@ -1,5 +1,5 @@
 ---
-title: "Agent Configuration - LLMConfig and RAGConfig"
+title: "Agent Configuration - LLMConfig and RAG"
 area: agent
 tags:
   - agent
@@ -38,11 +38,11 @@ The Agent-owned LLM settings cover generation parameters, HTTP/connection, SSE s
 
 #### Embedding Endpoint
 
-- `embed_url`: Embedding endpoint used by the Agent's memory embedding client and the `embed-llm` health check.
+- `memory.memory_embed_url`: Embedding endpoint used by the Agent's memory embedding client and the `embed-llm` health check. The key belongs to the Memory section, which owns it; see `agent_08_03_configuration-tools-memory.md` for the key and its validation.
 
 #### Search Parameters
 
-`RAGConfig` has no search-stage parameters (`top_k_search`, `top_k_rerank`, `max_chunks_per_doc`, `rrf_k`, and similar). The RAG pipeline runs inside the rag-pipeline MCP server, and its search parameters are owned by `config/rag_pipeline_mcp_server.toml` (see `rag_05_01-configuration-reference.md`).
+The Agent-side RAG configuration carries no search-stage parameters (`top_k_search`, `top_k_rerank`, `max_chunks_per_doc`, `rrf_k`, and similar). The RAG pipeline runs inside the rag-pipeline MCP server, and its search parameters are owned by `config/rag_pipeline_mcp_server.toml` (see `rag_05_01-configuration-reference.md`).
 
 #### Refiner
 
@@ -50,15 +50,14 @@ The refiner is configured in `config/rag_pipeline_mcp_server.toml`; refiner keys
 
 ## Responsibility Boundary
 
-- **Canonical Source**: LLM/RAG sections in `config/agent.toml` for Agent-owned settings; `config/rag_pipeline_mcp_server.toml` for RAG pipeline parameters.
+- **Canonical Source**: the LLM section of `config/agent.toml` for Agent-owned settings; `config/rag_pipeline_mcp_server.toml` for RAG pipeline parameters.
 - **Validation**: `agent/services/config_validators.py`.
-- **Schema**: `LLMConfig` / `RAGConfig` in `agent/config_dataclasses.py`.
+- **Schema**: `LLMConfig` in `agent/config_dataclasses.py`; the embedding endpoint is a `MemoryConfig` field documented in `agent_08_03_configuration-tools-memory.md`.
 
 ## Key Constraints
 
-- `memory.memory_embed_enabled=True` → `rag.embed_url` must not be empty.
+- `memory.memory_embed_enabled=True` → `memory.memory_embed_url` must not be empty (`MemoryConfig` validation).
 
 ## Keywords
 
 - LLMConfig
-- RAGConfig

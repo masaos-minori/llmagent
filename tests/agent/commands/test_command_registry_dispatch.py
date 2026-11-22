@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """Tests for CommandRegistry.dispatch() args stripping and command-boundary error surface."""
 
 from __future__ import annotations

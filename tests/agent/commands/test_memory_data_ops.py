@@ -236,7 +236,7 @@ class TestMemoryDeleteShortId:
             ) as wd,
         ):
             ops.memory_delete(mem, ["abcdef12"])
-        wd.assert_called_once_with("abcdef1234")
+        wd.assert_called_once_with("abcdef1234", db_config=ops._ctx.cfg.db)
         # no M-code emitted on success path
         lines = [c.args[0] for c in out.write.call_args_list]
         assert not any(m in "\n".join(lines) for m in ("M-03", "M-04"))
@@ -264,7 +264,7 @@ class TestMemoryPinShortId:
                 "agent.commands.memory_data_ops.pin_mem", return_value=True
             ) as pm:
                 ops.memory_pin(mem, ["abcdef12"], pin=True)
-        pm.assert_called_once_with("abcdef1234")
+        pm.assert_called_once_with("abcdef1234", db_config=ops._ctx.cfg.db)
 
     def test_ambiguous_writes_m04(self) -> None:
         ops, out = _make_ops()
@@ -361,7 +361,7 @@ class TestMemoryPinLimit:
                 "agent.commands.memory_data_ops.pin_mem", return_value=True
             ) as pm:
                 ops.memory_pin(mem, ["abcdef12"], pin=True)
-        pm.assert_called_once_with("abcdef1234")
+        pm.assert_called_once_with("abcdef1234", db_config=ops._ctx.cfg.db)
         lines = [c.args[0] for c in out.write.call_args_list]
         assert not any(m in "\n".join(lines) for m in ("M-03", "M-04", "M-05"))
 

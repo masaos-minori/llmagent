@@ -52,27 +52,22 @@ def _make_cfg(db_path: str) -> DbConfig:
 
 @pytest.fixture()
 def workflow_db(tmp_path: Path) -> Path:
-    from unittest.mock import patch
 
     db_path = tmp_path / "workflow.sqlite"
-    with patch(
-        "db.helper.build_db_config",
-        return_value=DbConfig(
-            rag_db_path=str(tmp_path / "rag.sqlite"),
-            session_db_path=str(tmp_path / "session.sqlite"),
-            workflow_db_path=str(db_path),
-        ),
-    ):
-        create_workflow_schema()
+    cfg = DbConfig(
+        rag_db_path=str(tmp_path / "rag.sqlite"),
+        session_db_path=str(tmp_path / "session.sqlite"),
+        workflow_db_path=str(db_path),
+    )
+    create_workflow_schema(db_config=cfg)
     return db_path
 
 
 @pytest.fixture()
 def store(workflow_db: Path):
-    from unittest.mock import patch
 
-    with patch("db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))):
-        s = StateStore()
+    cfg = _make_cfg(str(workflow_db))
+    s = StateStore(db_config=cfg)
     yield s
     s.close()
 
@@ -211,7 +206,6 @@ class TestConcurrentRecoverSingleWinner:
         UPDATE matches; every other worker must see rowcount==0 and report 0.
         SQLite connections are thread-bound, so each StateStore is created
         inside its worker thread."""
-        from unittest.mock import patch
 
         _seed_attempt(
             workflow_db,
@@ -224,8 +218,12 @@ class TestConcurrentRecoverSingleWinner:
         results: list[int] = []
         lock = threading.Lock()
 
+        # The typed configuration is built once in the main thread; each worker opens
+        # its own store because SQLite connections are thread-bound.
+        cfg = _make_cfg(str(workflow_db))
+
         def worker() -> None:
-            s = StateStore()
+            s = StateStore(db_config=cfg)
             try:
                 count = s.recover_stale_attempts()
             finally:
@@ -233,17 +231,11 @@ class TestConcurrentRecoverSingleWinner:
             with lock:
                 results.append(count)
 
-        # Patch once in the main thread. unittest.mock's save/restore stack is
-        # not thread-safe: per-thread nested patches save each other's mocks
-        # and leak a MagicMock into db.helper when the threads interleave.
-        with patch(
-            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
-        ):
-            threads = [threading.Thread(target=worker) for _ in range(4)]
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
+        threads = [threading.Thread(target=worker) for _ in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
         assert sorted(results) == [0, 0, 0, 1]
         assert _attempt_row(workflow_db, "att-race")["status"] == "failed"

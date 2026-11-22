@@ -14,6 +14,11 @@ from shared.component_mandatoriness import (
 )
 from shared.config_validator import ConfigValidationResult
 
+from agent.services.config_validators import (
+    _AGENT_REFINER_KEYS,
+    check_agent_refiner_keys,
+)
+
 if TYPE_CHECKING:
     from shared.component_mandatoriness import ComponentClassification
     from shared.runtime_tool_registry import RuntimeToolRegistry
@@ -137,6 +142,7 @@ def _get_valid_production_keys() -> frozenset[str]:
         return _VALID_PRODUCTION_KEYS
 
     from agent.config_dataclasses import (
+        AgentConfig,
         ApprovalConfig,
         DiagnosticsConfig,
         LLMConfig,
@@ -144,14 +150,13 @@ def _get_valid_production_keys() -> frozenset[str]:
         MemoryConfig,
         MessageRoleConfig,
         ObservabilityConfig,
-        RAGConfig,
         ToolConfig,
     )
 
     valid_keys: set[str] = set()
     for cls in [
+        AgentConfig,
         LLMConfig,
-        RAGConfig,
         ToolConfig,
         MemoryConfig,
         MCPConfig,
@@ -163,15 +168,6 @@ def _get_valid_production_keys() -> frozenset[str]:
         for f in dataclass_fields(cls):
             valid_keys.add(f.name)
 
-    # AgentConfig-level key
-    valid_keys.add("agent_memory_max_startup_snippets")
-
-    # AgentConfig-level key: Agent-side stale-pending timeout window moved here
-    # from config/mcp_dedup.toml (seq 03). Registered so
-    # _check_unknown_production_keys does not reject it as an unknown top-level
-    # key during build_agent_config.
-    valid_keys.add("pending_timeout_minutes")
-
     # build_agent_config() direct keys (not mapped to any sub-config)
     valid_keys.add("system_prompt_tool")
 
@@ -180,30 +176,21 @@ def _get_valid_production_keys() -> frozenset[str]:
     # added above via DiagnosticsConfig) is a valid top-level key.
     valid_keys.add("diagnostics")
 
-    # Keys consumed by other subsystems (scripts/db/, scripts/rag/) that share
-    # config/agent.toml but are not part of any AgentConfig sub-dataclass.
-    valid_keys.update(
-        {
-            "rag_db_path",
-            "session_db_path",
-            "sqlite_archive_dir",
-            "sqlite_archive_max_age_days",
-            "sqlite_archive_max_files",
-            "sqlite_busy_timeout_ms",
-            "sqlite_corrupt_archive_max_age_days",
-            "sqlite_corrupt_archive_max_files",
-            "sqlite_drill_artifact_max_age_days",
-            "sqlite_drill_artifact_max_files",
-            "sqlite_quarantine_max_age_days",
-            "sqlite_quarantine_max_files",
-            "sqlite_retention_max_age_days",
-            "sqlite_retention_max_sessions",
-            "sqlite_timeout",
-            "sqlite_vec_so",
-            "sqlite_wal_checkpoint_mode",
-            "workflow_db_path",
-        }
-    )
+    # Keys consumed by other subsystems (scripts/db/) that share config/agent.toml but
+    # are not part of any AgentConfig sub-dataclass. They are derived from the typed
+    # configuration classes that read them, so the accepted key set stays in step with
+    # the owner map (Plan rows 8 and 9).
+    # DbConfig fields are named exactly as the keys `build_db_config()` reads, so they
+    # derive directly. `DbMaintenanceConfig.from_mapping()` reads "sqlite_" + field name
+    # (the fields are the same settings without the file's prefix), so the prefix is
+    # applied when deriving its keys.
+    from db.config import DbConfig
+    from db.maintenance import DbMaintenanceConfig
+
+    for f in dataclass_fields(DbConfig):
+        valid_keys.add(f.name)
+    for f in dataclass_fields(DbMaintenanceConfig):
+        valid_keys.add(f"sqlite_{f.name}")
 
     _VALID_PRODUCTION_KEYS = frozenset(valid_keys - _REMOVED_PRODUCTION_KEYS)
     return _VALID_PRODUCTION_KEYS
@@ -270,8 +257,18 @@ class ProductionConfigValidator:
             )
             self._record(errors, warnings, msg)
 
+        # Refiner keys: after _build_rag_config() was removed this is the only
+        # path that can see the top-level refiner keys, and it is the path that
+        # keeps the asserted message instead of a generic unknown-key error, so
+        # the unknown-key pass skips the keys this rule already reported.
+        errors.extend(check_agent_refiner_keys(config))
+
         # Unknown top-level key rejection
-        unknown_keys = ProductionConfigValidator._check_unknown_production_keys(config)
+        unknown_keys = [
+            key
+            for key in ProductionConfigValidator._check_unknown_production_keys(config)
+            if key not in _AGENT_REFINER_KEYS
+        ]
         if unknown_keys:
             unknown_list = ", ".join(repr(k) for k in unknown_keys)
             self._record(

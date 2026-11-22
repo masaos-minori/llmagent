@@ -23,6 +23,8 @@ from agent.memory.models import ConsistencyReport
 from agent.memory.types import MemoryEntry
 from agent.memory.write_ops import add as write_add
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 # Backing dir for rebuild backup writes in unit tests.
 _TMP_JSONL_DIR = tempfile.mkdtemp(prefix="mem-consistency-test-jsonl-")
 
@@ -194,7 +196,9 @@ class TestRebuildFromJsonl:
         asyncio.run(jsonl.write(_make_entry(memory_id="e1")))
         asyncio.run(jsonl.write(_make_entry(memory_id="e2")))
 
-        jsonl_count, inserted = import_from_jsonl(jsonl, dry_run=True)
+        jsonl_count, inserted = import_from_jsonl(
+            jsonl, dry_run=True, db_config=MIN_DB_CONFIG
+        )
 
         assert jsonl_count == 2
         assert inserted == 0
@@ -212,7 +216,7 @@ class TestRebuildFromJsonl:
         asyncio.run(jsonl.write(_make_entry(memory_id="e1")))
         asyncio.run(jsonl.write(_make_entry(memory_id="e2", memory_type="episodic")))
 
-        jsonl_count, inserted = import_from_jsonl(jsonl)
+        jsonl_count, inserted = import_from_jsonl(jsonl, db_config=MIN_DB_CONFIG)
 
         assert jsonl_count == 2
         assert inserted == 2
@@ -228,12 +232,12 @@ class TestRebuildFromJsonl:
         db_conn: sqlite3.Connection,
     ) -> None:
         # Pre-populate SQLite with a stale row
-        write_add(_make_entry(memory_id="stale"))
+        write_add(_make_entry(memory_id="stale"), db_config=MIN_DB_CONFIG)
 
         jsonl = JsonlMemoryStore(tmp_path / "mem.jsonl")
         asyncio.run(jsonl.write(_make_entry(memory_id="fresh")))
 
-        import_from_jsonl(jsonl)
+        import_from_jsonl(jsonl, db_config=MIN_DB_CONFIG)
 
         ids = [
             r[0] for r in db_conn.execute("SELECT memory_id FROM memories").fetchall()
@@ -250,7 +254,7 @@ class TestRebuildFromJsonl:
         jsonl = JsonlMemoryStore(tmp_path / "mem.jsonl")
         asyncio.run(jsonl.write(_make_entry(memory_id="e1", content="unique keyword")))
 
-        import_from_jsonl(jsonl)
+        import_from_jsonl(jsonl, db_config=MIN_DB_CONFIG)
 
         rows = db_conn.execute(
             "SELECT memory_id FROM memories_fts WHERE memories_fts MATCH 'unique'"
@@ -263,10 +267,10 @@ class TestRebuildFromJsonl:
         import_ops_fake_helper: _FakeSQLiteHelper,
         db_conn: sqlite3.Connection,
     ) -> None:
-        write_add(_make_entry(memory_id="existing"))
+        write_add(_make_entry(memory_id="existing"), db_config=MIN_DB_CONFIG)
         jsonl = JsonlMemoryStore(tmp_path / "empty.jsonl")
 
-        jsonl_count, inserted = import_from_jsonl(jsonl)
+        jsonl_count, inserted = import_from_jsonl(jsonl, db_config=MIN_DB_CONFIG)
 
         assert jsonl_count == 0
         assert inserted == 0
@@ -561,7 +565,7 @@ class TestCmdMemoryReindex:
         ) as spy:
             mixin.reindex(mem, ["--fts"])
 
-        spy.assert_called_once_with("fts")
+        spy.assert_called_once_with("fts", db_config=mixin._ctx.cfg.db)
         mixin._out.write_success.assert_called_once()
         msg = mixin._out.write_success.call_args[0][0]
         assert "memories_fts rebuilt: 42" in msg
@@ -593,7 +597,7 @@ class TestCmdMemoryReindex:
         with patch("agent.commands.memory_rebuild_ops._reindex", return_value=7) as spy:
             mixin.reindex(mem, ["--vec"])
 
-        spy.assert_called_once_with("vec")
+        spy.assert_called_once_with("vec", db_config=mixin._ctx.cfg.db)
         msg = mixin._out.write_success.call_args[0][0]
         assert "memories_vec rebuilt: 7" in msg
 
@@ -611,7 +615,7 @@ class TestReindex:
         monkeypatch.setattr(rebuild_ops, "rebuild_fts", spy)
         monkeypatch.setattr(rebuild_ops, "rebuild_vec", MagicMock(return_value=0))
 
-        assert rebuild_ops.reindex("fts") == 7
+        assert rebuild_ops.reindex("fts", db_config=MIN_DB_CONFIG) == 7
         spy.assert_called_once()
 
     def test_reindex_vec_delegates_to_rebuild_vec(
@@ -623,7 +627,7 @@ class TestReindex:
         monkeypatch.setattr(rebuild_ops, "rebuild_vec", spy)
         monkeypatch.setattr(rebuild_ops, "rebuild_fts", MagicMock(return_value=0))
 
-        assert rebuild_ops.reindex("vec") == 3
+        assert rebuild_ops.reindex("vec", db_config=MIN_DB_CONFIG) == 3
         spy.assert_called_once()
 
     def test_reindex_unknown_raises_value_error(
@@ -635,4 +639,4 @@ class TestReindex:
         monkeypatch.setattr(rebuild_ops, "rebuild_vec", MagicMock(return_value=0))
 
         with pytest.raises(ValueError, match="Unknown index type"):
-            rebuild_ops.reindex("bogus")
+            rebuild_ops.reindex("bogus", db_config=MIN_DB_CONFIG)

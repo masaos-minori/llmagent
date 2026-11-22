@@ -41,6 +41,7 @@ from db.helper import SQLiteHelper
 from shared.llm_exceptions import LLMErrorKind, LLMTransportError
 from shared.llm_types import LLMMessage, LLMResponse
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
 from tests.agent.test_turn_persistence import (
     _SCHEMA_SQL,
     _FakeSQLiteHelper,
@@ -394,23 +395,19 @@ class TestHandleTurnInvokesWorkflowEngine:
         session_path = str(tmp_path / "session.sqlite")
 
         # Create temp DB schema before creating StateStore
-        with patch(
-            "db.helper.build_db_config",
-            return_value=DbConfig(
-                rag_db_path=rag_path,
-                session_db_path=session_path,
-                workflow_db_path=db_path,
-            ),
-        ):
-            create_workflow_schema()
+        cfg = DbConfig(
+            rag_db_path=rag_path,
+            session_db_path=session_path,
+            workflow_db_path=db_path,
+        )
+        create_workflow_schema(db_config=cfg)
 
         # Replace StateStore with one that uses our temp DB (bypasses autouse fixture patch)
         class TempStateStore(StateStore):
-            def __init__(self) -> None:
-                from db.helper import SQLiteHelper
-
-                self._db = SQLiteHelper(db_path=db_path)
-                self._db.open(write_mode=True, row_factory=True)
+            def __init__(self, *, db_config: DbConfig) -> None:
+                # Orchestrator passes the MagicMock context config; pin this store
+                # to the temp workflow DB this test created.
+                super().__init__(db_config=cfg)
 
         # Restore real classes that were patched by autouse _patch_workflow_loader fixture
         monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
@@ -493,23 +490,19 @@ class TestHandleTurnInvokesWorkflowEngine:
         session_path = str(tmp_path / "session.sqlite")
 
         # Create temp DB schema before creating StateStore
-        with patch(
-            "db.helper.build_db_config",
-            return_value=DbConfig(
-                rag_db_path=rag_path,
-                session_db_path=session_path,
-                workflow_db_path=db_path,
-            ),
-        ):
-            create_workflow_schema()
+        cfg = DbConfig(
+            rag_db_path=rag_path,
+            session_db_path=session_path,
+            workflow_db_path=db_path,
+        )
+        create_workflow_schema(db_config=cfg)
 
         # Replace StateStore with one that uses our temp DB (bypasses autouse fixture patch)
         class TempStateStore(StateStore):
-            def __init__(self) -> None:
-                from db.helper import SQLiteHelper
-
-                self._db = SQLiteHelper(db_path=db_path)
-                self._db.open(write_mode=True, row_factory=True)
+            def __init__(self, *, db_config: DbConfig) -> None:
+                # Orchestrator passes the MagicMock context config; pin this store
+                # to the temp workflow DB this test created.
+                super().__init__(db_config=cfg)
 
         # Restore real classes that were patched by autouse _patch_workflow_loader fixture
         monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
@@ -590,22 +583,18 @@ class TestExecuteStageRetryRunsTurnEntryOnce:
         rag_path = str(tmp_path / "retry_rag.sqlite")
         session_path = str(tmp_path / "retry_session.sqlite")
 
-        with patch(
-            "db.helper.build_db_config",
-            return_value=DbConfig(
-                rag_db_path=rag_path,
-                session_db_path=session_path,
-                workflow_db_path=db_path,
-            ),
-        ):
-            create_workflow_schema()
+        cfg = DbConfig(
+            rag_db_path=rag_path,
+            session_db_path=session_path,
+            workflow_db_path=db_path,
+        )
+        create_workflow_schema(db_config=cfg)
 
         class TempStateStore(StateStore):
-            def __init__(self) -> None:
-                from db.helper import SQLiteHelper
-
-                self._db = SQLiteHelper(db_path=db_path)
-                self._db.open(write_mode=True, row_factory=True)
+            def __init__(self, *, db_config: DbConfig) -> None:
+                # Orchestrator passes the MagicMock context config; pin this store
+                # to the temp workflow DB this test created.
+                super().__init__(db_config=cfg)
 
         monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
         monkeypatch.setattr(
@@ -697,22 +686,18 @@ def _temp_workflow_store(monkeypatch: Any, tmp_path: Path) -> str:
     pin the adapter wiring, not engine stage-retry mechanics.
     """
     db_path = str(tmp_path / "wiring_workflow.sqlite")
-    with patch(
-        "db.helper.build_db_config",
-        return_value=DbConfig(
-            rag_db_path=str(tmp_path / "wiring_rag.sqlite"),
-            session_db_path=str(tmp_path / "wiring_session.sqlite"),
-            workflow_db_path=db_path,
-        ),
-    ):
-        create_workflow_schema()
+    cfg = DbConfig(
+        rag_db_path=str(tmp_path / "wiring_rag.sqlite"),
+        session_db_path=str(tmp_path / "wiring_session.sqlite"),
+        workflow_db_path=db_path,
+    )
+    create_workflow_schema(db_config=cfg)
 
     class TempStateStore(StateStore):
-        def __init__(self) -> None:
-            from db.helper import SQLiteHelper
-
-            self._db = SQLiteHelper(db_path=db_path)
-            self._db.open(write_mode=True, row_factory=True)
+        def __init__(self, *, db_config: DbConfig) -> None:
+            # Orchestrator passes the MagicMock context config; pin this store
+            # to the temp workflow DB this test created.
+            super().__init__(db_config=cfg)
 
     monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
     return db_path
@@ -836,22 +821,18 @@ class TestEntryWorkFailureIsNotRetried:
         rag_path = str(tmp_path / "entry_rag.sqlite")
         session_path = str(tmp_path / "entry_session.sqlite")
 
-        with patch(
-            "db.helper.build_db_config",
-            return_value=DbConfig(
-                rag_db_path=rag_path,
-                session_db_path=session_path,
-                workflow_db_path=db_path,
-            ),
-        ):
-            create_workflow_schema()
+        cfg = DbConfig(
+            rag_db_path=rag_path,
+            session_db_path=session_path,
+            workflow_db_path=db_path,
+        )
+        create_workflow_schema(db_config=cfg)
 
         class TempStateStore(StateStore):
-            def __init__(self) -> None:
-                from db.helper import SQLiteHelper
-
-                self._db = SQLiteHelper(db_path=db_path)
-                self._db.open(write_mode=True, row_factory=True)
+            def __init__(self, *, db_config: DbConfig) -> None:
+                # Orchestrator passes the MagicMock context config; pin this store
+                # to the temp workflow DB this test created.
+                super().__init__(db_config=cfg)
 
         monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
         monkeypatch.setattr(
@@ -933,22 +914,18 @@ class TestEntryWorkOutsideStageTimeout:
         rag_path = str(tmp_path / "timeout_rag.sqlite")
         session_path = str(tmp_path / "timeout_session.sqlite")
 
-        with patch(
-            "db.helper.build_db_config",
-            return_value=DbConfig(
-                rag_db_path=rag_path,
-                session_db_path=session_path,
-                workflow_db_path=db_path,
-            ),
-        ):
-            create_workflow_schema()
+        cfg = DbConfig(
+            rag_db_path=rag_path,
+            session_db_path=session_path,
+            workflow_db_path=db_path,
+        )
+        create_workflow_schema(db_config=cfg)
 
         class TempStateStore(StateStore):
-            def __init__(self) -> None:
-                from db.helper import SQLiteHelper
-
-                self._db = SQLiteHelper(db_path=db_path)
-                self._db.open(write_mode=True, row_factory=True)
+            def __init__(self, *, db_config: DbConfig) -> None:
+                # Orchestrator passes the MagicMock context config; pin this store
+                # to the temp workflow DB this test created.
+                super().__init__(db_config=cfg)
 
         monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
         monkeypatch.setattr(
@@ -1034,22 +1011,18 @@ class TestEntryWorkOutsideStageTimeout:
         rag_path = str(tmp_path / "llm_timeout_rag.sqlite")
         session_path = str(tmp_path / "llm_timeout_session.sqlite")
 
-        with patch(
-            "db.helper.build_db_config",
-            return_value=DbConfig(
-                rag_db_path=rag_path,
-                session_db_path=session_path,
-                workflow_db_path=db_path,
-            ),
-        ):
-            create_workflow_schema()
+        cfg = DbConfig(
+            rag_db_path=rag_path,
+            session_db_path=session_path,
+            workflow_db_path=db_path,
+        )
+        create_workflow_schema(db_config=cfg)
 
         class TempStateStore(StateStore):
-            def __init__(self) -> None:
-                from db.helper import SQLiteHelper
-
-                self._db = SQLiteHelper(db_path=db_path)
-                self._db.open(write_mode=True, row_factory=True)
+            def __init__(self, *, db_config: DbConfig) -> None:
+                # Orchestrator passes the MagicMock context config; pin this store
+                # to the temp workflow DB this test created.
+                super().__init__(db_config=cfg)
 
         monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
         monkeypatch.setattr(
@@ -3347,22 +3320,21 @@ def _status_harness(
     rag_path = str(tmp_path / "rag.sqlite")
     session_path = str(tmp_path / "session.sqlite")
 
-    with patch(
-        "db.helper.build_db_config",
-        return_value=DbConfig(
-            rag_db_path=rag_path,
-            session_db_path=session_path,
-            workflow_db_path=db_path,
-        ),
-    ):
-        create_workflow_schema()
+    cfg = DbConfig(
+        rag_db_path=rag_path,
+        session_db_path=session_path,
+        workflow_db_path=db_path,
+    )
+    create_workflow_schema(db_config=cfg)
 
     store = store_cls(db_path)
 
     # Restore the real classes BEFORE constructing the orchestrator so it builds the real
     # WorkflowEngine and routes its single shared StateStore at our temp DB (factory form so
-    # StateStore() returns our pre-built probe store rather than opening a second connection).
-    monkeypatch.setattr("agent.orchestrator.StateStore", lambda: store)
+    # StateStore(...) returns our pre-built probe store rather than opening a second
+    # connection; the probe store already points at this test's temp DB, so the config the
+    # orchestrator passes from the MagicMock context is not used).
+    monkeypatch.setattr("agent.orchestrator.StateStore", lambda **_kwargs: store)
     monkeypatch.setattr("agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine)
 
     ctx = _make_ctx()
@@ -3880,7 +3852,7 @@ class TestTurnPersistenceBoundaryWiring:
 
         state: dict[str, int] = {"fail_next": 0}
 
-        def _make(target: str = "session") -> _FakeSQLiteHelper:
+        def _make(target: str = "session", **_kwargs: object) -> _FakeSQLiteHelper:
             fake = _FakeSQLiteHelper(conn)
             fake._state = state
             return fake
@@ -3889,9 +3861,11 @@ class TestTurnPersistenceBoundaryWiring:
             patch("agent.session.SQLiteHelper", side_effect=_make),
             patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
         ):
-            session = AgentSession()
+            # SQLiteHelper is patched to the fake connection below, so the config
+            # values are not read; the typed config is only the constructor contract.
+            session = AgentSession(db_config=MIN_DB_CONFIG)
             session.session_id = 1
-            session._message_repo = SessionMessageRepository(1)
+            session._message_repo = SessionMessageRepository(1, db_config=MIN_DB_CONFIG)
 
             conv = ConversationState()
             conv.history = [{"role": "user", "content": "prior-1"}]
@@ -3983,10 +3957,13 @@ class _RealTurnDB:
             )
             self.conn.commit()
         self.state: dict[str, bool] = {"fail_inserts": False}
-        self.session = AgentSession()
+        # SQLiteHelper is patched by patched(), so this config is never read.
+        self.session = AgentSession(db_config=MIN_DB_CONFIG)
         self.session.session_id = 1
 
-    def _make(self, target: str = "session") -> _InjectingSQLiteHelper:
+    def _make(
+        self, target: str = "session", **_kwargs: object
+    ) -> _InjectingSQLiteHelper:
         fake = _InjectingSQLiteHelper(self.conn)
         fake._state = self.state
         return fake
@@ -4267,7 +4244,7 @@ class TestStartupRetentionPurge:
         class SpyStateStore(StateStore):
             """Real method surface, but no DB: construction order is all we assert."""
 
-            def __init__(self) -> None:
+            def __init__(self, *, db_config: DbConfig) -> None:  # noqa: ARG002 — the config is accepted so the real constructor contract holds; this store has no DB
                 self.last_recovery_report = RecoveryReport()
 
             def get_connection(self) -> None:  # type: ignore[override]

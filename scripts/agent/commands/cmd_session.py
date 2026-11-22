@@ -137,7 +137,9 @@ class _SessionMixin(MixinBase):
 
     def _db_session_stats(self) -> None:
         """Print session/message counts from the Session database."""
-        result = DbMaintenanceService().stats()
+        result = DbMaintenanceService(
+            self._ctx.cfg.db, self._ctx.cfg.maintenance
+        ).stats()
         self._out.write_kv(
             [
                 ("sessions", f"{result.sessions:,}"),
@@ -148,19 +150,19 @@ class _SessionMixin(MixinBase):
 
     def _rag_consistency(self) -> None:
         """Print RAG index consistency status (is_consistent + any issues)."""
-        result = RagMaintenanceService().consistency()
+        result = RagMaintenanceService(self._ctx.cfg.db).consistency()
         self._out.write_kv([("is_consistent", str(result.is_consistent))])
         for issue in result.issues:
             self._out.write(issue)
 
     def _rag_rebuild_fts(self) -> None:
         """Rebuild the RAG FTS5 index (chunks_fts) from current chunk content."""
-        RagMaintenanceService().rebuild_fts()
+        RagMaintenanceService(self._ctx.cfg.db).rebuild_fts()
         self._out.write_success("RAG FTS index rebuilt. [RAG]")
 
     def _rag_rebuild_vec(self) -> None:
         """Rebuild chunks_vec from chunks. Returns number of rows inserted."""
-        count = RagMaintenanceService().rebuild_vec()
+        count = RagMaintenanceService(self._ctx.cfg.db).rebuild_vec()
         self._out.write_success(f"chunks_vec rebuilt ({count} rows). [RAG]")
 
     def _session_export(self, args: str) -> None:

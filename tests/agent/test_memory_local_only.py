@@ -17,28 +17,32 @@ class TestMemoryLocalOnlyConfig:
         """memory_local_only defaults to False."""
         from agent.config_dataclasses import MemoryConfig
 
-        cfg = MemoryConfig()
+        cfg = MemoryConfig(memory_embed_url="http://localhost:8080")
         assert cfg.memory_local_only is False
 
     def test_config_builder_reads_memory_local_only_true(self) -> None:
         """_build_memory_config reads memory_local_only=true from config."""
         from agent.config_section_builders import _build_memory_config
 
-        cfg = _build_memory_config({"memory_local_only": True})
+        cfg = _build_memory_config(
+            {"memory_local_only": True, "memory_embed_url": "http://localhost:8080"}
+        )
         assert cfg.memory_local_only is True
 
     def test_config_builder_reads_memory_local_only_false(self) -> None:
         """_build_memory_config reads memory_local_only=false from config."""
         from agent.config_section_builders import _build_memory_config
 
-        cfg = _build_memory_config({"memory_local_only": False})
+        cfg = _build_memory_config(
+            {"memory_local_only": False, "memory_embed_url": "http://localhost:8080"}
+        )
         assert cfg.memory_local_only is False
 
     def test_config_builder_default_false_when_missing(self) -> None:
         """_build_memory_config defaults to False when memory_local_only not in config."""
         from agent.config_section_builders import _build_memory_config
 
-        cfg = _build_memory_config({})
+        cfg = _build_memory_config({"memory_embed_url": "http://localhost:8080"})
         assert cfg.memory_local_only is False
 
 
@@ -48,7 +52,7 @@ class TestFactoryLocalOnlyPassthrough:
         from agent.factory import _build_embedding_client
 
         ctx = MagicMock()
-        ctx.cfg.rag.embed_url = "http://localhost:8080/embed"
+        ctx.cfg.memory.memory_embed_url = "http://localhost:8080/embed"
         ctx.cfg.memory.memory_embed_timeout_sec = 5.0
         ctx.cfg.memory.memory_local_only = True
 
@@ -71,7 +75,7 @@ class TestFactoryLocalOnlyPassthrough:
         from agent.factory import _build_embedding_client
 
         ctx = MagicMock()
-        ctx.cfg.rag.embed_url = "http://localhost:8080/embed"
+        ctx.cfg.memory.memory_embed_url = "http://localhost:8080/embed"
         ctx.cfg.memory.memory_embed_timeout_sec = 5.0
         ctx.cfg.memory.memory_local_only = False
 
@@ -94,7 +98,7 @@ class TestFactoryLocalOnlyPassthrough:
         from agent.factory import _build_embedding_client
 
         ctx = MagicMock()
-        ctx.cfg.rag.embed_url = "http://localhost:8080/embed"
+        ctx.cfg.memory.memory_embed_url = "http://localhost:8080/embed"
         ctx.cfg.memory.memory_embed_timeout_sec = 5.0
         ctx.cfg.memory.memory_local_only = False  # explicitly set to False
 

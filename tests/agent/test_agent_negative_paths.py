@@ -18,6 +18,7 @@ from agent.tool_enums import RiskLevel
 from agent.tool_policy import classify_risk
 from shared.runtime_tool_registry import RuntimeToolRegistry
 
+from tests.agent._config_test_defaults import SHIPPED_DB_PATH_KEYS
 from tests.agent.test_tool_policy import _runtime_tool
 
 
@@ -33,6 +34,8 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_shell_safe_prefixes": ["/bin/", "/usr/bin/"],
         "approval_github_allowed_repos": [],
         "allowed_root": "/opt/llm",
+        # build_agent_config() resolves the typed DB configuration from the mapping, so the fixture supplies the mirrored path keys.
+        **SHIPPED_DB_PATH_KEYS,
         "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
         "memory_local_only": True,
         "memory_embed_enabled": False,

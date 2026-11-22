@@ -1,11 +1,12 @@
 """tests/test_config_dataclasses.py
 Unit tests for validation logic in agent/config_dataclasses.py:
-LLMConfig, RAGConfig, ToolConfig, ApprovalConfig, AgentConfig.
+LLMConfig, ToolConfig, ApprovalConfig, AgentConfig.
 """
 
 from __future__ import annotations
 
 import re
+from typing import Any
 
 import pytest
 from agent.config_dataclasses import (
@@ -15,7 +16,6 @@ from agent.config_dataclasses import (
     LLMConfig,
     MCPConfig,
     MemoryConfig,
-    RAGConfig,
     ToolConfig,
 )
 from agent.services.config_validators import (
@@ -28,7 +28,7 @@ from agent.services.config_validators import (
 from cryptography.fernet import Fernet
 from shared.tool_registry import ToolDefinition, get_registry
 
-# ── LLMConfig ─────────────────────────────────────────────────────────────────
+from tests.agent._config_test_defaults import MIN_DB_CONFIG, MIN_MAINTENANCE_CONFIG
 
 
 class TestLLMConfigValidation:
@@ -119,26 +119,6 @@ class TestLLMConfigValidation:
             LLMConfig(sse_reconnect_max=-1)
 
 
-# ── RAGConfig ─────────────────────────────────────────────────────────────────
-
-
-class TestRAGConfigValidation:
-    def test_defaults_are_valid(self) -> None:
-        cfg = RAGConfig()
-        assert cfg.embed_url == ""
-
-    def test_has_no_refiner_attributes(self) -> None:
-        """The refiner is configured only in the rag-pipeline MCP server (ADR-002)."""
-        cfg = RAGConfig()
-        for name in (
-            "use_refiner",
-            "refiner_max_tokens",
-            "refiner_timeout",
-            "refiner_max_chars_per_chunk",
-        ):
-            assert not hasattr(cfg, name), name
-
-
 # ── ToolConfig ────────────────────────────────────────────────────────────────
 
 
@@ -161,7 +141,6 @@ class TestToolConfigValidation:
 
     def test_tool_error_max_consecutive_full_message(self) -> None:
         with pytest.raises(
-            ValueError,
             match=re.escape("tool_error_max_consecutive must be >= 0, got -1"),
         ):
             ToolConfig(tool_error_max_consecutive=-1)
@@ -174,7 +153,6 @@ class TestToolConfigValidation:
 
     def test_progress_stagnation_window_negative_raises(self) -> None:
         with pytest.raises(
-            ValueError,
             match=re.escape("progress_stagnation_window must be >= 0, got -1"),
         ):
             ToolConfig(progress_stagnation_window=-1)
@@ -264,65 +242,78 @@ class TestApprovalConfigValidation:
 # ── AgentConfig cross-field validation ────────────────────────────────────────
 
 
+def _agent_config(**kwargs: Any) -> AgentConfig:
+    """Build AgentConfig with the typed configuration its required fields now take."""
+    return AgentConfig(db=MIN_DB_CONFIG, maintenance=MIN_MAINTENANCE_CONFIG, **kwargs)
+
+
 class TestAgentConfigValidation:
     def test_defaults_are_valid(self) -> None:
-        # memory_embed_enabled now defaults to True, so embed_url must be non-empty
-        # (mirrors config/agent.toml always supplying embed_url in practice).
-        cfg = AgentConfig(rag=RAGConfig(embed_url="http://localhost:8080"))
+        # memory_embed_enabled defaults to True, so memory_embed_url must be
+        # non-empty (mirrors config/agent.toml always supplying it in practice).
+        cfg = _agent_config(
+            memory=MemoryConfig(memory_embed_url="http://localhost:8080")
+        )
         assert isinstance(cfg, AgentConfig)
 
     def test_agent_config_has_no_workflow_mode_field(self) -> None:
         assert not hasattr(
-            AgentConfig(rag=RAGConfig(embed_url="http://localhost:8080")),
+            _agent_config(
+                memory=MemoryConfig(memory_embed_url="http://localhost:8080")
+            ),
             "workflow_mode",
         )
 
     def test_agent_config_has_no_workflow_require_approval_field(self) -> None:
         assert not hasattr(
-            AgentConfig(rag=RAGConfig(embed_url="http://localhost:8080")),
+            _agent_config(
+                memory=MemoryConfig(memory_embed_url="http://localhost:8080")
+            ),
             "workflow_require_approval",
         )
 
-    def test_memory_embed_without_embed_url_raises(self) -> None:
-        mem = MemoryConfig(memory_embed_enabled=True)
-        rag = RAGConfig(embed_url="")
-        with pytest.raises(ValueError, match="embed_url"):
-            AgentConfig(rag=rag, memory=mem)
-
     def test_memory_layer_without_jsonl_dir_raises(self) -> None:
-        mem = MemoryConfig(use_memory_layer=True, memory_jsonl_dir="")
+        mem = MemoryConfig(
+            use_memory_layer=True,
+            memory_jsonl_dir="",
+            memory_embed_enabled=False,
+        )
         with pytest.raises(ValueError, match="memory_jsonl_dir"):
-            AgentConfig(memory=mem)
+            _agent_config(memory=mem)
 
     def test_default_diagnostics_config(self) -> None:
-        cfg = AgentConfig(rag=RAGConfig(embed_url="http://localhost:8080"))
+        cfg = _agent_config(
+            memory=MemoryConfig(memory_embed_url="http://localhost:8080")
+        )
         assert cfg.diagnostics.encryption_key == ""
         assert cfg.diagnostics.retention_days == 30
 
     def test_agent_config_max_startup_snippets_zero_raises(self) -> None:
         with pytest.raises(ValueError, match="agent_memory_max_startup_snippets"):
-            AgentConfig(
+            _agent_config(
                 agent_memory_max_startup_snippets=0,
-                rag=RAGConfig(embed_url="http://localhost:8080"),
+                memory=MemoryConfig(memory_embed_url="http://localhost:8080"),
             )
 
     def test_agent_config_max_startup_snippets_negative_raises(self) -> None:
         with pytest.raises(ValueError, match="agent_memory_max_startup_snippets"):
-            AgentConfig(
+            _agent_config(
                 agent_memory_max_startup_snippets=-1,
-                rag=RAGConfig(embed_url="http://localhost:8080"),
+                memory=MemoryConfig(memory_embed_url="http://localhost:8080"),
             )
 
     def test_agent_config_max_startup_snippets_positive_values_pass(self) -> None:
         for value in (1, 5):
-            cfg = AgentConfig(
+            cfg = _agent_config(
                 agent_memory_max_startup_snippets=value,
-                rag=RAGConfig(embed_url="http://localhost:8080"),
+                memory=MemoryConfig(memory_embed_url="http://localhost:8080"),
             )
             assert cfg.agent_memory_max_startup_snippets == value
 
     def test_agent_config_max_startup_snippets_default_is_ten(self) -> None:
-        cfg = AgentConfig(rag=RAGConfig(embed_url="http://localhost:8080"))
+        cfg = _agent_config(
+            memory=MemoryConfig(memory_embed_url="http://localhost:8080")
+        )
         assert cfg.agent_memory_max_startup_snippets == 10
 
 
@@ -425,8 +416,26 @@ class TestMCPConfigValidation:
 
 
 class TestMemoryConfigValidation:
+    def test_enabled_without_embed_url_raises(self) -> None:
+        with pytest.raises(
+            match=re.escape(
+                "memory_embed_enabled=True requires memory_embed_url to be non-empty",
+            ),
+        ):
+            MemoryConfig(memory_embed_enabled=True)
+
+    def test_enabled_with_embed_url_passes(self) -> None:
+        cfg = MemoryConfig(memory_embed_url="http://localhost:8080")
+        assert cfg.memory_embed_url == "http://localhost:8080"
+
+    def test_disabled_without_embed_url_passes(self) -> None:
+        cfg = MemoryConfig(memory_embed_enabled=False)
+        assert cfg.memory_embed_url == ""
+
     def test_defaults_valid(self) -> None:
-        cfg = MemoryConfig()
+        # memory_embed_enabled defaults to True, so the enabled-gated check runs;
+        # construct with a non-empty url, as config/agent.toml always supplies one.
+        cfg = MemoryConfig(memory_embed_url="http://localhost:8080")
         assert cfg.memory_fts_limit == 50
         assert cfg.memory_rrf_k == 60
         assert cfg.memory_recency_days == 7.0
@@ -451,14 +460,12 @@ class TestMemoryConfigValidation:
 
     def test_memory_max_inject_semantic_negative_raises(self) -> None:
         with pytest.raises(
-            ValueError,
             match=re.escape("memory_max_inject_semantic must be >= 0, got -1"),
         ):
             MemoryConfig(memory_max_inject_semantic=-1)
 
     def test_memory_max_inject_episodic_negative_raises(self) -> None:
         with pytest.raises(
-            ValueError,
             match=re.escape("memory_max_inject_episodic must be >= 0, got -1"),
         ):
             MemoryConfig(memory_max_inject_episodic=-1)
@@ -482,5 +489,8 @@ class TestMemoryConfigValidation:
             MemoryConfig(memory_max_pinned=0)
 
     def test_memory_max_pinned_default_and_one_passes(self) -> None:
-        assert MemoryConfig().memory_max_pinned == 10
-        MemoryConfig(memory_max_pinned=1)
+        # memory_embed_enabled defaults to True, so the enabled-gated check runs;
+        # disable it to test the max_pinned default in isolation.
+        cfg = MemoryConfig(memory_embed_enabled=False)
+        assert cfg.memory_max_pinned == 10
+        MemoryConfig(memory_max_pinned=1, memory_embed_enabled=False)

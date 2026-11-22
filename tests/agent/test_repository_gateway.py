@@ -28,6 +28,7 @@ from tests.agent._config_test_defaults import (
     ALL_TOOL_NAMES,
     PERMISSIVE_ALLOWED_ROOT,
     PERMISSIVE_SQLITE_VEC_SO,
+    SHIPPED_DB_PATH_KEYS,
 )
 
 
@@ -444,7 +445,7 @@ def _make_real_cfg(**overrides: object):
             "tool_dedup_max_repeats": 3,
             "tool_cycle_detect_window": 2,
             "tool_error_max_consecutive": 3,
-            "embed_url": "http://127.0.0.1:9999",
+            "memory_embed_url": "http://127.0.0.1:9999",
             "mcp_servers": {
                 "_dummy": {
                     "transport": "http",
@@ -453,6 +454,8 @@ def _make_real_cfg(**overrides: object):
                 }
             },
             "allowed_root": PERMISSIVE_ALLOWED_ROOT,
+            # build_agent_config() resolves the typed DB configuration from the mapping, so the fixture supplies the mirrored path keys.
+            **SHIPPED_DB_PATH_KEYS,
             "sqlite_vec_so": PERMISSIVE_SQLITE_VEC_SO,
             **overrides,
         }

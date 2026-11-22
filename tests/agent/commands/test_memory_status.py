@@ -18,6 +18,8 @@ from agent.memory.embedding_client import (
 )
 from agent.memory.retriever import HybridRetriever
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 # ── EmbeddingClient.get_status() ─────────────────────────────────────────────
 
 
@@ -89,15 +91,15 @@ class TestGetStatus:
 class TestHybridRetrieverAttributes:
     def test_embed_client_stored(self, config: EmbeddingClientConfig) -> None:
         ec = EmbeddingClient(config, enabled=False)
-        ret = HybridRetriever(embed_client=ec)
+        ret = HybridRetriever(embed_client=ec, db_config=MIN_DB_CONFIG)
         assert ret.embed_client is ec
 
     def test_embed_client_defaults_to_none(self) -> None:
-        ret = HybridRetriever()
+        ret = HybridRetriever(db_config=MIN_DB_CONFIG)
         assert ret.embed_client is None
 
     def test_last_retrieval_mode_defaults_to_unknown(self) -> None:
-        ret = HybridRetriever()
+        ret = HybridRetriever(db_config=MIN_DB_CONFIG)
         assert ret.last_retrieval_mode == "unknown"
 
 
@@ -112,6 +114,11 @@ def _make_mixin() -> object:
     mixin._out = MagicMock(spec=CliOutputPort)
     mixin._ctx = MagicMock()
     mixin._ctx.services_required.audit_logger = None
+    # build_memory_status() reads the typed configuration, so the fixture supplies the
+    # fields it actually uses: the session DB is opened through cfg.db, and
+    # cfg.memory.memory_max_pinned is formatted into the table.
+    mixin._ctx.cfg.db = MIN_DB_CONFIG
+    mixin._ctx.cfg.memory.memory_max_pinned = 20
     return mixin
 
 

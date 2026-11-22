@@ -10,6 +10,7 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
 from shared.json_utils import parse_iso_utc
@@ -54,9 +55,10 @@ class RecoveryReport:
 class StateStore:
     """CRUD facade over workflow.sqlite. One instance per workflow engine lifecycle."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, db_config: DbConfig) -> None:
         """Initialize the state store by opening the workflow SQLite database in write mode."""
-        self._db = SQLiteHelper(target="workflow")
+        self._db_config = db_config
+        self._db = SQLiteHelper(target="workflow", db_config=self._db_config)
         self._db.open(write_mode=True, row_factory=True)
         self.last_recovery_report = RecoveryReport()
 

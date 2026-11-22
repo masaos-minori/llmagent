@@ -11,6 +11,8 @@ from pathlib import Path
 import pytest
 from db.helper import SQLiteHelper
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG, PERMISSIVE_SQLITE_VEC_SO
+
 # ── In-memory DB helper ───────────────────────────────────────────────────────
 
 
@@ -68,8 +70,13 @@ def conn() -> sqlite3.Connection:
 
 @pytest.fixture
 def helper(conn: sqlite3.Connection) -> SQLiteHelper:
-    """Create a SQLiteHelper with an in-memory connection."""
-    h = SQLiteHelper("rag")
+    """Create a SQLiteHelper with an in-memory connection.
+
+    The helper resolves no configuration file, so the typed configuration comes from the
+    shared fixture; the tests below replace the connection with an in-memory one, and only
+    the target decision (which owns vec0) is exercised here.
+    """
+    h = SQLiteHelper("rag", db_config=MIN_DB_CONFIG)
     h.conn = conn
     return h
 
@@ -226,7 +233,7 @@ class TestSQLiteHelperTargetValidation:
         """Passing a DbTarget enum member resolves to its string value."""
         from db.helper import DbTarget
 
-        h = SQLiteHelper(DbTarget.RAG)
+        h = SQLiteHelper(DbTarget.RAG, db_config=MIN_DB_CONFIG)
         assert h._target == "rag"
         assert h._default_load_vec is True
 
@@ -240,10 +247,15 @@ class TestSQLiteHelperTargetValidation:
 
 
 class TestSQLiteHelperMissingDbPathMessage:
-    def test_missing_workflow_db_path_mentions_agent_toml(self) -> None:
-        """Missing workflow_db_path must mention agent.toml, not common.toml."""
-        from unittest.mock import patch
+    """The fail-closed wording names the supplied configuration, not a config file (Plan row 15)."""
 
+    def test_constructing_without_a_configuration_names_the_contract(self) -> None:
+        """A helper that is given neither a path nor a configuration raises before connecting."""
+        with pytest.raises(ValueError, match="db_config must be supplied"):
+            SQLiteHelper("workflow")
+
+    def test_empty_path_names_the_supplied_configuration(self) -> None:
+        """A supplied configuration that resolves to an empty path is named at connect."""
         from db.config import DbConfig
 
         cfg = DbConfig(
@@ -251,12 +263,11 @@ class TestSQLiteHelperMissingDbPathMessage:
             session_db_path="/tmp/session.sqlite",
             workflow_db_path="/opt/llm/db/workflow.sqlite",
         )
-        with patch("db.helper.build_db_config", return_value=cfg):
-            helper = SQLiteHelper("workflow")
-            # Simulate the case where _db_path was never set (e.g., stale DbConfig)
-            helper._db_path = ""
-            with pytest.raises(ValueError, match="agent.toml"):
-                helper._connect()
+        helper = SQLiteHelper("workflow", db_config=cfg)
+        # Simulate the case where _db_path was never set (e.g., stale DbConfig)
+        helper._db_path = ""
+        with pytest.raises(ValueError, match="supplied DbConfig"):
+            helper._connect()
 
 
 class TestReuseConnection:
@@ -291,7 +302,6 @@ class TestSQLiteHelperVecDefault:
         ],
     )
     def test_default_load_vec_per_target(self, target: str, expected: bool) -> None:
-        from unittest.mock import patch
 
         from db.config import DbConfig
 
@@ -300,8 +310,7 @@ class TestSQLiteHelperVecDefault:
             session_db_path="/tmp/session.sqlite",
             workflow_db_path="/tmp/workflow.sqlite",
         )
-        with patch("db.helper.build_db_config", return_value=cfg):
-            assert SQLiteHelper(target)._default_load_vec is expected
+        assert SQLiteHelper(target, db_config=cfg)._default_load_vec is expected
 
     def test_explicit_load_vec_overrides_default(self, tmp_path: Path) -> None:
         from unittest.mock import patch
@@ -340,80 +349,62 @@ class TestSQLiteHelperVecExtensionLoading:
         self, tmp_path: Path, target: str
     ) -> None:
         """Empty sqlite_vec_so skips the load; a later vec0 access fails visibly."""
-        from unittest.mock import patch
 
         cfg = self._config(tmp_path, "")
-        with patch("db.helper.build_db_config", return_value=cfg):
-            with SQLiteHelper(target).open(write_mode=True) as db:
-                assert db.conn is not None
-                loaded = db.conn.execute(
-                    "SELECT count(*) FROM pragma_module_list WHERE name = 'vec0'"
-                ).fetchone()[0]
-                assert loaded == 0
-                with pytest.raises(sqlite3.OperationalError):
-                    db.conn.execute(
-                        "CREATE VIRTUAL TABLE v USING vec0(embedding float[4])"
-                    )
+        with SQLiteHelper(target, db_config=cfg).open(write_mode=True) as db:
+            assert db.conn is not None
+            loaded = db.conn.execute(
+                "SELECT count(*) FROM pragma_module_list WHERE name = 'vec0'"
+            ).fetchone()[0]
+            assert loaded == 0
+            with pytest.raises(sqlite3.OperationalError):
+                db.conn.execute("CREATE VIRTUAL TABLE v USING vec0(embedding float[4])")
 
     @pytest.mark.parametrize("target", ["rag", "session"])
     def test_unloadable_vec_so_raises_at_open(
         self, tmp_path: Path, target: str
     ) -> None:
         """A configured but unloadable extension fails at open, not on first use."""
-        from unittest.mock import patch
 
         cfg = self._config(tmp_path, str(tmp_path / "missing" / "vec0.so"))
-        with patch("db.helper.build_db_config", return_value=cfg):
-            helper = SQLiteHelper(target)
-            with pytest.raises(sqlite3.OperationalError):
-                helper.open()
-            assert helper.conn is None
+        helper = SQLiteHelper(target, db_config=cfg)
+        with pytest.raises(sqlite3.OperationalError):
+            helper.open()
+        assert helper.conn is None
 
     def test_workflow_ignores_a_configured_unloadable_vec_so(
         self, tmp_path: Path
     ) -> None:
         """Targets that own no vec0 table never attempt the load."""
-        from unittest.mock import patch
 
         cfg = self._config(tmp_path, str(tmp_path / "missing" / "vec0.so"))
-        with patch("db.helper.build_db_config", return_value=cfg):
-            with SQLiteHelper("workflow").open() as db:
-                assert db.conn is not None
+        with SQLiteHelper("workflow", db_config=cfg).open() as db:
+            assert db.conn is not None
 
 
 class TestBuildDbConfigVecSoRequirement:
-    """REQ-005: build_db_config() rejects an empty or absent sqlite_vec_so.
+    """REQ-005: build_db_config() rejects an empty or absent sqlite_vec_so in the mapping it is given.
 
-    Written first and shown failing before scripts/db/config.py gains the check.
+    The builder reads no configuration file, so the mapping is what the owning process passes;
+    the requirement itself is asserted in tests/db/test_db_config.py (Plan row 25). What is
+    asserted here is the helper side of the same boundary: a helper built from an accepted
+    configuration uses exactly the values it was given, and a helper given no configuration
+    fails closed.
     """
 
-    @staticmethod
-    def _patch_loader(monkeypatch: pytest.MonkeyPatch, values: dict[str, str]) -> None:
-        class _FakeLoader:
-            def load(self, _name: str) -> dict[str, str]:
-                return values
-
-        monkeypatch.setattr("db.config.ConfigLoader", _FakeLoader)
-
-    def test_empty_vec_so_raises_value_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """An empty sqlite_vec_so makes build_db_config() raise naming the key."""
+    def test_empty_vec_so_raises_value_error(self) -> None:
+        """An empty sqlite_vec_so makes the builder raise naming the key."""
         from db.config import build_db_config
 
-        self._patch_loader(monkeypatch, {"sqlite_vec_so": ""})
         with pytest.raises(ValueError, match="sqlite_vec_so"):
-            build_db_config()
+            build_db_config({"sqlite_vec_so": ""})
 
-    def test_absent_key_raises_value_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """A missing sqlite_vec_so makes build_db_config() raise naming the key."""
+    def test_absent_key_raises_value_error(self) -> None:
+        """A missing sqlite_vec_so makes the builder raise naming the key."""
         from db.config import build_db_config
 
-        self._patch_loader(monkeypatch, {})
         with pytest.raises(ValueError, match="sqlite_vec_so"):
-            build_db_config()
+            build_db_config({})
 
     def test_non_empty_missing_file_is_accepted(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -421,25 +412,30 @@ class TestBuildDbConfigVecSoRequirement:
         """A non-empty sqlite_vec_so naming a missing file is accepted (existence is not checked)."""
         from db.config import build_db_config
 
-        self._patch_loader(
-            monkeypatch,
+        values = {
+            "rag_db_path": str(tmp_path / "rag.sqlite"),
+            "session_db_path": str(tmp_path / "session.sqlite"),
+            "workflow_db_path": str(tmp_path / "workflow.sqlite"),
+            "sqlite_vec_so": str(tmp_path / "missing" / "vec0.so"),
+        }
+        cfg = build_db_config(values)
+        assert cfg.sqlite_vec_so == str(tmp_path / "missing" / "vec0.so")
+
+    def test_helper_uses_the_configuration_it_is_given(self, tmp_path: Path) -> None:
+        """The helper takes the values from the configuration supplied by its caller."""
+        from db.config import build_db_config
+
+        cfg = build_db_config(
             {
                 "rag_db_path": str(tmp_path / "rag.sqlite"),
                 "session_db_path": str(tmp_path / "session.sqlite"),
                 "workflow_db_path": str(tmp_path / "workflow.sqlite"),
                 "sqlite_vec_so": str(tmp_path / "missing" / "vec0.so"),
-            },
+            }
         )
-        cfg = build_db_config()
-        assert cfg.sqlite_vec_so == str(tmp_path / "missing" / "vec0.so")
-
-    def test_target_based_helper_surfaces_the_failure(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """SQLiteHelper('session') wraps the build_db_config() error as its RuntimeError."""
-        self._patch_loader(monkeypatch, {"sqlite_vec_so": ""})
-        with pytest.raises(RuntimeError, match="DbConfig load failed"):
-            SQLiteHelper("session")
+        helper = SQLiteHelper("session", db_config=cfg)
+        assert helper.DB_PATH == str(tmp_path / "session.sqlite")
+        assert helper._vec_so == str(tmp_path / "missing" / "vec0.so")
 
 
 # ── read_only open mode (dbreview004, REQ-001/REQ-006) ────────────────────────
@@ -496,9 +492,9 @@ class TestReadOnlyOpen:
 
     def test_read_only_open_loads_vec_when_requested(self, tmp_path: Path) -> None:
         """Vec loading on a read-only connection is legal (Plan Design assumption)."""
-        from db.config import build_db_config
-
-        vec_so = Path(build_db_config().sqlite_vec_so)
+        # The explicit-path route is what the test exercises, so the extension path comes from
+        # the shared mirror of the shipped config rather than from a configuration load.
+        vec_so = Path(PERMISSIVE_SQLITE_VEC_SO)
         if not vec_so.is_file():
             pytest.skip(f"sqlite-vec extension not available at {vec_so}")
         db_file = tmp_path / "vec.sqlite"
@@ -591,7 +587,6 @@ class TestOpenLeakSafety:
             return conn
 
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch.object(SQLiteHelper, "_connect", _capture),
             patch.object(
                 SQLiteHelper,
@@ -599,7 +594,7 @@ class TestOpenLeakSafety:
                 side_effect=RuntimeError("boom"),
             ),
         ):
-            helper = SQLiteHelper("session")
+            helper = SQLiteHelper("session", db_config=cfg)
             with pytest.raises(RuntimeError, match="boom"):
                 helper.open(write_mode=True)
 
@@ -644,10 +639,9 @@ class TestOpenLeakSafety:
             return conn
 
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch.object(SQLiteHelper, "_connect", _connect_with_factory),
         ):
-            helper = SQLiteHelper("session")
+            helper = SQLiteHelper("session", db_config=cfg)
             with pytest.raises(AttributeError):
                 helper.open()
 
@@ -658,42 +652,38 @@ class TestOpenLeakSafety:
 
     def test_reopen_closes_previous_connection(self, tmp_path: Path) -> None:
         """AC-3: a non-reuse `open()` closes the connection it replaces."""
-        from unittest.mock import patch
 
         cfg = self._config(tmp_path, "")
-        with patch("db.helper.build_db_config", return_value=cfg):
-            helper = SQLiteHelper("session")
-            helper.open(write_mode=True)
-            conn_a = helper.conn
-            assert conn_a is not None
-            helper.open(write_mode=True)
-            try:
-                assert helper.conn is not conn_a
-                with pytest.raises(sqlite3.ProgrammingError):
-                    conn_a.execute("SELECT 1")
-            finally:
-                helper.close()
+        helper = SQLiteHelper("session", db_config=cfg)
+        helper.open(write_mode=True)
+        conn_a = helper.conn
+        assert conn_a is not None
+        helper.open(write_mode=True)
+        try:
+            assert helper.conn is not conn_a
+            with pytest.raises(sqlite3.ProgrammingError):
+                conn_a.execute("SELECT 1")
+        finally:
+            helper.close()
 
     def test_explicit_load_vec_without_vec_so_raises_value_error(
         self, tmp_path: Path
     ) -> None:
         """AC-4: explicit `load_vec=True` fails before any connection is created."""
-        from unittest.mock import patch
 
         db_file = tmp_path / "session.sqlite"
         cfg = self._config(tmp_path, "")
-        with patch("db.helper.build_db_config", return_value=cfg):
-            helper = SQLiteHelper("session")
-            with pytest.raises(ValueError, match="sqlite_vec_so"):
-                helper.open(load_vec=True)
-            assert helper.conn is None
-            assert not db_file.exists()
-            # The instance-default path is unchanged: it opens without the extension.
-            with helper.open(write_mode=True) as db:
-                loaded = db.conn.execute(
-                    "SELECT count(*) FROM pragma_module_list WHERE name = 'vec0'"
-                ).fetchone()[0]
-                assert loaded == 0
+        helper = SQLiteHelper("session", db_config=cfg)
+        with pytest.raises(ValueError, match="sqlite_vec_so"):
+            helper.open(load_vec=True)
+        assert helper.conn is None
+        assert not db_file.exists()
+        # The instance-default path is unchanged: it opens without the extension.
+        with helper.open(write_mode=True) as db:
+            loaded = db.conn.execute(
+                "SELECT count(*) FROM pragma_module_list WHERE name = 'vec0'"
+            ).fetchone()[0]
+            assert loaded == 0
 
 
 class TestInterruptWhen:

@@ -23,6 +23,8 @@ from agent.memory.scoring import recency_boost as _recency_boost
 from agent.memory.scoring import score as _score
 from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 # Alias kept for test readability
 MemoryRetriever = HybridRetriever
 
@@ -152,7 +154,7 @@ def db_conn() -> Generator[sqlite3.Connection]:
 def retriever(db_conn: sqlite3.Connection) -> Generator[MemoryRetriever]:
     fake = _FakeSQLiteHelper(db_conn)
     with patch("agent.memory.retriever.SQLiteHelper", return_value=fake):
-        yield MemoryRetriever()
+        yield MemoryRetriever(db_config=MIN_DB_CONFIG)
 
 
 # ── Unit helpers ───────────────────────────────────────────────────────────────
@@ -321,7 +323,7 @@ class TestSearch:
         with patch(
             "agent.memory.retriever.SQLiteHelper", side_effect=Exception("db error")
         ):
-            ret = MemoryRetriever()
+            ret = MemoryRetriever(db_config=MIN_DB_CONFIG)
             with pytest.raises(Exception, match="db error"):
                 ret.search(MemoryQuery(query="anything"))
 
@@ -377,7 +379,7 @@ class TestTopSemantic:
         with patch(
             "agent.memory.retriever.SQLiteHelper", side_effect=Exception("db error")
         ):
-            ret = MemoryRetriever()
+            ret = MemoryRetriever(db_config=MIN_DB_CONFIG)
             with pytest.raises(Exception, match="db error"):
                 ret.top_semantic()
 
@@ -679,14 +681,16 @@ class TestHybridSearch:
 
 class TestRetrieverInit:
     def test_default_values(self) -> None:
-        r = MemoryRetriever()
+        r = MemoryRetriever(db_config=MIN_DB_CONFIG)
         assert r._fts._fts_limit == 50
         assert r._rrf_k == 60
         assert r._recency_days == 7.0
 
     def test_custom_values(self) -> None:
         """MemoryRetriever stores custom fts_limit, rrf_k, recency_days."""
-        r = MemoryRetriever(fts_limit=10, rrf_k=30, recency_days=3.0)
+        r = MemoryRetriever(
+            fts_limit=10, rrf_k=30, recency_days=3.0, db_config=MIN_DB_CONFIG
+        )
         assert r._fts._fts_limit == 10
         assert r._rrf_k == 30
         assert r._recency_days == 3.0
@@ -697,7 +701,7 @@ class TestRetrieverInit:
 
 class TestHybridRetrieverFallbackCount:
     def test_counter_starts_at_zero(self) -> None:
-        r = MemoryRetriever()
+        r = MemoryRetriever(db_config=MIN_DB_CONFIG)
         assert r.fts_fallback_count == 0
 
     def test_counter_increments_on_embedding_none(

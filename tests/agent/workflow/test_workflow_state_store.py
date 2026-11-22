@@ -53,22 +53,18 @@ def _iso_future(seconds: float) -> str:
 
 @pytest.fixture()
 def workflow_db(tmp_path: Path) -> Path:
-    from unittest.mock import patch
 
     from db.config import DbConfig
 
     db_path = tmp_path / "workflow.sqlite"
     rag_path = tmp_path / "rag.sqlite"
     session_path = tmp_path / "session.sqlite"
-    with patch(
-        "db.helper.build_db_config",
-        return_value=DbConfig(
-            rag_db_path=str(rag_path),
-            session_db_path=str(session_path),
-            workflow_db_path=str(db_path),
-        ),
-    ):
-        create_workflow_schema()
+    cfg = DbConfig(
+        rag_db_path=str(rag_path),
+        session_db_path=str(session_path),
+        workflow_db_path=str(db_path),
+    )
+    create_workflow_schema(db_config=cfg)
     return db_path
 
 
@@ -76,8 +72,8 @@ def workflow_db(tmp_path: Path) -> Path:
 def store(workflow_db: Path):
     from agent.workflow.state_store import StateStore
 
-    with patch("db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))):
-        s = StateStore()
+    cfg = _make_cfg(str(workflow_db))
+    s = StateStore(db_config=cfg)
     yield s
     s.close()
 
@@ -419,10 +415,8 @@ class TestRecoverStaleAttempts:
     def _open_store(self, workflow_db):
         from agent.workflow.state_store import StateStore
 
-        with patch(
-            "db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))
-        ):
-            return StateStore()
+        cfg = _make_cfg(str(workflow_db))
+        return StateStore(db_config=cfg)
 
     def test_completed_attempt_not_modified(self, workflow_db) -> None:
         """A completed attempt is not modified by recovery."""
@@ -794,7 +788,6 @@ class TestRecoverStaleAttempts:
 class TestStaleRecoveryConcurrency:
     def test_concurrent_recovery_claims_only_once(self, workflow_db: Path) -> None:
         import sqlite3
-        from unittest.mock import patch
 
         from agent.workflow.state_store import StateStore
         from db.config import DbConfig
@@ -833,30 +826,28 @@ class TestStaleRecoveryConcurrency:
         results = []
         errors = []
 
+        # The typed configuration is built once in the main thread; each worker opens
+        # its own store because SQLite connections are thread-bound.
+        cfg = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path=str(workflow_db),
+        )
+
         def worker():
             try:
-                s = StateStore()
+                s = StateStore(db_config=cfg)
                 count = s.recover_stale_attempts()
                 results.append(count)
                 s.close()
             except Exception as e:  # noqa: BLE001 — capturing for assertion, not swallowing silently
                 errors.append(e)
 
-        # Patch once in the main thread: mock.patch is not thread-safe, so entering
-        # it from each worker can leak the mock into db.helper after the test.
-        with patch(
-            "db.helper.build_db_config",
-            return_value=DbConfig(
-                rag_db_path="/tmp/rag.sqlite",
-                session_db_path="/tmp/session.sqlite",
-                workflow_db_path=str(workflow_db),
-            ),
-        ):
-            threads = [threading.Thread(target=worker) for _ in range(2)]
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
+        threads = [threading.Thread(target=worker) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
         assert len(errors) == 0, f"Errors occurred during concurrent recovery: {errors}"
         assert sum(results) == 1, (

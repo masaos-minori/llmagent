@@ -37,6 +37,7 @@ from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
 
 def _make_ctx(*, use_memory_layer: bool = False, otel_enabled: bool = False) -> Any:
     """AgentContext を MagicMock で生成する。cfg の主要フィールドをセットする。"""
+
     ctx = MagicMock()
     ctx.cfg.memory.use_memory_layer = use_memory_layer
     ctx.cfg.obs.otel_enabled = otel_enabled
@@ -66,7 +67,7 @@ def _make_ctx(*, use_memory_layer: bool = False, otel_enabled: bool = False) -> 
     ctx.cfg.memory.memory_max_inject_semantic = 5
     ctx.cfg.memory.memory_max_inject_episodic = 5
     ctx.cfg.memory.memory_min_importance = 0.5
-    ctx.cfg.rag.embed_url = ""
+    ctx.cfg.memory.memory_embed_url = ""
     ctx.cfg.memory.memory_embed_enabled = False
     ctx.cfg.memory.memory_dedup_threshold = 0.9
     ctx.cfg.memory.memory_embed_timeout_sec = 5.0
@@ -752,7 +753,9 @@ class TestPlainReplIntentStoreWiring:
 
         build_agent_context(ctx, _make_view())
 
-        store_cls.assert_called_once_with()
+        # StateStore takes the typed configuration from the process that owns it, so the
+        # recorder is constructed with the context's DbConfig.
+        store_cls.assert_called_once_with(db_config=ctx.cfg.db)
         assert ctx.workflow.tool_call_recorder is store_cls.return_value
         assert str(ctx.workflow.current_task_id).startswith("repl-session-")
         # Close hook reaches ResourceShutdownCoordinator through AppServices.

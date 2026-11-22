@@ -3,29 +3,44 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from db.config import DbConfig
+from db.config import DbConfig, build_db_config
 from db.recovery import (
-    DbCondition,
-    _classify_error,
     _restore_from_backup,
     recover_corruption,
 )
+from db.recovery_classification import (
+    DbCondition,
+    _classify_error,
+)
 from db.recovery_verification import _run_logical_verification
+
+from tests.agent._config_test_defaults import SHIPPED_DB_PATH_KEYS
+
+VEC_SO = Path(build_db_config({**SHIPPED_DB_PATH_KEYS}).sqlite_vec_so)
+
+
+def _mock_db_cfg(**paths: Path) -> DbConfig:
+    """The typed configuration the recovery functions take as an argument.
+
+    spec=DbConfig ensures accessing a nonexistent field (e.g. "bogus_db_path")
+    raises AttributeError, matching a real DbConfig instance — required for
+    test_recover_unsupported_target's getattr(..., None) guard to be exercised
+    correctly. The recovery modules read no configuration file, so the test supplies
+    the values directly; the defaults are the paths the suite was written against.
+    """
+    instance = MagicMock(spec=DbConfig)
+    instance.rag_db_path = paths.get("rag", Path("/tmp/rag.db"))
+    instance.session_db_path = paths.get("session", Path("/tmp/session.db"))
+    instance.workflow_db_path = paths.get("workflow", Path("/tmp/workflow.db"))
+    instance.sqlite_vec_so = str(VEC_SO)
+    instance.sqlite_timeout = 30
+    instance.sqlite_busy_timeout_ms = 30000
+    return instance
 
 
 @pytest.fixture
-def mock_db_cfg():
-    with patch("db.recovery.build_db_config") as mock_cfg:
-        # spec=DbConfig ensures accessing a nonexistent field (e.g. "bogus_db_path")
-        # raises AttributeError, matching a real DbConfig instance — required for
-        # test_recover_unsupported_target's getattr(..., None) guard to be exercised
-        # correctly.
-        mock_instance = MagicMock(spec=DbConfig)
-        mock_instance.rag_db_path = Path("/tmp/rag.db")
-        mock_instance.session_db_path = Path("/tmp/session.db")
-        mock_instance.workflow_db_path = Path("/tmp/workflow.db")
-        mock_cfg.return_value = mock_instance
-        yield mock_instance
+def mock_db_cfg() -> DbConfig:
+    yield _mock_db_cfg()
 
 
 @pytest.fixture
@@ -50,7 +65,7 @@ def test_recover_healthy(mock_db_cfg, mock_sqlite_helper):
         "db.recovery._run_integrity_check",
         return_value=(DbCondition.HEALTHY, None),
     ):
-        result = recover_corruption(target="rag", dry_run=False)
+        result = recover_corruption(mock_db_cfg, target="rag", dry_run=False)
 
         assert result.success is True
         assert result.action == "vacuum"
@@ -77,7 +92,9 @@ def test_recover_corrupt_rag_restores(mock_db_cfg, mock_sqlite_helper):
                 return_value=(True, None),
             ),
         ):
-            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+            result = recover_corruption(
+                mock_db_cfg, backup_path="/tmp/backup.db", target="rag"
+            )
 
             assert result.success is True
             assert result.action == "restored"
@@ -90,7 +107,7 @@ def test_recover_corrupt_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
         "db.recovery._run_integrity_check",
         return_value=(DbCondition.CORRUPTION, "corruption error"),
     ) as mock_integrity:
-        result = recover_corruption(target="workflow")
+        result = recover_corruption(mock_db_cfg, target="workflow")
 
         assert result.success is False
         assert result.action == "no_recovery_allowed"
@@ -103,7 +120,7 @@ def test_recover_lock_contention(mock_db_cfg, mock_sqlite_helper):
         "db.recovery._run_integrity_check",
         return_value=(DbCondition.LOCK_CONTENTION, "database is locked"),
     ):
-        result = recover_corruption(target="rag")
+        result = recover_corruption(mock_db_cfg, target="rag")
 
         assert result.success is False
         assert result.action == "error"
@@ -115,7 +132,7 @@ def test_recover_permission_failure(mock_db_cfg, mock_sqlite_helper):
         "db.recovery._run_integrity_check",
         return_value=(DbCondition.PERMISSION_FAILURE, "permission denied"),
     ):
-        result = recover_corruption(target="rag")
+        result = recover_corruption(mock_db_cfg, target="rag")
 
         assert result.success is False
         assert result.action == "error"
@@ -127,7 +144,7 @@ def test_recover_invalid_format(mock_db_cfg, mock_sqlite_helper):
         "db.recovery._run_integrity_check",
         return_value=(DbCondition.INVALID_FORMAT, "invalid database format"),
     ):
-        result = recover_corruption(target="rag")
+        result = recover_corruption(mock_db_cfg, target="rag")
 
         assert result.success is False
         assert result.action == "error"
@@ -139,7 +156,7 @@ def test_recover_no_backup(mock_db_cfg, mock_sqlite_helper):
         "db.recovery._run_integrity_check",
         return_value=(DbCondition.CORRUPTION, "corruption error"),
     ):
-        result = recover_corruption(backup_path=None, target="rag")
+        result = recover_corruption(mock_db_cfg, backup_path=None, target="rag")
 
         assert result.success is False
         assert result.action == "no_backup"
@@ -153,7 +170,9 @@ def test_recover_bad_backup(mock_db_cfg, mock_sqlite_helper):
         ]
 
         with patch("pathlib.Path.exists", return_value=True):
-            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+            result = recover_corruption(
+                mock_db_cfg, backup_path="/tmp/backup.db", target="rag"
+            )
 
             assert result.success is False
             assert result.action == "bad_backup"
@@ -172,7 +191,9 @@ def test_recover_wrong_domain_backup_rejected(mock_db_cfg, mock_sqlite_helper):
             (DbCondition.CORRUPTION, "corruption error"),  # current DB
             (DbCondition.HEALTHY, None),  # backup
         ]
-        result = recover_corruption(backup_path="/tmp/backup.db", target="session")
+        result = recover_corruption(
+            mock_db_cfg, backup_path="/tmp/backup.db", target="session"
+        )
 
         assert result.success is False
         assert result.action == "backup_wrong_domain"
@@ -191,7 +212,9 @@ def test_recover_wrong_domain_backup_distinct_action(mock_db_cfg, mock_sqlite_he
             (DbCondition.CORRUPTION, "corruption error"),  # current DB
             (DbCondition.HEALTHY, None),  # backup
         ]
-        result = recover_corruption(backup_path="/tmp/backup.db", target="session")
+        result = recover_corruption(
+            mock_db_cfg, backup_path="/tmp/backup.db", target="session"
+        )
 
         assert result.action not in ("no_backup", "bad_backup")
 
@@ -215,7 +238,9 @@ def test_recover_backup_with_unreadable_sqlite_master(mock_db_cfg, mock_sqlite_h
             (DbCondition.CORRUPTION, "corruption error"),  # current DB
             (DbCondition.HEALTHY, None),  # backup
         ]
-        result = recover_corruption(backup_path="/tmp/backup.db", target="session")
+        result = recover_corruption(
+            mock_db_cfg, backup_path="/tmp/backup.db", target="session"
+        )
 
     assert result.success is False
     assert result.action == "bad_backup"
@@ -239,7 +264,9 @@ def test_recover_wrong_domain_backup_leaves_db_untouched(
             (DbCondition.CORRUPTION, "corruption error"),  # current DB
             (DbCondition.HEALTHY, None),  # backup
         ]
-        result = recover_corruption(backup_path="/tmp/backup.db", target="session")
+        result = recover_corruption(
+            mock_db_cfg, backup_path="/tmp/backup.db", target="session"
+        )
 
         assert result.success is False
         mock_copy2.assert_not_called()
@@ -251,7 +278,7 @@ def test_recover_dry_run_healthy(mock_db_cfg, mock_sqlite_helper):
         "db.recovery._run_integrity_check",
         return_value=(DbCondition.HEALTHY, None),
     ):
-        result = recover_corruption(target="rag", dry_run=True)
+        result = recover_corruption(mock_db_cfg, target="rag", dry_run=True)
 
         assert result.success is True
         assert result.action == "vacuum"
@@ -279,11 +306,7 @@ def test_recover_dry_run_corrupt_file_unchanged(tmp_path):
     before_bytes = db_file.read_bytes()
     before_listing = sorted(p.name for p in tmp_path.iterdir())
 
-    with patch("db.recovery.build_db_config") as mock_cfg:
-        mock_instance = MagicMock(spec=DbConfig)
-        mock_instance.rag_db_path = db_file
-        mock_cfg.return_value = mock_instance
-        result = recover_corruption(target="rag", dry_run=True)
+    result = recover_corruption(_mock_db_cfg(rag=db_file), target="rag", dry_run=True)
 
     assert result.dry_run is True
     assert result.success is False
@@ -294,7 +317,7 @@ def test_recover_dry_run_corrupt_file_unchanged(tmp_path):
 
 def test_recover_unsupported_target(mock_db_cfg, mock_sqlite_helper):
     with patch("db.recovery._run_integrity_check") as mock_integrity:
-        result = recover_corruption(target="bogus")
+        result = recover_corruption(mock_db_cfg, target="bogus")
 
         assert result.success is False
         assert result.action == "unsupported_target"
@@ -321,7 +344,9 @@ def test_recover_restore_verify_failed(mock_db_cfg, mock_sqlite_helper):
             patch("pathlib.Path.unlink"),
             patch("os.replace"),
         ):
-            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+            result = recover_corruption(
+                mock_db_cfg, backup_path="/tmp/backup.db", target="rag"
+            )
 
             assert result.success is False
             assert result.action == "restore_verify_failed"
@@ -336,7 +361,7 @@ def test_recover_workflow_uses_correct_db_path(mock_db_cfg, mock_sqlite_helper):
         "db.recovery._run_integrity_check",
         return_value=(DbCondition.CORRUPTION, "corruption error"),
     ) as mock_integrity:
-        result = recover_corruption(target="workflow")
+        result = recover_corruption(mock_db_cfg, target="workflow")
 
         mock_integrity.assert_not_called()
         assert result.success is False
@@ -351,7 +376,7 @@ def test_recover_unknown_preserved_operator_intervention_required(
         "db.recovery._run_integrity_check",
         return_value=(DbCondition.UNKNOWN, "unclassifiable integrity failure"),
     ) as mock_integrity:
-        result = recover_corruption(target="rag")
+        result = recover_corruption(mock_db_cfg, target="rag")
 
         mock_integrity.assert_called_once()
         assert result.success is False
@@ -400,7 +425,9 @@ def test_recover_rag_fts_gap(mock_db_cfg, mock_sqlite_helper):
                 return_value=rag_report,
             ),
         ):
-            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+            result = recover_corruption(
+                mock_db_cfg, backup_path="/tmp/backup.db", target="rag"
+            )
 
             assert result.success is False
             assert result.action == "logical_verify_failed"
@@ -437,7 +464,9 @@ def test_recover_rag_missing_table(mock_db_cfg, mock_sqlite_helper):
                 return_value=rag_report,
             ),
         ):
-            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+            result = recover_corruption(
+                mock_db_cfg, backup_path="/tmp/backup.db", target="rag"
+            )
 
             assert result.success is False
             assert result.action == "logical_verify_failed"
@@ -474,7 +503,9 @@ def test_recover_rag_fts_orphan(mock_db_cfg, mock_sqlite_helper):
                 return_value=rag_report,
             ),
         ):
-            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+            result = recover_corruption(
+                mock_db_cfg, backup_path="/tmp/backup.db", target="rag"
+            )
 
             assert result.success is False
             assert result.action == "logical_verify_failed"
@@ -511,7 +542,9 @@ def test_recover_rag_vector_orphan(mock_db_cfg, mock_sqlite_helper):
                 return_value=rag_report,
             ),
         ):
-            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+            result = recover_corruption(
+                mock_db_cfg, backup_path="/tmp/backup.db", target="rag"
+            )
 
             assert result.success is False
             assert result.action == "logical_verify_failed"
@@ -549,7 +582,9 @@ def test_recover_rag_read_smoke_test_failed(mock_db_cfg, mock_sqlite_helper):
                 return_value=rag_report,
             ),
         ):
-            result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
+            result = recover_corruption(
+                mock_db_cfg, backup_path="/tmp/backup.db", target="rag"
+            )
 
             assert result.success is False
             assert result.action == "logical_verify_failed"
@@ -569,7 +604,7 @@ def test_recover_healthy_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
         return_value=(DbCondition.HEALTHY, None),
     ) as mock_integrity:
         with patch("db.recovery._vacuum_db") as mock_vacuum:
-            result = recover_corruption(target="workflow")
+            result = recover_corruption(mock_db_cfg, target="workflow")
 
             assert result.success is False
             assert result.action == "no_recovery_allowed"
@@ -584,7 +619,7 @@ def test_recover_dry_run_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
         "db.recovery._run_integrity_check",
         return_value=(DbCondition.HEALTHY, None),
     ) as mock_integrity:
-        result = recover_corruption(target="workflow", dry_run=True)
+        result = recover_corruption(mock_db_cfg, target="workflow", dry_run=True)
 
         assert result.success is False
         assert result.action == "no_recovery_allowed"
@@ -596,7 +631,7 @@ def test_recover_eventbus_target_is_unsupported(mock_db_cfg, mock_sqlite_helper)
     """eventbus.sqlite is owned by the EventBus service: the Agent-side recovery
     rejects it as an unknown target before any DB access."""
     with patch("db.recovery._run_integrity_check") as mock_integrity:
-        result = recover_corruption(target="eventbus")
+        result = recover_corruption(mock_db_cfg, target="eventbus")
 
         assert result.success is False
         assert result.action == "unsupported_target"
@@ -871,7 +906,9 @@ def test_restore_with_stale_wal_shm_before_swap(mock_db_cfg, mock_sqlite_helper)
                 (DbCondition.HEALTHY, None),  # candidate check (pre-activation)
                 (DbCondition.HEALTHY, None),  # post-restore re-check
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is True
         assert result.action == "restored"
@@ -934,7 +971,9 @@ def test_restore_with_backup_wal_shm_sidecars(mock_db_cfg, mock_sqlite_helper):
                 (DbCondition.HEALTHY, None),  # candidate check (pre-activation)
                 (DbCondition.HEALTHY, None),  # post-restore re-check
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is True
         assert result.action == "restored"
@@ -971,7 +1010,9 @@ def test_unverified_candidate_is_never_activated(mock_db_cfg, mock_sqlite_helper
                     "candidate is corrupt",
                 ),  # candidate (pre-activation)
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is False
         assert result.action == "restore_verify_failed"
@@ -1006,7 +1047,9 @@ def test_post_activation_failure_rolls_back_the_original(
                 (DbCondition.HEALTHY, None),  # candidate (pre-activation)
                 (DbCondition.CORRUPTION, "post-activation check failed"),  # re-check
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is False
         assert result.action == "restore_verify_failed"
@@ -1039,7 +1082,9 @@ def test_failed_rollback_reports_non_serviceable(mock_db_cfg, mock_sqlite_helper
                 (DbCondition.HEALTHY, None),  # candidate (pre-activation)
                 (DbCondition.CORRUPTION, "post-activation check failed"),  # re-check
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is False
         assert result.action == "rollback_failed"
@@ -1070,7 +1115,9 @@ def test_os_error_after_activation_with_failed_rollback_reports_non_serviceable(
                 (DbCondition.HEALTHY, None),  # candidate (pre-activation)
                 OSError("disk I/O failure in the post-activation re-check"),
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is False
         # Unified vocabulary: the rollback helper reports the failed rollback itself
@@ -1109,7 +1156,9 @@ def test_wal_shm_sidecars_land_at_final_locations_after_activation(
                 (DbCondition.HEALTHY, None),  # candidate (pre-activation)
                 (DbCondition.HEALTHY, None),  # post-activation re-check
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is True
         assert result.action == "restored"
@@ -1168,7 +1217,9 @@ def test_activation_failure_after_replace_rolls_back_original(
                 (DbCondition.HEALTHY, None),  # candidate (pre-activation)
                 (DbCondition.HEALTHY, None),  # post-activation re-check (not reached)
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is False
         assert result.action == "error"
@@ -1228,7 +1279,9 @@ def test_partial_activation_removes_moved_sidecars_on_rollback(
                 (DbCondition.HEALTHY, None),  # candidate (pre-activation)
                 (DbCondition.HEALTHY, None),  # post-activation re-check (not reached)
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is False
         assert result.action == "error"
@@ -1278,7 +1331,9 @@ def test_cleanup_staged_unlink_failure_does_not_escape(
                 (DbCondition.HEALTHY, None),  # backup
                 (DbCondition.CORRUPTION, "candidate is corrupt"),  # candidate
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is False
         assert result.action == "restore_verify_failed"
@@ -1322,7 +1377,9 @@ def test_preactivation_integrity_failure_restores_whole_unit(
                 (DbCondition.HEALTHY, None),  # backup
                 (DbCondition.CORRUPTION, "candidate is corrupt"),  # candidate
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is False
         assert result.action == "restore_verify_failed"
@@ -1361,7 +1418,9 @@ def test_preactivation_logical_failure_restores_whole_unit(
                 (DbCondition.HEALTHY, None),  # backup
                 (DbCondition.HEALTHY, None),  # candidate
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is False
         assert result.action == "logical_verify_failed"
@@ -1400,7 +1459,9 @@ def test_postactivation_rollback_reassembles_whole_unit(
                 (DbCondition.HEALTHY, None),  # candidate (pre-activation)
                 (DbCondition.CORRUPTION, "post-activation check failed"),  # re-check
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is False
         assert result.action == "restore_verify_failed"
@@ -1434,7 +1495,9 @@ def test_restore_without_sidecars_creates_no_quarantine_directory(
                 (DbCondition.HEALTHY, None),  # candidate (pre-activation)
                 (DbCondition.HEALTHY, None),  # post-activation re-check
             ]
-            result = _restore_from_backup(db_path, str(backup_path), target="rag")
+            result = _restore_from_backup(
+                mock_db_cfg, db_path, str(backup_path), target="rag"
+            )
 
         assert result.success is True
         assert result.action == "restored"
@@ -1445,15 +1508,13 @@ def test_restore_without_sidecars_creates_no_quarantine_directory(
 #
 # These tests run the real extension load and the real logical verification:
 # a healthy vec0-bearing candidate must reach action="restored". They are
-# written against the fixed behavior of _run_logical_verification, which
-# resolves sqlite_vec_so via build_db_config() itself.
+# written against the fixed behavior of _run_logical_verification, which takes the
+# typed configuration as an argument.
 
-from db.config import build_db_config
 from db.helper import SQLiteHelper
 from db.schema_sql import build_rag_schema_sql, build_session_schema_sql
 from db.store_protocols import get_embedding_bytes, get_embedding_dims
 
-VEC_SO = Path(build_db_config().sqlite_vec_so)
 vec0_available = VEC_SO.is_file()
 vec_required = pytest.mark.skipif(
     not vec0_available, reason=f"sqlite-vec extension not available at {VEC_SO}"
@@ -1505,7 +1566,9 @@ def _make_vec_session_db(path: Path) -> None:
 
 
 @vec_required
-def test_restore_rag_vec0_candidate_reaches_restored(tmp_path: Path) -> None:
+def test_restore_rag_vec0_candidate_reaches_restored(
+    tmp_path: Path, mock_db_cfg
+) -> None:
     """AC-2: a healthy real-vec0 rag candidate passes verification and activates."""
     db_dir = tmp_path / "db_dir"
     db_dir.mkdir()
@@ -1520,7 +1583,9 @@ def test_restore_rag_vec0_candidate_reaches_restored(tmp_path: Path) -> None:
             (DbCondition.HEALTHY, None),  # candidate (pre-activation)
             (DbCondition.HEALTHY, None),  # post-activation re-check
         ]
-        result = _restore_from_backup(db_path, str(backup_path), target="rag")
+        result = _restore_from_backup(
+            mock_db_cfg, db_path, str(backup_path), target="rag"
+        )
 
     assert result.success is True
     assert result.action == "restored"
@@ -1530,7 +1595,9 @@ def test_restore_rag_vec0_candidate_reaches_restored(tmp_path: Path) -> None:
 
 
 @vec_required
-def test_restore_session_vec0_candidate_reaches_restored(tmp_path: Path) -> None:
+def test_restore_session_vec0_candidate_reaches_restored(
+    tmp_path: Path, mock_db_cfg
+) -> None:
     """AC-2: the memories_vec-requiring session stage passes with the extension."""
     db_dir = tmp_path / "db_dir"
     db_dir.mkdir()
@@ -1545,7 +1612,9 @@ def test_restore_session_vec0_candidate_reaches_restored(tmp_path: Path) -> None
             (DbCondition.HEALTHY, None),  # candidate (pre-activation)
             (DbCondition.HEALTHY, None),  # post-activation re-check
         ]
-        result = _restore_from_backup(db_path, str(backup_path), target="session")
+        result = _restore_from_backup(
+            mock_db_cfg, db_path, str(backup_path), target="session"
+        )
 
     assert result.success is True
     assert result.action == "restored"
@@ -1554,19 +1623,16 @@ def test_restore_session_vec0_candidate_reaches_restored(tmp_path: Path) -> None
     assert db_path.read_bytes() == backup_path.read_bytes()
 
 
-def test_logical_verification_config_failure_is_verification_unavailable(
-    tmp_path: Path,
-) -> None:
-    """REQ-001 fail-closed: a config without sqlite_vec_so never reports success."""
-    db_file = tmp_path / "rag.sqlite"
-    db_file.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
-    with patch(
-        "db.recovery_verification.build_db_config",
-        side_effect=ValueError("sqlite_vec_so is empty or absent in agent.toml"),
-    ):
-        consistent, detail = _run_logical_verification(db_file, "rag")
-    assert consistent is False
-    assert detail == "verification_unavailable"
+def test_logical_verification_config_failure_is_rejected_by_the_owner() -> None:
+    """REQ-001 fail-closed: a config that cannot supply sqlite_vec_so never reaches the stage.
+
+    The verification stage reads no configuration file, so the rejection belongs to the caller
+    that builds the typed configuration; tests/db/test_db_config.py (Plan row 25) is the direct
+    evidence for the builder. What is still observable here is that the stage uses only the
+    values it is given, so a mapping without the path cannot produce a verification result.
+    """
+    with pytest.raises(ValueError, match="sqlite_vec_so"):
+        build_db_config({**SHIPPED_DB_PATH_KEYS, "sqlite_vec_so": ""})
 
 
 # --- Characterization tests for the recovery internals the suite left uncovered ---
@@ -1734,7 +1800,7 @@ class TestLogicalVerificationDetailCharacterization:
     """Characterization: the exact detail strings and the skip/tolerate branches."""
 
     def test_rag_detail_lists_every_gap_in_declaration_order(
-        self, mock_recovery_db
+        self, mock_recovery_db, mock_db_cfg
     ) -> None:
         report = _rag_report(
             chunks=10,
@@ -1752,7 +1818,9 @@ class TestLogicalVerificationDetailCharacterization:
         with patch(
             "db.recovery_verification.check_rag_consistency", return_value=report
         ):
-            ok, detail = _run_logical_verification(Path("/tmp/rag.db"), "rag")
+            ok, detail = _run_logical_verification(
+                mock_db_cfg, Path("/tmp/rag.db"), "rag"
+            )
 
         assert ok is False
         assert detail == (
@@ -1760,40 +1828,48 @@ class TestLogicalVerificationDetailCharacterization:
             "docs_no_chunks=4; chunks_no_vec=5; dup_chunk_idx=6; url_mismatches=1"
         )
 
-    def test_rag_consistent_report_reports_no_detail(self, mock_recovery_db) -> None:
+    def test_rag_consistent_report_reports_no_detail(
+        self, mock_recovery_db, mock_db_cfg
+    ) -> None:
         with patch(
             "db.recovery_verification.check_rag_consistency", return_value=_rag_report()
         ):
-            ok, detail = _run_logical_verification(Path("/tmp/rag.db"), "rag")
+            ok, detail = _run_logical_verification(
+                mock_db_cfg, Path("/tmp/rag.db"), "rag"
+            )
 
         assert (ok, detail) == (True, None)
 
     def test_rag_read_smoke_only_failure_produces_an_empty_detail(
-        self, mock_recovery_db
+        self, mock_recovery_db, mock_db_cfg
     ) -> None:
         """`is_consistent` checks read_smoke_test_ok, but the detail builder does not."""
         with patch(
             "db.recovery_verification.check_rag_consistency",
             return_value=_rag_report(read_smoke_test_ok=False),
         ):
-            ok, detail = _run_logical_verification(Path("/tmp/rag.db"), "rag")
+            ok, detail = _run_logical_verification(
+                mock_db_cfg, Path("/tmp/rag.db"), "rag"
+            )
 
         assert ok is False
         assert detail == ""
 
     def test_session_consistent_report_reports_no_detail(
-        self, mock_recovery_db
+        self, mock_recovery_db, mock_db_cfg
     ) -> None:
         with patch(
             "db.recovery_verification.check_session_consistency",
             return_value=_session_report(),
         ):
-            ok, detail = _run_logical_verification(Path("/tmp/session.db"), "session")
+            ok, detail = _run_logical_verification(
+                mock_db_cfg, Path("/tmp/session.db"), "session"
+            )
 
         assert (ok, detail) == (True, None)
 
     def test_session_detail_lists_every_gap_in_declaration_order(
-        self, mock_recovery_db
+        self, mock_recovery_db, mock_db_cfg
     ) -> None:
         report = _session_report(
             orphaned_message_count=2,
@@ -1806,7 +1882,9 @@ class TestLogicalVerificationDetailCharacterization:
         with patch(
             "db.recovery_verification.check_session_consistency", return_value=report
         ):
-            ok, detail = _run_logical_verification(Path("/tmp/session.db"), "session")
+            ok, detail = _run_logical_verification(
+                mock_db_cfg, Path("/tmp/session.db"), "session"
+            )
 
         assert ok is False
         assert detail == (
@@ -1815,7 +1893,7 @@ class TestLogicalVerificationDetailCharacterization:
         )
 
     def test_session_detail_with_only_an_orphan_lists_only_that_entry(
-        self, mock_recovery_db
+        self, mock_recovery_db, mock_db_cfg
     ) -> None:
         """Fields left at their healthy values add no entry beside the orphan count."""
         report = _session_report(orphaned_message_count=1)
@@ -1823,43 +1901,57 @@ class TestLogicalVerificationDetailCharacterization:
         with patch(
             "db.recovery_verification.check_session_consistency", return_value=report
         ):
-            ok, detail = _run_logical_verification(Path("/tmp/session.db"), "session")
+            ok, detail = _run_logical_verification(
+                mock_db_cfg, Path("/tmp/session.db"), "session"
+            )
 
         assert ok is False
         assert detail == "orphan_msgs=1"
 
-    def test_unknown_target_skips_verification(self, mock_recovery_db) -> None:
-        assert _run_logical_verification(Path("/tmp/workflow.db"), "workflow") == (
+    def test_unknown_target_skips_verification(
+        self, mock_recovery_db, mock_db_cfg
+    ) -> None:
+        assert _run_logical_verification(
+            mock_db_cfg, Path("/tmp/workflow.db"), "workflow"
+        ) == (
             True,
             None,
         )
 
-    def test_unknown_mandatory_target_fails_closed(self) -> None:
+    def test_unknown_mandatory_target_fails_closed(self, mock_db_cfg) -> None:
         # A mandatory domain with no registered verifier is a hard failure (seq 03);
         # a non-mandatory unknown target keeps the skip result.
         with patch("db.recovery_verification._LOGICAL_VERIFIERS", {}):
-            assert _run_logical_verification(Path("/tmp/rag.db"), "rag") == (
+            assert _run_logical_verification(
+                mock_db_cfg, Path("/tmp/rag.db"), "rag"
+            ) == (
                 False,
                 "verification_unavailable",
             )
-            assert _run_logical_verification(Path("/tmp/session.db"), "session") == (
+            assert _run_logical_verification(
+                mock_db_cfg, Path("/tmp/session.db"), "session"
+            ) == (
                 False,
                 "verification_unavailable",
             )
-            assert _run_logical_verification(Path("/tmp/workflow.db"), "workflow") == (
+            assert _run_logical_verification(
+                mock_db_cfg, Path("/tmp/workflow.db"), "workflow"
+            ) == (
                 True,
                 None,
             )
 
     def test_an_unopenable_database_fails_closed(
-        self, mock_recovery_db, caplog
+        self, mock_recovery_db, caplog, mock_db_cfg
     ) -> None:
         with caplog.at_level(logging.ERROR, logger="db.recovery_verification"):
             with patch(
                 "db.recovery_verification.check_rag_consistency",
                 side_effect=_sqlite3.OperationalError("no such table: chunks"),
             ):
-                ok, detail = _run_logical_verification(Path("/tmp/rag.db"), "rag")
+                ok, detail = _run_logical_verification(
+                    mock_db_cfg, Path("/tmp/rag.db"), "rag"
+                )
 
         # Fail-closed (seq 03): an unverifiable mandatory target is a failure, not a tolerated gap.
         assert (ok, detail) == (False, "verification_unavailable")
@@ -1869,22 +1961,28 @@ class TestLogicalVerificationDetailCharacterization:
 class TestVacuumDbCharacterization:
     """Characterization: `_vacuum_db`'s failure result, which was uncovered."""
 
-    def test_success(self, mock_recovery_db) -> None:
-        assert _vacuum_db("rag") == RecoveryResult(success=True, action="vacuum")
+    def test_success(self, mock_recovery_db, mock_db_cfg) -> None:
+        assert _vacuum_db(mock_db_cfg, "rag") == RecoveryResult(
+            success=True, action="vacuum"
+        )
 
-    def test_operational_error_reports_vacuum_failed(self, mock_recovery_db) -> None:
+    def test_operational_error_reports_vacuum_failed(
+        self, mock_recovery_db, mock_db_cfg
+    ) -> None:
         mock_recovery_db.vacuum.side_effect = _sqlite3.OperationalError(
             "disk I/O error"
         )
 
-        assert _vacuum_db("rag") == RecoveryResult(
+        assert _vacuum_db(mock_db_cfg, "rag") == RecoveryResult(
             success=False, action="vacuum_failed", detail="disk I/O error"
         )
 
-    def test_runtime_error_reports_vacuum_failed(self, mock_recovery_db) -> None:
+    def test_runtime_error_reports_vacuum_failed(
+        self, mock_recovery_db, mock_db_cfg
+    ) -> None:
         mock_recovery_db.vacuum.side_effect = RuntimeError("vec extension unavailable")
 
-        assert _vacuum_db("rag") == RecoveryResult(
+        assert _vacuum_db(mock_db_cfg, "rag") == RecoveryResult(
             success=False, action="vacuum_failed", detail="vec extension unavailable"
         )
 
@@ -1916,13 +2014,15 @@ class TestRestoreGuardCharacterization:
     """Characterization: the restore guards that run against real files."""
 
     def test_missing_backup_file_reports_no_backup_with_the_path(
-        self, tmp_path: Path
+        self, tmp_path: Path, mock_db_cfg
     ) -> None:
         db_path = tmp_path / "rag.db"
         db_path.write_text("corrupt")
         missing = tmp_path / "gone.db"
 
-        result = _restore_from_backup(db_path, missing, target="rag", dry_run=True)
+        result = _restore_from_backup(
+            mock_db_cfg, db_path, missing, target="rag", dry_run=True
+        )
 
         assert result.success is False
         assert result.action == "no_backup"
@@ -1930,7 +2030,7 @@ class TestRestoreGuardCharacterization:
         assert result.dry_run is True
 
     def test_os_error_during_the_swap_removes_the_temp_restore_file(
-        self, tmp_path: Path
+        self, tmp_path: Path, mock_db_cfg
     ) -> None:
         """The OSError handler unlinks the temp file, keeps the archive, and reassembles the unit."""
         db_path = tmp_path / "rag.db"
@@ -1950,7 +2050,7 @@ class TestRestoreGuardCharacterization:
             patch("db.recovery._run_logical_verification", return_value=(True, None)),
             patch("os.replace", side_effect=OSError("rename failed")),
         ):
-            result = _restore_from_backup(db_path, backup, target="rag")
+            result = _restore_from_backup(mock_db_cfg, db_path, backup, target="rag")
 
         assert result.success is False
         assert result.action == "error"
@@ -1964,7 +2064,7 @@ class TestRestoreGuardCharacterization:
         assert not list(tmp_path.glob("*_sidecar_quarantine_*"))
 
     def test_successful_restore_retains_the_quarantine_directory(
-        self, tmp_path: Path
+        self, tmp_path: Path, mock_db_cfg
     ) -> None:
         db_path = tmp_path / "rag.db"
         db_path.write_text("corrupt")
@@ -1980,7 +2080,7 @@ class TestRestoreGuardCharacterization:
             patch("db.recovery._verify_domain_identity", return_value=(True, None)),
             patch("db.recovery._run_logical_verification", return_value=(True, None)),
         ):
-            result = _restore_from_backup(db_path, backup, target="rag")
+            result = _restore_from_backup(mock_db_cfg, db_path, backup, target="rag")
 
         assert result.success is True
         assert result.action == "restored"
@@ -2004,7 +2104,7 @@ class TestRecoverCorruptionConditionDispatchCharacterization:
             return_value=(DbCondition.CORRUPTION, "btree is corrupt"),
         ):
             result = recover_corruption(
-                backup_path="/tmp/backup.db", target="rag", dry_run=True
+                mock_db_cfg, backup_path="/tmp/backup.db", target="rag", dry_run=True
             )
 
         assert result.success is False
@@ -2017,7 +2117,7 @@ class TestRecoverCorruptionConditionDispatchCharacterization:
             "db.recovery._run_integrity_check",
             return_value=(DbCondition.HEALTHY, None),
         ):
-            result = recover_corruption(target="rag", dry_run=True)
+            result = recover_corruption(mock_db_cfg, target="rag", dry_run=True)
 
         assert result == RecoveryResult(
             success=True,
@@ -2114,14 +2214,9 @@ def test_backup_is_usable_accepts_readonly_backup(tmp_path: Path) -> None:
     assert (action, detail) == (None, "")
 
 
-def _patch_cfg_to(tmp_path: Path, rag_db_path: Path):
-    """Patch build_db_config so recover_corruption aims at tmp_path."""
-    patcher = patch("db.recovery.build_db_config")
-    mock_cfg = patcher.start()
-    instance = MagicMock(spec=DbConfig)
-    instance.rag_db_path = rag_db_path
-    mock_cfg.return_value = instance
-    return patcher
+def _cfg_for(rag_db_path: Path):
+    """Point the typed configuration at the test's own database file."""
+    return _mock_db_cfg(rag=rag_db_path)
 
 
 def test_recover_missing_live_db_reports_missing_database(tmp_path: Path) -> None:
@@ -2133,11 +2228,7 @@ def test_recover_missing_live_db_reports_missing_database(tmp_path: Path) -> Non
     conn.close()
     db_file.unlink()
 
-    patcher = _patch_cfg_to(tmp_path, db_file)
-    try:
-        result = recover_corruption(target="rag")
-    finally:
-        patcher.stop()
+    result = recover_corruption(_cfg_for(db_file), target="rag")
 
     assert result.success is False
     assert result.action == "missing_database"
@@ -2155,11 +2246,7 @@ def test_recover_missing_live_db_dry_run(tmp_path: Path) -> None:
     conn.close()
     db_file.unlink()
 
-    patcher = _patch_cfg_to(tmp_path, db_file)
-    try:
-        result = recover_corruption(target="rag", dry_run=True)
-    finally:
-        patcher.stop()
+    result = recover_corruption(_cfg_for(db_file), target="rag", dry_run=True)
 
     assert result.success is False
     assert result.action == "missing_database"
@@ -2169,14 +2256,14 @@ def test_recover_missing_live_db_dry_run(tmp_path: Path) -> None:
 
 
 @vec_required
-def test_logical_verification_leaves_db_unchanged(tmp_path: Path) -> None:
+def test_logical_verification_leaves_db_unchanged(tmp_path: Path, mock_db_cfg) -> None:
     """REQ-005/AC-1: the logical stage's read-only open leaves no write side effects."""
     db_file = tmp_path / "rag.sqlite"
     _make_vec_rag_db(db_file)
     before_bytes = _sha256(db_file)
     before_listing = sorted(_os.listdir(tmp_path))
 
-    ok, _detail = _run_logical_verification(db_file, "rag")
+    ok, _detail = _run_logical_verification(mock_db_cfg, db_file, "rag")
 
     assert ok is True
     assert _sha256(db_file) == before_bytes
@@ -2185,6 +2272,7 @@ def test_logical_verification_leaves_db_unchanged(tmp_path: Path) -> None:
 
 def test_restore_activates_after_verification_consumes_staged_wal(
     tmp_path: Path,
+    mock_db_cfg,
 ) -> None:
     """Regression: candidate verification consumes the staged backup -wal.
 
@@ -2213,7 +2301,7 @@ def test_restore_activates_after_verification_consumes_staged_wal(
     shutil.copy2(Path(str(src) + "-wal"), backup_dir / "backup.sqlite-wal")
     conn.close()
 
-    result = _restore_from_backup(db_path, str(backup), target="workflow")
+    result = _restore_from_backup(mock_db_cfg, db_path, str(backup), target="workflow")
 
     assert result.success is True
     assert result.action == "restored"

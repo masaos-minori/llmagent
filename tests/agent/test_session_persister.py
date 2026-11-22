@@ -19,6 +19,8 @@ from agent.diagnostic_store import DiagnosticStore
 from agent.session_persister import SessionPersister
 from agent.workflow.state_store import StateStore
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 _SCHEMA = """
 CREATE TABLE session_diagnostics (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,7 +96,9 @@ class TestPersistSessionDiagnosticsGate:
     async def test_skips_write_when_no_session(self, db, caplog) -> None:
         view = MagicMock()
         persister = SessionPersister(
-            _ctx(None), DiagnosticStore(DiagnosticsConfig()), view
+            _ctx(None),
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            view,
         )
 
         with caplog.at_level(logging.INFO, logger="agent.session_persister"):
@@ -107,7 +111,9 @@ class TestPersistSessionDiagnosticsGate:
     @pytest.mark.asyncio
     async def test_writes_row_when_session_exists(self, db) -> None:
         persister = SessionPersister(
-            _ctx(1), DiagnosticStore(DiagnosticsConfig()), MagicMock()
+            _ctx(1),
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            MagicMock(),
         )
 
         await persister.persist_session_diagnostics()
@@ -118,12 +124,14 @@ class TestPersistSessionDiagnosticsGate:
     @pytest.mark.asyncio
     async def test_store_accepts_null_session_id_directly(self, db) -> None:
         persister = SessionPersister(
-            _ctx(None), DiagnosticStore(DiagnosticsConfig()), MagicMock()
+            _ctx(None),
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            MagicMock(),
         )
         await persister.persist_session_diagnostics()
         assert db.count() == 0
 
-        DiagnosticStore(DiagnosticsConfig()).save(
+        DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG).save(
             None, kind="session_summary", content="{}"
         )
 
@@ -136,7 +144,9 @@ class TestPersistSessionDiagnosticsContainment:
         ctx = _ctx(1)
         ctx.stats.stat_turns = MagicMock()  # not JSON serializable
         view = MagicMock()
-        persister = SessionPersister(ctx, DiagnosticStore(DiagnosticsConfig()), view)
+        persister = SessionPersister(
+            ctx, DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG), view
+        )
 
         await persister.persist_session_diagnostics()
 
@@ -146,7 +156,7 @@ class TestPersistSessionDiagnosticsContainment:
 
     @pytest.mark.asyncio
     async def test_store_failure_is_reported_and_does_not_escape(self, db) -> None:
-        store = DiagnosticStore(DiagnosticsConfig())
+        store = DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG)
         view = MagicMock()
         persister = SessionPersister(_ctx(1), store, view)
 
@@ -172,7 +182,9 @@ class TestPersistSessionDiagnosticsStoreClose:
     @staticmethod
     async def _persist(db_session_id: int, store: MagicMock) -> None:
         persister = SessionPersister(
-            _ctx(db_session_id), DiagnosticStore(DiagnosticsConfig()), MagicMock()
+            _ctx(db_session_id),
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            MagicMock(),
         )
         with patch("agent.workflow.state_store.StateStore", return_value=store):
             await persister.persist_session_diagnostics()
@@ -257,7 +269,9 @@ class TestPersistSessionDiagnosticsRoundTrip:
     ) -> None:
         ctx = _ctx(1)
         persister = SessionPersister(
-            ctx, DiagnosticStore(DiagnosticsConfig()), MagicMock()
+            ctx,
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            MagicMock(),
         )
 
         await persister.persist_session_diagnostics()
@@ -278,7 +292,9 @@ class TestPersistSessionDiagnosticsRoundTrip:
         ctx = _ctx(1)
         ctx.stats.stat_latency = {"tool_a": [1.5, 0.5], "tool_b": [2.0]}
         persister = SessionPersister(
-            ctx, DiagnosticStore(DiagnosticsConfig()), MagicMock()
+            ctx,
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            MagicMock(),
         )
 
         await persister.persist_session_diagnostics()

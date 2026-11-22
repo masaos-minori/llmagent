@@ -84,7 +84,7 @@ def build_memory_status(
     # Pinned count is not exposed by services.py, so compute it directly.
     from db.helper import SQLiteHelper
 
-    with SQLiteHelper("session").open() as db:
+    with SQLiteHelper("session", db_config=cfg.db).open() as db:
         pinned_rows = db.fetchall("SELECT count(*) FROM memories WHERE pinned = 1")
     pinned_count = int(pinned_rows[0][0]) if pinned_rows else 0
     max_pinned = cfg.memory.memory_max_pinned

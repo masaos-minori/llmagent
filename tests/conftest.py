@@ -90,19 +90,24 @@ def _provision_databases() -> None:
     Production databases exist with their schema (deploy/init_db.sh), and many tests
     were written against that. The isolation root starts empty, so create the same
     schemas the same way. Without the sqlite-vec extension (for example on CI), the
-    vec0 tables are skipped so the remaining tables still exist.
+    vec0 tables are skipped so the remaining schemas still exist.
+
+    The mapping passed to `build_db_config()` is the isolated config copy this
+    fixture already created, so the values are the isolation-root paths, not the
+    production ones.
     """
     from db import create_schema
     from db.config import build_db_config
     from db.schema_sql import build_rag_schema_sql, build_session_schema_sql
     from db.store_protocols import get_embedding_dims
     from eventbus import db_tools
+    from shared.config_loader import ConfigLoader
 
-    create_schema.create_workflow_schema()
+    cfg = build_db_config(ConfigLoader().load("agent.toml"))
+    create_schema.create_workflow_schema(cfg)
     # eventbus.sqlite belongs to the EventBus service: its path is the db_path of the
     # isolated eventbus.toml (EVENTBUS_CONFIG_PATH), created by the EventBus tool.
     db_tools.ensure()
-    cfg = build_db_config()
     for create, build_sql, db_path in (
         (
             create_schema.create_session_schema,
@@ -112,7 +117,7 @@ def _provision_databases() -> None:
         (create_schema.create_rag_schema, build_rag_schema_sql, cfg.rag_db_path),
     ):
         try:
-            create()
+            create(cfg)
         except (sqlite3.OperationalError, ValueError):
             # sqlite-vec is unavailable: create the schema without the vec0 tables.
             sql = _VEC_TABLE_RE.sub("", build_sql(get_embedding_dims()))

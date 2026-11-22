@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping
 from typing import Any
 
 _ENV_REF_RE = re.compile(r"^\$\{ENV:([A-Za-z_][A-Za-z0-9_]*)\}$")
@@ -52,7 +53,7 @@ def get_str(d: dict[str, Any], key: str, default: str = "") -> str:
 
 
 def get_typed(
-    d: dict[str, Any],
+    d: Mapping[str, Any],
     key: str,
     expected_type: type,
     type_label: str,

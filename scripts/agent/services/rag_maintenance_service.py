@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import threading
 
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 from db.rag_consistency import (
     check_rag_consistency,
@@ -23,9 +24,19 @@ from agent.services.models import DbRecoverResult, RagConsistencyResult
 class RagMaintenanceService:
     """Maintenance operations scoped exclusively to rag.sqlite."""
 
+    def __init__(self, db_config: DbConfig) -> None:
+        """Accepts the typed configuration supplied by the process that owns the file.
+
+        `db_config` is the resolved `DbConfig`; this service reads no configuration
+        file and resolves no path itself.
+        """
+        self._db_config = db_config
+
     def stats_rag(self) -> tuple[int, int]:
         """Return (docs, chunks) counts from rag.sqlite."""
-        with SQLiteHelper("rag").open(row_factory=True) as db:
+        with SQLiteHelper("rag", db_config=self._db_config).open(
+            row_factory=True
+        ) as db:
             docs = count_table(db, "documents")
             chunks = count_table(db, "chunks")
         return docs, chunks
@@ -37,7 +48,7 @@ class RagMaintenanceService:
         normalized_content for Japanese chunks.  This explicit delete-all +
         re-insert preserves the same rule as the chunks_ai trigger.
         """
-        with SQLiteHelper("rag").open(write_mode=True) as db:
+        with SQLiteHelper("rag", db_config=self._db_config).open(write_mode=True) as db:
             db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('delete-all')")
             db.execute(
                 "INSERT INTO chunks_fts(rowid, content)"
@@ -53,7 +64,7 @@ class RagMaintenanceService:
         stop: when set, aborts the running statements via the connection progress
             handler; aborted stages are recorded by the check as diagnostics.
         """
-        with SQLiteHelper("rag").open() as db:
+        with SQLiteHelper("rag", db_config=self._db_config).open() as db:
             if stop is not None:
                 db.interrupt_when(stop)
             report = check_rag_consistency(db)
@@ -68,7 +79,7 @@ class RagMaintenanceService:
 
     def recover(self, backup_path: str | None) -> DbRecoverResult:
         """Run integrity check; restore from backup_path if corruption found."""
-        result = recover_corruption(backup_path)
+        result = recover_corruption(self._db_config, backup_path)
         return DbRecoverResult(
             # VACUUM runs only after the integrity check passed, so its failure is
             # not corruption.
@@ -84,7 +95,7 @@ class RagMaintenanceService:
         Returns the number of chunks_vec rows left. Vector rows cannot be regenerated
         from chunks: the embeddings live only in chunks_vec.
         """
-        with SQLiteHelper("rag").open(write_mode=True) as db:
+        with SQLiteHelper("rag", db_config=self._db_config).open(write_mode=True) as db:
             orphans = db.execute(
                 "SELECT chunk_id FROM chunks_vec"
                 " WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks)"
@@ -104,7 +115,9 @@ class RagMaintenanceService:
         chunks absent from chunks_fts_docsize are inserted; indexed entries and
         chunks_vec are left alone.
         """
-        with SQLiteHelper("rag").open(write_mode=True, row_factory=True) as db:
+        with SQLiteHelper("rag", db_config=self._db_config).open(
+            write_mode=True, row_factory=True
+        ) as db:
             doc = db.execute(
                 "SELECT doc_id FROM documents WHERE url = ?", (url,)
             ).fetchone()

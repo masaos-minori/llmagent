@@ -187,7 +187,7 @@ class MemoryDataOps:
         """Return the number of currently pinned memories (SQLite-first)."""
         from db.helper import SQLiteHelper
 
-        with SQLiteHelper("session").open() as db:
+        with SQLiteHelper("session", db_config=self._ctx.cfg.db).open() as db:
             rows = db.fetchall("SELECT count(*) FROM memories WHERE pinned = 1")
         return int(rows[0][0]) if rows else 0
 
@@ -304,7 +304,11 @@ class MemoryDataOps:
                     f"cannot pin {mid!r}"
                 )
                 return
-        ok = pin_mem(mid) if pin else unpin_mem(mid)
+        ok = (
+            pin_mem(mid, db_config=self._ctx.cfg.db)
+            if pin
+            else unpin_mem(mid, db_config=self._ctx.cfg.db)
+        )
         action = "pinned" if pin else "unpinned"
         if ok:
             self._out.write(f"  [memory] {action}: {mid}")
@@ -347,7 +351,7 @@ class MemoryDataOps:
         if not _confirm(f"Delete memory {mid}? [y/N]: "):
             self._out.write("  [memory] Cancelled: nothing was deleted")
             return
-        ok = write_delete(mid)
+        ok = write_delete(mid, db_config=self._ctx.cfg.db)
         if ok:
             self._out.write(f"  [memory] Deleted: {mid}")
         else:
@@ -369,7 +373,7 @@ class MemoryDataOps:
             return
 
         dry_run = "--dry-run" in args
-        with SQLiteHelper("session").open() as db:
+        with SQLiteHelper("session", db_config=self._ctx.cfg.db).open() as db:
             store = SQLiteMemoryDeleteStore(db)
             prunable_ids = store.collect_prunable_ids(days)
         count = len(prunable_ids)
@@ -396,7 +400,9 @@ class MemoryDataOps:
             self._out.write("  [memory] Cancelled: nothing was deleted")
             return
 
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._ctx.cfg.db).open(
+            write_mode=True
+        ) as db:
             prune_result = prune_old_memories(db, days)
         deleted = (prune_result.data or {}).get("deleted", 0)
         pruned_ids = (prune_result.data or {}).get("pruned_ids", [])

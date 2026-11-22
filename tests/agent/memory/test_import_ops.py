@@ -24,9 +24,9 @@ from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.types import MemoryEntry, SourceType
 from agent.memory.write_ops import add as write_add
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 _OPS = list[tuple[str, object, str]]
-
-
 _SCHEMA_SQL = """
 CREATE TABLE memories (
     memory_id   TEXT PRIMARY KEY,
@@ -202,7 +202,7 @@ class TestImportReplayFinalState:
                 ("mem", _make_entry("e2"), ""),
             ],
         )
-        jsonl_count, inserted = import_from_jsonl(store)
+        jsonl_count, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
         assert jsonl_count == 3
         assert inserted == 2
@@ -228,7 +228,7 @@ class TestImportReplayFinalState:
             ],
         )
 
-        _, inserted = import_from_jsonl(store)
+        _, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
         assert inserted == 1
         assert _ids(db_conn) == ["e1"]
@@ -248,7 +248,7 @@ class TestImportReplayFinalState:
             ],
         )
 
-        _, inserted = import_from_jsonl(store)
+        _, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
         assert inserted == 1
         assert _ids(db_conn) == ["e2"]
@@ -271,7 +271,7 @@ class TestImportReplayFinalState:
         ops += [("mem", _make_entry(f"e{i}"), "") for i in range(n // 2)]
         store = _write_archive(tmp_path / "m.jsonl", ops=ops)
 
-        jsonl_count, inserted = import_from_jsonl(store)
+        jsonl_count, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
         # jsonl_count counts memory lines seen (adds + readds); deletes are events.
         assert jsonl_count == n + n // 2
@@ -303,7 +303,7 @@ class TestImportReplayFinalState:
             ],
         )
 
-        import_from_jsonl(store)
+        import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
         assert _pinned(db_conn, "e1") == 1
 
@@ -322,7 +322,7 @@ class TestImportReplayFinalState:
             ],
         )
 
-        _, inserted = import_from_jsonl(store)
+        _, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
         assert inserted == 1
         assert _ids(db_conn) == ["e1"]
@@ -344,7 +344,7 @@ class TestImportMalformedAndShape:
             malformed=["{not json", "also{bad"],
         )
 
-        jsonl_count, inserted = import_from_jsonl(store)
+        jsonl_count, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
         assert jsonl_count == 2
         assert inserted == 2
@@ -356,7 +356,7 @@ class TestImportMalformedAndShape:
         import_ops_fake_helper: _FakeSQLiteHelper,
         db_conn: sqlite3.Connection,
     ) -> None:
-        write_add(_make_entry("existing"))
+        write_add(_make_entry("existing"), db_config=MIN_DB_CONFIG)
         store = _write_archive(
             tmp_path / "m.jsonl",
             ops=[
@@ -365,7 +365,9 @@ class TestImportMalformedAndShape:
             ],
         )
 
-        jsonl_count, inserted = import_from_jsonl(store, dry_run=True)
+        jsonl_count, inserted = import_from_jsonl(
+            store, dry_run=True, db_config=MIN_DB_CONFIG
+        )
 
         assert jsonl_count == 2
         assert inserted == 0
@@ -385,13 +387,13 @@ class TestImportMalformedAndShape:
             ],
         )
 
-        jsonl_count, inserted = import_from_jsonl(store)
+        jsonl_count, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
         assert (jsonl_count, inserted) == (2, 2)
 
     def test_non_store_raises_type_error(self) -> None:
         with pytest.raises(TypeError):
-            import_from_jsonl(object())
+            import_from_jsonl(object(), db_config=MIN_DB_CONFIG)
 
 
 class TestBackupGuard:
@@ -408,7 +410,9 @@ class TestBackupGuard:
         )
 
         with pytest.raises(ValueError, match="allow_loss"):
-            import_from_jsonl(store, backup=True, allow_loss=False)
+            import_from_jsonl(
+                store, backup=True, allow_loss=False, db_config=MIN_DB_CONFIG
+            )
 
     def test_backup_proceeds_with_allow_loss(
         self,
@@ -422,7 +426,9 @@ class TestBackupGuard:
             malformed=["{bad json"],
         )
 
-        _, inserted = import_from_jsonl(store, backup=True, allow_loss=True)
+        _, inserted = import_from_jsonl(
+            store, backup=True, allow_loss=True, db_config=MIN_DB_CONFIG
+        )
 
         assert inserted == 1
         assert _ids(db_conn) == ["e1"]

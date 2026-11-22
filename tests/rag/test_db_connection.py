@@ -15,6 +15,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from rag.db_connection import RagDatabaseConnection
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 
 class TestHappyPath:
     """Test the happy path: __enter__ opens connection, __exit__ closes it."""
@@ -45,15 +47,21 @@ class TestHappyPath:
                 pass
             mock_closeable.close.assert_called_once()
 
-    def test_default_parameters_used_when_no_rag_db_path(self):
-        """Default parameters used when rag_db_path is None."""
+    def test_typed_config_is_passed_through_when_no_path_given(self):
+        """With no explicit path the typed configuration is handed to SQLiteHelper as-is."""
         with patch("rag.db_connection.SQLiteHelper") as MockSQLiteHelper:
             mock_db = MagicMock()
             MockSQLiteHelper.return_value.open.return_value = mock_db
+            with RagDatabaseConnection(db_config=MIN_DB_CONFIG):
+                pass
+            MockSQLiteHelper.assert_called_once_with(db_config=MIN_DB_CONFIG)
+            MockSQLiteHelper.return_value.open.assert_called_once_with(row_factory=True)
+
+    def test_raises_when_neither_path_nor_config_given(self):
+        """With no path and no typed configuration there is nothing to resolve."""
+        with pytest.raises(ValueError, match="rag_db_path is not configured"):
             with RagDatabaseConnection():
                 pass
-            MockSQLiteHelper.assert_called_once_with()
-            MockSQLiteHelper.return_value.open.assert_called_once_with(row_factory=True)
 
     def test_custom_parameters_passed_through(self):
         """Custom parameters passed through to SQLiteHelper."""

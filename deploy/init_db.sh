@@ -183,9 +183,14 @@ fi
 # Resolve the configured archive dir so the artifact path is accurate.
 ARCHIVE_DIR="$(
   cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python - <<'PY' 2>/dev/null
+from db.maintenance import DbMaintenanceConfig
 from db.rotation import _resolve_archive_dir
+from shared.config_loader import ConfigLoader
 
-print(_resolve_archive_dir())
+# Entry boundary: this shell step owns config/agent.toml, so it loads it here and passes the
+# typed configuration down; db/ functions receive typed objects and read no config file.
+cfg = ConfigLoader().load("agent.toml")
+print(_resolve_archive_dir(DbMaintenanceConfig.from_mapping(cfg)))
 PY
 )"
 [ -z "${ARCHIVE_DIR}" ] && ARCHIVE_DIR="/opt/llm/db/archive"

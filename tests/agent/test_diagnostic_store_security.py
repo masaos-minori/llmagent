@@ -26,6 +26,8 @@ from agent.diagnostic_store import DiagnosticStore
 from agent.secrets_masker import detects_secrets
 from cryptography.fernet import Fernet
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 
 class MockConnection:
     """Records executed SQL so tests can inspect what would be persisted."""
@@ -54,7 +56,9 @@ class MockContext:
 
 def _make_store(**overrides: Any) -> DiagnosticStore:
     """Construct a store wired to an injected DiagnosticsConfig."""
-    return DiagnosticStore(diagnostics_cfg=DiagnosticsConfig(**overrides))
+    return DiagnosticStore(
+        diagnostics_cfg=DiagnosticsConfig(**overrides), db_config=MIN_DB_CONFIG
+    )
 
 
 def _run_save(

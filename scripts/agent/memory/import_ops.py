@@ -5,6 +5,7 @@ import logging
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 
 from agent.memory.write_ops import add
@@ -22,6 +23,7 @@ def import_from_jsonl(
     embed_dim: int | None = None,
     backup: bool = False,
     allow_loss: bool = False,
+    db_config: DbConfig,
 ) -> tuple[int, int]:
     """Import entries from a JSONL archive into SQLite memories/FTS/vec tables.
 
@@ -84,13 +86,13 @@ def import_from_jsonl(
             f"{skipped} archive record(s) could not be reconstructed"
         )
 
-    with SQLiteHelper("session").open(write_mode=True) as db:
+    with SQLiteHelper("session", db_config=db_config).open(write_mode=True) as db:
         db.execute("DELETE FROM memories_vec")
         db.execute("DELETE FROM memories_fts")
         db.execute("DELETE FROM memories")
         db.commit()
         for mid in state:
-            add(state[mid], embed_dim=embed_dim)
+            add(state[mid], embed_dim=embed_dim, db_config=db_config)
 
     inserted = len(state)
     logger.info(

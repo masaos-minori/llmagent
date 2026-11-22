@@ -77,7 +77,7 @@ class StartupBanner:
     def _get_chunk_count(self) -> str:
         """Return formatted chunk count from DB, or '?' on error."""
         try:
-            count = RagMaintenanceService().stats_rag()[1]
+            count = RagMaintenanceService(self._ctx.cfg.db).stats_rag()[1]
             return f"{count:,}"
         except (sqlite3.Error, OSError, RuntimeError) as e:
             logger.debug("Failed to get chunk count: %s", e)

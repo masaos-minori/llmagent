@@ -5,21 +5,23 @@ import logging
 import sqlite3
 from pathlib import Path
 
-from shared.config_loader import ConfigLoader
-
-from db.config import build_db_config, format_timestamp, resolve_unique_path
-from db.recovery import DbCondition, run_integrity_check, verify_domain_identity
+from db.config import DbConfig, format_timestamp, resolve_unique_path
+from db.maintenance import DbMaintenanceConfig
+from db.recovery import run_integrity_check, verify_domain_identity
+from db.recovery_classification import DbCondition
 
 logger = logging.getLogger(__name__)
 
 
-def _resolve_archive_dir() -> str:
-    """Resolve the default archive directory from agent.toml, falling back to a hardcoded path."""
-    cfg = ConfigLoader().load("agent.toml")
-    raw_archive_dir: str | None = cfg.get("sqlite_archive_dir")
-    if raw_archive_dir is None or not isinstance(raw_archive_dir, str):
+def _resolve_archive_dir(maintenance: DbMaintenanceConfig) -> str:
+    """Resolve the default archive directory from the injected typed configuration.
+
+    The owning process supplies the configuration; this module reads no config
+    file. An absent `sqlite_archive_dir` keeps the documented hardcoded fallback.
+    """
+    if not maintenance.archive_dir:
         return "/opt/llm/db/archive"
-    return raw_archive_dir
+    return maintenance.archive_dir
 
 
 def _archive_db_file(
@@ -27,6 +29,7 @@ def _archive_db_file(
     archive_dir: str | Path | None,
     *,
     target: str,
+    maintenance: DbMaintenanceConfig,
 ) -> Path:
     """Create a WAL-consistent, verified backup of db_path.
 
@@ -34,12 +37,15 @@ def _archive_db_file(
     domain integrity and identity checks before it is returned as a recovery
     point. A failing archive raises and is left in place for forensics
     (verified recovery points).
+
+    `maintenance` supplies the default archive directory when `archive_dir` is
+    not given; the caller that owns the configuration builds it.
     """
     if not db_path.exists():
         raise FileNotFoundError(f"DB file not found: {db_path}")
 
     if archive_dir is None:
-        archive_dir = _resolve_archive_dir()
+        archive_dir = _resolve_archive_dir(maintenance)
 
     dest_dir = Path(archive_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -80,21 +86,45 @@ def _verify_archive(dest: Path, target: str) -> None:
         raise RuntimeError(f"archive verification failed for {dest}: {domain_detail}")
 
 
-def rotate_session_db(archive_dir: str | Path | None = None) -> Path:
-    """Archive session.sqlite to archive_dir with a timestamp suffix; returns the archive path."""
-    db_cfg = build_db_config()
-    return _archive_db_file(Path(db_cfg.session_db_path), archive_dir, target="session")
+def rotate_session_db(
+    db_cfg: DbConfig,
+    maintenance: DbMaintenanceConfig,
+    archive_dir: str | Path | None = None,
+) -> Path:
+    """Archive session.sqlite to archive_dir with a timestamp suffix; returns the archive path.
 
-
-def rotate_workflow_db(archive_dir: str | Path | None = None) -> Path:
-    """Archive workflow.sqlite to archive_dir with a timestamp suffix; returns the archive path."""
-    db_cfg = build_db_config()
+    `db_cfg` and `maintenance` are supplied by the caller that owns the
+    configuration; this module reads no config file.
+    """
     return _archive_db_file(
-        Path(db_cfg.workflow_db_path), archive_dir, target="workflow"
+        Path(db_cfg.session_db_path),
+        archive_dir,
+        target="session",
+        maintenance=maintenance,
+    )
+
+
+def rotate_workflow_db(
+    db_cfg: DbConfig,
+    maintenance: DbMaintenanceConfig,
+    archive_dir: str | Path | None = None,
+) -> Path:
+    """Archive workflow.sqlite to archive_dir with a timestamp suffix; returns the archive path.
+
+    `db_cfg` and `maintenance` are supplied by the caller that owns the
+    configuration; this module reads no config file.
+    """
+    return _archive_db_file(
+        Path(db_cfg.workflow_db_path),
+        archive_dir,
+        target="workflow",
+        maintenance=maintenance,
     )
 
 
 def rotate_all_dbs(
+    db_cfg: DbConfig,
+    maintenance: DbMaintenanceConfig,
     archive_dir: str | Path | None = None,
 ) -> tuple[Path, Path, Path]:
     """Archive rag, session, and workflow databases.
@@ -102,17 +132,30 @@ def rotate_all_dbs(
     Returns (rag_archive_path, session_archive_path, workflow_archive_path).
     eventbus.sqlite is owned by the EventBus service and is archived by
     ``python -m eventbus.db_tools rotate``.
+
+    `db_cfg` and `maintenance` are supplied by the caller that owns the
+    configuration; this module reads no config file.
     """
-    db_cfg = build_db_config()
-    rag_dest = _archive_db_file(Path(db_cfg.rag_db_path), archive_dir, target="rag")
-    ses_dest = rotate_session_db(archive_dir)
-    wf_dest = rotate_workflow_db(archive_dir)
+    rag_dest = _archive_db_file(
+        Path(db_cfg.rag_db_path), archive_dir, target="rag", maintenance=maintenance
+    )
+    ses_dest = rotate_session_db(db_cfg, maintenance, archive_dir)
+    wf_dest = rotate_workflow_db(db_cfg, maintenance, archive_dir)
     return rag_dest, ses_dest, wf_dest
 
 
-def rotate_db(archive_dir: str | Path | None = None) -> tuple[Path, Path]:
-    """Archive both rag.sqlite and session.sqlite; returns (rag_archive_path, session_archive_path)."""
-    db_cfg = build_db_config()
-    rag_dest = _archive_db_file(Path(db_cfg.rag_db_path), archive_dir, target="rag")
-    ses_dest = rotate_session_db(archive_dir)
+def rotate_db(
+    db_cfg: DbConfig,
+    maintenance: DbMaintenanceConfig,
+    archive_dir: str | Path | None = None,
+) -> tuple[Path, Path]:
+    """Archive both rag.sqlite and session.sqlite; returns (rag_archive_path, session_archive_path).
+
+    `db_cfg` and `maintenance` are supplied by the caller that owns the
+    configuration; this module reads no config file.
+    """
+    rag_dest = _archive_db_file(
+        Path(db_cfg.rag_db_path), archive_dir, target="rag", maintenance=maintenance
+    )
+    ses_dest = rotate_session_db(db_cfg, maintenance, archive_dir)
     return rag_dest, ses_dest

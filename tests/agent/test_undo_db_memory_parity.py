@@ -25,6 +25,8 @@ from agent.services import undo_service
 from agent.services.models import DeletedRow, UndoResult
 from agent.session import AgentSession
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS sessions (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -134,7 +136,7 @@ def env() -> Generator[_Env]:
     conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()
 
-    def _make(target: str = "session") -> _FakeSQLiteHelper:
+    def _make(target: str = "session", db_config=None) -> _FakeSQLiteHelper:
         return _FakeSQLiteHelper(conn)
 
     with (
@@ -142,7 +144,7 @@ def env() -> Generator[_Env]:
         patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
         patch("agent.diagnostic_store.SQLiteHelper", side_effect=_make),
     ):
-        s = AgentSession()
+        s = AgentSession(db_config=MIN_DB_CONFIG)
         s.start()
         yield _Env(conn, s, s.session_id)
 

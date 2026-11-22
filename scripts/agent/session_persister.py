@@ -90,7 +90,7 @@ class SessionPersister:
                 try:
                     from agent.workflow.state_store import StateStore
 
-                    store = StateStore()
+                    store = StateStore(db_config=self._ctx.cfg.db)
                     sid = str(session_id)
                     task_count = store.get_task_count(sid)
                     workflow_count = store.get_workflow_count(sid)

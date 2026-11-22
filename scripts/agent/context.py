@@ -403,7 +403,7 @@ class AgentContext:
             raise RuntimeError(
                 f"Failed to load agent config ({config_dir}): {e.__class__.__name__}: {e}"
             )
-        self.session = AgentSession()
+        self.session = AgentSession(db_config=self.cfg.db)
 
         # Wired by Orchestrator.__init__() to its DiagnosticStore instance.
         # None until an Orchestrator is constructed with this context.

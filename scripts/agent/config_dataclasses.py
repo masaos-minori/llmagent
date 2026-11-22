@@ -5,7 +5,6 @@ All configuration dataclass definitions for the agent pipeline.
 
 Defines:
   LLMConfig       - LLM communication and context management settings
-  RAGConfig       - RAG pipeline and vector search settings
   ToolConfig      - Tool execution, caching, approval policy, and prompt settings
   MemoryConfig    - Persistent semantic memory layer settings
   MCPConfig       - MCP server lifecycle settings
@@ -13,7 +12,12 @@ Defines:
   ObservabilityConfig - OpenTelemetry tracing, audit logging, and structured log settings
   DiagnosticsConfig - Diagnostic storage encryption and retention settings
   MessageRoleConfig - Valid message roles for SessionMessageRepository
-  AgentConfig     - Composite: composes 9 domain-specific sub-configs
+  AgentConfig     - Composite: composes 8 domain-specific sub-configs + the resolved DbConfig
+
+The `db` field is the typed configuration the Agent process owns for the three
+SQLite databases. `build_agent_config()` builds it from the configuration mapping
+via `db.config.build_db_config()`; consumers read `cfg.db` and pass it to
+`SQLiteHelper`, so no `scripts/db/` module loads `agent.toml` itself (REQ-003).
 
 Import from here:  from agent.config_dataclasses import AgentConfig, LLMConfig, ...
 """
@@ -22,6 +26,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from db.config import DbConfig
+from db.maintenance import DbMaintenanceConfig
 from shared.mcp_config import McpServerConfig
 
 from agent.constants import (
@@ -144,13 +150,6 @@ class LLMConfig:
 
 
 @dataclass
-class RAGConfig:
-    """Agent-side RAG endpoint settings (the embedding endpoint)."""
-
-    embed_url: str = ""
-
-
-@dataclass
 class ToolConfig:
     """Tool execution, approval policy, and prompt settings."""
 
@@ -221,6 +220,8 @@ class MemoryConfig:
     memory_min_importance: float = 0.3
     # Enable embedding generation and KNN search
     memory_embed_enabled: bool = True
+    # Embedding endpoint; owned by the Memory section
+    memory_embed_url: str = ""
     # L2 distance threshold for deduplication
     memory_dedup_threshold: float = 0.3
     # Max chars per extracted memory entry
@@ -250,6 +251,10 @@ class MemoryConfig:
         _v_mem_met(self)
         _v_mem_rtd(self)
         _v_mem_mmp(self)
+        if self.memory_embed_enabled and not self.memory_embed_url:
+            raise ValueError(
+                "memory_embed_enabled=True requires memory_embed_url to be non-empty",
+            )
 
 
 @dataclass
@@ -340,7 +345,6 @@ class MessageRoleConfig:
 _CANONICAL_SUB_CONFIG_CLASSES: frozenset[type[object]] = frozenset(
     (
         LLMConfig,
-        RAGConfig,
         ToolConfig,
         MemoryConfig,
         MCPConfig,
@@ -361,12 +365,24 @@ _CANONICAL_SUB_CONFIG_CLASSES: frozenset[type[object]] = frozenset(
 class AgentConfig:
     """Mutable runtime configuration shared by all agent components.
 
-    Composes 9 domain-specific sub-configs.
-    Access fields via nested paths: cfg.llm.llm_url, cfg.rag.embed_url, etc.
+    Composes 8 domain-specific sub-configs plus the resolved DbConfig and the
+    typed maintenance configuration. Access fields via nested paths:
+    cfg.llm.llm_url, cfg.memory.memory_embed_url, etc.
+
+    `db` is the typed database configuration built from the configuration mapping;
+    it is not a section of `agent.toml` and it is required, because every consumer
+    that opens a database must receive the typed configuration from the process that
+    owns the file. `build_agent_config()` supplies it from `db.config.build_db_config()`.
+
+    `maintenance` is the same relationship for the checkpoint, retention, archive,
+    drill-artifact and quarantine settings: defined in `scripts/db/maintenance.py`
+    (the owner of those keys), built once here from the mapping, and injected into
+    the services that use it. It is required for the same reason `db` is.
     """
 
+    db: DbConfig
+    maintenance: DbMaintenanceConfig
     llm: LLMConfig = field(default_factory=LLMConfig)
-    rag: RAGConfig = field(default_factory=RAGConfig)
     tool: ToolConfig = field(default_factory=ToolConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     mcp: MCPConfig = field(default_factory=MCPConfig)
@@ -385,20 +401,12 @@ class AgentConfig:
     def _validate_cross_field(self) -> None:
         """Validate interdependent settings that span sub-config boundaries."""
         self._validate_memory_jsonl_dir()
-        self._validate_memory_embed_url()
 
     def _validate_memory_jsonl_dir(self) -> None:
         """Raise ValueError when memory layer is enabled but memory_jsonl_dir is missing."""
         if self.memory.use_memory_layer and not self.memory.memory_jsonl_dir:
             raise ValueError(
                 "use_memory_layer=True requires memory_jsonl_dir to be non-empty",
-            )
-
-    def _validate_memory_embed_url(self) -> None:
-        """Raise ValueError when memory embedding is enabled but rag embed_url is missing."""
-        if self.memory.memory_embed_enabled and not self.rag.embed_url:
-            raise ValueError(
-                "memory_embed_enabled=True requires embed_url to be non-empty",
             )
 
     def _validate_memory_max_startup_snippets(self) -> None:

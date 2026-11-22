@@ -18,6 +18,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from db.config import build_db_config
+from db.maintenance import DbMaintenanceConfig
 from shared.config_errors import ConfigLoadError
 from shared.config_loader import ConfigLoader
 from shared.mcp_config import _build_mcp_servers
@@ -34,7 +36,6 @@ from agent.config_section_builders import (
     _build_diagnostics_config,
     _build_llm_config,
     _build_memory_config,
-    _build_rag_config,
     _build_tool_config,
     _get_or_default,
     _get_str_or_default,
@@ -122,7 +123,6 @@ def _assemble_agent_config(
     structured_log = _get_or_default(cfg, "structured_log", _get_bool, False)
     return AgentConfig(
         llm=_build_llm_config(cfg),
-        rag=_build_rag_config(cfg),
         tool=_build_tool_config(cfg, system_prompt_tool),
         memory=_build_memory_config(cfg),
         mcp=MCPConfig(mcp_servers=_build_mcp_servers(cfg)),
@@ -139,6 +139,8 @@ def _assemble_agent_config(
             structured_log=structured_log,
         ),
         diagnostics=_build_diagnostics_config(cfg),
+        db=build_db_config(cfg),
+        maintenance=DbMaintenanceConfig.from_mapping(cfg),
         agent_memory_max_startup_snippets=_get_or_default(
             cfg, "agent_memory_max_startup_snippets", _get_int, 10
         ),

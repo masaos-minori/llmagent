@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from agent.memory.types import EmbeddingResult
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
 
@@ -101,6 +103,7 @@ async def test_c03_embedding_failure_increments_stat_embed_skip():
         project="p",
         repo="r",
         branch="main",
+        db_config=MIN_DB_CONFIG,
     )
 
     from agent.memory.types import MemoryEntry, MemoryType, SourceType

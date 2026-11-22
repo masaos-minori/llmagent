@@ -78,7 +78,7 @@ class AgentREPL:
         self._ctx = AgentContext()
         self._view = CLIView(list(self.SLASH_COMMANDS))
         self._diagnostic_store = DiagnosticStore(
-            diagnostics_cfg=self._ctx.cfg.diagnostics
+            diagnostics_cfg=self._ctx.cfg.diagnostics, db_config=self._ctx.cfg.db
         )
         self._shutdown_event = asyncio.Event()
         # Wire extracted components via DI

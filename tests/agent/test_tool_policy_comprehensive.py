@@ -31,6 +31,7 @@ from agent.tool_policy import (
 )
 from shared.runtime_tool_registry import RuntimeToolRegistry
 
+from tests.agent._config_test_defaults import SHIPPED_DB_PATH_KEYS
 from tests.agent._producer_registry import make_producer_registry
 from tests.agent.test_tool_policy import _runtime_tool, _stub_registry, _write_registry
 
@@ -68,9 +69,11 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_high_risk_branches": [],
         "approval_shell_safe_prefixes": [],
         "allowed_root": "/",
-        # memory_embed_enabled now defaults to True; embed_url must be non-empty
-        # to satisfy AgentConfig.__post_init__'s cross-field validation.
-        "embed_url": "http://127.0.0.1:9999",
+        # memory_embed_enabled now defaults to True; memory_embed_url must be non-empty
+        # to satisfy MemoryConfig.__post_init__'s cross-field validation.
+        "memory_embed_url": "http://127.0.0.1:9999",
+        # build_agent_config() resolves the typed DB configuration from the mapping, so the fixture supplies the mirrored path keys.
+        **SHIPPED_DB_PATH_KEYS,
         "mcp_servers": {
             "_dummy": {
                 "transport": "http",

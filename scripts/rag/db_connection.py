@@ -6,6 +6,7 @@ complexity and isolating database connection handling.
 import logging
 import sqlite3
 
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,18 @@ class RagDatabaseConnection:
         sqlite_vec_so: str = "/opt/llm/sqlite-vec/vec0.so",
         sqlite_timeout: int = 5,
         sqlite_busy_timeout_ms: int = 5000,
+        *,
+        db_config: DbConfig | None = None,
     ) -> None:
+        """Accept the values the owning process supplies, or its typed configuration.
+
+        The RAG Pipeline MCP owns its own configuration file and only its own
+        database, so it supplies the path and connection settings directly; the
+        full `DbConfig` (which requires the Session and Workflow paths) is only
+        available to the process that owns all three. When neither is given this
+        class resolves no configuration file and raises.
+        """
+        self._db_config = db_config
         self._rag_db_path = rag_db_path
         self._sqlite_vec_so = sqlite_vec_so
         self._sqlite_timeout = sqlite_timeout
@@ -33,6 +45,11 @@ class RagDatabaseConnection:
 
     def __enter__(self) -> SQLiteHelper:
         """Open the database connection."""
+        if not self._rag_db_path and self._db_config is None:
+            raise ValueError(
+                "rag_db_path is not configured: supply an explicit path or the typed "
+                "configuration; this class reads no configuration file"
+            )
         try:
             if self._rag_db_path:
                 self._db = SQLiteHelper(
@@ -42,7 +59,9 @@ class RagDatabaseConnection:
                     sqlite_busy_timeout_ms=self._sqlite_busy_timeout_ms,
                 ).open(row_factory=True)
             else:
-                self._db = SQLiteHelper().open(row_factory=True)
+                self._db = SQLiteHelper(db_config=self._db_config).open(
+                    row_factory=True
+                )
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             raise RuntimeError(f"DB open failed (RAG unavailable): {e}") from e
         return self._db

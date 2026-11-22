@@ -87,9 +87,9 @@ The following values are **hardcoded** and cannot be changed via
 
 Used by: Agent process only. Loaded via `ConfigLoader().load_all()` to build `AgentConfig`.
 
-`AgentConfig.rag` (`RAGConfig`) carries only `embed_url`. The refiner is configured in `config/rag_pipeline_mcp_server.toml`; refiner keys in `config/agent.toml` are rejected at startup. It does not carry the search-stage parameters (`use_search`, `use_mqe`, `use_rrf`, `use_rerank`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`. Those are owned by `config/rag_pipeline_mcp_server.toml` (see the `config/rag_pipeline_mcp_server.toml` section above).
+`config/agent.toml` has no RAG section. The embedding endpoint is owned by the Memory section (`memory_embed_url`); see [agent_08_03_configuration-tools-memory.md](../23_agent/agent_08_03_configuration-tools-memory.md). The refiner is configured in `config/rag_pipeline_mcp_server.toml`; refiner keys in `config/agent.toml` are rejected at startup. The Agent-side configuration does not carry the search-stage parameters (`use_search`, `use_mqe`, `use_rrf`, `use_rerank`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`. Those are owned by `config/rag_pipeline_mcp_server.toml` (see the `config/rag_pipeline_mcp_server.toml` section above).
 
-- The Agent process consumes `embed_url` (memory embedding client and the `embed-llm` health check).
+- The Agent process reads `memory.memory_embed_url` (memory embedding client and the `embed-llm` health check).
 - RAG has no remote-delegation keys: a configuration file that carries `rag_query_service_url`, `rag_auth_token`, `rag_pipeline_service_url`, or `rag_identity_mismatch_policy` is rejected when it is loaded.
 
 (Explicit in code — `scripts/agent/config_builders.py`)

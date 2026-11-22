@@ -244,11 +244,6 @@ entries:
   summary: LLM communication and context management settings.
 - file: scripts/agent/config_dataclasses.py
   kind: class
-  name: RAGConfig
-  signature: class RAGConfig
-  summary: Agent-side RAG endpoint settings (the embedding endpoint).
-- file: scripts/agent/config_dataclasses.py
-  kind: class
   name: ToolConfig
   signature: class ToolConfig
   summary: Tool execution, approval policy, and prompt settings.
@@ -668,7 +663,7 @@ entries:
   name: prepare_validated_section
   signature: def prepare_validated_section(ctx, section_path, new_cfg, extra_changed_fields)
     -> tuple[dict[str, Any], Any]
-  summary: Build the dataclasses.replace candidate for a validated section (llm/rag/tool/approval)
+  summary: Build the dataclasses.replace candidate for a validated section (llm/tool/memory/approval)
     and run its validators.
 - file: scripts/agent/services/config_section_reload.py
   kind: function
@@ -679,14 +674,14 @@ entries:
   kind: function
   name: reload_validated_section
   signature: def reload_validated_section(ctx, section_path, new_cfg) -> list[str]
-  summary: Reload a validated section (llm/rag/tool/approval) as a prepare-then-apply
+  summary: Reload a validated section (llm/tool/memory/approval) as a prepare-then-apply
     composition.
 - file: scripts/agent/services/config_section_reload.py
   kind: function
   name: prepare_direct_section
   signature: def prepare_direct_section(ctx, new_cfg, section_path, field_filter)
     -> dict[str, Any]
-  summary: Collect changed fields for a direct section (memory/mcp).
+  summary: Collect changed fields for a direct section (mcp).
 - file: scripts/agent/services/config_section_reload.py
   kind: function
   name: apply_direct_section
@@ -697,7 +692,7 @@ entries:
   name: reload_direct_fields
   signature: def reload_direct_fields(ctx, new_cfg, section_path, field_filter) ->
     dict[str, Any]
-  summary: Reload a direct section (memory/mcp) as a prepare-then-apply composition.
+  summary: Reload a direct section (mcp) as a prepare-then-apply composition.
 - file: scripts/agent/services/config_service_sync.py
   kind: class
   name: SyncResult
@@ -1205,7 +1200,7 @@ entries:
 - file: scripts/agent/services/workflow_schema.py
   kind: function
   name: check_workflow_schema
-  signature: def check_workflow_schema(db_path) -> SchemaCheckResult
+  signature: def check_workflow_schema(db_config, db_path) -> SchemaCheckResult
   summary: Return SchemaCheckResult indicating whether the workflow DB schema is valid.
 - file: scripts/agent/session.py
   kind: class

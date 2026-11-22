@@ -7,6 +7,8 @@ Replaces MemoryLayer as the AppServices.memory type.
 
 from __future__ import annotations
 
+from db.config import DbConfig
+
 from agent.memory.embedding_client import EmbeddingClient
 from agent.memory.ingestion import MemoryIngestionService
 from agent.memory.injection import MemoryInjectionService
@@ -26,8 +28,11 @@ class MemoryServices:
         retriever: HybridRetriever,
         embedding_client: EmbeddingClient | None = None,
         use_memory_layer: bool = True,
+        *,
+        db_config: DbConfig,
     ) -> None:
         """Initialize the memory services facade with injection, ingestion, storage, and retrieval components."""
+        self._db_config = db_config
         self.injection = injection
         self.ingestion = ingestion
         self.store = store
@@ -55,8 +60,8 @@ class MemoryServices:
         """Return entry counts, embed_skip, and last retrieval mode."""
         from agent.memory.count_ops import count_by_source_type, count_by_type
 
-        counts = count_by_type()
-        source_counts = count_by_source_type()
+        counts = count_by_type(db_config=self._db_config)
+        source_counts = count_by_source_type(db_config=self._db_config)
         return {
             "total": sum(counts.values()),
             "semantic": counts.get("semantic", 0),

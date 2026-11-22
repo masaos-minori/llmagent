@@ -43,7 +43,6 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `load_config` | `def load_config() -> dict[str, Any]` | Load configuration from files.  No module-level cache — always fresh. |
 |  | `build_agent_config` | `def build_agent_config(cfg_override) -> AgentConfig` | Construct AgentConfig from a config dict. |
 | `scripts/agent/config_dataclasses.py` | `LLMConfig` | `class LLMConfig` | LLM communication and context management settings. |
-|  | `RAGConfig` | `class RAGConfig` | Agent-side RAG endpoint settings (the embedding endpoint). |
 |  | `ToolConfig` | `class ToolConfig` | Tool execution, approval policy, and prompt settings. |
 |  | `MemoryConfig` | `class MemoryConfig` | Persistent semantic memory layer settings. |
 |  | `MCPConfig` | `class MCPConfig` | MCP server lifecycle settings. |

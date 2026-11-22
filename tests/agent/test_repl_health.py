@@ -313,7 +313,7 @@ class TestCheckServiceHealth:
     async def test_returns_empty_when_all_healthy(self) -> None:
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://localhost:8000/v1/chat/completions"
-        ctx.cfg.rag.embed_url = "http://localhost:8080/v1/embeddings"
+        ctx.cfg.memory.memory_embed_url = "http://localhost:8080/v1/embeddings"
         resp = MagicMock()
         resp.status_code = 200
         http = AsyncMock(spec=httpx.AsyncClient)
@@ -329,7 +329,7 @@ class TestCheckServiceHealth:
         # llm is a required service: a non-200 health status is reported as an error.
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://localhost:8000/v1/chat/completions"
-        ctx.cfg.rag.embed_url = ""
+        ctx.cfg.memory.memory_embed_url = ""
         resp = MagicMock()
         resp.status_code = 503
         http = AsyncMock(spec=httpx.AsyncClient)
@@ -348,7 +348,7 @@ class TestCheckServiceHealth:
         # llm is a required service: an unreachable probe is reported as an error.
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://localhost:8000/v1/chat/completions"
-        ctx.cfg.rag.embed_url = ""
+        ctx.cfg.memory.memory_embed_url = ""
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
         ctx.services_required.http = http
@@ -375,7 +375,7 @@ class TestCheckServiceHealth:
 
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://localhost:8000/v1/chat/completions"
-        ctx.cfg.rag.embed_url = "http://localhost:8081/embedding"
+        ctx.cfg.memory.memory_embed_url = "http://localhost:8081/embedding"
         http = AsyncMock(spec=httpx.AsyncClient)
         http.get = _get
         ctx.services_required.http = http
@@ -391,7 +391,7 @@ class TestCheckServiceHealth:
     async def test_skips_empty_urls(self) -> None:
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = ""
-        ctx.cfg.rag.embed_url = ""
+        ctx.cfg.memory.memory_embed_url = ""
 
         result = await check_service_health(ctx)
 
@@ -407,7 +407,7 @@ class TestCheckReadiness:
     def _make_ctx(self, mock_http: object) -> MagicMock:
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://127.0.0.1:8080/v1/chat"
-        ctx.cfg.rag.embed_url = "http://127.0.0.1:8081/embedding"
+        ctx.cfg.memory.memory_embed_url = "http://127.0.0.1:8081/embedding"
         ctx.services_required.http = mock_http
         return ctx
 
@@ -698,20 +698,17 @@ class TestCheckWorkflowSchema:
         assert result.error is not None and "Workflow DB not found" in result.error
 
     def test_missing_db_default_path_returns_error_without_creating_file(
-        self, tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Any
     ) -> None:
-        # AC-1/AC-5: with no path argument the guard must run on the resolved
-        # default path and create no file (wfschema001 preflight bug).
+        # AC-1/AC-5: with no path argument the guard must run on the path the typed
+        # configuration resolves to and create no file (wfschema001 preflight bug).
         missing = str(tmp_path / "workflow.sqlite")
-        monkeypatch.setattr(
-            "db.helper.build_db_config",
-            lambda: DbConfig(
-                rag_db_path=str(tmp_path / "rag.sqlite"),
-                session_db_path=str(tmp_path / "session.sqlite"),
-                workflow_db_path=missing,
-            ),
+        cfg = DbConfig(
+            rag_db_path=str(tmp_path / "rag.sqlite"),
+            session_db_path=str(tmp_path / "session.sqlite"),
+            workflow_db_path=missing,
         )
-        result = check_workflow_schema()
+        result = check_workflow_schema(db_config=cfg)
         assert result.valid is False
         assert result.error is not None and "Workflow DB not found" in result.error
         assert not list(tmp_path.iterdir())

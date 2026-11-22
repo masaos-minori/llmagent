@@ -22,6 +22,8 @@ from agent.context import ConversationState
 from agent.session import AgentSession, SchemaMissingError
 from agent.turn_persistence import TurnPersistence
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 
 def _msgs(result):
     """Unwrap (messages, session_found) tuple returned by fetch_messages."""
@@ -29,8 +31,6 @@ def _msgs(result):
         return result[0]
     return result
 
-
-# ── In-memory SQLiteHelper replacement ───────────────────────────────────────
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
+
 
 _write_lock = Lock()
 
@@ -138,14 +139,14 @@ def session() -> Generator[AgentSession]:
     conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()
 
-    def _make(target: str = "rag") -> _FakeSQLiteHelper:  # noqa: ARG001
+    def _make(target: str = "rag", db_config=None) -> _FakeSQLiteHelper:  # noqa: ARG001
         return _FakeSQLiteHelper(conn)
 
     with (
         patch("agent.session.SQLiteHelper", side_effect=_make),
         patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
     ):
-        yield AgentSession()
+        yield AgentSession(db_config=MIN_DB_CONFIG)
 
 
 # ── start() ───────────────────────────────────────────────────────────────────
@@ -202,6 +203,7 @@ class TestStartSchemaMissingFallback:
 
         def _make(
             name: str = "session",
+            db_config=None,
         ) -> TestStartSchemaMissingFallback._ExplodingHelper:
             helper = TestStartSchemaMissingFallback._ExplodingHelper(conn)
             helper.injected = error
@@ -214,7 +216,7 @@ class TestStartSchemaMissingFallback:
             "agent.session.SQLiteHelper",
             side_effect=self._make_exploding(self._real_no_such_table_error()),
         ):
-            s = AgentSession()
+            s = AgentSession(db_config=MIN_DB_CONFIG)
             with pytest.raises(SchemaMissingError, match="Session schema missing"):
                 s.start()
 
@@ -225,7 +227,7 @@ class TestStartSchemaMissingFallback:
                 sqlite3.OperationalError("table sessions is locked")
             ),
         ):
-            s = AgentSession()
+            s = AgentSession(db_config=MIN_DB_CONFIG)
             with pytest.raises(sqlite3.OperationalError, match="locked"):
                 s.start()
 
@@ -234,11 +236,11 @@ class TestStartSchemaMissingFallback:
 
         with patch(
             "agent.session.SQLiteHelper",
-            side_effect=lambda _name: SQLiteHelper(
+            side_effect=lambda _name, db_config=None: SQLiteHelper(
                 "session", db_path=str(tmp_path / "unseeded.db")
             ),
         ):
-            s = AgentSession()
+            s = AgentSession(db_config=MIN_DB_CONFIG)
             with pytest.raises(SchemaMissingError, match="Session schema missing"):
                 s.start()
 
@@ -398,7 +400,7 @@ class TestFetchMessages:
             )
             conn.commit()
             mock_cls.side_effect = lambda target="rag": _FakeSQLiteHelper(conn)  # noqa: ARG005
-            s2 = AgentSession()
+            s2 = AgentSession(db_config=MIN_DB_CONFIG)
             s2.session_id = sid
             msgs = _msgs(s2.fetch_messages(sid))
         # Corrupted row should still return without KeyError; tool_calls absent
@@ -455,14 +457,14 @@ class TestListSessions:
         conn.executescript(_SCHEMA_SQL)
         conn.commit()
 
-        def _make(target: str = "rag") -> _FakeSQLiteHelper:  # noqa: ARG001
+        def _make(target: str = "rag", db_config=None) -> _FakeSQLiteHelper:  # noqa: ARG001
             return _FakeSQLiteHelper(conn)
 
         with (
             patch("agent.session.SQLiteHelper", side_effect=_make),
             patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
         ):
-            s = AgentSession()
+            s = AgentSession(db_config=MIN_DB_CONFIG)
             rows = s.list_sessions()
             assert rows == []
 
@@ -520,13 +522,13 @@ class TestSessionIdConcurrency:
         with (
             patch(
                 "agent.session.SQLiteHelper",
-                side_effect=lambda target: _FakeSQLiteHelper(
+                side_effect=lambda target, db_config=None: _FakeSQLiteHelper(
                     sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
                 ),
             ),
             patch(
                 "agent.session_message_repo.SQLiteHelper",
-                side_effect=lambda target: _FakeSQLiteHelper(
+                side_effect=lambda target, db_config=None: _FakeSQLiteHelper(
                     sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
                 ),
             ),
@@ -534,7 +536,7 @@ class TestSessionIdConcurrency:
             from concurrent.futures import ThreadPoolExecutor
 
             def _make_and_start(_: int = 0) -> AgentSession:
-                s = AgentSession()
+                s = AgentSession(db_config=MIN_DB_CONFIG)
                 s.start()
                 return s
 
@@ -551,13 +553,13 @@ class TestSessionIdConcurrency:
         with (
             patch(
                 "agent.session.SQLiteHelper",
-                side_effect=lambda target: _FakeSQLiteHelper(
+                side_effect=lambda target, db_config=None: _FakeSQLiteHelper(
                     sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
                 ),
             ),
             patch(
                 "agent.session_message_repo.SQLiteHelper",
-                side_effect=lambda target: _FakeSQLiteHelper(
+                side_effect=lambda target, db_config=None: _FakeSQLiteHelper(
                     sqlite3.connect(str(db_path), check_same_thread=False, timeout=5)
                 ),
             ),
@@ -565,7 +567,7 @@ class TestSessionIdConcurrency:
             from concurrent.futures import ThreadPoolExecutor
 
             def _make_and_start(_: int = 0) -> AgentSession:
-                s = AgentSession()
+                s = AgentSession(db_config=MIN_DB_CONFIG)
                 s.start()
                 return s
 
@@ -625,7 +627,7 @@ class TestUndoLastTurn:
 
 class TestReplaceMessages:
     def test_returns_none_before_start(self) -> None:
-        session = AgentSession()
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         assert session.replace_messages([{"role": "user", "content": "x"}]) is None
 
     def test_returns_boundary_after_rewrite(self, session: AgentSession) -> None:
@@ -646,14 +648,14 @@ class TestUndoLastTurnBoundary:
         conn.executescript(_SCHEMA_SQL)
         conn.commit()
 
-        def _make(target: str = "session") -> _FakeSQLiteHelper:
+        def _make(target: str = "session", db_config=None) -> _FakeSQLiteHelper:
             return _FakeSQLiteHelper(conn)
 
         with (
             patch("agent.session.SQLiteHelper", side_effect=_make),
             patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
         ):
-            session = AgentSession()
+            session = AgentSession(db_config=MIN_DB_CONFIG)
             session.start()
             sid = session.session_id
             session.save("user", "q1")
@@ -679,14 +681,14 @@ class TestUndoLastTurnBoundary:
         conn.executescript(_SCHEMA_SQL)
         conn.commit()
 
-        def _make(target: str = "session") -> _FakeSQLiteHelper:
+        def _make(target: str = "session", db_config=None) -> _FakeSQLiteHelper:
             return _FakeSQLiteHelper(conn)
 
         with (
             patch("agent.session.SQLiteHelper", side_effect=_make),
             patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
         ):
-            session = AgentSession()
+            session = AgentSession(db_config=MIN_DB_CONFIG)
             session.start()
             sid = session.session_id
             session.save("user", "q1")

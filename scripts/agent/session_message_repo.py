@@ -7,6 +7,7 @@ Session and message persistence repository.
 import logging
 
 import orjson
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 from shared.json_utils import dumps as _json_dumps
 from shared.types import LLMMessage
@@ -52,6 +53,7 @@ class SessionMessageRepository:
         *,
         strict_mode: bool = False,
         roles_source: frozenset[str] | None = None,
+        db_config: DbConfig,
     ) -> None:
         """Initialize the session message repository with session ID and strict mode flag.
 
@@ -60,6 +62,7 @@ class SessionMessageRepository:
             strict_mode: When True, raises RuntimeError on invalid operations instead of skipping.
             roles_source: Optional custom set of valid roles; falls back to default if None.
         """
+        self._db_config = db_config
         self.session_id = session_id
         self.strict_mode = strict_mode
         self._valid_roles = (
@@ -95,7 +98,9 @@ class SessionMessageRepository:
             return
         norm_content = content if content is not None else ""
         tc_json = _tool_calls_json(tool_calls)
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True
+        ) as db:
             db.execute(
                 _INSERT_MESSAGE_SQL,
                 (self.session_id, role, norm_content, tc_json, tool_call_id),
@@ -147,7 +152,9 @@ class SessionMessageRepository:
             )
         if not rows:
             return
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True
+        ) as db:
             db.executemany(_INSERT_MESSAGE_SQL, rows)
             db.commit()
         # sqlite3.Error propagates to caller
@@ -180,7 +187,9 @@ class SessionMessageRepository:
             # Nothing to persist: clear nothing and report None, matching
             # save_many's guard ("nothing persisted" contract).
             return None
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True
+        ) as db:
             db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
             db.executemany(_INSERT_MESSAGE_SQL, rows)
             boundary = db.execute(
@@ -194,8 +203,7 @@ class SessionMessageRepository:
             db.commit()
         return int(boundary)
 
-    @staticmethod
-    def turn_start_marker(session_id: int | None) -> int:
+    def turn_start_marker(self, session_id: int | None) -> int:
         """Return the largest ``message_id`` for a session (``0`` when none yet).
 
         Used as the turn-start marker: compensation deletes rows strictly after
@@ -204,7 +212,7 @@ class SessionMessageRepository:
         """
         if session_id is None:
             return 0
-        with SQLiteHelper("session").open() as db:
+        with SQLiteHelper("session", db_config=self._db_config).open() as db:
             row = db.execute(
                 "SELECT COALESCE(MAX(message_id), 0) FROM messages WHERE session_id = ?",
                 (session_id,),
@@ -224,7 +232,9 @@ class SessionMessageRepository:
         """
         if session_id is None:
             return 0
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True
+        ) as db:
             deleted = db.execute(
                 "DELETE FROM messages WHERE session_id = ? AND message_id > ?",
                 (session_id, marker),
@@ -246,7 +256,7 @@ class SessionMessageRepository:
         """
         if session_id is None:
             return ([], 0)
-        with SQLiteHelper("session").open() as db:
+        with SQLiteHelper("session", db_config=self._db_config).open() as db:
             rows = db.fetchall(
                 "SELECT message_id, role, content, tool_calls, tool_call_id,"
                 " created_at FROM messages WHERE session_id = ?"
@@ -282,7 +292,9 @@ class SessionMessageRepository:
         if session_id is None:
             return 0
         rows, _ = image
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True
+        ) as db:
             with db.begin_immediate():
                 deleted = db.execute(
                     "DELETE FROM messages WHERE session_id = ?",
@@ -322,7 +334,9 @@ class SessionMessageRepository:
         """
         if session_id is None:
             return []
-        with SQLiteHelper("session").open(write_mode=True, row_factory=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True, row_factory=True
+        ) as db:
             floor_row = db.execute(
                 "SELECT undo_floor_message_id FROM sessions WHERE session_id = ?",
                 (session_id,),
@@ -390,7 +404,9 @@ class SessionMessageRepository:
         ]
         if not rows:
             return
-        with SQLiteHelper("session").open(write_mode=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True
+        ) as db:
             with db.begin_immediate():
                 db.executemany(_INSERT_MESSAGE_SQL, rows)
         # sqlite3.Error propagates to the boundary, which wraps and compensates
@@ -407,7 +423,7 @@ class SessionMessageRepository:
         or below the boundary belong to the compressed snapshot; later ids are
         turns added after compression. Raises sqlite3.Error on DB failure.
         """
-        with SQLiteHelper("session").open() as db:
+        with SQLiteHelper("session", db_config=self._db_config).open() as db:
             return int(
                 db.execute(
                     "SELECT COUNT(*) FROM messages WHERE session_id = ? AND message_id <= ?",
@@ -427,7 +443,9 @@ class SessionMessageRepository:
         Returns ([], True, 0) when session exists but has no messages.
         Raises sqlite3.Error on DB failure.
         """
-        with SQLiteHelper("session").open(row_factory=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            row_factory=True
+        ) as db:
             session_rows = db.fetchall(
                 "SELECT undo_floor_message_id FROM sessions WHERE session_id = ?",
                 (session_id,),

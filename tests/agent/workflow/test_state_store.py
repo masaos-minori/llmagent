@@ -44,27 +44,22 @@ def _iso_ahead(seconds: float) -> str:
 
 @pytest.fixture()
 def workflow_db(tmp_path: Path) -> Path:
-    from unittest.mock import patch
 
     db_path = tmp_path / "workflow.sqlite"
-    with patch(
-        "db.helper.build_db_config",
-        return_value=DbConfig(
-            rag_db_path=str(tmp_path / "rag.sqlite"),
-            session_db_path=str(tmp_path / "session.sqlite"),
-            workflow_db_path=str(db_path),
-        ),
-    ):
-        create_workflow_schema()
+    cfg = DbConfig(
+        rag_db_path=str(tmp_path / "rag.sqlite"),
+        session_db_path=str(tmp_path / "session.sqlite"),
+        workflow_db_path=str(db_path),
+    )
+    create_workflow_schema(db_config=cfg)
     return db_path
 
 
 @pytest.fixture()
 def store(workflow_db: Path):
-    from unittest.mock import patch
 
-    with patch("db.helper.build_db_config", return_value=_make_cfg(str(workflow_db))):
-        s = StateStore()
+    cfg = _make_cfg(str(workflow_db))
+    s = StateStore(db_config=cfg)
     yield s
     s.close()
 

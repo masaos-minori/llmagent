@@ -32,6 +32,8 @@ from db.schema_sql import (
     build_workflow_schema_sql,
 )
 
+from tests.agent._config_test_defaults import MIN_MAINTENANCE_CONFIG
+
 # Per-domain fixtures. rag/session/workflow canonical DDL ships vec0 virtual
 # tables that require the external sqlite-vec extension. The drill's fingerprint
 # gate (REQ-003/REQ-004) compares virtual tables by name only (UNK-01), so when
@@ -244,8 +246,7 @@ def test_all_domains_drill_passes_and_live_dbs_untouched(
     cfg = _config(paths)
     archive = tmp_path / "archive"
     drill = tmp_path / "drills"
-    with patch("db.recovery_drill.build_db_config", return_value=cfg):
-        ok = run_drill("all", str(archive), str(drill))
+    ok = run_drill(cfg, MIN_MAINTENANCE_CONFIG, "all", str(archive), str(drill))
     assert ok is True
     after = {domain: _sha256(path) for domain, path in paths.items()}
     assert before == after  # the harness never rewrites a live database
@@ -267,12 +268,17 @@ def test_same_second_repeat_drills_produce_distinct_artifacts(
     drill = tmp_path / "drills"
     fixed_ts = "20261116_000000"
     with (
-        patch("db.recovery_drill.build_db_config", return_value=cfg),
         patch("db.recovery_drill.format_timestamp", return_value=fixed_ts),
         patch("db.rotation.format_timestamp", return_value=fixed_ts),
     ):
-        assert run_drill("workflow", str(archive), str(drill)) is True
-        assert run_drill("workflow", str(archive), str(drill)) is True
+        assert (
+            run_drill(cfg, MIN_MAINTENANCE_CONFIG, "workflow", str(archive), str(drill))
+            is True
+        )
+        assert (
+            run_drill(cfg, MIN_MAINTENANCE_CONFIG, "workflow", str(archive), str(drill))
+            is True
+        )
 
     names = sorted(p.name for p in drill.glob("*.json"))
     assert len(names) == 2 and len(set(names)) == 2  # no overwrite of the first run
@@ -292,8 +298,7 @@ def test_each_domain_artifact_carries_schema_fields(
     cfg = _config(paths)
     archive = tmp_path / "archive"
     drill = tmp_path / "drills"
-    with patch("db.recovery_drill.build_db_config", return_value=cfg):
-        run_drill("all", str(archive), str(drill))
+    run_drill(cfg, MIN_MAINTENANCE_CONFIG, "all", str(archive), str(drill))
 
     artifacts = {art["domain"]: art for art in _load_artifacts(drill)}
     assert [art["domain"] for art in _load_artifacts(drill)] == sorted(DOMAINS)
@@ -332,8 +337,7 @@ def test_verify_per_domain_reports_expected_verdicts(
     cfg = _config(paths)
     archive = tmp_path / "archive"
     drill = tmp_path / "drills"
-    with patch("db.recovery_drill.build_db_config", return_value=cfg):
-        run_drill("all", str(archive), str(drill))
+    run_drill(cfg, MIN_MAINTENANCE_CONFIG, "all", str(archive), str(drill))
     artifacts = {art["domain"]: art for art in _load_artifacts(drill)}
     assert artifacts["rag"]["verification"] == {
         "integrity": True,
@@ -367,8 +371,9 @@ def test_rag_verified_fixture_passes_drill(
     cfg = _config(paths)
     archive = tmp_path / "archive"
     drill = tmp_path / "drills"
-    with patch("db.recovery_drill.build_db_config", return_value=cfg):
-        assert run_drill("rag", str(archive), str(drill)) is True
+    assert (
+        run_drill(cfg, MIN_MAINTENANCE_CONFIG, "rag", str(archive), str(drill)) is True
+    )
     (art,) = _load_artifacts(drill)
     assert art["verification"]["rag_consistency"] is True
 
@@ -397,10 +402,12 @@ def test_rag_unverified_dimension_fails_drill(
         fk_unverified=True,
     )
     with (
-        patch("db.recovery_drill.build_db_config", return_value=cfg),
         patch("db.recovery_drill.check_rag_consistency", return_value=unverified),
     ):
-        assert run_drill("rag", str(archive), str(drill)) is False
+        assert (
+            run_drill(cfg, MIN_MAINTENANCE_CONFIG, "rag", str(archive), str(drill))
+            is False
+        )
     (art,) = _load_artifacts(drill)
     assert art["verification"]["rag_consistency"] is False
 
@@ -440,8 +447,9 @@ def test_rag_broken_fts_fixture_fails_drill(
     cfg = _config(paths)
     archive = tmp_path / "archive"
     drill = tmp_path / "drills"
-    with patch("db.recovery_drill.build_db_config", return_value=cfg):
-        assert run_drill("rag", str(archive), str(drill)) is False
+    assert (
+        run_drill(cfg, MIN_MAINTENANCE_CONFIG, "rag", str(archive), str(drill)) is False
+    )
     (art,) = _load_artifacts(drill)
     assert art["verification"]["rag_consistency"] is False
     # The core table is present: the failure is the consistency layer, not identity.
@@ -515,8 +523,7 @@ def _drill_one(
     cfg = _config(paths)
     archive = tmp_path / "archive"
     drill = tmp_path / "drills"
-    with patch("db.recovery_drill.build_db_config", return_value=cfg):
-        ok = run_drill(domain, str(archive), str(drill))
+    ok = run_drill(cfg, MIN_MAINTENANCE_CONFIG, domain, str(archive), str(drill))
     (art,) = _load_artifacts(drill)
     return ok, art
 
@@ -605,8 +612,7 @@ def test_extra_legacy_table_is_a_fingerprint_finding(tmp_path: Path) -> None:
     archive = tmp_path / "archive"
     drill = tmp_path / "drills"
     before_wf = _sha256(paths["workflow"])
-    with patch("db.recovery_drill.build_db_config", return_value=cfg):
-        ok = run_drill("all", str(archive), str(drill))
+    ok = run_drill(cfg, MIN_MAINTENANCE_CONFIG, "all", str(archive), str(drill))
     assert ok is False
     artifacts = {art["domain"]: art for art in _load_artifacts(drill)}
     assert set(artifacts) == set(DOMAINS)  # every artifact still written
@@ -680,10 +686,12 @@ def _patched_archiver(failing_domain: str, exc: Exception):
     """side_effect factory: raise only for *failing_domain*, delegate otherwise."""
     from db.rotation import _archive_db_file as real_archiver
 
-    def fake(live_path, archive_dir, *, target):
+    def fake(live_path, archive_dir, *, target, maintenance):
         if target == failing_domain:
             raise exc
-        return real_archiver(live_path, archive_dir, target=target)
+        return real_archiver(
+            live_path, archive_dir, target=target, maintenance=maintenance
+        )
 
     return fake
 
@@ -712,13 +720,12 @@ def test_archive_stage_failure_persists_artifact_and_continues(
     archive = tmp_path / "archive"
     drill = tmp_path / "drills"
     with (
-        patch("db.recovery_drill.build_db_config", return_value=cfg),
         patch(
             "db.recovery_drill._archive_db_file",
             side_effect=_patched_archiver(failing_domain, exc),
         ),
     ):
-        ok = run_drill("all", str(archive), str(drill))
+        ok = run_drill(cfg, MIN_MAINTENANCE_CONFIG, "all", str(archive), str(drill))
     assert ok is False
 
     artifacts = {art["domain"]: art for art in _load_artifacts(drill)}
@@ -758,10 +765,12 @@ def test_restore_clock_starts_before_the_copy(
         copy_end = time.time()
 
     with (
-        patch("db.recovery_drill.build_db_config", return_value=cfg),
         patch("db.recovery_drill.shutil.copy2", side_effect=recorder),
     ):
-        assert run_drill("rag", str(archive), str(drill)) is True
+        assert (
+            run_drill(cfg, MIN_MAINTENANCE_CONFIG, "rag", str(archive), str(drill))
+            is True
+        )
     (art,) = _load_artifacts(drill)
     assert copy_end is not None
     assert art["restore_start_ts"] <= copy_end
@@ -783,10 +792,12 @@ def test_status_line_is_logged_once_per_domain(
     archive = tmp_path / "archive"
     drill = tmp_path / "drills"
     with (
-        patch("db.recovery_drill.build_db_config", return_value=cfg),
         caplog.at_level(logging.INFO, logger="db.recovery_drill"),
     ):
-        assert run_drill("all", str(archive), str(drill)) is True
+        assert (
+            run_drill(cfg, MIN_MAINTENANCE_CONFIG, "all", str(archive), str(drill))
+            is True
+        )
     status_lines = [
         rec.getMessage()
         for rec in caplog.records

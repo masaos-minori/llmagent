@@ -16,6 +16,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from db.config import build_db_config
 from db.helper import SQLiteHelper
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
@@ -53,7 +54,11 @@ def test_config_loader_paths_are_redirected() -> None:
 
 
 def test_session_helper_resolves_under_temporary_root() -> None:
-    assert SQLiteHelper("session").DB_PATH.startswith(str(_root()))
+    # The helper no longer reads a configuration file, so the typed configuration is
+    # built here from the isolated copy and the assertion is on the value it resolves.
+    db_config = build_db_config(ConfigLoader().load("agent.toml"))
+    assert db_config.session_db_path.startswith(str(_root()))
+    assert SQLiteHelper("session", db_config=db_config).DB_PATH.startswith(str(_root()))
 
 
 def test_logger_path_is_redirected() -> None:

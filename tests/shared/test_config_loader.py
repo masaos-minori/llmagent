@@ -24,6 +24,8 @@ from shared.config_loader import (
     ConfigReadError,
 )
 
+from tests.agent._config_test_defaults import SHIPPED_DB_PATH_KEYS
+
 
 @pytest.fixture(autouse=True)
 def reset_class_state():
@@ -497,6 +499,8 @@ class TestUnknownTopLevelKeyRejection:
             {
                 "llm_url": "http://localhost:8080",
                 "allowed_root": "/opt/llm",
+                # build_agent_config() resolves the typed DB configuration from the mapping, so the fixture supplies the mirrored path keys.
+                **SHIPPED_DB_PATH_KEYS,
                 "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
             }
         )
@@ -511,6 +515,8 @@ class TestUnknownTopLevelKeyRejection:
             {
                 "llm_url": "http://localhost:8080",
                 "allowed_root": "/opt/llm",
+                # build_agent_config() resolves the typed DB configuration from the mapping, so the fixture supplies the mirrored path keys.
+                **SHIPPED_DB_PATH_KEYS,
                 "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
                 "sqlite_archive_max_files": 14,
                 "sqlite_archive_max_age_days": 30,

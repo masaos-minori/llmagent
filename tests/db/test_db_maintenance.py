@@ -20,6 +20,7 @@ from db.config import DbConfig, resolve_unique_path
 from db.helper import SQLiteHelper
 from db.maintenance import (
     CorruptArchiveRetentionConfig,
+    DbMaintenanceConfig,
     MaintenanceMode,
     MaintenanceResult,
     RetentionConfig,
@@ -66,18 +67,29 @@ def _make_db_cfg(
     workflow_name="workflow.sqlite",
     **kwargs,
 ):
-    """Return a mock DbConfig pointing to tmp_path files (bypasses path validation)."""
-    from unittest.mock import MagicMock
+    """Return a typed DbConfig pointing to tmp_path files."""
+    return DbConfig(
+        rag_db_path=str(tmp_path / rag_name),
+        session_db_path=str(tmp_path / session_name),
+        workflow_db_path=str(tmp_path / workflow_name),
+        sqlite_vec_so="/opt/llm/sqlite-vec/vec0.so",
+        sqlite_timeout=30,
+        sqlite_busy_timeout_ms=30000,
+        **kwargs,
+    )
 
-    cfg = MagicMock(spec=DbConfig)
-    cfg.rag_db_path = str(tmp_path / rag_name)
-    cfg.session_db_path = str(tmp_path / session_name)
-    cfg.workflow_db_path = str(tmp_path / workflow_name)
-    cfg.sqlite_vec_so = "/opt/llm/sqlite-vec/vec0.so"
-    cfg.sqlite_timeout = 30
-    cfg.sqlite_busy_timeout_ms = 30000
-    cfg.embed_url = _TEST_EMBED_URL
-    return cfg
+
+def _make_maintenance(**kwargs: object) -> DbMaintenanceConfig:
+    """Typed maintenance configuration with the documented defaults, overridable per test."""
+    values = {
+        "sqlite_wal_checkpoint_mode": "TRUNCATE",
+        "sqlite_retention_max_sessions": 100,
+        "sqlite_retention_max_age_days": 90,
+        "sqlite_corrupt_archive_max_files": 10,
+        "sqlite_corrupt_archive_max_age_days": 30,
+    }
+    values.update(kwargs)
+    return DbMaintenanceConfig.from_mapping(values)
 
 
 class _FakeDB:
@@ -344,14 +356,13 @@ class TestPurgeOldSessions:
     def test_rotate_session_db_creates_archive(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        db_cfg = _make_db_cfg(tmp_path)
         db_file = tmp_path / "session.sqlite"
         self._make_real_sqlite(db_file)
         archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(
-            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
+        maint = _make_maintenance()
 
-        dest = rotate_session_db(archive_dir=archive_dir)
+        dest = rotate_session_db(db_cfg, maint, archive_dir=archive_dir)
 
         assert dest.exists()
         assert dest.name.startswith("session_")
@@ -377,24 +388,20 @@ class TestCheckpointAndVacuum:
         from db.models import WalCheckpointCounts as _WCC
 
         mock_db = self._make_mock_db(_WCC(busy=0, log_size=0, pages_checkpointed=0))
-        result = checkpoint_wal(mock_db, mode="FULL")
+        # An explicit mode overrides the one the typed configuration carries.
+        result = checkpoint_wal(mock_db, _make_maintenance(), mode="FULL")
         mock_db.checkpoint.assert_called_once_with("FULL")
         assert result.busy == 0
 
-    def test_checkpoint_wal_default_mode_from_config(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import db.maintenance as db_maintenance
-
-        monkeypatch.setattr(
-            db_maintenance.ConfigLoader,
-            "load",
-            lambda self, key: {"sqlite_wal_checkpoint_mode": "PASSIVE"},
-        )
+    def test_checkpoint_wal_default_mode_from_typed_config(self) -> None:
         mock_db = self._make_mock_db(
             {"busy": 0, "pages_in_wal": 0, "pages_checkpointed": 0}
         )
-        checkpoint_wal(mock_db)
+        # The mode comes from the supplied mapping through the typed configuration.
+        maintenance = DbMaintenanceConfig.from_mapping(
+            {"sqlite_wal_checkpoint_mode": "PASSIVE"}
+        )
+        checkpoint_wal(mock_db, maintenance)
         mock_db.checkpoint.assert_called_once_with("PASSIVE")
 
     def test_vacuum_db_delegates(self) -> None:
@@ -465,10 +472,8 @@ class TestPruneOldMemories:
 
 class TestRecoverCorruption:
     @pytest.fixture(autouse=True)
-    def _patch_build_db_config(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Patch build_db_config so recover_corruption does not need real config.
+    def _typed_config(self, tmp_path: Path) -> None:
+        """Supply the typed configuration recover_corruption takes as an argument.
 
         dbreview004 churn: the existence-first probe gate runs before any
         helper open, so the rag target file is created here. These tests mock
@@ -476,9 +481,8 @@ class TestRecoverCorruption:
         mocked helper still decides the probe result either way. Without it a
         missing file would short-circuit every case into missing_database.
         """
-        monkeypatch.setattr(
-            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
+        self._db_cfg = _make_db_cfg(tmp_path)
+        self._maint = _make_maintenance()
         (tmp_path / "rag.sqlite").write_bytes(b"placeholder for the existence gate")
 
     def test_db_conn_none_raises_runtime_error(
@@ -491,7 +495,7 @@ class TestRecoverCorruption:
             mock_helper_cls.return_value.open.side_effect = RuntimeError(
                 "conn not open"
             )
-            result = recover_corruption()
+            result = recover_corruption(self._db_cfg)
 
         assert isinstance(result, RecoveryResult)
         assert result.success is False
@@ -514,7 +518,7 @@ class TestRecoverCorruption:
 
         with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
-            result = recover_corruption(dry_run=True)
+            result = recover_corruption(self._db_cfg, dry_run=True)
 
         assert isinstance(result, RecoveryResult)
         assert result.dry_run is True
@@ -537,7 +541,7 @@ class TestRecoverCorruption:
 
         with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
-            result = recover_corruption(dry_run=True)
+            result = recover_corruption(self._db_cfg, dry_run=True)
 
         assert result.success is False
         assert result.dry_run is True
@@ -559,7 +563,7 @@ class TestRecoverCorruption:
 
         with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
-            result = recover_corruption()
+            result = recover_corruption(self._db_cfg)
 
         assert result.success is True
         assert result.action == "vacuum"
@@ -583,7 +587,7 @@ class TestRecoverCorruption:
 
         with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
-            result = recover_corruption(backup_path=None)
+            result = recover_corruption(self._db_cfg, backup_path=None)
         assert result.success is False
         assert result.action == "no_backup"
 
@@ -605,7 +609,9 @@ class TestRecoverCorruption:
 
         with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
             mock_helper_cls.return_value.open.return_value = FakeContext()
-            result = recover_corruption(backup_path="/nonexistent/backup.sqlite")
+            result = recover_corruption(
+                self._db_cfg, backup_path="/nonexistent/backup.sqlite"
+            )
         assert result.success is False
         assert result.action == "no_backup"
         assert "backup not found" in result.detail
@@ -647,7 +653,7 @@ class TestRecoverCorruption:
             patch("db.recovery._run_logical_verification", return_value=(True, None)),
         ):
             mock_helper_cls.return_value.open.return_value = FakeContext()
-            result = recover_corruption(backup_path=str(backup_file))
+            result = recover_corruption(self._db_cfg, backup_path=str(backup_file))
 
         assert result.success is True
         assert result.action == "restored"
@@ -682,7 +688,7 @@ class TestRecoverCorruption:
             patch("db.recovery.shutil.copy2", side_effect=OSError("disk full")),
         ):
             mock_helper_cls.return_value.open.return_value = FakeContext()
-            result = recover_corruption(backup_path=str(backup_file))
+            result = recover_corruption(self._db_cfg, backup_path=str(backup_file))
         assert result.success is False
         assert result.action == "error"
 
@@ -698,7 +704,7 @@ class TestRecoverCorruption:
         mock_helper.open.side_effect = _sqlite3.OperationalError("cannot open")
 
         with patch("db.recovery.SQLiteHelper", return_value=mock_helper):
-            result = recover_corruption()
+            result = recover_corruption(self._db_cfg)
         assert result.success is False
         assert result.action == "preserved_operator_intervention_required"
 
@@ -707,7 +713,7 @@ class TestRecoverCorruption:
         from unittest.mock import patch
 
         with patch("db.recovery.SQLiteHelper") as mock_helper_cls:
-            result = recover_corruption(target="bogus")
+            result = recover_corruption(self._db_cfg, target="bogus")
 
         assert result.success is False
         assert result.action == "unsupported_target"
@@ -749,7 +755,7 @@ class TestRecoverCorruption:
             with patch(
                 "db.recovery._run_logical_verification", return_value=(True, None)
             ):
-                result = recover_corruption(backup_path=str(backup_file))
+                result = recover_corruption(self._db_cfg, backup_path=str(backup_file))
 
         assert result.success is False
         assert result.action == "restore_verify_failed"
@@ -767,7 +773,7 @@ class TestRecoverCorruption:
             return_value=(DbCondition.UNKNOWN, "unrecognized failure"),
         ):
             with patch("db.recovery._restore_from_backup") as mock_restore:
-                result = recover_corruption(target="rag")
+                result = recover_corruption(self._db_cfg, target="rag")
 
         mock_restore.assert_not_called()
         assert result.success is False
@@ -780,13 +786,10 @@ class TestRecoverCorruption:
 
 class TestPurgeCorruptArchives:
     @pytest.fixture(autouse=True)
-    def _patch_build_db_config(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Patch build_db_config so purge_corrupt_archives does not need real config."""
-        monkeypatch.setattr(
-            "db.maintenance.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
+    def _typed_config(self, tmp_path: Path) -> None:
+        """Supply the typed configuration purge_corrupt_archives takes as an argument."""
+        self._db_cfg = _make_db_cfg(tmp_path)
+        self._maint = _make_maintenance()
 
     def _make_archive(
         self, tmp_path: Path, stem: str, suffix_ts: str, age_days: float = 0
@@ -801,7 +804,7 @@ class TestPurgeCorruptArchives:
     def test_no_deletions_when_within_limits(self, tmp_path: Path) -> None:
         self._make_archive(tmp_path, "rag", "1")
         result = purge_corrupt_archives(
-            CorruptArchiveRetentionConfig(max_files=10, max_age_days=0)
+            CorruptArchiveRetentionConfig(max_files=10, max_age_days=0), self._db_cfg
         )
         assert result.success is True
         assert result.data is not None
@@ -812,7 +815,7 @@ class TestPurgeCorruptArchives:
         old = self._make_archive(tmp_path, "rag", "1", age_days=100)
         new = self._make_archive(tmp_path, "rag", "2", age_days=1)
         result = purge_corrupt_archives(
-            CorruptArchiveRetentionConfig(max_files=100, max_age_days=30)
+            CorruptArchiveRetentionConfig(max_files=100, max_age_days=30), self._db_cfg
         )
         assert result.success is True
         assert result.data is not None
@@ -824,7 +827,7 @@ class TestPurgeCorruptArchives:
     def test_age_zero_skips_age_check(self, tmp_path: Path) -> None:
         old = self._make_archive(tmp_path, "rag", "1", age_days=1000)
         result = purge_corrupt_archives(
-            CorruptArchiveRetentionConfig(max_files=100, max_age_days=0)
+            CorruptArchiveRetentionConfig(max_files=100, max_age_days=0), self._db_cfg
         )
         assert result.data is not None
         assert result.data["age_deleted"] == 0
@@ -836,7 +839,7 @@ class TestPurgeCorruptArchives:
         self._make_archive(tmp_path, "rag", "2", age_days=2)
         self._make_archive(tmp_path, "rag", "3", age_days=1)
         result = purge_corrupt_archives(
-            CorruptArchiveRetentionConfig(max_files=2, max_age_days=0)
+            CorruptArchiveRetentionConfig(max_files=2, max_age_days=0), self._db_cfg
         )
         assert result.success is True
         assert result.data is not None
@@ -848,7 +851,7 @@ class TestPurgeCorruptArchives:
         self._make_archive(tmp_path, "rag", "1", age_days=2)
         self._make_archive(tmp_path, "rag", "2", age_days=1)
         result = purge_corrupt_archives(
-            CorruptArchiveRetentionConfig(max_files=2, max_age_days=0)
+            CorruptArchiveRetentionConfig(max_files=2, max_age_days=0), self._db_cfg
         )
         assert result.data is not None
         assert result.data["count_deleted"] == 0
@@ -860,7 +863,7 @@ class TestPurgeCorruptArchives:
         self._make_archive(tmp_path, "rag", "3", age_days=1)
         session_archive = self._make_archive(tmp_path, "session", "1", age_days=1)
         result = purge_corrupt_archives(
-            CorruptArchiveRetentionConfig(max_files=2, max_age_days=0)
+            CorruptArchiveRetentionConfig(max_files=2, max_age_days=0), self._db_cfg
         )
         assert result.data is not None
         assert result.data["count_deleted"] == 1
@@ -877,6 +880,7 @@ class TestPurgeCorruptArchives:
         monkeypatch.setattr(Path, "unlink", _raise)
         result = purge_corrupt_archives(
             CorruptArchiveRetentionConfig(max_files=100, max_age_days=30),
+            self._db_cfg,
             mode=MaintenanceMode.BEST_EFFORT,
         )
         assert result.success is False
@@ -896,6 +900,7 @@ class TestPurgeCorruptArchives:
         with pytest.raises(OSError, match="disk full"):
             purge_corrupt_archives(
                 CorruptArchiveRetentionConfig(max_files=100, max_age_days=30),
+                self._db_cfg,
                 mode=MaintenanceMode.STRICT,
             )
 
@@ -907,13 +912,10 @@ class TestRecoverCorruptionUnknown:
     """Tests for DbCondition.UNKNOWN handling in recover_corruption()."""
 
     @pytest.fixture(autouse=True)
-    def _patch_build_db_config(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Patch build_db_config so recover_corruption does not need real config."""
-        monkeypatch.setattr(
-            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
+    def _typed_config(self, tmp_path: Path) -> None:
+        """Supply the typed configuration recover_corruption takes as an argument."""
+        self._db_cfg = _make_db_cfg(tmp_path)
+        self._maint = _make_maintenance()
 
     def test_unknown_does_not_restore_rag_db(
         self,
@@ -958,7 +960,7 @@ class TestRecoverCorruptionUnknown:
             ),
             patch("db.recovery._restore_from_backup") as mock_restore,
         ):
-            result = recover_corruption(target="rag")
+            result = recover_corruption(self._db_cfg, target="rag")
 
             mock_restore.assert_not_called()
             assert result.action != "restored"
@@ -1067,14 +1069,13 @@ class TestRotateWorkflowAndAll:
     def test_rotate_workflow_db_creates_archive(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        db_cfg = _make_db_cfg(tmp_path)
         db_file = tmp_path / "workflow.sqlite"
         self._make_real_sqlite(db_file)
         archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(
-            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
+        maint = _make_maintenance()
 
-        dest = rotate_workflow_db(archive_dir=archive_dir)
+        dest = rotate_workflow_db(db_cfg, maint, archive_dir=archive_dir)
 
         assert dest.exists()
         assert dest.name.startswith("workflow_")
@@ -1082,17 +1083,18 @@ class TestRotateWorkflowAndAll:
     def test_rotate_all_dbs_archives_all_three(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        db_cfg = _make_db_cfg(tmp_path)
         rag_file = tmp_path / "rag.sqlite"
         ses_file = tmp_path / "session.sqlite"
         wf_file = tmp_path / "workflow.sqlite"
         for f in (rag_file, ses_file, wf_file):
             self._make_real_sqlite(f)
         archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(
-            "db.rotation.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
+        maint = _make_maintenance()
 
-        rag_dest, ses_dest, wf_dest = rotate_all_dbs(archive_dir=archive_dir)
+        rag_dest, ses_dest, wf_dest = rotate_all_dbs(
+            db_cfg, maint, archive_dir=archive_dir
+        )
 
         assert rag_dest.exists()
         assert rag_dest.name.startswith("rag_")
@@ -1104,28 +1106,26 @@ class TestRotateWorkflowAndAll:
     def test_rotate_workflow_db_missing_file_raises(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        db_cfg = _make_db_cfg(tmp_path)
         archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(
-            "db.rotation.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
+        maint = _make_maintenance()
 
         with pytest.raises(FileNotFoundError, match="workflow.sqlite"):
-            rotate_workflow_db(archive_dir=archive_dir)
+            rotate_workflow_db(db_cfg, maint, archive_dir=archive_dir)
 
     def test_rotate_all_dbs_missing_workflow_raises(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        db_cfg = _make_db_cfg(tmp_path)
         rag_file = tmp_path / "rag.sqlite"
         ses_file = tmp_path / "session.sqlite"
         for f in (rag_file, ses_file):
             self._make_real_sqlite(f)
         archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(
-            "db.rotation.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
+        maint = _make_maintenance()
 
         with pytest.raises(FileNotFoundError, match="workflow.sqlite"):
-            rotate_all_dbs(archive_dir=archive_dir)
+            rotate_all_dbs(db_cfg, maint, archive_dir=archive_dir)
 
 
 # ── archive verification (dbmig001 row 12) ────────────────────────────────────
@@ -1161,11 +1161,9 @@ class TestArchiveVerification:
         db_file = tmp_path / "rag.sqlite"
         self._make_domain_db(db_file, with_documents=True)
         archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(
-            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
+        maint = _make_maintenance()
 
-        dest = _archive_db_file(db_file, archive_dir, target="rag")
+        dest = _archive_db_file(db_file, archive_dir, target="rag", maintenance=maint)
 
         assert dest.exists()
         assert dest.name.startswith("rag_")
@@ -1181,12 +1179,10 @@ class TestArchiveVerification:
         db_file = tmp_path / "rag.sqlite"
         self._make_domain_db(db_file, with_documents=False)
         archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(
-            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
+        maint = _make_maintenance()
 
         with pytest.raises(RuntimeError, match="archive verification failed"):
-            _archive_db_file(db_file, archive_dir, target="rag")
+            _archive_db_file(db_file, archive_dir, target="rag", maintenance=maint)
 
     def test_injected_integrity_failure_aborts(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1201,18 +1197,17 @@ class TestArchiveVerification:
         db_file = tmp_path / "rag.sqlite"
         self._make_domain_db(db_file, with_documents=True)
         archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(
-            "db.recovery.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
+        maint = _make_maintenance()
 
         with pytest.raises(RuntimeError, match="integrity check reported"):
-            _archive_db_file(db_file, archive_dir, target="rag")
+            _archive_db_file(db_file, archive_dir, target="rag", maintenance=maint)
 
     def test_rotate_all_dbs_stops_on_middle_failure(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A failure on a middle domain aborts the sequence; later domains are
         not archived (the failed archive is left in place for forensics)."""
+        db_cfg = _make_db_cfg(tmp_path)
         import db.rotation as rotation
 
         real_integrity = rotation.run_integrity_check
@@ -1228,12 +1223,10 @@ class TestArchiveVerification:
                 tmp_path / f"{name}.sqlite", with_documents=(name == "rag")
             )
         archive_dir = tmp_path / "archive"
-        monkeypatch.setattr(
-            "db.rotation.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
+        maint = _make_maintenance()
 
         with pytest.raises(RuntimeError, match="archive verification failed"):
-            rotate_all_dbs(archive_dir=archive_dir)
+            rotate_all_dbs(db_cfg, maint, archive_dir=archive_dir)
 
         archives = {p.name for p in archive_dir.glob("*.sqlite")}
         # rag archived before session failed ...
@@ -1348,36 +1341,36 @@ class TestVacuumDatabaseError:
             vacuum_db(self._malformed(), mode=MaintenanceMode.STRICT)
 
 
-class TestConfigErrorPropagation:
-    """AC-3: config-load failures propagate in both modes (REQ-003)."""
+class TestConfigValueErrorPropagation:
+    """AC-3: malformed configuration values propagate in both modes (REQ-003).
 
-    def test_purge_config_oserror_raises_in_both_modes(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import db.maintenance as db_maintenance
+    The maintenance modules read no configuration file, so the failure now arrives when
+    the typed configuration is built from the supplied mapping; the key-naming message is
+    unchanged and it is raised before any database call.
+    """
 
-        def _boom(self: object, key: str) -> dict:
-            raise OSError("agent.toml unreadable")
-
-        monkeypatch.setattr(db_maintenance.ConfigLoader, "load", _boom)
+    def test_negative_retention_raises_before_any_db_call_in_both_modes(self) -> None:
         mock_db = MagicMock(spec=SQLiteHelper)
         for mode in (MaintenanceMode.STRICT, MaintenanceMode.BEST_EFFORT):
-            with pytest.raises(OSError, match="agent.toml unreadable"):
-                # cfg=None triggers RetentionConfig.from_config (config load)
-                purge_old_sessions(mock_db, mode=mode)  # type: ignore[arg-type]
+            with pytest.raises(ValueError, match="sqlite_retention_max_sessions"):
+                typed = DbMaintenanceConfig.from_mapping(
+                    {"sqlite_retention_max_sessions": -1}
+                )
+                # The guard fires before any statement is sent to the helper.
+                purge_old_sessions(mock_db, RetentionConfig.from_typed(typed), mode)
+        mock_db.execute.assert_not_called()
 
-    def test_archive_config_valueerror_raises_best_effort(
-        self, monkeypatch: pytest.MonkeyPatch
+    def test_negative_archive_retention_raises_in_best_effort(
+        self, tmp_path: Path
     ) -> None:
-        import db.maintenance as db_maintenance
-
-        def _boom() -> object:
-            raise ValueError("db config invalid")
-
-        monkeypatch.setattr(db_maintenance, "build_db_config", _boom)
-        with pytest.raises(ValueError, match="db config invalid"):
+        with pytest.raises(ValueError, match="sqlite_corrupt_archive_max_files"):
+            typed = DbMaintenanceConfig.from_mapping(
+                {"sqlite_corrupt_archive_max_files": -1}
+            )
             purge_corrupt_archives(
-                CorruptArchiveRetentionConfig(), mode=MaintenanceMode.BEST_EFFORT
+                CorruptArchiveRetentionConfig.from_typed(typed),
+                _make_db_cfg(tmp_path),
+                mode=MaintenanceMode.BEST_EFFORT,
             )
 
 
@@ -1438,7 +1431,7 @@ class TestPruneIdsSource:
 
 
 class TestRetentionConfigBoundary:
-    """from_config boundary matrix: negative/bool/float/string raise key-naming ValueError; 0 loads (REQ-001/REQ-003)."""
+    """from_mapping boundary matrix: negative/bool/float/string raise key-naming ValueError; 0 loads (REQ-001/REQ-003)."""
 
     _RETENTION_KEYS = (
         "sqlite_retention_max_sessions",
@@ -1452,40 +1445,25 @@ class TestRetentionConfigBoundary:
     @pytest.mark.parametrize("bad", [-1, True, 1.5, "10"])
     @pytest.mark.parametrize("key", _RETENTION_KEYS + _ARCHIVE_KEYS)
     def test_invalid_value_raises_key_naming_valueerror(
-        self, monkeypatch: pytest.MonkeyPatch, key: str, bad: object
+        self, key: str, bad: object
     ) -> None:
-        import db.maintenance as db_maintenance
-
-        monkeypatch.setattr(
-            db_maintenance.ConfigLoader, "load", lambda self, k: {key: bad}
-        )
-        from_config = (
-            RetentionConfig.from_config
-            if key in self._RETENTION_KEYS
-            else CorruptArchiveRetentionConfig.from_config
-        )
         with pytest.raises(ValueError, match=key):
-            from_config()
+            DbMaintenanceConfig.from_mapping({key: bad})
 
-    def test_zero_values_load_cleanly(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        import db.maintenance as db_maintenance
-
-        monkeypatch.setattr(
-            db_maintenance.ConfigLoader,
-            "load",
-            lambda self, k: {
+    def test_zero_values_load_cleanly(self) -> None:
+        typed = DbMaintenanceConfig.from_mapping(
+            {
                 "sqlite_retention_max_sessions": 0,
                 "sqlite_retention_max_age_days": 0,
                 "sqlite_corrupt_archive_max_files": 0,
                 "sqlite_corrupt_archive_max_age_days": 0,
-            },
+            }
         )
-        assert RetentionConfig.from_config() == RetentionConfig(
+        assert RetentionConfig.from_typed(typed) == RetentionConfig(
             max_sessions=0, max_age_days=0
         )
-        assert (
-            CorruptArchiveRetentionConfig.from_config()
-            == CorruptArchiveRetentionConfig(max_files=0, max_age_days=0)
+        assert CorruptArchiveRetentionConfig.from_typed(typed) == (
+            CorruptArchiveRetentionConfig(max_files=0, max_age_days=0)
         )
 
     def test_max_sessions_zero_keeps_all(self) -> None:
@@ -1501,15 +1479,12 @@ class TestRetentionConfigBoundary:
         assert db.conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 11
 
     def test_max_files_zero_keeps_all_archives(self, tmp_path: Path) -> None:
-        import db.maintenance as db_maintenance
-
         for i in range(5):
             (tmp_path / f"rag_corrupt_{i}.sqlite").write_text("archive")
-        cfg = _make_db_cfg(tmp_path)
-        with patch.object(db_maintenance, "build_db_config", return_value=cfg):
-            result = purge_corrupt_archives(
-                CorruptArchiveRetentionConfig(max_files=0, max_age_days=0)
-            )
+        result = purge_corrupt_archives(
+            CorruptArchiveRetentionConfig(max_files=0, max_age_days=0),
+            _make_db_cfg(tmp_path),
+        )
         assert result.success is True
         assert result.data is not None
         assert result.data["count_deleted"] == 0
@@ -1537,25 +1512,20 @@ class TestRetentionHelperGuards:
     def test_negative_archive_retention_raises_in_both_modes(
         self, tmp_path: Path
     ) -> None:
-        import db.maintenance as db_maintenance
-
-        cfg = _make_db_cfg(tmp_path)
+        db_cfg = _make_db_cfg(tmp_path)
         for mode in (MaintenanceMode.STRICT, MaintenanceMode.BEST_EFFORT):
-            with patch.object(db_maintenance, "build_db_config", return_value=cfg):
-                with pytest.raises(
-                    ValueError, match="sqlite_corrupt_archive_max_files"
-                ):
-                    purge_corrupt_archives(
-                        CorruptArchiveRetentionConfig(max_files=-1, max_age_days=0),
-                        mode,
-                    )
-                with pytest.raises(
-                    ValueError, match="sqlite_corrupt_archive_max_age_days"
-                ):
-                    purge_corrupt_archives(
-                        CorruptArchiveRetentionConfig(max_files=10, max_age_days=-1),
-                        mode,
-                    )
+            with pytest.raises(ValueError, match="sqlite_corrupt_archive_max_files"):
+                purge_corrupt_archives(
+                    CorruptArchiveRetentionConfig(max_files=-1, max_age_days=0),
+                    db_cfg,
+                    mode,
+                )
+            with pytest.raises(ValueError, match="sqlite_corrupt_archive_max_age_days"):
+                purge_corrupt_archives(
+                    CorruptArchiveRetentionConfig(max_files=10, max_age_days=-1),
+                    db_cfg,
+                    mode,
+                )
 
 
 class TestRetentionCutoffDay:
@@ -1605,14 +1575,14 @@ class TestRetentionTieOrder:
 
 
 class TestArtifactRetentionConfig:
-    """ArtifactRetentionConfig.from_config boundary semantics (AC-1)."""
+    """ArtifactRetentionConfig boundary semantics through the typed configuration (AC-1)."""
 
-    def _load(self, monkeypatch: pytest.MonkeyPatch, cfg: dict[str, object]):
-        monkeypatch.setattr("db.artifact_retention._load_agent_config", lambda: cfg)
-        return ArtifactRetentionConfig.from_config()
+    def _load(self, cfg: dict[str, object]) -> ArtifactRetentionConfig:
+        """Project the artifact fields from the typed configuration built from the mapping."""
+        return ArtifactRetentionConfig.from_typed(DbMaintenanceConfig.from_mapping(cfg))
 
-    def test_defaults_when_keys_absent(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        cfg = self._load(monkeypatch, {})
+    def test_defaults_when_keys_absent(self) -> None:
+        cfg = self._load({})
         assert cfg == ArtifactRetentionConfig(
             archive_max_files=14,
             archive_max_age_days=30,
@@ -1622,9 +1592,8 @@ class TestArtifactRetentionConfig:
             quarantine_max_age_days=90,
         )
 
-    def test_custom_values(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_custom_values(self) -> None:
         cfg = self._load(
-            monkeypatch,
             {
                 "sqlite_archive_max_files": 5,
                 "sqlite_archive_max_age_days": 7,
@@ -1636,10 +1605,8 @@ class TestArtifactRetentionConfig:
         )
         assert cfg == ArtifactRetentionConfig(5, 7, 6, 8, 3, 9)
 
-    def test_zero_disables_only_the_matching_rule(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        cfg = self._load(monkeypatch, {"sqlite_archive_max_files": 0})
+    def test_zero_disables_only_the_matching_rule(self) -> None:
+        cfg = self._load({"sqlite_archive_max_files": 0})
         assert cfg.archive_max_files == 0
         assert cfg.archive_max_age_days == 30
         assert cfg.quarantine_max_files == 10
@@ -1655,11 +1622,9 @@ class TestArtifactRetentionConfig:
             "sqlite_quarantine_max_age_days",
         ],
     )
-    def test_negative_raises_key_naming_value_error(
-        self, monkeypatch: pytest.MonkeyPatch, key: str
-    ) -> None:
+    def test_negative_raises_key_naming_value_error(self, key: str) -> None:
         with pytest.raises(ValueError, match=key):
-            self._load(monkeypatch, {key: -1})
+            self._load({key: -1})
 
     @pytest.mark.parametrize(
         "key",
@@ -1668,9 +1633,9 @@ class TestArtifactRetentionConfig:
             "sqlite_quarantine_max_age_days",
         ],
     )
-    def test_bool_rejected(self, monkeypatch: pytest.MonkeyPatch, key: str) -> None:
+    def test_bool_rejected(self, key: str) -> None:
         with pytest.raises(ValueError, match=key):
-            self._load(monkeypatch, {key: True})
+            self._load({key: True})
 
 
 class TestResolveUniquePath:
@@ -1713,11 +1678,11 @@ class TestPurgeArchiveArtifacts:
         self.drill_dir = self.archive_dir / "drills"
         self.archive_dir.mkdir()
         self.drill_dir.mkdir()
+        self._db_cfg = _make_db_cfg(tmp_path)
+        self._maint = _make_maintenance()
         monkeypatch.setattr(
-            "db.artifact_retention.build_db_config", lambda: _make_db_cfg(tmp_path)
-        )
-        monkeypatch.setattr(
-            "db.artifact_retention._resolve_archive_dir", lambda: str(self.archive_dir)
+            "db.artifact_retention._resolve_archive_dir",
+            lambda maintenance: str(self.archive_dir),
         )
 
     def _seed(self, directory: Path, name: str, age_days: float = 0) -> Path:
@@ -1744,7 +1709,9 @@ class TestPurgeArchiveArtifacts:
             self._seed(self.archive_dir, f"rag_{i}_20260101_000000.sqlite", age_days=i)
             for i in range(1, 16)
         ]
-        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        result = purge_archive_artifacts(
+            ArtifactRetentionConfig(), self._db_cfg, maintenance=self._maint
+        )
         assert result.success is True
         assert result.data is not None
         assert result.data["archives"] == {"age_deleted": 0, "count_deleted": 1}
@@ -1756,7 +1723,9 @@ class TestPurgeArchiveArtifacts:
         old = self._seed(self.archive_dir, "rag_old1.sqlite", age_days=40)
         mid = self._seed(self.archive_dir, "rag_mid.sqlite", age_days=10)
         new = self._seed(self.archive_dir, "rag_new.sqlite", age_days=1)
-        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        result = purge_archive_artifacts(
+            ArtifactRetentionConfig(), self._db_cfg, maintenance=self._maint
+        )
         assert result.data is not None
         assert result.data["archives"] == {"age_deleted": 1, "count_deleted": 0}
         assert not old.exists() and mid.exists() and new.exists()
@@ -1764,7 +1733,9 @@ class TestPurgeArchiveArtifacts:
     def test_archives_age_rule_protects_newest_of_all_old(self) -> None:
         oldest = self._seed(self.archive_dir, "rag_oldest.sqlite", age_days=40)
         newest_old = self._seed(self.archive_dir, "rag_newest_old.sqlite", age_days=35)
-        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        result = purge_archive_artifacts(
+            ArtifactRetentionConfig(), self._db_cfg, maintenance=self._maint
+        )
         assert result.data is not None
         assert result.data["archives"] == {"age_deleted": 1, "count_deleted": 0}
         assert not oldest.exists()
@@ -1775,7 +1746,9 @@ class TestPurgeArchiveArtifacts:
             self._seed(self.archive_dir, f"rag_{i}_20260101_000000.sqlite", age_days=i)
         corrupt = self._seed(self.archive_dir, "rag_corrupt_20260101_000000.sqlite")
         unrelated = self._seed(self.archive_dir, "not_an_archive.txt")
-        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        result = purge_archive_artifacts(
+            ArtifactRetentionConfig(), self._db_cfg, maintenance=self._maint
+        )
         assert result.data is not None
         assert result.data["archives"]["count_deleted"] == 1
         assert corrupt.exists()  # corrupt names belong to purge_corrupt_archives
@@ -1788,7 +1761,9 @@ class TestPurgeArchiveArtifacts:
         for i in range(1, 15):
             self._seed(self.drill_dir, f"workflow_{i}_20260101_000000.json", age_days=i)
         young = self._seed(self.drill_dir, "workflow_young.json", age_days=1)
-        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        result = purge_archive_artifacts(
+            ArtifactRetentionConfig(), self._db_cfg, maintenance=self._maint
+        )
         assert result.data is not None
         assert result.data["drill_artifacts"] == {"age_deleted": 1, "count_deleted": 1}
         assert not old.exists() and young.exists()
@@ -1798,7 +1773,9 @@ class TestPurgeArchiveArtifacts:
     def test_drill_artifacts_age_rule_has_no_min_keep(self) -> None:
         old_a = self._seed(self.drill_dir, "workflow_old_a.json", age_days=100)
         old_b = self._seed(self.drill_dir, "workflow_old_b.json", age_days=95)
-        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        result = purge_archive_artifacts(
+            ArtifactRetentionConfig(), self._db_cfg, maintenance=self._maint
+        )
         assert result.data is not None
         assert result.data["drill_artifacts"]["age_deleted"] == 2
         assert not old_a.exists() and not old_b.exists()
@@ -1817,7 +1794,9 @@ class TestPurgeArchiveArtifacts:
         stray_file.write_text("keep me")
         live_db = self.db_dir / "rag.sqlite"
         live_db.write_text("live")
-        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        result = purge_archive_artifacts(
+            ArtifactRetentionConfig(), self._db_cfg, maintenance=self._maint
+        )
         assert result.data is not None
         assert result.data["quarantine"] == {"age_deleted": 1, "count_deleted": 1}
         assert not old.exists()  # age 100d > 90d cap, not the newest
@@ -1834,7 +1813,9 @@ class TestPurgeArchiveArtifacts:
         newest_old = self._seed_dir(
             self.db_dir, "rag_sidecar_quarantine_95", age_days=95
         )
-        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        result = purge_archive_artifacts(
+            ArtifactRetentionConfig(), self._db_cfg, maintenance=self._maint
+        )
         assert result.data is not None
         assert result.data["quarantine"] == {"age_deleted": 1, "count_deleted": 0}
         assert not oldest.exists()
@@ -1853,7 +1834,9 @@ class TestPurgeArchiveArtifacts:
         )
         fresh_restored = self.drill_dir / "workflow_20260102.sqlite_restored.sqlite"
         fresh_restored.write_text("in-flight")
-        result = purge_archive_artifacts(ArtifactRetentionConfig())
+        result = purge_archive_artifacts(
+            ArtifactRetentionConfig(), self._db_cfg, maintenance=self._maint
+        )
         assert result.data is not None
         assert result.data["stale_work"] == {"removed": 2}
         assert not stale_tmp.exists() and not stale_restored.exists()
@@ -1867,9 +1850,16 @@ class TestPurgeArchiveArtifacts:
     def test_negative_retention_raises_in_both_modes(self) -> None:
         bad = ArtifactRetentionConfig(archive_max_age_days=-1)
         with pytest.raises(ValueError, match="sqlite_archive_max_age_days"):
-            purge_archive_artifacts(bad, mode=MaintenanceMode.STRICT)
+            purge_archive_artifacts(
+                bad, self._db_cfg, mode=MaintenanceMode.STRICT, maintenance=self._maint
+            )
         with pytest.raises(ValueError, match="sqlite_archive_max_age_days"):
-            purge_archive_artifacts(bad, mode=MaintenanceMode.BEST_EFFORT)
+            purge_archive_artifacts(
+                bad,
+                self._db_cfg,
+                mode=MaintenanceMode.BEST_EFFORT,
+                maintenance=self._maint,
+            )
 
     def test_best_effort_returns_partial_result_on_error(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1881,7 +1871,10 @@ class TestPurgeArchiveArtifacts:
             MagicMock(side_effect=OSError("disk full")),
         )
         result = purge_archive_artifacts(
-            ArtifactRetentionConfig(), mode=MaintenanceMode.BEST_EFFORT
+            ArtifactRetentionConfig(),
+            self._db_cfg,
+            mode=MaintenanceMode.BEST_EFFORT,
+            maintenance=self._maint,
         )
         assert result.success is False
         assert result.data is not None
@@ -1898,7 +1891,10 @@ class TestPurgeArchiveArtifacts:
         )
         with pytest.raises(OSError, match="disk full"):
             purge_archive_artifacts(
-                ArtifactRetentionConfig(), mode=MaintenanceMode.STRICT
+                ArtifactRetentionConfig(),
+                self._db_cfg,
+                mode=MaintenanceMode.STRICT,
+                maintenance=self._maint,
             )
 
 
@@ -1906,6 +1902,7 @@ class TestRotationSameSecondCollision:
     """Two rotations in one second must not overwrite each other (AC-6)."""
 
     def test_same_second_archives_get_distinct_names(self, tmp_path: Path) -> None:
+        maint = _make_maintenance()
         db_file = tmp_path / "workflow.sqlite"
         conn = sqlite3.connect(str(db_file))
         conn.execute("CREATE TABLE t(x)")
@@ -1914,8 +1911,12 @@ class TestRotationSameSecondCollision:
         archive_dir = tmp_path / "archive"
         fixed_ts = "20261116_000000"
         with patch("db.rotation.format_timestamp", return_value=fixed_ts):
-            first = _archive_db_file(db_file, archive_dir, target="workflow")
-            second = _archive_db_file(db_file, archive_dir, target="workflow")
+            first = _archive_db_file(
+                db_file, archive_dir, target="workflow", maintenance=maint
+            )
+            second = _archive_db_file(
+                db_file, archive_dir, target="workflow", maintenance=maint
+            )
         assert first.name == f"workflow_{fixed_ts}.sqlite"
         assert second.name == f"workflow_{fixed_ts}_2.sqlite"
         assert first.exists() and second.exists()

@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """scripts/db/recovery.py — Corruption recovery operations.
 
-Owns DbCondition classification, the physical integrity check, and the RecoveryResult
-policy. Restore file staging lives in db.recovery_restore, and logical consistency
-verification lives in db.recovery_verification.
+Owns the physical integrity check and the RecoveryResult policy. The DbCondition states
+and the error-to-state mapping live in db.recovery_classification, restore file staging
+lives in db.recovery_restore, and logical consistency verification lives in
+db.recovery_verification.
+
+Configuration ownership (REQ-003, AC-005): the Agent process owns
+`session_db_path` and `workflow_db_path` in `config/agent.toml`, and the RAG
+Pipeline MCP process owns `rag_db_path` in its own file. This module is only a
+reader: it receives the resolved `DbConfig` from its caller and never loads a
+configuration file, so no path is resolved here.
 """
 
 import logging
@@ -12,12 +19,12 @@ import shutil
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from enum import StrEnum
 from pathlib import Path
 
-from db.config import build_db_config
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 from db.models import RecoveryResult
+from db.recovery_classification import DbCondition, _classify_error
 from db.recovery_restore import (
     _resolve_backup,
     _restore_quarantine_sidecars,
@@ -28,70 +35,6 @@ from db.recovery_restore import (
 from db.recovery_verification import _run_logical_verification
 
 logger = logging.getLogger(__name__)
-
-
-class DbCondition(StrEnum):
-    """Classification of database state/failure."""
-
-    HEALTHY = "healthy"
-    CORRUPTION = "corruption"
-    LOCK_CONTENTION = "lock_contention"
-    PERMISSION_FAILURE = "permission_failure"
-    INVALID_FORMAT = "invalid_format"
-    UNKNOWN = "unknown"
-    MISSING = "missing"
-
-
-# sqlite_errorcode -> condition for the failures SQLite identifies by code
-# (5/6 = SQLITE_BUSY / SQLITE_LOCKED, 8 = SQLITE_READONLY).
-_ERRORCODE_CONDITIONS: dict[int, DbCondition] = {
-    5: DbCondition.LOCK_CONTENTION,
-    6: DbCondition.LOCK_CONTENTION,
-    8: DbCondition.PERMISSION_FAILURE,
-}
-
-# Message fallbacks, in priority order, for the conditions error codes do not cover.
-_MESSAGE_CONDITIONS: tuple[tuple[tuple[str, ...], DbCondition], ...] = (
-    (("database is locked", "busy"), DbCondition.LOCK_CONTENTION),
-    (("permission denied", "readonly"), DbCondition.PERMISSION_FAILURE),
-)
-
-# Signal the SQLite C library reports when the file is not a database at all.
-_INVALID_FORMAT_SIGNAL = "file is not a database"
-
-
-def _classify_operational_error(e: sqlite3.OperationalError) -> DbCondition:
-    """Classify an OperationalError: error code first, message substrings second."""
-    errcode: int | None = getattr(e, "sqlite_errorcode", None)
-    if errcode is not None and errcode in _ERRORCODE_CONDITIONS:
-        return _ERRORCODE_CONDITIONS[errcode]
-    msg = str(e).lower()
-    for tokens, condition in _MESSAGE_CONDITIONS:
-        if any(token in msg for token in tokens):
-            return condition
-    return DbCondition.UNKNOWN
-
-
-def _classify_error(e: Exception) -> DbCondition:
-    """Classify a caught exception into a DbCondition.
-
-    Uses sqlite_errorcode where available (Python 3.14+), falling back to
-    substring matching for conditions not covered by error codes.
-    Priority: INVALID_FORMAT via message > lock/permission via error code >
-    CORRUPTION > UNKNOWN.
-
-    The INVALID_FORMAT signal is checked for every sqlite3 error, OperationalError
-    included: SQLite raises an OperationalError when it reads the header of a file
-    that is not a database, and classifying that as UNKNOWN would hide the reason
-    the file cannot be opened.
-    """
-    if isinstance(e, (sqlite3.Error, ValueError)) and _INVALID_FORMAT_SIGNAL in str(e):
-        return DbCondition.INVALID_FORMAT
-    if isinstance(e, sqlite3.OperationalError):
-        return _classify_operational_error(e)
-    if isinstance(e, (sqlite3.DatabaseError, ValueError)):
-        return DbCondition.CORRUPTION
-    return DbCondition.UNKNOWN
 
 
 def _run_integrity_check(
@@ -144,11 +87,15 @@ def _failure(
     )
 
 
-def _vacuum_db(target: str = "rag") -> RecoveryResult:
-    """Run VACUUM on target DB and return result; returns success=False on failure."""
+def _vacuum_db(db_config: DbConfig, target: str = "rag") -> RecoveryResult:
+    """Run VACUUM on target DB and return result; returns success=False on failure.
+
+    `db_config` is supplied by the caller that owns the configuration; this module
+    reads no config file.
+    """
     logger.info("Integrity check passed; running VACUUM")
     try:
-        with SQLiteHelper(target).open(write_mode=True) as db:
+        with SQLiteHelper(target, db_config=db_config).open(write_mode=True) as db:
             db.vacuum()
     except (sqlite3.OperationalError, RuntimeError) as e:
         logger.error("VACUUM failed: %s", e)
@@ -248,13 +195,16 @@ def backup_is_usable(backup: Path, target: str) -> tuple[str | None, str]:
 
 
 def _post_restore_failure(
-    db_path: Path, target: str, dry_run: bool
+    db_config: DbConfig, db_path: Path, target: str, dry_run: bool
 ) -> RecoveryResult | None:
     """Return the failure result for the post-activation re-check, or None when both pass.
 
     The physical re-check runs before the logical-verification stage, which is the
     order the restore reports them in. Runs on the live path after activation;
     candidate verification before activation lives in :func:`_verify_candidate`.
+
+    `db_config` is the typed configuration supplied by the caller that owns the
+    configuration file; it is passed on to the logical-verification stage.
     """
     post_condition, post_detail = _run_integrity_check(db_path, target, read_only=True)
     if post_condition != DbCondition.HEALTHY:
@@ -265,7 +215,7 @@ def _post_restore_failure(
         logger.error("Post-restore integrity check failed: %s", detail)
         return _failure("restore_verify_failed", detail, dry_run)
 
-    logical_ok, logical_detail = _run_logical_verification(db_path, target)
+    logical_ok, logical_detail = _run_logical_verification(db_config, db_path, target)
     if not logical_ok:
         err_detail = logical_detail or f"logical verification failed: {target}"
         logger.error("Post-restore logical verification failed: %s", err_detail)
@@ -275,7 +225,7 @@ def _post_restore_failure(
 
 
 def _verify_candidate(
-    candidate: Path, target: str
+    db_config: DbConfig, candidate: Path, target: str
 ) -> tuple[DbCondition, str | None, bool | None, str | None]:
     """Run both mandatory verifications on the staged candidate before activation.
 
@@ -289,7 +239,7 @@ def _verify_candidate(
     )
     if condition != DbCondition.HEALTHY:
         return condition, integrity_detail, False, None
-    logical_ok, logical_detail = _run_logical_verification(candidate, target)
+    logical_ok, logical_detail = _run_logical_verification(db_config, candidate, target)
     return condition, None, logical_ok, logical_detail
 
 
@@ -400,6 +350,7 @@ def _rollback_or_non_serviceable(
 
 
 def _restore_from_backup(
+    db_config: DbConfig,
     db_path: Path,
     backup_path: str | Path | None,
     target: str = "rag",
@@ -410,6 +361,9 @@ def _restore_from_backup(
     The candidate is staged, verified physically and logically, and only then
     activated: a candidate that fails verification never touches the
     live database, which is reported with active_db_state "preserved_original".
+
+    `db_config` is the typed configuration supplied by the caller; it is passed to
+    the logical-verification stage, which no longer resolves it itself.
     """
     backup, detail = _resolve_backup(backup_path)
     if backup is None:
@@ -434,7 +388,7 @@ def _restore_from_backup(
         )
 
         condition, integrity_detail, logical_ok, logical_detail = _verify_candidate(
-            temp_restore, target
+            db_config, temp_restore, target
         )
         if condition != DbCondition.HEALTHY:
             _cleanup_staged(temp_restore, staged)
@@ -471,7 +425,7 @@ def _restore_from_backup(
 
         _activate_candidate(db_path, temp_restore, staged, progress)
 
-        failure = _post_restore_failure(db_path, target, dry_run)
+        failure = _post_restore_failure(db_config, db_path, target, dry_run)
         if failure is not None:
             return _rollback_or_non_serviceable(
                 db_path,
@@ -526,7 +480,11 @@ _NO_RESTORE_CONDITIONS: frozenset[DbCondition] = frozenset(
 
 
 def _result_for_condition(
-    condition: DbCondition, detail: str | None, target: str, dry_run: bool
+    db_config: DbConfig,
+    condition: DbCondition,
+    detail: str | None,
+    target: str,
+    dry_run: bool,
 ) -> RecoveryResult | None:
     """Map an integrity-check condition to the result that ends recovery here.
 
@@ -535,7 +493,7 @@ def _result_for_condition(
     if condition == DbCondition.HEALTHY:
         if dry_run:
             return _dry_run_integrity_ok()
-        return _vacuum_db(target)
+        return _vacuum_db(db_config, target)
 
     if condition == DbCondition.MISSING:
         return _failure(
@@ -559,12 +517,16 @@ def _result_for_condition(
 
 
 def recover_corruption(
+    db_config: DbConfig,
     backup_path: str | Path | None = None,
     *,
     target: str = "rag",
     dry_run: bool = False,
 ) -> RecoveryResult:
     """Detect and recover from corruption in the target DB; returns RecoveryResult.
+
+    `db_config` is the typed configuration supplied by the process that owns the
+    configuration file; this module resolves no path and reads no config file.
 
     target: "rag" (default), "session", or "workflow".
     action values:
@@ -585,8 +547,7 @@ def recover_corruption(
       "no_recovery_allowed"                 — automatic recovery prohibited for workflow
       "preserved_operator_intervention_required" — integrity check returned an unclassifiable result; DB preserved, operator intervention required
     """
-    db_cfg = build_db_config()
-    target_db_path = getattr(db_cfg, f"{target}_db_path", None)
+    target_db_path = getattr(db_config, f"{target}_db_path", None)
     if target_db_path is None:
         return RecoveryResult(
             success=False,
@@ -608,7 +569,7 @@ def recover_corruption(
     db_path = Path(target_db_path)
     condition, detail = _run_integrity_check(db_path, target, read_only=True)
 
-    result = _result_for_condition(condition, detail, target, dry_run)
+    result = _result_for_condition(db_config, condition, detail, target, dry_run)
     if result is not None:
         return result
 
@@ -619,4 +580,6 @@ def recover_corruption(
         )
 
     # For rag and session, we attempt restoration
-    return _restore_from_backup(db_path, backup_path, target=target, dry_run=dry_run)
+    return _restore_from_backup(
+        db_config, db_path, backup_path, target=target, dry_run=dry_run
+    )

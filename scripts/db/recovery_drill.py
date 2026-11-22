@@ -13,6 +13,11 @@ The live databases are never mutated: the recovery point is a WAL-consistent
 SQLite backup-API copy and every check runs against the isolated copy only.
 
 drill tooling.
+
+Configuration ownership: this module resolves no configuration file. The typed
+configuration is supplied by the caller; the CLI entry point is the boundary that
+owns `config/agent.toml`, so it loads it once and passes the typed objects down
+(REQ-004, AC-004). Every function below takes `db_config` and `maintenance`.
 """
 
 from __future__ import annotations
@@ -29,11 +34,13 @@ from typing import Any
 
 from shared.schema_fingerprint import assert_matches
 
-from db.config import build_db_config, format_timestamp, resolve_unique_path
+from db.config import DbConfig, build_db_config, format_timestamp, resolve_unique_path
 from db.helper import SQLiteHelper
+from db.maintenance import DbMaintenanceConfig
 from db.rag_consistency import check_rag_consistency
 from db.rag_consistency import is_consistent as rag_is_consistent
-from db.recovery import DbCondition, run_integrity_check, verify_domain_identity
+from db.recovery import run_integrity_check, verify_domain_identity
+from db.recovery_classification import DbCondition
 from db.rotation import _archive_db_file, _resolve_archive_dir
 from db.schema_sql import (
     build_rag_schema_sql,
@@ -144,19 +151,22 @@ def _verify_workflow(isolated: Path) -> dict:
 
 def _drill_one_domain(
     domain: str,
+    db_config: DbConfig,
+    maintenance: DbMaintenanceConfig,
     archive_dir: str,
     drill_dir: str,
 ) -> dict:
     """Drill a single domain and always return its audit artifact.
 
-    The artifact is written to disk even when a check fails, so a drill that
-    hides failures cannot happen. Returns the artifact dict (also persisted).
+    The paths come from the supplied `db_config`; this function reads no
+    configuration file. The artifact is written to disk even when a check fails,
+    so a drill that hides failures cannot happen. Returns the artifact dict
+    (also persisted).
     """
-    cfg = build_db_config()
     live_paths = {
-        "rag": cfg.rag_db_path,
-        "session": cfg.session_db_path,
-        "workflow": cfg.workflow_db_path,
+        "rag": db_config.rag_db_path,
+        "session": db_config.session_db_path,
+        "workflow": db_config.workflow_db_path,
     }
     live_path = Path(live_paths[domain])
     drill_start = time.time()
@@ -183,7 +193,9 @@ def _drill_one_domain(
     # Take the recovery point through the rotation code path (a read-only
     # backup-API copy; the live file is never rewritten).
     try:
-        recovery_point = _archive_db_file(live_path, archive_dir, target=domain)
+        recovery_point = _archive_db_file(
+            live_path, archive_dir, target=domain, maintenance=maintenance
+        )
     except FileNotFoundError as exc:
         artifact["verification"] = {"missing_source": False}
         artifact["error"] = str(exc)
@@ -218,7 +230,9 @@ def _drill_one_domain(
 
     try:
         if domain in ("rag", "session"):
-            verification = _verify_rag_session(domain, isolated, cfg.sqlite_vec_so)
+            verification = _verify_rag_session(
+                domain, isolated, db_config.sqlite_vec_so
+            )
         else:
             verification = _verify_workflow(isolated)
     except (sqlite3.Error, RuntimeError) as exc:
@@ -277,16 +291,22 @@ def _persist_artifact(drill_dir: str, artifact: dict) -> None:
 
 
 def run_drill(
+    db_config: DbConfig,
+    maintenance: DbMaintenanceConfig,
     domain: str = "all",
     archive_dir: str | None = None,
     drill_dir: str | None = None,
 ) -> bool:
     """Drill one domain (or all) and report pass/fail.
 
+    `db_config` supplies the live database paths and `maintenance` the archive
+    directory; an explicit `archive_dir` argument keeps precedence over the
+    configured value. This function reads no configuration file.
+
     Returns True only when every drilled domain passes all checks. Any failed
     domain still has its artifact written before this returns.
     """
-    resolved_archive = archive_dir or _resolve_archive_dir()
+    resolved_archive = archive_dir or _resolve_archive_dir(maintenance)
     resolved_drill = drill_dir or f"{resolved_archive}/drills"
 
     targets = DOMAINS if domain == "all" else (domain,)
@@ -294,7 +314,9 @@ def run_drill(
     for target in targets:
         if target not in DOMAINS:
             raise ValueError(f"unknown domain {target!r}; choose from {DOMAINS}")
-        artifact = _drill_one_domain(target, resolved_archive, resolved_drill)
+        artifact = _drill_one_domain(
+            target, db_config, maintenance, resolved_archive, resolved_drill
+        )
         ok = bool(artifact.get("integrity")) and all(
             verdict
             for verdict in artifact["verification"].values()
@@ -306,8 +328,17 @@ def run_drill(
     return passed_all
 
 
-def main(argv: list[str] | None = None) -> int:
-    """CLI entry point for the recovery drill."""
+def main(
+    argv: list[str] | None = None,
+    *,
+    db_config: DbConfig,
+    maintenance: DbMaintenanceConfig,
+) -> int:
+    """CLI entry point for the recovery drill.
+
+    The typed configurations are supplied by the process that owns the
+    configuration file; `main()` reads no configuration file itself.
+    """
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(
         description="Recovery drill harness: rotate a recovery point, restore it "
@@ -322,7 +353,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--archive-dir",
         default=None,
-        help="Archive directory (default: rotation._resolve_archive_dir).",
+        help="Archive directory (default: the archive directory of the supplied "
+        "maintenance configuration, falling back to the documented path when it "
+        "is empty).",
     )
     parser.add_argument(
         "--drill-dir",
@@ -333,6 +366,8 @@ def main(argv: list[str] | None = None) -> int:
 
     passed = run_drill(
         domain=args.domain,
+        db_config=db_config,
+        maintenance=maintenance,
         archive_dir=args.archive_dir,
         drill_dir=args.drill_dir,
     )
@@ -340,4 +375,14 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Entry boundary: this process owns config/agent.toml, so it loads it here and
+    # passes the typed configuration down. No db/ function performs the load.
+    from shared.config_loader import ConfigLoader
+
+    raw = ConfigLoader().load("agent.toml")
+    sys.exit(
+        main(
+            db_config=build_db_config(raw),
+            maintenance=DbMaintenanceConfig.from_mapping(raw),
+        )
+    )

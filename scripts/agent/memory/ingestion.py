@@ -15,6 +15,7 @@ import logging
 import sqlite3
 import uuid
 
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 from shared.json_utils import now_iso
 
@@ -49,8 +50,11 @@ class MemoryIngestionService:
         repo: str = "",
         branch: str = "",
         max_content_chars: int = 500,
+        *,
+        db_config: DbConfig,
     ) -> None:
         """Initialize the memory extraction and persistence pipeline."""
+        self._db_config = db_config
         self._store = store
         self._jsonl = jsonl
         self._retriever = retriever
@@ -139,7 +143,12 @@ class MemoryIngestionService:
     ) -> None:
         """Persist an entry to SQLite and JSONL with the given embedding result."""
         embedding = embed_result.embedding if embed_result.success else None
-        write_upsert(entry, embedding=embedding, embed_dim=self._store.embed_dim)
+        write_upsert(
+            entry,
+            embedding=embedding,
+            embed_dim=self._store.embed_dim,
+            db_config=self._db_config,
+        )
         try:
             await self._jsonl.write(entry)
         except OSError as e:
@@ -200,7 +209,9 @@ class MemoryIngestionService:
             distance = -hit.score
             if distance < self._dedup_policy.threshold:
                 try:
-                    with SQLiteHelper("session").open(write_mode=True) as db:
+                    with SQLiteHelper("session", db_config=self._db_config).open(
+                        write_mode=True
+                    ) as db:
                         db.execute(
                             "INSERT OR IGNORE INTO memory_links(src_id, dst_id) VALUES (?,?)",
                             (memory_id, hit.entry.memory_id),

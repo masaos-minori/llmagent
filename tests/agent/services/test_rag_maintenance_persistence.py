@@ -28,6 +28,8 @@ from agent.services.rag_maintenance_service import RagMaintenanceService
 from db.helper import SQLiteHelper
 from db.models import RecoveryResult
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 _SCHEMA = """
 CREATE TABLE documents (
     doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,7 +58,6 @@ CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN
     VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
 END;
 """
-
 _URL_A = "http://a.example"
 _URL_B = "http://b.example"
 
@@ -137,7 +138,7 @@ class TestRebuildVec:
     def test_removes_orphan_rows_and_persists(
         self, rag_db_path: Path, use_file_db: Callable[..., None]
     ) -> None:
-        remaining = RagMaintenanceService().rebuild_vec()
+        remaining = RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_vec()
 
         assert remaining == 3
         rows = _query(rag_db_path, "SELECT chunk_id FROM chunks_vec ORDER BY chunk_id")
@@ -151,7 +152,7 @@ class TestRebuildVec:
         conn.commit()
         conn.close()
 
-        assert RagMaintenanceService().rebuild_vec() == 3
+        assert RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_vec() == 3
 
         rows = _query(rag_db_path, "SELECT chunk_id FROM chunks_vec ORDER BY chunk_id")
         assert rows == [(1,), (2,), (3,)]
@@ -162,7 +163,7 @@ class TestRebuildVec:
         use_file_db(_FailingCommitHelper)
 
         with pytest.raises(RuntimeError, match="commit failed"):
-            RagMaintenanceService().rebuild_vec()
+            RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_vec()
 
         rows = _query(rag_db_path, "SELECT chunk_id FROM chunks_vec ORDER BY chunk_id")
         assert rows == [(1,), (2,), (3,), (99,)]
@@ -176,7 +177,7 @@ class TestReconcileUrl:
         match = "SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH 'alpha'"
         assert _query(rag_db_path, match) == []
 
-        result = RagMaintenanceService().reconcile_url(_URL_A)
+        result = RagMaintenanceService(db_config=MIN_DB_CONFIG).reconcile_url(_URL_A)
 
         assert result == {"found": True, "chunks": 2}
         assert _query(rag_db_path, match) == [(1,)]
@@ -186,7 +187,7 @@ class TestReconcileUrl:
     ) -> None:
         _make_fts_gap(rag_db_path, 1, "alpha text")
 
-        RagMaintenanceService().reconcile_url(_URL_A)
+        RagMaintenanceService(db_config=MIN_DB_CONFIG).reconcile_url(_URL_A)
 
         vec = _query(rag_db_path, "SELECT chunk_id FROM chunks_vec ORDER BY chunk_id")
         assert vec == [(1,), (2,), (3,), (99,)]
@@ -203,7 +204,7 @@ class TestReconcileUrl:
     def test_consistent_index_is_not_touched(
         self, rag_db_path: Path, use_file_db: Callable[..., None]
     ) -> None:
-        result = RagMaintenanceService().reconcile_url(_URL_A)
+        result = RagMaintenanceService(db_config=MIN_DB_CONFIG).reconcile_url(_URL_A)
 
         assert result == {"found": True, "chunks": 2}
         match = "SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH 'alpha'"
@@ -212,9 +213,9 @@ class TestReconcileUrl:
     def test_unknown_url_returns_found_false(
         self, use_file_db: Callable[..., None]
     ) -> None:
-        assert RagMaintenanceService().reconcile_url("http://none.example") == {
-            "found": False
-        }
+        assert RagMaintenanceService(db_config=MIN_DB_CONFIG).reconcile_url(
+            "http://none.example"
+        ) == {"found": False}
 
     def test_failed_commit_leaves_the_gap(
         self, rag_db_path: Path, use_file_db: Callable[..., None]
@@ -223,7 +224,7 @@ class TestReconcileUrl:
         use_file_db(_FailingCommitHelper)
 
         with pytest.raises(RuntimeError, match="commit failed"):
-            RagMaintenanceService().reconcile_url(_URL_A)
+            RagMaintenanceService(db_config=MIN_DB_CONFIG).reconcile_url(_URL_A)
 
         match = "SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH 'alpha'"
         assert _query(rag_db_path, match) == []
@@ -252,9 +253,11 @@ class TestRecoverIntegrityMapping:
         monkeypatch.setattr(
             svc_module,
             "recover_corruption",
-            lambda _path: RecoveryResult(success=success, action=action, detail="d"),
+            lambda _db_config, _backup: RecoveryResult(
+                success=success, action=action, detail="d"
+            ),
         )
 
-        result = RagMaintenanceService().recover(None)
+        result = RagMaintenanceService(db_config=MIN_DB_CONFIG).recover(None)
 
         assert (result.integrity_ok, result.recovered) == (integrity_ok, recovered)

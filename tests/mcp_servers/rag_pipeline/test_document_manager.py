@@ -17,6 +17,8 @@ import mcp_servers.rag_pipeline.document_manager as document_manager
 import pytest
 from mcp_servers.rag_pipeline.document_manager import DocumentManager
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS documents (
     doc_id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,13 +123,18 @@ class TestMakeHelper:
         helper = mgr._make_helper()
         assert helper.DB_PATH == rag_db
 
-    def test_falls_back_to_default_rag_target_when_no_path_given(self) -> None:
-        mgr = DocumentManager()
+    def test_uses_typed_config_when_no_path_given(self) -> None:
+        mgr = DocumentManager(db_config=MIN_DB_CONFIG)
         helper = mgr._make_helper()
-        # target="rag" resolves DB_PATH via db.config.build_db_config(); do not assert the
-        # literal value (environment-configured), only that the default-target branch runs
-        # without raising and yields a non-empty configured path.
-        assert helper.DB_PATH
+        # The class reads no configuration file, so the path it reports is the one the
+        # typed configuration supplied.
+        assert helper.DB_PATH == MIN_DB_CONFIG.rag_db_path
+
+    def test_raises_when_neither_path_nor_config_given(self) -> None:
+        """With no path and no typed configuration there is nothing to resolve."""
+        mgr = DocumentManager()
+        with pytest.raises(ValueError, match="rag_db_path is not configured"):
+            mgr._make_helper()
 
 
 # ── list_documents ───────────────────────────────────────────────────────────

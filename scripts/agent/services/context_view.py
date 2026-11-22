@@ -134,9 +134,9 @@ def _format_memory_status(ctx: AgentContext) -> str:
     if ctx.services_required.memory is None:
         return "disabled"
     store = ctx.services_required.memory.store
-    by_type = count_by_type()
+    by_type = count_by_type(db_config=ctx.cfg.db)
     return (
-        f"enabled (entries={count_entries()},"
+        f"enabled (entries={count_entries(db_config=ctx.cfg.db)},"
         f" semantic={by_type.get('semantic', 0)},"
         f" episodic={by_type.get('episodic', 0)},"
         f" vec_entries={store.count_vec()})"

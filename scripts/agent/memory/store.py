@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 
 from agent.memory.mapper import row_to_entry
@@ -36,8 +37,14 @@ class MemoryStore:
     the write_ops module.
     """
 
-    def __init__(self, embed_dim: int | None = None) -> None:
-        """Initialize the memory store with an optional embedding dimension for validation."""
+    def __init__(self, embed_dim: int | None = None, *, db_config: DbConfig) -> None:
+        """Initialize the store with the typed DB configuration and an optional embedding dimension.
+
+        `db_config` is the typed configuration supplied by the process that owns the
+        configuration file; the store resolves no path itself. When `embed_dim` is set,
+        embeddings passed to add()/upsert() are validated against it.
+        """
+        self._db_config = db_config
         # When set, embeddings passed to add()/upsert() are validated against this dimension.
         self._embed_dim = embed_dim
 
@@ -55,7 +62,9 @@ class MemoryStore:
         min_importance: float = 0.0,
     ) -> list[MemoryEntry]:
         """Return recent entries of memory_type ordered by importance DESC, created_at DESC."""
-        with SQLiteHelper("session").open(row_factory=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            row_factory=True
+        ) as db:
             rows = db.fetchall(
                 f"""SELECT {_MEMORY_COLUMNS}
                    FROM memories
@@ -88,13 +97,15 @@ class MemoryStore:
                   {where}
                   ORDER BY pinned DESC, importance DESC, created_at DESC
                   LIMIT ?"""  # nosec B608 — where clause uses only literal strings; params via ?
-        with SQLiteHelper("session").open(row_factory=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            row_factory=True
+        ) as db:
             rows = db.fetchall(sql, tuple(params))
         return [row_to_entry(dict(r)) for r in rows]
 
     def count_vec(self) -> int:
         """Return total entry count in memories_vec. Raises sqlite3.OperationalError if unavailable."""
-        with SQLiteHelper("session").open() as db:
+        with SQLiteHelper("session", db_config=self._db_config).open() as db:
             rows = db.fetchall("SELECT COUNT(*) FROM memories_vec")
             return int(rows[0][0]) if rows else 0
 
@@ -103,7 +114,7 @@ class MemoryStore:
 
         Raises MemoryConsistencyError if FTS count cannot be determined.
         """
-        with SQLiteHelper("session").open() as db:
+        with SQLiteHelper("session", db_config=self._db_config).open() as db:
             rows = db.fetchall("SELECT COUNT(*) FROM memories")
             memories = int(rows[0][0]) if rows else 0
             fts = _count_fts(db)
@@ -112,7 +123,9 @@ class MemoryStore:
 
     def get_by_id(self, memory_id: str) -> MemoryEntry | None:
         """Return one MemoryEntry by memory_id, or None if not found."""
-        with SQLiteHelper("session").open(row_factory=True) as db:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            row_factory=True
+        ) as db:
             rows = db.fetchall(
                 f"""SELECT {_MEMORY_COLUMNS}
                    FROM memories WHERE memory_id=?""",  # nosec B608 — _MEMORY_COLUMNS is a static module constant, no user input; params via ?

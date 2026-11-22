@@ -45,20 +45,18 @@ def ownership(
 ) -> Iterator[Orchestrator]:
     """A real orchestrator and adapter over a temporary workflow.sqlite.
 
-    Mirrors the wiring in ``test_session_diagnostics_wiring``: the database
-    configuration is patched so every ``StateStore`` opens the same temp file, and
-    the execute stage plus audit entry points are stubbed so a full turn runs.
+    Mirrors the wiring in ``test_session_diagnostics_wiring``: the typed database
+    configuration is supplied through the context so every ``StateStore`` opens the same
+    temp file, and the execute stage plus audit entry points are stubbed so a full turn
+    runs.
     """
     cfg = DbConfig(
         rag_db_path=str(tmp_path / "rag.sqlite"),
         session_db_path=str(tmp_path / "session.sqlite"),
         workflow_db_path=str(tmp_path / "workflow.sqlite"),
     )
-    with (
-        patch("db.helper.build_db_config", return_value=cfg),
-        patch("agent.orchestrator.WorkflowLoader") as loader,
-    ):
-        create_workflow_schema()
+    with patch("agent.orchestrator.WorkflowLoader") as loader:
+        create_workflow_schema(db_config=cfg)
         loader.return_value.load.return_value = _definition()
         monkeypatch.setattr("agent.orchestrator.StateStore", StateStore)
         monkeypatch.setattr(
@@ -69,6 +67,7 @@ def ownership(
         )
 
         ctx = _make_ctx()
+        ctx.cfg.db = cfg
         ctx.session.session_id = "ownership-session"
         ctx.services = None
         ctx.stats.stat_partial_completions = 0
@@ -129,7 +128,7 @@ class TestAdapterStoreOwnership:
 
         # The locally-created store committed its task before closing; a fresh
         # connection reads it back.
-        fresh = StateStore()
+        fresh = StateStore(db_config=orch._ctx.cfg.db)
         try:
             row = fresh.get_task_by_id(task.task_id)
             assert row is not None

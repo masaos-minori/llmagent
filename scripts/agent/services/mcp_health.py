@@ -303,7 +303,7 @@ async def check_service_health(
     # (label, url, required): required-service failures are fatal; optional ones degrade.
     checks: list[tuple[str, str, bool]] = [
         ("llm", ctx.cfg.llm.llm_url, True),
-        ("embed-llm", ctx.cfg.rag.embed_url, False),
+        ("embed-llm", ctx.cfg.memory.memory_embed_url, False),
     ]
     warnings: list[ServiceWarning] = []
     errors: list[ServiceWarning] = []

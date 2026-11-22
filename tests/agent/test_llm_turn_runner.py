@@ -29,6 +29,8 @@ from shared.token_estimation import RATIO_TEXT, estimate_tokens
 from shared.transport_dto import DynamicAvailabilityHint, ToolCallResult
 from shared.types import LLMMessage
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 
 def _make_ctx() -> MagicMock:
     ctx = MagicMock()
@@ -852,9 +854,11 @@ class TestRunRoundAtomicity:
             patch("agent.session.SQLiteHelper", return_value=fake),
             patch("agent.session_message_repo.SQLiteHelper", return_value=fake),
         ):
-            session = AgentSession()
+            session = AgentSession(db_config=MIN_DB_CONFIG)
             session.session_id = 1
-            session._message_repo = SessionMessageRepository(session_id=1)
+            session._message_repo = SessionMessageRepository(
+                session_id=1, db_config=MIN_DB_CONFIG
+            )
 
             # Pre-turn user row (id 1); the boundary marker is captured after it.
             user_msg: LLMMessage = {"role": "user", "content": "q"}

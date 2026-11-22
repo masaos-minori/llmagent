@@ -22,6 +22,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from agent.commands.cmd_session import _SessionMixin
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG, MIN_MAINTENANCE_CONFIG
+
 
 def _make_cmd() -> _SessionMixin:
     """Build a bare ``_SessionMixin`` like ``test_agent_cmd_session.py``.
@@ -38,7 +40,13 @@ def _make_cmd() -> _SessionMixin:
     ctx = SimpleNamespace(
         session=session,
         conv=SimpleNamespace(history=[], llm_url=""),
-        cfg=SimpleNamespace(llm=SimpleNamespace(context_char_limit=8000)),
+        cfg=SimpleNamespace(
+            # The command handlers receive the typed configuration from the process that
+            # owns the file; the fixture supplies it rather than reading a config file.
+            db=MIN_DB_CONFIG,
+            maintenance=MIN_MAINTENANCE_CONFIG,
+            llm=SimpleNamespace(context_char_limit=8000),
+        ),
         services=SimpleNamespace(
             hist_mgr=MagicMock(),
             llm=MagicMock(),

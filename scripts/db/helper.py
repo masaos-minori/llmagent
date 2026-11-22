@@ -6,7 +6,8 @@ SQLite connection manager for the RAG, session, and workflow databases.
 Provides open/close lifecycle with optional sqlite-vec extension and WAL setup.
 target="rag" (default) loads vec extension by default.
 target="session" loads it too; target="workflow" skips it by default.
-Config is resolved at construction time; failure raises RuntimeError immediately.
+The typed configuration is supplied by the process that owns the configuration file;
+a target with no supplied configuration raises ValueError at construction.
 """
 
 import logging
@@ -19,7 +20,7 @@ from enum import StrEnum
 from typing import Any
 from urllib.request import pathname2url
 
-from db.config import build_db_config
+from db.config import DbConfig
 from db.models import DbHealthMetrics, WalCheckpointCounts
 
 logger = logging.getLogger(__name__)
@@ -81,6 +82,7 @@ class SQLiteHelper:
         self,
         target: DbTarget | str = "rag",
         *,
+        db_config: DbConfig | None = None,
         db_path: str | None = None,
         sqlite_vec_so: str = "",
         sqlite_timeout: int = 30,
@@ -89,9 +91,13 @@ class SQLiteHelper:
     ) -> None:
         """Accepts DbTarget enum members or string literals ('rag', 'session', 'workflow').
 
-        When db_path is provided, bypasses build_db_config() and uses the supplied path and
-        connection settings directly. This allows callers (e.g. MCP servers) to self-contain
-        their DB config without loading agent.toml.
+        `db_config` is the typed configuration supplied by the process that owns the
+        configuration file; this class resolves no path from a config file. Without
+        `db_config`, the connection settings come from the arguments below.
+
+        When db_path is provided, the supplied path and connection settings are used
+        directly. This allows callers (e.g. MCP servers) to self-contain their DB
+        config without a configuration file.
 
         check_same_thread: sqlite3 same-thread assertion (default True). Set False only
         for connections reused sequentially across threads (see open/_connect).
@@ -122,12 +128,12 @@ class SQLiteHelper:
             )
         self._target = resolved
         self._default_load_vec = resolved in ("rag", "session")
-        try:
-            db_cfg = build_db_config()
-        except ValueError as e:
-            raise RuntimeError(
-                f"DbConfig load failed for target={target!r}: {e}"
-            ) from e
+        if db_config is None:
+            raise ValueError(
+                f"{resolved}_db_path is not configured: db_config must be supplied "
+                "by the process that owns the configuration file"
+            )
+        db_cfg = db_config
         if resolved == "rag":
             self._db_path = db_cfg.rag_db_path
         elif resolved == "session":
@@ -185,7 +191,7 @@ class SQLiteHelper:
         """
         if not self._db_path:
             raise ValueError(
-                f"{self._target}_db_path is not configured in agent.toml or DB config"
+                f"{self._target}_db_path is not configured in the supplied DbConfig"
             )
         self._ro_residue = []
         try:
@@ -210,7 +216,7 @@ class SQLiteHelper:
         """
         if not self._db_path:
             raise ValueError(
-                f"{self._target}_db_path is not configured in agent.toml or DB config"
+                f"{self._target}_db_path is not configured in the supplied DbConfig"
             )
         self._ro_residue = [
             self._db_path + suffix

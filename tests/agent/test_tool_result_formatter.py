@@ -17,6 +17,8 @@ from agent.tool_result_formatter import (
     turn_limit_hint,
 )
 
+from tests.agent._config_test_defaults import SHIPPED_DB_PATH_KEYS
+
 
 def _cfg(**overrides: dict) -> AgentConfig:
     defaults: dict = {
@@ -48,6 +50,8 @@ def _cfg(**overrides: dict) -> AgentConfig:
         "approval_shell_safe_prefixes": [],
         "approval_resource_keys": {"path_keys": [], "branch_keys": []},
         "allowed_root": "",
+        # build_agent_config() resolves the typed DB configuration from the mapping, so the fixture supplies the mirrored path keys.
+        **SHIPPED_DB_PATH_KEYS,
         "mcp_servers": {"_test": {"transport": "http", "url": "http://localhost:8000"}},
     }
     defaults.update(overrides)

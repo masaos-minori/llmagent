@@ -19,13 +19,12 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from db.config import build_db_config
+from db.config import DbConfig
 from db.maintenance import (
+    DbMaintenanceConfig,
     MaintenanceMode,
     MaintenanceResult,
     _handle_maintenance_error,
-    _load_agent_config,
-    _non_negative_int,
     _retention_guard,
 )
 from db.rotation import _resolve_archive_dir
@@ -41,7 +40,8 @@ class ArtifactRetentionConfig:
     artifacts per source database; max_age_days deletes artifacts older than N days.
 
     Semantics: 0 disables the corresponding rule (deletes nothing); negative
-    values are rejected with ValueError at config load and in the sweep helpers.
+    values are rejected with ValueError when the typed configuration is built and
+    in the sweep helpers.
     """
 
     archive_max_files: int = 14
@@ -52,29 +52,19 @@ class ArtifactRetentionConfig:
     quarantine_max_age_days: int = 90
 
     @classmethod
-    def from_config(cls) -> "ArtifactRetentionConfig":
-        """Construct from agent.toml values; raises on config load failure.
+    def from_typed(cls, m: DbMaintenanceConfig) -> "ArtifactRetentionConfig":
+        """Project the artifact-retention fields of the injected typed configuration.
 
-        Wrong-typed or negative values raise a key-naming ValueError.
+        Validation is not repeated here: `DbMaintenanceConfig.from_mapping()` is
+        the single place the key-naming `ValueError` is raised (Plan rows 9 and 16).
         """
-        cfg = _load_agent_config()
         return cls(
-            archive_max_files=_non_negative_int(cfg, "sqlite_archive_max_files", 14),
-            archive_max_age_days=_non_negative_int(
-                cfg, "sqlite_archive_max_age_days", 30
-            ),
-            drill_artifact_max_files=_non_negative_int(
-                cfg, "sqlite_drill_artifact_max_files", 14
-            ),
-            drill_artifact_max_age_days=_non_negative_int(
-                cfg, "sqlite_drill_artifact_max_age_days", 30
-            ),
-            quarantine_max_files=_non_negative_int(
-                cfg, "sqlite_quarantine_max_files", 10
-            ),
-            quarantine_max_age_days=_non_negative_int(
-                cfg, "sqlite_quarantine_max_age_days", 90
-            ),
+            archive_max_files=m.archive_max_files,
+            archive_max_age_days=m.archive_max_age_days,
+            drill_artifact_max_files=m.drill_artifact_max_files,
+            drill_artifact_max_age_days=m.drill_artifact_max_age_days,
+            quarantine_max_files=m.quarantine_max_files,
+            quarantine_max_age_days=m.quarantine_max_age_days,
         )
 
 
@@ -307,7 +297,9 @@ def _sweep_stale_work_files(
 
 
 def purge_archive_artifacts(
-    cfg: ArtifactRetentionConfig | None = None,
+    cfg: ArtifactRetentionConfig,
+    db_config: DbConfig,
+    maintenance: DbMaintenanceConfig,
     mode: MaintenanceMode = MaintenanceMode.STRICT,
 ) -> MaintenanceResult:
     """Sweep the non-corrupt artifact classes: rotation archives, drill JSON
@@ -317,13 +309,11 @@ def purge_archive_artifacts(
 
     In STRICT mode (default), raises on filesystem errors.
     In BEST_EFFORT mode, returns MaintenanceResult with partial counts on error.
-    Config-load failures (`ArtifactRetentionConfig.from_config`,
-    `build_db_config`) propagate in both modes, as do negative-retention
-    `ValueError`s raised by the sweep helpers.
+    Negative-retention `ValueError`s raised by the sweep helpers propagate in
+    both modes. The typed configuration, the database paths, and the archive
+    directory are supplied by the caller that owns the configuration; this module
+    reads no config file.
     """
-    if cfg is None:
-        cfg = ArtifactRetentionConfig.from_config()
-
     counts: dict[str, dict[str, int]] = {
         "archives": {"age_deleted": 0, "count_deleted": 0},
         "drill_artifacts": {"age_deleted": 0, "count_deleted": 0},
@@ -332,13 +322,12 @@ def purge_archive_artifacts(
     }
 
     try:
-        db_cfg = build_db_config()
-        archive_dir = Path(_resolve_archive_dir())
+        archive_dir = Path(_resolve_archive_dir(maintenance))
         drill_dir = archive_dir / "drills"
         for raw_path in (
-            db_cfg.rag_db_path,
-            db_cfg.session_db_path,
-            db_cfg.workflow_db_path,
+            db_config.rag_db_path,
+            db_config.session_db_path,
+            db_config.workflow_db_path,
         ):
             db_path = Path(raw_path)
             age_deleted, count_deleted = _sweep_rotation_archives(

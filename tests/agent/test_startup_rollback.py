@@ -39,7 +39,7 @@ def _make_rollback_startup() -> tuple[StartupOrchestrator, AsyncMock]:
     """Return (orchestrator, mock_lifecycle) for a rollback-window failure."""
     ctx = MagicMock()
     ctx.cfg.obs.audit_log_file = "/opt/llm/logs/audit.log"
-    ctx.cfg.rag.embed_url = "http://localhost:6000/embedding"
+    ctx.cfg.memory.memory_embed_url = "http://localhost:6000/embedding"
     mock_lifecycle = AsyncMock()
     mock_lifecycle.shutdown_all.return_value = []  # every server confirmed stopped
     ctx.services_required.lifecycle = mock_lifecycle
@@ -203,7 +203,7 @@ class TestStartupRollback:
             "second": _http_subprocess_cfg(),
         }
         ctx.cfg.obs.audit_log_file = "/opt/llm/logs/audit.log"
-        ctx.cfg.rag.embed_url = "http://localhost:6000/embedding"
+        ctx.cfg.memory.memory_embed_url = "http://localhost:6000/embedding"
         ctx.services_required.tools = MagicMock()
         mock_lifecycle = AsyncMock()
         ctx.services_required.lifecycle = mock_lifecycle
@@ -283,6 +283,21 @@ class TestConfigStageOrdering:
     """REQ-005: the config-only validation stage runs before _start_servers, and a
     config FATAL aborts before any subprocess start without a rollback."""
 
+    @pytest.fixture(autouse=True)
+    def _stub_component_init(self) -> Iterator[None]:
+        """Stub the component-wiring step (same seam as TestStartupRollback).
+
+        Its workflow preflight would open the real workflow DB through the mocked
+        context, and these tests only assert the order of the stages run() invokes
+        after wiring, so the wiring seam is stubbed here as well.
+        """
+        with patch.object(
+            ComponentInitializer,
+            "initialize",
+            new=AsyncMock(return_value=(MagicMock(), MagicMock())),
+        ):
+            yield
+
     @pytest.mark.asyncio
     async def test_config_stage_runs_before_start_servers(self) -> None:
         """run() calls the config stage first; the recorded call order is
@@ -343,7 +358,7 @@ def _make_interrupt_startup() -> tuple[StartupOrchestrator, AsyncMock, asyncio.E
     """
     ctx = MagicMock()
     ctx.cfg.obs.audit_log_file = "/opt/llm/logs/audit.log"
-    ctx.cfg.rag.embed_url = "http://localhost:6000/embedding"
+    ctx.cfg.memory.memory_embed_url = "http://localhost:6000/embedding"
     mock_lifecycle = AsyncMock()
     mock_lifecycle.shutdown_all.return_value = []  # every server confirmed stopped
     ctx.services_required.lifecycle = mock_lifecycle

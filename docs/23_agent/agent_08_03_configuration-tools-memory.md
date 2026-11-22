@@ -66,7 +66,8 @@ Determined by the combination of `use_memory_layer`, `memory_embed_enabled`, and
 
 #### Embedding, Retention and Limits
 
-- `memory_local_only` rejects a non-loopback `embed_url` at startup.
+- `memory_embed_url` is the embedding endpoint, owned by the Memory section, and must be non-empty when `memory_embed_enabled=True` (`MemoryConfig` validation).
+- `memory_local_only` rejects a non-loopback `memory_embed_url` at startup; the rejection itself is enforced by the runtime check in `scripts/agent/memory/embedding_client.py`.
 - `memory_embed_enabled` enables embedding and KNN for memory search (startup-only).
 - `memory_retention_days` is only the default for `/memory prune`; memories are never deleted automatically.
 - `memory_max_pinned` caps pinned memories.
@@ -85,7 +86,7 @@ Injection counts, minimum importance, FTS candidate limit, RRF constant, recency
 
 - Any reachable server schema mismatch or detected routing drift always causes startup failure; there is no strict toggle to make them warnings.
 - `allowed_tools=[]` (empty) is valid and does not deny (base visibility applies) under `discovered`; under `explicit_allowlist` it denies every tool at runtime, including after a config reload. It is no longer recorded as a production-validator error at load (Explicit in code — `scripts/shared/runtime_tool_registry.py` `apply_policy`).
-- `memory_embed_enabled=True` → `rag.embed_url` must not be empty.
+- `memory_embed_enabled=True` requires `memory.memory_embed_url` to be non-empty; the requirement is a `MemoryConfig` validation on the Memory section, not a cross-section read.
 
 ## Keywords
 

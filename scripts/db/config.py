@@ -12,11 +12,12 @@ helpers may construct DbConfig with an empty value to skip the vec extension.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
-from shared.config_loader import ConfigLoader
 from shared.config_utils import get_typed
 
 
@@ -82,14 +83,18 @@ def resolve_unique_path(path: Path) -> Path:
     )
 
 
-def build_db_config() -> DbConfig:
-    """Construct DbConfig from agent.toml; raises ValueError if agent.toml is missing or malformed."""
-    cfg = ConfigLoader().load("agent.toml")
+def build_db_config(cfg: Mapping[str, Any]) -> DbConfig:
+    """Construct DbConfig from the configuration mapping supplied by the owning process.
+
+    This module does not load any configuration file; the caller that owns the
+    file passes its mapping. Raises ValueError if the mapping is malformed.
+    """
     vec_so = cfg.get("sqlite_vec_so", "")
     if not isinstance(vec_so, str) or not vec_so.strip():
         raise ValueError(
-            "sqlite_vec_so is empty or absent in agent.toml (required for processes "
-            "that open rag.sqlite or session.sqlite; set the path of the sqlite-vec library)"
+            "sqlite_vec_so is empty or absent in the supplied configuration (required "
+            "for processes that open rag.sqlite or session.sqlite; set the path of the "
+            "sqlite-vec library)"
         )
     workflow_kwargs: dict[str, str] = (
         {"workflow_db_path": cfg["workflow_db_path"]}

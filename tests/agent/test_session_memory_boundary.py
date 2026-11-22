@@ -20,6 +20,8 @@ from agent.memory.write_ops import add, delete
 from agent.session import AgentSession
 from db.schema_sql import build_session_schema_sql
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 _SCHEMA_SQL = """
 CREATE TABLE sessions (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,10 +151,10 @@ def wired(conn: sqlite3.Connection) -> Generator[AgentSession]:
         patch("agent.memory.write_ops.SQLiteHelper", return_value=fake),
         patch("agent.memory.store.SQLiteHelper", return_value=fake),
     ):
-        MemoryStore()
-        add(_entry("m1", session_id=1))
-        add(_entry("m2", session_id=2))
-        yield AgentSession()
+        MemoryStore(db_config=MIN_DB_CONFIG)
+        add(_entry("m1", session_id=1), db_config=MIN_DB_CONFIG)
+        add(_entry("m2", session_id=2), db_config=MIN_DB_CONFIG)
+        yield AgentSession(db_config=MIN_DB_CONFIG)
 
 
 def _memory_ids(conn: sqlite3.Connection) -> list[str]:
@@ -217,7 +219,7 @@ class TestMemoryOperationsKeepSession:
     def test_memory_delete_removes_target_only(
         self, wired: AgentSession, conn: sqlite3.Connection
     ) -> None:
-        assert delete("m1") is True
+        assert delete("m1", db_config=MIN_DB_CONFIG) is True
         assert _memory_ids(conn) == ["m2"]
         assert conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 2
         assert conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0] == 3

@@ -17,6 +17,8 @@ from agent.services.exceptions import SessionNoMessagesError
 from agent.services.session_restore import restore_session
 from agent.session import AgentSession
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 
 def _make_ctx(
     messages: list[dict] | None = None,
@@ -603,14 +605,14 @@ def restore_env() -> Generator[tuple[AgentSession, sqlite3.Connection, int]]:
     )
     conn.commit()
 
-    def _make(target: str = "session") -> _FakeSQLiteHelper:  # noqa: ARG001 — target kept for factory-signature parity, intentionally unused
+    def _make(target: str = "session", db_config=None) -> _FakeSQLiteHelper:  # noqa: ARG001 — target kept for factory-signature parity, intentionally unused
         return _FakeSQLiteHelper(conn)
 
     with (
         patch("agent.session.SQLiteHelper", side_effect=_make),
         patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
     ):
-        s = AgentSession()
+        s = AgentSession(db_config=MIN_DB_CONFIG)
         s.start()
         original_sid = s.session_id
         assert original_sid is not None

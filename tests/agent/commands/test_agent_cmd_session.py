@@ -11,6 +11,8 @@ import pytest
 from agent.commands.cmd_session import _SessionMixin
 from agent.session import AgentSession
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG, MIN_MAINTENANCE_CONFIG
+
 
 def _make_session(
     *,
@@ -39,7 +41,13 @@ def _make_cmd(
     ctx = SimpleNamespace(
         session=session,
         conv=SimpleNamespace(history=[], llm_url=""),
-        cfg=SimpleNamespace(llm=SimpleNamespace(context_char_limit=8000)),
+        cfg=SimpleNamespace(
+            # The command handlers receive the typed configuration from the process that
+            # owns the file; the fixture supplies it rather than reading a config file.
+            db=MIN_DB_CONFIG,
+            maintenance=MIN_MAINTENANCE_CONFIG,
+            llm=SimpleNamespace(context_char_limit=8000),
+        ),
         services=SimpleNamespace(
             hist_mgr=MagicMock(),
             llm=MagicMock(),
@@ -1027,14 +1035,16 @@ class TestCmdSessionExport:
 
 class TestSetTitleContract:
     def test_set_title_returns_false_without_session_id(self) -> None:
-        session = AgentSession()
+        # AgentSession takes the typed configuration from the process that owns the file.
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = None
         with patch("agent.session.SQLiteHelper") as helper:
             assert session.set_title("Title") is False
         helper.assert_not_called()
 
     def test_set_title_returns_true_after_update(self) -> None:
-        session = AgentSession()
+        # AgentSession takes the typed configuration from the process that owns the file.
+        session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 7
         with patch("agent.session.SQLiteHelper") as helper:
             assert session.set_title("Title") is True

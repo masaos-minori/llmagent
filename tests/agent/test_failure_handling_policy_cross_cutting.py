@@ -74,8 +74,10 @@ def _ctx(servers: dict[str, McpServerConfig], postures: dict[str, object]) -> Ma
     )
     ctx = MagicMock()
     ctx.cfg.mcp.mcp_servers = servers
+    # check_service_health() reads the embed endpoint from MemoryConfig now, so the
+    # fixture has to make that field empty, not the RAG-owned one.
     ctx.cfg.llm.llm_url = ""
-    ctx.cfg.rag.embed_url = ""
+    ctx.cfg.memory.memory_embed_url = ""
     ctx.services_required.http = http
     return ctx
 

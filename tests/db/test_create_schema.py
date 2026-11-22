@@ -31,6 +31,8 @@ from shared.schema_fingerprint import (
     expected_fingerprint,
 )
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 # RAG schema without the vec0 virtual table (chunks_vec requires sqlite-vec).
 _RAG_SCHEMA_NO_VEC0 = """
     CREATE TABLE IF NOT EXISTS documents (
@@ -150,13 +152,12 @@ def rag_tmp_db(tmp_path: Path) -> Generator[sqlite3.Connection]:
     db_file = tmp_path / "rag.sqlite"
     cfg = _make_db_config(db_file, "rag")
     with (
-        patch("db.helper.build_db_config", return_value=cfg),
         patch(
             "db.create_schema.build_rag_schema_sql", return_value=_RAG_SCHEMA_NO_VEC0
         ),
         patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
     ):
-        cs.create_rag_schema()
+        cs.create_rag_schema(cfg)
     conn = sqlite3.connect(str(db_file))
     yield conn
     conn.close()
@@ -168,14 +169,13 @@ def session_tmp_db(tmp_path: Path) -> Generator[sqlite3.Connection]:
     db_file = tmp_path / "session.sqlite"
     cfg = _make_db_config(db_file, "session")
     with (
-        patch("db.helper.build_db_config", return_value=cfg),
         patch(
             "db.create_schema.build_session_schema_sql",
             return_value=_SESSION_SCHEMA_NO_VEC0,
         ),
         patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
     ):
-        cs.create_session_schema()
+        cs.create_session_schema(cfg)
     conn = sqlite3.connect(str(db_file))
     yield conn
     conn.close()
@@ -218,15 +218,14 @@ class TestCreateRagSchema:
         db_file = tmp_path / "rag2.sqlite"
         cfg = _make_db_config(db_file, "rag")
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_rag_schema_sql",
                 return_value=_RAG_SCHEMA_NO_VEC0,
             ),
             patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
         ):
-            cs.create_rag_schema()
-            cs.create_rag_schema()  # must not raise
+            cs.create_rag_schema(cfg)
+            cs.create_rag_schema(cfg)  # must not raise
 
     def test_no_session_tables_in_rag_db(self, rag_tmp_db: sqlite3.Connection) -> None:
         """RAG schema must not create Agent session tables — RAG and session schemas are independent."""
@@ -286,15 +285,14 @@ class TestCreateSessionSchema:
         db_file = tmp_path / "session2.sqlite"
         cfg = _make_db_config(db_file, "session")
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_session_schema_sql",
                 return_value=_SESSION_SCHEMA_NO_VEC0,
             ),
             patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
         ):
-            cs.create_session_schema()
-            cs.create_session_schema()  # must not raise
+            cs.create_session_schema(cfg)
+            cs.create_session_schema(cfg)  # must not raise
 
     def test_session_schema_no_notes_table(
         self, session_tmp_db: sqlite3.Connection
@@ -359,13 +357,12 @@ class TestCreateWorkflowSchema:
             workflow_db_path=str(db_file),
         )
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value=_WORKFLOW_SCHEMA_NO_VEC0,
             ),
         ):
-            cs.create_workflow_schema()
+            cs.create_workflow_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         tables = _table_names(conn)
         conn.close()
@@ -385,14 +382,13 @@ class TestCreateWorkflowSchema:
             workflow_db_path=str(db_file),
         )
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value=_WORKFLOW_SCHEMA_NO_VEC0,
             ),
         ):
-            cs.create_workflow_schema()
-            cs.create_workflow_schema()  # must not raise
+            cs.create_workflow_schema(cfg)
+            cs.create_workflow_schema(cfg)  # must not raise
 
     def test_fresh_schema_has_no_snapshot_surface(self) -> None:
         """The canonical workflow DDL creates no execution_snapshots table or snapshot_id column."""
@@ -414,13 +410,12 @@ class TestCreateWorkflowSchema:
             workflow_db_path=str(db_file),
         )
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value=_WORKFLOW_SCHEMA_NO_VEC0,
             ),
         ):
-            cs.create_workflow_schema()
+            cs.create_workflow_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         columns = {
             row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()
@@ -437,14 +432,13 @@ class TestCreateWorkflowSchema:
             workflow_db_path=str(db_file),
         )
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value=_WORKFLOW_SCHEMA_NO_VEC0,
             ),
         ):
-            cs.create_workflow_schema()
-            cs.create_workflow_schema()  # run twice to test idempotency
+            cs.create_workflow_schema(cfg)
+            cs.create_workflow_schema(cfg)  # run twice to test idempotency
         conn = sqlite3.connect(str(db_file))
         columns = {
             row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()
@@ -467,13 +461,12 @@ class TestCreateWorkflowSchema:
             workflow_db_path=str(db_file),
         )
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value=_WORKFLOW_SCHEMA_NO_VEC0,
             ),
         ):
-            cs.create_workflow_schema()
+            cs.create_workflow_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         now = "2026-01-01T00:00:00+00:00"
         conn.execute(
@@ -497,13 +490,12 @@ class TestCreateWorkflowSchema:
             workflow_db_path=str(db_file),
         )
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value=_WORKFLOW_SCHEMA_NO_VEC0,
             ),
         ):
-            cs.create_workflow_schema()
+            cs.create_workflow_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         conn.execute("PRAGMA foreign_keys=ON")
         now = "2026-01-01T00:00:00+00:00"
@@ -539,8 +531,7 @@ class TestCreateWorkflowSchema:
         db_file = tmp_path / "workflow_lease.sqlite"
         cfg = _make_db_config(db_file, "workflow")
         # The real workflow DDL has no vec0 dependency, so it is checked as-is.
-        with patch("db.helper.build_db_config", return_value=cfg):
-            cs.create_workflow_schema()
+        cs.create_workflow_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         try:
             columns = {
@@ -618,13 +609,12 @@ def _second_chunk_payload(field: str, value: str) -> dict:
 def _create_workflow_db(db_file: Path) -> None:
     cfg = _make_db_config(db_file, "workflow")
     with (
-        patch("db.helper.build_db_config", return_value=cfg),
         patch(
             "db.create_schema.build_workflow_schema_sql",
             return_value=_WORKFLOW_SCHEMA_NO_VEC0,
         ),
     ):
-        cs.create_workflow_schema()
+        cs.create_workflow_schema(cfg)
 
 
 class TestWorkflowStatusCheckConstraints:
@@ -933,14 +923,13 @@ class TestTimestampDefaults:
         db_file = tmp_path / "rag_ts.sqlite"
         cfg = _make_db_config(db_file, "rag")
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_rag_schema_sql",
                 return_value=_RAG_SCHEMA_NO_VEC0,
             ),
             patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
         ):
-            cs.create_rag_schema()
+            cs.create_rag_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         info = conn.execute("PRAGMA table_info(documents)").fetchall()
         for row in info:
@@ -955,14 +944,13 @@ class TestTimestampDefaults:
         db_file = tmp_path / "session_ts.sqlite"
         cfg = _make_db_config(db_file, "session")
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_session_schema_sql",
                 return_value=_SESSION_SCHEMA_NO_VEC0,
             ),
             patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
         ):
-            cs.create_session_schema()
+            cs.create_session_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         for table in (
             "sessions",
@@ -986,8 +974,7 @@ class TestTimestampDefaults:
         cfg = _make_db_config(db_file, "workflow")
         # The real workflow DDL has no vec0 dependency, so it is checked as-is;
         # the database path is redirected so no test ever writes under /opt/llm.
-        with patch("db.helper.build_db_config", return_value=cfg):
-            cs.create_workflow_schema()
+        cs.create_workflow_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         for table in (
             "tasks",
@@ -1256,7 +1243,6 @@ class TestSchemaDdlErrorPropagation:
         db_file = tmp_path / "rag_bad.sqlite"
         cfg = _make_db_config(db_file, "rag")
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_rag_schema_sql", return_value="NOT VALID SQL;"
             ),
@@ -1264,7 +1250,7 @@ class TestSchemaDdlErrorPropagation:
             caplog.at_level(logging.ERROR, logger="db.create_schema"),
         ):
             with pytest.raises(sqlite3.OperationalError):
-                cs.create_rag_schema()
+                cs.create_rag_schema(cfg)
         assert "Failed to execute RAG schema DDL" in caplog.text
 
     def test_create_session_schema_propagates_and_logs(
@@ -1273,7 +1259,6 @@ class TestSchemaDdlErrorPropagation:
         db_file = tmp_path / "session_bad.sqlite"
         cfg = _make_db_config(db_file, "session")
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_session_schema_sql",
                 return_value="NOT VALID SQL;",
@@ -1282,7 +1267,7 @@ class TestSchemaDdlErrorPropagation:
             caplog.at_level(logging.ERROR, logger="db.create_schema"),
         ):
             with pytest.raises(sqlite3.OperationalError):
-                cs.create_session_schema()
+                cs.create_session_schema(cfg)
         assert "Failed to execute session schema DDL" in caplog.text
 
     def test_create_workflow_schema_propagates_and_logs(
@@ -1295,7 +1280,6 @@ class TestSchemaDdlErrorPropagation:
             workflow_db_path=str(db_file),
         )
         with (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_workflow_schema_sql",
                 return_value="NOT VALID SQL;",
@@ -1303,7 +1287,7 @@ class TestSchemaDdlErrorPropagation:
             caplog.at_level(logging.ERROR, logger="db.create_schema"),
         ):
             with pytest.raises(sqlite3.OperationalError):
-                cs.create_workflow_schema()
+                cs.create_workflow_schema(cfg)
         assert "Failed to execute workflow schema DDL" in caplog.text
 
 
@@ -1316,18 +1300,20 @@ class TestCreateSchemaWrapper:
         with (
             patch(
                 "db.create_schema.create_rag_schema",
-                side_effect=lambda: calls.append("rag"),
+                side_effect=lambda _cfg: calls.append("rag"),
             ),
             patch(
                 "db.create_schema.create_session_schema",
-                side_effect=lambda: calls.append("session"),
+                side_effect=lambda _cfg: calls.append("session"),
             ),
             patch(
                 "db.create_schema.create_workflow_schema",
-                side_effect=lambda: calls.append("workflow"),
+                side_effect=lambda _cfg: calls.append("workflow"),
             ),
         ):
-            cs.create_schema()
+            # The wrapper takes the typed configuration from its caller and passes it to each
+            # domain builder; the order is what this test pins.
+            cs.create_schema(MIN_DB_CONFIG)
         assert calls == ["rag", "session", "workflow"]
 
 
@@ -1345,7 +1331,6 @@ class TestValidateFirstGate:
         db_file = tmp_path / "rag_gate.sqlite"
         cfg = _make_db_config(db_file, "rag")
         patches = (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_rag_schema_sql",
                 return_value=_RAG_SCHEMA_NO_VEC0,
@@ -1355,8 +1340,7 @@ class TestValidateFirstGate:
         with ExitStack() as stack:
             stack.enter_context(patches[0])
             stack.enter_context(patches[1])
-            stack.enter_context(patches[2])
-            cs.create_rag_schema()
+            cs.create_rag_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         conn.execute("ALTER TABLE documents ADD COLUMN drifted_extra TEXT")
         conn.commit()
@@ -1364,11 +1348,10 @@ class TestValidateFirstGate:
         with ExitStack() as stack:
             stack.enter_context(patches[0])
             stack.enter_context(patches[1])
-            stack.enter_context(patches[2])
             with pytest.raises(
                 RuntimeError, match="rag.sqlite.documents: columns differ"
             ):
-                cs.create_rag_schema()
+                cs.create_rag_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         try:
             cols = {row[1] for row in conn.execute("PRAGMA table_info(documents)")}
@@ -1382,7 +1365,6 @@ class TestValidateFirstGate:
         db_file = tmp_path / "session_gate.sqlite"
         cfg = _make_db_config(db_file, "session")
         patches = (
-            patch("db.helper.build_db_config", return_value=cfg),
             patch(
                 "db.create_schema.build_session_schema_sql",
                 return_value=_SESSION_SCHEMA_NO_VEC0,
@@ -1392,8 +1374,7 @@ class TestValidateFirstGate:
         with ExitStack() as stack:
             stack.enter_context(patches[0])
             stack.enter_context(patches[1])
-            stack.enter_context(patches[2])
-            cs.create_session_schema()
+            cs.create_session_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         conn.execute("CREATE TABLE unexpected_gate (id INTEGER)")
         conn.commit()
@@ -1401,11 +1382,10 @@ class TestValidateFirstGate:
         with ExitStack() as stack:
             stack.enter_context(patches[0])
             stack.enter_context(patches[1])
-            stack.enter_context(patches[2])
             with pytest.raises(
                 RuntimeError, match="session.sqlite: unexpected table 'unexpected_gate'"
             ):
-                cs.create_session_schema()
+                cs.create_session_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         try:
             assert "unexpected_gate" in _table_names(conn)
@@ -1417,18 +1397,14 @@ class TestValidateFirstGate:
     ) -> None:
         db_file = tmp_path / "workflow_gate.sqlite"
         cfg = _make_db_config(db_file, "workflow")
-        patches = (patch("db.helper.build_db_config", return_value=cfg),)
-        with patches[0]:
-            cs.create_workflow_schema()
+        # The typed configuration is the whole contract here: no patch of a config load remains.
+        cs.create_workflow_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         conn.execute("ALTER TABLE tasks ADD COLUMN drifted_extra TEXT")
         conn.commit()
         conn.close()
-        with patches[0]:
-            with pytest.raises(
-                RuntimeError, match="workflow.sqlite.tasks: columns differ"
-            ):
-                cs.create_workflow_schema()
+        with pytest.raises(RuntimeError, match="workflow.sqlite.tasks: columns differ"):
+            cs.create_workflow_schema(cfg)
         conn = sqlite3.connect(str(db_file))
         try:
             cols = {row[1] for row in conn.execute("PRAGMA table_info(tasks)")}
@@ -1441,6 +1417,5 @@ class TestValidateFirstGate:
         gate and stays idempotent."""
         db_file = tmp_path / "workflow_gate_ok.sqlite"
         cfg = _make_db_config(db_file, "workflow")
-        with patch("db.helper.build_db_config", return_value=cfg):
-            cs.create_workflow_schema()
-            cs.create_workflow_schema()
+        cs.create_workflow_schema(cfg)
+        cs.create_workflow_schema(cfg)

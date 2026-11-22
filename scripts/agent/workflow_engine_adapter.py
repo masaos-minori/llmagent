@@ -265,7 +265,7 @@ class WorkflowEngineAdapter:
         self._owns_state_store = False
         close_store = False
         if store is None:
-            store = StateStore()
+            store = StateStore(db_config=self._ctx.cfg.db)
             close_store = True
             self._owns_state_store = True
         try:

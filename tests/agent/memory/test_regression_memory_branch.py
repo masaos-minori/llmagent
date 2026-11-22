@@ -21,6 +21,8 @@ import pytest
 from agent.memory.retriever import HybridRetriever
 from agent.memory.types import MemoryQuery
 
+from tests.agent._config_test_defaults import MIN_DB_CONFIG
+
 _VEC_AVAILABLE: bool = Path("/opt/llm/sqlite-vec/vec0.so").exists()
 
 _SCHEMA_SQL = """
@@ -144,7 +146,7 @@ def db_conn() -> Generator[sqlite3.Connection]:
 def retriever(db_conn: sqlite3.Connection) -> Generator[HybridRetriever]:
     fake = _FakeSQLiteHelper(db_conn)
     with patch("agent.memory.retriever.SQLiteHelper", return_value=fake):
-        yield HybridRetriever()
+        yield HybridRetriever(db_config=MIN_DB_CONFIG)
 
 
 class TestTopSemanticBranchFilter:

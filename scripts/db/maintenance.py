@@ -4,32 +4,33 @@
 SQLite operational maintenance: WAL checkpoint, VACUUM, DB rotation,
 session retention, and corruption recovery.
 
-All functions take an open SQLiteHelper instance or operate directly on the
-DB file path loaded from config.  None of them modify the SQLiteHelper class —
-they encode policy decisions that sit above the connection layer.
+All functions take an open SQLiteHelper instance or operate on the DB file path
+from the typed configuration supplied by the owning process.  None of them modify
+the SQLiteHelper class — they encode policy decisions that sit above the
+connection layer. This module reads no configuration file.
 
 Typical maintenance schedule:
   After large ingestion : checkpoint_wal(db, "TRUNCATE")
   Weekly                : vacuum_db(db)
   Weekly                : purge_old_sessions(db, cfg)
-  Weekly                : purge_corrupt_archives()
+  Weekly                : purge_corrupt_archives(cfg, db_cfg)
   Weekly                : purge_archive_artifacts()
-  Before schema change  : rotate_all_dbs()  # archives rag, session, and workflow
-  On startup warning    : recover_corruption()
+  Before schema change  : rotate_all_dbs(db_cfg, maintenance)  # rag, session, workflow
+  On startup warning    : recover_corruption(db_config, backup_path)
 """
 
 import logging
 import sqlite3
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from shared.config_loader import ConfigLoader
-from shared.config_utils import get_typed
+from shared.config_utils import get_str, get_typed
 
-from db.config import build_db_config
+from db.config import DbConfig
 from db.helper import SQLiteHelper
 from db.models import WalCheckpointCounts
 from db.store_impl import SQLiteMemoryDeleteStore
@@ -89,12 +90,7 @@ def _handle_maintenance_error(
     )
 
 
-# ── Config loading helper ──────────────────────────────────────────────────────
-
-
-def _load_agent_config():
-    """Load agent.toml — shared entry point for maintenance-related config keys."""
-    return ConfigLoader().load("agent.toml")
+# ── Config helpers ─────────────────────────────────────────────────────────────
 
 
 def _retention_guard(value: int, key: str) -> bool:
@@ -115,6 +111,85 @@ def _non_negative_int(cfg: dict[str, Any], key: str, default: int) -> int:
     return value
 
 
+# ── Typed maintenance configuration ────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class DbMaintenanceConfig:
+    """Typed maintenance configuration supplied by the process that owns the config file.
+
+    Groups the checkpoint, session-retention, rotation-archive, corrupt-archive,
+    drill-artifact and quarantine settings that config/agent.toml exposes as
+    separate top-level keys. This module never reads a configuration file: the
+    owning process supplies the mapping, which `from_mapping()` validates
+    (REQ-004).
+
+    Semantics: 0 disables the corresponding rule; negative values are rejected
+    with a key-naming ValueError at construction. `archive_dir` stays empty when
+    the key is absent, and `db.rotation._resolve_archive_dir()` then applies the
+    documented hardcoded fallback.
+    """
+
+    wal_checkpoint_mode: str = "TRUNCATE"
+    archive_dir: str = ""
+    retention_max_sessions: int = 100
+    retention_max_age_days: int = 90
+    archive_max_files: int = 14
+    archive_max_age_days: int = 30
+    corrupt_archive_max_files: int = 10
+    corrupt_archive_max_age_days: int = 30
+    drill_artifact_max_files: int = 14
+    drill_artifact_max_age_days: int = 30
+    quarantine_max_files: int = 10
+    quarantine_max_age_days: int = 90
+
+    @classmethod
+    def from_mapping(cls, cfg: Mapping[str, Any]) -> "DbMaintenanceConfig":
+        """Build the typed configuration from the mapping supplied by the owning process.
+
+        Wrong-typed or negative values raise a key-naming ValueError; an absent
+        key falls back to the documented default.
+        """
+        cfg_dict = dict(cfg)
+        raw_mode = cfg_dict.get("sqlite_wal_checkpoint_mode")
+        if raw_mode is None or not isinstance(raw_mode, str):
+            raw_mode = "TRUNCATE"
+        return cls(
+            wal_checkpoint_mode=raw_mode.upper(),
+            archive_dir=get_str(cfg_dict, "sqlite_archive_dir", ""),
+            retention_max_sessions=_non_negative_int(
+                cfg_dict, "sqlite_retention_max_sessions", 100
+            ),
+            retention_max_age_days=_non_negative_int(
+                cfg_dict, "sqlite_retention_max_age_days", 90
+            ),
+            archive_max_files=_non_negative_int(
+                cfg_dict, "sqlite_archive_max_files", 14
+            ),
+            archive_max_age_days=_non_negative_int(
+                cfg_dict, "sqlite_archive_max_age_days", 30
+            ),
+            corrupt_archive_max_files=_non_negative_int(
+                cfg_dict, "sqlite_corrupt_archive_max_files", 10
+            ),
+            corrupt_archive_max_age_days=_non_negative_int(
+                cfg_dict, "sqlite_corrupt_archive_max_age_days", 30
+            ),
+            drill_artifact_max_files=_non_negative_int(
+                cfg_dict, "sqlite_drill_artifact_max_files", 14
+            ),
+            drill_artifact_max_age_days=_non_negative_int(
+                cfg_dict, "sqlite_drill_artifact_max_age_days", 30
+            ),
+            quarantine_max_files=_non_negative_int(
+                cfg_dict, "sqlite_quarantine_max_files", 10
+            ),
+            quarantine_max_age_days=_non_negative_int(
+                cfg_dict, "sqlite_quarantine_max_age_days", 90
+            ),
+        )
+
+
 # ── Policy dataclasses ─────────────────────────────────────────────────────────
 
 
@@ -123,22 +198,19 @@ class RetentionConfig:
     """Session retention policy: max_sessions keeps most-recent N sessions; max_age_days deletes sessions older than N days.
 
     Semantics: 0 disables the corresponding rule (deletes nothing); negative
-    values are rejected with ValueError at config load and in the purge helpers.
+    values are rejected with ValueError when the typed configuration is built and
+    in the purge helpers.
     """
 
     max_sessions: int = 100
     max_age_days: int = 90
 
     @classmethod
-    def from_config(cls) -> "RetentionConfig":
-        """Construct from agent.toml values; raises on config load failure.
-
-        Wrong-typed or negative values raise a key-naming ValueError.
-        """
-        cfg = _load_agent_config()
+    def from_typed(cls, m: DbMaintenanceConfig) -> "RetentionConfig":
+        """Project the session-retention fields of the injected typed configuration."""
         return cls(
-            max_sessions=_non_negative_int(cfg, "sqlite_retention_max_sessions", 100),
-            max_age_days=_non_negative_int(cfg, "sqlite_retention_max_age_days", 90),
+            max_sessions=m.retention_max_sessions,
+            max_age_days=m.retention_max_age_days,
         )
 
 
@@ -150,38 +222,37 @@ class CorruptArchiveRetentionConfig:
     older than N days.
 
     Semantics: 0 disables the corresponding rule (deletes nothing); negative
-    values are rejected with ValueError at config load and in the purge helpers.
+    values are rejected with ValueError when the typed configuration is built and
+    in the purge helpers.
     """
 
     max_files: int = 10
     max_age_days: int = 30
 
     @classmethod
-    def from_config(cls) -> "CorruptArchiveRetentionConfig":
-        """Construct from agent.toml values; raises on config load failure.
-
-        Wrong-typed or negative values raise a key-naming ValueError.
-        """
-        cfg = _load_agent_config()
+    def from_typed(cls, m: DbMaintenanceConfig) -> "CorruptArchiveRetentionConfig":
+        """Project the corrupt-archive fields of the injected typed configuration."""
         return cls(
-            max_files=_non_negative_int(cfg, "sqlite_corrupt_archive_max_files", 10),
-            max_age_days=_non_negative_int(
-                cfg, "sqlite_corrupt_archive_max_age_days", 30
-            ),
+            max_files=m.corrupt_archive_max_files,
+            max_age_days=m.corrupt_archive_max_age_days,
         )
 
 
 # ── Maintenance operations ─────────────────────────────────────────────────────
 
 
-def checkpoint_wal(db: SQLiteHelper, mode: str | None = None) -> WalCheckpointCounts:
-    """Flush the WAL file and return checkpoint counters; mode defaults to sqlite_wal_checkpoint_mode (TRUNCATE); raises ValueError for unknown mode."""
+def checkpoint_wal(
+    db: SQLiteHelper,
+    maintenance: DbMaintenanceConfig,
+    mode: str | None = None,
+) -> WalCheckpointCounts:
+    """Flush the WAL file and return checkpoint counters.
+
+    `mode` overrides the default; when it is absent the mode comes from the
+    injected typed configuration. Raises ValueError for an unknown mode.
+    """
     if mode is None:
-        cfg = _load_agent_config()
-        raw_mode: str | None = cfg.get("sqlite_wal_checkpoint_mode")
-        if raw_mode is None or not isinstance(raw_mode, str):
-            raw_mode = "TRUNCATE"
-        mode = raw_mode.upper()
+        mode = maintenance.wal_checkpoint_mode
     return db.checkpoint(mode)
 
 
@@ -290,7 +361,7 @@ def _delete_sessions_beyond_limit(
 
 def purge_old_sessions(
     db: SQLiteHelper,
-    cfg: RetentionConfig | None = None,
+    cfg: RetentionConfig,
     mode: MaintenanceMode = MaintenanceMode.STRICT,
     *,
     keep_session_id: int | None = None,
@@ -304,17 +375,15 @@ def purge_old_sessions(
     In BEST_EFFORT mode, returns MaintenanceResult with zeroed counts
     (the transaction was rolled back; attempted counts are not reported).
 
-    Config-load failures (`RetentionConfig.from_config`) propagate in both modes,
-    as do negative-retention `ValueError`s raised by the delete helpers (the
-    transaction rolls back, so no partial deletions survive).
+    Negative-retention `ValueError`s raised by the delete helpers propagate in
+    both modes (the transaction rolls back, so no partial deletions survive).
+    `cfg` is supplied by the caller that owns the configuration; this module does
+    not read a config file.
 
     When `keep_session_id` is given and that session was a delete candidate under at
     least one rule, it is exempted and surfaced as `data["kept_active_session"]`
     (None when nothing was exempted).
     """
-    if cfg is None:
-        cfg = RetentionConfig.from_config()
-
     try:
         with db.begin_immediate():
             age_deleted, age_exempted = _delete_sessions_by_age(
@@ -403,7 +472,8 @@ def _delete_corrupt_archives_beyond_limit(
 
 
 def purge_corrupt_archives(
-    cfg: CorruptArchiveRetentionConfig | None = None,
+    cfg: CorruptArchiveRetentionConfig,
+    db_cfg: DbConfig,
     mode: MaintenanceMode = MaintenanceMode.STRICT,
 ) -> MaintenanceResult:
     """Delete timestamped *_corrupt_* archive files (created by
@@ -412,18 +482,14 @@ def purge_corrupt_archives(
 
     In STRICT mode (default), raises on filesystem errors.
     In BEST_EFFORT mode, returns MaintenanceResult with partial counts on error.
-    Config-load failures (`CorruptArchiveRetentionConfig.from_config`,
-    `build_db_config`) propagate in both modes, as do negative-retention
-    `ValueError`s raised by the delete helpers.
+    Negative-retention `ValueError`s raised by the delete helpers propagate in
+    both modes. The typed configuration and the database paths are supplied by the
+    caller that owns the configuration; this module reads no config file.
     """
-    if cfg is None:
-        cfg = CorruptArchiveRetentionConfig.from_config()
-
     age_deleted = 0
     count_deleted = 0
 
     try:
-        db_cfg = build_db_config()
         for raw_path in (db_cfg.rag_db_path, db_cfg.session_db_path):
             db_path = Path(raw_path)
             archive_dir = db_path.parent
