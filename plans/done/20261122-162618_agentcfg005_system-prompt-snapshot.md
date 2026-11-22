@@ -41,6 +41,7 @@ Medium
 - Eight test files depend on the config-layer prompt fields as fixtures (`tests/agent/test_config_builders.py`, `tests/agent/services/test_config_reload.py`, `tests/agent/services/test_config_reload_classification.py`, `tests/agent/test_production_config_validator.py`, `tests/agent/test_startup_prompt_setup.py`, `tests/agent/test_startup.py`, `tests/agent/commands/test_agent_cmd_context.py`, `tests/agent/services/test_conversation_service.py`), so the removal cannot be validated without migrating them; the Issue's Unresolved Question about additional referencing tests is answered by these files.
 - `tests/agent/services/test_config_reload.py` lines 1149-1168 asserts the exact tool-section field set, which includes both prompt names, so the registry removal is observable there.
 - The standard file has no snapshot that pins its effective values: measured with the current builders, 18 explicit values equal their code defaults and 14 differ, and 2 registered fields are absent from the file. Nothing fails if an explicit value is dropped and a code default takes over.
+- Re-measured for this pass (2026-11-22): the 14 differing values include the two prompt fields, so the inventory the snapshot must record after this plan lands is 18 equal / 12 differing / 2 absent, and the field registry goes from 34 entries to 32. The snapshot test asserts the post-change inventory; the pre-change numbers are the baseline only, not the contract. The 2 absent registered fields are `tool.disabled_tools` and `approval.gitops_push_blocked` (recorded here; adding them is out of scope, see UNK-05).
 
 ## Reason for Change
 - The field removals of the earlier issues have landed, so the remaining prompt entries are now live in the registry, the valid-key set, and the tests; keeping them means a removed key is silently accepted, and the prompt has two stored copies.
@@ -126,7 +127,7 @@ Files that must be read but MUST NOT be modified.
 - `REQ-002` (`tests/agent/test_config_builders.py`): section builder has no prompt fields; the override-reflection test no longer includes prompt keys; the builder pass-through test is removed.
 - `REQ-003` (`tests/agent/services/test_config_reload.py`): the tool-section expected field set excludes both prompt names; `tests/agent/services/test_config_reload_classification.py` fixture removal; the generated `config_ownership` manifest contains no prompt rows (`uv run python tools/generate_reference_table.py --check`).
 - `REQ-004` (`tests/agent/test_production_config_validator.py`): the removed keys produce an unknown-key error; the existing real-config integration test passes after the TOML deletion.
-- `REQ-005`, `REQ-008` (`tests/agent/test_config_effective_snapshot.py`): effective configuration of the real file is pinned; the explicit-value inventory (18 equal-default, 14 differing, 2 absent) is asserted as the recorded contract; one case proves explicit-over-default precedence. Marked `integration` per the existing real-config test pattern.
+- `REQ-005`, `REQ-008` (`tests/agent/test_config_effective_snapshot.py`): effective configuration of the real file is pinned; the post-change inventory (18 equal-default, 12 differing, 2 absent) is asserted as the recorded contract, not the pre-change measurement; one case proves explicit-over-default precedence. Marked `integration` per the existing real-config test pattern (`tests/agent/test_production_config_validator.py` line 348). Caveat: the marker is defined as "tests that start real subprocesses" and the full-suite and diff-coverage runs deselect `integration`, so this test runs in CI only; coverage of the changed lines must come from the reader and startup unit tests, not from this test.
 - `REQ-006` (`tests/agent/test_startup_prompt_setup.py`, `tests/agent/test_startup.py`, `tests/agent/commands/test_agent_cmd_context.py`, `tests/agent/services/test_conversation_service.py`): startup resolves the prompt through the typed model; memory injection behaviour unchanged.
 - `REQ-007` (`tests/agent/services/test_config_reload.py`): prompt change is applied at commit; prepare-phase failure path leaves live state untouched; outcome report shape unchanged.
 - Gate order: `rules/toolchain.md` full sequence via `uv run python tools/run_validation_gates.py`; full suite `-n logical`; `diff-cover` ≥ 90% on changed lines against the recorded baseline (95.49% at 2026-11-22).
@@ -137,7 +138,8 @@ Files that must be read but MUST NOT be modified.
 
 ## Assumptions
 - The owner decision for the single source is the new read-only manifest (option B), confirmed in this pass on 2026-11-22; the plan's created-file rows depend on it.
-- `registry/manifests/prompt_source.toml` is a hand-authored source-of-truth data file, not a generator-derived manifest; it is not added to `tools/generate_reference_table.py`'s `_MANIFEST_SOURCES`.
+- `registry/manifests/prompt_source.toml` is a hand-authored source-of-truth data file, not a generator-derived manifest; it is not added to `tools/generate_reference_table.py`'s `_MANIFEST_SOURCES`. Caveat recorded during this pass: every committed file in `registry/manifests/` is `.yaml`, and the generator's `--check` only reads registered manifest names, so a `.toml` file there is outside the drift check and breaks the directory's format convention. The `.toml` name is kept per the recorded owner decision; if the format is to match the directory convention, that is a Plan revision, not a procedure change.
+- Cross-plan overlap judgement (`tools/check_plan_target_overlaps.py`, 2026-11-22): the six shared rows with `plans/20261121-172154_mcpdl003_dedup-config-isolation.md` are compatible, not a conflict. That plan adds an `approval_grant_ttl_seconds` field and key, this plan removes the prompt field and key; no row's change contradicts the other's. Two consequences are recorded: the snapshot inventory counts change if that plan's key lands in `config/agent.toml` first, so the snapshot must be written against the state at its own execution time; and `tools/plan_dependency_order.py` recommends that plan first, which is a recommendation only (`Ready`, no gating edge).
 - Named prompts (`default`, `strict`, `creative`) move to the single source as data; no prompt content is dropped from the current values.
 - The Issue's Constraint "Change only the Target Files" is resolved as a reported scope amendment: the added live consumers (`scripts/agent/startup_prompt_setup.py`, `tests/agent/test_startup_prompt_setup.py`) and the additional test files listed as rows were found by the Step 3 consumer scan.
 - Prompt content is not part of `ConfigReloadRequest`'s config dict after removal; the reload path reads the single source directly.
@@ -254,12 +256,12 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: single source and typed model | Pending | — | — | RU-1 not involved; passes validation alone |
-| 2 | Phase 2: startup path | Pending | — | — | — |
-| 3 | Phase 3: reload path | Pending | — | — | — |
-| 4 | Phase 4: config-layer removal (RU-1) | Pending | — | — | cannot be validated alone |
-| 5 | Phase 5: standard file and test migration (RU-1) | Pending | — | — | releases RU-1 |
-| 6 | Phase 6: deployment, generated manifest, docs, gates | Pending | — | — | `registry/` rsynced, no `deploy.sh` change |
+| 1 | Phase 1: single source and typed model | In Progress | — | — | RU-1 not involved; passes validation alone |
+| 2 | Phase 2: startup path | In Progress | — | — | — |
+| 3 | Phase 3: reload path | In Progress | — | — | — |
+| 4 | Phase 4: config-layer removal (RU-1) | In Progress | — | — | cannot be validated alone |
+| 5 | Phase 5: standard file and test migration (RU-1) | In Progress | — | — | releases RU-1 |
+| 6 | Phase 6: deployment, generated manifest, docs, gates | In Progress | — | — | `registry/` rsynced, no `deploy.sh` change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -269,7 +271,29 @@ Table structure, status/type vocabulary, and general guidance: see `templates/ex
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261122-165517_01_config_agent.toml.md | 5 | Procedure | Pending | — | — |
+| implementations/20261122-165517_02_registry_manifests_prompt_source.toml.md | 1 | Procedure | Pending | — | — |
+| implementations/20261122-165517_03_scripts_agent_prompt_source.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261122-165517_04_scripts_agent_config_dataclasses.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-165517_05_scripts_agent_config_section_builders.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-165517_06_scripts_agent_config_builders.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-165517_07_scripts_agent_services_config_field_registry.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-165517_08_registry_manifests_config_ownership.yaml.md | 6 | Procedure | Pending | — | — |
+| implementations/20261122-165517_09_scripts_agent_production_config_validator.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261122-165517_10_scripts_agent_services_config_reload.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261122-165517_11_scripts_agent_startup_prompt_setup.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261122-165517_12_tests_agent_test_prompt_source.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261122-165517_13_tests_agent_test_config_effective_snapshot.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261122-165517_14_tests_agent_test_config_builders.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261122-165517_15_tests_agent_services_test_config_reload.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261122-165517_16_tests_agent_services_test_config_reload_classification.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261122-165517_17_tests_agent_test_production_config_validator.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261122-165517_18_tests_agent_test_startup_prompt_setup.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261122-165517_19_tests_agent_test_startup.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261122-165517_20_tests_agent_commands_test_agent_cmd_context.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261122-165517_21_tests_agent_services_test_conversation_service.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261122-165517_22_docs_23_agent_agent_08_01_configuration-loading-agent-config.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261122-165517_23_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 6 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -308,3 +332,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-008 | Testing Expectations; measured inventory 18 equal / 14 differing / 2 absent | `tests/agent/test_config_effective_snapshot.py` | Phase 5 | AC-5 | snapshot and precedence tests | Planned |
 | REQ-009 | `docs/23_agent/agent_08_01_configuration-loading-agent-config.md` line 51 | `docs/23_agent/agent_08_01_configuration-loading-agent-config.md` | Phase 6 | AC-6 | `check_docs_consistency.py --domain agent` | Planned |
 | REQ-009 | `docs/10_adr/adr_02_01_002_platform-config-isolation.md` line 85 | `docs/10_adr/adr_02_01_002_platform-config-isolation.md` | Phase 6 | AC-6 | `check_docs_consistency.py --domain agent` | Planned |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261122-165517 -->
