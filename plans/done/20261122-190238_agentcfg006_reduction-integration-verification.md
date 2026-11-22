@@ -48,7 +48,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `tests/integration/test_standard_config_integration.py` | Create | New integration test covering startup, MCP discovery, approval, plan mode, reload, Memory, and database maintenance against the real `config/agent.toml` | REQ-001 / AC-1, AC-2, AC-5 | No integration test references the real file today; `tests/integration/` contains only fixture-based tests (`test_production_security_regression.py` uses a hand-built config dict, checked in Step 2) | Self (its own test cases); runs in CI via full pytest | Verified |
-| `scripts/agent/production_config_validator.py` | Modify | Emit a fatal error naming the replacement for each key in `_REMOVED_PRODUCTION_KEYS` (REQ-003); the mapping defined here is the single source consumed by the generator (REQ-002) | REQ-002, REQ-003 / AC-4 | Current message is `Unknown config keys: {list}` with no replacement guidance (lines 263-274, checked in Step 2); existing message-substring assertions in three test files constrain the format (see Design D3) | `tests/agent/test_production_config_validator.py` | Verified |
+| `scripts/agent/production_config_validator.py` | Modify | Emit a fatal error naming the replacement for each key in `_REMOVED_PRODUCTION_KEYS` (REQ-003); the mapping defined here is the single source consumed by the generator (REQ-002) | REQ-002, REQ-003 / AC-4 | Current message is `Unknown config keys: {list}` with no replacement guidance (lines 263-274, checked in Step 2); existing message-substring assertions in three test files constrain the format, including lines 467 and 494 which assert the prefix against mapped keys (see Design D3, corrected by Step 3a) | `tests/agent/test_production_config_validator.py` | Verified |
 | `tests/agent/test_production_config_validator.py` | Modify | Add assertions that the error names the replacement for each removed key; keep existing message-substring assertions valid | REQ-003 / AC-4 | Existing assertions at lines 188-265 pin the `Unknown config keys` class name (checked in Step 3, predictable-fallout pinned-count hit) | Self | Verified |
 | `tools/generate_reference_table.py` | Modify | Generate the migration table from the validator's mapping into a guarded block; register the new generator entry point so `--check` covers it | REQ-002 | `DOMAIN_GENERATORS` has no agent-config-key generator today; existing types (rag, deployment, mandatoriness) read live sources (checked in Step 2); `--check` runs in CI per `tools/TOOL_DESCRIPTIONS.md` | `tests/tools/test_generate_reference_table.py` | Verified |
 | `tests/tools/test_generate_reference_table.py` | Modify | Cover the new generator type and its `--check` behavior | REQ-002 | File exists and tests the existing generator contract (checked in Step 3) | Self | Verified |
@@ -98,7 +98,7 @@ Yes. The Agent configuration reference is `docs/23_agent/agent_08_01_configurati
 
 ## Assumptions
 - The reduced standard file remains as it is today: no `config/agent.toml` change is planned; the file already passes strict validation (falsifiable by re-running the existing real-file tests).
-- The migration error format keeps the `Unknown config keys:` prefix for keys outside the migration mapping and emits a per-key message naming the replacement for mapped keys, so the three existing message-substring assertions (`tests/agent/test_production_config_validator.py` lines 188-265, `tests/shared/test_shared_boundary_conditions.py` line 179, `tests/integration/test_production_security_regression.py` line 50) stay passing.
+- The migration error format emits a per-key message naming the replacement for mapped keys, so the existing message-substring assertions stay passing. Corrected by Step 3a adversarial verification (2026-11-22): the earlier claim that those assertions pass only unmapped fixtures through the generic path is false — `tests/agent/test_production_config_validator.py` lines 188-265 and lines 467, 494 pass mapped keys (`tool_safety_tiers` and the other `_REMOVED_PRODUCTION_KEYS`) through the validation path and assert the `Unknown config keys` prefix plus the key name, and `tests/shared/test_shared_boundary_conditions.py` line 179 and `tests/integration/test_production_security_regression.py` line 50 assert the prefix against `tool_safety_tiers`. Therefore the per-key message must keep the `Unknown config keys` prefix AND name the replacement (design D3, corrected).
 - The single source of the migration mapping is a module-level mapping in `scripts/agent/production_config_validator.py`; the generator and the error message read the same mapping, satisfying the Current-Specification-Only policy.
 - The unknown-key CI check is satisfied by the existing full-pytest CI job; no duplicate CI check is added (only the new comment lint is wired).
 - Overlap note (Step 8b): `scripts/agent/production_config_validator.py` and `tests/agent/test_production_config_validator.py` are also targeted by the Frozen plan mcpdl003 (dedup-config-isolation). Judged compatible: that plan extends the valid-key table for the new Agent key and per-server `[dedup]` tables, while this Plan adds the removed-key migration message and its tests; the two designs do not contradict each other on the shared files. No sequencing dependency is required; the implementation order between them is free.
@@ -153,7 +153,7 @@ The change runs offline only; no service port or DB lock is involved in the plan
 ### Design decisions
 - D1 — Migration table location and generator (resolves UNK-01): the single normative source is a module-level mapping in `scripts/agent/production_config_validator.py`; `tools/generate_reference_table.py` gains one generator type that renders that mapping into a guarded block in `docs/23_agent/agent_08_01_configuration-loading-agent-config.md`. Alternatives considered: a hand-maintained table in the doc (rejected: duplicates the source the error message already reads, violating the single-place policy); a new standalone tool (rejected: the existing generator infrastructure already owns config tables and `--check`).
 - D2 — Long-comment lint (resolves UNK-02): a new `tools/check_config_comment_length.py`; no existing checker polices `config/` comments. It reports findings as warnings (exit 0) or errors by a single threshold constant, follows the existing `tools/` checker shape, and needs the `tools/TOOL_DESCRIPTIONS.md` row and a `rules/tool-gates.md` row.
-- D3 — Error format (keeps consumers valid): mapped keys produce `Removed config key '<key>': replaced by <new key or owning file>`; unmapped keys keep the existing `Unknown config keys:` message. The prefix-preserving alternative (single message listing all keys plus a migration suffix) was rejected for mapped keys because AC-4 requires a specific per-key message; the existing tests that pin the `Unknown config keys` substring remain valid because they pass fixtures without the mapped keys through the generic path or assert only that class of error — see Assumptions; `tests/agent/test_production_config_validator.py` gains per-key replacement assertions.
+- D3 — Error format (keeps consumers valid): every removed key produces a per-key fatal error that keeps the `Unknown config keys` prefix and names the replacement, e.g. `Unknown config keys: <key> — replaced by <new key or owning file>`; unmapped keys keep the existing generic message unchanged. The single-message variant listing all keys plus a migration suffix was rejected because AC-4 requires a specific per-key message. Corrected by Step 3a (2026-11-22): the earlier form (`Removed config key '<key>': replaced by ...` without the prefix) was rejected as infeasible because the pinned assertions listed in Assumptions pass mapped keys through the validation path and assert the prefix plus the key name; the prefix-preserving per-key form satisfies AC-4 and keeps all three test files passing. `tests/agent/test_production_config_validator.py` gains per-key replacement assertions.
 
 ## Implementation steps
 
@@ -193,7 +193,7 @@ The change runs offline only; no service port or DB lock is involved in the plan
 | Whole suite | Regression | `uv run pytest` full sequence per `rules/toolchain.md`, diff-cover ≥ 90 | No failures beyond the recorded baseline (13315 passed, 5 skipped) |
 
 ## Risks
-- **Risk**: Changing the unknown-key error text breaks the three existing message-substring assertions → **Mitigation**: keep the `Unknown config keys` prefix for unmapped keys (design D3); run `tests/agent/test_production_config_validator.py`, `tests/shared/test_shared_boundary_conditions.py`, and `tests/integration/test_production_security_regression.py` before the message change is finalized.
+- **Risk**: Changing the unknown-key error text breaks the existing message-substring assertions → **Mitigation**: design D3 (corrected) keeps the `Unknown config keys` prefix for every removed key while naming the replacement per key; run `tests/agent/test_production_config_validator.py` (lines 188-265, 467, 494), `tests/shared/test_shared_boundary_conditions.py`, and `tests/integration/test_production_security_regression.py` before the message change is finalized.
 - **Risk**: The migration-error behavior touches the unknown-key rejection governed by ADR-002 (platform config isolation); a change to that decision or invariant needs a maintainer approval record in the same change → **Mitigation**: the plan only adds guidance to the existing fatal path, not a policy change; if the implementer finds the message change to be an ADR decision change, stop and request the approval record. Do not write or simulate an ADR approval.
 - **Risk**: agentcfg001/agentcfg002 carry open Plan rows (their doc/test/gate steps); a later change from those Plans could alter the behavior this Plan verifies → **Mitigation**: this Plan targets only its own frozen rows; the open dependencies are recorded (UNK-04, Scope). If a test fails because of an unfinished earlier issue, stop and report per the Issue's AI Implementation Instruction.
 - **Risk**: The new generator type adds a CI `--check` domain that can drift against live config → **Mitigation**: it reads the validator mapping as the single source, so the error message and the table cannot diverge; `--check` runs in CI.
@@ -204,11 +204,11 @@ The change runs offline only; no service port or DB lock is involved in the plan
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migration mapping constant and per-key fatal message in the validator; tests | Pending | — | — | `scripts/agent/production_config_validator.py`, `tests/agent/test_production_config_validator.py` |
-| 2 | Integration test against the real standard files | Pending | — | — | `tests/integration/test_standard_config_integration.py` |
-| 3 | Long-comment lint tool, its tests, tool/gate registration, CI wiring | Pending | — | — | `tools/check_config_comment_length.py`, `tests/tools/test_check_config_comment_length.py`, `tools/TOOL_DESCRIPTIONS.md`, `rules/tool-gates.md`, `.github/workflows/ci.yml` |
-| 4 | Generator type and `--check` coverage (RU-1) | Pending | — | — | `tools/generate_reference_table.py`, `tests/tools/test_generate_reference_table.py` |
-| 5 | Generated block, per-key reference, explicit-default policy in the doc (RU-1) | Pending | — | — | `docs/23_agent/agent_08_01_configuration-loading-agent-config.md` |
+| 1 | Migration mapping constant and per-key fatal message in the validator; tests | In Progress | — | — | `scripts/agent/production_config_validator.py`, `tests/agent/test_production_config_validator.py` |
+| 2 | Integration test against the real standard files | In Progress | — | — | `tests/integration/test_standard_config_integration.py` |
+| 3 | Long-comment lint tool, its tests, tool/gate registration, CI wiring | In Progress | — | — | `tools/check_config_comment_length.py`, `tests/tools/test_check_config_comment_length.py`, `tools/TOOL_DESCRIPTIONS.md`, `rules/tool-gates.md`, `.github/workflows/ci.yml` |
+| 4 | Generator type and `--check` coverage (RU-1) | In Progress | — | — | `tools/generate_reference_table.py`, `tests/tools/test_generate_reference_table.py` |
+| 5 | Generated block, per-key reference, explicit-default policy in the doc (RU-1) | In Progress | — | — | `docs/23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | 6 | Validation sequence and deployment hand-off | Pending | — | — | `rules/toolchain.md` gates; `skills/deploy/SKILL.md` hand-off |
 
 ### Blocker Log
@@ -219,10 +219,14 @@ The change runs offline only; no service port or DB lock is involved in the plan
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
-
-## Traceability
-- **Workflow phase**: issue-to-plan
+| `implementations/20261122-192217_01_tests_integration_test_standard_config_integration_py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261122-192217_02_scripts_agent_production_config_validator_py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261122-192217_04_tools_generate_reference_table_py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261122-192217_06_docs_23_agent_agent_08_01_configuration-loading-agent-config.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261122-192217_07_tools_check_config_comment_length_py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261122-192217_09_tools_TOOL_DESCRIPTIONS_md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261122-192217_10_.github_workflows_ci_yml.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261122-192217_11_rules_tool-gates_md.md` | 3 | Procedure | Pending | — | — |
 - **Source issue**: issues/20261120-114214_agentcfg006_reduction-integration-verification.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: N/A: this document is the generated plan
