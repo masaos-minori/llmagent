@@ -1,6 +1,6 @@
 ## Goal
 
-Give the file_delete MCP server its own control credential: add a `[control]` table with `auth_token = "${ENV:MCP_FILE_DELETE_CONTROL_TOKEN}"`.
+Give the rag_pipeline MCP server its own control credential: add a `[control]` table with `auth_token = "${ENV:MCP_RAG_PIPELINE_CONTROL_TOKEN}"`.
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
@@ -22,7 +22,7 @@ N/A: the shape is fixed by the Plan.
 
 ## Implementation
 ### Target file
-`config/file_delete_mcp_server.toml`
+`config/rag_pipeline_mcp_server.toml`
 
 ### Procedure
 1. Append the `[control]` table after the `[dedup]` table with a comment of at most three lines stating it is the Agent-only control token distinct from the tool `auth_token`.
@@ -31,7 +31,7 @@ N/A: the shape is fixed by the Plan.
 One Edit at the end of the file.
 
 ### Details
-- Variable name is MCP_FILE_DELETE_CONTROL_TOKEN, matching the Agent entry in row 14.
+- Variable name is MCP_RAG_PIPELINE_CONTROL_TOKEN, matching the Agent entry in row 14.
 
 ## Compatibility considerations
 
@@ -63,8 +63,8 @@ Server code and the Agent entry (rows 09, 10, 14).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-145718 | 20261123-145718 | [control] table appended after [dedup] with auth_token = "${ENV:MCP_FILE_DELETE_CONTROL_TOKEN}" and a three-line comment (separate credential, empty token closes only control paths) |
-| 2 | Run the config loading test and the comment-length checker named in Validation plan | Completed | 20261123-145718 | 20261123-145718 | the file parses as TOML, tests/mcp_servers/ (2807 passed incl. the config fixture and per-server config tests) and check_config_comment_length.py (0 errors) are green |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-145718 | 20261123-145718 | [control] table appended after [dedup] with auth_token = "${ENV:MCP_RAG_PIPELINE_CONTROL_TOKEN}" and a three-line comment (separate credential, empty token closes only control paths) |
+| 2 | Run the config loading test and the comment-length checker named in Validation plan | Completed | 20261123-145718 | 20261123-145718 | the file parses as TOML, tests/mcp_servers/ (2807 passed incl. the config fixture and per-server config tests) and check_config_comment_length.py (0 errors) are green adversarial verification re-run at 20261123-171013: claims re-checked against current source and confirmed - the [control] table with a three-line comment sits after [dedup], its auth_token is an env reference to MCP_RAG_PIPELINE_CONTROL_TOKEN matching row 14, and the file loads through ConfigLoader; resolve_control_token returns an empty token for an unset variable (control paths closed, the server still starts, the warning names the server) and the value when set. This run: tests/mcp_servers/test_call_state_api.py 19 passed, tools/check_config_comment_length.py exit 0, integration-deselected full suite 13605 passed 5 skipped. No stale claim found, no correction needed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -84,4 +84,4 @@ Server code and the Agent entry (rows 09, 10, 14).
 - **Source plan**: plans/20261123-090353_mcpdl004_call-state-control-api.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261123-113815
-- **Related target files**: `config/file_delete_mcp_server.toml`
+- **Related target files**: `config/rag_pipeline_mcp_server.toml`
