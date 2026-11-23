@@ -81,6 +81,7 @@ Yes: the skills, rules, prompts, `routing.md`, `tools/TOOL_DESCRIPTIONS.md`, and
 - Changing harness behavior (how a skill is loaded or compacted).
 
 ## Dependencies
+- Split decision (2026-11-23, at planning): Stages 1 and 2 are planned in `plans/20261123-155813_skillsize001_compress-skill-workflows.md`; Stages 3 to 7 are tracked in `issues/20261123-155940_skillsize002_compress-skill-workflows-structure.md`, which depends on that Plan and starts from its measured baseline.
 - Does not depend on an open issue or plan; sibling check (2026-11-23): the open issues and plans that mention `skills/` (`issues/20261119-145312_cliplc014_cli-docs-consolidation.md`, `issues/20261119-140519_mcpai012_mcp-design-docs-update.md`, `plans/20261123-120131_mcpdl005_retention-capacity-monitoring.md`, `plans/20261123-130937_mcpai001_atomic-dedup-state-machine.md`) do not target the files this issue changes.
 - Edits to the same skill files by pipeline runs in other sessions are a conflict risk: run each stage while no other session is editing `skills/` or `rules/`, and commit and push it before starting the next.
 
