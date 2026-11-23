@@ -67,8 +67,8 @@ Classification, startup_consequence, failure_category, and the governance docume
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-134159 | 20261123-134634 | Changed: registry/component_mandatoriness.yaml (10 rationales, header comment) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-134634 | 20261123-134634 | check_component_mandatoriness, test_check_component_mandatoriness, test_component_mandatoriness, test_check_canonical_source_registry pass (165); full suite 13519 passed, diff-cover N/A (no scripts change) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

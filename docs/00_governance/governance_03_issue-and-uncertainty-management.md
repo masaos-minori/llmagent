@@ -154,22 +154,22 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 #### MCP-003
 
 - **ID:** MCP-003
-- **Title:** ADR-004 Decision Group 3 item 10 mandatoriness assessment not performed for any MCP server
+- **Title:** component-mandatoriness registry `failure_category` is uniformly `safety-integrity` while ADR-004 Decision Group 2 item 7 lists MCP server unavailability among availability failures
 - **Status**: open
 - **Severity:** Medium
 - **Area:** MCP
 - **Type:** design-gap
-- **Source:** `registry/component_mandatoriness.yaml` `rationale` lines (21, 33, 45, 57, 69, 81, 93, 105, 117, 129 — "Not assessed as satisfying Decision Group 3 item 10")
+- **Source:** `registry/component_mandatoriness.yaml` `failure_category` lines of the 10 entries and ADR-004 Decision Group 2 item 7
 - **Owner:** Repository owner
 - **First Found:** adrchk020 mandatoriness registry posture re-verification
 - **Target:** `docs/23_agent/agent_08_04_configuration-mcp-approval-obs.md`
 - **Related:** AAL-019, `registry/component_mandatoriness.yaml`
-- **Summary:** All 10 registry entries carry the status-quo default rationale; the per-server approved classification required by ADR-004 Decision Group 3 item 13 has never been performed.
-- **Current Description:** ADR-004 item 13 requires an approved classification; all 10 entries carry the status-quo default and `agent_08_04` (lines 46–52) restates the criteria with no approval record.
-- **Observed Implementation:** every server is classified `required` with `startup_consequence: abort_startup`; no per-server item-10 assessment exists.
-- **Impact:** the approved-classification precondition of ADR-004 item 13 is unmet for all 10 servers.
-- **Recommended Action:** perform the per-server Group 3 item 10 assessment; additionally state whether `failure_category` should stay uniform `safety-integrity` or follow ADR-004 Group 2 item 7 (`docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md:73`, MCP-server unavailability classes as an availability failure) — proposal only, no value changes here.
-- **Resolution Target:** maintainer assessment recorded in the registry via an approved change
+- **Summary:** All 10 registry entries carry `failure_category: safety-integrity`, while ADR-004 Decision Group 2 item 7 lists unavailability of an MCP server among availability failures; whether the field should follow item 7 has no recorded decision.
+- **Current Description:** ADR-004 Decision Group 7 records the repository owner instruction of 2026-11-10 (option B) that every registry component is classified `required`, and the registry rationale cites it; item 10's criteria decide only a non-mandatory classification (item 12 forbids assuming one). The `failure_category` values were not part of that instruction.
+- **Observed Implementation:** every server is classified `required` with `startup_consequence: abort_startup` and `failure_category: safety-integrity`; the startup outcome is abort either way (item 8), so the field affects classification wording, not behavior. Item 7's own classification of RAG derived-index results awaits approval as AAL-019.
+- **Impact:** the category of an MCP server's unavailability may be read two ways (safety/integrity versus availability) with no recorded decision; no startup behavior depends on it.
+- **Recommended Action:** the maintainer states whether `failure_category` stays uniform `safety-integrity` or follows ADR-004 Group 2 item 7 (`docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md:73`); recorded pending that decision, no value changes here and no approval is written.
+- **Resolution Target:** maintainer decision on `failure_category` recorded in the registry via an approved change
 
 #### MCP-004
 
@@ -184,12 +184,12 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found:** adrchk020 mandatoriness registry posture re-verification
 - **Target:** `docs/00_governance/governance_01_documentation-policy.md`
 - **Related:** MCP-003, `config/documentation_canonical_sources.toml`
-- **Summary:** The registry authority/placement approval the header note carried has no tracked ledger entry.
+- **Summary:** The registry is registered under claim type `security-policy` in `config/documentation_canonical_sources.toml`, while the governance_01 `security-policy` row names only Accepted security ADRs as its canonical source kind; the choice of how to reconcile them has no recorded decision.
 - **Current Description:** the registry home is fixed by ADR-004 item 13 and `config/documentation_canonical_sources.toml:66-71` registers `registry/component_mandatoriness.yaml` as the source for `mcp.component-mandatoriness`.
-- **Observed Implementation:** the adrchk010 governance proposal adds the owner list for this row in the governance_01 Resolution Matrix but is prepared and pending maintainer approval.
-- **Impact:** the pending approval has no ledger entry.
-- **Recommended Action:** maintainer approves or amends the governance_01 Resolution Matrix owner list for the `mcp.component-mandatoriness` row; no approval is written here.
-- **Resolution Target:** owner-list approval recorded in `governance_01_documentation-policy.md`
+- **Observed Implementation:** the governance_01 `### Resolution Matrix` is a table by claim type with no owner column and no per-decision-target rows, so no owner list exists to approve; `tools/check_canonical_source_registry.py` accepts the current registration.
+- **Impact:** the registry's authority is described differently by the canonical-source registry and the policy matrix; no checker or runtime behavior depends on the difference.
+- **Recommended Action:** the maintainer chooses between naming the registry in the governance_01 `security-policy` canonical source kind and changing the registry's `claim_type` in `config/documentation_canonical_sources.toml`; recorded pending that decision, no approval is written here.
+- **Resolution Target:** the chosen reconciliation recorded in `governance_01_documentation-policy.md` or `config/documentation_canonical_sources.toml`
 
 #### MCP-005
 

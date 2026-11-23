@@ -67,8 +67,8 @@ Other inventory entries, ADR text, governance_01, and the canonical-source regis
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-134241 | 20261123-134634 | Changed: governance_03 MCP-003 and MCP-004 entries; 2:conformance, known-deviation sync, canonical-source registry checkers and validation gates pass |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Completed | 20261123-134634 | 20261123-134634 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

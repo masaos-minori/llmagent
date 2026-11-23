@@ -4,8 +4,11 @@
 # is generated from this registry (ADR-004 Decision Group 3 item 13); the criteria
 # themselves remain solely in ADR-004 (Decision Group 3). config/agent.toml
 # `required` values are validated against this registry at startup (ADR-004 item 13).
-# Pending assessments and approvals are tracked as Known Issues MCP-003 and MCP-004 in
-# docs/00_governance/governance_03_issue-and-uncertainty-management.md.
+# Every entry is classified required by the repository owner instruction recorded in
+# ADR-004 Group 7. Two questions stay open as Known Issues in
+# docs/00_governance/governance_03_issue-and-uncertainty-management.md: whether
+# failure_category should follow ADR-004 Group 2 item 7 (MCP-003) and where this
+# registry's authority is documented (MCP-004).
 version: 1
 entries:
   - component_id: cicd
@@ -19,7 +22,7 @@ entries:
       - pipeline fatal outcome
     owner: agent-architecture-owner
     authority_adr: ADR-004
-    rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+    rationale: Classified required by repository owner instruction 2026-11-10 (ADR-004 Group 7 applicability note, option B); item 10 criteria apply only to a non-mandatory classification
   - component_id: file_delete
     classification: required
     failure_category: safety-integrity
@@ -31,7 +34,7 @@ entries:
       - pipeline fatal outcome
     owner: agent-architecture-owner
     authority_adr: ADR-004
-    rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+    rationale: Classified required by repository owner instruction 2026-11-10 (ADR-004 Group 7 applicability note, option B); item 10 criteria apply only to a non-mandatory classification
   - component_id: file_read
     classification: required
     failure_category: safety-integrity
@@ -43,7 +46,7 @@ entries:
       - pipeline fatal outcome
     owner: agent-architecture-owner
     authority_adr: ADR-004
-    rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+    rationale: Classified required by repository owner instruction 2026-11-10 (ADR-004 Group 7 applicability note, option B); item 10 criteria apply only to a non-mandatory classification
   - component_id: file_write
     classification: required
     failure_category: safety-integrity
@@ -55,7 +58,7 @@ entries:
       - pipeline fatal outcome
     owner: agent-architecture-owner
     authority_adr: ADR-004
-    rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+    rationale: Classified required by repository owner instruction 2026-11-10 (ADR-004 Group 7 applicability note, option B); item 10 criteria apply only to a non-mandatory classification
   - component_id: git
     classification: required
     failure_category: safety-integrity
@@ -67,7 +70,7 @@ entries:
       - pipeline fatal outcome
     owner: agent-architecture-owner
     authority_adr: ADR-004
-    rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+    rationale: Classified required by repository owner instruction 2026-11-10 (ADR-004 Group 7 applicability note, option B); item 10 criteria apply only to a non-mandatory classification
   - component_id: github
     classification: required
     failure_category: safety-integrity
@@ -79,7 +82,7 @@ entries:
       - pipeline fatal outcome
     owner: agent-architecture-owner
     authority_adr: ADR-004
-    rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+    rationale: Classified required by repository owner instruction 2026-11-10 (ADR-004 Group 7 applicability note, option B); item 10 criteria apply only to a non-mandatory classification
   - component_id: mdq
     classification: required
     failure_category: safety-integrity
@@ -91,7 +94,7 @@ entries:
       - pipeline fatal outcome
     owner: agent-architecture-owner
     authority_adr: ADR-004
-    rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+    rationale: Classified required by repository owner instruction 2026-11-10 (ADR-004 Group 7 applicability note, option B); item 10 criteria apply only to a non-mandatory classification
   - component_id: rag_pipeline
     classification: required
     failure_category: safety-integrity
@@ -103,7 +106,7 @@ entries:
       - pipeline fatal outcome
     owner: agent-architecture-owner
     authority_adr: ADR-004
-    rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+    rationale: Classified required by repository owner instruction 2026-11-10 (ADR-004 Group 7 applicability note, option B); item 10 criteria apply only to a non-mandatory classification
   - component_id: shell
     classification: required
     failure_category: safety-integrity
@@ -115,7 +118,7 @@ entries:
       - pipeline fatal outcome
     owner: agent-architecture-owner
     authority_adr: ADR-004
-    rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+    rationale: Classified required by repository owner instruction 2026-11-10 (ADR-004 Group 7 applicability note, option B); item 10 criteria apply only to a non-mandatory classification
   - component_id: web_search
     classification: required
     failure_category: safety-integrity
@@ -127,4 +130,4 @@ entries:
       - pipeline fatal outcome
     owner: agent-architecture-owner
     authority_adr: ADR-004
-    rationale: Not assessed as satisfying Decision Group 3 item 10; status quo default
+    rationale: Classified required by repository owner instruction 2026-11-10 (ADR-004 Group 7 applicability note, option B); item 10 criteria apply only to a non-mandatory classification

@@ -62,8 +62,8 @@ Manual edits and the hand-written criteria text.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the artifact with the command in Procedure | Pending | — | — | |
-| 2 | Run `uv run python tools/generate_reference_table.py --check` and confirm no drift | Pending | — | — | |
+| 1 | Regenerate the artifact with the command in Procedure | Completed | 20261123-134634 | 20261123-134634 | Regenerated with generate_reference_table.py --type mandatoriness; 2:--check No drift, validation gates pass |
+| 2 | Run `uv run python tools/generate_reference_table.py --check` and confirm no drift | Completed | 20261123-134634 | 20261123-134634 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
