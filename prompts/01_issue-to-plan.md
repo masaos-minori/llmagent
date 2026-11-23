@@ -30,7 +30,7 @@ analysis-only constraint).
 - Plan-creation approach (Path A/B classification, architecture/dependency/historical
   analysis, uncertainty tracking): see `skills/issue-to-plan/SKILL.md` +
   `skills/issue-to-plan/workflow.md`.
-- Output language: see `skills/DESIGN.md` §Output language.
+- Output language: see `rules/skill-runtime.md` §Output language.
 
 Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
 referenced files.

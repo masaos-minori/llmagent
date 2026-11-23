@@ -1,0 +1,21 @@
+# Size ceilings of the pipeline instruction files over the default limit (16384 B), skillsize001 Stage 2.
+# Measured 2026-11-23 after the runtime split: 72 covered files, 828780 B in total.
+# Per-invocation load (bytes, Step 0 file lists): plan-to-implementation-procedure 166871 -> 152099,
+# issue-to-plan 145745 -> 130991 (each 14.7 KB lower). A ceiling, not a license: lower it with --update-baseline.
+prompts/05_skills.md	18962
+prompts/08_document-sync.md	19015
+rules/ai-execution.md	17031
+rules/tool-gates.md	19478
+skills/code-implementation/workflow.md	52593
+skills/git-commit-and-sync/workflow.md	22947
+skills/issue-creator/workflow.md	22841
+skills/issue-to-plan/workflow.md	45620
+skills/plan-to-implementation-procedure/workflow.md	39108
+skills/python-code-review/workflow.md	17024
+skills/python-debug-root-cause/workflow.md	30767
+skills/python-design/workflow.md	22436
+skills/python-documentation/workflow.md	25188
+skills/python-implementation/workflow.md	24947
+skills/python-lint-typecheck/workflow.md	17851
+skills/python-refactoring/workflow.md	20895
+skills/python-test-and-fix/workflow.md	27339

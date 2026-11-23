@@ -181,10 +181,10 @@ separate scope-of-record.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Size-check tool | In Progress | — | — |  |
-| 2 | Phase 2: Wiring | In Progress | — | — |  |
-| 3 | Phase 3: Runtime split | In Progress | — | — |  |
-| 4 | Phase 4: Baseline and verification | In Progress | — | — |  |
+| 1 | Phase 1: Size-check tool | Completed | — | 20261123-161136 |  |
+| 2 | Phase 2: Wiring | Completed | — | 20261123-161136 |  |
+| 3 | Phase 3: Runtime split | Completed | — | 20261123-161136 |  |
+| 4 | Phase 4: Baseline and verification | Completed | — | 20261123-161136 | Checkers and gates pass; full suite has 2 unrelated failures from the concurrent mcpdl004 schema bump; measured per-invocation reduction 14.7 KB for each of the two skills |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -194,19 +194,19 @@ separate scope-of-record.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261123-160210_01_tools_check_skill_size.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261123-160210_02_tests_tools_test_check_skill_size.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261123-160210_03_tools_TOOL_DESCRIPTIONS.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261123-160210_04_tools__validation_gate_defs.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261123-160210_05_rules_tool-gates.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261123-160210_06_.github_workflows_ci.yml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261123-160210_07_rules_skill-runtime.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261123-160210_08_skills_DESIGN.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261123-160210_09_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261123-160210_10_skills_plan-to-implementation-procedure_workflow.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261123-160210_11_prompts_01_issue-to-plan.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261123-160210_12_prompts_02_plan-to-implementation-procedure.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261123-160210_13_tools_check_skill_size_baseline.txt.md | 4 | Procedure | Pending | — | — |
+| implementations/20261123-160210_01_tools_check_skill_size.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-160210_02_tests_tools_test_check_skill_size.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-160210_03_tools_TOOL_DESCRIPTIONS.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-160210_04_tools__validation_gate_defs.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-160210_05_rules_tool-gates.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-160210_06_.github_workflows_ci.yml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-160210_07_rules_skill-runtime.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261123-160210_08_skills_DESIGN.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261123-160210_09_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261123-160210_10_skills_plan-to-implementation-procedure_workflow.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261123-160210_11_prompts_01_issue-to-plan.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261123-160210_12_prompts_02_plan-to-implementation-procedure.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261123-160210_13_tools_check_skill_size_baseline.txt.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

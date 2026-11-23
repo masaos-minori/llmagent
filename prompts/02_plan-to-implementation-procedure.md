@@ -24,7 +24,7 @@ move and the analysis-only constraint).
 - Procedure (Steps 0-4, toolchain, multi-file processing): see
   `skills/plan-to-implementation-procedure/SKILL.md` +
   `skills/plan-to-implementation-procedure/workflow.md`.
-- Output language: see `skills/DESIGN.md` §Output language.
+- Output language: see `rules/skill-runtime.md` §Output language.
 
 Apply `rules/ai-execution.md` Instruction Precedence when instructions conflict across
 referenced files.

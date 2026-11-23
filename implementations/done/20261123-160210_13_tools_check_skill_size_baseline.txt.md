@@ -66,8 +66,8 @@ Lowering other files.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the config loading test and the comment-length checker named in Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-160634 | 20261123-161116 | Recorded the baseline (17 entries) and the header; plan-to-implementation-procedure 166871 to 152099 B, issue-to-plan 145745 to 130991 B (each 14.7 KB lower, above the 12 KB target) |
+| 2 | Run the config loading test and the comment-length checker named in Validation plan | Completed | 20261123-161116 | 20261123-161116 | check_skill_size passes; 19 tool tests pass incl. the live-repository test; gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -34,7 +34,7 @@ This is a document-only phase. Allowed operations:
 - `tools/generate_workitem.py --kind implementation-procedure` (Step 3) appends a timestamp-marker HTML comment to the Plan file (never
   rewriting existing content) so invocations against one Plan share a
   timestamp — an expected side effect.
-- See `SKILL.md` Purpose and `skills/DESIGN.md` "Analysis-only phase constraint".
+- See `SKILL.md` Purpose and `rules/skill-runtime.md` "Analysis-only phase constraint".
 - MUST NOT modify files outside `implementations/` and the plan file being moved — the
   general prohibition is `AGENTS.md` Global Rule 5.
 
@@ -79,7 +79,7 @@ cadence, using this line format:
 ## Step 0: Load Required Instructions
 
 Read, if not already loaded this session: `routing.md`, `rules/ai-execution.md`,
-`rules/workflow-lifecycle.md`, `skills/DESIGN.md` (Output language, Out-of-scope
+`rules/workflow-lifecycle.md`, `rules/skill-runtime.md` (Output language, Out-of-scope
 paths), `templates/traceability.md`, `templates/plan.md`,
 `templates/implementation-procedure.md`, `templates/execution-status.md`,
 `SKILL.md` (this skill), and this file.

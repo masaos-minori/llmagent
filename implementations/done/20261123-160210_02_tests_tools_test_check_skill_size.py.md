@@ -65,8 +65,8 @@ Production code.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-160632 | 20261123-161116 | Created tests/tools/test_check_skill_size.py (19 tests incl. repo_scan) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-161116 | 20261123-161116 | 19 passed; coverage of the tool 97 percent; full suite as in procedure 01 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

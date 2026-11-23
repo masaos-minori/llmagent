@@ -72,9 +72,9 @@ Gate, CI, and inventory wiring (procedures 03-06) and the baseline file (procedu
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-160632 | 20261123-161116 | Created tools/check_skill_size.py; radon: main B (8), evaluate B (9) |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-161116 | 20261123-161116 | Tests are in procedure 02 (18 unit tests plus the live-repository test) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-161116 | 20261123-161116 | ruff, ruff format, mypy (609 files), lint-imports, module size, docstring check, validation gates pass; full suite 13572 passed, 2 failed in tests/db/test_schema_validation_per_database.py (mcp_dedup stamp 2 vs user_version=1, caused by the concurrent mcpdl004 schema bump, unrelated); diff-cover reports no covered lines because the new tool is an untracked file, measured coverage of tools/check_skill_size.py is 97 percent from its own tests |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -417,6 +417,23 @@ ROUTING_GATES: tuple[Gate, ...] = (
         patterns=("config/**",),
     ),
     Gate(
+        name="check_skill_size",
+        command=(("uv", "run", "python", "tools/check_skill_size.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=(
+            "skills/**",
+            "rules/*.md",
+            "prompts/*.md",
+            "templates/*.md",
+            "routing.md",
+            "AGENTS.md",
+            "CLAUDE.md",
+            "tools/check_skill_size.py",
+            "tools/check_skill_size_baseline.txt",
+        ),
+    ),
+    Gate(
         name="generate_reference_table_check",
         command=(
             (

@@ -22,7 +22,7 @@ This is a document-only phase. Allowed operations:
   Step 6.
 - Move the processed Issue file to `issues/done/` once Step 9's validation passes
   (no human approval).
-- See `SKILL.md` Purpose and `skills/DESIGN.md` "Analysis-only phase constraint".
+- See `SKILL.md` Purpose and `rules/skill-runtime.md` "Analysis-only phase constraint".
 - MUST NOT modify files outside `plans/`, `issues/`, and the Issue file being moved
   (`issues/` -> `issues/done/`) — see `AGENTS.md` Global Rule 5.
 
@@ -75,7 +75,7 @@ Read, if not already loaded this session: `routing.md`,
 `rules/ai-execution.md`, `rules/workflow-lifecycle.md`,
 `rules/filename-collision.md`, `templates/traceability.md`,
 `templates/requirement-traceability.md`, `templates/execution-status.md`,
-`templates/issue.md`, `templates/plan.md`, `skills/DESIGN.md` (Output language,
+`templates/issue.md`, `templates/plan.md`, `rules/skill-runtime.md` (Output language,
 Change-impact table, Out-of-scope paths, Tool availability guard), `SKILL.md` (this
 skill), and this file. Load `templates/unknowns-issue.md` / `templates/risks-issue.md` at
 Step 6, only when a standalone Unknown/Risk file is actually filed.
@@ -350,7 +350,7 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 
 #### Generate the Plan
 
-- Output language: see `skills/DESIGN.md` §Output language.
+- Output language: see `rules/skill-runtime.md` §Output language.
 - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`.
 - Immediately before writing the file, repeat Step 1b's content-based search for this
   Issue. Another agent may have written a Plan during Steps 2-5, and a different timestamp
@@ -405,7 +405,7 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
   with all six columns populated (`File`, `Change`, `Blast Radius`, `Churn (30d)`,
   `Bus Factor`, `deploy.sh Impact`). `Change` is `Modify`, `Create`, or `Delete`;
   `Blast Radius` is a qualitative `Low`, `Medium`, or `High`; `deploy.sh Impact` always
-  states a value from `skills/DESIGN.md` Change-impact table. Path A: judge
+  states a value from `rules/skill-runtime.md` Change-impact table. Path A: judge
   `Blast Radius` qualitatively from Step 3's direct verification and mark `Churn (30d)`
   and `Bus Factor` `N/A`. Path B: take `Blast Radius` from the dependency graphing and
   `Churn (30d)` and `Bus Factor` from the historical analysis in `workflow-path-b.md`,
@@ -725,7 +725,7 @@ target Issue, or end the batch if none remain.
 ## Out of Scope
 
 See `rules/workflow-lifecycle.md` Global Safety Restrictions for the full list.
-(Source code / `docs/*.md` scope: `skills/DESIGN.md` Analysis-only phase constraint,
+(Source code / `docs/*.md` scope: `rules/skill-runtime.md` Analysis-only phase constraint,
 declared in `SKILL.md` Purpose. File-scope restrictions: declared above in Allowed
 file operations. Not repeated here.)
 
