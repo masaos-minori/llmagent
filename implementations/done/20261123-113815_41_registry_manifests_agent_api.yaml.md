@@ -11,6 +11,10 @@ In scope: the generated manifest only.
 
 - Verified: the manifest lists per-symbol `file`, `kind`, `name`, and `signature` entries for `scripts/agent`; adding `scripts/agent/mcp_call_recovery.py` and changing `classify_stale_pending` and `WorkflowEngine` signatures changes it.
 - If `--check` is already clean after rows 11-13, 37, and 46, record `no change needed` in Step 1 Notes.
+- Corrected during verification: the manifest records class-level signatures, so a changed
+  `__init__` (`WorkflowEngine`) does not appear; the entries that change are the new module and
+  classes and the `classify_stale_pending` function signature. A `Protocol` class is listed as
+  `kind: class` like any other symbol.
 
 ## Design decisions
 
@@ -62,8 +66,8 @@ Manual edits.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the artifact with the command in Procedure | Pending | — | — | |
-| 2 | Run `uv run python tools/generate_reference_table.py --check` and confirm no drift | Pending | — | — | |
+| 1 | Regenerate the artifact with the command in Procedure | Completed | 20261123-154527 | 20261123-154540 | regenerated with --manifests --type agent; the diff is only the touched modules: the two new classes in scripts/agent/mcp_call_recovery.py, CallStateResolver in tool_call_state_ops, and the classify_stale_pending signature |
+| 2 | Run `uv run python tools/generate_reference_table.py --check` and confirm no drift | Completed | 20261123-154527 | 20261123-154540 | --check reports no drift once the agent documents are regenerated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

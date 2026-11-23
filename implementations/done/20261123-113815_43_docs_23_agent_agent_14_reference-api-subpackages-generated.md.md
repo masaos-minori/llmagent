@@ -62,8 +62,8 @@ Manual edits.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the artifact with the command in Procedure | Pending | — | — | |
-| 2 | Run `uv run python tools/generate_reference_table.py --check` and confirm no drift | Pending | — | — | |
+| 1 | Regenerate the artifact with the command in Procedure | Completed | 20261123-154527 | 20261123-154540 | generator run; the guarded block changed only the CallStateResolver entry and the classify_stale_pending signature line |
+| 2 | Run `uv run python tools/generate_reference_table.py --check` and confirm no drift | Completed | 20261123-154527 | 20261123-154540 | --check reports no drift; documentation checkers pass; the single warning at line 49 (/db command not registered) predates this work |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

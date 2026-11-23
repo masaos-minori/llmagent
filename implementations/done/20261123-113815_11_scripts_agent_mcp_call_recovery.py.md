@@ -9,14 +9,15 @@ In scope: the new module. `tool_runner.py` stays untouched (mcpdl001 AC-6: post-
 
 ## Assumptions
 
-- Verified: `ToolCallState` carries `tool` but no server key, so the service resolves it through an injected `server_for_tool` (new) callable (wired from `ctx.runtime_tools.resolve` in row 37).
+- Verified: `ToolCallState` carries `tool` but no server key, so the service resolves it through an injected `server_for_tool` (new) callable (wired from `ctx.services.runtime_tools.resolve` in row 37).
 - Verified: `classify_stale_pending` applies the resulting state with its own WHERE-guarded UPDATE, so the service returns the mapped state string and does not write to `tool_call_state` itself.
 
 ## Design decisions
 
 - `McpCallRecoveryService(server_configs, server_for_tool, client_factory=ControlClient, timeout_sec=3.0, max_lookups=8)`; `resolve_state(row)` returns one of `AGENT_RECOVERY_STATES` or `None`.
 - `resolve(row)` returns a frozen `RecoveryResolution` (new) (`agent_state`, `result_class`, `external_ref`, `error_code`) for callers that need the result class; secure reference or preview facts come from the control payload only.
-- Unknown server, empty `control_auth_token`, control failure, `unknown_key`, or an out-of-vocabulary payload gives `None` (row stays `outcome_unknown`); at most `max_lookups` (new) control calls run per instance pass so turn entry stays bounded.
+- Unknown server, empty `control_auth_token`, control failure, `unknown_key`, or an out-of-vocabulary payload gives `None` (row stays `outcome_unknown`); at most `max_lookups` (new) control calls run per instance lifetime so turn entry stays bounded.
+- Reflecting verification: no pass boundary is part of the service API, so a per-pass bound is not something the service can enforce. The bound is instance-lifetime state, which is the only reading an implementation can honor; a caller that wants a fresh budget constructs a new instance.
 - `reconcile(row)` calls `request_reconcile` (new) for an operator-triggered path; the resolver never calls it.
 
 ## Alternatives considered
@@ -69,9 +70,9 @@ Stale classification (row 12), engine and orchestrator wiring (rows 13, 37, 47),
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-152455 | 20261123-152455 | module created: frozen RecoveryResolution, per-server-key lazy ControlClient, contract-vocabulary payload validation cross-checked with agent_state_for, fixed refusal labels and call-id prefix logging only |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-152455 | 20261123-152455 | test_mcp_call_recovery.py (row 30): 25 green, covering mapping, no-re-execution, degradation, lookup bound, and the instance-lifetime bound decision recorded in Design decisions |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-152455 | 20261123-152455 | ruff, mypy, lint-imports, bandit (-ll: no findings), docstring and module-size gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

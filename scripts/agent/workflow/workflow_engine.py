@@ -17,6 +17,7 @@ from typing import Protocol
 
 from agent.workflow.models import TaskRecord, WorkflowDef
 from agent.workflow.state_store import StateStore
+from agent.workflow.tool_call_state_ops import CallStateResolver
 
 logger = logging.getLogger(__name__)
 
@@ -135,17 +136,23 @@ class WorkflowEngine:
         store: StateStore,
         pending_timeout_minutes: int = _DEFAULT_PENDING_TIMEOUT_MINUTES,
         tracer: _Span | None = None,
+        call_state_resolver: CallStateResolver | None = None,
     ) -> None:
         """Initialize the workflow engine with its definition, state store, and optional tracer.
 
         *pending_timeout_minutes* is the Agent-side stale-pending timeout window:
         sourced from AgentConfig. Defaults to 10 so direct constructions in tests stay green;
         orchestrator.py passes the real config value.
+
+        *call_state_resolver* is the optional read-only call-state reader consulted for a
+        stale dispatched row (mcpdl004 REQ-005). It defaults to None, so every existing
+        construction behaves as before; the orchestrator passes the recovery service.
         """
         self._wdef = workflow_def
         self._store = store
         self._pending_timeout_seconds = pending_timeout_minutes * 60
         self._tracer = tracer
+        self._call_state_resolver = call_state_resolver
 
     @property
     def version(self) -> str:
@@ -181,7 +188,9 @@ class WorkflowEngine:
         """
         try:
             timeout_seconds = self._pending_timeout_seconds
-            classified = self._store.classify_stale_pending(task_id, timeout_seconds)
+            classified = self._store.classify_stale_pending(
+                task_id, timeout_seconds, resolver=self._call_state_resolver
+            )
         except Exception as exc:  # noqa: BLE001 — turn availability beats replay accuracy; the dispatcher dedup still guards execution
             logger.warning(
                 "Tool-call state detection failed for task %s (%s); proceeding without control message",

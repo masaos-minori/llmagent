@@ -20,6 +20,7 @@ from agent.bg_task_monitor import current_task_target
 from agent.context import ConversationState, TurnState, WorkflowState
 from agent.history import CompressResult, HistoryCompressionError
 from agent.llm_turn_executor import LlmTurnExecutor
+from agent.mcp_call_recovery import McpCallRecoveryService
 from agent.message_schema import ValidationResult
 from agent.orchestrator import BG_FAILURE_THRESHOLD, Orchestrator
 from agent.session import AgentSession, SessionTarget
@@ -802,6 +803,51 @@ class TestToolCallRecorderWiring:
         ctx = _make_ctx()
         ctx.workflow = WorkflowState()
         assert ctx.workflow.tool_call_recorder is None
+
+
+# ── call-state resolver wiring (mcpdl004 REQ-005) ────────────────────────────
+
+
+class TestCallStateResolverWiring:
+    """The engine the orchestrator builds carries the recovery service; an injected
+    engine still wins, and construction itself performs no control I/O."""
+
+    def test_engine_built_by_the_orchestrator_carries_the_resolver(self) -> None:
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        engine = orch._workflow_adapter._workflow_engine
+        resolver = engine._call_state_resolver
+        assert isinstance(resolver, McpCallRecoveryService)
+        assert resolver._configs is ctx.cfg.mcp.mcp_servers
+        # No client exists until the first lookup: construction is not a request.
+        assert resolver._clients == {}
+
+    def test_injected_engine_still_wins(self) -> None:
+        ctx = _make_ctx()
+        injected = MagicMock()
+        orch = _make_orchestrator(ctx, workflow_engine=injected)
+        assert orch._workflow_adapter._workflow_engine is injected
+
+    def test_lazy_lookup_defers_until_services_are_wired(self) -> None:
+        """The lookup is deferred because `services` and the tool registry may not
+        exist yet at construction (mcpdl004 REQ-005)."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        resolver = orch._workflow_adapter._workflow_engine._call_state_resolver
+        registry = MagicMock()
+        registry.resolve.side_effect = lambda tool: (
+            "git" if tool == "git__remote_update" else None
+        )
+        ctx.services.runtime_tools = registry
+        assert resolver._server_for_tool("git__remote_update") == "git"
+        assert resolver._server_for_tool("unknown__tool") is None
+
+        # A context whose services are not built yet cannot resolve anything.
+        ctx2 = _make_ctx()
+        ctx2.services = None
+        orch2 = _make_orchestrator(ctx2)
+        resolver2 = orch2._workflow_adapter._workflow_engine._call_state_resolver
+        assert resolver2._server_for_tool("git__remote_update") is None
 
 
 # ── entry-work failure is not retried (AC-5) ─────────────────────────────────

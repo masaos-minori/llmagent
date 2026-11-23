@@ -64,9 +64,9 @@ Resolver construction and wiring (rows 11, 37, 47).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-152455 | 20261123-152455 | optional call_state_resolver parameter stored as _call_state_resolver and passed as resolver= to StateStore.classify_stale_pending from build_turn_control_message; control-message text and failure handling unchanged |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-152455 | 20261123-152455 | tests/agent/workflow/test_workflow_engine.py: new test asserts turn entry forwards the engine resolver and forwards None for a default construction |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-152455 | 20261123-152455 | ruff, mypy, lint-imports, bandit pass; tests/agent/workflow green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

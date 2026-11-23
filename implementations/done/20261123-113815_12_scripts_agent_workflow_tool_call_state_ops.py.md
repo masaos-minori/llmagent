@@ -15,6 +15,9 @@ In scope: `classify_stale_pending` and a small `CallStateResolver` (new) Protoco
 ## Design decisions
 
 - Define the `CallStateResolver` (new) Protocol with `resolve_state(row) -> str | None` (row type `ToolCallState`); add keyword `resolver: CallStateResolver | None = None` to `classify_stale_pending`.
+- Reflecting verification: `_STALE_SCAN_SQL` selects `idempotency_key` and `state` only, so the resolver is given the complete `ToolCallState` read through the existing `get_tool_call_state()` helper rather than the scan row. The scan itself is unchanged.
+- Reflecting verification: `AgentContext` exposes the registry through `ctx.services.runtime_tools` and the config map through `ctx.cfg.mcp.mcp_servers`; row 37 reads them through those paths.
+
 - For a source state in the dispatched group: target is `outcome_unknown` unless the resolver returns `completed`, `failed`, or `reconciliation_required`; `in_progress` skips the row; any other value, `None`, or a resolver exception keeps `outcome_unknown` (exception logged by class name).
 - Without a resolver the function behaves byte-identically to today.
 
@@ -66,9 +69,9 @@ The resolver implementation (row 11) and its wiring (rows 13, 37, 47).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-152455 | 20261123-152455 | CallStateResolver Protocol and resolver keyword added; the scan selects key and state only, so the resolver receives the full row through get_tool_call_state; in_progress rows are skipped and not returned, and a resolver failure keeps the prior outcome_unknown |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-152455 | 20261123-152455 | tests/agent/workflow/test_workflow_state_store.py (new pass-through test) and tests/agent/test_mcp_call_recovery.py (mapping, no-resolver parity, in_progress skip, resolver-failure and out-of-vocabulary degradation) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-152455 | 20261123-152455 | ruff, mypy, lint-imports, bandit pass; tests/agent/workflow (373) and the recovery tests (25) green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

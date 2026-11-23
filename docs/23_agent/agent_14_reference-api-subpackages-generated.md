@@ -229,10 +229,11 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `get_task_count` | `def get_task_count(db, session_id) -> int` | Return the number of tasks associated with a session. |
 |  | `get_workflow_count` | `def get_workflow_count(db, session_id) -> int` | Return the number of distinct workflows for a session. |
 | `scripts/agent/workflow/tool_call_state_ops.py` | `ToolCallState` | `class ToolCallState` | Database record for one tool-call lifecycle row. |
+|  | `CallStateResolver` | `class CallStateResolver` | The seam stale classification consults for an already-dispatched row. |
 |  | `record_tool_call` | `def record_tool_call(db, task_id, idempotency_key, tool, retry_class) -> None` | Insert a tool-call row in state 'pending'. |
 |  | `finalize_tool_call` | `def finalize_tool_call(db, idempotency_key, state) -> None` | Move a tool-call row to another state in the intent vocabulary, bumping |
 |  | `pending_tool_calls` | `def pending_tool_calls(db, task_id) -> list[ToolCallState]` | Return the task's pending tool-call rows, oldest first. |
-|  | `classify_stale_pending` | `def classify_stale_pending(db, task_id, timeout_seconds) -> list[ToolCallState]` | Transition this task's timed-out tool-call rows by dispatch stage. |
+|  | `classify_stale_pending` | `def classify_stale_pending(db, task_id, timeout_seconds, resolver) -> list[ToolCallState]` | Transition this task's timed-out tool-call rows by dispatch stage. |
 |  | `get_tool_call_state` | `def get_tool_call_state(db, idempotency_key) -> ToolCallState \| None` | Return one tool-call row by key, or None if absent. |
 | `scripts/agent/workflow/validate.py` | `validate_path` | `def validate_path(path) -> WorkflowDef` | Return the loaded WorkflowDef, or raise WorkflowLoadError if invalid. |
 |  | `main` | `def main() -> int` | Validate a workflow definition JSON file against the schema. |

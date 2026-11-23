@@ -12,12 +12,16 @@ table (unlike the ISO-8601 TEXT columns of the older workflow tables).
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
+from typing import Protocol
 
 from db.helper import SQLiteHelper
 
 from agent.workflow.models import TOOL_CALL_STATES
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -33,6 +37,17 @@ class ToolCallState:
     retry_class: str
     created_at: float  # epoch seconds
     updated_at: float  # epoch seconds
+
+
+class CallStateResolver(Protocol):
+    """The seam stale classification consults for an already-dispatched row.
+
+    Implementations read evidence and return a state from the shared mapping table, or
+    None when nothing can be established. They never write a tool_call_state row: the
+    guarded UPDATE below is the only writer, so a resolver cannot race it.
+    """
+
+    def resolve_state(self, row: ToolCallState) -> str | None: ...
 
 
 def _row_to_state(r: object) -> ToolCallState:
@@ -125,8 +140,41 @@ _STALE_SCAN_SQL = (
 )
 
 
+def _resolved_target(
+    resolver: CallStateResolver, row: ToolCallState | None
+) -> str | None:
+    """Target state for a dispatched row, or None when the row must be left alone.
+
+    A resolver that establishes nothing, or returns a value outside this vocabulary,
+    leaves the row at the outcome it would have had without a resolver. `in_progress` is
+    a recovery outcome only (mcpdl004 REQ-005): it is not a tool_call_state state, so
+    the row stays as it is and is not listed to turn control.
+    """
+    if row is None:
+        return "outcome_unknown"
+    try:
+        value = resolver.resolve_state(row)
+    except Exception as exc:  # noqa: BLE001 — a resolver is optional evidence; its failure must not change a row that was already going to be classified
+        logger.warning(
+            "event=call_state_resolver label=resolver_failed call=%s error=%s",
+            row.idempotency_key[:8],
+            type(exc).__name__,
+        )
+        return "outcome_unknown"
+    if value is None:
+        return "outcome_unknown"
+    if value == "in_progress":
+        return None
+    if value not in TOOL_CALL_STATES:
+        return "outcome_unknown"
+    return value
+
+
 def classify_stale_pending(
-    db: SQLiteHelper, task_id: str, timeout_seconds: float
+    db: SQLiteHelper,
+    task_id: str,
+    timeout_seconds: float,
+    resolver: CallStateResolver | None = None,
 ) -> list[ToolCallState]:
     """Transition this task's timed-out tool-call rows by dispatch stage.
 
@@ -134,6 +182,14 @@ def classify_stale_pending(
     ``interrupted`` — the replayable outcome callers have always seen. Rows at
     ``dispatched``/``response_received`` become ``outcome_unknown``: the request
     may have executed server-side, so automatic replay is forbidden (AC-6).
+
+    With a ``resolver`` (mcpdl004 REQ-005), a dispatched row is asked before the
+    decision is made, and the answer it gives replaces ``outcome_unknown`` when
+    that answer is a state this vocabulary can store. ``in_progress`` is not a
+    stored state, so such a row is left untouched and not listed. Without a
+    resolver the behavior is byte-identical to before, and a resolver failure
+    never changes a row that would otherwise have become ``outcome_unknown``. No
+    resolver re-executes a handler here: it reports what it read.
 
     Idempotent on re-run: only rows still in the source state listed beside
     them are transitioned, and the transition happens inside the WHERE-guarded
@@ -150,11 +206,19 @@ def classify_stale_pending(
     now = time.time()
     for row in rows:
         source_state = str(row["state"])
-        target_state = (
+        target_state: str | None = (
             "interrupted"
             if source_state in _STALE_REPLAYABLE_STATES
             else "outcome_unknown"
         )
+        if resolver is not None and source_state in _STALE_OUTCOME_UNKNOWN_STATES:
+            # The scan selects key and state only, so the resolver is given the full
+            # tool-call record through the existing helper.
+            target_state = _resolved_target(
+                resolver, get_tool_call_state(db, str(row["idempotency_key"]))
+            )
+        if target_state is None:
+            continue
         cursor = db.execute(
             "UPDATE tool_call_state SET state=?, updated_at=?"
             " WHERE idempotency_key=? AND state=?",

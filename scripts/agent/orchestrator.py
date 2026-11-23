@@ -34,6 +34,7 @@ from agent.context import AgentContext
 from agent.conversation_state_manager import ConversationStateManager
 from agent.diagnostic_store import DiagnosticStore
 from agent.llm_turn_executor import LlmTurnExecutor
+from agent.mcp_call_recovery import McpCallRecoveryService
 from agent.output_tags import OutputTag
 from agent.turn_persistence import ConversationPersistenceError
 from agent.workflow import (
@@ -136,6 +137,13 @@ class Orchestrator:
                 f"({WORKFLOWS_DIR / 'default.json'}): {exc}"
             ) from exc
 
+        def server_for_tool(tool_name: str) -> str | None:
+            # Services and the tool registry may not be wired yet at construction, so the
+            # lookup is lazy and answers None when nothing can (mcpdl004 REQ-005).
+            services = self._ctx.services
+            registry = services.runtime_tools if services is not None else None
+            return registry.resolve(tool_name) if registry is not None else None
+
         _engine = (
             workflow_engine
             if workflow_engine is not None
@@ -144,6 +152,9 @@ class Orchestrator:
                 self._state_store,
                 pending_timeout_minutes=self._ctx.cfg.pending_timeout_minutes,
                 tracer=tracer,
+                call_state_resolver=McpCallRecoveryService(
+                    self._ctx.cfg.mcp.mcp_servers, server_for_tool
+                ),
             )
         )
         self._workflow_adapter = WorkflowEngineAdapter(

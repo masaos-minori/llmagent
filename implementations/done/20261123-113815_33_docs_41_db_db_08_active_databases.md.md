@@ -64,8 +64,8 @@ Other db documents (rows 44 and 45).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-155500 | 20261123-155500 | version 2 in the Schema authority bullet; Row semantics lists the five nullable result-metadata columns and the four result classes, stating they are filled only at terminal finalization (completed records the stored result, failed records replay_unavailable with the error class); runbook paragraph names the version bump as a schema_mismatch cause with no in-place migration |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Completed | 20261123-155500 | 20261123-155500 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_consistency --domain db pass; test_generate_reference_table is green for docs drift, the only remaining failure is the stale agent_api.yaml manifest that row 41 regenerates |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

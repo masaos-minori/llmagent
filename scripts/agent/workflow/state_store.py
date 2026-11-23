@@ -30,7 +30,7 @@ from agent.workflow.task_ops import (
     get_workflow_count,
     update_task_status,
 )
-from agent.workflow.tool_call_state_ops import ToolCallState
+from agent.workflow.tool_call_state_ops import CallStateResolver, ToolCallState
 
 logger = logging.getLogger(__name__)
 
@@ -159,13 +159,21 @@ class StateStore:
         tool_call_state_ops.finalize_tool_call(self._db, call_id, state)
 
     def classify_stale_pending(
-        self, task_id: str, timeout_seconds: float
+        self,
+        task_id: str,
+        timeout_seconds: float,
+        resolver: CallStateResolver | None = None,
     ) -> list[ToolCallState]:
         """Transition this task's timed-out tool-call rows by dispatch stage:
         never-dispatched rows become 'interrupted' (replayable), dispatched rows
-        become 'outcome_unknown' (never replayed)."""
+        become 'outcome_unknown' (never replayed).
+
+        `resolver` (mcpdl004 REQ-005) is the optional call-state reader consulted for a
+        dispatched row before its target is decided; pass-through only, so the store
+        stays free of control-plane logic. Without it the behavior is unchanged.
+        """
         return tool_call_state_ops.classify_stale_pending(
-            self._db, task_id, timeout_seconds
+            self._db, task_id, timeout_seconds, resolver=resolver
         )
 
     # ── Artifact ─────────────────────────────────────────────────────────────

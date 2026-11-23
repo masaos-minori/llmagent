@@ -9,12 +9,13 @@ In scope: the `WorkflowEngine(...)` construction block only. An injected `workfl
 
 ## Assumptions
 
-- Verified: `Orchestrator` builds `WorkflowEngine(self._workflow_def, self._state_store, pending_timeout_minutes=..., tracer=...)` only when no engine is injected, and `ctx.cfg.mcp_servers` holds the `McpServerConfig` map.
-- Verified: `ctx.runtime_tools` is an optional `RuntimeToolRegistry` with `resolve(tool_name)` returning the owning server key; it may not be set yet at construction, so the lookup is a lazy callable.
+- Corrected by verification: `AgentContext` has no `runtime_tools` attribute; the registry is reached through `ctx.services.runtime_tools`, and `services` may be None before `build_agent_context()` completes. The lazy lookup answers `None` in that case.
+- Corrected by verification: `AgentConfig` holds the map as `ctx.cfg.mcp.mcp_servers` (`MCPConfig`), not `ctx.cfg.mcp_servers`. The construction reads it through that path.
+- Verified: `Orchestrator` builds `WorkflowEngine(self._workflow_def, self._state_store, pending_timeout_minutes=..., tracer=...)` only when no engine is injected.
 
 ## Design decisions
 
-- Pass `call_state_resolver=McpCallRecoveryService(cfg.mcp_servers, server_for_tool)` where `server_for_tool` returns `None` when `ctx.runtime_tools` is absent or the tool is unknown.
+- Pass `call_state_resolver=McpCallRecoveryService(self._ctx.cfg.mcp.mcp_servers, server_for_tool)` where `server_for_tool` returns `None` when `self._ctx.services` or its `runtime_tools` is absent, or the tool is unknown.
 
 ## Alternatives considered
 
@@ -64,9 +65,9 @@ Service logic (row 11) and engine plumbing (rows 13, 47).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-152455 | 20261123-152455 | lazy server_for_tool closure reads self._ctx.services.runtime_tools and answers None when services are not wired; the service is built from self._ctx.cfg.mcp.mcp_servers and passed only in the non-injected path; construction performs no I/O |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-152455 | 20261123-152455 | tests/agent/test_orchestrator.py: new TestCallStateResolverWiring asserts the built engine carries the service, an injected engine still wins, and the lazy lookup answers None before services are wired |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-152455 | 20261123-152455 | ruff, mypy, lint-imports, bandit pass; tests/agent/test_orchestrator.py green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

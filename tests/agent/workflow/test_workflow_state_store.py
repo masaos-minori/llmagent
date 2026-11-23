@@ -1059,3 +1059,65 @@ class TestToolCallStateOps:
         }
         # Idempotent on re-run; outcome_unknown rows never re-enter the scan.
         assert store.classify_stale_pending(task.task_id, 60.0) == []
+
+    def test_classify_stale_pending_forwards_the_resolver(self, store) -> None:
+        """mcpdl004 REQ-005: the wrapper passes the resolver to the classifier, and the
+        answer it gives replaces 'outcome_unknown' for the row it read."""
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        store.record_tool_call(
+            task.task_id, "sent", "git__remote_update", "non_retryable"
+        )
+        store.finalize_tool_call("sent", "dispatched")
+        store._db.execute(
+            "UPDATE tool_call_state SET created_at=?", (time.time() - 120,)
+        )
+        store._db.commit()
+
+        seen: list[str] = []
+
+        class _Recorder:
+            def resolve_state(self, row) -> str | None:
+                seen.append(row.idempotency_key)
+                return "completed"
+
+        stale = store.classify_stale_pending(task.task_id, 60.0, resolver=_Recorder())
+        assert seen == ["sent"]
+        assert [(c.idempotency_key, c.state) for c in stale] == [("sent", "completed")]
+        # Without the resolver the same row keeps the outcome it would have had.
+        assert store.classify_stale_pending(task.task_id, 60.0) == []
+
+    def test_resolver_answers_that_cannot_be_stored(self, store) -> None:
+        """Closed-vocabulary guard: an answer that is nothing, outside the vocabulary, or
+        an error leaves the row at 'outcome_unknown', the outcome it would have had
+        without a resolver (mcpdl004 REQ-005). A missing row is the same answer."""
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        answers = {
+            "nothing": None,
+            "outside": "reused_completed",
+            "error": RuntimeError("evidence read failed"),
+        }
+        for key in answers:
+            store.record_tool_call(
+                task.task_id, key, "git__remote_update", "non_retryable"
+            )
+            store.finalize_tool_call(key, "dispatched")
+        store._db.execute(
+            "UPDATE tool_call_state SET created_at=?", (time.time() - 120,)
+        )
+        store._db.commit()
+
+        class _Answering:
+            def resolve_state(self, row) -> str | None:
+                answer = answers[row.idempotency_key]
+                if isinstance(answer, Exception):
+                    raise answer
+                return answer
+
+        stale = store.classify_stale_pending(task.task_id, 60.0, resolver=_Answering())
+        assert {c.idempotency_key: c.state for c in stale} == {
+            key: "outcome_unknown" for key in answers
+        }
+        # A row the resolver cannot see is the same answer, and no row is written.
+        assert tool_call_state_ops._resolved_target(_Answering(), None) == (
+            "outcome_unknown"
+        )

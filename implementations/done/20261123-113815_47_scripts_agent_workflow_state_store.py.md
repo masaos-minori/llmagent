@@ -62,9 +62,9 @@ Resolver implementation and engine plumbing.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-152455 | 20261123-152455 | resolver keyword added to the classify_stale_pending wrapper and forwarded; no control-plane logic in the store |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-152455 | 20261123-152455 | tests/agent/workflow/test_workflow_state_store.py: new test asserts the wrapper forwards the resolver and that the answer replaces outcome_unknown |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-152455 | 20261123-152455 | ruff, mypy, lint-imports, bandit pass; tests/agent/workflow (373) green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

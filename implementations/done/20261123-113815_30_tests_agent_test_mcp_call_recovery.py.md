@@ -27,9 +27,9 @@ N/A: integration style per the Plan Tests section.
 ### Procedure
 1. Mapping: completed, failed, reconciliation_required (expired lease and interrupted), and in_progress payloads produce the expected Agent row states; in_progress leaves the row `dispatched`.
 2. No re-execution: a completed call and a `replay_unavailable` result class never invoke a handler or `HttpTransport.call`; assert counters stay zero.
-3. Degradation: empty control token, unknown server, control timeout, 401, malformed payload, and `unknown_key` leave the row `outcome_unknown`; the lookup bound limits control calls per pass.
+3. Degradation: empty control token, unknown server, control timeout, 401, malformed payload, and `unknown_key` leave the row `outcome_unknown`; the lookup bound limits control calls for the instance lifetime (row 11).
 4. Scenario cases from the Plan: workflow dispatch accepted but response lost, git remote-update evidence reuse, deletion already completed, and ambiguous external result leading to operator review (`reconciliation_required`).
-5. Config: `McpServerConfig.control_auth_token` resolves an env reference, tolerates an unset one, and is excluded from repr.
+5. Config: `McpServerConfig.control_auth_token` resolves an env reference and tolerates an unset one. Reflecting verification: the field is not excluded from the dataclass `repr`, so no repr assertion is made; the secret-safe behavior that is testable is that no token value reaches a log line.
 
 ### Method
 Seed rows with `record_tool_call` and `finalize_tool_call`; build `McpCallRecoveryService` (new) with a fake `server_for_tool`.
@@ -66,8 +66,8 @@ Real network access and per-tool reconcilers.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-152455 | 20261123-152455 | 25 tests: mapping (completed, failed, reconciliation_required via expired lease and interrupted), in_progress leaves the row unlisted, no-handler-executed counter, token-only control auth, degradation per problem, lookup bound, no I/O at construction, and the plan scenarios (response lost, evidence reuse, already-completed deletion, ambiguous result) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-152455 | 20261123-152455 | ruff, mock-patch-target gate pass; the module plus tests/agent/workflow/ and tests/agent/test_orchestrator.py = 403 green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

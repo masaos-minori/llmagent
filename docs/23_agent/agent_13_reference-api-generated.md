@@ -93,6 +93,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/lifecycle_router.py` | `StartSuppressedError` | `class StartSuppressedError` | Raised when a start is refused because the lifecycle router is shutting down. |
 | `scripts/agent/llm_turn_executor.py` | `LlmTurnExecutor` | `class LlmTurnExecutor` | Executes an LLM turn: streaming + inner tool-call loop. |
 | `scripts/agent/llm_turn_runner.py` | `LLMTurnRunner` | `class LLMTurnRunner` | Manages the inner LLM streaming + tool-call loop for one agent turn. |
+| `scripts/agent/mcp_call_recovery.py` | `RecoveryResolution` | `class RecoveryResolution` | Validated answer for one stale call. |
+|  | `McpCallRecoveryService` | `class McpCallRecoveryService` | One control read per stale row, through the typed control client. |
 | `scripts/agent/mdq_rag_classifier.py` | `MdqRagMode` | `class MdqRagMode` | Mode for selecting between MDQ and RAG search strategies. |
 |  | `classify_query` | `def classify_query(query) -> MdqRagMode` | Return MDQ if query contains Markdown-structural terms; RAG otherwise. |
 |  | `resolve_mode` | `def resolve_mode(query, config_mode) -> MdqRagMode` | Config override takes precedence; AUTO falls back to classifier heuristics. |

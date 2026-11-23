@@ -63,8 +63,8 @@ The active-databases document (row 33).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-154853 | 20261123-154853 | both version statements now say 2; the result-metadata columns and the four result classes are stated next to the sentinel paragraph, with the preview built by redacting first and then cutting to the preview length (the previous wording said first 1000 chars of the raw result); the replay decision table is unchanged; pointer to the control-endpoints document added |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Completed | 20261123-154853 | 20261123-154853 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_consistency --domain db pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

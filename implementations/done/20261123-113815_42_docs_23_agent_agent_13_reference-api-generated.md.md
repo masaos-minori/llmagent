@@ -62,8 +62,8 @@ Manual edits.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the artifact with the command in Procedure | Pending | — | — | |
-| 2 | Run `uv run python tools/generate_reference_table.py --check` and confirm no drift | Pending | — | — | |
+| 1 | Regenerate the artifact with the command in Procedure | Completed | 20261123-154527 | 20261123-154540 | generator run; the guarded block gained only the two entries for scripts/agent/mcp_call_recovery.py |
+| 2 | Run `uv run python tools/generate_reference_table.py --check` and confirm no drift | Completed | 20261123-154527 | 20261123-154540 | --check reports no drift; check_docs_quality, check_docs_structure, check_docs_content_policy pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

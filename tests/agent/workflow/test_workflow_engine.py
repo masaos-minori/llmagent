@@ -843,6 +843,29 @@ class TestBuildTurnControlMessage:
         ):
             assert engine.build_turn_control_message(task.task_id) is None
 
+    def test_call_state_resolver_is_forwarded_to_the_store(self, store) -> None:
+        """mcpdl004 REQ-005: turn entry hands the engine's resolver to stale
+        classification. An engine built without one forwards None, so existing
+        constructions classify rows exactly as before."""
+        task = create_task(store._db, "s1", 1, "1.0.0", "wf")
+        resolver = object()
+        seen: list[object] = []
+
+        def fake(task_id, timeout_seconds, resolver=None):
+            seen.append(resolver)
+            return []
+
+        with patch.object(type(store), "classify_stale_pending", side_effect=fake):
+            engine = WorkflowEngine(_make_wdef(), store, call_state_resolver=resolver)
+            assert engine.build_turn_control_message(task.task_id) is None
+        assert seen == [resolver]
+
+        seen.clear()
+        with patch.object(type(store), "classify_stale_pending", side_effect=fake):
+            plain = WorkflowEngine(_make_wdef(), store)
+            assert plain.build_turn_control_message(task.task_id) is None
+        assert seen == [None]
+
     def test_pending_timeout_constructor_larger_window(self, store) -> None:
         """SEQ-03: the constructor's pending_timeout_minutes sets the stale window —
         a 2h-old row stays 'pending' (not listed) when the configured window is 4h."""

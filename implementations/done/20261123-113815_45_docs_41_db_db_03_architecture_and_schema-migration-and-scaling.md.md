@@ -61,8 +61,8 @@ Other rows of the table.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-155132 | 20261123-155132 | the mcp_dedup.sqlite row now states version 2 and the nullable result-metadata columns on dedup_call_state; the recovery column is unchanged |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Completed | 20261123-155132 | 20261123-155132 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_consistency --domain db pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -496,6 +496,16 @@ entries:
   name: LLMTurnRunner
   signature: class LLMTurnRunner
   summary: Manages the inner LLM streaming + tool-call loop for one agent turn.
+- file: scripts/agent/mcp_call_recovery.py
+  kind: class
+  name: RecoveryResolution
+  signature: class RecoveryResolution
+  summary: Validated answer for one stale call.
+- file: scripts/agent/mcp_call_recovery.py
+  kind: class
+  name: McpCallRecoveryService
+  signature: class McpCallRecoveryService
+  summary: One control read per stale row, through the typed control client.
 - file: scripts/agent/mdq_rag_classifier.py
   kind: class
   name: MdqRagMode
@@ -1923,6 +1933,11 @@ entries:
   signature: class ToolCallState
   summary: Database record for one tool-call lifecycle row.
 - file: scripts/agent/workflow/tool_call_state_ops.py
+  kind: class
+  name: CallStateResolver
+  signature: class CallStateResolver
+  summary: The seam stale classification consults for an already-dispatched row.
+- file: scripts/agent/workflow/tool_call_state_ops.py
   kind: function
   name: record_tool_call
   signature: def record_tool_call(db, task_id, idempotency_key, tool, retry_class)
@@ -1941,7 +1956,8 @@ entries:
 - file: scripts/agent/workflow/tool_call_state_ops.py
   kind: function
   name: classify_stale_pending
-  signature: def classify_stale_pending(db, task_id, timeout_seconds) -> list[ToolCallState]
+  signature: def classify_stale_pending(db, task_id, timeout_seconds, resolver) ->
+    list[ToolCallState]
   summary: Transition this task's timed-out tool-call rows by dispatch stage.
 - file: scripts/agent/workflow/tool_call_state_ops.py
   kind: function
