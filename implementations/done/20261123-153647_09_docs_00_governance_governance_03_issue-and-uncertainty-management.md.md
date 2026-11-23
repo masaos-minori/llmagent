@@ -66,8 +66,8 @@ NC-003, ADR-006, ADR-013.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-153847 | 20261123-154223 | Edited the target text as described |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Completed | 20261123-154223 | 20261123-154223 | conformance, NC inventory, docs structure checkers and validation gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -66,14 +66,6 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/conversation_state_manager.py` | `ConversationStateManager` | `class ConversationStateManager` | Manages conversation history state across turns. |
 | `scripts/agent/diagnostic_store.py` | `DiagnosticStore` | `class DiagnosticStore` | Dedicated store for diagnostic messages, separate from conversation history. |
 | `scripts/agent/error_injection_service.py` | `ErrorInjectionService` | `class ErrorInjectionService` | Service for handling synthetic error injection in agent turns. |
-| `scripts/agent/eventbus_subscriber.py` | `EventBusStreamError` | `class EventBusStreamError` | Raised when the subscribe stream cannot be established or maintained |
-|  | `EventBusSubscriberConfig` | `class EventBusSubscriberConfig` | Configuration for the Event Bus SSE subscribe client connection. |
-|  | `EventBusEvent` | `class EventBusEvent` | One event received from the SSE stream. |
-|  | `EventBusSubscriber` | `class EventBusSubscriber` | Async SSE client for Event Bus's /subscribe endpoint. |
-| `scripts/agent/eventbus_topic_admin_client.py` | `EventBusTopicAdminErrorKind` | `class EventBusTopicAdminErrorKind` | Enumeration of admin-update failure reasons. |
-|  | `EventBusTopicAdminResult` | `class EventBusTopicAdminResult` | Result of an authorization-update attempt. |
-|  | `EventBusTopicAdminClientConfig` | `class EventBusTopicAdminClientConfig` | Configuration for the Event Bus admin topics-authorization client. |
-|  | `EventBusTopicAdminClient` | `class EventBusTopicAdminClient` | Async HTTP client for Event Bus's admin topics-authorization endpoint. |
 | `scripts/agent/factory.py` | `LlmClientResult` | `class LlmClientResult` | Result of building httpx.AsyncClient and LLMClient. |
 |  | `ToolExecutorResult` | `class ToolExecutorResult` | Result of building ToolExecutor, lifecycle manager, and health registry. |
 |  | `HistoryManagerResult` | `class HistoryManagerResult` | Result of building HistoryManager. |

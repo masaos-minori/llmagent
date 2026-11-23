@@ -129,9 +129,9 @@ Yes: `agent_02`, `governance_05`, the governance inventory, and the generated re
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Retirement | In Progress | — | — |  |
-| 2 | Phase 2: Documents | In Progress | — | — |  |
-| 3 | Phase 3: Inventory and verification | In Progress | — | — |  |
+| 1 | Phase 1: Retirement | Completed | — | 20261123-154235 |  |
+| 2 | Phase 2: Documents | Completed | — | 20261123-154235 |  |
+| 3 | Phase 3: Inventory and verification | Completed | — | 20261123-154235 | Checkers and gates pass; full suite has 2 unrelated failures from the concurrent mcpdl004 schema bump |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -141,13 +141,13 @@ Yes: `agent_02`, `governance_05`, the governance inventory, and the generated re
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261123-153647_03_scripts_agent_eventbus_subscriber.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261123-153647_04_scripts_agent_eventbus_topic_admin_client.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261123-153647_05_registry_manifests_agent_api.yaml.md | 1 | Procedure | Pending | — | — |
-| implementations/20261123-153647_06_docs_23_agent_agent_13_reference-api-generated.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261123-153647_07_docs_23_agent_agent_02_runtime-architecture.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261123-153647_08_docs_00_governance_governance_05_change-impact-and-dependency-graphs.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261123-153647_09_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-153647_03_scripts_agent_eventbus_subscriber.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-153647_04_scripts_agent_eventbus_topic_admin_client.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-153647_05_registry_manifests_agent_api.yaml.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-153647_06_docs_23_agent_agent_13_reference-api-generated.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-153647_07_docs_23_agent_agent_02_runtime-architecture.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-153647_08_docs_00_governance_governance_05_change-impact-and-dependency-graphs.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-153647_09_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

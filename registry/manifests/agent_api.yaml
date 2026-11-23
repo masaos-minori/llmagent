@@ -358,46 +358,6 @@ entries:
   name: ErrorInjectionService
   signature: class ErrorInjectionService
   summary: Service for handling synthetic error injection in agent turns.
-- file: scripts/agent/eventbus_subscriber.py
-  kind: class
-  name: EventBusStreamError
-  signature: class EventBusStreamError
-  summary: Raised when the subscribe stream cannot be established or maintained
-- file: scripts/agent/eventbus_subscriber.py
-  kind: class
-  name: EventBusSubscriberConfig
-  signature: class EventBusSubscriberConfig
-  summary: Configuration for the Event Bus SSE subscribe client connection.
-- file: scripts/agent/eventbus_subscriber.py
-  kind: class
-  name: EventBusEvent
-  signature: class EventBusEvent
-  summary: One event received from the SSE stream.
-- file: scripts/agent/eventbus_subscriber.py
-  kind: class
-  name: EventBusSubscriber
-  signature: class EventBusSubscriber
-  summary: Async SSE client for Event Bus's /subscribe endpoint.
-- file: scripts/agent/eventbus_topic_admin_client.py
-  kind: class
-  name: EventBusTopicAdminErrorKind
-  signature: class EventBusTopicAdminErrorKind
-  summary: Enumeration of admin-update failure reasons.
-- file: scripts/agent/eventbus_topic_admin_client.py
-  kind: class
-  name: EventBusTopicAdminResult
-  signature: class EventBusTopicAdminResult
-  summary: Result of an authorization-update attempt.
-- file: scripts/agent/eventbus_topic_admin_client.py
-  kind: class
-  name: EventBusTopicAdminClientConfig
-  signature: class EventBusTopicAdminClientConfig
-  summary: Configuration for the Event Bus admin topics-authorization client.
-- file: scripts/agent/eventbus_topic_admin_client.py
-  kind: class
-  name: EventBusTopicAdminClient
-  signature: class EventBusTopicAdminClient
-  summary: Async HTTP client for Event Bus's admin topics-authorization endpoint.
 - file: scripts/agent/factory.py
   kind: class
   name: LlmClientResult

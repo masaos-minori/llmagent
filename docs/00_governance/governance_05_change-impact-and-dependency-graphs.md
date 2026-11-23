@@ -138,9 +138,7 @@ Not an edge: `Agent → RAG`. `scripts/agent/services/rag_maintenance_service.py
 ingestion reach the Agent only through the generic `Agent → MCP` edge.
 
 Not represented as an edge:
-- Agent, RAG or MCP → EventBus: no runtime component calls the Event Bus. The
-  client modules under `scripts/agent/` (the subscriber and the topic-admin client) are
-  imported only by their unit tests, so they create no runtime dependency.
+- Agent, RAG or MCP → EventBus: no runtime component calls the Event Bus.
   eventbus.sqlite is created, archived, and verified by the EventBus service and its
   own tooling, not by the Agent or the DB layer.
 

@@ -1,16 +1,16 @@
 ## Goal
 
-Retire the unused agent-side module `scripts/agent/eventbus_topic_admin_client.py` (`EventBusTopicAdminClient`, the admin topics-authorization client) as the maintainer decided on 2026-11-23, together with its only importer, `tests/agent/test_eventbus_topic_admin_client.py`.
+Retire the unused agent-side module `scripts/agent/eventbus_subscriber.py` (`EventBusSubscriber`, the SSE subscribe client) as the maintainer decided on 2026-11-23, together with its only importer, `tests/agent/test_eventbus_subscriber.py`.
 
 ## Scope
 **Release unit**: eventbus-client-retirement
 
-In scope: deleting `tests/agent/test_eventbus_topic_admin_client.py` first and then `scripts/agent/eventbus_topic_admin_client.py`. The sibling module and the generated artifacts are other procedures of the same release unit.
+In scope: deleting `tests/agent/test_eventbus_subscriber.py` first and then `scripts/agent/eventbus_subscriber.py`. The sibling module and the generated artifacts are other procedures of the same release unit.
 
 ## Assumptions
 
 - Maintainer decision (2026-11-23, recorded in the Plan): retire both client modules; the EventBus service and NC-003 stay unchanged.
-- Verified in this cycle: `rg` over scripts, tests, tools, deploy, config, and .github finds `eventbus_topic_admin_client` only in its own test file and in generated reference text; no runtime component imports it.
+- Verified in this cycle: `rg` over scripts, tests, tools, deploy, config, and .github finds `eventbus_subscriber` only in its own test file and in generated reference text; no runtime component imports it.
 - The removed code stays recoverable from Git history (`60aad9290`, `0effc5b08`).
 
 ## Design decisions
@@ -24,11 +24,11 @@ Rejected: keeping the module with a note (the maintainer chose retirement).
 
 ## Implementation
 ### Target file
-`scripts/agent/eventbus_topic_admin_client.py`
+`scripts/agent/eventbus_subscriber.py`
 
 ### Procedure
-1. Delete `tests/agent/test_eventbus_topic_admin_client.py` (companion).
-2. Delete `scripts/agent/eventbus_topic_admin_client.py`.
+1. Delete `tests/agent/test_eventbus_subscriber.py` (companion).
+2. Delete `scripts/agent/eventbus_subscriber.py`.
 3. Run the import scan from Validation plan; it must list no match.
 
 ### Method
@@ -39,12 +39,12 @@ Use `git rm` through the normal edit flow (a plain file removal staged by the co
 - Run the targeted tests after both deletions land together with the sibling module procedure (release unit).
 
 ### Companion test files
-- `tests/agent/test_eventbus_topic_admin_client.py`
+- `tests/agent/test_eventbus_subscriber.py`
   - Procedure: delete the file (retired together with its subject)
   - Validation: collection of `tests/agent` succeeds and the import scan lists nothing
 
 ### Companion test files
-- `tests/agent/test_eventbus_topic_admin_client.py`
+- `tests/agent/test_eventbus_subscriber.py`
   - Procedure: delete the file (retired together with its subject)
   - Validation: collection of `tests/agent` succeeds and the import scan lists nothing
 
@@ -68,7 +68,7 @@ Restore the two files from Git history (`git checkout <commit> -- <path>` for th
 
 ## Completion criteria
 
-- `scripts/agent/eventbus_topic_admin_client.py` and `tests/agent/test_eventbus_topic_admin_client.py` no longer exist and no file references them.
+- `scripts/agent/eventbus_subscriber.py` and `tests/agent/test_eventbus_subscriber.py` no longer exist and no file references them.
 
 ## Out of Scope
 
@@ -79,9 +79,9 @@ The sibling module, generated artifacts, documents, and the EventBus service.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-153846 | 20261123-154223 | Deleted the test and the module; import scan lists nothing |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-154223 | 20261123-154223 | N/A: the companion test is deleted with its subject; tests/agent collects |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-154223 | 20261123-154223 | ruff, mypy (608 files), lint-imports, module size, gates pass; full suite 13554 passed, 2 failed in tests/db/test_schema_validation_per_database.py (mcp_dedup stamp 2 vs user_version=1, caused by the concurrent mcpdl004 schema bump, unrelated to this change); diff-cover N/A (deletions only) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -101,4 +101,4 @@ The sibling module, generated artifacts, documents, and the EventBus service.
 - **Source plan**: plans/20261123-111218_gov004_eventbus-client-decision.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261123-153647
-- **Related target files**: `scripts/agent/eventbus_topic_admin_client.py`, `tests/agent/test_eventbus_topic_admin_client.py`
+- **Related target files**: `scripts/agent/eventbus_subscriber.py`, `tests/agent/test_eventbus_subscriber.py`
