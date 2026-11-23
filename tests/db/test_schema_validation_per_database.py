@@ -40,6 +40,7 @@ from eventbus.db_tools import ensure as eventbus_ensure
 from eventbus.db_tools import schema_sql as eventbus_schema_sql
 from mcp_servers.mdq.db_schema import _CREATE_STATEMENTS, create_production_tables
 from shared.mcp_dedup import _CANONICAL_DDL as dedup_canonical_ddl
+from shared.mcp_dedup import _USER_VERSION as dedup_user_version
 from shared.mcp_dedup import DedupStore, DedupStoreError
 from shared.schema_fingerprint import REFUSAL_MESSAGE, build_fingerprint
 
@@ -201,7 +202,7 @@ def _stamp_dedup_identity(path: Path) -> None:
             " config_fingerprint, created_epoch) VALUES (?, 1, ?, ?, ?)",
             (_DEDUP_UUID, "0" * 64, "1" * 64, 1700000000.0),
         )
-        conn.execute("PRAGMA user_version = 1")
+        conn.execute(f"PRAGMA user_version = {dedup_user_version}")
         conn.commit()
     finally:
         conn.close()
@@ -395,7 +396,10 @@ class TestIdentityMismatch:
         assert self._DEDUP.entry(baseline) is None
         conn = sqlite3.connect(baseline)
         try:
-            assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 1
+            assert (
+                int(conn.execute("PRAGMA user_version").fetchone()[0])
+                == dedup_user_version
+            )
             assert conn.execute("SELECT 1 FROM store_meta").fetchone() is not None
         finally:
             conn.close()

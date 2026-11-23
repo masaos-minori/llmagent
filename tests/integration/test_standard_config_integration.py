@@ -222,16 +222,25 @@ def test_agent_carries_only_the_settings_the_agent_owns() -> None:
     assert check_agent_refiner_keys(cfg) == []
 
     # The RAG server's own file is its config source; the agent-side entry carries only
-    # transport fields.
+    # transport fields plus the credentials the Agent itself presents to that server.
     own = _real_file("rag_pipeline_mcp_server.toml")
     assert own["use_mqe"] is True
     assert own["refiner_max_tokens"] == 512
 
     server = cfg["mcp_servers"]["rag_pipeline"]
-    transport_fields = {"transport", "url", "startup_mode", "auth_token", "role", "cmd"}
-    extra = set(server) - transport_fields
+    agent_side_fields = {
+        "transport",
+        "url",
+        "startup_mode",
+        "auth_token",
+        "control_auth_token",
+        "role",
+        "cmd",
+    }
+    extra = set(server) - agent_side_fields
     assert extra == set(), f"non-transport keys in the agent-side entry: {extra}"
     assert server["role"] == "query"
+    assert server["control_auth_token"] == "${ENV:MCP_RAG_PIPELINE_CONTROL_TOKEN}"
 
 
 def test_rag_pipeline_config_is_validated_by_its_own_owner() -> None:
