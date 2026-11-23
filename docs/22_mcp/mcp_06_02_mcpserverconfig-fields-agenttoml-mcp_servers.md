@@ -23,12 +23,17 @@ process's environment. `CommandValidator.filter_env` builds the child environmen
 allowlist and merges the configured `env` on top of it.
 
 - Inherited variables: `PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`, `TMP`,
-  `TEMP`, `LANG`, `LC_*`, `MCP_*_AUTH_TOKEN`, `GITHUB_TOKEN`, `LLMAGENT_CONFIG_DIR`,
-  `LLMAGENT_SUDACHI_DICT`. Everything else in the Agent process's environment is absent
-  from the child, including unrelated credentials and proxy variables.
+  `TEMP`, `LANG`, `LC_*`, `MCP_*_AUTH_TOKEN`, `MCP_*_CONTROL_TOKEN`, `GITHUB_TOKEN`,
+  `LLMAGENT_CONFIG_DIR`, `LLMAGENT_SUDACHI_DICT`. Everything else in the Agent process's
+  environment is absent from the child, including unrelated credentials and proxy variables.
 - The allowlist is not a convenience: each server's `auth_token =
   "${ENV:MCP_<NAME>_AUTH_TOKEN}"` is resolved inside the child, so the token pattern must
   stay inherited or the server refuses to start.
+- The control-token pattern is resolved inside the child from each server's own `[control]`
+  table, so `MCP_*_CONTROL_TOKEN` must stay inherited for the same reason as the tool-token
+  pattern. What differs is an unset variable: control-token resolution is tolerant, so an unset
+  or empty value does not stop the server — it closes only that server's control paths, and tool
+  authorization keeps its own behavior.
 - A variable outside the allowlist reaches one server only through that server's own
   `env`.
 - Declared `env` entries are filtered before the child sees them: a key matching the
@@ -50,6 +55,12 @@ with design meaning are:
   (ADR-004 Group 4 "Undeterminable component mandatoriness"). A subprocess server that fails to spawn aborts
   startup regardless of `required`
   (see mcp_06_03), so `McpServerConfig` rejects `required = false` with `startup_mode = "subprocess"`.
+- `control_auth_token`: the Agent-side control credential for that server, used only on the call-state
+  control paths. Optional, defaults to empty, resolved from `${ENV:...}` with the tolerant resolver, so an
+  unset variable yields an empty value rather than an error; an empty value closes that server's control
+  paths and changes nothing about tool authorization. The value is registered as a secret and never
+  logged. See [mcp_05_01](./mcp_05_01_access-control-and-allowlists.md) and
+  [mcp_02_01](./mcp_02_01_endpoints-and-transport.md).
 
 **About `tool_names`:** Not used for routing decisions. It is metadata for drift validation (see `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`), used by `validate_tool_names_match()` in `scripts/shared/tool_routing_validation.py`. An empty or omitted list skips validation.
 
@@ -71,3 +82,4 @@ with design meaning are:
 - McpServerConfig
 - key
 - env
+- control_auth_token

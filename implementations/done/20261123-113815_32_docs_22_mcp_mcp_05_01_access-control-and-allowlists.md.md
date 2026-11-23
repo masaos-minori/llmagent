@@ -64,8 +64,8 @@ ADR documents and the endpoint response shape (row 31).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-153752 | 20261123-153752 | Control API Authorization section added after Per-Server Access Control (token separation, the two credentials never accepting each other, fail-closed 401 scoped to control paths with ADR-017 INV-03 unchanged, evidence-only responses); the Per-Server Access Control table is unchanged; keywords added |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Completed | 20261123-153752 | 20261123-153752 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_consistency --domain mcp pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

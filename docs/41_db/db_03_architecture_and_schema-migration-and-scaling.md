@@ -73,7 +73,7 @@ The only supported source schema of each database is the schema of the current r
 | `eventbus.sqlite` | Canonical `schema.sql` shape validated by the shared fingerprint | Archive and recreate (runbook below) | The EventBus service |
 | `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | Delete the file and re-index the Markdown files (section 8d) | The `mdq-mcp` server |
 | `rag.sqlite`, `session.sqlite` | Current create-only shape | Archive and recreate (runbook below) | RAG / session layers |
-| `mcp_dedup.sqlite` | Current three-table ledger shape carrying the identity stamp (`store_meta` row, `PRAGMA user_version = 1`, installation marker) | Operator archives the refused file; `resolve_store` creates a new store generation (db_08 runbook) | The shared MCP dispatcher |
+| `mcp_dedup.sqlite` | Current three-table ledger shape carrying the identity stamp (`store_meta` row, `PRAGMA user_version = 2`, installation marker) and the nullable result-metadata columns on `dedup_call_state` | Operator archives the refused file; `resolve_store` creates a new store generation (db_08 runbook) | The shared MCP dispatcher |
 
 Recreation impact when a database is not accepted (full procedure: [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)):
 

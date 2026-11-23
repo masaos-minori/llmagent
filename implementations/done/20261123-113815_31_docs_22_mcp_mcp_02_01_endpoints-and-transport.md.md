@@ -64,8 +64,8 @@ Authorization posture text (row 32) and store schema facts (row 33).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-153555 | 20261123-155500 | reflection from verifying row 33 against the code: result facts are recorded at terminal finalization, not only for completed rows (a failed row reports replay_unavailable with the error class), so the field table and the result-class table state that sha256 and size describe the full serialized result whatever the class |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Completed | 20261123-153555 | 20261123-153555 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_consistency --domain mcp pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

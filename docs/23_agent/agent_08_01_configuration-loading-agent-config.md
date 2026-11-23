@@ -56,7 +56,7 @@ Check the `[OK]` / `[RESTART]` / `[STARTUP-ONLY]` / `[SKIP]` / `[LIVE]` categori
 
 ### Security-Related Settings
 
-Changes to MCP server `auth_token` and to allowlists/denylists require a restart.
+Changes to MCP server `auth_token`, `control_auth_token`, and to allowlists/denylists require a restart.
 
 ## Responsibility Boundary
 
@@ -208,9 +208,10 @@ the policy means comparing each key the file states with the Code default column
 | `mcp_servers.*.url` | McpServerConfig | string | n/a | `(no default: required)` | [RESTART] |
 | `mcp_servers.*.startup_mode` | McpServerConfig | enum | n/a | `StartupMode.NONE` | [RESTART] |
 | `mcp_servers.*.auth_token` | McpServerConfig | string | n/a | `''` | [RESTART] |
+| `mcp_servers.*.control_auth_token` | McpServerConfig | string | n/a | `''` | [RESTART] |
 | `mcp_servers.*.role` | McpServerConfig | string | n/a | `''` | [RESTART] |
 | `mcp_servers.*.cmd` | McpServerConfig | string list | n/a | `[]` | [RESTART] |
-ROWS: 76
+ROWS: 77
 ## Keywords
 
 - configuration loading

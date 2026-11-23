@@ -69,14 +69,19 @@ Each database is owned by a single component (see the **Owner** line of each sec
   (ten per-server tables, one shared store); `agent.toml` carries no dedup path
 - **Schema authority**: `scripts/shared/mcp_dedup_schema.py` (canonical DDL: `dedup_call_state`,
   `store_meta`, `call_attempt_history`); creation also stamps the store identity: a `store_meta`
-  row (store uuid + generation), `PRAGMA user_version = 1`, and the external installation marker
+  row (store uuid + generation), `PRAGMA user_version = 2`, and the external installation marker
   `.mcp_dedup_installed` next to the database file
 - **Lifecycle**: Created by `deploy/init_db.sh` at deploy time (which verifies the identity stamp
   and aborts on a refused open); reopened by every dispatcher process via `open_dedup_store`;
   persists until archived by the operator
 - **Row semantics**: `dedup_call_state` rows carry lease columns (`owner_id`,
   `lease_expires_epoch`, `attempt_number`); `pending` rows hold a lease, terminal rows
-  (`completed`/`failed`/`interrupted`) are immutable. `call_attempt_history` records each
+  (`completed`/`failed`/`interrupted`) are immutable. Rows also carry the result-metadata columns
+  (`result_sha256`, `result_size_bytes`, `result_class`, `result_code`, `external_ref`), which are
+  nullable and filled only at terminal finalization: a completed call records the stored result's
+  class, digest, size and any external reference; a failed call records `replay_unavailable` with
+  `result_code` set to the error class. `result_class` is one of `complete`,
+  `secure_reference`, `redacted_preview`, `replay_unavailable`. `call_attempt_history` records each
   attempt/finalization/reconciliation decision. See [db_03_07](db_03_07_mcp-dedup-and-execution-snapshot.md).
 - **Rebuild**: disposable dedup-log cache; backup and rotation helpers do not cover it. Unlike
   derived stores such as mdq, its evidence is archive-only: it is never auto-rebuilt from any
@@ -89,6 +94,11 @@ A store open classifies the file before any write and refuses with a `DedupStore
 different store), `legacy_or_unverified` (pre-change shape, missing identity row, or missing
 marker), or `schema_mismatch` (canonical fingerprint or `PRAGMA user_version` drift). The
 refusal log line and `init_db.sh`'s `[gate]` abort message name the state and the file path.
+
+A store created before the version 2 schema bump fails this gate on its first open: the columns and the
+version stamp it was created with no longer match the canonical shape, so it refuses as `schema_mismatch`
+rather than being upgraded where it stands. There is no in-place migration for the added result-metadata
+columns.
 
 Resolution is `scripts/shared/mcp_dedup.py::resolve_store(db_path)`:
 

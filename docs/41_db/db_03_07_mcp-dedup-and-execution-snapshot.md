@@ -53,7 +53,7 @@ is the public facade):
   use. The contract pins the filename too: the installation marker is directory-scoped.
 - Bootstrap and identity stamp: the store creates its canonical tables and indexes on open
   (`scripts/shared/mcp_dedup_schema.py`) and stamps its identity as a three-part handshake:
-  a `store_meta` identity row (random `store_uuid` + generation), `PRAGMA user_version = 1`,
+  a `store_meta` identity row (random `store_uuid` + generation), `PRAGMA user_version = 2`,
   and an external installation marker file (`.mcp_dedup_installed`) next to the database. Automatic
   migration is not supported: a future schema change lands as a new canonical DDL and the file is
   archived and recreated (see Adoption Path below).
@@ -96,8 +96,20 @@ is the public facade):
   cutoff only within the same retention window (see retention sweep below).
 - Result size cap: a stored result larger than 8000 serialized characters is replaced by a
   truncated sentinel (`{"truncated": true, "sha256": <full-payload hash>, "preview": <first 1000 chars>}`).
+  The preview is built by redacting the serialized text first (bearing tokens, secret query
+  parameters, absolute paths), then cutting the redacted text to the preview length, so the
+  stored preview is not the first 1000 characters of the raw result.
   A truncated stored payload is never served as a replay result; acquisition reports it as
   `replay_unavailable` (refused), not a fresh attempt.
+- Result metadata columns: `dedup_call_state` also carries `result_sha256`, `result_size_bytes`,
+  `result_class`, `result_code`, `external_ref`. All five are nullable and are written only at terminal
+  finalization. `result_class` is one of `complete` (the serialized result stored in full),
+  `secure_reference` (an external reference is recorded), `redacted_preview` (the sentinel), or
+  `replay_unavailable` (a failed row, where `result_code` is the error class). `result_sha256` and
+  `result_size_bytes` describe the full serialized result whatever the class. These columns record
+  facts only: the replay decision table is unchanged, and a row whose stored payload is a truncated
+  sentinel is still refused. How the classes reach a caller is described in
+  [mcp_02_01](../22_mcp/mcp_02_01_endpoints-and-transport.md).
 - Retry classification: the declared `retry_policy` field in each tool's `TOOL_LIST` metadata
   (`shared.tool_metadata.RetryPolicy`) is the sole authority; the dispatcher maps
   `same_logical_call_only`/`reconcile_then_retry` to retryable and everything else, including
@@ -201,10 +213,12 @@ Side notes:
 ## Adoption Path (Current-Only Policy)
 
 `mcp_dedup.sqlite` bootstraps with its canonical DDL plus the identity stamp (`store_meta`
-row, `PRAGMA user_version = 1`, external installation marker) and carries no version ledger or
-migration step. A future schema change to this file lands as a new canonical DDL in
+row, `PRAGMA user_version = 2`, external installation marker) and carries no version ledger or
+migration step. A schema change lands as a new canonical DDL in
 `scripts/shared/mcp_dedup_schema.py`, and an existing file matching the previous shape is
-archived and recreated. Until such a change, recovery for this file is recreating it: the store
+archived and recreated: the version 2 result-metadata columns were added this way, so a store
+created under version 1 is refused as `schema_mismatch` and resolved by the operator runbook.
+Recovery for this file is recreating it: the store
 is a disposable cache, and a fresh empty store only means the next call of each key runs for
 real. Identity refusals (`lost`, `replaced`, `legacy_or_unverified`, `schema_mismatch`) follow
 the same operator resolution: archive the file, remove or rename it, and let the next open

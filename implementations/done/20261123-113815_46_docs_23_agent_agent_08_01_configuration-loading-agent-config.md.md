@@ -62,8 +62,8 @@ Other config keys.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-155132 | 20261123-155132 | row added after mcp_servers.*.auth_token and the restart sentence names it. Verified against code: control_auth_token is a McpServerConfig field, and classify_mcp_server_changes treats every field difference as restart-required, so [RESTART] is correct; the section row count marker went 76 to 77 |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Completed | 20261123-155132 | 20261123-155132 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_consistency --domain agent pass; the single warning is a pre-existing line in the generated agent_14 document |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -124,6 +124,68 @@ In case of mismatch → the `RuntimeError` is surfaced as a `FATAL` startup find
 
 ---
 
+## Call-State Control Endpoints
+
+Two control paths are served alongside the tool paths. They are evidence paths for the Agent: a control path never runs a tool handler.
+
+| Path | Method | Caller | Returns |
+|---|---|---|---|
+| `/v1/call_state/{key}` | GET | the Agent, with the control Bearer token | one call-state record |
+| `/v1/call_state/{key}/reconcile` | POST | the Agent, with the control Bearer token | one reconcile decision |
+
+`{key}` is the logical call id the caller already holds; it is checked against the same closed key pattern the ledger accepts, so a value that cannot be a ledger key is refused before any lookup. Control requests carry `X-Request-Id` like any other request on a server. Authorization posture: [mcp_05_01](./mcp_05_01_access-control-and-allowlists.md); logging rules: [mcp_02_03](./mcp_02_03_audit-logging-and-errors.md).
+
+### Call-state response fields
+
+| Field | Meaning |
+|---|---|
+| `key` | logical call id |
+| `ledger_status` | the row state the mapping table covers: `pending`, `completed`, `failed`, `interrupted` |
+| `agent_state` | the state the shared mapping table gives for `ledger_status` and `lease_live` |
+| `attempt_number`, `lease_live`, `lease_expires_epoch` | attempt and lease facts |
+| `result_class`, `result_code`, `result_size_bytes`, `result_sha256`, `external_ref` | result availability facts, recorded at terminal finalization: the stored result for a completed call, the error class with `replay_unavailable` for a failed call |
+| `reconciliation_required` | true when the state needs an operator decision |
+| `error_code` | stable code, see Error codes |
+
+Every field is a closed-vocabulary value or an opaque identifier. No response carries raw arguments, credentials, signed URLs, raw exceptions, or internal paths, and no response carries evidence text.
+
+### Result classes
+
+| Class | Meaning |
+|---|---|
+| `complete` | the stored result is available in full |
+| `secure_reference` | the result is represented by an opaque external reference |
+| `redacted_preview` | only a redacted preview is stored; `result_sha256` and `result_size_bytes` still describe the full result |
+| `replay_unavailable` | no result facts can be reported beyond the error class, so the caller must not re-run the tool |
+
+`result_sha256` and `result_size_bytes` always describe the full serialized result, whatever the class.
+
+### Reconcile decisions and outcomes
+
+Decisions: `reused_completed` (a completed call is reported as it is and is never mutated by a control path), `reconciled` (a stale pending row was moved through the existing reconciliation path), `operator_review`, `refused`.
+
+Outcomes: `evidence_found`, `no_evidence`, `ambiguous`, `unverifiable`, plus `none` when no reconciler ran. Only `evidence_found` and `no_evidence` move a row; `ambiguous` and `unverifiable` report that operator review is needed and leave the row as it is. A decision carries a digest of its evidence, never the evidence itself.
+
+### Error codes
+
+`none`, `unknown_key`, `lease_live`, `attempts_exhausted`, `not_reconcilable`, `reconciler_failed`, `handler_failed`, `store_unavailable`. A value that cannot be a ledger key is reported as `invalid_key`.
+
+### Failure behavior
+
+| Situation | Result |
+|---|---|
+| Unknown key | 404 `unknown_key` |
+| Live lease | 409, `refused` with `lease_live` |
+| Attempts exhausted | 409, `refused` with `attempts_exhausted` and operator review |
+| Control path with an empty control token | 401 |
+| Control token set but no validated dedup configuration | 503 `store_unavailable` |
+| A key that cannot be a ledger key | 422 `invalid_key` |
+| Method mismatch on a control path | 405 `invalid_key` |
+
+On the Agent side, any control problem — an unconfigured or empty control token, an unreachable server, a failed request, or a payload outside these vocabularies — establishes nothing: the caller keeps the outcome it would have had without the control read, and no handler is run.
+
+---
+
 ## MCPServer Base Class (`scripts/mcp_servers/server.py`)
 
 All MCP servers inherit from `MCPServer`. Subclasses declare their identity (`server_name`, `server_version`, loopback `http_host`, `http_port`, `app_module`, tool definitions) and implement `dispatch(name, args) -> DispatchResult`, which is abstract. Port numbers are owned by `config/agent.toml`.
@@ -134,6 +196,7 @@ Contracts owned by the base class:
 - **Loopback-only binding**: `run_http()` raises `ValueError` before binding if `http_host` is not `"127.0.0.1"` or `"::1"`. Every internal MCP server binds to loopback only, with no override. The bound socket address is verified to be loopback again immediately after startup (defense-in-depth, independent of the pre-bind check).
 - **Authentication**: `attach_auth_middleware(app, token)` rejects requests without a matching `Authorization: Bearer <token>` header with HTTP 401. An empty `token` is also fail-closed in the middleware: every request gets 401 and no accept-all opt-out exists (Explicit in code — scripts/mcp_servers/server.py `attach_auth_middleware`). Every MCP server additionally refuses to start with an empty `auth_token` (`require_auth_token()`), and `McpServerConfig` construction-time validation and `agent.startup_validation`'s "MCP authentication check" reject it before the agent calls a server.
 - **Tool listing**: every server's `/v1/tools` handler annotates its own `TOOL_LIST` and passes it to `build_tools_response()`.
+- **Control paths**: the control API middleware is registered after the tool-auth middleware, so it runs first and control paths are answered there and never reach tool authentication. Control paths use a separate control credential, and their response vocabulary is the shared call-state contract rather than a per-server shape. A server whose control token is empty keeps serving tool paths with its own token; only the control paths are closed.
 - **Truncation**: oversized responses are truncated by the base class; the result carries total and visible byte counts so the truncation is observable.
 
 ---
@@ -151,3 +214,6 @@ Contracts owned by the base class:
 - X-Request-Id
 - dispatch
 - make_health_response
+- call-state
+- control-api
+- reconcile

@@ -42,6 +42,24 @@ To document a common security model across servers. It covers access control, al
 
 ---
 
+## Control API Authorization
+
+- The control paths (`/v1/call_state/{key}` and its `/reconcile` subpath, see
+  [mcp_02_01_endpoints-and-transport.md](./mcp_02_01_endpoints-and-transport.md)) authenticate with a dedicated Bearer
+  credential: the server's own `[control]` table (`MCP_<NAME>_CONTROL_TOKEN`) and the Agent's `control_auth_token`. The
+  two are separate credentials from the tool token.
+- A tool token is rejected on control paths and a control token is rejected on tool paths. Control paths are answered by
+  the control middleware, which runs before tool authentication, so the two credentials never accept each other's requests.
+- Fail-closed rules: an unset or empty control token closes only the control paths with 401. Tool authorization keeps the
+  semantics of [ADR-017](../10_adr/adr_02_03_017_mcp-authentication.md) INV-03 — an empty, missing, or wrong tool token
+  still denies the request, and accept-all is not a supported mode. Loopback binding is unchanged.
+- Control responses are structured evidence only: closed-vocabulary values and opaque identifiers. A caller cannot obtain
+  raw tool result text, arguments, credentials, signed URLs, raw exceptions, or internal paths through the control API.
+- Definitions: `scripts/mcp_servers/control_api.py`; the middleware registration order that gives control paths precedence
+  is in `scripts/mcp_servers/server.py`.
+
+---
+
 ## Path Control
 
 ### `allowed_dirs` (File Servers)
@@ -127,6 +145,8 @@ An empty `workflow_allowlist` is reported by the cicd-mcp server process in two 
 - security
 - safety-model
 - access-control
+- control-token
+- call-state
 - allowed-dirs
 - allowed-repos
 - allowed-repo-paths
