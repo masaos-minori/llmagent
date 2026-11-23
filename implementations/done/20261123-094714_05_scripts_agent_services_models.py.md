@@ -51,10 +51,10 @@ Producer changes (seq 04), consumer wording (seq 12), tests (seq 23).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by seq 23 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Generated docs via seq 18-19 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | SessionRestoreResult carries fetched/synthesized/dropped/restored; n_messages mirrors fetched |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-23 | 2026-11-23 | Covered by seq 23 covered by seq 23 tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-23 | 2026-11-23 | Generated docs via seq 18-19 Docs updated via seq 15-20 (2026-11-23) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

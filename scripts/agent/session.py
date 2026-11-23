@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from db.config import DbConfig
@@ -31,7 +32,16 @@ class SchemaMissingError(RuntimeError):
     """Raised when required SQLite schema tables are missing."""
 
 
-SESSION_TITLE_MAX_CHARS = 32
+SESSION_TITLE_STORAGE_MAX_CHARS = 32
+SESSION_TITLE_DISPLAY_MAX_CHARS = 32
+
+
+@dataclass(frozen=True)
+class SessionTarget:
+    """Immutable (session_id, generation) pair identifying one session generation."""
+
+    session_id: int
+    generation: int
 
 
 class AgentSession:
@@ -76,8 +86,9 @@ class AgentSession:
         """
         self._db_config = db_config
         self.session_id: int | None = None  # current session DB row ID
+        self.generation: int = 0  # runtime-only session generation (REQ-001)
         self._strict_mode = strict_mode
-        self._title_pending: bool = False
+        self._title_pending_sessions: set[int] = set()
         if diagnostics_cfg is None:
             diagnostics_cfg = build_agent_config().diagnostics
         self._diagnostic_store = DiagnosticStore(
@@ -198,35 +209,88 @@ class AgentSession:
                     ) from e
                 raise
             self.session_id = cur.lastrowid
+            self.generation += 1
             db.commit()
         logger.info("Session started: id=%s", self.session_id)
         self._message_repo = SessionMessageRepository(
             self.session_id, strict_mode=self._strict_mode, db_config=self._db_config
         )
 
-    def is_title_pending(self) -> bool:
-        """Return True if title generation is in progress."""
-        return self._title_pending
+    def bump_generation(self) -> int:
+        """Increment and return the session generation (used by the transition commit).
 
-    def set_title_pending(self, pending: bool) -> None:
-        """Set title generation pending state."""
-        self._title_pending = pending
-
-    def set_title(self, title: str) -> bool:
-        """Set the session title (truncated to SESSION_TITLE_MAX_CHARS).
-
-        Returns True when the title was persisted, False when there is no active
-        session (session_id is None). Raises sqlite3.Error on DB failure.
+        REQ-001: every session id change must change the generation; the
+        transition service calls this instead of ``start()`` when it commits a
+        loaded session id.
         """
-        self._title_pending = False
+        self.generation += 1
+        return self.generation
+
+    def capture_target(self) -> SessionTarget | None:
+        """Return an immutable (id, generation) target for the current session.
+
+        Returns None when no session has been started.
+        """
         if self.session_id is None:
+            return None
+        return SessionTarget(session_id=self.session_id, generation=self.generation)
+
+    def is_title_pending(self, session_id: int | None = None) -> bool:
+        """Return True if title generation is in progress for a session.
+
+        Defaults to the current session when *session_id* is omitted (REQ-004:
+        pending state is tracked per session id).
+        """
+        sid = self.session_id if session_id is None else session_id
+        return sid is not None and sid in self._title_pending_sessions
+
+    def set_title_pending(self, pending: bool, session_id: int | None = None) -> None:
+        """Set the title-generation pending state for a session.
+
+        Defaults to the current session when *session_id* is omitted. A pending
+        marker cannot be set while no session is active.
+        """
+        sid = self.session_id if session_id is None else session_id
+        if sid is None:
+            return
+        if pending:
+            self._title_pending_sessions.add(sid)
+        else:
+            self._title_pending_sessions.discard(sid)
+
+    def set_title(self, title: str, *, target: SessionTarget | None = None) -> bool:
+        """Set the session title (truncated to SESSION_TITLE_STORAGE_MAX_CHARS).
+
+        When *target* is given, the write only happens if it matches the current
+        session id and generation; a stale target clears that session's pending
+        marker, returns False, and writes nothing (REQ-004). Clears the pending
+        marker for the written session. Returns True when the title was
+        persisted, False when there is no active session (session_id is None).
+        Raises sqlite3.Error on DB failure.
+        """
+        target_sid = target.session_id if target is not None else self.session_id
+        if target_sid is not None:
+            self._title_pending_sessions.discard(target_sid)
+        if self.session_id is None:
+            return False
+        if target is not None and (
+            target.session_id != self.session_id or target.generation != self.generation
+        ):
+            logger.info(
+                "Ignoring title write for stale session target id=%s generation=%s "
+                "(current id=%s generation=%s)",
+                target.session_id,
+                target.generation,
+                self.session_id,
+                self.generation,
+            )
             return False
         with SQLiteHelper("session", db_config=self._db_config).open(
             write_mode=True
         ) as db:
             db.execute(
                 "UPDATE sessions SET title = ? WHERE session_id = ?",
-                (title[:SESSION_TITLE_MAX_CHARS], self.session_id),
+                (title[:SESSION_TITLE_STORAGE_MAX_CHARS], self.session_id),
             )
             db.commit()
         return True

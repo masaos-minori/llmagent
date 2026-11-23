@@ -8,12 +8,12 @@ refresh. No DB, network, or config access — MagicMock ctx + real ConversationS
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from agent.commands.mixin_base import refresh_session_correlation
 from agent.context import ConversationState
 from agent.services.conversation_service import clear_conversation
-from agent.services.session_restore import restore_session
+from agent.services.session_transition import SessionTransitionService
 
 
 def _make_corr_ctx(session_id: int | None = 1) -> MagicMock:
@@ -22,8 +22,16 @@ def _make_corr_ctx(session_id: int | None = 1) -> MagicMock:
     ctx.session.session_id = session_id
     ctx.session.fetch_messages.return_value = ([], True, 0)
     ctx.conv = ConversationState()
+    ctx.turn.current_turn_id = None  # idle: the transition guard must pass
     ctx.services_required.tools = MagicMock()
     return ctx
+
+
+def _make_persister() -> MagicMock:
+    persister = MagicMock()
+    persister.persist_session_memories = AsyncMock()
+    persister.persist_session_diagnostics = AsyncMock()
+    return persister
 
 
 class TestHelperGuards:
@@ -54,10 +62,10 @@ class TestFlowRefresh:
             0,
         )
         tools = ctx.services_required.tools
-        await restore_session(ctx, 7)
+        await SessionTransitionService(ctx, _make_persister()).load(7)
         tools.set_session_id.assert_called_once_with("7")
 
-    def test_clear_flow_refreshes_correlation(self) -> None:
+    async def test_clear_flow_refreshes_correlation(self) -> None:
         ctx = _make_corr_ctx(session_id=1)
 
         def _start() -> None:
@@ -65,5 +73,9 @@ class TestFlowRefresh:
 
         ctx.session.start.side_effect = _start
         tools = ctx.services_required.tools
-        clear_conversation(ctx, new_session=True)
+        await clear_conversation(
+            ctx,
+            new_session=True,
+            transition_service=SessionTransitionService(ctx, _make_persister()),
+        )
         tools.set_session_id.assert_called_once_with("8")

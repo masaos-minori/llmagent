@@ -13,6 +13,7 @@ import httpx
 from shared.json_utils import extract_llm_content, parse_http_json
 from shared.llm_client import build_llm_url
 
+from agent.conversation_state_manager import get_captured_session_target
 from agent.services.exceptions import SessionTitleGenerationError
 from agent.services.models import SessionTitleResult
 
@@ -53,8 +54,26 @@ class SessionTitleService:
                 raise SessionTitleGenerationError(
                     "LLM returned empty content — try adjusting your prompt"
                 )
-            ctx.session.set_title(title)
-            logger.info("Session title generated: %r", title)
+            # REQ-004: write only into the session generation captured at task
+            # creation (context variable set by the first-turn task spawn).
+            target = get_captured_session_target()
+            if not ctx.session.set_title(title, target=target):
+                # Stale target or no active session: refused, nothing written.
+                # Redacted (AC-2): ids only, no title text.
+                if target is not None:
+                    logger.warning(
+                        "Session title write refused for stale target "
+                        "session=%s generation=%s",
+                        target.session_id,
+                        target.generation,
+                    )
+                else:
+                    logger.warning("Session title write refused: no active session")
+                return SessionTitleResult(title=title, stale=True)
+            # REQ-005 / AC-2: no title text in logs, ids only.
+            sid = target.session_id if target is not None else ctx.session.session_id
+            gen = target.generation if target is not None else ctx.session.generation
+            logger.info("Session title generated (session=%s generation=%s)", sid, gen)
             return SessionTitleResult(title=title)
         except SessionTitleGenerationError:
             raise

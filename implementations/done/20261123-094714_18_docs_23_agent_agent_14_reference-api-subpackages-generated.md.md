@@ -50,8 +50,8 @@ The package-level table (seq 19) and the manifests (seq 20).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the guarded block with the generator | Pending | — | — | Docs-only row: no test step |
-| 2 | Run generate_reference_table.py --check and the doc checkers from `rules/tool-gates.md` | Pending | — | — | |
+| 1 | Regenerate the guarded block with the generator | Completed | 2026-11-23 | 2026-11-23 | Docs-only row: no test step guarded block regenerated via generate_reference_table.py --type agent_subpackages |
+| 2 | Run generate_reference_table.py --check and the doc checkers from `rules/tool-gates.md` | Completed | 2026-11-23 | 2026-11-23 | generate_reference_table.py --check: no drift; doc checkers pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

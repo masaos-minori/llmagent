@@ -14,7 +14,7 @@ Single-file change. Its behavioral tests are carried by rows 21 and 30 (covered 
 ## Design decisions
 - Replace the direct `restore_session` call with the seq 02 transition service load method, including refusal-message handling for the idle check (REQ-002).
 - Success message reports fetched, synthesized, dropped, and restored separately (REQ-009).
-- Per-session pending display uses the seq 01 per-session pending state: current row keeps its check; non-current rows consult the per-session set so a stale generating session shows correctly (plan row 12).
+- Per-session pending display uses the seq 01 per-session pending state: verification finding (2026-11-23) — instead of keeping a separate current-row check, every row consults `is_title_pending(sr.session_id)`; the old `is_current` gate was dropped because a pending title belongs to a session id, not to the row's currency.
 
 ## Alternatives considered
 N/A: service routing is fixed by REQ-002.
@@ -54,10 +54,10 @@ Service internals (seq 02), per-session pending storage (seq 01).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After seq 02, 05 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Behavioral tests in rows 21/30 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs via seq 15 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | After seq 02, 05 _load_session routed via session_transition_service(); pending display per session id (is_current gate dropped); SESSION_TITLE_DISPLAY_MAX_CHARS truncation |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-23 | 2026-11-23 | Behavioral tests in rows 21/30 3 transition + 1 pending-list tests added; 71 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy, lint-imports pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-23 | 2026-11-23 | Docs via seq 15 Docs updated via seq 15-20 (2026-11-23) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

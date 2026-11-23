@@ -57,10 +57,10 @@ Command message and recovery hint (seq 13), docs (seq 15).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion row 26) | Pending | — | — | Tests written first per plan Phase 5 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs via seq 15 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | UndoReloadError(n_deleted) raised on post-delete reload failure |
+| 2 | Add or update tests per Validation plan (companion row 26) | Completed | 2026-11-23 | 2026-11-23 | Tests written first per plan Phase 5 reload-failure test added to test_undo_db_memory_parity.py (5 pass) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy, lint-imports, targeted pytest pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-23 | 2026-11-23 | Docs via seq 15 Docs updated via seq 15-20 (2026-11-23) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

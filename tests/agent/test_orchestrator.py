@@ -17,11 +17,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.context import ConversationState, TurnState, WorkflowState
+from agent.conversation_state_manager import get_captured_session_target
 from agent.history import CompressResult, HistoryCompressionError
 from agent.llm_turn_executor import LlmTurnExecutor
 from agent.message_schema import ValidationResult
 from agent.orchestrator import BG_FAILURE_THRESHOLD, Orchestrator
-from agent.session import AgentSession
+from agent.session import AgentSession, SessionTarget
 from agent.session_message_repo import SessionMessageRepository
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_persistence import ConversationPersistenceError
@@ -2560,6 +2561,64 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
         await orch._conversation_manager.append_user_message("hello there")
 
         assert ctx.conv.history == [{"role": "user", "content": "hello there"}]
+
+
+class TestFirstTurnTitleTaskCapture:
+    """REQ-004 / REQ-005: the title task sees the captured target and is
+    registered with the monitor as a typed task."""
+
+    @pytest.mark.asyncio
+    async def test_title_task_sees_captured_target_and_is_registered(self) -> None:
+        ctx = _make_ctx()
+        ctx.conv.system_prompt_content = ""
+        ctx.stats.stat_turns = 0  # make this the first turn
+        ctx.turn.background_tasks = set()  # real set for task bookkeeping
+        ctx.session.capture_target.return_value = SessionTarget(
+            session_id=77, generation=5
+        )
+        orch = _make_orchestrator(ctx)
+        seen: list[Any] = []
+
+        async def _first_turn(line: str) -> None:  # noqa: ARG001 — signature fixed by on_first_turn
+            seen.append(get_captured_session_target())
+
+        orch._conversation_manager._on_first_turn = _first_turn
+        with patch(
+            "agent.conversation_state_manager.register_task_meta"
+        ) as mock_register:
+            await orch._conversation_manager.append_user_message("hi")
+            tasks = orch._conversation_manager._tasks
+            assert len(tasks) == 1
+            await next(iter(tasks))
+
+        # The task copied its creation context: the captured target is visible
+        # inside the task body, and it matches the session at creation time.
+        assert seen == [SessionTarget(session_id=77, generation=5)]
+
+        # Registered with the monitor's typed metadata (via the task-done path).
+        mock_register.assert_called_once()
+        kwargs = mock_register.call_args.kwargs
+        assert kwargs["task_type"] == "session_title"
+        assert kwargs["session_id"] == 77
+        assert kwargs["generation"] == 5
+
+    @pytest.mark.asyncio
+    async def test_captured_target_not_visible_after_creation(self) -> None:
+        # The contextvar is reset after the creation line: the calling turn
+        # context does not keep the title target visible.
+        ctx = _make_ctx()
+        ctx.conv.system_prompt_content = ""
+        ctx.stats.stat_turns = 0
+        ctx.turn.background_tasks = set()  # real set for task bookkeeping
+        orch = _make_orchestrator(ctx)
+        orch._conversation_manager._on_first_turn = AsyncMock()
+
+        await orch._conversation_manager.append_user_message("hi")
+        tasks = orch._conversation_manager._tasks
+        assert len(tasks) == 1
+        await next(iter(tasks))
+
+        assert get_captured_session_target() is None
 
     def test_sync_system_prompt_insert_branch_inserts_unchanged(self) -> None:
         ctx = _make_ctx()

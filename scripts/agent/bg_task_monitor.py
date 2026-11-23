@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from shared.logger import Logger
@@ -22,11 +23,49 @@ if TYPE_CHECKING:
     from agent.context import AgentContext
 
 
+@dataclass(frozen=True)
+class BgTaskMeta:
+    """Type and session identity captured when a background task is registered.
+
+    ``instance_id`` records the raw task name so type-grouped reporting can
+    still name the concrete task instance.
+    """
+
+    task_type: str
+    instance_id: str
+    session_id: int | None
+    generation: int | None
+
+
+# Task identity registry: populated by register()/register_task_meta() and
+# consumed (and popped) by BgTaskMonitor.on_task_done. Module-level so callers
+# without a monitor reference can attach metadata through the existing
+# task-done path.
+_task_meta: dict[asyncio.Task[Any], BgTaskMeta] = {}
+
+
+def register_task_meta(
+    task: asyncio.Task[Any],
+    *,
+    task_type: str,
+    session_id: int | None = None,
+    generation: int | None = None,
+) -> None:
+    """Attach type and session identity to a task for the next on_task_done.
+
+    Use when the monitor object is unreachable at task-creation time; the
+    monitor reads the metadata when the existing done callback runs and groups
+    failures by task_type (REQ-005).
+    """
+    _task_meta[task] = BgTaskMeta(task_type, task.get_name(), session_id, generation)
+
+
 class BgTaskMonitor:
     """Monitors background task failures and enforces threshold-based policies.
 
     Responsibilities:
-      - Track consecutive failures per task name
+      - Track consecutive failures per task type (registered tasks, REQ-005) or
+        task name (unregistered tasks)
       - Notify user at threshold breach (first hit + every 5 thereafter)
       - Pause agent when pause_on_critical_failure is enabled
 
@@ -68,6 +107,29 @@ class BgTaskMonitor:
         paused = [name for name, is_paused in self._bg_pause_state.items() if is_paused]
         return len(paused) > 0, paused
 
+    def register(
+        self,
+        task: asyncio.Task[Any],
+        *,
+        task_type: str,
+        session_id: int | None = None,
+        generation: int | None = None,
+    ) -> None:
+        """Track a task with type and session identity; failures group by type.
+
+        The task joins the registry and its done callback runs through
+        ``on_task_done``, which keys counters and pause state by ``task_type``
+        while the metadata keeps session id and generation for attribution.
+        """
+        register_task_meta(
+            task, task_type=task_type, session_id=session_id, generation=generation
+        )
+        self._tasks.add(task)
+        if task.done():
+            self.on_task_done(task)
+        else:
+            task.add_done_callback(self.on_task_done)
+
     def on_task_done(self, task: asyncio.Task[Any]) -> None:
         """Handle a completed background task across all terminal states.
 
@@ -77,8 +139,20 @@ class BgTaskMonitor:
         failed task runs the unchanged failure ladder. ``task.exception()`` is never
         called on a cancelled task (``CancelledError`` derives from ``BaseException``
         and would raise).
+
+        Registered tasks count under their task type (REQ-005); unregistered
+        tasks keep the existing name-based keys.
         """
-        task_name = task.get_name()
+        meta = _task_meta.pop(task, None)
+        task_name = meta.task_type if meta is not None else task.get_name()
+        if meta is not None:
+            logger.debug(
+                "Background task '%s' (type=%s session=%s generation=%s) finished",
+                meta.instance_id,
+                meta.task_type,
+                meta.session_id,
+                meta.generation,
+            )
         count = self._consecutive_failures.get(task_name, 0)
 
         if task.cancelled():
@@ -112,7 +186,10 @@ class BgTaskMonitor:
         return count + 1
 
     def _report_first_failure(self, task_name: str, exc: Exception) -> None:
-        logger.warning("First background task failure (%s): %s", task_name, exc)
+        # Class name only (AC-2): raw reasons can embed request or DB details.
+        logger.warning(
+            "First background task failure (%s): %s", task_name, type(exc).__name__
+        )
         if self._on_error is not None:
             try:
                 self._on_error(exc)
@@ -130,7 +207,7 @@ class BgTaskMonitor:
                 "Consecutive background task failures (%d) for '%s': %s",
                 count,
                 task_name,
-                exc,
+                type(exc).__name__,
             )
             if count == BG_FAILURE_THRESHOLD:
                 self.notify_bg_failure_threshold(task_name, count)
@@ -139,7 +216,7 @@ class BgTaskMonitor:
                 "Background task failure #%d (%s): %s",
                 count,
                 task_name,
-                exc,
+                type(exc).__name__,
             )
 
     def notify_bg_failure_threshold(self, task_name: str, count: int) -> None:

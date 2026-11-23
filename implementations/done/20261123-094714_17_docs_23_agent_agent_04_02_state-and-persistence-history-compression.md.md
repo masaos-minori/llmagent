@@ -50,8 +50,8 @@ Command reference (seq 15), state model (seq 16).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the Data Classification table rows for /clear and session load | Pending | — | — | Docs-only row: no test step |
-| 2 | Run the doc checkers named in `rules/tool-gates.md` | Pending | — | — | |
+| 1 | Update the Data Classification table rows for /clear and session load | Completed | 2026-11-23 | 2026-11-23 | Docs-only row: no test step Data Classification rows updated: in-memory-only /clear, transition commit undo_floor handling, finalize on transition, no silent undo divergence |
+| 2 | Run the doc checkers named in `rules/tool-gates.md` | Completed | 2026-11-23 | 2026-11-23 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_consistency --domain agent pass (agent_14 /db warning pre-existing on HEAD) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

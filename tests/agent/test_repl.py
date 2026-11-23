@@ -1920,3 +1920,19 @@ class TestMultilineTimeoutThenNextPrompt:
         repl._orchestrator.handle_turn.assert_not_called()
         warnings = [c.args[0] for c in repl._view.write_warning.call_args_list]
         assert any("discarded" in w for w in warnings)
+
+
+class TestPersistSessionStateSnapshot:
+    """REQ-006 / AC-3: shutdown passes one snapshot object to both persist steps."""
+
+    @pytest.mark.asyncio
+    async def test_shutdown_passes_one_snapshot_to_both_steps(self) -> None:
+        repl = _make_bare_repl()
+        snapshot = object()
+        repl._persister.capture_snapshot = MagicMock(return_value=snapshot)
+
+        await repl._persist_session_state()
+
+        repl._persister.capture_snapshot.assert_called_once_with()
+        repl._persister.persist_session_memories.assert_awaited_once_with(snapshot)
+        repl._persister.persist_session_diagnostics.assert_awaited_once_with(snapshot)

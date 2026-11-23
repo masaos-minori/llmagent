@@ -60,10 +60,10 @@ Shutdown capture (seq 14), transition integration (seq 02).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion row 24) | Pending | — | — | Tests written first per plan Phase 2 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Generated docs via seq 19 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | Added SessionPersistenceSnapshot, capture_snapshot(), _checked_snapshot(); both persist steps take an optional snapshot and reject stale generations; latency summary helper extracted (radon D(21)->C(20)). Executed before seq 02 per plan Phase 2 order. |
+| 2 | Add or update tests per Validation plan (companion row 24) | Completed | 2026-11-23 | 2026-11-23 | Tests written first per plan Phase 2 tests/agent/test_session_persister.py: 5 snapshot tests added; 20 tests pass. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy, lint-imports, bandit, radon pass; full-suite pass due at batch end. mypy/lint-imports pass at cluster gate 2026-11-23; 5 tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-23 | 2026-11-23 | Generated docs via seq 19 Docs updated via seq 15-20 (2026-11-23) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -1,12 +1,17 @@
 """tests/test_conversation_service.py
 Unit tests for agent/services/conversation_service.py:
 clear_conversation().
+
+new_session=True delegates the whole switch to SessionTransitionService
+(REQ-002); both result messages name the in-memory history and state that
+persisted rows survive (REQ-007).
 """
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from agent.services.conversation_service import clear_conversation
 from agent.services.enums import ConversationActionType
 
@@ -30,11 +35,17 @@ def _make_ctx(
     return ctx
 
 
+def _make_service() -> MagicMock:
+    service = MagicMock()
+    service.clear_new = AsyncMock()
+    return service
+
+
 # ── clear_conversation ────────────────────────────────────────────────────────
 
 
 class TestClearConversation:
-    def test_trims_history_to_first_message_only(self) -> None:
+    async def test_trims_history_to_first_message_only(self) -> None:
         ctx = _make_ctx(
             history=[
                 {"role": "system", "content": "sys"},
@@ -42,58 +53,85 @@ class TestClearConversation:
                 {"role": "assistant", "content": "hello"},
             ]
         )
-        clear_conversation(ctx)
+        await clear_conversation(ctx)
         assert len(ctx.conv.history) == 1
         assert ctx.conv.history[0]["role"] == "system"
 
-    def test_returns_clear_action_result(self) -> None:
+    async def test_returns_clear_action_result(self) -> None:
         ctx = _make_ctx()
-        result = clear_conversation(ctx)
+        result = await clear_conversation(ctx)
         assert result.action == ConversationActionType.CLEAR
 
-    def test_resets_stat_turns_to_zero(self) -> None:
+    async def test_resets_stat_turns_to_zero(self) -> None:
         ctx = _make_ctx()
-        clear_conversation(ctx)
+        await clear_conversation(ctx)
         assert ctx.stats.stat_turns == 0
 
-    def test_resets_stat_tool_calls_to_zero(self) -> None:
+    async def test_resets_stat_tool_calls_to_zero(self) -> None:
         ctx = _make_ctx()
-        clear_conversation(ctx)
+        await clear_conversation(ctx)
         assert ctx.stats.stat_tool_calls == 0
 
-    def test_resets_stat_tool_errors_to_zero(self) -> None:
+    async def test_resets_stat_tool_errors_to_zero(self) -> None:
         ctx = _make_ctx()
-        clear_conversation(ctx)
+        await clear_conversation(ctx)
         assert ctx.stats.stat_tool_errors == 0
 
-    def test_resets_stat_latency_to_empty_dict(self) -> None:
+    async def test_resets_stat_latency_to_empty_dict(self) -> None:
         ctx = _make_ctx()
-        clear_conversation(ctx)
+        await clear_conversation(ctx)
         assert ctx.stats.stat_latency == {}
 
-    def test_new_session_starts_session(self) -> None:
+    async def test_new_session_delegates_to_transition_service(self) -> None:
         ctx = _make_ctx()
-        result = clear_conversation(ctx, new_session=True)
-        ctx.session.start.assert_called_once()
-        ctx.session.set_title.assert_called_once()
+        service = _make_service()
+        result = await clear_conversation(
+            ctx, new_session=True, transition_service=service
+        )
+        # REQ-002: the service owns finalize/start/commit; the function does
+        # not call session.start or correlation refresh itself.
+        service.clear_new.assert_awaited_once()
+        ctx.session.start.assert_not_called()
+        ctx.session.set_title.assert_called_once_with("(New Session)")
         assert result.action == ConversationActionType.CLEAR
 
-    def test_new_session_message_mentions_new_session(self) -> None:
+    async def test_new_session_message_mentions_new_session(self) -> None:
         ctx = _make_ctx()
-        result = clear_conversation(ctx, new_session=True)
+        result = await clear_conversation(
+            ctx, new_session=True, transition_service=_make_service()
+        )
         assert "New session" in result.message
 
-    def test_no_new_session_does_not_call_session_start(self) -> None:
+    async def test_new_session_requires_transition_service(self) -> None:
         ctx = _make_ctx()
-        clear_conversation(ctx, new_session=False)
+        with pytest.raises(ValueError, match="SessionTransitionService"):
+            await clear_conversation(ctx, new_session=True)
         ctx.session.start.assert_not_called()
 
-    def test_history_with_only_system_prompt_stays_unchanged(self) -> None:
+    async def test_both_messages_name_in_memory_history_and_persisted_rows(
+        self,
+    ) -> None:
+        # REQ-007 wording: in-memory reset explicit, persisted rows survive.
+        ctx = _make_ctx()
+        plain = await clear_conversation(ctx)
+        fresh = await clear_conversation(
+            ctx, new_session=True, transition_service=_make_service()
+        )
+        for message in (plain.message, fresh.message):
+            assert "In-memory conversation history cleared" in message
+            assert "Persisted messages remain" in message
+
+    async def test_no_new_session_does_not_call_service_or_session_start(self) -> None:
+        ctx = _make_ctx()
+        await clear_conversation(ctx, new_session=False)
+        ctx.session.start.assert_not_called()
+
+    async def test_history_with_only_system_prompt_stays_unchanged(self) -> None:
         ctx = _make_ctx(history=[{"role": "system", "content": "sys"}])
-        clear_conversation(ctx)
+        await clear_conversation(ctx)
         assert len(ctx.conv.history) == 1
 
-    def test_empty_history_stays_empty(self) -> None:
+    async def test_empty_history_stays_empty(self) -> None:
         ctx = _make_ctx(history=[])
-        clear_conversation(ctx)
+        await clear_conversation(ctx)
         assert ctx.conv.history == []

@@ -52,8 +52,8 @@ Builder implementation (seq 04), result fields (seq 05), service integration tes
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Tests-first row |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Test-only row: implement step is the test change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | Tests-first row rewritten for builder contract + 4 counts + failure-intact; real-DB section drives restore via SessionTransitionService |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | Test-only row: implement step is the test change 41 tests pass (with test_session_transition) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

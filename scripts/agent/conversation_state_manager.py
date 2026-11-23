@@ -8,6 +8,7 @@ user message append, memory injection, and history compression.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -15,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from shared.types import LLMMessage
 
+from agent.bg_task_monitor import register_task_meta
 from agent.memory.snippet_filter import build_memory_block
 from agent.message_schema import validate_message
 
@@ -23,9 +25,33 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from agent.context import AgentContext
     from agent.diagnostic_store import DiagnosticStore
+    from agent.session import SessionTarget
 
 # Ephemeral keys used to identify messages that should be cleaned up between turns.
 _EPHEMERAL_KEYS: frozenset[str] = frozenset({"_ephemeral", "_memory_injected"})
+
+# REQ-004: session target captured at title-task creation. asyncio tasks copy
+# their creation context, so a variable set immediately before create_task is
+# visible inside the task even after the live session switches. The title
+# modules (services/session_title.py, commands/session_title.py) read it via
+# get_captured_session_target(); capture_session_target() is the set side.
+current_session_target: contextvars.ContextVar[SessionTarget | None] = (
+    contextvars.ContextVar(
+        "conversation_state_manager.current_session_target", default=None
+    )
+)
+
+
+def capture_session_target(
+    target: SessionTarget,
+) -> contextvars.Token[SessionTarget | None]:
+    """Bind *target* for tasks created in this context until reset(token)."""
+    return current_session_target.set(target)
+
+
+def get_captured_session_target() -> SessionTarget | None:
+    """Return the session target captured for the calling task, if any."""
+    return current_session_target.get()
 
 
 class ConversationStateManager:
@@ -105,10 +131,27 @@ class ConversationStateManager:
         await ctx.conv.append_message({"role": "user", "content": line})
         ctx.stats.stat_turns += 1
         if ctx.stats.stat_turns == 1 and self._on_first_turn is not None:
-            _task = asyncio.create_task(
-                self._on_first_turn(line),
-                name=getattr(self._on_first_turn, "__name__", "unknown_bg_task"),
-            )
+            # REQ-004: capture (session id, generation) immediately before
+            # create_task so the title task stays bound to this session.
+            target = ctx.session.capture_target()
+            token = capture_session_target(target) if target is not None else None
+            try:
+                _task = asyncio.create_task(
+                    self._on_first_turn(line),
+                    name=getattr(self._on_first_turn, "__name__", "unknown_bg_task"),
+                )
+            finally:
+                if token is not None:
+                    current_session_target.reset(token)
+            if target is not None:
+                # REQ-005: typed monitor record through the existing task-done
+                # path (the monitor object is not reachable from this module).
+                register_task_meta(
+                    _task,
+                    task_type="session_title",
+                    session_id=target.session_id,
+                    generation=target.generation,
+                )
             self._tasks.add(_task)
             _task.add_done_callback(self._on_discard)
         # Persist through the turn's atomic boundary (SEQ-06) so the user row is

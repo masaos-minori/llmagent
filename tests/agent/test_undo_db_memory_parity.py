@@ -286,6 +286,49 @@ class TestUndoReloadFallback:
             if r.levelno == logging.WARNING
         )
 
+    def test_reload_failure_raises_undo_reload_error_with_count(
+        self, env: _Env
+    ) -> None:
+        """REQ-008: a failed post-delete reload raises UndoReloadError carrying
+        the deleted-row count instead of diverging silently."""
+        sid = env.sid
+        env.session.save_many(
+            [
+                ("user", "q1", None, None),
+                ("assistant", "a1", None, None),
+                ("user", "q2", None, None),
+                ("assistant", "a2", None, None),
+            ]
+        )
+        env.conn.execute(
+            "INSERT INTO messages (session_id, role, content, tool_call_id)"
+            " VALUES (?, 'tool', 'orphan-result', 'tcX')",
+            (sid,),
+        )
+        env.conn.commit()
+
+        history = [
+            {"role": "user", "content": "q1"},
+            {"role": "assistant", "content": "a1"},
+            {"role": "user", "content": "q2"},
+            {"role": "assistant", "content": "a2"},
+        ]
+        ctx = _ctx(env.session, history)
+
+        def _fail(_sid: int) -> None:
+            raise sqlite3.OperationalError("disk I/O error")
+
+        with (
+            patch.object(env.session, "fetch_messages", _fail),
+            pytest.raises(undo_service.UndoReloadError) as excinfo,
+        ):
+            undo_service.undo_last_turn(ctx)
+
+        assert excinfo.value.n_deleted == 3
+        # Memory is left untouched; the error is the explicit divergence report
+        # and the recovery source is the intact persisted rows (/session load).
+        assert [m["content"] for m in ctx.conv.history] == ["q1", "a1", "q2", "a2"]
+
 
 class TestUndoArtifactTrim:
     def test_injected_block_trimmed_on_primary_path(self, env: _Env) -> None:

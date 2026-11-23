@@ -334,3 +334,89 @@ class TestPauseResumePath:
 
         assert monitor.bg_pause_state == {"bg_task_0": True}
         assert monitor.check_pause_state() == (True, ["bg_task_0"])
+
+
+class TestTypedRegistration:
+    """REQ-005: registered tasks group failures by task type."""
+
+    @pytest.mark.asyncio
+    async def test_registered_failures_group_by_task_type(self) -> None:
+        ctx = _make_ctx()
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
+
+        t1 = await _await_raising("boom 1", "title_task_a")
+        monitor.register(t1, task_type="session_title", session_id=9, generation=3)
+        t2 = await _await_raising("boom 2", "title_task_b")
+        monitor.register(t2, task_type="session_title", session_id=9, generation=4)
+
+        # Both instances count under the shared type key, not their names.
+        assert monitor.get_consecutive_failures("session_title") == 2
+        assert monitor.get_consecutive_failures("title_task_a") == 0
+        assert monitor.get_consecutive_failures("title_task_b") == 0
+
+    @pytest.mark.asyncio
+    async def test_unregistered_tasks_keep_name_based_keys(self) -> None:
+        ctx = _make_ctx()
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
+
+        task = await _await_raising("boom", "legacy_task")
+        monitor.on_task_done(task)
+
+        assert monitor.get_consecutive_failures("legacy_task") == 1
+
+    @pytest.mark.asyncio
+    async def test_registered_task_joins_task_registry(self) -> None:
+        ctx = _make_ctx()
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
+
+        task = asyncio.create_task(_cancellable_task(), name="title_pending")
+        monitor.register(task, task_type="session_title", session_id=1, generation=1)
+        assert task in tasks
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        await asyncio.sleep(0)  # let the done callback run through on_task_done
+
+        assert task not in tasks
+        assert monitor.get_consecutive_failures("session_title") == 0
+
+
+class TestFailureLogRedaction:
+    """AC-2: logs carry the exception class name, never the raw reason."""
+
+    @pytest.mark.asyncio
+    async def test_first_and_threshold_logs_omit_raw_reason(self) -> None:
+        ctx = _make_ctx()
+        tasks: set[asyncio.Task[object]] = set()
+        monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
+
+        captured_log: list[str] = []
+
+        class CapturingHandler(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                captured_log.append(record.getMessage())
+
+        handler = CapturingHandler()
+        handler.setLevel(logging.DEBUG)
+        monitor_logger = logging.getLogger("agent.bg_task_monitor")
+        original_handlers = monitor_logger.handlers.copy()
+        monitor_logger.addHandler(handler)
+
+        try:
+            for i in range(BG_FAILURE_THRESHOLD):
+                task = await _await_raising(
+                    f"raw reason {i} with db detail", "bg_task_0"
+                )
+                monitor.on_task_done(task)
+        finally:
+            monitor_logger.removeHandler(handler)
+            monitor_logger.handlers = original_handlers
+
+        joined = "\n".join(captured_log)
+        assert "RuntimeError" in joined  # class name is present
+        assert "raw reason" not in joined  # raw exception text never appears
+        assert "db detail" not in joined

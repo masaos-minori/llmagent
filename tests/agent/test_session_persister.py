@@ -8,6 +8,7 @@ row-count assertions, so a skipped write cannot be satisfied by accident.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import sqlite3
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -384,3 +385,102 @@ class TestPersistSessionMemoriesGate:
         assert "user" in caplog.text
         assert "rogue_key" in caplog.text
         assert secret not in caplog.text
+
+
+class TestSessionPersistenceSnapshot:
+    """REQ-006: one immutable, generation-checked snapshot for both persist steps."""
+
+    def _snapshot_ctx(self) -> MagicMock:
+        ctx = _ctx(1)
+        ctx.session.generation = 4
+        ctx.conv.history = [{"role": "user", "content": "kept"}]
+        ctx.turn.current_turn_id = "t1"
+        return ctx
+
+    def test_capture_copies_history_defensively(self) -> None:
+        ctx = self._snapshot_ctx()
+        persister = SessionPersister(ctx, MagicMock(), MagicMock())
+
+        snap = persister.capture_snapshot()
+        ctx.conv.history.append({"role": "user", "content": "later"})
+        ctx.conv.history[0]["content"] = "mutated"
+
+        assert snap.session_id == 1
+        assert snap.generation == 4
+        assert snap.turn_id == "t1"
+        assert snap.stats is ctx.stats
+        assert snap.history == ({"role": "user", "content": "kept"},)
+
+    def test_snapshot_fields_are_frozen(self) -> None:
+        persister = SessionPersister(self._snapshot_ctx(), MagicMock(), MagicMock())
+        snap = persister.capture_snapshot()
+
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            snap.session_id = 2  # type: ignore[misc] — assigning to a frozen field is the test subject
+
+    @pytest.mark.asyncio
+    async def test_both_steps_read_one_snapshot(self, db) -> None:
+        ctx = self._snapshot_ctx()
+        ctx.services = MagicMock()
+        ctx.services.llm = None
+        ctx.services.hist_mgr = None
+        ctx.services.memory.on_session_stop = AsyncMock()
+        persister = SessionPersister(
+            ctx,
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            MagicMock(),
+        )
+
+        snap = persister.capture_snapshot()
+        # Live state changes after capture must not reach either persist step.
+        ctx.session.session_id = 2
+        ctx.conv.history = [{"role": "user", "content": "changed"}]
+        ctx.turn.current_turn_id = "t2"
+        await persister.persist_session_diagnostics(snap)
+        await persister.persist_session_memories(snap)
+
+        rows = db.conn.execute("SELECT session_id FROM session_diagnostics").fetchall()
+        assert rows == [(1,)]
+        kwargs = ctx.services.memory.on_session_stop.await_args.kwargs
+        assert kwargs["session_id"] == 1
+        assert [(m.role, m.content) for m in kwargs["history"]] == [("user", "kept")]
+        assert kwargs["turn_id"] == "t1"
+
+    @pytest.mark.asyncio
+    async def test_stale_generation_is_rejected_with_no_writes(
+        self, db, caplog
+    ) -> None:
+        ctx = self._snapshot_ctx()
+        ctx.services = MagicMock()
+        ctx.services.llm = None
+        ctx.services.hist_mgr = None
+        ctx.services.memory.on_session_stop = AsyncMock()
+        persister = SessionPersister(
+            ctx,
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            MagicMock(),
+        )
+
+        snap = persister.capture_snapshot()
+        ctx.session.generation = 5
+        with caplog.at_level(logging.WARNING, logger="agent.session_persister"):
+            await persister.persist_session_diagnostics(snap)
+            await persister.persist_session_memories(snap)
+
+        assert db.count() == 0
+        ctx.services.memory.on_session_stop.assert_not_called()
+        assert "generation" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_no_snapshot_argument_keeps_live_read(self, db) -> None:
+        ctx = self._snapshot_ctx()
+        persister = SessionPersister(
+            ctx,
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            MagicMock(),
+        )
+
+        await persister.persist_session_diagnostics()
+
+        rows = db.conn.execute("SELECT session_id FROM session_diagnostics").fetchall()
+        assert rows == [(1,)]

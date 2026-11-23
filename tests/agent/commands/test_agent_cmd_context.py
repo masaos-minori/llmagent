@@ -6,7 +6,7 @@ Behavior-lock tests for _ContextMixin: _cmd_undo, _cmd_clear, _cmd_history.
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.commands.cmd_context import _ContextMixin
@@ -15,6 +15,7 @@ from agent.commands.output_port import CliOutputPort
 from agent.commands.registry import CommandRegistry
 from agent.commands.token_display import _token_source_label
 from agent.repl import completion_command_names
+from agent.services import undo_service
 from agent.services.context_view import _build_budget, _format_memory_status
 from agent.services.context_view import budget_breakdown as _budget_breakdown
 from agent.services.models import DeletedRow, UndoResult
@@ -267,34 +268,57 @@ class TestCmdUndo:
         assert ctx.conv.history == [_system_msg(), _user_msg(), _assistant_msg()]
         assert ctx.stats.stat_turns == 1
 
+    def test_undo_reload_failure_prints_count_and_recovery_hint(
+        self, capsys: Any
+    ) -> None:
+        # REQ-008: the command layer reports the deleted-row count and points
+        # at /session load with the current session id.
+        ctx = _make_ctx()
+        ctx.conv.history = [_system_msg(), _user_msg(), _assistant_msg()]
+        ctx.session.session_id = 42
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "agent.services.undo_service.undo_last_turn",
+            side_effect=undo_service.UndoReloadError(3),
+        ):
+            cmd._cmd_undo()
+        out = capsys.readouterr().out
+        assert "3 deleted row(s)" in out
+        assert "/session load 42" in out
+        assert "undone" not in out
+
 
 # ── _cmd_clear ────────────────────────────────────────────────────────────────
 
 
 class TestCmdClear:
-    def test_clear_keeps_system_message(self) -> None:
+    async def test_clear_keeps_system_message(self) -> None:
         ctx = _make_ctx()
         ctx.conv.history = [_system_msg(), _user_msg(), _assistant_msg()]
         cmd = _FakeCmd(ctx)
-        cmd._cmd_clear()
+        await cmd._cmd_clear()
         assert ctx.conv.history == [_system_msg()]
 
-    def test_clear_resets_stats(self) -> None:
+    async def test_clear_resets_stats(self) -> None:
         ctx = _make_ctx()
         ctx.conv.history = [_system_msg()]
         ctx.stats.stat_turns = 5
         ctx.stats.stat_tool_calls = 10
         cmd = _FakeCmd(ctx)
-        cmd._cmd_clear()
+        await cmd._cmd_clear()
         assert ctx.stats.stat_turns == 0
         assert ctx.stats.stat_tool_calls == 0
 
-    def test_clear_new_starts_new_session(self, capsys: Any) -> None:
+    async def test_clear_new_delegates_to_transition_service(self, capsys: Any) -> None:
         ctx = _make_ctx()
         ctx.conv.history = [_system_msg()]
         cmd = _FakeCmd(ctx)
-        cmd._cmd_clear("new")
-        ctx.session.start.assert_called_once()
+        service = MagicMock()
+        service.clear_new = AsyncMock()
+        with patch.object(cmd, "session_transition_service", return_value=service):
+            await cmd._cmd_clear("new")
+        # REQ-002: the transition service owns finalize/start/commit.
+        service.clear_new.assert_awaited_once()
         out = capsys.readouterr().out
         assert "New session" in out
 

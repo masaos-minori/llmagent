@@ -115,20 +115,36 @@ class _ContextMixin(MixinBase, TokenDisplay):
                     pct = n * 100 // total_tokens if total_tokens > 0 else 0
                     self._out.write(f"  {cat:<14}: {n:>8,} tokens ({pct:>3}%)")
 
-    def _cmd_clear(self, args: str = "") -> None:
-        """Reset conversation history to system prompt only and clear session stats."""
+    async def _cmd_clear(self, args: str = "") -> None:
+        """Reset the in-memory conversation history and clear session stats."""
         parsed = parse_command_args(args.split())
         new_session = parsed.subcommand == "new"
-        result = clear_conversation(self._ctx, new_session=new_session)
+        result = await clear_conversation(
+            self._ctx,
+            new_session=new_session,
+            transition_service=(
+                self.session_transition_service() if new_session else None
+            ),
+        )
         self._out.write_success(result.message)
 
     def _cmd_undo(self) -> None:
         """Roll back the last user+assistant turn, gated by the compression boundary."""
         from agent.services.undo_service import (  # lazy import
+            UndoReloadError,
             undo_last_turn,
         )
 
-        result = undo_last_turn(self._ctx)
+        try:
+            result = undo_last_turn(self._ctx)
+        except UndoReloadError as e:
+            # REQ-008: rows are already deleted; point at the recovery path.
+            sid = self._ctx.session.session_id
+            self._out.write_error(
+                f"Undo reload failed: {e.n_deleted} deleted row(s) could not be "
+                f"re-read. Run /session load {sid} to recover the persisted rows."
+            )
+            return
         if result.block_reason:  # blocked by the boundary (rows 05/06)
             self._out.write_no_data(result.block_reason)
         else:

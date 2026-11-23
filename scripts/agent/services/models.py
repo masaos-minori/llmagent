@@ -41,9 +41,15 @@ class ProcessInfoSnapshot:
 
 @dataclass(frozen=True)
 class SessionTitleResult:
-    """Result of generating a session title."""
+    """Result of generating a session title.
+
+    ``stale=True`` means the write was refused because the captured session
+    target no longer matches the live session (REQ-004); the title text is
+    still carried for the caller but nothing was persisted.
+    """
 
     title: str
+    stale: bool = False
 
 
 @dataclass(frozen=True)
@@ -114,10 +120,19 @@ class McpProbeResult:
 
 @dataclass(frozen=True)
 class SessionRestoreResult:
-    """Result of restoring a session from the database."""
+    """Result of restoring a session from the database.
+
+    The four counts separate what the restore fetched, synthesized, dropped,
+    and finally restored (REQ-009). ``n_messages`` mirrors ``fetched`` for one
+    release so existing readers keep working until consumers switch.
+    """
 
     session_id: int
     n_messages: int
+    fetched: int = 0
+    synthesized: int = 0
+    dropped: int = 0
+    restored: int = 0
 
 
 @dataclass(frozen=True)

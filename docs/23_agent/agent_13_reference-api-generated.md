@@ -35,7 +35,9 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |---|---|---|---|
 | `scripts/agent/audit_event_emitter.py` | `format_session_id` | `def format_session_id(session_id) -> str` | Format session_id for audit logs, returning empty string when None. |
 |  | `AuditEventEmitter` | `class AuditEventEmitter` | Constructs and emits audit events for turn lifecycle boundaries. |
-| `scripts/agent/bg_task_monitor.py` | `BgTaskMonitor` | `class BgTaskMonitor` | Monitors background task failures and enforces threshold-based policies. |
+| `scripts/agent/bg_task_monitor.py` | `BgTaskMeta` | `class BgTaskMeta` | Type and session identity captured when a background task is registered. |
+|  | `register_task_meta` | `def register_task_meta(task, *, task_type, session_id, generation) -> None` | Attach type and session identity to a task for the next on_task_done. |
+|  | `BgTaskMonitor` | `class BgTaskMonitor` | Monitors background task failures and enforces threshold-based policies. |
 | `scripts/agent/cli_view.py` | `WriterBase` | `class WriterBase` | Base class providing default implementations for output methods. |
 |  | `CLIView` | `class CLIView` | Manages terminal output: readline history, tab completion, and progress status line. |
 | `scripts/agent/config_builders.py` | `resolved_config_dir` | `def resolved_config_dir() -> Path` | Return the resolved agent config directory via the shared resolver. |
@@ -58,7 +60,9 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `WorkflowState` | `class WorkflowState` | Per-session workflow runtime state; transient, not persisted. |
 |  | `AppServices` | `class AppServices` | Fully-initialized service references built by factory.py. |
 |  | `AgentContext` | `class AgentContext` | Mutable runtime state shared between AgentREPL and CommandRegistry. |
-| `scripts/agent/conversation_state_manager.py` | `ConversationStateManager` | `class ConversationStateManager` | Manages conversation history state across turns. |
+| `scripts/agent/conversation_state_manager.py` | `capture_session_target` | `def capture_session_target(target) -> contextvars.Token[SessionTarget \| None]` | Bind *target* for tasks created in this context until reset(token). |
+|  | `get_captured_session_target` | `def get_captured_session_target() -> SessionTarget \| None` | Return the session target captured for the calling task, if any. |
+|  | `ConversationStateManager` | `class ConversationStateManager` | Manages conversation history state across turns. |
 | `scripts/agent/diagnostic_store.py` | `DiagnosticStore` | `class DiagnosticStore` | Dedicated store for diagnostic messages, separate from conversation history. |
 | `scripts/agent/error_injection_service.py` | `ErrorInjectionService` | `class ErrorInjectionService` | Service for handling synthetic error injection in agent turns. |
 | `scripts/agent/eventbus_subscriber.py` | `EventBusStreamError` | `class EventBusStreamError` | Raised when the subscribe stream cannot be established or maintained |
@@ -132,9 +136,11 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/resource_shutdown_coordinator.py` | `ResourceShutdownCoordinator` | `class ResourceShutdownCoordinator` | Coordinates resource shutdown across all subsystems. |
 | `scripts/agent/secrets_masker.py` | `detects_secrets` | `def detects_secrets(text) -> bool` | Return True when any SECRET_PATTERNS substitution would change the text. |
 | `scripts/agent/session.py` | `SchemaMissingError` | `class SchemaMissingError` | Raised when required SQLite schema tables are missing. |
+|  | `SessionTarget` | `class SessionTarget` | Immutable (session_id, generation) pair identifying one session generation. |
 |  | `AgentSession` | `class AgentSession` | Manages REPL session and message persistence in SQLite. |
 | `scripts/agent/session_message_repo.py` | `SessionMessageRepository` | `class SessionMessageRepository` | Repository for session message operations. |
-| `scripts/agent/session_persister.py` | `SessionPersister` | `class SessionPersister` | Handles persistence of session-level data at shutdown. |
+| `scripts/agent/session_persister.py` | `SessionPersistenceSnapshot` | `class SessionPersistenceSnapshot` | Immutable point-in-time view of session state for one persistence pass. |
+|  | `SessionPersister` | `class SessionPersister` | Handles persistence of session-level data at shutdown. |
 | `scripts/agent/signal_handler.py` | `SignalHandler` | `class SignalHandler` | Encapsulates platform-specific signal handling for the REPL. |
 | `scripts/agent/startup.py` | `StartupInterrupted` | `class StartupInterrupted` | Raised when a SIGINT/SIGTERM shutdown request interrupts the startup sequence. |
 |  | `StartupOrchestrator` | `class StartupOrchestrator` | Runs the full agent startup sequence before the REPL input loop begins. |

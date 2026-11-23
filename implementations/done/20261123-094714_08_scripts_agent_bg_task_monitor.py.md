@@ -58,10 +58,10 @@ Task-creation capture (seq 09), title log redaction (seq 10-11).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion row 27) | Pending | — | — | Tests written first per plan Phase 4 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | register()/register_task_meta + frozen BgTaskMeta; type-grouped keys; logs carry type(exc).__name__ only |
+| 2 | Add or update tests per Validation plan (companion row 27) | Completed | 2026-11-23 | 2026-11-23 | Tests written first per plan Phase 4 typed-registration + redaction tests added (17 pass) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy, lint-imports, targeted pytest pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-23 | 2026-11-23 | N/A for this row N/A per Compatibility row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

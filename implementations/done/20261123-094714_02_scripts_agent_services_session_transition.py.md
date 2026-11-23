@@ -8,9 +8,9 @@ Create `SessionTransitionService` (new) with idle check, snapshot, old-session f
 New module `scripts/agent/services/session_transition.py`; consumed by seq 06 (conversation_service) and seq 12 (cmd_session). No other file is modified here.
 
 ## Assumptions
-- UNK-01 (plan): idle means `ctx.turn.persistence_boundary` is None; verify at execution and fall back to refusing when a turn is active by another flag.
-- UNK-02 (plan): a failed old-session Memory finalization warns and continues (data already persisted); owner confirms at review.
-- UNK-03 (plan): check `memory.on_session_stop` idempotence; guard with a finalized-session marker if double finalization is unsafe.
+- UNK-01 resolved (2026-11-23): `ctx.turn.persistence_boundary` is set once per session and never cleared, so it cannot mark activity; the idle check uses `ctx.conv.is_processing` and `ctx.turn.current_turn_id` (both reliably cleared) and refuses with `SessionTransitionRefusedError` while either is active.
+- UNK-02 resolved (2026-11-23): a failed old-session finalize logs a warning and continues (data already persisted in the messages table).
+- UNK-03 resolved (2026-11-23): `memory.on_session_stop` idempotence was not relied on — the service keeps a `_finalized_sessions` set and finalizes each session id at most once.
 - Commands run serially in the REPL loop; the idle check is a guard, not a lock (plan Assumptions).
 - `refresh_session_correlation` and `reset_session_stats` from `scripts/agent/commands/mixin_base.py` are reused read-only (Reference Files row).
 
@@ -66,10 +66,10 @@ The restore builder (seq 04), command rewiring (seq 06, 12), persistence snapsho
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion row 21) | Pending | — | — | Tests written first per plan Phase 3 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Generated docs via seq 18-20 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | load/clear_new implemented; UNK-01/02/03 resolved in Assumptions |
+| 2 | Add or update tests per Validation plan (companion row 21) | Completed | 2026-11-23 | 2026-11-23 | Tests written first per plan Phase 3 12 tests in tests/agent/services/test_session_transition.py pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy, lint-imports, targeted pytest pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-23 | 2026-11-23 | Generated docs via seq 18-20 Docs updated via seq 15-20 (2026-11-23) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

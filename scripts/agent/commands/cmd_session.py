@@ -8,7 +8,7 @@ Provides _SessionMixin with:
   _generate_session_title  — background task: LLM-generated short title (delegates to SessionTitleService)
   _session_load_safe       — safe session restore by ID
   _session_delete          — session deletion with self-guard
-  _load_session            — restore messages into ctx.conv.history (delegates to restore_session)
+  _load_session            — restore a session through SessionTransitionService
 """
 
 import asyncio
@@ -79,9 +79,9 @@ class _SessionMixin(MixinBase):
     def _session_list(self, limit_arg: str) -> None:
         """List sessions table; limit_arg is the raw CLI positional (digit string or empty)."""
         from agent.commands.session_title import (  # lazy import
-            SESSION_TITLE_MAX_CHARS,
             SESSION_TITLE_TRUNCATE_AT,
         )
+        from agent.session import SESSION_TITLE_DISPLAY_MAX_CHARS
 
         try:
             limit = parse_int_arg(
@@ -111,16 +111,16 @@ class _SessionMixin(MixinBase):
                     message_count=int(r.get("message_count", 0)),
                 )
             )
-        current_id = self._ctx.session.session_id
         table_rows = []
         for sr in session_rows:
-            is_current = sr.session_id == current_id
-            if is_current and self._ctx.session.is_title_pending():
+            # Per-session pending state (seq 01): a title task still generating
+            # for any session id shows correctly, not just the current row.
+            if self._ctx.session.is_title_pending(sr.session_id):
                 title_display = "(generating...)"
             elif sr.title:
                 title_display = (
                     sr.title[:SESSION_TITLE_TRUNCATE_AT] + "..."
-                    if len(sr.title) > SESSION_TITLE_MAX_CHARS
+                    if len(sr.title) > SESSION_TITLE_DISPLAY_MAX_CHARS
                     else sr.title
                 )
             else:
@@ -206,14 +206,14 @@ class _SessionMixin(MixinBase):
             if not title:
                 self._out.write_validation_error("/session rename <title>")
                 return
-            from agent.commands.session_title import SESSION_TITLE_MAX_CHARS
+            from agent.session import SESSION_TITLE_DISPLAY_MAX_CHARS
 
             persisted = self._ctx.session.set_title(title)
             if not persisted:
                 self._out.write_validation_error("/session rename <title>")
                 return
             self._out.write_success(
-                f"Session renamed: {title[:SESSION_TITLE_MAX_CHARS]!r}"
+                f"Session renamed: {title[:SESSION_TITLE_DISPLAY_MAX_CHARS]!r}"
             )
             return
 
@@ -252,18 +252,25 @@ class _SessionMixin(MixinBase):
         )
 
     async def _load_session(self, session_id: int) -> None:
-        """Restore a previous session via session_restore service."""
+        """Restore a previous session through the transition service (REQ-002)."""
         from agent.services.exceptions import (  # lazy import
             SessionNotFoundError,
         )
-        from agent.services.session_restore import (  # lazy import
-            restore_session,
+        from agent.services.session_transition import (  # lazy import
+            SessionTransitionRefusedError,
         )
 
         try:
-            result = await restore_session(self._ctx, session_id)
-            self._out.write_success(
-                f"Session {result.session_id} loaded: {result.n_messages} messages restored."
-            )
+            result = await self.session_transition_service().load(session_id)
         except SessionNotFoundError as e:
             self._out.write_no_data(str(e))
+            return
+        except SessionTransitionRefusedError as e:
+            self._out.write_error(str(e))
+            return
+        # Four separate counts (REQ-009 / AC-5)
+        self._out.write_success(
+            f"Session {result.session_id} loaded: {result.restored} restored "
+            f"({result.fetched} fetched, {result.synthesized} synthesized, "
+            f"{result.dropped} dropped)."
+        )

@@ -57,10 +57,10 @@ Service-side save path (seq 10), capture point (seq 09).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After seq 01, 09 |
-| 2 | Add or update tests per Validation plan (companion row 30) | Pending | — | — | Tests written first per plan Phase 4 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | After seq 01, 09 target-bound pending/fallback/finally; audit+warning carry ids and class names only; SESSION_TITLE_DISPLAY_MAX_CHARS switch enabled removal of deprecated SESSION_TITLE_MAX_CHARS alias in session.py |
+| 2 | Add or update tests per Validation plan (companion row 30) | Completed | 2026-11-23 | 2026-11-23 | Tests written first per plan Phase 4 TestSessionTitleTargetBinding added + 4 existing assertions updated (84 pass) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy, lint-imports, targeted pytest pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-23 | 2026-11-23 | N/A for this row Docs updated via seq 16 (state-model audit wording) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

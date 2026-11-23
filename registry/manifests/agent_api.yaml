@@ -11,6 +11,17 @@ entries:
   summary: Constructs and emits audit events for turn lifecycle boundaries.
 - file: scripts/agent/bg_task_monitor.py
   kind: class
+  name: BgTaskMeta
+  signature: class BgTaskMeta
+  summary: Type and session identity captured when a background task is registered.
+- file: scripts/agent/bg_task_monitor.py
+  kind: function
+  name: register_task_meta
+  signature: def register_task_meta(task, *, task_type, session_id, generation) ->
+    None
+  summary: Attach type and session identity to a task for the next on_task_done.
+- file: scripts/agent/bg_task_monitor.py
+  kind: class
   name: BgTaskMonitor
   signature: class BgTaskMonitor
   summary: Monitors background task failures and enforces threshold-based policies.
@@ -318,6 +329,17 @@ entries:
   name: AgentContext
   signature: class AgentContext
   summary: Mutable runtime state shared between AgentREPL and CommandRegistry.
+- file: scripts/agent/conversation_state_manager.py
+  kind: function
+  name: capture_session_target
+  signature: def capture_session_target(target) -> contextvars.Token[SessionTarget
+    | None]
+  summary: Bind *target* for tasks created in this context until reset(token).
+- file: scripts/agent/conversation_state_manager.py
+  kind: function
+  name: get_captured_session_target
+  signature: def get_captured_session_target() -> SessionTarget | None
+  summary: Return the session target captured for the calling task, if any.
 - file: scripts/agent/conversation_state_manager.py
   kind: class
   name: ConversationStateManager
@@ -947,10 +969,11 @@ entries:
   signature: def collect_context_state(ctx) -> ContextStateView
   summary: Aggregate runtime context data for /context display.
 - file: scripts/agent/services/conversation_service.py
-  kind: function
+  kind: async function
   name: clear_conversation
-  signature: def clear_conversation(ctx, *, new_session) -> ConversationActionResult
-  summary: Reset conversation history to system prompt only and clear session stats.
+  signature: async def clear_conversation(ctx, *, new_session, transition_service)
+    -> ConversationActionResult
+  summary: Reset the in-memory conversation history and clear session stats.
 - file: scripts/agent/services/db_maintenance_service.py
   kind: class
   name: DbMaintenanceService
@@ -1235,20 +1258,45 @@ entries:
     -> tuple[list[LLMMessage], int]
   summary: Pair assistant tool_calls rows with tool-result rows at load time.
 - file: scripts/agent/services/session_restore.py
+  kind: class
+  name: RestoredSessionState
+  signature: class RestoredSessionState
+  summary: State built by :func:`restore_session`, waiting to be committed.
+- file: scripts/agent/services/session_restore.py
   kind: async function
   name: restore_session
-  signature: async def restore_session(ctx, session_id) -> SessionRestoreResult
-  summary: 'Restore session: rebuild history, switch session ID, reset stats.'
+  signature: async def restore_session(ctx, session_id) -> RestoredSessionState
+  summary: Build the restored session state without mutating the context.
 - file: scripts/agent/services/session_title.py
   kind: class
   name: SessionTitleService
   signature: class SessionTitleService
   summary: Generate a short LLM-based title for a session and persist it.
+- file: scripts/agent/services/session_transition.py
+  kind: class
+  name: SessionTransitionRefusedError
+  signature: class SessionTransitionRefusedError
+  summary: Raised when a session transition is refused because a turn is active.
+- file: scripts/agent/services/session_transition.py
+  kind: class
+  name: SessionTransitionSnapshot
+  signature: class SessionTransitionSnapshot
+  summary: Defensive copy of the full session state taken before a transition.
+- file: scripts/agent/services/session_transition.py
+  kind: class
+  name: SessionTransitionService
+  signature: class SessionTransitionService
+  summary: 'Atomic transitions between sessions: idle check, finalize, build, commit.'
 - file: scripts/agent/services/tool_validation.py
   kind: async function
   name: check_tool_definitions_runtime
   signature: async def check_tool_definitions_runtime(ctx) -> HealthCheckResult
   summary: 'Runtime validation: no raise, warnings only.'
+- file: scripts/agent/services/undo_service.py
+  kind: class
+  name: UndoReloadError
+  signature: class UndoReloadError
+  summary: 'Post-delete reload failed: DB rows are gone but memory was not reloaded.'
 - file: scripts/agent/services/undo_service.py
   kind: function
   name: undo_last_turn
@@ -1276,6 +1324,11 @@ entries:
   summary: Raised when required SQLite schema tables are missing.
 - file: scripts/agent/session.py
   kind: class
+  name: SessionTarget
+  signature: class SessionTarget
+  summary: Immutable (session_id, generation) pair identifying one session generation.
+- file: scripts/agent/session.py
+  kind: class
   name: AgentSession
   signature: class AgentSession
   summary: Manages REPL session and message persistence in SQLite.
@@ -1284,6 +1337,11 @@ entries:
   name: SessionMessageRepository
   signature: class SessionMessageRepository
   summary: Repository for session message operations.
+- file: scripts/agent/session_persister.py
+  kind: class
+  name: SessionPersistenceSnapshot
+  signature: class SessionPersistenceSnapshot
+  summary: Immutable point-in-time view of session state for one persistence pass.
 - file: scripts/agent/session_persister.py
   kind: class
   name: SessionPersister

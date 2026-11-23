@@ -57,10 +57,10 @@ Monitor internals (seq 08), title-side reads (seq 10-11).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After seq 01, 08 |
-| 2 | Add or update tests per Validation plan (companion row 28) | Pending | — | — | Tests written first per plan Phase 4 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Generated docs via seq 18 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | After seq 01, 08 contextvar capture before create_task; register_task_meta via existing task-done path (monitor unreachable); executed after seq 08 per dependency |
+| 2 | Add or update tests per Validation plan (companion row 28) | Completed | 2026-11-23 | 2026-11-23 | Tests written first per plan Phase 4 TestFirstTurnTitleTaskCapture added to test_orchestrator.py (163 pass) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy, lint-imports, targeted pytest pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-23 | 2026-11-23 | Generated docs via seq 18 Docs updated via seq 15-20 (2026-11-23) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

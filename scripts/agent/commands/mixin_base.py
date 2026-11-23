@@ -14,6 +14,8 @@ from agent.commands.output_port import CliOutputPort, OutputPort
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
+    from agent.services.session_transition import SessionTransitionService
+    from agent.session_persister import SessionPersister
 
 
 def reset_session_stats(ctx: AgentContext) -> None:
@@ -49,7 +51,26 @@ class MixinBase:
 
     _ctx: AgentContext
     _out: OutputPort = CliOutputPort()  # overridden by CommandRegistry.__init__
+    _persister: SessionPersister  # set by CommandRegistry.__init__
+    _session_transition_service: SessionTransitionService | None
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """No-op initializer; subclasses forward to this base via super().__init__()."""
         pass
+
+    def session_transition_service(self) -> SessionTransitionService:
+        """Return the shared SessionTransitionService, creating it on first use.
+
+        Built on the CommandRegistry-owned SessionPersister so finalize reuses
+        the same diagnostic store and one service instance keeps the
+        finalize-once guard across /clear new and /session load calls.
+        """
+        from agent.services.session_transition import (
+            SessionTransitionService,
+        )  # lazy import
+
+        if self._session_transition_service is None:
+            self._session_transition_service = SessionTransitionService(
+                self._ctx, self._persister
+            )
+        return self._session_transition_service

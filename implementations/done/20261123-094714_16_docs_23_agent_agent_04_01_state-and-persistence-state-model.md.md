@@ -51,8 +51,8 @@ Command-facing text (seq 15), the compression doc (seq 17).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add generation, snapshot, and per-session pending sections | Pending | — | — | Docs-only row: no test step |
-| 2 | Run the doc checkers named in `rules/tool-gates.md` | Pending | — | — | |
+| 1 | Add generation, snapshot, and per-session pending sections | Completed | 2026-11-23 | 2026-11-23 | Docs-only row: no test step Session Generation and Target Capture + Session Transition Snapshot subsections added; stale audit-line wording corrected |
+| 2 | Run the doc checkers named in `rules/tool-gates.md` | Completed | 2026-11-23 | 2026-11-23 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_consistency --domain agent pass (agent_14 /db warning pre-existing on HEAD) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

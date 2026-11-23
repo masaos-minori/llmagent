@@ -17,13 +17,16 @@ from __future__ import annotations
 import logging
 import sqlite3
 import time
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, cast
 
 import orjson
 
 if TYPE_CHECKING:
-    from agent.context import AgentContext
+    from agent.context import AgentContext, RuntimeStats
     from agent.workflow.state_store import StateStore
+
+from shared.types import LLMMessage
 
 from agent.cli_view import CLIView
 from agent.diagnostic_store import DiagnosticStore
@@ -35,6 +38,23 @@ logger = logging.getLogger(__name__)
 
 # Lazy imports inside methods to avoid circular dependency at module level.
 # StateStore is only needed when workflow tracking is active.
+
+
+@dataclass(frozen=True)
+class SessionPersistenceSnapshot:
+    """Immutable point-in-time view of session state for one persistence pass.
+
+    ``history`` is a defensive tuple of shallow dict copies: mutations of the
+    live history list or its messages after capture cannot alter the snapshot.
+    Persistence steps reject the snapshot when ``generation`` no longer matches
+    the live session generation.
+    """
+
+    session_id: int | None
+    generation: int
+    history: tuple[LLMMessage, ...]
+    turn_id: str | None
+    stats: RuntimeStats
 
 
 class SessionPersister:
@@ -56,30 +76,75 @@ class SessionPersister:
         self._diagnostic_store = diagnostic_store
         self._view = view
 
-    async def persist_session_diagnostics(self) -> None:
+    def capture_snapshot(self) -> SessionPersistenceSnapshot:
+        """Capture one immutable snapshot of the live session state (REQ-006)."""
+        return SessionPersistenceSnapshot(
+            session_id=self._ctx.session.session_id,
+            generation=self._ctx.session.generation,
+            history=tuple(cast(LLMMessage, dict(m)) for m in self._ctx.conv.history),
+            turn_id=self._ctx.turn.current_turn_id,
+            stats=self._ctx.stats,
+        )
+
+    def _checked_snapshot(
+        self, snapshot: SessionPersistenceSnapshot | None
+    ) -> SessionPersistenceSnapshot | None:
+        """Return the snapshot to read from, or None when the step must not write.
+
+        A missing argument captures the live state, preserving the behavior of
+        existing callers. A passed snapshot is rejected (logged) when its
+        generation differs from the live session generation.
+        """
+        snap = snapshot if snapshot is not None else self.capture_snapshot()
+        if snap.generation != self._ctx.session.generation:
+            logger.warning(
+                "Skipping persistence: snapshot generation %s differs from "
+                "live generation %s",
+                snap.generation,
+                self._ctx.session.generation,
+            )
+            return None
+        return snap
+
+    @staticmethod
+    def _build_latency_summary(
+        stats: RuntimeStats,
+    ) -> dict[str, dict[str, float | int]]:
+        """Build the per-step latency summary from snapshot statistics."""
+        latency_summary: dict[str, dict[str, float | int]] = {}
+        for step, samples in stats.stat_latency.items():
+            if samples:
+                latency_summary[step] = {
+                    "count": len(samples),
+                    "mean_ms": round(sum(samples) / len(samples) * 1000, 2),
+                    "max_ms": round(max(samples) * 1000, 2),
+                }
+        return latency_summary
+
+    async def persist_session_diagnostics(
+        self, snapshot: SessionPersistenceSnapshot | None = None
+    ) -> None:
         """Persist a lightweight runtime diagnostics summary at session end.
 
-        Skips (logging the reason) when no session was started; any failure while
-        building or saving the summary is reported as non-fatal.
+        Reads session state from *snapshot* when given, otherwise from a live
+        capture. Skips (logging the reason) when no session was started or the
+        snapshot generation is stale; any failure while building or saving the
+        summary is reported as non-fatal.
         """
-        if self._ctx.session.session_id is None:
+        snap = self._checked_snapshot(snapshot)
+        if snap is None:
+            return
+        if snap.session_id is None:
             logger.info("Skipping session diagnostics: no started session")
             return
         try:
-            stats = self._ctx.stats
+            stats = snap.stats
             llm = self._ctx.services.llm if self._ctx.services is not None else None
             services = self._ctx.services
             hist_mgr = services.hist_mgr if services is not None else None
-            session_id = self._ctx.session.session_id
+            session_id = snap.session_id
 
-            latency_summary = {}
-            for step, samples in stats.stat_latency.items():
-                if samples:
-                    latency_summary[step] = {
-                        "count": len(samples),
-                        "mean_ms": round(sum(samples) / len(samples) * 1000, 2),
-                        "max_ms": round(max(samples) * 1000, 2),
-                    }
+            latency_summary = self._build_latency_summary(stats)
 
             workflow_count = 0
             task_count = 0
@@ -184,18 +249,25 @@ class SessionPersister:
                 f"{OutputTag.NON_FATAL} Session persistence failed: {type(e).__name__}: {e}"
             )
 
-    async def persist_session_memories(self) -> None:
+    async def persist_session_memories(
+        self, snapshot: SessionPersistenceSnapshot | None = None
+    ) -> None:
         """Extract and persist session memories before compression or resource close.
 
-        Skips (logging the reason) when no session was started.
+        Reads session state from *snapshot* when given, otherwise from a live
+        capture. Skips (logging the reason) when no session was started or the
+        snapshot generation is stale.
         """
-        if self._ctx.session.session_id is None:
+        snap = self._checked_snapshot(snapshot)
+        if snap is None:
+            return
+        if snap.session_id is None:
             logger.info("Skipping session memories: no started session")
             return
         if self._ctx.services is not None and self._ctx.services.memory is not None:
             try:
                 history = []
-                for m in self._ctx.conv.history:
+                for m in snap.history:
                     unexpected = unexpected_message_keys(dict(m))
                     if unexpected:
                         logger.warning(
@@ -207,9 +279,9 @@ class SessionPersister:
                         HistoryMessage(role=m["role"], content=m.get("content") or "")
                     )
                 await self._ctx.services.memory.on_session_stop(
-                    session_id=self._ctx.session.session_id,
+                    session_id=snap.session_id,
                     history=history,
-                    turn_id=self._ctx.turn.current_turn_id,
+                    turn_id=snap.turn_id,
                 )
             except (RuntimeError, sqlite3.Error, OSError):
                 logger.exception(

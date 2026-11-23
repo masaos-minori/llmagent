@@ -25,7 +25,7 @@ Single-file change; row 25 is covered as this document's companion.
 1. Replace the new_session branch body (`ctx.session.start()` plus correlation/title calls) with the transition service clear_new call; set the new session's title after the commit.
 2. Reword both `ConversationActionResult.message` values to name in-memory conversation history and persisted-row survival.
 ### Method
-Delegate to seq 02; keep the function signature and return type unchanged.
+Delegate to seq 02. Verification finding (2026-11-23): the Assumptions' "signature unchanged" is not implementable — `clear_new` awaits the async persister, so `clear_conversation` became `async def` and gained a required `transition_service` kwarg for the new_session path; the `/clear` CommandDef flips to `is_async=True` (seq 13) and `_cmd_clear` awaits the call. Return type unchanged.
 ### Details
 N/A: none beyond the plan text.
 
@@ -57,10 +57,10 @@ Transition pipeline (seq 02), command display text (seq 13), docs (seq 15, 17).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After seq 02 |
-| 2 | Add or update tests per Validation plan (companion row 25) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs via seq 15, 17 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | After seq 02 async + transition_service kwarg per verification finding (see Method); messages reworded |
+| 2 | Add or update tests per Validation plan (companion row 25) | Completed | 2026-11-23 | 2026-11-23 | 13 tests pass (async conversion + delegation + wording) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy, lint-imports, targeted pytest pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-23 | 2026-11-23 | Docs via seq 15, 17 Docs updated via seq 15-20 (2026-11-23) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

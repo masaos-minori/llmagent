@@ -129,13 +129,13 @@ state view.
 
 | Data type | Scope | Storage | When persisted | Cleared by |
 |---|---|---|---|---|
-| `ctx.conv.history` | Session | In-memory | Per message (asynchronously, before LLM call) | `/clear` or end of session |
+| `ctx.conv.history` | Session | In-memory | Per message (asynchronously, before LLM call) | `/clear` (in-memory trim to the leading message; persisted `messages` rows survive) or end of session |
 | `ctx.conv.*` flags | Session | In-memory | — (not persisted) | Session restart |
-| `ctx.conv.undo_floor` | Session | In-memory | Updated at each compression; restored from `sessions` on `/session load` | `/clear` (reset to 0) |
+| `ctx.conv.undo_floor` | Session | In-memory | Updated at each compression; restored from `sessions` on `/session load` | Set by a transition commit (`/clear new` resets to 0; `/session load` restores the stored boundary); plain `/clear` leaves it unchanged |
 | `ctx.turn.current_turn_id` | Turn | In-memory | — (not persisted) | End of each turn |
-| `ctx.stats.*` | Session | In-memory | — (reported via `/stats`) | `/clear` |
-| `sessions` table | Persistent | SQLite | Upon session creation; title generated asynchronously during the first turn; compression boundary for `/undo` updated at each compression | `/session delete` |
-| `messages` table | Persistent | SQLite | Every call to `AgentSession.save()` | `/session delete` or `/undo` |
+| `ctx.stats.*` | Session | In-memory | Old session finalized (persisted) on a `/clear new` or `/session load` transition | `/clear` (reset) or transition (reset / restored) |
+| `sessions` table | Persistent | SQLite | Upon session creation; title generated asynchronously during the first turn; compression boundary for `/undo` updated at each compression; old session finalized on a `/clear new` or `/session load` transition | `/session delete` |
+| `messages` table | Persistent | SQLite | Every call to `AgentSession.save()` | `/session delete` or `/undo`; a failed post-`/undo` reload is reported with the deleted-row count and a `/session load` recovery hint — never a silent divergence |
 | Memory JSONL / `memories` table | Persistent | JSONL + SQLite | During memory extraction (asynchronously) | `/memory delete` or `/memory prune` (not cleared by `/session delete`) |
 
 ## Key Constraints

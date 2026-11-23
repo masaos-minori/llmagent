@@ -62,10 +62,10 @@ The transition service (seq 02), title-task capture (seq 09-11), command display
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion row 22) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs handled by seq 15-20 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | Added generation, bump_generation(), SessionTarget, capture_target(), target-checked set_title(), per-session title pending, STORAGE/DISPLAY limit constants; deprecated SESSION_TITLE_MAX_CHARS alias retained until seq 11 switches the consumer. |
+| 2 | Add or update tests per Validation plan (companion row 22) | Completed | 2026-11-23 | 2026-11-23 | tests/agent/test_agent_session.py: generation/target/pending/limit tests added; 155 targeted tests pass. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy, lint-imports pass; generate_reference_table --check reports manifest drift pending seq 19-20; full-suite pass due at batch end. mypy/lint-imports pass at cluster gate 2026-11-23; 15 tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-23 | 2026-11-23 | Docs handled by seq 15-20 Docs updated via seq 15-20 (2026-11-23) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

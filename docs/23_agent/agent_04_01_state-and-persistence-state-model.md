@@ -35,6 +35,16 @@ Documents the relationship between session persistence and conversation history 
 
 `session_id` is mutable on restore: `/session load` (`restore_session()`) reassigns the live session's `session_id`, and the message repository rebuilds to the new id on next use, so post-restore turns are attributed to the restored session. Skipped-save counters belong to the live repository instance.
 
+### Session Generation and Target Capture
+
+Every live session carries a monotonically increasing `generation` counter, bumped whenever the session identity changes (start, `/clear new`, `/session load`). `capture_target()` returns an immutable `(session_id, generation)` pair identifying one session generation. `set_title(title, target=...)` writes only when the target matches the live session; a write from a stale generation is refused, writes nothing, and clears only that target's pending marker. Background title tasks capture their target at task creation (a context variable set immediately before `asyncio.create_task`), so a title task that finishes after a session switch can neither write into nor flip the pending state of the newer session.
+
+Title-generation pending state is tracked per session id: `is_title_pending(session_id)` / `set_title_pending(pending, session_id=...)` mark "generating..." only for the session that actually owns an in-flight title task, and `/session list` renders it per row.
+
+### Session Transition Snapshot
+
+`/clear new` and `/session load` share the `SessionTransitionService`: it captures an in-memory snapshot of the current session state, finalizes the old session, commits the switch atomically, and compensates field-by-field from the snapshot if the commit fails; the transition is refused with an explicit error while a turn is processing. User-visible semantics are documented in [agent_07_07](agent_07_07_cli-and-commands-slash-commands-session-mcp.md).
+
 ### Message Saving Rules
 
 `save(role, content)` only saves valid roles: `user`, `assistant`, `tool`, `system`. Invalid roles or missing `session_id` are logged as warnings and counted. If `strict_mode=True`, both conditions raise a `RuntimeError` instead of skipping.
@@ -68,7 +78,7 @@ In the first user turn, if session title generation fails, the following fallbac
 | `first_input` is empty | `"(New Session)"` | WARNING |
 | `set_title()` DB write failure | Title is not persisted | ERROR |
 
-All failure cases are non-blocking, and the session continues normally. When a fallback occurs, an audit log entry is issued: `session_title_fallback session_id=<id> fallback=<title> reason=<error>`. `set_title_pending` is reset to `False` in a `finally` block regardless of the result.
+All failure cases are non-blocking, and the session continues normally. When a fallback occurs, an audit log entry is issued: `session_title_fallback session_id=<id> generation=<generation> error=<exception class name>` — the audit and warning lines carry ids and the exception class name only; fallback title text and the raw failure reason never appear in logs or audit. `set_title_pending` is reset in a `finally` block regardless of the result, on the session captured by the target when one was captured.
 
 ## Responsibility Boundary
 

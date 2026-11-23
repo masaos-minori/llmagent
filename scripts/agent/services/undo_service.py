@@ -25,6 +25,22 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class UndoReloadError(RuntimeError):
+    """Post-delete reload failed: DB rows are gone but memory was not reloaded.
+
+    Carries the deleted-row count so the command layer can report it with the
+    recovery hint (REQ-008). Recovery path: run /session load with the current
+    session id to re-read the intact persisted rows.
+    """
+
+    def __init__(self, n_deleted: int) -> None:
+        self.n_deleted = n_deleted
+        super().__init__(
+            f"Undo reload failed: {n_deleted} row(s) deleted from the database "
+            "could not be re-read into memory."
+        )
+
+
 def _match_deleted_tail(
     history: list[LLMMessage], deleted_rows: list[DeletedRow]
 ) -> int | None:
@@ -93,9 +109,12 @@ def undo_last_turn(ctx: AgentContext) -> UndoResult:
         # Ambiguous match (e.g. orphan DB rows absent from memory): reload the
         # remaining conversation from the DB and log the decision.
         # deleted_rows is non-empty, so the DB delete succeeded and session_id is set.
-        remaining, _found, _floor = ctx.session.fetch_messages(
-            cast(int, ctx.session.session_id)
-        )
+        try:
+            remaining, _found, _floor = ctx.session.fetch_messages(
+                cast(int, ctx.session.session_id)
+            )
+        except Exception as exc:  # noqa: BLE001 — explicit divergence report (REQ-008)
+            raise UndoReloadError(len(deleted_rows)) from exc
         ctx.conv.history = remaining
         logger.warning(
             "Undo: ambiguous match for %d deleted row(s) (%s); reloaded memory "

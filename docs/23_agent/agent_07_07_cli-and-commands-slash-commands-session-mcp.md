@@ -31,7 +31,7 @@ Documents the purpose and side effects of slash commands in the Session, MCP, an
 
 ### Session Category
 
-A group of commands for session management and history operations. `/clear [new]` resets the history, and `/clear new` also starts a new DB session. `/undo` pops the most recent user+assistant turn from both the history and the DB. Memory and the DB are trimmed from the exact same set of deleted rows; when they had already diverged, `/undo` still converges them — it trims memory to exactly the rows it deletes, and if those rows cannot be matched it reloads memory from the DB and logs the decision. Messages that existed when the history was last compressed (automatic, `/compact`, or fallback truncation) cannot be undone; `/undo` then reports that nothing can be undone and changes nothing. The boundary is stored in `sessions.undo_floor_message_id` and survives `/session load`.
+A group of commands for session management and history operations. `/clear [new]` operates on conversation state: `/clear` resets only the **in-memory conversation history** (trimmed to its leading message) and the session stats; rows already persisted in session storage survive and can be re-read with `/session load`. `/clear new` performs a full session transition through the `SessionTransitionService`: it finalizes the old session (persisted stats and memory finalization), starts a new session, and commits the switch atomically; while a turn is processing the transition is refused with an explicit message. `/session load <id>` runs through the same transition service, and its success line reports four counts: messages restored, and how many were fetched from storage, synthesized, or dropped. Both transitions bump the session generation, so background work bound to the previous generation (for example a still-running title task) can no longer write into the new session. `/undo` pops the most recent user+assistant turn from both the history and the DB. Memory and the DB are trimmed from the exact same set of deleted rows; when they had already diverged, `/undo` still converges them — it trims memory to exactly the rows it deletes, and if those rows cannot be matched it reloads memory from the DB and logs the decision. If that post-delete reload itself fails, `/undo` reports the deleted-row count and the recovery hint to run `/session load` with the current session id; the two sides never diverge silently. Messages that existed when the history was last compressed (automatic, `/compact`, or fallback truncation) cannot be undone; `/undo` then reports that nothing can be undone and changes nothing. The boundary is stored in `sessions.undo_floor_message_id` and survives `/session load`.
 
 #### History and export
 
@@ -49,7 +49,7 @@ A group of commands for session management and history operations. `/clear [new]
 | Form | Effect |
 |---|---|
 | `/session list [n]` | Shows recent sessions with their message count (default 20); `n` accepts `1..200`, and a non-integer, `0`, a negative, or a value above `200` is a usage error |
-| `/session load <id>` | Resumes a session by id |
+| `/session load <id>` | Resumes a session by id through the session transition service (the current session is finalized first); the success line reports `N restored (F fetched, S synthesized, D dropped)` |
 | `/session rename <title>` | Sets the title of the current session |
 | `/session delete <id>` | Removes a session by id |
 | `/session stats` | Shows session database statistics |

@@ -10,6 +10,7 @@ real DB file or sqlite-vec extension is required.
 
 from __future__ import annotations
 
+import dataclasses
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -17,6 +18,7 @@ from pathlib import Path
 from threading import Lock
 from unittest.mock import patch
 
+import agent.session as session_mod
 import pytest
 from agent.context import ConversationState
 from agent.session import AgentSession, SchemaMissingError
@@ -815,3 +817,107 @@ class TestTurnBoundary:
         # History mutates during the turn; the snapshot must not change.
         await conv.append_message({"role": "assistant", "content": "during"})
         assert boundary._snapshot == [{"role": "user", "content": "start"}]
+
+
+# ── generation, SessionTarget, per-session pending (REQ-001, REQ-004, REQ-009) ──
+
+
+class TestGenerationAndTarget:
+    def test_generation_starts_at_zero(self, session: AgentSession) -> None:
+        assert session.generation == 0
+
+    def test_start_increments_generation(self, session: AgentSession) -> None:
+        session.start()
+        assert session.generation == 1
+        session.start()
+        assert session.generation == 2
+
+    def test_bump_generation(self, session: AgentSession) -> None:
+        session.start()
+        current = session.generation
+        assert session.bump_generation() == current + 1
+        assert session.generation == current + 1
+
+    def test_capture_target_matches_current_state(self, session: AgentSession) -> None:
+        session.start()
+        target = session.capture_target()
+        assert target is not None
+        assert target.session_id == session.session_id
+        assert target.generation == session.generation
+
+    def test_capture_target_none_without_session(self, session: AgentSession) -> None:
+        assert session.capture_target() is None
+
+    def test_capture_target_is_frozen(self, session: AgentSession) -> None:
+        session.start()
+        target = session.capture_target()
+        assert target is not None
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            target.generation = 99  # type: ignore[misc]
+
+    def test_set_title_with_current_target_writes(self, session: AgentSession) -> None:
+        session.start()
+        target = session.capture_target()
+        assert session.set_title("targeted", target=target) is True
+        rows = session.list_sessions()
+        assert any(r["title"] == "targeted" for r in rows)
+
+    def test_stale_target_returns_false_and_writes_nothing(
+        self, session: AgentSession
+    ) -> None:
+        session.start()
+        target = session.capture_target()
+        session.start()  # new session id and generation
+        assert session.set_title("ghost", target=target) is False
+        titles = [r["title"] for r in session.list_sessions() if r["title"]]
+        assert "ghost" not in titles
+
+    def test_no_target_keeps_write_to_current(self, session: AgentSession) -> None:
+        session.start()
+        assert session.set_title("plain") is True
+
+
+class TestTitlePendingPerSession:
+    def test_pending_defaults_to_current_session(self, session: AgentSession) -> None:
+        session.start()
+        sid = session.session_id
+        session.set_title_pending(True)
+        assert session.is_title_pending() is True
+        assert session.is_title_pending(sid) is True
+        session.set_title_pending(False)
+        assert session.is_title_pending() is False
+
+    def test_pending_is_tracked_per_session_id(self, session: AgentSession) -> None:
+        session.start()
+        first = session.session_id
+        session.set_title_pending(True)
+        session.start()
+        second = session.session_id
+        assert second is not None and first is not None and second != first
+        assert session.is_title_pending() is False  # the new session has no pending
+        assert session.is_title_pending(first) is True
+
+    def test_set_title_clears_target_session_pending(
+        self, session: AgentSession
+    ) -> None:
+        session.start()
+        sid = session.session_id
+        session.set_title_pending(True)
+        session.set_title("done")
+        assert session.is_title_pending(sid) is False
+
+    def test_pending_cannot_be_set_without_session(self, session: AgentSession) -> None:
+        session.set_title_pending(True)
+        assert session.is_title_pending() is False
+
+
+class TestTitleLimits:
+    def test_storage_and_display_limits_are_separate_constants(self) -> None:
+        assert isinstance(session_mod.SESSION_TITLE_STORAGE_MAX_CHARS, int)
+        assert isinstance(session_mod.SESSION_TITLE_DISPLAY_MAX_CHARS, int)
+
+    def test_set_title_uses_storage_limit(self, session: AgentSession) -> None:
+        session.start()
+        session.set_title("A" * 100)
+        stored = next(r["title"] for r in session.list_sessions() if r["title"])
+        assert len(stored) == session_mod.SESSION_TITLE_STORAGE_MAX_CHARS

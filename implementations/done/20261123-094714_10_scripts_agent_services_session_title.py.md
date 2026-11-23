@@ -58,10 +58,10 @@ Target capture (seq 09), fallback-title path (seq 11).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After seq 01, 09 |
-| 2 | Add or update tests per Validation plan (companion row 29) | Pending | — | — | Tests written first per plan Phase 4 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Generated docs via seq 18 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | After seq 01, 09 captured-target set_title write; stale=True surfaced via new SessionTitleResult.stale flag (allowed by Method clause); logs carry ids only |
+| 2 | Add or update tests per Validation plan (companion row 29) | Completed | 2026-11-23 | 2026-11-23 | Tests written first per plan Phase 4 3 tests added + success-test kwarg update (11 pass) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy, lint-imports, targeted pytest pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261123-120932 | 20261123-120932 | Batch 20261123-094714 executed 2026-11-23; all steps Completed; full gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

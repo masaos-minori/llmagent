@@ -92,9 +92,14 @@ class AgentREPL:
         self._signal = SignalHandler(self._ctx, self._shutdown_event)
 
     async def _persist_session_state(self) -> None:
-        """Persist session state on exit, before resource shutdown."""
-        await self._persister.persist_session_memories()
-        await self._persister.persist_session_diagnostics()
+        """Persist session state on exit, before resource shutdown.
+
+        Captures one immutable snapshot so both persist steps evaluate the same
+        session state even if a transition races the shutdown (REQ-006).
+        """
+        snapshot = self._persister.capture_snapshot()
+        await self._persister.persist_session_memories(snapshot)
+        await self._persister.persist_session_diagnostics(snapshot)
 
     async def run(self) -> None:
         """Start the interactive REPL."""

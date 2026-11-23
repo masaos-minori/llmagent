@@ -6,9 +6,10 @@ Session restore service — rebuild history and switch the active session.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
-from agent.commands.mixin_base import refresh_session_correlation, reset_session_stats
+from agent.context import ConversationState
 from agent.history import is_conversation_summary
 from agent.services.exceptions import SessionNoMessagesError, SessionNotFoundError
 from agent.services.models import SessionRestoreResult
@@ -152,8 +153,28 @@ def _restored_summary_msgs(
     )
 
 
-async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreResult:
-    """Restore session: rebuild history, switch session ID, reset stats.
+@dataclass(frozen=True)
+class RestoredSessionState:
+    """State built by :func:`restore_session`, waiting to be committed.
+
+    The transition service (session_transition) applies these fields to the
+    context atomically; ``restore_session`` itself never mutates the context
+    (REQ-002). ``history`` is already validated through the untrusted-restore
+    pipeline, so the commit can assign it directly.
+    """
+
+    history: list[LLMMessage]
+    undo_floor: int
+    result: SessionRestoreResult
+
+
+async def restore_session(ctx: AgentContext, session_id: int) -> RestoredSessionState:
+    """Build the restored session state without mutating the context.
+
+    Validates and rebuilds the history, computes the undo floor, and reports
+    the fetched, synthesized, dropped, and restored counts (REQ-009). History,
+    undo_floor, session id, correlation, and stats are left untouched here;
+    the transition service performs the commit (REQ-002).
 
     Raises SessionNotFoundError when the session does not exist.
     Raises SessionNoMessagesError when the session exists but has no messages.
@@ -170,7 +191,7 @@ async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreR
     if undo_floor_id:
         n_snapshot = ctx.session.count_messages_up_to(session_id, undo_floor_id)
     # Pair orphaned tool_calls rows BEFORE the boundary computation and
-    # replace_history so the restored history is always well-formed.
+    # history validation so the restored history is always well-formed.
     repaired, synthesized_before = repair_orphan_tool_calls(
         messages, session_id, boundary_index=n_snapshot
     )
@@ -188,21 +209,28 @@ async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreR
             [{"role": "system", "content": ctx.conv.system_prompt_content}],
         )
         non_system = [m for m in repaired if m["role"] != "system"]
-        await ctx.conv.replace_history(
+        candidate = (
             system_msgs + _restored_summary_msgs(repaired, session_id) + non_system
         )
+        injected = 1  # the canonical prompt row is not a fetched DB row
     else:
-        await ctx.conv.replace_history(repaired)
+        candidate = repaired
+        injected = 0
+    # Validate through a throwaway ConversationState: same untrusted-restore
+    # pipeline as replace_history(), but the live context history is untouched.
+    scratch = ConversationState(system_prompt_content=ctx.conv.system_prompt_content)
+    await scratch.replace_history(candidate)
+    history = scratch.history
     # convert the persisted boundary row ID into a rebuilt-history index
     # (rows 02/04): nothing in the compressed snapshot is undoable after load.
     if boundary_index is None:
-        ctx.conv.undo_floor = 0
+        undo_floor = 0
     else:
-        live_len = len(ctx.conv.history)
+        live_len = len(history)
         if boundary_index > live_len:
-            # replace_history() dropped snapshot rows: clamp to the live history so the
-            # floor can never point past its end. Conservative — /undo loses at most a
-            # few extra turns, and no row below the boundary is ever exposed.
+            # validation dropped snapshot rows: clamp to the built history so the
+            # floor can never point past its end. Conservative — /undo loses at
+            # most a few extra turns, and no row below the boundary is ever exposed.
             logger.warning(
                 "Session %s undo_floor clamped %d -> %d (%d row(s) dropped by validation)",
                 session_id,
@@ -211,13 +239,29 @@ async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreR
                 boundary_index - live_len,
             )
             boundary_index = live_len
-        ctx.conv.undo_floor = boundary_index
-    ctx.session.session_id = session_id
-    refresh_session_correlation(ctx)
-    reset_session_stats(ctx)
-    logger.info("Session %s loaded: %s messages", session_id, len(messages))
-    # Note: n_messages reflects the originally fetched row count, not the
-    # post-sanitization stored count; a tampered/corrupted persisted row
-    # dropped by replace_history() would make this a slight overstatement.
-    # Acceptable for this defense-in-depth path (see implementation notes).
-    return SessionRestoreResult(session_id=session_id, n_messages=len(messages))
+        undo_floor = boundary_index
+    fetched = len(messages)
+    synthesized = len(repaired) - fetched
+    # dropped covers both rebuild filters (stray system and extra summary rows)
+    # and rows removed by validation.
+    dropped = (len(repaired) - (len(candidate) - injected)) + (
+        len(candidate) - len(history)
+    )
+    restored = len(history)
+    logger.info(
+        "Session %s restore built: %d fetched, %d synthesized, %d dropped, %d restored",
+        session_id,
+        fetched,
+        synthesized,
+        dropped,
+        restored,
+    )
+    result = SessionRestoreResult(
+        session_id=session_id,
+        n_messages=fetched,
+        fetched=fetched,
+        synthesized=synthesized,
+        dropped=dropped,
+        restored=restored,
+    )
+    return RestoredSessionState(history=history, undo_floor=undo_floor, result=result)

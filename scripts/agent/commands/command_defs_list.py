@@ -143,7 +143,7 @@ _COMMANDS: list[CommandDef] = [
     CommandDef(
         name="/clear",
         prefix=True,
-        is_async=False,
+        is_async=True,
         handler="_cmd_clear",
         help="Reset conversation history; 'new' also starts a new session",
         args=(ArgSpec("new"),),

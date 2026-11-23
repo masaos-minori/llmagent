@@ -54,10 +54,10 @@ A failed restore leaves history, session id, undo floor, correlation, and stats 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land with seq 02/05 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Row 23 has its own document (seq 23) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Generated docs via seq 18 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | Land with seq 02/05 pure builder returns RestoredSessionState; no ctx mutation; 4 counts with undo-floor clamp |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-23 | 2026-11-23 | Row 23 has its own document (seq 23) covered by seq 23 tests (41 pass) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy, lint-imports pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-11-23 | 2026-11-23 | Generated docs via seq 18 Docs updated via seq 15-20 (2026-11-23) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

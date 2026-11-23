@@ -105,7 +105,88 @@ async def test_generate_success_returns_title() -> None:
     result = await SessionTitleService().generate(ctx, "hello world")
     assert isinstance(result, SessionTitleResult)
     assert result.title == "My Session Title"
-    ctx.session.set_title.assert_called_once_with("My Session Title")
+    assert result.stale is False
+    ctx.session.set_title.assert_called_once_with("My Session Title", target=None)
+
+
+@pytest.mark.asyncio
+async def test_generate_success_log_carries_no_title_text(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """REQ-005 / AC-2: the success log names ids only, never the title text."""
+    import logging
+
+    from agent.services.session_title import SessionTitleService
+
+    ctx = MagicMock()
+    ctx.session.session_id = 11
+    ctx.session.generation = 2
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.content = orjson.dumps(
+        {"choices": [{"message": {"content": "Secret User Title"}}]}
+    )
+    ctx.services_required.http.post = AsyncMock(return_value=mock_resp)
+    with caplog.at_level(logging.INFO, logger="agent.services.session_title"):
+        await SessionTitleService().generate(ctx, "hello")
+    assert "Secret User Title" not in caplog.text
+    assert "session=11" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_generate_stale_target_refused_stale_result_and_redacted_log(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """REQ-004: a refused (stale) write surfaces as stale=True with a
+    title-free rejection log."""
+    import logging
+
+    from agent.services.session_title import SessionTitleService
+
+    ctx = MagicMock()
+    ctx.session.set_title.return_value = False
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.content = orjson.dumps(
+        {"choices": [{"message": {"content": "Stale Title Text"}}]}
+    )
+    ctx.services_required.http.post = AsyncMock(return_value=mock_resp)
+    with caplog.at_level(logging.WARNING, logger="agent.services.session_title"):
+        result = await SessionTitleService().generate(ctx, "hello")
+    assert result.stale is True
+    ctx.session.set_title.assert_called_once()
+    assert "refused" in caplog.text
+    assert "Stale Title Text" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_generate_writes_to_captured_target() -> None:
+    """REQ-004: the captured context-variable target is passed to set_title."""
+    from agent.conversation_state_manager import (
+        capture_session_target,
+        current_session_target,
+    )
+    from agent.services.session_title import SessionTitleService
+    from agent.session import SessionTarget
+
+    ctx = MagicMock()
+    ctx.session.set_title.return_value = True
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.content = orjson.dumps(
+        {"choices": [{"message": {"content": "My Session Title"}}]}
+    )
+    ctx.services_required.http.post = AsyncMock(return_value=mock_resp)
+
+    target = SessionTarget(session_id=7, generation=3)
+    token = capture_session_target(target)
+    try:
+        result = await SessionTitleService().generate(ctx, "hello")
+    finally:
+        current_session_target.reset(token)
+
+    assert result.stale is False
+    ctx.session.set_title.assert_called_once_with("My Session Title", target=target)
 
 
 @pytest.mark.asyncio

@@ -13,6 +13,7 @@ Single-file change; row 31 is covered as this document's companion.
 ## Design decisions
 - `_cmd_undo` catches `UndoReloadError` (seq 07) and prints the deleted-row count plus the recovery hint to run /session load with the current session id (REQ-008 plan Design).
 - `/clear` wording comes from the seq 06 result messages; this row only adapts any command-layer text it owns and keeps both messages using "in-memory conversation history".
+- Verification finding (2026-11-23): seq 06 made `clear_conversation` async, so `_cmd_clear` became `async def` and the `/clear` CommandDef in `command_defs_list.py` switched to `is_async=True` (the registry fail-fast check validates handler/flag agreement).
 
 ## Alternatives considered
 N/A: wording and hint are fixed by REQ-007/REQ-008.
@@ -56,10 +57,10 @@ Service messages (seq 06), error type (seq 07), docs (seq 15).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After seq 06, 07 |
-| 2 | Add or update tests per Validation plan (companion row 31) | Pending | — | — | Tests written first per plan Phase 5 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs via seq 15 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | After seq 06, 07 _cmd_clear async; /clear CommandDef is_async=True; UndoReloadError branch with /session load hint |
+| 2 | Add or update tests per Validation plan (companion row 31) | Completed | 2026-11-23 | 2026-11-23 | Tests written first per plan Phase 5 clear tests converted to async + reload-failure hint test (61 pass) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | ruff, mypy, lint-imports, targeted pytest pass incl. registry consistency test |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261123-120932 | 20261123-120932 | Batch 20261123-094714 executed 2026-11-23; all steps Completed; full gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

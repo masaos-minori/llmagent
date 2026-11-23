@@ -50,8 +50,8 @@ The doc guarded blocks (seq 18-19).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the manifest with the generator | Pending | — | — | Docs-only row: no test step |
-| 2 | Run generate_reference_table.py --check | Pending | — | — | |
+| 1 | Regenerate the manifest with the generator | Completed | 2026-11-23 | 2026-11-23 | Docs-only row: no test step manifest regenerated via generate_reference_table.py --manifests --type agent (SessionTransitionService, UndoReloadError, BgTaskMeta, targets, snapshots included) |
+| 2 | Run generate_reference_table.py --check | Completed | 2026-11-23 | 2026-11-23 | generate_reference_table.py --check: no drift |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

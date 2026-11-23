@@ -126,7 +126,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `validate_tool_result_max_llm_chars` | `def validate_tool_result_max_llm_chars(cfg) -> None` | Validate that tool_result_max_llm_chars is positive. |
 | `scripts/agent/services/context_view.py` | `budget_breakdown` | `def budget_breakdown(messages) -> ContextBudget` | Compute per-category character counts (system / history / tool_messages). |
 |  | `collect_context_state` | `def collect_context_state(ctx) -> ContextStateView` | Aggregate runtime context data for /context display. |
-| `scripts/agent/services/conversation_service.py` | `clear_conversation` | `def clear_conversation(ctx, *, new_session) -> ConversationActionResult` | Reset conversation history to system prompt only and clear session stats. |
+| `scripts/agent/services/conversation_service.py` | `clear_conversation` | `async def clear_conversation(ctx, *, new_session, transition_service) -> ConversationActionResult` | Reset the in-memory conversation history and clear session stats. |
 | `scripts/agent/services/db_maintenance_service.py` | `DbMaintenanceService` | `class DbMaintenanceService` | Wraps maintenance operations on session.sqlite only. |
 | `scripts/agent/services/enums.py` | `McpTier` | `class McpTier` | Security tier classification for MCP servers. |
 |  | `McpAvailability` | `class McpAvailability` | Runtime availability state of an MCP server. |
@@ -182,10 +182,15 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 | `scripts/agent/services/rag_maintenance_service.py` | `RagMaintenanceService` | `class RagMaintenanceService` | Maintenance operations scoped exclusively to rag.sqlite. |
 | `scripts/agent/services/routing_drift.py` | `check_routing_safety_tiers` | `def check_routing_safety_tiers(ctx) -> list[str]` | Return tier-drift findings comparing the seed registry with live declarations. |
 | `scripts/agent/services/session_restore.py` | `repair_orphan_tool_calls` | `def repair_orphan_tool_calls(messages, session_id, *, boundary_index) -> tuple[list[LLMMessage], int]` | Pair assistant tool_calls rows with tool-result rows at load time. |
-|  | `restore_session` | `async def restore_session(ctx, session_id) -> SessionRestoreResult` | Restore session: rebuild history, switch session ID, reset stats. |
+|  | `RestoredSessionState` | `class RestoredSessionState` | State built by :func:`restore_session`, waiting to be committed. |
+|  | `restore_session` | `async def restore_session(ctx, session_id) -> RestoredSessionState` | Build the restored session state without mutating the context. |
 | `scripts/agent/services/session_title.py` | `SessionTitleService` | `class SessionTitleService` | Generate a short LLM-based title for a session and persist it. |
+| `scripts/agent/services/session_transition.py` | `SessionTransitionRefusedError` | `class SessionTransitionRefusedError` | Raised when a session transition is refused because a turn is active. |
+|  | `SessionTransitionSnapshot` | `class SessionTransitionSnapshot` | Defensive copy of the full session state taken before a transition. |
+|  | `SessionTransitionService` | `class SessionTransitionService` | Atomic transitions between sessions: idle check, finalize, build, commit. |
 | `scripts/agent/services/tool_validation.py` | `check_tool_definitions_runtime` | `async def check_tool_definitions_runtime(ctx) -> HealthCheckResult` | Runtime validation: no raise, warnings only. |
-| `scripts/agent/services/undo_service.py` | `undo_last_turn` | `def undo_last_turn(ctx) -> UndoResult` | Roll back the last user+assistant turn, gated by the compression boundary. |
+| `scripts/agent/services/undo_service.py` | `UndoReloadError` | `class UndoReloadError` | Post-delete reload failed: DB rows are gone but memory was not reloaded. |
+|  | `undo_last_turn` | `def undo_last_turn(ctx) -> UndoResult` | Roll back the last user+assistant turn, gated by the compression boundary. |
 | `scripts/agent/services/workflow_schema.py` | `check_workflow_definition` | `def check_workflow_definition(workflows_dir) -> None` | Raise RuntimeError if the workflow definition file is missing or invalid. |
 |  | `SchemaCheckResult` | `class SchemaCheckResult` | Result of a workflow schema check. |
 |  | `check_workflow_schema` | `def check_workflow_schema(db_config, db_path) -> SchemaCheckResult` | Return SchemaCheckResult indicating whether the workflow DB schema is valid. |

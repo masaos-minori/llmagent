@@ -52,8 +52,8 @@ The state-model and compression docs (seq 16-17), generated tables (seq 18-20).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the Session Category paragraph and affected command entries | Pending | — | — | Docs-only row: no test step |
-| 2 | Run the doc checkers named in `rules/tool-gates.md` | Pending | — | — | |
+| 1 | Rewrite the Session Category paragraph and affected command entries | Completed | 2026-11-23 | 2026-11-23 | Docs-only row: no test step Session Category paragraph rewritten; /session load table row updated with four counts; /undo recovery-hint path documented |
+| 2 | Run the doc checkers named in `rules/tool-gates.md` | Completed | 2026-11-23 | 2026-11-23 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_consistency --domain agent pass (agent_14 /db warning pre-existing on HEAD) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
