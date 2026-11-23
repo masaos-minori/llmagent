@@ -9,10 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import secrets
 import sqlite3
-import time
-from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass
 from hashlib import sha256
@@ -29,59 +26,38 @@ from shared.mcp_dedup import (
 from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS
 from shared.tool_metadata import retry_policy_is_retryable
 
+from mcp_servers.dedup_gate import (
+    _IDEMPOTENCY_CACHE_MAX_ENTRIES as _IDEMPOTENCY_CACHE_MAX_ENTRIES,
+)
+from mcp_servers.dedup_gate import (
+    _IDEMPOTENCY_CACHE_TTL_SECONDS as _IDEMPOTENCY_CACHE_TTL_SECONDS,
+)
+from mcp_servers.dedup_gate import (
+    _OWNED_STATES,
+    DispatchResult,
+    ToolArgs,
+    _dedup_decision,
+    _duplicate_cache,
+    _idem_now,
+    _idem_store,
+    _LeaseHeartbeat,
+    _new_owner_id,
+)
 from mcp_servers.models import CallToolResponse
 
 logger = logging.getLogger(__name__)
 
-ToolArgs = dict[str, Any]
+# The durable-dedup decision machinery (DispatchResult, ToolArgs, the overlay
+# cache, the owner nonce, the acquisition-branch mapping, the owned-state set)
+# lives in mcp_servers.dedup_gate and is re-exported here: every consumer keeps
+# importing it from mcp_servers.dispatch, and the re-exported `_duplicate_cache`
+# is the same object the gate module reads and writes.
 
 # Canonical side-effect membership (ADR-004, sideeffect001): the single source
 # in shared.tool_constants, shared with the HTTP fail-closed gate, the
 # tool_policy static classification, and the server.py REQ-004 boundary.
 _write_tools = ALL_SIDE_EFFECTING_TOOLS
 
-
-@dataclass(frozen=True)
-class DispatchResult:
-    """Typed result from MCPServer.dispatch() and dispatch_tool.
-
-    Error classification taxonomy (when is_error=True):
-    - ``validation_error``: input validation failure (ValueError from handler)
-    - ``unknown_tool``: tool name not found in dispatch table
-    - ``invalid_tool_name``: tool name is empty or not a string
-    - ``idempotency_key_reused``: same key reused with different content
-    - ``dedup_in_progress``: a live owner lease already holds this key
-    - ``dedup_unreplayable``: terminal/uncertain durable outcome refused
-      (reconciliation_required, outcome_unknown, replay_unavailable)
-    - ``dedup_store_error``: durable dedup store unavailable for a non-retryable tool
-    - ``dispatch_error``: generic dispatch failure (no specific category)
-
-    ``dedup_state`` carries the durable-dedup branch taken: ``""`` (no dedup
-    branch), ``duplicate_hit``, ``replayed``, ``store_error``,
-    ``in_progress``, ``reconciliation_required``, ``outcome_unknown``,
-    ``replay_unavailable``, ``lease_conflict``.
-    """
-
-    output: str
-    is_error: bool
-    error_type: str | None = None
-    dedup_state: str = ""
-
-    @property
-    def outcome(self) -> str:
-        """Return 'error' if is_error, otherwise 'ok'."""
-        return "error" if self.is_error else "ok"
-
-
-# --- Idempotency cache ---------------------------------
-#
-# The caller (Agent) owns key generation: one UUID per logical call, reused
-# across retries of that call. A call without a key is never cached and always
-# executes. The cache is keyed so that reusing a key with different content is
-# rejected rather than served.
-
-_IDEMPOTENCY_CACHE_TTL_SECONDS: float = 3600.0
-_IDEMPOTENCY_CACHE_MAX_ENTRIES: int = 1024
 
 # UNK-01 resolution: dispatch_tool() only sees the final output string, so a
 # dry-run result is recognised by a conservative marker scan rather than a
@@ -97,22 +73,6 @@ _IDEMPOTENCY_DRY_RUN_MARKERS: tuple[str, ...] = (
 )
 
 
-@dataclass(frozen=True)
-class _CacheEntry:
-    tool_name: str
-    args_hash: str
-    result: DispatchResult
-    expires_at: float
-
-
-_duplicate_cache: OrderedDict[str, _CacheEntry] = OrderedDict()
-
-
-def _idem_now() -> float:
-    """Monotonic time source for TTL. Overridable in tests."""
-    return time.monotonic()
-
-
 def _normalize_args_hash(args: ToolArgs) -> str:
     """Deterministic hash of arguments so logically identical arguments match
     regardless of insertion order."""
@@ -123,26 +83,6 @@ def _normalize_args_hash(args: ToolArgs) -> str:
 def _is_dry_run_output(output: str) -> bool:
     """UNK-01: best-effort dry-run detection on the output string."""
     return any(marker in output for marker in _IDEMPOTENCY_DRY_RUN_MARKERS)
-
-
-def _idem_evict() -> None:
-    """Drop expired entries, then evict oldest-first past the max entry count."""
-    now = _idem_now()
-    for key in [k for k, entry in _duplicate_cache.items() if entry.expires_at <= now]:
-        _duplicate_cache.pop(key)
-    while len(_duplicate_cache) > _IDEMPOTENCY_CACHE_MAX_ENTRIES:
-        _duplicate_cache.popitem(last=False)
-
-
-def _idem_store(key: str, name: str, args_hash: str, result: DispatchResult) -> None:
-    """Store a successful result with TTL bookkeeping and eviction."""
-    _idem_evict()
-    _duplicate_cache[key] = _CacheEntry(
-        tool_name=name,
-        args_hash=args_hash,
-        result=result,
-        expires_at=_idem_now() + _IDEMPOTENCY_CACHE_TTL_SECONDS,
-    )
 
 
 def _is_side_effecting(tool_name: str) -> bool:
@@ -246,183 +186,63 @@ def _store_op(store: DedupStore, op: Callable[[], Any], label: str) -> bool:
         return False
 
 
-def _new_owner_id() -> str:
-    """Per-call owner nonce; scopes every lease/ finalize write to this call."""
-    return secrets.token_hex(16)
-
-
-def _renew_lease_if_needed(
-    store: DedupStore, key: str, owner_id: str, dispatched_at: float
-) -> None:
-    """Heartbeat for long handlers: renew once dispatch has consumed half the
-    lease window. A lease lost during dispatch is surfaced without re-dispatch.
-    """
-    if time.monotonic() - dispatched_at <= store.lease_seconds / 2:
-        return
-    try:
-        store.renew_lease(key, owner_id)
-    except DedupLeaseConflict as exc:
-        logger.warning(
-            "dedup lease expired during dispatch (key=%s owner=%s): %s",
-            key,
-            owner_id,
-            exc,
-        )
-    except (sqlite3.Error, OSError) as exc:
-        logger.warning("dedup lease renewal failed (key=%s): %s", key, exc)
-
-
-def _dedup_decision(
-    store: DedupStore,
-    config: DedupStoreConfig,
+def _overlay_lookup(
     key: str,
     name: str,
     args_hash: str,
-    snapshot: dict[str, str],
-    owner_id: str,
-) -> tuple[DispatchResult | None, str]:
-    """One typed acquisition plus start-state mapping (Plan D-5/D-7).
+) -> DispatchResult | None:
+    """Degraded-mode overlay read: a live hit, a reuse rejection, or ``None``.
 
-    Returns ``(early_result, dedup_state)``: a non-None early_result is the
-    final DispatchResult (refusal or cached replay); None means "dispatch the
-    handler" carrying the reported dedup_state. ``replayed`` marks the
-    retryable reconciliation reacquisition; both it and a fresh acquisition are
-    owner-scoped (dedup_state in _OWNED_STATES), every other branch is not.
+    Without a durable store the overlay is the only record, so the reused-key
+    rejection lives here on that path; on the durable path the same rejection
+    comes from the acquisition's ``contract_mismatch`` (REQ-001, REQ-007).
     """
-    acq = store.try_acquire_execution(key, name, args_hash, snapshot, owner_id)
-    if acq.status == "acquired":
-        return None, ""
-    if acq.status == "contract_mismatch":
-        # durable rows honor the same reuse rejection.
-        logger.warning(
-            "Idempotency key reused with different content: key=%s tool=%s",
-            key,
-            name,
-        )
-        return (
-            DispatchResult(
-                output=(
-                    f"Idempotency key {key!r} reused with "
-                    f"different content for tool {name!r}"
-                ),
-                is_error=True,
-                error_type="idempotency_key_reused",
-            ),
-            "",
-        )
-    if acq.status == "replay_completed":
-        served = DispatchResult(
-            output=str(acq.result), is_error=False, dedup_state="duplicate_hit"
-        )
-        _idem_store(key, name, args_hash, served)
-        logger.info(
-            "Duplicate tool call served from durable store: %s (key=%s)", name, key
-        )
-        return served, "duplicate_hit"
-    if acq.status == "in_progress":
-        logger.warning(
-            "Tool call already in progress for idempotency key: key=%s tool=%s",
-            key,
-            name,
-        )
-        return (
-            DispatchResult(
-                output=(
-                    f"Call for idempotency key {key!r} is already in progress "
-                    f"for tool {name!r}"
-                ),
-                is_error=True,
-                error_type="dedup_in_progress",
-                dedup_state="in_progress",
-            ),
-            "in_progress",
-        )
-    retryable = _retryable(name)
-    if acq.status == "reconciliation_required":
-        if retryable:
-            # Canonical replay for retryable tools: reconcile the expired lease
-            # (pending -> interrupted + history), then one reacquisition.
-            store.reconcile_execution(key)
-            acq = store.try_acquire_execution(key, name, args_hash, snapshot, owner_id)
-            if acq.status == "acquired":
-                return None, "replayed"
-        else:
-            logger.warning(
-                "Expired dedup lease needs reconciliation; call to tool %r refused "
-                "(non-retryable): key=%s",
+    entry = _duplicate_cache.get(key)
+    if entry is None:
+        return None
+    if entry.tool_name == name and entry.args_hash == args_hash:
+        if entry.expires_at > _idem_now():
+            logger.info(
+                "Duplicate tool call detected: %s (key=%s)",
                 name,
                 key,
             )
-            return (
-                DispatchResult(
-                    output=(
-                        f"Interrupted call for idempotency key {key!r} needs "
-                        f"reconciliation before retry for tool {name!r} "
-                        "(non-retryable)"
-                    ),
-                    is_error=True,
-                    error_type="dedup_unreplayable",
-                    dedup_state="reconciliation_required",
-                ),
-                "reconciliation_required",
-            )
-    if acq.status == "outcome_unknown":
-        if retryable:
-            # Attempt cap reached: audited degraded dispatch (overlay-only marker).
-            logger.warning(
-                "dedup outcome unknown (attempt %d of %d); tool %r dispatches "
-                "degraded for key=%s",
-                acq.attempt_number,
-                store.max_attempts,
-                name,
-                key,
-            )
-            return None, "store_error"
-        logger.warning(
-            "Dedup outcome unknown (attempt cap reached); call to tool %r refused "
-            "(non-retryable): key=%s",
-            name,
-            key,
-        )
-        return (
-            DispatchResult(
-                output=(
-                    f"Outcome unknown for idempotency key {key!r} (attempt cap "
-                    f"reached); call to tool {name!r} refused (non-retryable)"
-                ),
-                is_error=True,
-                error_type="dedup_unreplayable",
-                dedup_state="outcome_unknown",
-            ),
-            "outcome_unknown",
-        )
-    # replay_unavailable: terminal evidence (completed with a snapshot
-    # mismatch or a truncated payload, or failed). Refused in every retry
-    # class; the force-reset path is gone (mcpdl002 D-5).
+            return entry.result
+        # Expired: drop it; the degraded decision below reports it.
+        _duplicate_cache.pop(key, None)
+        return None
+    # same key reused with different content -> reject.
     logger.warning(
-        "Terminal dedup row refuses replay: key=%s tool=%s attempt=%d",
+        "Idempotency key reused with different content: key=%s tool=%s",
         key,
         name,
-        acq.attempt_number,
     )
-    return (
-        DispatchResult(
-            output=(
-                f"Prior call for idempotency key {key!r} is terminal (completed "
-                f"with a different execution snapshot, or failed); replay refused "
-                f"for tool {name!r}"
-            ),
-            is_error=True,
-            error_type="dedup_unreplayable",
-            dedup_state="replay_unavailable",
+    return DispatchResult(
+        output=(
+            f"Idempotency key {key!r} reused with different content for tool {name!r}"
         ),
-        "replay_unavailable",
+        is_error=True,
+        error_type="idempotency_key_reused",
     )
 
 
-# dedup_state values whose dispatch is owner-scoped (the row was acquired by
-# this call's owner_id and must be finalized by it).
-_OWNED_STATES: frozenset[str] = frozenset({"", "replayed"})
+async def _dispatch_with_heartbeat(
+    handler: Callable[[ToolArgs], Awaitable[str]],
+    args: ToolArgs,
+    heartbeat: _LeaseHeartbeat | None,
+) -> str:
+    """Run the handler under the lease heartbeat, then stop it.
+
+    The heartbeat is stopped before this call returns or raises, so no renewal
+    transaction races the dispatcher's owner-conditional finalization.
+    """
+    if heartbeat is None:
+        return await handler(args)
+    heartbeat.start()
+    try:
+        return await handler(args)
+    finally:
+        await heartbeat.stop()
 
 
 def _to_call_tool_response(r: DispatchResult) -> CallToolResponse:
@@ -430,6 +250,129 @@ def _to_call_tool_response(r: DispatchResult) -> CallToolResponse:
     return CallToolResponse(
         result=r.output, is_error=r.is_error, dedup_state=r.dedup_state
     )
+
+
+@dataclass(frozen=True)
+class _DedupDecision:
+    """Outcome of the single pre-dispatch dedup decision for one call."""
+
+    early: DispatchResult | None
+    dedup_state: str
+    store: DedupStore | None = None
+    owner: str | None = None
+    snapshot: dict[str, str] | None = None
+
+
+_NO_DEDUP = _DedupDecision(None, "")
+
+
+def _degraded_decision(key: str, name: str, args_hash: str) -> _DedupDecision:
+    """Degraded (storeless) decision: the overlay is the only record, and the
+    audited asymmetry decides the rest (REQ-007).
+
+    Non-retryable tools fail closed; retryable tools proceed with the audited
+    ``store_error`` marker. The typed start state is captured in
+    ``_dedup_start_state`` by ``_dedup_context()``. No injected policy entry ->
+    non-retryable (fail closed, no fallback constant).
+    """
+    overlay = _overlay_lookup(key, name, args_hash)
+    if overlay is not None:
+        return _DedupDecision(overlay, "")
+    if not _retryable(name):
+        logger.warning(
+            "Durable dedup unavailable (start state=%s); call to tool %r refused "
+            "(non-retryable)",
+            _dedup_start_state or "disabled",
+            name,
+        )
+        return _DedupDecision(
+            DispatchResult(
+                output=(f"Dedup store unavailable; call to tool {name!r} refused"),
+                is_error=True,
+                error_type="dedup_store_error",
+                dedup_state="store_error",
+            ),
+            "store_error",
+        )
+    return _DedupDecision(None, "store_error")
+
+
+def _acquire_dedup(key: str, name: str, args_hash: str) -> _DedupDecision:
+    """Run the one dedup decision a keyed side-effecting call is allowed (REQ-001).
+
+    With a durable store this is the single ``try_acquire_execution`` call through
+    ``_dedup_decision``; without one it is the degraded overlay decision. A store
+    failure never blocks silently: retryable tools dispatch with the audited
+    ``store_error`` marker, non-retryable tools fail closed (Plan Risks).
+    """
+    store, config = _dedup_context()
+    if store is None or config is None:
+        return _degraded_decision(key, name, args_hash)
+    _purge_once(store, config)
+    snapshot = build_execution_snapshot()
+    candidate_owner = _new_owner_id()
+    retryable = _retryable(name)
+    try:
+        early, dedup_state = _dedup_decision(
+            store,
+            config,
+            key,
+            name,
+            args_hash,
+            snapshot,
+            candidate_owner,
+            retryable=retryable,
+        )
+    except (sqlite3.Error, OSError, DedupStoreError) as exc:
+        logger.warning("dedup acquisition failed: %s", exc)
+        early = None
+        dedup_state = "store_error"
+        if not retryable:
+            early = DispatchResult(
+                output=(f"Dedup store unavailable; call to tool {name!r} refused"),
+                is_error=True,
+                error_type="dedup_store_error",
+                dedup_state="store_error",
+            )
+    if early is not None:
+        return _DedupDecision(early, dedup_state)
+    # Only a fresh acquisition or a recovery reacquisition is owner-scoped; the
+    # dispatcher finalizes the row it owns and nothing else.
+    owner = candidate_owner if dedup_state in _OWNED_STATES else None
+    return _DedupDecision(None, dedup_state, store, owner, snapshot)
+
+
+def _finalize_dedup(
+    store: DedupStore | None,
+    key: str,
+    owner: str | None,
+    snapshot: dict[str, str] | None,
+    heartbeat: _LeaseHeartbeat | None,
+    dry_run: bool,
+    result: str,
+    dedup_state: str,
+) -> str:
+    """Close the ledger row this call owns after the handler returned.
+
+    Returns the dedup_state to report: a lost lease (renewal failed during the
+    handler, or a finalization write that matched zero rows) is surfaced as
+    ``lease_conflict`` and never re-dispatches the handler (AC-4); a dry-run
+    outcome leaves no replayable state behind.
+    """
+    if store is None or owner is None or snapshot is None:
+        return dedup_state
+    if heartbeat is not None and heartbeat.renewal_lost:
+        return "lease_conflict"
+    if dry_run:
+        _store_op(store, lambda: store.clear(key), "clear-dry-run")
+        return dedup_state
+    if not _store_op(
+        store,
+        lambda: store.record_completed(key, snapshot, result, owner),
+        "record-completed",
+    ):
+        return "lease_conflict"
+    return dedup_state
 
 
 async def dispatch_tool(
@@ -449,11 +392,15 @@ async def dispatch_tool(
     different content is rejected, and a keyless call always executes. Error and
     dry-run results are never cached. When the durable store is available the
     same contract holds across processes through one acquisition call
-    (try_acquire_execution): completed results with a matching execution
-    snapshot are replayed, a live lease refuses as in_progress, an expired
-    lease replays for retryable tools only through reconcile-then-reacquire and
-    is refused for non-retryable ones, terminal rows refuse replay, and the
-    branch taken is reported in dedup_state.
+    (try_acquire_execution) in mcp_servers.dedup_gate: completed results with a
+    matching execution snapshot are replayed, a live lease refuses as
+    in_progress, an expired lease replays for retryable tools only through
+    reconcile-then-reacquire and is refused for non-retryable ones, terminal
+    rows refuse replay, and the branch taken is reported in dedup_state. The
+    owner lease is renewed while the handler runs, and a lease lost during
+    dispatch is reported as lease_conflict without re-dispatching the handler.
+    The in-process overlay cache is read and written only on the degraded path
+    where no durable store is available.
     """
     if not isinstance(name, str) or not name.strip():
         logger.warning("dispatch_tool called with empty tool name")
@@ -472,107 +419,30 @@ async def dispatch_tool(
 
     # duplicate-check for side-effecting tools (a non-empty key is
     # required; a keyless call never touches the cache or the store and always
-    # executes). The durable store is the truth; the overlay is a
-    # completed-only fast path fed from it.
+    # executes). With a durable store the one acquisition is the only decision
+    # point and the in-process overlay is neither read nor written; the overlay
+    # serves the degraded (storeless) path only (REQ-001, REQ-007).
     key = idempotency_key
     side_effecting = _is_side_effecting(name)
     args_hash = _normalize_args_hash(args) if (key and side_effecting) else ""
-    dedup_state = ""
-    store: DedupStore | None = None
-    store_key = ""
-    owner: str | None = None
-    snapshot_at_start: dict[str, str] | None = None
+    store_key = key if key else ""
+    decision = (
+        _acquire_dedup(key, name, args_hash) if (key and side_effecting) else _NO_DEDUP
+    )
+    if decision.early is not None:
+        return decision.early
+    store = decision.store
+    owner = decision.owner
+    snapshot_at_start = decision.snapshot
+    dedup_state = decision.dedup_state
 
-    if key and side_effecting:
-        store_key = key
-        entry = _duplicate_cache.get(key)
-        if entry is not None:
-            if entry.tool_name == name and entry.args_hash == args_hash:
-                if entry.expires_at > _idem_now():
-                    logger.info(
-                        "Duplicate tool call detected: %s (key=%s)",
-                        name,
-                        idempotency_key,
-                    )
-                    return entry.result
-                # Expired: drop it; the acquisition below decides.
-                _duplicate_cache.pop(key, None)
-            else:
-                # same key reused with different content -> reject.
-                logger.warning(
-                    "Idempotency key reused with different content: key=%s tool=%s",
-                    idempotency_key,
-                    name,
-                )
-                return DispatchResult(
-                    output=(
-                        f"Idempotency key {idempotency_key!r} reused with "
-                        f"different content for tool {name!r}"
-                    ),
-                    is_error=True,
-                    error_type="idempotency_key_reused",
-                )
-
-        store, config = _dedup_context()
-        if store is not None and config is not None:
-            _purge_once(store, config)
-            snapshot_at_start = build_execution_snapshot()
-            candidate_owner = _new_owner_id()
-            try:
-                early, dedup_state = _dedup_decision(
-                    store,
-                    config,
-                    key,
-                    name,
-                    args_hash,
-                    snapshot_at_start,
-                    candidate_owner,
-                )
-            except (sqlite3.Error, OSError, DedupStoreError) as exc:
-                # Plan Risks mitigation: a store failure never blocks silently.
-                # Retryable tools dispatch with an audited store_error marker;
-                # non-retryable tools fail closed.
-                logger.warning("dedup acquisition failed: %s", exc)
-                early = None
-                dedup_state = "store_error"
-                if not _retryable(name):
-                    early = DispatchResult(
-                        output=(
-                            f"Dedup store unavailable; call to tool {name!r} refused"
-                        ),
-                        is_error=True,
-                        error_type="dedup_store_error",
-                        dedup_state="store_error",
-                    )
-            if early is not None:
-                return early
-            if dedup_state in _OWNED_STATES:
-                owner = candidate_owner
-        else:
-            # Init failure / disabled (typed start state captured in
-            # _dedup_start_state): the audited asymmetry is unchanged.
-            # Non-retryable tools fail closed; retryable tools
-            # degrade to overlay-only store_error. No injected policy
-            # entry -> non-retryable (fail closed, no fallback constant).
-            is_retryable = _retryable(name)
-            if not is_retryable:
-                logger.warning(
-                    "Durable dedup unavailable (start state=%s); call to tool %r "
-                    "refused (non-retryable)",
-                    _dedup_start_state or "disabled",
-                    name,
-                )
-                return DispatchResult(
-                    output=(f"Dedup store unavailable; call to tool {name!r} refused"),
-                    is_error=True,
-                    error_type="dedup_store_error",
-                    dedup_state="store_error",
-                )
-            dedup_state = "store_error"
-
-    dispatched_at = time.monotonic()
+    heartbeat = (
+        _LeaseHeartbeat(store, store_key, owner)
+        if store is not None and owner is not None
+        else None
+    )
     try:
-        result = await handler(args)
+        result = await _dispatch_with_heartbeat(handler, args, heartbeat)
     except asyncio.CancelledError:
         # Owner-side voluntary interruption signal (dispatcher cancel path):
         # the owned pending row becomes 'interrupted' for the reconciliation
@@ -615,24 +485,22 @@ async def dispatch_tool(
     # HTTPException, etc.) propagate to caller.
 
     dry_run = _is_dry_run_output(result)
-    if store is not None and owner is not None and snapshot_at_start is not None:
-        _renew_lease_if_needed(store, store_key, owner, dispatched_at)
-        if dry_run:
-            # A dry-run outcome leaves no replayable state behind.
-            _store_op(store, lambda: store.clear(store_key), "clear-dry-run")
-        elif not _store_op(
-            store,
-            lambda: store.record_completed(store_key, snapshot_at_start, result, owner),
-            "record-completed",
-        ):
-            # The row no longer belongs to this call (or the write failed):
-            # the handler already ran; surface the state, never re-dispatch.
-            dedup_state = "lease_conflict"
-
+    dedup_state = _finalize_dedup(
+        store,
+        store_key,
+        owner,
+        snapshot_at_start,
+        heartbeat,
+        dry_run,
+        result,
+        dedup_state,
+    )
     dispatched_result = DispatchResult(
         output=result, is_error=False, dedup_state=dedup_state
     )
-    # Cache only real, successful, non-dry-run results.
-    if key and side_effecting and not dry_run:
-        _idem_store(key, name, args_hash, dispatched_result)
+    # Cache only real, successful, non-dry-run results, and only on the degraded
+    # path: on the durable path the store is the record and a replay is served
+    # from it, so the overlay stays empty (REQ-001, T-6).
+    if key and side_effecting and store is None and not dry_run:
+        _idem_store(key, name, args_hash, dispatched_result, _idem_now())
     return dispatched_result

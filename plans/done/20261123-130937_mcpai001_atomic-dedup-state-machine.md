@@ -337,14 +337,14 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Dispatcher concurrency and lease tests written first against the unmodified dispatcher (tests/mcp_servers/test_mcp_dispatch_concurrency.py) | In Progress | — | — | member of the `dispatcher-decision-change` unit; validated with Steps 4-7 |
-| 2 | Store-side `allow_interrupted_recovery` parameter and its store tests (scripts/shared/mcp_dedup_ledger.py, tests/shared/test_mcp_dedup.py) | In Progress | — | — | Independently validatable |
-| 3 | Gate module extraction with helper re-export (scripts/mcp_servers/dedup_gate.py, scripts/mcp_servers/dispatch.py) | In Progress | — | — | Behavior-preserving; `tools/check_module_size.py` clean |
-| 4 | Lease heartbeat during handler execution (scripts/mcp_servers/dedup_gate.py, scripts/mcp_servers/dispatch.py) | In Progress | — | — | member of the `dispatcher-decision-change` unit |
-| 5 | Single decision point: overlay removed from the durable path (scripts/mcp_servers/dispatch.py, scripts/mcp_servers/dedup_gate.py) | In Progress | — | — | member of the `dispatcher-decision-change` unit; degraded path unchanged |
-| 6 | Refusal state tags including `interrupted` (scripts/mcp_servers/dedup_gate.py, scripts/mcp_servers/dispatch.py) | In Progress | — | — | member of the `dispatcher-decision-change` unit; depends on Step 2 |
-| 7 | Dispatcher test seam and assertion updates (tests/mcp_servers/test_mcp_dispatch.py) | In Progress | — | — | member of the `dispatcher-decision-change` unit |
-| 8 | Full validation sequence and deploy hand-off (scripts/mcp_servers/dispatch.py, scripts/mcp_servers/dedup_gate.py, scripts/shared/mcp_dedup_ledger.py) | Pending | — | — | No document excluded by the Issue's Constraints is modified; deploy is the user's decision via `skills/deploy/SKILL.md` |
+| 1 | Dispatcher concurrency and lease tests written first against the unmodified dispatcher (tests/mcp_servers/test_mcp_dispatch_concurrency.py) | Completed | — | 20261123-233715 | member of the `dispatcher-decision-change` unit; validated with Steps 4-7 |
+| 2 | Store-side `allow_interrupted_recovery` parameter and its store tests (scripts/shared/mcp_dedup_ledger.py, tests/shared/test_mcp_dedup.py) | Completed | — | 20261123-233715 | Independently validatable |
+| 3 | Gate module extraction with helper re-export (scripts/mcp_servers/dedup_gate.py, scripts/mcp_servers/dispatch.py) | Completed | — | 20261123-233715 | Behavior-preserving; `tools/check_module_size.py` clean |
+| 4 | Lease heartbeat during handler execution (scripts/mcp_servers/dedup_gate.py, scripts/mcp_servers/dispatch.py) | Completed | — | 20261123-233715 | member of the `dispatcher-decision-change` unit |
+| 5 | Single decision point: overlay removed from the durable path (scripts/mcp_servers/dispatch.py, scripts/mcp_servers/dedup_gate.py) | Completed | — | 20261123-233715 | member of the `dispatcher-decision-change` unit; degraded path unchanged |
+| 6 | Refusal state tags including `interrupted` (scripts/mcp_servers/dedup_gate.py, scripts/mcp_servers/dispatch.py) | Completed | — | 20261123-233715 | member of the `dispatcher-decision-change` unit; depends on Step 2 |
+| 7 | Dispatcher test seam and assertion updates (tests/mcp_servers/test_mcp_dispatch.py) | Completed | — | 20261123-233715 | member of the `dispatcher-decision-change` unit |
+| 8 | Full validation sequence and deploy hand-off (scripts/mcp_servers/dispatch.py, scripts/mcp_servers/dedup_gate.py, scripts/shared/mcp_dedup_ledger.py) | Pending | — | — | No document excluded by the Issue's Constraints is modified; deploy is the user's decision via `skills/deploy/SKILL.md` full validation sequence ran 20261123: full suite 13645 passed, diff-cover 100% on changed lines, radon dispatch_tool D (25), pre-commit clean on changed files; deploy hand-off not performed - the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -354,11 +354,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261123-205822_01_scripts_mcp_servers_dispatch.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261123-205822_02_scripts_mcp_servers_dedup_gate.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261123-205822_03_scripts_shared_mcp_dedup_ledger.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261123-205822_04_tests_mcp_servers_test_mcp_dispatch_concurrency.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261123-205822_05_tests_mcp_servers_test_mcp_dispatch.py.md | 7 | Procedure | Pending | — | — |
+| implementations/20261123-205822_01_scripts_mcp_servers_dispatch.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261123-205822_02_scripts_mcp_servers_dedup_gate.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261123-205822_03_scripts_shared_mcp_dedup_ledger.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-205822_04_tests_mcp_servers_test_mcp_dispatch_concurrency.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-205822_05_tests_mcp_servers_test_mcp_dispatch.py.md | 7 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -11,7 +11,7 @@
 
 - Verified this cycle: `tests/mcp_servers/test_mcp_dispatch.py` has no `dispatch_tool`-level concurrency case, and `tests/shared/test_mcp_dedup_concurrency.py` covers only store-level races (`test_100_concurrent_callers_exactly_one_acquired`, `test_multi_process_claim_race_exactly_one_winner`) — the gap the Plan's row 4 records.
 - The fixture pattern follows `tests/mcp_servers/test_mcp_dispatch.py::TestDurableDedup` (a class-local `durable` fixture opening a `tmp_path` dedup store via the shared facade and monkeypatching `dispatch._dedup_store`, `_dedup_config`, `_dedup_disabled`, `_dedup_start_state`, clearing `dispatch._duplicate_cache` on teardown); the same `TOOL = "write_file"` (side-effecting, non-retryable by default) and retry-policy injection via `dispatch._tool_retry_policies` apply here.
-- T-1 passes against the unmodified dispatcher (today's acquisition already refuses `in_progress`); the Plan's validation table records the lease cases (T-2) as red on the pre-change dispatcher and green after Phases 4-6.
+- T-1 passes against the unmodified dispatcher (today's acquisition already refuses `in_progress`); the Plan's validation table records the lease cases (T-2) as red on the pre-change dispatcher and green after Phases 4-6. Verified this cycle against `git checkout HEAD -- scripts/mcp_servers/dispatch.py`: T-2a is the red case (the old post-handler renewal found the 1 s lease already expired, so the handler ran and finalization reported `dedup_state="lease_conflict"` instead of `""`); T-1 and T-2b already pass pre-change — T-2b reaches the same `lease_conflict` tag through the failed `record_completed()` write, so it pins the new `renewal_lost` path, not a pre-existing difference. T-2a therefore also asserts the ordering of the counted renewal against the handler's own end marker, which is what makes it heartbeat-specific.
 - `_LeaseHeartbeat` is created by the earlier-seq sibling `20261123-205822_02`; the refused-renewal finalization tag `dedup_state="lease_conflict"` is already the dispatcher's shape, pinned by `test_finalize_lease_conflict_surfaces_without_redispatch` (verified this cycle: result not error, handler ran once, row stays `pending`).
 
 ## Design decisions
@@ -74,9 +74,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: create the module with T-1 and record the pre-change baseline | Pending | — | — | green pre-change per Plan validation table |
-| 2 | Phase 4: add the T-2 heartbeat cases (red until the heartbeat lands) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md` + this document's Validation plan) | Pending | — | — | green after Phases 4-6 |
+| 1 | Phase 1: create the module with T-1 and record the pre-change baseline | Completed | 20261123-221707 | 20261123-221734 | green pre-change per Plan validation table baseline cycle T-1 green against the unmodified dispatcher (Plan baseline) |
+| 2 | Phase 4: add the T-2 heartbeat cases (red until the heartbeat lands) | Completed | — | 20261123-225043 | T-2a/T-2b added; T-2a verified red pre-change, green now |
+| 3 | Run the validation sequence (`rules/toolchain.md` + this document's Validation plan) | Completed | 20261123-225043 | 20261123-233501 | green after Phases 4-6 unit validation sequence T-1/T-2a/T-2b green post-change; 46 passed in the two dispatch modules, tests/mcp_servers/ 2742 passed, tests/mcp_servers/ + tests/shared/ 4126 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

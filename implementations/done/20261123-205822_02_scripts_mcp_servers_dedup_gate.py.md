@@ -31,13 +31,14 @@
 `scripts/mcp_servers/dedup_gate.py` (new)
 
 ### Procedure
-1. Create the module docstring (one paragraph: the durable-dedup gate extracted from `mcp_servers.dispatch` under plan `plans/20261123-130937_mcpai001_atomic-dedup-state-machine.md`; imports only `shared/` and stdlib; the dispatcher re-exports these names) and the imports: `asyncio`, `secrets`, `time`, `collections.OrderedDict`, `dataclasses`, `typing.Any`, `from shared.mcp_dedup import DedupLeaseConflict, DedupStore, DedupStoreConfig, DedupStoreError`.
-2. Move verbatim from `scripts/mcp_servers/dispatch.py`: `ToolArgs`, `DispatchResult` (with its full taxonomy docstring), `_CacheEntry`, `_duplicate_cache`, `_idem_now()`, `_idem_evict()`, `_idem_store()`, `_IDEMPOTENCY_CACHE_TTL_SECONDS`, `_IDEMPOTENCY_CACHE_MAX_ENTRIES`, `_new_owner_id()`, `_dedup_decision()`, `_OWNED_STATES`.
+1. Create the module docstring (one paragraph: the durable-dedup gate split from `mcp_servers.dispatch` under plan `plans/20261123-130937_mcpai001_atomic-dedup-state-machine.md`; imports only `shared/` and stdlib; the dispatcher re-exports these names) and the imports: `asyncio`, `secrets`, `time`, `collections.OrderedDict`, `dataclasses`, `typing.Any`, `from shared.mcp_dedup import DedupLeaseConflict, DedupStore, DedupStoreConfig, DedupStoreError`.
+2. Move verbatim from `scripts/mcp_servers/dispatch.py`: `ToolArgs`, `DispatchResult` (with its full taxonomy docstring), `_CacheEntry`, `_duplicate_cache`, `_idem_now()`, `_idem_evict()`, `_idem_store()`, `_IDEMPOTENCY_CACHE_TTL_SECONDS`, `_IDEMPOTENCY_CACHE_MAX_ENTRIES`, `_new_owner_id()`, `_dedup_decision()`, `_OWNED_STATES`. Landed deviation (Phase 3): `_idem_evict()` and `_idem_store()` take the clock reading as an explicit `now` argument, so the dispatcher's `_idem_now()` test seam (`tests/mcp_servers/test_mcp_dispatch.py` monkeypatches `mcp_servers.dispatch._idem_now`) still governs both the cache read and the write; a gate-internal clock would have made the moved cache ignore that seam.
 3. Add `_LeaseHeartbeat` (new): `start()` schedules a renewal loop (`asyncio.create_task`) sleeping `store.lease_seconds / 2` between `store.renew_lease(key, owner_id)` calls; `stop()` cancels the task; `renewal_lost` becomes `True` on `DedupLeaseConflict` or `(sqlite3.Error, OSError)`, with the same warning logs the removed `_renew_lease_if_needed()` emitted.
 4. Phase 6 wiring (after sibling seq 03 lands): `_dedup_decision(..., *, retryable: bool)` calls `store.try_acquire_execution(..., allow_interrupted_recovery=retryable)`; the refusal constructor for a recovery refused `interrupted` row (new `_refusal_interrupted()`) returns `error_type="dedup_unreplayable"` with `dedup_state="interrupted"` and leaves the row untouched — the store-side refusal is created by seq 03, so here it is only the status-to-result mapping. Expired `pending` keeps today's reconcile-then-reacquire (retryable) or `reconciliation_required` refusal (non-retryable).
-5. Keep the `replay_completed` branch's overlay write (`_idem_store()`) only on the degraded path: with the dispatcher no longer calling it on the durable path (seq 01 Phase 5), the cache is fed solely by degraded dispatch (REQ-001).
+5. Keep the `replay_completed` branch's overlay write (`_idem_store()`) only on the degraded path: with the dispatcher no longer calling it on the durable path (seq 01 Phase 5), the cache is fed solely by degraded dispatch (REQ-001). Landed deviation: the gate is only ever called on the durable path, so its `replay_completed` branch no longer calls `_idem_store()` at all — the degraded-mode write lives in `dispatch.py`'s post-dispatch step (seq 01 Phase 5), and `_idem_store()`/`_idem_evict()` remain exported for it.
 
 ### Method
+- Landed deviation (docstring wording): the module docstring says "Split from `mcp_servers.dispatch`", not the phrase planned in the first verification pass, because `tools/check_compat_shims.py` reports that phrase as a backward-compatibility leftover in `scripts/` (`tools/_compat_leftover_phrases.py`, path-scoped to `scripts/`); the check passed once the wording changed.
 - `_dedup_decision()` keeps its `(early_result, dedup_state)` return contract; the branch order and every message string stay as verified in this cycle's read: `acquired` → `(None, "")`, `contract_mismatch` → reuse rejection, `replay_completed` → `duplicate_hit`, `in_progress` → refusal, `reconciliation_required` → reconcile-reacquire (`replayed`) or refusal, `outcome_unknown` → degraded `store_error` (retryable) or refusal, `replay_unavailable` → refusal; append the `interrupted`-tag mapping in step 4.
 - `_LeaseHeartbeat` holds `(store, key, owner_id)` and never runs store writes outside the event loop (D-3 mitigation).
 - Line-count budget: the moved bodies plus `_LeaseHeartbeat` and the moved type definitions keep this module well under 24576 B; verify with `wc -c` at Phase 3 completion.
@@ -46,6 +47,7 @@
 - `reconciliation_required` reconcile path: `store.reconcile_execution(key)` then one `try_acquire_execution()` — unchanged; the `interrupted` row that this path produces reopens only when `allow_interrupted_recovery` (new) is `True` (sibling seq 03), which for the retryable path it is; the non-retryable refusal path never reacquires.
 - The heartbeat must not renew after the handler finished: `stop()` cancels the task and awaits its completion so no renewal races the `record_completed()` finalization.
 - Module private names remain underscore-prefixed; `dispatch.py` imports them explicitly (no wildcard import).
+- `interrupted` refusal tag (Phase 6): the gate cannot read the row status off the `AcquisitionResult` — it carries no status field and `lease_expires_epoch` is `None` for every refusal (`scripts/shared/mcp_dedup_rows.py`). `_refusal_interrupted()` reads the status once through the public read-only `store.get_execution(key)` on the refused path only: `interrupted` → `dedup_state="interrupted"`, expired `pending` → today's `dedup_state="reconciliation_required"`. The read mutates nothing and never runs on an acquired or replayed branch.
 
 ## Compatibility considerations
 
@@ -81,10 +83,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 3: create the module with the verbatim moved contents; size and import-linter checks clean | Pending | — | — | isolation check: dispatcher suite green |
-| 2 | Add `_LeaseHeartbeat` (new) per Procedure step 3 | Pending | — | — | Phase 4 |
-| 3 | Phase 6: `retryable` keyword and the `interrupted` refusal mapping after sibling seq 03 lands | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md` + this document's Validation plan) | Pending | — | — | |
+| 1 | Phase 3: create the module with the verbatim moved contents; size and import-linter checks clean | Completed | — | 20261123-224027 | isolation check: dispatcher suite green gate created with the moved contents (cache helpers take an explicit now argument) |
+| 2 | Add `_LeaseHeartbeat` (new) per Procedure step 3 | Completed | 20261123-224027 | 20261123-225043 | Phase 4 _LeaseHeartbeat _LeaseHeartbeat in the gate (renew every lease_seconds/2, renewal_lost flag, stop cancels and awaits) |
+| 3 | Phase 6: `retryable` keyword and the `interrupted` refusal mapping after sibling seq 03 lands | Completed | — | 20261123-232053 | retryable keyword wired; allow_interrupted_recovery=retryable on the first acquire and True on the reacquire; _refusal_interrupted maps interrupted -> dedup_state=interrupted |
+| 4 | Run the validation sequence (`rules/toolchain.md` + this document's Validation plan) | Completed | 20261123-232053 | 20261123-233501 | release-unit validation sequence release-unit validation: gate 13082 B under the size gate, check_docstrings and check_compat_shims clean after the docstring wording fix, dispatcher suites green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

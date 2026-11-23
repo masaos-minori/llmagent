@@ -13,7 +13,7 @@
 - The mcpdl004 half already landed here (`record_completed()` metadata, `call_state_view()`, DDL pins); the mcpdl005 procedures (generated, not executed) will change `purge_expired()` in this file later. This document touches neither; the implementation phase re-reads the acquisition signature before editing (Plan UNK-06).
 - The file measures 23155 B against the 24576 B gate (re-measured this cycle); the parameter and branch add roughly 15 lines, comfortably inside the 1421 B headroom.
 - The facade `scripts/shared/mcp_dedup.py` re-exports `DedupStore(DedupLedger)` without re-declaring `try_acquire_execution()`, so no facade edit is needed.
-- Refused acquisitions stay identifiable without a second lookup: `mark_interrupted()` writes `lease_expires_epoch=NULL` (verified this cycle), while a `pending` row always carries a lease from its acquisition, so `reconciliation_required` with `lease_expires_epoch is None` means the row is `interrupted` — the signal the sibling gate document (`20261123-205822_02`) uses for its `interrupted` refusal tag.
+- Refused acquisitions are identified from the row, not from the acquisition result (verification finding, 20261123): `AcquisitionResult` carries no row status, and `AcquisitionResult.lease_expires_epoch` is `None` for every refusal because the contract dataclass pins `owner_id`/`lease_expires_epoch` as set for `acquired` only (`scripts/shared/mcp_dedup_rows.py`, and `tests/shared/test_mcp_dedup.py` asserts `None` on a `replay_completed` refusal). So the sibling gate document (`20261123-205822_02`) tells a recovery-refused `interrupted` row from an expired `pending` row with one read-only `store.get_execution(key)` on the refusal path; no ledger change is needed or wanted here (propagating `stored.lease_expires_epoch` was rejected: it contradicts the contract docstring and this file is out of the gate document's scope).
 
 ## Design decisions
 
@@ -78,9 +78,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 2: add `allow_interrupted_recovery` (new) to both functions and the refusing branch | Pending | — | — | re-read the signature first (UNK-06) |
-| 2 | Companion `tests/shared/test_mcp_dedup.py`: add the T-3 permitted/refused reopen cases | Pending | — | — | Plan Phase 8, validated on its own |
-| 3 | Run the validation sequence (`rules/toolchain.md` + this document's Validation plan) | Pending | — | — | |
+| 1 | Phase 2: add `allow_interrupted_recovery` (new) to both functions and the refusing branch | Completed | 20261123-221734 | 20261123-222024 | re-read the signature first (UNK-06) ledger recovery gate keyword-only allow_interrupted_recovery added to try_acquire_execution and _acquire_locked |
+| 2 | Companion `tests/shared/test_mcp_dedup.py`: add the T-3 permitted/refused reopen cases | Completed | — | 20261123-222024 | Plan Phase 8, validated on its own T-3 permitted/refused/cap cases added to tests/shared/test_mcp_dedup.py |
+| 3 | Run the validation sequence (`rules/toolchain.md` + this document's Validation plan) | Completed | — | 20261123-222024 | pytest tests/shared/ 1392 passed; check_module_size clean; ledger 23.6 KB under the gate |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

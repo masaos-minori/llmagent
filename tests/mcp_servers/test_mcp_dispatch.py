@@ -20,6 +20,22 @@ from mcp_servers.dispatch import (
 from shared.mcp_dedup import DedupStoreError
 
 
+def _attempt_history(store: Any) -> list[tuple[int, str, str | None]]:
+    """(attempt_number, outcome, detail) rows from `call_attempt_history`: the
+    ledger-side evidence the recovery gating must not fabricate (AC-3)."""
+    conn = sqlite3.connect(store.db_path)
+    try:
+        return [
+            (int(r[0]), str(r[1]), None if r[2] is None else str(r[2]))
+            for r in conn.execute(
+                "SELECT attempt_number, outcome, detail FROM call_attempt_history"
+                " ORDER BY recorded_epoch, rowid"
+            )
+        ]
+    finally:
+        conn.close()
+
+
 class TestDispatchTool:
     @pytest.mark.asyncio
     async def test_dispatches_to_handler(self) -> None:
@@ -379,6 +395,34 @@ class TestDurableDedup:
 
         return handler
 
+    @pytest.fixture()
+    def short_lease(self, tmp_path: Any, monkeypatch: Any) -> Iterator[dict[str, Any]]:
+        """Same wiring as `durable` with a 1 s lease, for the expiry-boundary pair."""
+        import mcp_servers.dispatch as dispatch_mod
+        from shared.mcp_dedup import DedupStore, DedupStoreConfig
+
+        db_path = str(tmp_path / "mcp_dedup.sqlite")
+        store = DedupStore(db_path, lease_seconds=1)
+        config = DedupStoreConfig(db_path=db_path)
+        _duplicate_cache.clear()
+        monkeypatch.setattr(dispatch_mod, "_dedup_store", store)
+        monkeypatch.setattr(dispatch_mod, "_dedup_config", config)
+        monkeypatch.setattr(dispatch_mod, "_dedup_disabled", False)
+        monkeypatch.setattr(dispatch_mod, "_purge_done", False)
+        monkeypatch.setattr(
+            dispatch_mod,
+            "_tool_retry_policies",
+            {self.TOOL: "same_logical_call_only"},
+        )
+        yield {
+            "store": store,
+            "config": config,
+            "db_path": db_path,
+            "mod": dispatch_mod,
+        }
+        store.close()
+        _duplicate_cache.clear()
+
     @pytest.mark.asyncio
     async def test_completed_hit_after_reopen_without_reexecution(
         self, durable: dict
@@ -411,8 +455,12 @@ class TestDurableDedup:
         assert len(calls) == 1  # zero handler invocations on the second call
 
     @pytest.mark.asyncio
-    async def test_overlay_fast_path_still_hits(self, durable: dict) -> None:
-        """The overlay stays a completed-only fast path within one process (REQ-003)."""
+    async def test_completed_replay_served_from_store_without_overlay(
+        self, durable: dict
+    ) -> None:
+        """T-6: the durable path has one decision point. The second call is served
+        from the completed row (`duplicate_hit`) and the in-process overlay stays
+        empty (REQ-001)."""
         calls: list[int] = []
         handler = self._handler(calls)
         r1 = await dispatch_tool(
@@ -422,9 +470,11 @@ class TestDurableDedup:
             {self.TOOL: handler}, self.TOOL, {"p": "a"}, idempotency_key="k1"
         )
         assert not r1.is_error and not r2.is_error
-        assert r2.dedup_state == r1.dedup_state  # served verbatim from the overlay
+        assert r1.dedup_state == ""  # fresh acquisition
+        assert r2.dedup_state == "duplicate_hit"  # served from the store row
+        assert r2.output == "wrote"
         assert len(calls) == 1
-        assert len(_duplicate_cache) == 1
+        assert len(_duplicate_cache) == 0  # the durable path never populates it
 
     @pytest.mark.asyncio
     async def test_completed_snapshot_mismatch_refused_replay(
@@ -538,10 +588,11 @@ class TestDurableDedup:
         assert row.owner_id == "other-owner"
 
     @pytest.mark.asyncio
-    async def test_interrupted_non_retryable_refused(self, durable: dict) -> None:
+    async def test_expired_pending_non_retryable_refused(self, durable: dict) -> None:
         """expired pending + non_retryable -> refuse with dedup_unreplayable /
         reconciliation_required; handler not executed (REQ-003/AC-3). Unknown
-        tools default to non_retryable."""
+        tools default to non_retryable. The seeded state is an expired pending
+        row, which is what the tag distinguishes from a real interrupted row."""
         calls: list[int] = []
         import time
 
@@ -570,6 +621,193 @@ class TestDurableDedup:
         assert (
             row is not None and row.status == "pending"
         )  # refusal never mutates the row
+
+    def _seed_interrupted(self, durable: dict, key: str = "k1") -> int:
+        """Seed a genuinely `interrupted` row through the public store API the
+        dispatcher's cancel path uses: acquire, then mark_interrupted. Returns the
+        stored attempt_number (Plan T-4)."""
+        import time
+
+        args_hash = durable["mod"]._normalize_args_hash({"p": "a"})
+        acq = durable["store"].try_acquire_execution(
+            key,
+            self.TOOL,
+            args_hash,
+            {"deployed_rev": "x"},
+            "seed-owner",
+            now_epoch=time.time() - 3600,
+        )
+        assert acq.status == "acquired"
+        durable["store"].mark_interrupted(key, "seed-owner")
+        row = durable["store"].get_execution(key)
+        assert row is not None and row.status == "interrupted"
+        return row.attempt_number
+
+    @pytest.mark.asyncio
+    async def test_interrupted_row_non_retryable_refused(self, durable: dict) -> None:
+        """T-4 (a): an interrupted row + no declared retry policy refuses with the
+        `interrupted` tag, and the recovery path is never taken: handler not
+        executed, row, attempt number and history untouched (REQ-004, AC-3)."""
+        durable["mod"]._tool_retry_policies = {}
+        attempts = self._seed_interrupted(durable)
+        calls: list[int] = []
+        r = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="k1",
+        )
+        assert r.is_error
+        assert r.error_type == "dedup_unreplayable"
+        assert r.dedup_state == "interrupted"
+        assert len(calls) == 0
+        row = durable["store"].get_execution("k1")
+        assert row is not None and row.status == "interrupted"
+        assert row.attempt_number == attempts  # never re-attempted
+        details = {detail for _, _, detail in _attempt_history(durable["store"])}
+        assert "post-recovery" not in details  # no recovery evidence written
+
+    @pytest.mark.asyncio
+    async def test_interrupted_row_retryable_recovers_once(self, durable: dict) -> None:
+        """T-4 (b): an interrupted row + declared retry policy reopens through the
+        acquisition: the handler runs exactly once and the row ends completed with
+        the recovery history entry (REQ-004/AC-3)."""
+        attempts = self._seed_interrupted(durable)  # fixture policy: retryable
+        calls: list[int] = []
+        r = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="k1",
+        )
+        assert not r.is_error
+        assert r.dedup_state == ""  # one acquisition, directly reopened
+        assert len(calls) == 1  # exactly one execution
+        row = durable["store"].get_execution("k1")
+        assert row is not None and row.status == "completed"
+        assert row.attempt_number == attempts + 1
+        assert any(
+            detail == "post-recovery"
+            for _, _, detail in _attempt_history(durable["store"])
+        )
+
+    @pytest.mark.asyncio
+    async def test_failed_row_never_reattempted(self, durable: dict) -> None:
+        """T-4 (c): a terminal `failed' row refuses replay in every retry class and is
+        never re-attempted (REQ-003/REQ-004)."""
+        args_hash = durable["mod"]._normalize_args_hash({"p": "a"})
+        acq = durable["store"].try_acquire_execution(
+            "k1", self.TOOL, args_hash, {"deployed_rev": "x"}, "seed-owner"
+        )
+        assert acq.status == "acquired"
+        durable["store"].record_failed("k1", "handler_error", "seed-owner")
+        calls: list[int] = []
+        r = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="k1",
+        )
+        assert r.is_error
+        assert r.error_type == "dedup_unreplayable"
+        assert r.dedup_state == "replay_unavailable"
+        assert len(calls) == 0
+        row = durable["store"].get_execution("k1")
+        assert row is not None and row.status == "failed"  # terminal evidence kept
+        assert row.attempt_number == 1
+
+    @pytest.mark.asyncio
+    async def test_truncated_completed_result_refuses_replay(
+        self, durable: dict
+    ) -> None:
+        """T-5: a completed row whose stored payload is the truncated sentinel is not
+        replayable: refusal, handler never executed again, terminal row preserved."""
+        calls: list[int] = []
+
+        async def long_handler(args: dict) -> str:
+            calls.append(1)
+            return "x" * 9000  # above RESULT_MAX_CHARS: stored as a truncated preview
+
+        r1 = await dispatch_tool(
+            {self.TOOL: long_handler}, self.TOOL, {"p": "a"}, idempotency_key="k1"
+        )
+        assert not r1.is_error
+        row = durable["store"].get_execution("k1")
+        assert row is not None and row.status == "completed"
+        assert isinstance(row.result, dict) and row.result.get("truncated") is True
+        assert len(calls) == 1
+
+        r2 = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="k1",
+        )
+        assert r2.is_error
+        assert r2.error_type == "dedup_unreplayable"
+        assert r2.dedup_state == "replay_unavailable"
+        assert len(calls) == 1  # refused without re-executing the handler
+        row2 = durable["store"].get_execution("k1")
+        assert row2 is not None and row2.status == "completed"
+        assert len(_duplicate_cache) == 0
+
+    @pytest.mark.asyncio
+    async def test_lease_expiry_boundary_pair(self, short_lease: dict) -> None:
+        """T-5: the acquisition decision on either side of `lease_expires_epoch`
+        (1 s lease, non-retryable tool): a call while the lease is live refuses
+        in_progress, a call after it expired refuses reconciliation_required; the
+        handler never runs and neither row is mutated (REQ-005/AC-2)."""
+        import time
+
+        short_lease["mod"]._tool_retry_policies = {}
+        store = short_lease["store"]
+        args_hash = short_lease["mod"]._normalize_args_hash({"p": "a"})
+        calls: list[int] = []
+
+        # Just before the boundary: the lease still has 0.8 s left.
+        acq = store.try_acquire_execution(
+            "before",
+            self.TOOL,
+            args_hash,
+            {"deployed_rev": "x"},
+            "seed-owner",
+            now_epoch=time.time() - 0.2,
+        )
+        assert acq.status == "acquired"
+        r1 = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="before",
+        )
+        assert r1.is_error
+        assert r1.error_type == "dedup_in_progress"
+        assert r1.dedup_state == "in_progress"
+
+        # Just after it: the same shape with a lease that expired 0.2 s ago.
+        acq2 = store.try_acquire_execution(
+            "after",
+            self.TOOL,
+            args_hash,
+            {"deployed_rev": "x"},
+            "seed-owner",
+            now_epoch=time.time() - 1.2,
+        )
+        assert acq2.status == "acquired"
+        r2 = await dispatch_tool(
+            {self.TOOL: self._handler(calls)},
+            self.TOOL,
+            {"p": "a"},
+            idempotency_key="after",
+        )
+        assert r2.is_error
+        assert r2.error_type == "dedup_unreplayable"
+        assert r2.dedup_state == "reconciliation_required"
+        assert len(calls) == 0  # neither side of the boundary dispatches the handler
+        for key in ("before", "after"):
+            row = store.get_execution(key)
+            assert row is not None and row.status == "pending"
+            assert row.owner_id == "seed-owner"
 
     @pytest.mark.asyncio
     async def test_attempt_cap_outcome_unknown_matrix(
@@ -661,6 +899,9 @@ class TestDurableDedup:
         assert r2.is_error
         assert r2.error_type == "idempotency_key_reused"
         assert len(calls) == 1
+        # The rejection comes from the acquisition's contract_mismatch, not from
+        # an overlay comparison (REQ-001).
+        assert len(_duplicate_cache) == 0
 
     @pytest.mark.asyncio
     async def test_store_error_retryable_proceeds_non_retryable_fails_closed(
@@ -823,6 +1064,9 @@ class TestDurableDedup:
         )
         assert not r.is_error
         assert len(calls) == 1
+        assert (
+            len(_duplicate_cache) == 0
+        )  # a full acquire/complete cycle leaves no overlay
 
     @pytest.mark.asyncio
     async def test_post_open_write_failure_fails_closed_non_retryable(

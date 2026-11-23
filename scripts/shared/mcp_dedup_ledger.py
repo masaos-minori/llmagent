@@ -94,18 +94,27 @@ class DedupLedger:
         owner_id: str,
         *,
         now_epoch: float | None = None,
+        allow_interrupted_recovery: bool = True,
     ) -> AcquisitionResult:
         """One typed acquisition (D-1): read, classify, insert-or-deny in a
         single BEGIN IMMEDIATE transaction. Handler execution never holds the
         write lock. Never resets a terminal row and never grants a retry on
-        lease expiry alone (REQ-002/REQ-003)."""
+        lease expiry alone (REQ-002/REQ-003). Recovery of an `interrupted` row
+        requires the caller's permission (`allow_interrupted_recovery`)."""
         now = time.time() if now_epoch is None else now_epoch
         with self._lock:
             try:
                 self._conn.execute("BEGIN IMMEDIATE")
                 row = self._fetch_locked(key)
                 result = self._acquire_locked(
-                    row, key, tool_name, args_hash, snapshot, owner_id, now
+                    row,
+                    key,
+                    tool_name,
+                    args_hash,
+                    snapshot,
+                    owner_id,
+                    now,
+                    allow_interrupted_recovery=allow_interrupted_recovery,
                 )
                 self._conn.commit()
             except sqlite3.Error:
@@ -122,6 +131,8 @@ class DedupLedger:
         snapshot: Mapping[str, str],
         owner_id: str,
         now: float,
+        *,
+        allow_interrupted_recovery: bool = True,
     ) -> AcquisitionResult:
         def result(
             status: str, attempt: int, *, stored: DedupRow | None = None
@@ -181,6 +192,11 @@ class DedupLedger:
         if row.status == "interrupted":
             if row.attempt_number >= self._max_attempts:
                 return result("outcome_unknown", row.attempt_number, stored=row)
+            if not allow_interrupted_recovery:
+                # Recovery outside the caller's declared retry policy is refused
+                # here: no mutation, no history entry, attempt stays as stored
+                # (REQ-004, AC-3).
+                return result("reconciliation_required", row.attempt_number, stored=row)
             attempt = row.attempt_number + 1
             # The recovery path re-opens the ledger row for a new attempt; the
             # terminal snapshot_json is deliberately left untouched (REQ-004:

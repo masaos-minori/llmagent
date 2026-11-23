@@ -430,6 +430,62 @@ class TestReopenDurability:
         assert identity_before[0] == 1
 
 
+class TestInterruptedRecoveryPermission:
+    """REQ-004 / AC-3: reopening an `interrupted` row needs the caller's permission."""
+
+    def test_recovery_refused_without_permission_leaves_the_row(self, tmp_path):
+        path = str(tmp_path / "mcp_dedup.sqlite")
+        s = DedupStore(path)
+        s.try_acquire_execution("k1", "web_search", "h1", _SNAP, "owner-a")
+        s.mark_interrupted("k1", "owner-a")
+        history_before = _history(s)
+        res = s.try_acquire_execution(
+            "k1", "web_search", "h1", _SNAP, "owner-b", allow_interrupted_recovery=False
+        )
+        row = s.get_execution("k1")
+        history_after = _history(s)
+        s.close()
+        assert res.status == "reconciliation_required"
+        assert res.attempt_number == 1
+        assert res.owner_id == "owner-a"  # stored owner: no new grant
+        assert row is not None and row.status == "interrupted"
+        assert row.attempt_number == 1
+        assert row.lease_expires_epoch is None
+        assert history_after == history_before  # no post-recovery entry appended
+
+    def test_recovery_granted_with_permission_reopens_the_row(self, tmp_path):
+        path = str(tmp_path / "mcp_dedup.sqlite")
+        s = DedupStore(path)
+        s.try_acquire_execution("k1", "web_search", "h1", _SNAP, "owner-a")
+        s.mark_interrupted("k1", "owner-a")
+        res = s.try_acquire_execution(
+            "k1", "web_search", "h1", _SNAP, "owner-b", allow_interrupted_recovery=True
+        )
+        row = s.get_execution("k1")
+        details = [detail for _, _, detail in _history(s)]
+        s.close()
+        assert res.status == "acquired" and res.attempt_number == 2
+        assert res.lease_expires_epoch is not None
+        assert row is not None and row.status == "pending"
+        assert row.attempt_number == 2
+        assert "post-recovery" in details
+
+    def test_attempt_cap_stays_ahead_of_the_permission_check(self, tmp_path):
+        """A capped `interrupted` row reports outcome_unknown regardless of permission."""
+        path = str(tmp_path / "mcp_dedup.sqlite")
+        s = DedupStore(path, max_attempts=1)
+        s.try_acquire_execution("k1", "web_search", "h1", _SNAP, "owner-a")
+        s.mark_interrupted("k1", "owner-a")
+        res = s.try_acquire_execution(
+            "k1", "web_search", "h1", _SNAP, "owner-b", allow_interrupted_recovery=False
+        )
+        row = s.get_execution("k1")
+        s.close()
+        assert res.status == "outcome_unknown"
+        assert res.attempt_number == 1
+        assert row is not None and row.status == "interrupted"
+
+
 class TestCrossProcessSharing:
     def _child(self, path: str, code: str) -> None:
         scripts_dir = str(Path(__file__).resolve().parents[2] / "scripts")

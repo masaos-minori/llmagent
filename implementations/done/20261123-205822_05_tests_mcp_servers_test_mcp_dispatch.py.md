@@ -12,7 +12,7 @@
 - This cycle's re-read confirmed the Plan's claims: `_duplicate_cache` is imported by this file, 7 `len(_duplicate_cache)` assertions exist (5 of them in `TestDispatchIdempotencyCache`, one in `test_overlay_fast_path_still_hits`, one in `test_dry_run_clears_pending_row`), `test_interrupted_non_retryable_refused` seeds an expired `pending` row (its name notwithstanding), and `test_finalize_lease_conflict_surfaces_without_redispatch` already pins the `lease_conflict` finalization shape.
 - The `durable` fixtures (class-local in `TestDurableDedup` and `TestDurableDedupDryRunClear`), `TOOL = "write_file"`, and the `dispatch._tool_retry_policies` injection pattern continue to be the test harness; the mcpdl004 two-column fixture fix already landed in this file.
 - The refusal tags the assertions pin are the dispatcher's existing strings plus the new `interrupted` tag wired by sibling `20261123-205822_02`; the `interrupted`-vs-expired-`pending` distinction the new tests rely on is the store's own signal recorded in sibling `20261123-205822_03` (`interrupted` rows carry `lease_expires_epoch=NULL`).
-- These assertions fail against the pre-change dispatcher and are updated in Plan Phase 7, after the source phases land (release-unit note).
+- These assertions fail against the pre-change dispatcher and are updated in Plan Phase 7, after the source phases land (release-unit note). Verified this cycle against `git checkout HEAD -- scripts/mcp_servers/dispatch.py scripts/shared/mcp_dedup_ledger.py` with the gate module removed: the three red cases are `test_completed_replay_served_from_store_without_overlay` (pre-change the overlay served the second call), `test_interrupted_row_non_retryable_refused` (pre-change the ledger reopened the interrupted row and the handler ran), and `test_truncated_completed_result_refuses_replay` (pre-change the truncated payload was replayed). The other new cases — `test_interrupted_row_retryable_recovers_once`, `test_failed_row_never_reattempted`, `test_lease_expiry_boundary_pair` — pass pre-change as well: they pin preserved behavior, not the new branch.
 
 ## Design decisions
 
@@ -73,10 +73,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | T-6: re-point the durable fast-path and cache-length assertions to the store acquisition | Pending | — | — | Plan Phase 7 |
-| 2 | T-4: add the `interrupted`-vs-`failed` policy matrix; rename the expired-pending case | Pending | — | — | |
-| 3 | T-5: truncated-result case and lease-expiry boundary pairs | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md` + this document's Validation plan) | Pending | — | — | |
+| 1 | T-6: re-point the durable fast-path and cache-length assertions to the store acquisition | Completed | — | 20261123-232053 | Plan Phase 7 test_completed_replay_served_from_store_without_overlay replaces the overlay fast-path test; cache-length assertions added to test_first_ever_key_executes_once_on_fresh_store and test_durable_args_hash_mismatch_rejected |
+| 2 | T-4: add the `interrupted`-vs-`failed` policy matrix; rename the expired-pending case | Completed | — | 20261123-232053 | T-4 matrix (interrupted refused / interrupted retryable reopens once / failed never re-attempted); test_expired_pending_non_retryable_refused rename |
+| 3 | T-5: truncated-result case and lease-expiry boundary pairs | Completed | — | 20261123-232053 | T-5 truncated-completed refusal + test_lease_expiry_boundary_pair with the 1 s short_lease fixture |
+| 4 | Run the validation sequence (`rules/toolchain.md` + this document's Validation plan) | Completed | 20261123-232053 | 20261123-233501 | release-unit validation sequence pytest tests/mcp_servers/ tests/integration/test_production_security_regression.py -m 'not production_paths_allowed' -> 2742 passed 4 skipped; TestDispatchIdempotencyCache untouched; diff-cover 100% on dispatch.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
