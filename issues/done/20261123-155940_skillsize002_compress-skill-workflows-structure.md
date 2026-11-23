@@ -11,6 +11,15 @@ This is the follow-up of `issues/20261123-155457_skillsize001_compress-skill-wor
 
 Stages 1 and 2 give this issue its tools: the size-budget check (`tools/check_skill_size.py`, with a baseline) makes every reduction below measurable and prevents regrowth, and `rules/skill-runtime.md` already moved the runtime sections of `skills/DESIGN.md`.
 
+Adversarial verification (2026-11-23, measured after Stages 1 and 2 landed in `1e916038e`) corrected the first estimates of this issue:
+- **Where the bytes are.** For a fresh `plan-to-implementation-procedure` cycle (152 KB after Stage 2) the workflow is 39 KB and the `SKILL.md` 7 KB; the rest is shared files loaded once per session and reused (`rules/ai-execution.md` 17 KB, `rules/toolchain.md` 14 KB, `routing.md` 12.7 KB, `rules/workflow-lifecycle.md` 12.5 KB, `rules/coding.md` 9.5 KB, templates 27 KB). Within one session the shared files are read once (Step 0 loads a file only if it is not already loaded), while the workflow, the `SKILL.md`, and the prompt are read again at every invocation and after every context compaction. Repeated cost is therefore dominated by the workflow files: `code-implementation` 52 KB + 6.5 KB + 3 KB, `plan-to-implementation-procedure` 39 KB + 7 KB + 3 KB, `issue-to-plan` 46 KB + 10.5 KB + 6 KB.
+- **Stage 4 (preflight and postflight tools) is overstated.** The hand-listed verification commands occupy 0.6 KB to 0.9 KB per workflow (7 to 10 lines), so the tools would save under 1 KB of text per skill; their value is fewer commands per cycle, not bytes. It should be optional and last.
+- **Stage 5 (main-path and edge-case split) is smaller than estimated.** The truly conditional sections are about 9 KB in `code-implementation` (batch mode for a plan 3.2 KB and for a release unit 2.1 KB, rollback 1.6 KB, the resume, superseded, and gated bullets of Step 1 about 2.8 KB, the manual path of the Plan Execution Status update about 1.6 KB), about 3 KB in `plan-to-implementation-procedure`, and about 3 KB in `issue-to-plan` (Path B is already a separate file). The 25 KB to 40 KB per cycle first assumed is not reachable by splitting alone.
+- **Stage 3 (thinner `SKILL.md`)** saves 2 KB to 4 KB per skill: each has a phase table of 5 to 11 rows that paraphrases the workflow, but only one verbatim duplicate sentence exists across all five skills and the shared rules.
+- **Stage 7 (selective loading of shared rules)** saves little in a session because shared files are already read once; it matters only after compactions and for a fresh session, and it needs a section-reading convention, so it moves to the end.
+- Realistic total with Stages 1 and 2 (about 9 percent, done): about 20 to 25 percent for `code-implementation` and 15 to 20 percent for the other two once Stages 3 and 5 are done. The 30 percent acceptance target below is lowered accordingly.
+- Moved sections are cited almost only from inside their own workflow (the exception is `prompts/03_implementation.md` citing `Rollback on Failure`), so a split needs few reference updates; keep cross-file references plain (a backticked path without a section name creates no edge for `tools/check_skills_heading_cycles.py`).
+
 ## Problem
 After Stages 1 and 2 the per-invocation load is still about 130 KB to 160 KB: the workflows are long because rarely used branches and tool-covered fallbacks sit in the main path, every cycle repeats the same verification commands by hand, and each `SKILL.md` restates content that `workflow.md` already holds.
 
@@ -18,13 +27,14 @@ After Stages 1 and 2 the per-invocation load is still about 130 KB to 160 KB: th
 Context compactions during long pipeline runs force the workflows to be re-read, which multiplies the cost, and the structure above makes each re-read large. The structural stages are the larger saving (about 25 to 40 KB per ordinary cycle) but also the riskier ones, so they follow the measured baseline instead of being bundled with it.
 
 ## Implementation Intent
-Stage the work one skill at a time, lowest risk first, and re-measure after each stage with the Stage 1 tool.
-- Stage 3: reduce each `SKILL.md` to its description, phase table, and references; every Core Rule stays in `workflow.md` (added there first if absent).
-- Stage 4: add one preflight and one postflight tool per pipeline phase that run the repeated verification sequence in the documented order and print one result (structure, stale detection, overlaps, dependency order, plan coverage, gates), then replace the hand-listed sequences with the tool call.
-- Stage 5: split each `workflow.md` into a main path and an edge-case file loaded only when its trigger holds (batch mode, release unit, resume, superseded, gated, non-conforming plan, plan amendment, rollback); each main-path step names the trigger in one line. Order: `code-implementation`, `plan-to-implementation-procedure`, `issue-to-plan`, then `issue-creator` and `git-commit-and-sync` if their size warrants it.
-- Stage 6: replace the detailed manual-fallback prose of steps already covered by tools (archival moves, status updates, scaffolding, plan updates) with the tool command, the verification checklist, and a one-line fallback; `tools/TOOL_DESCRIPTIONS.md` stays the single place for tool usage.
-- Stage 7: give `rules/ai-execution.md` (and `rules/workflow-lifecycle.md` if worthwhile) a section index so a skill's Step 0 loads only the cited sections; make `rules/tool-gates.md` lookups defer to `run_validation_gates.py` output.
-- Target after all stages (estimate, re-measured at the end): an ordinary single-procedure cycle loads about 100 KB (about 25k tokens) or less, 30 to 40 percent below the 2026-11-23 figures.
+Stage the work one skill at a time, in the order of repeated cost, and re-measure after each stage with `tools/check_skill_size.py`. Revised order after the verification above:
+- Stage A (first plan): split `code-implementation/workflow.md` into the main path and `workflow-edge.md` (batch modes, rollback, the resume, superseded, and gated bullets of Step 1, the manual path of the Plan Execution Status update), with one trigger line per moved section and the baseline lowered. Move text verbatim; keep every `MUST` and `MUST NOT`.
+- Stage B: the same split for `plan-to-implementation-procedure` and `issue-to-plan`.
+- Stage C: reduce each `SKILL.md` to its description, phase table, and references (Core Rules stay in `workflow.md`).
+- Stage D: condense the detailed manual-fallback prose of steps already covered by tools (archival moves, status updates, scaffolding) to the tool command, the checklist, and a one-line fallback; this is the only stage that rewords, so it follows the measured effect of A to C and needs the maintainer's go-ahead.
+- Stage E (optional): preflight and postflight tools for the repeated verification sequence; low text value, keep only if the maintainer wants fewer commands per cycle.
+- Stage F (optional): a section-reading convention for the shared rules (index of `rules/ai-execution.md`, selective Step 0 loading), useful after compactions and for fresh sessions.
+- Target (estimate, re-measured per stage): about 20 to 25 percent below the 2026-11-23 repeated load for `code-implementation` and 15 to 20 percent for the other two pipeline skills, counting Stages 1 and 2.
 
 ## Target Files or Areas
 - `skills/issue-creator/`, `skills/issue-to-plan/`, `skills/plan-to-implementation-procedure/`, `skills/code-implementation/`, `skills/git-commit-and-sync/` (`SKILL.md`, `workflow.md`, new edge-case files)
@@ -32,12 +42,13 @@ Stage the work one skill at a time, lowest risk first, and re-measure after each
 - New preflight and postflight tools under `tools/` with tests under `tests/tools/`, `tools/TOOL_DESCRIPTIONS.md`, `tools/_validation_gate_defs.py`, `.github/workflows/ci.yml`, and the size baseline `tools/check_skill_size_baseline.txt`
 
 ## Required Changes
-- Stage 3: shrink each `SKILL.md` as described, with no rule lost.
-- Stage 4: implement the preflight and postflight tools (read-only except where an existing tool already writes), their tests, and the tool and gate registrations; replace the hand-listed sequences.
-- Stage 5: split the workflows one skill per change, add the trigger line to each main-path step, and keep every reference checker green.
-- Stage 6: condense the manual-fallback prose one skill per change.
-- Stage 7: add the section indexes and the selective Step 0 loading; update the cited anchors.
-- After each stage: re-measure the per-invocation load, lower the recorded baselines with `tools/check_skill_size.py --update-baseline`, and record the numbers in the stage's commit message.
+- Stage A: split `skills/code-implementation/workflow.md` into the main path and `workflow-edge.md`, with a trigger line per moved section, `prompts/03_implementation.md` updated for the moved Rollback section, and the size baseline lowered.
+- Stage B: the same split for `skills/plan-to-implementation-procedure/workflow.md` and `skills/issue-to-plan/workflow.md`.
+- Stage C: shrink each pipeline `SKILL.md` as described, with no rule lost.
+- Stage D: condense the manual-fallback prose of tool-covered steps, one skill per change, after the maintainer agrees.
+- Stage E (optional): implement the preflight and postflight tools, their tests, and the registrations, and replace the hand-listed sequences.
+- Stage F (optional): add the section indexes and the selective Step 0 loading.
+- After each stage: re-measure the repeated load, lower the baseline with `tools/check_skill_size.py --update-baseline`, and record the numbers in the stage's commit message.
 
 ## Constraints
 - No normative rule changes meaning, is weakened, or is dropped. Moving text is allowed; rewording is limited to what the move requires, and every moved `MUST` or `MUST NOT` stays discoverable from the main path through a trigger line or a reference.
@@ -48,7 +59,8 @@ Stage the work one skill at a time, lowest risk first, and re-measure after each
 - Run a stage while no other session edits `skills/` or `rules/`, and commit and push it before starting the next.
 
 ## Acceptance Criteria
-- The per-invocation load measured with the Stage 1 method is at least 30 percent lower than the 2026-11-23 figures for `code-implementation`, `plan-to-implementation-procedure`, and `issue-to-plan`, with the final numbers recorded in the closing change.
+- After each stage, the repeated load (workflow, `SKILL.md`, and prompt) of the skill it touched is lower by the amount the stage's plan states, measured with the method of `skillsize001`; the final numbers are recorded in the closing change.
+- At the end, the repeated load of `code-implementation` is at least 20 percent lower, and of `plan-to-implementation-procedure` and `issue-to-plan` at least 15 percent lower, than the 2026-11-23 figures, counting Stages 1 and 2.
 - Every `MUST` and `MUST NOT` of the original skill and workflow files can be found in the main path or in a named edge-case file reachable from a trigger line (checked by a before and after extraction of the normative sentences, kept as evidence).
 - The size-budget check, `tools/check_skills_references.py`, `tools/check_skills_heading_cycles.py`, `tools/check_workitem_structure.py`, the documentation checkers, and `tools/run_validation_gates.py` pass.
 - A full cycle (issue, plan, procedure, implementation, commit) of a small change completes using only the new layout, without reading an edge-case file its trigger does not name.
@@ -69,8 +81,8 @@ Yes: the skills, rules, prompts, `routing.md`, `tools/TOOL_DESCRIPTIONS.md`, and
 - Changing harness behavior (how a skill is loaded or compacted).
 
 ## Dependencies
-- Depends on `plans/20261123-155813_skillsize001_compress-skill-workflows.md`: Stages 1 and 2 (the size-budget check and baseline, and `rules/skill-runtime.md`) must be implemented first; this issue starts from the figures recorded there. Order: that Plan first, then this issue.
-- Related: `issues/20261123-155457_skillsize001_compress-skill-workflows.md` (the parent issue; its remaining stages are tracked here).
+- Stages 1 and 2 of the parent issue are implemented (`plans/done/20261123-155813_skillsize001_compress-skill-workflows.md`, commit `1e916038e`): the size-budget check, its baseline, and `rules/skill-runtime.md` exist, so this dependency is closed.
+- Related: `issues/done/20261123-155457_skillsize001_compress-skill-workflows.md` (the parent issue).
 - Sibling check (2026-11-23): no other open issue or plan targets the skill, rule, or prompt files changed here.
 
 ## Unresolved Questions
