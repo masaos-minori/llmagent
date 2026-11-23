@@ -4,10 +4,10 @@
 CI check for long TOML comment blocks under `config/` (agentcfg006 REQ-005): a run of
 more than `THRESHOLD_LINES` consecutive comment lines is a finding. A finding whose block
 is not recorded in `EXCEPTIONS` is error-level and the run exits 1; a recorded block is
-reported as a non-blocking warning, so the eight blocks present at plan freeze keep the
-live run clean while any new long block fails it. A recorded entry whose block no longer
+reported as a non-blocking warning, so the blocks recorded at plan freeze keep the live
+run clean while any new long block fails it. A recorded entry whose block no longer
 exists is itself error-level: the exception list may not keep entries that no longer name
-a live block.
+a live block, including entries whose file has been removed.
 
 A comment line is a line whose first non-whitespace character is `#`. Inline comments
 after a value are not counted: they cannot form a block.
@@ -83,12 +83,6 @@ EXCEPTIONS: tuple[ExceptionEntry, ...] = (
         line=3,
         length=7,
         reason="Grandfathered at plan freeze; server scope-restriction block.",
-    ),
-    ExceptionEntry(
-        path="config/mcp_dedup.toml",
-        line=1,
-        length=12,
-        reason="Grandfathered at plan freeze; dedup key model block.",
     ),
     ExceptionEntry(
         path="config/shell_mcp_server.toml",
@@ -189,13 +183,43 @@ def check_file(
     return findings
 
 
-def scan(files: list[Path]) -> list[tuple[str, str, str]]:
+def stale_missing_entries(
+    exceptions: tuple[ExceptionEntry, ...] | None = None,
+) -> list[tuple[str, str, str]]:
+    """Return findings for recorded entries whose file no longer exists.
+
+    `check_file` can only report a stale entry for a file it reads, so entries pointing at a
+    removed file are checked here: the exception list may not keep either kind of stale entry.
+    """
+    if exceptions is None:
+        exceptions = EXCEPTIONS
+    findings: list[tuple[str, str, str]] = []
+    for entry in exceptions:
+        if not (REPO_ROOT / entry.path).is_file():
+            findings.append(
+                (
+                    CODE_STALE_EXCEPTION,
+                    SEVERITY_ERROR,
+                    f"{entry.path}:{entry.line}: grandfathered block's file no longer exists",
+                )
+            )
+    return findings
+
+
+def scan(
+    files: list[Path],
+    exceptions: tuple[ExceptionEntry, ...] | None = None,
+    threshold: int = THRESHOLD_LINES,
+) -> list[tuple[str, str, str]]:
     """Run `check_file` over each existing file and return the combined findings."""
     findings: list[tuple[str, str, str]] = []
     for path in files:
         if not path.is_file():
             continue
-        findings.extend(check_file(path, path.read_text(encoding="utf-8")))
+        findings.extend(
+            check_file(path, path.read_text(encoding="utf-8"), exceptions, threshold)
+        )
+    findings.extend(stale_missing_entries(exceptions))
     return findings
 
 
@@ -233,13 +257,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     files = target_files(args.root, args.files)
-    findings: list[tuple[str, str, str]] = []
-    for path in files:
-        if not path.is_file():
-            continue
-        findings.extend(
-            check_file(path, path.read_text(encoding="utf-8"), threshold=args.threshold)
-        )
+    findings = scan(files, threshold=args.threshold)
 
     for code, severity, location in findings:
         print(f"{code} {severity} {location}", file=sys.stderr)

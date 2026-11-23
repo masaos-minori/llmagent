@@ -59,8 +59,8 @@ CI wiring (sibling procedure seq 10), the gate row (seq 11), the `TOOL_DESCRIPTI
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the lint tool per Procedure/Method/Details | Completed | 2026-11-22 | 2026-11-22 | Exception list is in-module; the live run reports 8 warnings and exits 0 |
-| 2 | Add companion unit tests per Validation plan | Completed | 2026-11-22 | 2026-11-22 | 6 tests in `tests/tools/test_check_config_comment_length.py`, incl. the live-config `repo_scan` test required by `rules/test_policy.md` for a `config/`-reading tool |
+| 1 | Implement the lint tool per Procedure/Method/Details | Completed | 2026-11-22 | 2026-11-22 | Exception list is in-module; the live run reported 8 warnings and exited 0 at plan freeze. **Post-completion fix (2026-11-23, after the rebase)**: upstream `acefa30b5` (mcpdl003) removed `config/mcp_dedup.toml`, so the exception entry for its block was dropped, and `scan()` now also reports `CFG-COMMENT-003` for an entry whose file no longer exists, which is what the documented behavior requires because `check_file` can only judge a file it can read. The live run now reports 7 warnings and exits 0 |
+| 2 | Add companion unit tests per Validation plan | Completed | 2026-11-22 | 2026-11-22 | 7 tests in `tests/tools/test_check_config_comment_length.py`, incl. the live-config `repo_scan` test required by `rules/test_policy.md` for a `config/`-reading tool, and one for an exception entry pointing at a removed file |
 | 3 | Run the `routing.md` Tools validation sequence incl. live-config smoke run | Completed | 2026-11-22 | 2026-11-23 | mypy/ruff/bandit clean; live run clean; file coverage 90.4% |
 
 ### Blocker Log

@@ -75,6 +75,18 @@ def test_stale_exception_is_an_error_finding() -> None:
     assert findings[0][2].startswith("config/sample.toml:1")
 
 
+def test_recorded_entry_for_a_removed_file_is_an_error_finding(tmp_path: Path) -> None:
+    present = tmp_path / "config" / "present.toml"
+    present.parent.mkdir()
+    present.write_text("value = 1\n", encoding="utf-8")
+    entry = _entry(str(tmp_path / "config" / "removed.toml"), 1, 12)
+    findings = cl.scan([present], exceptions=(entry,))
+    assert [(f[0], f[1]) for f in findings] == [
+        (cl.CODE_STALE_EXCEPTION, cl.SEVERITY_ERROR)
+    ]
+    assert findings[0][2].startswith(f"{entry.path}:1")
+
+
 def test_main_exits_one_on_an_unrecorded_block(tmp_path: Path) -> None:
     fixture = tmp_path / "config" / "sample.toml"
     fixture.parent.mkdir()
