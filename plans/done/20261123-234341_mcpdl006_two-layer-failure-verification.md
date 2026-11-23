@@ -189,10 +189,10 @@ Table structure and vocabulary: `templates/execution-status.md`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: cross-layer fixtures in `tests/integration/conftest.py` (REQ-006) | In Progress | — | — |  |
-| 2 | Phase 2: cross-layer state-mapping matrix in `tests/integration/test_call_state_matrix_across_processes.py` (REQ-001, REQ-003, REQ-004) | In Progress | — | — |  |
-| 3 | Phase 3: crash injection through the mapping and dedup gate in `tests/integration/test_call_state_crash_injection_across_processes.py` (REQ-002, REQ-005) | In Progress | — | — |  |
-| 4 | Phase 4: validation of the three target files (no deploy step) | Pending | — | — |  |
+| 1 | Phase 1: cross-layer fixtures in `tests/integration/conftest.py` (REQ-006) | Completed | — | 20261124-082245 |  |
+| 2 | Phase 2: cross-layer state-mapping matrix in `tests/integration/test_call_state_matrix_across_processes.py` (REQ-001, REQ-003, REQ-004) | Completed | — | 20261124-082245 |  |
+| 3 | Phase 3: crash injection through the mapping and dedup gate in `tests/integration/test_call_state_crash_injection_across_processes.py` (REQ-002, REQ-005) | Completed | — | 20261124-082245 |  |
+| 4 | Phase 4: validation of the three target files (no deploy step) | Completed | 2026-11-24T08:15 | 2026-11-24T08:20 | Batch-end validation: ruff format/check clean, mypy shows only the pre-existing conftest.py:75 baseline error, 5 consecutive integration runs (31 passed), full suite 13671 passed / 4 skipped, diff-cover N/A for test-only change. No production source changed, no deploy step. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -202,9 +202,9 @@ Table structure and vocabulary: `templates/execution-status.md`.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261124-001146_01_tests_integration_conftest.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261124-001146_02_tests_integration_test_call_state_matrix_across_processes.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261124-001146_03_tests_integration_test_call_state_crash_injection_across_processes.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261124-001146_01_tests_integration_conftest.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261124-001146_02_tests_integration_test_call_state_matrix_across_processes.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261124-001146_03_tests_integration_test_call_state_crash_injection_across_processes.py.md` | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

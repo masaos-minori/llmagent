@@ -93,10 +93,10 @@ mapping; REQ-005: response-loss recovery never re-executes.)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | The file itself is the test; step 2 is the run and flakiness check. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs in scope. |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-24T00:11 | 2026-11-24T08:20 |  |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-24T07:50 | 2026-11-24T08:20 | The file itself is the test; step 2 is the run and flakiness check. 8 crash points c01-c08; 5 consecutive full integration runs, 31 passed. Deterministic: bounded signal hold, seeded now_epoch, effects counted in a file rather than from printed labels. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-24T08:15 | 2026-11-24T08:20 | Same batch gates as row 01; full suite run once at batch end. Child process uses sys.executable with PYTHONPATH=scripts/, never the parent conftest sys.path shim. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: no docs in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

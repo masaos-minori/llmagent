@@ -96,10 +96,10 @@ REQ-003: at-most-once per logical call; REQ-004: fail-closed safety boundaries.)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | The file itself is the test; step 2 is the run and flakiness check. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no docs in scope. |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-24T00:11 | 2026-11-24T08:20 |  |
+| 2 | Add or update tests per Validation plan | Completed | 2026-11-24T07:30 | 2026-11-24T08:20 | The file itself is the test; step 2 is the run and flakiness check. 14 tests; 5 consecutive targeted runs and 5 consecutive full integration runs, 31 passed each. No wall-clock flakiness: expired-lease cases decide with a seeded now_epoch. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-24T08:15 | 2026-11-24T08:20 | Same batch gates as row 01; full suite run once at batch end (13671 passed, 4 skipped), diff-cover N/A (test-only change). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: no docs in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
