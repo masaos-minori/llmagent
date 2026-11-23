@@ -9,7 +9,7 @@ Test-only change in one existing file; the file is also edited by another Plan (
 
 ## Assumptions
 
-- The existing `test_a_server_module_executes_once_under_python_m` already asserts only the own config file is loaded, but with the repository config directory present (`tests/mcp_servers/test_config_isolation_import.py:254`, re-read in Step 3a).
+- The existing `test_a_server_module_executes_once_under_python_m` already asserts only the own config file is loaded, but with the repository config directory present (`tests/mcp_servers/test_config_isolation_import.py:254`, re-read in Step 3a). Finding in Step 3a: that test passes on current code, so it is not a failing case; it cannot establish INV-03 because a cross-server read there fails only as a permission error, not as a missing file. The new test is what isolates the directory.
 - Whether a server's posture gate reads another file is unknown (Plan UNK-02): the test settles it; a failure is reported, not worked around.
 
 ## Design decisions
@@ -33,6 +33,7 @@ Loop over servers inside one test: rejected, a parametrized test names the faili
 ### Method
 - Keep the test marked as the existing one is (subprocess, no new marker unless the file already uses `integration`).
 - Do not copy `agent.toml` or any sibling file.
+- Implementation note (2026-11-23): copy the own file from the test-isolated config tree named by `os.environ["LLMAGENT_CONFIG_DIR"]`; copying the repository `config/` file keeps its production state paths and fails under the isolation environment.
 
 ### Details
 - If a server fails, record which file it read, stop, and report the production change needed (Plan UNK-02).
@@ -72,9 +73,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Mutation-check the new test: break the invariant temporarily, confirm the test fails, revert the break | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | `test_a_server_starts_when_only_its_own_config_file_is_present` added over `_ONCE_SERVERS`. The own-file copy is taken from `os.environ["LLMAGENT_CONFIG_DIR"]` (the test-isolated config tree) rather than the repository `config/`, whose state paths do not match the isolation environment; `_ONCE_RECORD` gained a `reached_startup` flag for the stubbed `uvicorn.Config`. |
+| 2 | Mutation-check the new test: break the invariant temporarily, confirm the test fails, revert the break | Completed | 2026-11-23 | 2026-11-23 | `ConfigLoader().load("agent.toml")` added to `scripts/mcp_servers/shell/shell_server.py`; the shell case failed with `ConfigPermissionError`, then the file was reverted with `git checkout`. No production change remains. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | Targeted run passes (10 parametrized cases); ruff check and format clean, per-file mypy clean on the file. Plan UNK-02 did not trigger: no server needed a production change. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

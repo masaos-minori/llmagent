@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 import re
 import subprocess  # nosec B404 — fresh-interpreter import checks use a fixed argv
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 import pytest
@@ -115,7 +116,10 @@ import shared.security.startup_flow as flow
 flow.run_startup_validation = lambda *a, **k: SimpleNamespace(validated=True, checks=[])
 class _Reached(Exception):
     pass
+_REACHED = False
 def _stub_config(*a, **k):
+    global _REACHED
+    _REACHED = True
     raise _Reached
 import uvicorn
 uvicorn.Config = _stub_config
@@ -125,7 +129,7 @@ except _Reached:
     pass
 except SystemExit:
     pass
-print(json.dumps({"entry": ENTRY, "target": TARGET, "second_imports": len(_second), "config_loads": sorted(set(_loaded))}))
+print(json.dumps({"entry": ENTRY, "target": TARGET, "second_imports": len(_second), "config_loads": sorted(set(_loaded)), "reached_startup": _REACHED}))
 """
 
 # (entry, target, config_file): ENTRY is passed to runpy as __main__; TARGET is the
@@ -281,6 +285,48 @@ def test_a_server_module_executes_once_under_python_m(
         f"(re-imported {parsed['second_imports']} time(s))"
     )
     assert parsed["config_loads"] == [config_file]
+
+
+@pytest.mark.parametrize(("entry", "target", "config_file"), _ONCE_SERVERS)
+def test_a_server_starts_when_only_its_own_config_file_is_present(
+    entry: str,
+    target: str,
+    config_file: str,
+    tmp_path: Path,
+    isolated_subprocess_env: Callable[..., dict[str, str]],
+) -> None:
+    """ADR-002 INV-03: a server starts standalone when the config directory holds only
+    its own file; no agent.toml and no sibling server config is available.
+
+    The existing test_a_server_module_executes_once_under_python_m points the config
+    directory at the repository's full config/ tree, so a cross-server read there can
+    only fail as a permission error. Here nothing else exists in the directory, so any
+    read of another file fails as an unavailable file, and reaching the stubbed
+    uvicorn.Config shows the startup got past its own config read.
+    """
+    # Copy from the test-isolated config tree so the state paths in the file still
+    # match the isolation environment the subprocess is given.
+    source_config_dir = Path(os.environ["LLMAGENT_CONFIG_DIR"])
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    config_dir.joinpath(config_file).write_bytes(
+        source_config_dir.joinpath(config_file).read_bytes()
+    )
+
+    def build_env(extra: Mapping[str, str] | None = None) -> dict[str, str]:
+        env = isolated_subprocess_env(extra)
+        env["LLMAGENT_CONFIG_DIR"] = str(config_dir)
+        return env
+
+    result = _run(_ONCE_RECORD, tmp_path, build_env=build_env, args=[entry, target])
+    assert result.returncode == 0, result.stderr
+    parsed = json.loads(result.stdout.strip().splitlines()[-1])
+    assert parsed["reached_startup"] is True, (
+        f"{entry} never reached its startup: {result.stderr}"
+    )
+    assert parsed["config_loads"] == [config_file], (
+        f"{entry} read {parsed['config_loads']}; only {config_file} is present"
+    )
 
 
 def _entries() -> list[tuple[str, str, str]]:

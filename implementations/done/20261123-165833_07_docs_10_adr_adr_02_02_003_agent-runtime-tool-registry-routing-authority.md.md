@@ -1,42 +1,38 @@
 ## Goal
 
-Restore the ADR-003 INV-03, INV-04, and INV-07 Verification rows to Blocking citing the new tests, remove the three pending bullets, and update the manual-review note.
+Restore the ADR-003 INV-03, INV-04, INV-07 Verification rows to Blocking citing the new tests, remove the three pending bullets, update the manual-review note.
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-One ADR file. Run this procedure after the procedures that create the tests it cites (earlier `seq` values 01 to 06); it cites test node ids that must exist and pass.
+One ADR file; runs after the procedures that create the tests it cites (`seq` 01, 02, 04).
 
 ## Assumptions
 
-- Rows at lines 254 (INV-04), 256 (INV-03), 259 (INV-07), pending bullets at lines 338-340, and the manual-review note at line 280 (read in Step 3a).
-- The new tests exist and pass before this procedure runs.
+- Rows 254 (INV-04), 256 (INV-03), 259 (INV-07), bullets 338-340, note 280: all read as stated in Step 3a.
 
 ## Design decisions
 
-- Set `Blocking` to `Yes` and replace `Not verified` with the cited node ids from procedures 01, 02, and 04.
-- Remove the three `Current Decision Approval (pending)` bullets for AAL-033, AAL-034, AAL-035 as a revert; write no approval text.
+- Set `Blocking` to `Yes` and replace `Not verified` with the node ids from procedures 01, 02, 04.
+- Remove the AAL-033, AAL-034, AAL-035 pending bullets as a revert; write no approval text.
 
 ## Alternatives considered
 
-Keep the rows Non-Blocking with the tests cited: rejected, the maintainer chose to restore Blocking.
+N/A: the maintainer chose to restore the rows to Blocking, which is what the issue asked for.
 
 ## Implementation
 ### Target file
 `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`
 
 ### Procedure
-1. Edit the three Verification rows.
-2. Remove the three pending bullets.
-3. Reword the INV-03 line of `### Manual Review` so it no longer says there is no dedicated test.
-4. Run the checkers in Validation plan.
+1. Edit the three rows, remove the three bullets, reword the INV-03 Manual Review line.
+2. Run the checkers in Validation plan.
 
 ### Method
 - Cite nodes as `tests/<path>::<Class>::<test>` so `.github/run_cited_adr_tests.py` extracts them.
 
 ### Details
-- Keep the INV-03 row type `Integration` and the write-classification row as is.
-- Do not edit other pending bullets (INV-05/08/09 notes stay).
+- Keep row types and other pending bullets as is.
 
 ## Compatibility considerations
 
@@ -44,7 +40,7 @@ N/A: documentation only; the Verification table and index must keep agreeing (`t
 
 ## Security considerations
 
-N/A: documentation only; no approval text, approver, or date is written, since an entry is removed as a revert.
+N/A: documentation only; no approval text, approver, or date is written.
 
 ## Rollback considerations
 
@@ -58,21 +54,19 @@ N/A: revert the commit.
 
 ## Completion criteria
 
-- The three rows are Blocking with passing cited tests.
-- The three pending bullets are gone and no approval text was written.
+- Three rows Blocking with passing cited tests; three bullets gone; no approval text written.
 
 ## Out of Scope
 
-- Any file other than the target file (and its companions, if any); any change under `scripts/` or `config/`.
-- Approval text: no approver, date, or approval sentence is written.
+- Any file other than the target file; any change under `scripts/` or `config/`; approval text.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | Rows and bullets read at the stated lines; the three rows are `Yes` with the node ids from procedures 01, 02, 04; bullets removed; the Manual Review line reworded to state the test and keep review as a secondary trigger. |
+| 2 | Run the documentation checkers named in Validation plan | Completed | 2026-11-23 | 2026-11-23 | `check_adr_structure.py` and `check_adr_invariant_matrix.py` clean; `.github/run_cited_adr_tests.py` reports all cited nodes passing. Length finding: the required sections and the three Execution Status tables alone exceed the 60-line lightweight target, so only the bodies are kept minimal. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

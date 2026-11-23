@@ -2,10 +2,14 @@
 Unit tests for shared.route_resolver.ToolRouteResolver.
 """
 
+import ast
+from pathlib import Path
+
 import pytest
 from shared.route_resolver import ToolRouteResolver, ToolRoutingError
 from shared.runtime_tool import build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
+from shared.tool_registry import get_registry
 
 
 def _runtime_registry_for(tool_to_server: dict[str, str]) -> RuntimeToolRegistry:
@@ -209,6 +213,71 @@ class TestRoutingSourceIsolation:
             with pytest.raises(ValueError, match="[Uu]nknown tool"):
                 resolver.resolve("unknown_tool_xyz")
             registry_spy.assert_not_called()
+
+    def test_static_registry_only_name_raises_unknown_tool(self) -> None:
+        """A name present only in the static ToolRegistry is still refused: the static
+        registry is never consulted as a routing fallback (ADR-003 INV-04)."""
+        static = get_registry()
+        runtime = _runtime_registry_for({"read_text_file": "file_read"})
+        runtime_names = {tool.name for tool in runtime.all_tools()}
+        name = next(
+            tool_name
+            for tool_name in sorted(static.get_all_tool_names())
+            if tool_name not in runtime_names
+        )
+        resolver = ToolRouteResolver(runtime_registry=runtime)
+
+        with pytest.raises(ToolRoutingError) as exc:
+            resolver.resolve(name)
+        assert exc.value.kind == "unknown_tool"
+        assert exc.value.tool_name == name
+
+    def test_unwired_resolver_raises_not_ready_for_a_static_registry_name(self) -> None:
+        """With no registry wired the kind is not_ready, even for a name the static
+        registry knows (ADR-003 INV-04)."""
+        name = next(iter(sorted(get_registry().get_all_tool_names())))
+        resolver = ToolRouteResolver()
+
+        with pytest.raises(ToolRoutingError) as exc:
+            resolver.resolve(name)
+        assert exc.value.kind == "not_ready"
+        assert exc.value.tool_name == name
+
+    @pytest.mark.repo_scan
+    def test_routing_modules_do_not_import_the_static_tool_registry(self) -> None:
+        """INV-04 as an automated gate: no routing module imports shared.tool_registry,
+        including imports inside a TYPE_CHECKING block."""
+        repo_root = Path(__file__).resolve().parents[2]
+        modules = [
+            repo_root / "scripts" / "shared" / module_name
+            for module_name in (
+                "route_resolver.py",
+                "tool_executor.py",
+                "tool_transport_invoker.py",
+                "runtime_tool_registry.py",
+            )
+        ]
+        parsed = 0
+        for path in modules:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            parsed += 1
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    imported = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom):
+                    imported = [node.module or ""]
+                else:
+                    continue
+                offenders = [
+                    name
+                    for name in imported
+                    if name == "shared.tool_registry"
+                    or name.startswith("shared.tool_registry.")
+                ]
+                assert not offenders, (
+                    f"{path.relative_to(repo_root)} imports {sorted(offenders)}"
+                )
+        assert parsed == 4, "the scan must parse all four routing modules"
 
 
 class TestDuplicateToolRegistration:

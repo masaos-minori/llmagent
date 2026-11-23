@@ -34,6 +34,7 @@ Compare constants: rejected, it would not catch a consumer reading another map.
 ### Method
 - Use `shared.runtime_tool.build_runtime_tool` as `tests/shared/test_tool_executor_routing.py` does.
 - Capture the audit call through the existing audit seam used by `tests/agent/test_tool_audit.py`.
+- Implementation note (2026-11-23): `_prompt_user_approval` accepts `"y"` for a non-HIGH tier and only `"yes"` for HIGH, so the fixture answer depends on the tier.
 
 ### Details
 - Mutation check: make `classify_risk` read a hard-coded set for one tool temporarily, confirm the test fails, revert.
@@ -71,9 +72,9 @@ N/A: revert the commit (the file is new).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Mutation-check the new test: break the invariant temporarily, confirm the test fails, revert the break | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | New module with `TestSafetyTierSingleSource`: per-tier agreement test (route, `classify_risk`, plan-mode block), audit-event tier test, and the flip test. 9 test cases. |
+| 2 | Mutation-check the new test: break the invariant temporarily, confirm the test fails, revert the break | Completed | 2026-11-23 | 2026-11-23 | `classify_risk` given a hard-coded `RiskLevel.MEDIUM` for one tool name; 2 tests failed, then `scripts/agent/tool_policy.py` was reverted with `git checkout`. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | Targeted run passes; ruff check and format and mypy clean on the file. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -117,7 +117,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # ADR-016/ADR-017 matrix rows, the split-out ADR-012 INV-04 row, the ADR-003 INV-03
     # Partial rewrite, the dropped migration-window wording and the Pipeline Mapping
     # Summary update; the ceiling equals the accepted size.
-    "adr_01_index.md": 36609,
+    # Re-accepted at 37826 (2026-11-23, gov006 procedure 20261123-165833_11): the matrix
+    # rows added for ADR-001 INV-02, ADR-002 INV-03, ADR-003 INV-04 and INV-07 grew the
+    # index 36609 -> 37826; the ceiling equals the accepted size.
+    "adr_01_index.md": 37826,
     # Re-accepted at 33915 (2026-11-20, adrchk021 procedure 20261120-174933_01): the
     # MCP-005 Known Issue entry (git_add/git_commit protected-branch gap registration)
     # grew the ledger 31908 -> 33915; the ceiling equals the accepted size.

@@ -1,6 +1,6 @@
 ## Goal
 
-Restore the ADR-012 INV-04 Verification row to Blocking citing the new tests and remove its pending bullet.
+Restore the ADR-001 INV-02 Verification row to Blocking citing the new test and remove its pending bullet.
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
@@ -9,11 +9,11 @@ One ADR file. Run this procedure after the procedures that create the tests it c
 
 ## Assumptions
 
-- Row at line 170 and pending bullet at line 204 (read in Step 3a).
+- Row at line 185 and pending bullet at line 263 (read in Step 3a). The bullet's parenthetical about supplying a test is removed with it.
 
 ## Design decisions
 
-- Cite the tests from procedure 05 and set `Blocking` to `Yes`; remove the AAL-036 bullet as a revert.
+- Cite the tests from procedure 06, set `Blocking` to `Yes`; remove the AAL-001 bullet as a revert.
 
 ## Alternatives considered
 
@@ -21,18 +21,18 @@ N/A: single mechanical change.
 
 ## Implementation
 ### Target file
-`docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`
+`docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`
 
 ### Procedure
-1. Edit the INV-04 row.
-2. Remove the AAL-036 bullet.
+1. Edit the INV-02 row.
+2. Remove the AAL-001 bullet.
 3. Run the checkers.
 
 ### Method
-- Cite `tests/mcp_servers/git/test_git_approval_independence.py::<Class>::<test>` nodes.
+- Cite `tests/agent/workflow/test_no_workflow_bypass.py::<Class>::<test>` nodes.
 
 ### Details
-- Other pending bullets (AAL-014, AAL-015) stay.
+- State the recorded scope (the tool-execution and LLM-turn chain) in the row's evidence, so the scope is visible to the maintainer.
 
 ## Compatibility considerations
 
@@ -54,8 +54,8 @@ N/A: revert the commit.
 
 ## Completion criteria
 
-- The INV-04 row is Blocking with passing cited tests.
-- The AAL-036 bullet is gone.
+- The INV-02 row is Blocking with passing cited tests.
+- The AAL-001 bullet is gone.
 
 ## Out of Scope
 
@@ -67,8 +67,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | Row read at line 185 and bullet at 263 as stated; the row is `Yes` citing `TestNoCallPathOutsideTheEngine` and records the allowlisted scope; the AAL-001 bullet removed with its parenthetical. |
+| 2 | Run the documentation checkers named in Validation plan | Completed | 2026-11-23 | 2026-11-23 | `check_adr_structure.py` and `check_adr_invariant_matrix.py` clean; the cited node passes in `.github/run_cited_adr_tests.py`. The ADR row no longer names a plan identifier (`check_known_deviation_sync.py` fails on a plan-local id cited in an ADR); the scope is stated as data. Length finding: the required sections and the three Execution Status tables alone exceed the 60-line lightweight target, so only the bodies are kept minimal. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -88,4 +88,4 @@ N/A: revert the commit.
 - **Source plan**: plans/20261123-165432_gov006_restore-blocking-verification-rows.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261123-165833
-- **Related target files**: `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`
+- **Related target files**: `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`

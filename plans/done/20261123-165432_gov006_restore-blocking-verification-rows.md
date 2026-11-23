@@ -151,21 +151,21 @@ independently of that frozen table. A step is a top-level numbered item (a Phase
 checklist items are sub-tasks, and the Execution Status table has one row per step.
 
 1. **Phase 1: ADR-003 INV-07 test**
-   - [ ] Add the Circuit-Open visibility test class and mutation-check it (REQ-001, REQ-008; `tests/shared/test_tool_executor_routing.py`)
+   - [x] Add the Circuit-Open visibility test class and mutation-check it (REQ-001, REQ-008; `tests/shared/test_tool_executor_routing.py`)
 2. **Phase 2: ADR-003 INV-04 tests**
-   - [ ] Add the static-registry fallback test and the import scan, and mutation-check both (REQ-002, REQ-008; `tests/shared/test_route_resolver.py`)
+   - [x] Add the static-registry fallback test and the import scan, and mutation-check both (REQ-002, REQ-008; `tests/shared/test_route_resolver.py`)
 3. **Phase 3: ADR-002 INV-03 test**
-   - [ ] Add the only-own-config parametrized test and mutation-check it; stop and report if a server needs a production change (REQ-003, REQ-008; `tests/mcp_servers/test_config_isolation_import.py`)
+   - [x] Add the only-own-config parametrized test and mutation-check it; stop and report if a server needs a production change (REQ-003, REQ-008; `tests/mcp_servers/test_config_isolation_import.py`)
 4. **Phase 4: ADR-003 INV-03 test**
-   - [ ] Create the single-source Safety Tier test and mutation-check it (REQ-004, REQ-008; `tests/agent/test_safety_tier_single_source.py`)
+   - [x] Create the single-source Safety Tier test and mutation-check it (REQ-004, REQ-008; `tests/agent/test_safety_tier_single_source.py`)
 5. **Phase 5: ADR-012 INV-04 test**
-   - [ ] Create the Git approval-independence test and mutation-check it (REQ-005, REQ-008; `tests/mcp_servers/git/test_git_approval_independence.py`)
+   - [x] Create the Git approval-independence test and mutation-check it (REQ-005, REQ-008; `tests/mcp_servers/git/test_git_approval_independence.py`)
 6. **Phase 6: ADR-001 INV-02 test**
-   - [ ] Create the no-bypass test with the proposed scope and mutation-check it (REQ-006, REQ-008; `tests/agent/workflow/test_no_workflow_bypass.py`)
+   - [x] Create the no-bypass test with the proposed scope and mutation-check it (REQ-006, REQ-008; `tests/agent/workflow/test_no_workflow_bypass.py`)
 7. **Phase 7: Restore the rows and close the ledger entries**
-   - [ ] Restore the Verification rows to Blocking citing the new tests, remove the pending bullets, update dependent statements (REQ-007; `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`, `docs/10_adr/adr_02_01_002_platform-config-isolation.md`, `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`, `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`)
-   - [ ] Add and update the matrix rows and pipeline summary in `docs/10_adr/adr_01_index.md`, remove the six ledger entries in `docs/00_governance/governance_03_issue-and-uncertainty-management.md`, and update the pin in `tests/test_run_cited_adr_tests.py` (REQ-007)
-   - [ ] Run `check_adr_structure.py`, `check_adr_invariant_matrix.py`, `.github/run_cited_adr_tests.py`, `generate_adr_authority.py --check`, and the full suite (REQ-007, REQ-008)
+   - [x] Restore the Verification rows to Blocking citing the new tests, remove the pending bullets, update dependent statements (REQ-007; `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`, `docs/10_adr/adr_02_01_002_platform-config-isolation.md`, `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`, `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`)
+   - [x] Add and update the matrix rows and pipeline summary in `docs/10_adr/adr_01_index.md`, remove the six ledger entries in `docs/00_governance/governance_03_issue-and-uncertainty-management.md`, and update the pin in `tests/test_run_cited_adr_tests.py` (REQ-007)
+   - [x] Run `check_adr_structure.py`, `check_adr_invariant_matrix.py`, `.github/run_cited_adr_tests.py`, `generate_adr_authority.py --check`, and the full suite (REQ-007, REQ-008)
 
 ### Release units
 N/A: no release unit
@@ -198,13 +198,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | ADR-003 INV-07 test in `tests/shared/test_tool_executor_routing.py` | In Progress | — | — |  |
-| 2 | ADR-003 INV-04 tests in `tests/shared/test_route_resolver.py` | In Progress | — | — |  |
-| 3 | ADR-002 INV-03 test in `tests/mcp_servers/test_config_isolation_import.py` | In Progress | — | — |  |
-| 4 | ADR-003 INV-03 test in `tests/agent/test_safety_tier_single_source.py` | In Progress | — | — |  |
-| 5 | ADR-012 INV-04 test in `tests/mcp_servers/git/test_git_approval_independence.py` | In Progress | — | — |  |
-| 6 | ADR-001 INV-02 test in `tests/agent/workflow/test_no_workflow_bypass.py` | In Progress | — | — |  |
-| 7 | Restore rows and close ledger entries in the four ADRs, `docs/10_adr/adr_01_index.md`, `docs/00_governance/governance_03_issue-and-uncertainty-management.md`, `tests/test_run_cited_adr_tests.py` | In Progress | — | — |  |
+| 1 | ADR-003 INV-07 test in `tests/shared/test_tool_executor_routing.py` | Completed | — | 20261123-190750 |  |
+| 2 | ADR-003 INV-04 tests in `tests/shared/test_route_resolver.py` | Completed | — | 20261123-190750 |  |
+| 3 | ADR-002 INV-03 test in `tests/mcp_servers/test_config_isolation_import.py` | Completed | — | 20261123-190750 |  |
+| 4 | ADR-003 INV-03 test in `tests/agent/test_safety_tier_single_source.py` | Completed | — | 20261123-190750 |  |
+| 5 | ADR-012 INV-04 test in `tests/mcp_servers/git/test_git_approval_independence.py` | Completed | — | 20261123-190750 |  |
+| 6 | ADR-001 INV-02 test in `tests/agent/workflow/test_no_workflow_bypass.py` | Completed | — | 20261123-190750 |  |
+| 7 | Restore rows and close ledger entries in the four ADRs, `docs/10_adr/adr_01_index.md`, `docs/00_governance/governance_03_issue-and-uncertainty-management.md`, `tests/test_run_cited_adr_tests.py` | Completed | — | 20261123-190750 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -214,18 +214,18 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261123-165833_01_tests_shared_test_tool_executor_routing.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261123-165833_02_tests_shared_test_route_resolver.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261123-165833_03_tests_mcp_servers_test_config_isolation_import.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261123-165833_04_tests_agent_test_safety_tier_single_source.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-165833_05_tests_mcp_servers_git_test_git_approval_independence.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261123-165833_06_tests_agent_workflow_test_no_workflow_bypass.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261123-165833_07_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261123-165833_08_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261123-165833_09_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261123-165833_10_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261123-165833_11_docs_10_adr_adr_01_index.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261123-165833_12_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 7 | Procedure | Pending | — | — |
+| implementations/20261123-165833_01_tests_shared_test_tool_executor_routing.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-165833_02_tests_shared_test_route_resolver.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-165833_03_tests_mcp_servers_test_config_isolation_import.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261123-165833_04_tests_agent_test_safety_tier_single_source.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-165833_05_tests_mcp_servers_git_test_git_approval_independence.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261123-165833_06_tests_agent_workflow_test_no_workflow_bypass.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261123-165833_07_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261123-165833_08_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261123-165833_09_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261123-165833_10_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261123-165833_11_docs_10_adr_adr_01_index.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261123-165833_12_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 7 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

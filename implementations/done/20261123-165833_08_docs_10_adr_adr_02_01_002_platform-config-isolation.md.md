@@ -1,6 +1,6 @@
 ## Goal
 
-Restore the ADR-001 INV-02 Verification row to Blocking citing the new test and remove its pending bullet.
+Restore the ADR-002 INV-03 Verification row to Blocking citing the new test, remove its pending bullet, and narrow the checklist lines to INV-04.
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
@@ -9,30 +9,32 @@ One ADR file. Run this procedure after the procedures that create the tests it c
 
 ## Assumptions
 
-- Row at line 185 and pending bullet at line 263 (read in Step 3a). The bullet's parenthetical about supplying a test is removed with it.
+- INV-03 row at line 231, pending bullet at line 298, checklist lines 341-342 (read in Step 3a). The INV-04 row and its bullet (AAL-032) stay unchanged.
 
 ## Design decisions
 
-- Cite the tests from procedure 06, set `Blocking` to `Yes`; remove the AAL-001 bullet as a revert.
+- Cite the parametrized node from procedure 03 and set `Blocking` to `Yes`.
+- Checklist lines 341 and 342 then name only INV-04 as not verified.
 
 ## Alternatives considered
 
-N/A: single mechanical change.
+Leave the checklist wording: rejected, it would be false after the restore.
 
 ## Implementation
 ### Target file
-`docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`
+`docs/10_adr/adr_02_01_002_platform-config-isolation.md`
 
 ### Procedure
-1. Edit the INV-02 row.
-2. Remove the AAL-001 bullet.
-3. Run the checkers.
+1. Edit the INV-03 row.
+2. Remove the AAL-031 bullet.
+3. Edit checklist lines 341-342.
+4. Run the checkers.
 
 ### Method
-- Cite `tests/agent/workflow/test_no_workflow_bypass.py::<Class>::<test>` nodes.
+- Cite `tests/mcp_servers/test_config_isolation_import.py::test_<name>` with the real test name from procedure 03.
 
 ### Details
-- State the recorded scope (the tool-execution and LLM-turn chain) in the row's evidence, so the scope is visible to the maintainer.
+- The INV-04 pending bullets (AAL-030 and AAL-032) are untouched.
 
 ## Compatibility considerations
 
@@ -54,8 +56,8 @@ N/A: revert the commit.
 
 ## Completion criteria
 
-- The INV-02 row is Blocking with passing cited tests.
-- The AAL-001 bullet is gone.
+- The INV-03 row is Blocking with a passing cited test.
+- The AAL-031 bullet is gone; INV-04 stays pending.
 
 ## Out of Scope
 
@@ -67,8 +69,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | Row read at line 231 and bullet at 298 as stated; the row is `Yes` citing `test_a_server_starts_when_only_its_own_config_file_is_present`, the AAL-031 bullet removed, checklist lines 341-342 now name only INV-04. AAL-030 and AAL-032 untouched. |
+| 2 | Run the documentation checkers named in Validation plan | Completed | 2026-11-23 | 2026-11-23 | `check_adr_structure.py` and `check_adr_invariant_matrix.py` clean; the cited node passes in `.github/run_cited_adr_tests.py`. Length finding: the required sections and the three Execution Status tables alone exceed the 60-line lightweight target, so only the bodies are kept minimal. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -88,4 +90,4 @@ N/A: revert the commit.
 - **Source plan**: plans/20261123-165432_gov006_restore-blocking-verification-rows.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261123-165833
-- **Related target files**: `docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md`
+- **Related target files**: `docs/10_adr/adr_02_01_002_platform-config-isolation.md`

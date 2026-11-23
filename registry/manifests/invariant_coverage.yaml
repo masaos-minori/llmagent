@@ -11,6 +11,14 @@ entries:
 - adr: ADR-001
   check_type: Unit Test
   cited:
+  - tests/agent/workflow/test_no_workflow_bypass.py::TestNoCallPathOutsideTheEngine
+  gate: Blocking
+  invariant: INV-02
+  status: Confirmed
+  timing: CI
+- adr: ADR-001
+  check_type: Unit Test
+  cited:
   - tests/agent/workflow/test_workflow_stage_persistence.py::test_begin_stage_if_new_idempotent
   gate: Blocking
   invariant: INV-08
@@ -52,6 +60,14 @@ entries:
   invariant: INV-02
   status: Confirmed
   timing: CI
+- adr: ADR-002
+  check_type: Integration Test
+  cited:
+  - tests/mcp_servers/test_config_isolation_import.py::test_a_server_starts_when_only_its_own_config_file_is_present
+  gate: Blocking
+  invariant: INV-03
+  status: Confirmed
+  timing: CI
 - adr: ADR-003
   check_type: Unit Test
   cited:
@@ -61,16 +77,41 @@ entries:
   status: Confirmed
   timing: CI
 - adr: ADR-003
-  cadence: every change to the Registry, approval or audit code paths.
   check_type: Unit Test
   cited:
   - tests/agent/services/test_mcp_tool_discovery.py::TestWriteClassificationFinding
+  - tests/agent/test_safety_tier_single_source.py::TestSafetyTierSingleSource
   - tests/agent/test_tool_policy_comprehensive.py::TestClassifyOperationType
-  expected_evidence: a review record confirming Routing, approval and auditing reference
-    the same Safety Tier.
   gate: Blocking
   invariant: INV-03
-  status: Partial
+  status: Confirmed
+  timing: CI
+- adr: ADR-003
+  check_type: Unit Test
+  cited:
+  - tests/shared/test_route_resolver.py::TestRoutingSourceIsolation
+  gate: Blocking
+  invariant: INV-04
+  status: Confirmed
+  timing: CI
+- adr: ADR-003
+  check_type: Startup Validation
+  cited:
+  - tests/agent/shared/test_startup_validation_pipeline.py
+  - tests/mcp_servers/cicd/test_tool_server_layer_consistency.py
+  - tests/shared/test_tool_registry.py
+  - tests/shared/test_tool_safety_tiers.py
+  gate: Non-Blocking
+  invariant: 'INV-04 (Decision Detail #15)'
+  status: Confirmed
+  timing: CI
+- adr: ADR-003
+  check_type: Integration Test
+  cited:
+  - tests/shared/test_tool_executor_routing.py::TestCircuitOpenKeepsLlmVisibility
+  gate: Blocking
+  invariant: INV-07
+  status: Confirmed
   timing: CI
 - adr: ADR-004
   cadence: each deployment review.
@@ -273,9 +314,12 @@ entries:
   timing: CI
 - adr: ADR-012
   check_type: Integration Test
-  gate: Non-Blocking
+  cited:
+  - tests/mcp_servers/git/test_git_approval_independence.py::TestGitPackageHasNoApprovalDependency
+  - tests/mcp_servers/git/test_git_approval_independence.py::TestStageThreeWithoutApprovalState
+  gate: Blocking
   invariant: INV-04
-  status: Not verified
+  status: Confirmed
   timing: CI
 - adr: ADR-013
   check_type: Integration Test

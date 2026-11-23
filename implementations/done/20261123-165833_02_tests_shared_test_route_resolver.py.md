@@ -71,9 +71,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Mutation-check the new test: break the invariant temporarily, confirm the test fails, revert the break | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | Three tests added to `TestRoutingSourceIsolation`: name registered only in the static registry (kind `unknown_tool`), unwired resolver (kind `not_ready`), and the `repo_scan` AST import scan over the four routing modules. |
+| 2 | Mutation-check the new test: break the invariant temporarily, confirm the test fails, revert the break | Completed | 2026-11-23 | 2026-11-23 | `from shared.tool_registry import ToolRegistry` added to `scripts/shared/route_resolver.py`; the scan failed, then the file was reverted with `git checkout`. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | Targeted run passes; ruff check and format clean. Per-file mypy reports 4 errors in this file, all pre-existing (the same count at HEAD before the tests were added); `tests/shared/` is outside the CI mypy scope in pyproject `[tool.mypy] files`, so this is not a gate failure, and no new type error was introduced. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -39,6 +39,7 @@ Test through a full Agent startup: rejected, it needs discovery and ports for no
 ### Details
 - Cite the new class in ADR-003's INV-07 row in procedure 07 as `tests/shared/test_tool_executor_routing.py::TestCircuitOpenKeepsLlmVisibility`.
 - Mutation check: make the health gate set `enabled_for_llm=False` for an UNAVAILABLE server, confirm the test fails, revert.
+- Step 5's `_raw_execute` assertion records the refusal path only; the invariant assertion is the registry-side comparison in step 3 and 4, so the mutation check is evaluated through that test (implementation note, 2026-11-23).
 
 ## Compatibility considerations
 
@@ -72,9 +73,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Mutation-check the new test: break the invariant temporarily, confirm the test fails, revert the break | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | Class `TestCircuitOpenKeepsLlmVisibility` added (2 tests): registry-side visibility assertion plus the executor refusal before any transport call. |
+| 2 | Mutation-check the new test: break the invariant temporarily, confirm the test fails, revert the break | Completed | 2026-11-23 | 2026-11-23 | Health gate made to set `enabled_for_llm=False` for an UNAVAILABLE server through the pytest plugin `/tmp/opencode/mutation_plugin_p01.py` (no committed file was changed); the class failed, then the break was reverted. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | Targeted run passes; ruff check and format clean. Per-file mypy reports 3 errors in this file, all pre-existing (the count is the same at HEAD before the test was added); `tests/shared/` is outside the CI mypy scope in pyproject `[tool.mypy] files`, so this is not a gate failure, and no new type error was introduced. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

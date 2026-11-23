@@ -251,12 +251,12 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
 |---|---|---|---|---|
 | Startup fails on duplicate Tool name ownership | INV-01 | Integration | Yes | `tests/agent/services/test_mcp_tool_discovery.py` |
 | Unregistered Tools are not executed | INV-02 | Unit | Yes | `tests/shared/test_route_resolver.py::TestRegistryRouting` |
-| There is no Fallback to the static ToolRegistry | INV-04 | Regression | No | Not verified |
+| There is no Fallback to the static ToolRegistry | INV-04 | Regression | Yes | `tests/shared/test_route_resolver.py::TestRoutingSourceIsolation` |
 | Startup Drift validation (config/live comparison) uses the static `ToolRegistry` as input and does not change the `RuntimeToolRegistry`-based Routing decision itself | INV-04 (Decision Detail #15) | Integration | No (startup is aborted on drift, but the Routing decision itself is not affected) | `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py`, `tests/shared/test_tool_registry.py`, `tests/shared/test_tool_safety_tiers.py` |
-| Routing, approval, and auditing reference the same Safety Tier | INV-03 | Integration | No | Not verified |
+| Routing, approval, and auditing reference the same Safety Tier | INV-03 | Integration | Yes | `tests/agent/test_safety_tier_single_source.py::TestSafetyTierSingleSource` |
 | A registered write tool outside the static sets is never classified as READ, and a write-flag mismatch is reported at startup | INV-03 | Unit | Yes | `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/services/test_mcp_tool_discovery.py` |
 | A statically disabled Tool is not included in `llm_tool_definitions()` | INV-06 | Regression | Yes | `tests/shared/test_runtime_tool_registry.py` |
-| Tools belonging to a Circuit-Open server remain in `llm_tool_definitions()` | INV-07 | Integration | No | Not verified |
+| Tools belonging to a Circuit-Open server remain in `llm_tool_definitions()` | INV-07 | Integration | Yes | `tests/shared/test_tool_executor_routing.py::TestCircuitOpenKeepsLlmVisibility` |
 | Tools of a server whose Security Posture is not accepted are absent from `RuntimeToolRegistry` | INV-06 | Unit | Yes | `tests/shared/test_runtime_tool_registry.py`, `tests/agent/test_mcp_health_posture.py` |
 
 ### Startup Validation
@@ -277,7 +277,7 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
 ### Manual Review
 
 - INV-05, INV-08, and INV-09 have no dedicated automated test and are verified by review of the Registry and approval code paths.
-- The Safety Tier reference part of INV-03 (Routing, approval, and auditing referencing the same Safety Tier) has no dedicated automated test and is verified by review of the Registry, approval and audit code paths.
+- The Safety Tier reference part of INV-03 (Routing, approval, and auditing referencing the same Safety Tier) is verified by `tests/agent/test_safety_tier_single_source.py::TestSafetyTierSingleSource`; review remains a secondary trigger for changes to the Registry, approval and audit code paths.
 - Confirm that a future PR does not re-merge static availability and Dynamic Health by writing to `enabled_for_llm` from a Dynamic Health-driven code path.
 
 ## Implementation Notes
@@ -335,9 +335,6 @@ Task-level approval decision for Decision Details #10 to #15 and INV-04 (runtime
 - **Current Decision Approval (pending)**: The Decision Detail #15 severity correction (a Drift finding aborts startup instead of warning) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-021.
 - **Current Decision Approval (pending)**: Decision Detail #16 (Security Posture exclusion from `RuntimeToolRegistry` and its startup consequence) has no approval record and awaits maintainer approval; it is tracked by AAL-022.
 - **Current Decision Approval (pending)**: Decision Detail #17 (dynamic health hints are advisory error metadata) has no approval record and awaits maintainer approval; it is tracked by AAL-023.
-- **Current Decision Approval (pending)**: Setting the Blocking value of the INV-03 verification row (`Not verified`) to Non-Blocking is a verification-row change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-033. No approval is recorded here.
-- **Current Decision Approval (pending)**: Setting the Blocking value of the INV-04 verification row (`Not verified`) to Non-Blocking is a verification-row change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-034. No approval is recorded here.
-- **Current Decision Approval (pending)**: Setting the Blocking value of the INV-07 verification row (`Not verified`) to Non-Blocking is a verification-row change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-035. No approval is recorded here.
 
 ## Related ADRs
 

@@ -72,9 +72,9 @@ N/A: revert the commit (the file is new).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Mutation-check the new test: break the invariant temporarily, confirm the test fails, revert the break | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | New module with `TestNoCallPathOutsideTheEngine`: `repo_scan` AST scan of `scripts/` for the chain symbols against the recorded `ALLOWLIST` (asserting each allowlisted site is found), plus two containment tests through `_RecordingEngine` (the chain runs only inside the engine run; it is not reached when the engine does not call back). 3 tests. |
+| 2 | Mutation-check the new test: break the invariant temporarily, confirm the test fails, revert the break | Completed | 2026-11-23 | 2026-11-23 | An extra `handle_llm_turn` call site was added to `scripts/agent/repository_gateway.py`; the scan failed, then the file was reverted with `git checkout`. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | Targeted run passes; ruff check and format clean; mypy reports no error in this file (the 60 errors reported when it is checked are in `tests/agent/test_orchestrator.py`, reached through imports; `tests/agent/` is outside the CI mypy scope in pyproject `[tool.mypy] files`). Step 1's reference fixtures needed `version` and `build_turn_control_message` on the adapter and an async conversation manager to drive `execute_turn`. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

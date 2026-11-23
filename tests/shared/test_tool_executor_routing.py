@@ -12,7 +12,11 @@ import httpx
 import pytest
 from shared.http_transport import HttpTransport, TransportError
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
-from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
+from shared.mcp_health import (
+    HEALTH_REASON_SERVER_UNAVAILABLE,
+    McpServerHealthRegistry,
+    McpServerHealthState,
+)
 from shared.runtime_tool import build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_executor import LifecycleProtocol, ToolExecutor
@@ -1086,3 +1090,62 @@ class TestNoContextRefusalAtRoutingLayer:
             mock_http.post.call_args.kwargs["headers"]["X-Idempotency-Key"]
             == ctx.call_id
         )
+
+
+class TestCircuitOpenKeepsLlmVisibility:
+    """ADR-003 INV-07: a Circuit-Open server keeps its tools in
+    `llm_tool_definitions()` with `enabled_for_llm` intact.
+
+    Health state gates dispatch only; it never writes `enabled_for_llm`. The
+    assertion is made on the registry (the authority for LLM visibility), not on
+    the executor, so any health-driven path that writes the flag is caught.
+    """
+
+    def test_health_state_does_not_change_llm_tool_definitions(self) -> None:
+        # half_open_cooldown_sec=0.0 opens the HALF_OPEN window without sleeping.
+        registry = McpServerHealthRegistry(
+            failure_threshold=1, half_open_cooldown_sec=0.0
+        )
+        runtime = _runtime_registry_for({"read_text_file": "file_read"})
+        definitions_before = runtime.llm_tool_definitions()
+        flags_before = {tool.name: tool.enabled_for_llm for tool in runtime.all_tools()}
+
+        assert registry.record_failure("file_read") == McpServerHealthState.UNAVAILABLE
+        assert runtime.llm_tool_definitions() == definitions_before
+        assert {
+            tool.name: tool.enabled_for_llm for tool in runtime.all_tools()
+        } == flags_before
+
+        # The cooldown has already elapsed, so the next availability check opens
+        # the single-trial HALF_OPEN window; visibility is still unchanged.
+        assert registry.is_unavailable("file_read") is False
+        assert registry.get_state("file_read") == McpServerHealthState.HALF_OPEN
+        assert runtime.llm_tool_definitions() == definitions_before
+        assert runtime.get("read_text_file").enabled_for_llm is True
+
+    @pytest.mark.asyncio
+    async def test_open_circuit_refuses_before_any_transport_call(self) -> None:
+        """The tool stays visible to the LLM while the refusal comes from the
+        health gate, ahead of any dispatch."""
+        registry = McpServerHealthRegistry(failure_threshold=1)
+        runtime = _runtime_registry_for({"read_text_file": "file_read"})
+        assert [d["name"] for d in runtime.llm_tool_definitions()] == ["read_text_file"]
+
+        ex = _make_executor(
+            configs={"file_read": _http_cfg()}, health_registry=registry
+        )
+        registry.record_failure("file_read")
+
+        mock_transport = AsyncMock()
+        with patch.object(ex, "_transports", {"file_read": mock_transport}):
+            res = await ex._raw_execute("read_text_file", {})
+
+        mock_transport.call.assert_not_called()
+        assert res.is_error
+        assert "unavailable" in res.output.lower()
+        assert res.availability_hint is not None
+        assert res.availability_hint.reason == HEALTH_REASON_SERVER_UNAVAILABLE
+        assert res.availability_hint.circuit_state == McpServerHealthState.UNAVAILABLE
+        # Routing still resolves the tool while the circuit is open.
+        assert ex._resolver.resolve("read_text_file") == "file_read"
+        assert [d["name"] for d in runtime.llm_tool_definitions()] == ["read_text_file"]

@@ -144,5 +144,8 @@ class TestRealMatrixRegression:
         # 70 after 2026-11-20: the ADR-016 and ADR-017 rows entered the matrix, the
         # ADR-003 INV-03 row became Partial with cited evidence, and the ADR-007 and
         # ADR-012 rows gained their own citations (adrchk013 Plan step 4, procedure 03).
+        # 76 after 2026-11-23: the rows restored to Blocking by gov006 cite the tests added
+        # by its procedures 01 to 06 — ADR-001 INV-02, ADR-002 INV-03, ADR-003 INV-04 and
+        # INV-07, and ADR-012 INV-04 (six new node ids).
         lines = helper.ADR_INDEX.read_text(encoding="utf-8").splitlines()
-        assert len(helper.extract_cited_node_ids(lines)) == 70
+        assert len(helper.extract_cited_node_ids(lines)) == 76

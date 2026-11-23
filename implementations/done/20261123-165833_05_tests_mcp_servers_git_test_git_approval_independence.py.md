@@ -71,9 +71,9 @@ N/A: revert the commit (the file is new).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Mutation-check the new test: break the invariant temporarily, confirm the test fails, revert the break | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | New module with `TestStageThreeWithoutApprovalState` (4 behavioral tests on a `git.Repo.init` temporary repository: protected denied with no approval state, non-protected allowed with none, approval-shaped argument cannot reach the decision, protected config not read from the Agent config) and `TestGitPackageHasNoApprovalDependency` (AST scan of `scripts/mcp_servers/git/`). 5 tests. |
+| 2 | Mutation-check the new test: break the invariant temporarily, confirm the test fails, revert the break | Completed | 2026-11-23 | 2026-11-23 | `import agent` added after `from __future__` in `scripts/mcp_servers/git/repository_state.py`; the package scan failed, then the file was reverted with `git checkout`. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-23 | 2026-11-23 | Targeted run passes; ruff check and format and mypy clean on the file. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

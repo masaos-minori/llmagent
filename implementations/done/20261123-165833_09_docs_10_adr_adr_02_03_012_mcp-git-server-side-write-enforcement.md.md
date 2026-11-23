@@ -1,39 +1,38 @@
 ## Goal
 
-Remove the ledger entries AAL-001, AAL-031, AAL-033, AAL-034, AAL-035, and AAL-036 from the ADR Approval Ledger, as a revert of the pending Non-Blocking changes.
+Restore the ADR-012 INV-04 Verification row to Blocking citing the new tests and remove its pending bullet.
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-One governance file. Run this procedure after the procedures that create the tests it cites (earlier `seq` values 01 to 06); it cites test node ids that must exist and pass. Run it with procedures 07 to 10 so no ADR bullet points to a removed entry.
+One ADR file. Run this procedure after the procedures that create the tests it cites (earlier `seq` values 01 to 06); it cites test node ids that must exist and pass.
 
 ## Assumptions
 
-- Entries at lines 366 (AAL-001) and 627-680 (AAL-031 to AAL-036); AAL-032 stays (read in Step 3a).
-- Part 5 rules: an entry is removed once the pending change is reverted; an implementer never writes approval text.
+- Row at line 170 and pending bullet at line 204 (read in Step 3a).
 
 ## Design decisions
 
-- Delete each entry block (heading through its last field) and leave the others untouched; write no replacement text.
+- Cite the tests from procedure 05 and set `Blocking` to `Yes`; remove the AAL-036 bullet as a revert.
 
 ## Alternatives considered
 
-Keep the entries with a withdrawn mark: rejected, the Part 5 rules call for removal (Plan UNK-03).
+N/A: single mechanical change.
 
 ## Implementation
 ### Target file
-`docs/00_governance/governance_03_issue-and-uncertainty-management.md`
+`docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`
 
 ### Procedure
-1. Delete the six entry blocks.
-2. Check the surrounding headings and blank lines.
+1. Edit the INV-04 row.
+2. Remove the AAL-036 bullet.
 3. Run the checkers.
 
 ### Method
-- Edit by exact block text; confirm AAL-032 and AAL-030 remain.
+- Cite `tests/mcp_servers/git/test_git_approval_independence.py::<Class>::<test>` nodes.
 
 ### Details
-- The count of remaining entries drops by six; no text elsewhere cites the number (rg in Step 3a).
+- Other pending bullets (AAL-014, AAL-015) stay.
 
 ## Compatibility considerations
 
@@ -49,13 +48,14 @@ N/A: revert the commit.
 
 ## Validation plan
 
-- `uv run python tools/check_adr_structure.py` (ledger ids match pending bullets)
-- `uv run python tools/check_adr_reference.py`
+- `uv run python tools/check_adr_structure.py`
+- `uv run python tools/check_adr_invariant_matrix.py`
+- `uv run python .github/run_cited_adr_tests.py`
 
 ## Completion criteria
 
-- The six entries are gone and AAL-032 remains.
-- `check_adr_structure.py` reports no finding.
+- The INV-04 row is Blocking with passing cited tests.
+- The AAL-036 bullet is gone.
 
 ## Out of Scope
 
@@ -67,8 +67,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-11-23 | 2026-11-23 | Row read at line 170 and bullet at 204 as stated; the row is `Yes` citing `TestStageThreeWithoutApprovalState` and `TestGitPackageHasNoApprovalDependency`; the AAL-036 bullet removed. AAL-014 and AAL-015 untouched. |
+| 2 | Run the documentation checkers named in Validation plan | Completed | 2026-11-23 | 2026-11-23 | `check_adr_structure.py` and `check_adr_invariant_matrix.py` clean; both cited nodes pass in `.github/run_cited_adr_tests.py`. Length finding: the required sections and the three Execution Status tables alone exceed the 60-line lightweight target, so only the bodies are kept minimal. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -88,4 +88,4 @@ N/A: revert the commit.
 - **Source plan**: plans/20261123-165432_gov006_restore-blocking-verification-rows.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261123-165833
-- **Related target files**: `docs/00_governance/governance_03_issue-and-uncertainty-management.md`
+- **Related target files**: `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`
