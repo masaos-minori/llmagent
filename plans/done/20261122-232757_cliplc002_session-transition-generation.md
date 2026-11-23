@@ -227,13 +227,13 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Session generation and target | Pending | — | — | |
-| 2 | Persistence snapshot | Pending | — | — | |
-| 3 | Transition service and restore | Pending | — | — | |
-| 4 | Title and background tasks | Pending | — | — | |
-| 5 | Undo | Pending | — | — | |
-| 6 | Documentation | Pending | — | — | |
-| 7 | Deployment and verification | Pending | — | — | |
+| 1 | Session generation and target | In Progress | — | — |  |
+| 2 | Persistence snapshot | In Progress | — | — |  |
+| 3 | Transition service and restore | In Progress | — | — |  |
+| 4 | Title and background tasks | In Progress | — | — |  |
+| 5 | Undo | In Progress | — | — |  |
+| 6 | Documentation | In Progress | — | — |  |
+| 7 | Deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -243,7 +243,27 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261123-094714_01_scripts_agent_session.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261123-094714_02_scripts_agent_services_session_transition.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-094714_03_scripts_agent_session_persister.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261123-094714_04_scripts_agent_services_session_restore.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-094714_05_scripts_agent_services_models.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-094714_06_scripts_agent_services_conversation_service.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-094714_07_scripts_agent_services_undo_service.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261123-094714_08_scripts_agent_bg_task_monitor.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261123-094714_09_scripts_agent_conversation_state_manager.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261123-094714_10_scripts_agent_services_session_title.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261123-094714_11_scripts_agent_commands_session_title.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261123-094714_12_scripts_agent_commands_cmd_session.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-094714_13_scripts_agent_commands_cmd_context.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-094714_14_scripts_agent_repl.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261123-094714_15_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261123-094714_16_docs_23_agent_agent_04_01_state-and-persistence-state-model.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261123-094714_17_docs_23_agent_agent_04_02_state-and-persistence-history-compression.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261123-094714_18_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261123-094714_19_docs_23_agent_agent_13_reference-api-generated.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261123-094714_20_registry_manifests_agent_api.yaml.md | 6 | Procedure | Pending | — | — |
+| implementations/20261123-094714_23_tests_agent_test_session_restore.py.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -309,3 +329,5 @@ N/A: no release unit
 | REQ-007 | Issue Required Changes / evidence in Implementation Target Files | tests/agent/commands/test_agent_cmd_context.py | Phase 5 | AC-4 | `tests/agent/commands/test_agent_cmd_context.py` | Confirmed by repository evidence |
 | REQ-008 | Issue Required Changes / evidence in Implementation Target Files | tests/agent/commands/test_agent_cmd_context.py | Phase 5 | AC-4 | `tests/agent/commands/test_agent_cmd_context.py` | Confirmed by repository evidence |
 | REQ-006 | Issue Required Changes / evidence in Implementation Target Files | tests/agent/test_repl.py | Phase 2 | AC-3 | `tests/agent/test_repl.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261123-094714 -->
