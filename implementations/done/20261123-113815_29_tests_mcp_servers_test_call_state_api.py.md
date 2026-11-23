@@ -64,8 +64,8 @@ Per-tool reconcilers and the Agent client.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-144724 | 20261123-144724 | test module written: authorization matrix, response shape, reconcile refusals and operator review, 404/422; module state reset per test, rows seeded through the ledger entry points on tmp_path |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-144724 | 20261123-144724 | 19 tests green with test_mcp_server_base.py and test_require_auth_token.py; completion criteria checked by removing the control-token check (3 auth tests fail) and the live-lease refusal (1 test fails), then restored |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

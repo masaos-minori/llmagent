@@ -65,9 +65,9 @@ Handler logic (row 09) and the per-server TOML rows (15-24).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-144718 | 20261123-144718 | run_http keeps the validated [dedup] config in a local and calls configure_control with the resolved [control] token; attach_control_api is called after the tool-auth middleware so the control middleware is outermost |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-144718 | 20261123-144718 | no new test code; the existing server-base, auth, and config-isolation tests were re-run |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-144718 | 20261123-144718 | ruff, mypy, lint-imports, module-size gate pass; 95 base/auth/isolation tests plus the 19 control tests green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

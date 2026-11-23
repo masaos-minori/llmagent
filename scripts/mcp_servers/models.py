@@ -8,7 +8,14 @@ Used by FileopMCPServer.py, WebSearchMCPServer.py, and GithubMCPServer.py.
 from collections.abc import Mapping
 from typing import Any, NotRequired, Required, TypedDict
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from shared.mcp_call_state_contract import (
+    AGENT_RECOVERY_STATES,
+    CONTROL_ERROR_CODES,
+    RECONCILE_OUTCOMES,
+    RESULT_CLASSES,
+    agent_state_for,
+)
 from shared.runtime_tool import AgentSafetyTier
 from shared.tool_metadata import (
     PreviewCapability,
@@ -55,6 +62,155 @@ class CallToolResponse(BaseModel):
         default="",
         description="Durable-dedup state tag for this call ('' when no dedup branch was taken)",
     )
+
+
+# Decision vocabulary for the reconcile endpoint (mcpdl004 REQ-001). It is the
+# boundary vocabulary of this module: the endpoint answers with one of these four,
+# and nothing else can be written into `decision`.
+RECONCILE_DECISIONS: frozenset[str] = frozenset(
+    {
+        "reused_completed",
+        "reconciled",
+        "operator_review",
+        "refused",
+    }
+)
+
+
+def _check_vocabulary(field: str, value: str, vocabulary: frozenset[str]) -> str:
+    """Reject a value outside the closed vocabulary before it reaches a response."""
+    if value not in vocabulary:
+        raise ValueError(f"{field} must be one of the closed vocabulary values")
+    return value
+
+
+def _check_ledger_status(value: str) -> str:
+    """Accept only the row states the mapping table covers.
+
+    The mapping function is the single source for the states a control response can
+    report, so this does not duplicate a list here.
+    """
+    try:
+        agent_state_for(value, False)
+    except ValueError as exc:
+        raise ValueError("ledger_status must be a ledger row state") from exc
+    return value
+
+
+class CallStateResponse(BaseModel):
+    """Response body for GET /v1/call_state/{key} (mcpdl004 REQ-001).
+
+    Every field is a closed vocabulary value or an opaque identifier: no raw
+    arguments, credentials, signed URLs, raw exceptions, or internal paths.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    key: str = Field(..., description="Logical call id (opaque)")
+    ledger_status: str = Field(
+        ..., description="Ledger row state (the states the mapping table covers)"
+    )
+    agent_state: str = Field(..., description="Agent state from the shared mapping")
+    attempt_number: int = Field(..., ge=1, description="Attempt number for this call")
+    lease_live: bool = Field(..., description="True while the lease is still held")
+    lease_expires_epoch: float | None = Field(
+        None, description="Lease expiry as an epoch, None when there is no lease"
+    )
+    result_class: str | None = Field(
+        None, description="Result availability class (RESULT_CLASSES)"
+    )
+    result_code: str = Field(default="", description="Opaque stable result code")
+    result_size_bytes: int | None = Field(
+        None, ge=0, description="Serialized result size in bytes"
+    )
+    result_sha256: str = Field(
+        default="", description="Digest of the stored result, empty when absent"
+    )
+    external_ref: str = Field(
+        default="", description="Opaque external reference, empty when absent"
+    )
+    reconciliation_required: bool = Field(
+        ..., description="True when an operator or reconciler must review the call"
+    )
+    error_code: str = Field(
+        ..., description="Stable control error code (none when none)"
+    )
+
+    @field_validator("ledger_status")
+    @classmethod
+    def ledger_status_is_closed(cls, value: str) -> str:
+        return _check_ledger_status(value)
+
+    @field_validator("agent_state")
+    @classmethod
+    def agent_state_is_closed(cls, value: str) -> str:
+        return _check_vocabulary("agent_state", value, AGENT_RECOVERY_STATES)
+
+    @field_validator("result_class")
+    @classmethod
+    def result_class_is_closed(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return _check_vocabulary("result_class", value, RESULT_CLASSES)
+
+    @field_validator("error_code")
+    @classmethod
+    def error_code_is_closed(cls, value: str) -> str:
+        return _check_vocabulary("error_code", value, CONTROL_ERROR_CODES)
+
+
+class ReconcileResponse(BaseModel):
+    """Response body for POST /v1/call_state/{key}/reconcile (mcpdl004 REQ-001).
+
+    `evidence_digest` is a non-sensitive digest or fixed label; the response never
+    carries the evidence text itself.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    key: str = Field(..., description="Logical call id (opaque)")
+    decision: str = Field(..., description="Reconcile decision (RECONCILE_DECISIONS)")
+    outcome: str = Field(
+        ..., description="Reconcile outcome, or none when no reconciler ran"
+    )
+    ledger_status: str = Field(..., description="Ledger row state after the decision")
+    agent_state: str = Field(..., description="Agent state from the shared mapping")
+    operator_review: bool = Field(
+        ..., description="True when the outcome needs operator review"
+    )
+    evidence_digest: str = Field(
+        default="", description="Non-sensitive digest of the evidence (opaque)"
+    )
+    error_code: str = Field(
+        ..., description="Stable control error code (none when none)"
+    )
+
+    @field_validator("decision")
+    @classmethod
+    def decision_is_closed(cls, value: str) -> str:
+        return _check_vocabulary("decision", value, RECONCILE_DECISIONS)
+
+    @field_validator("outcome")
+    @classmethod
+    def outcome_is_closed(cls, value: str) -> str:
+        if value == "none":
+            return value
+        return _check_vocabulary("outcome", value, RECONCILE_OUTCOMES)
+
+    @field_validator("ledger_status")
+    @classmethod
+    def ledger_status_is_closed(cls, value: str) -> str:
+        return _check_ledger_status(value)
+
+    @field_validator("agent_state")
+    @classmethod
+    def agent_state_is_closed(cls, value: str) -> str:
+        return _check_vocabulary("agent_state", value, AGENT_RECOVERY_STATES)
+
+    @field_validator("error_code")
+    @classmethod
+    def error_code_is_closed(cls, value: str) -> str:
+        return _check_vocabulary("error_code", value, CONTROL_ERROR_CODES)
 
 
 class McpTool(TypedDict):

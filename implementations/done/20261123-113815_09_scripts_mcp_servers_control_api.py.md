@@ -71,9 +71,9 @@ Per-tool reconciler implementations, the Agent client, and server wiring (row 10
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-144718 | 20261123-144718 | control_api.py created (prefix constant, module state, configure_control, register_reconciler, key pattern, X-Request-Id, no request-body reads); /reconcile suffix is parsed before key validation so the key stays the lookup key |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-144718 | 20261123-144718 | covered by row 29 tests/mcp_servers/test_call_state_api.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-144718 | 20261123-144718 | ruff, mypy, lint-imports, bandit (-ll: no new medium/high from this file), module-size gate (12,461 B) pass; 19 control tests plus the base and auth tests green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -214,6 +214,14 @@ def attach_auth_middleware(
         response.headers["X-Request-Id"] = req_id
         return response
 
+    # Registered after the tool-auth middleware, so the control middleware is
+    # outermost: control paths are authenticated and answered there and never reach
+    # the tool-auth middleware. Tool paths are unchanged (mcpdl004 REQ-002). The
+    # import is inside the function to keep the module graph acyclic.
+    from mcp_servers.control_api import attach_control_api
+
+    attach_control_api(app)
+
 
 async def _read_call_tool_body(request: Request) -> dict[str, Any]:
     """Return the parsed JSON body of a /v1/call_tool request, or {} on failure.
@@ -366,16 +374,30 @@ class MCPServer:
         from mcp_servers.dispatch import configure_dedup, configure_tool_retry_policies
 
         if own_data is not None:
-            configure_dedup(
-                load_dedup_section(own_data.get("dedup"), self.own_config_file)
-            )
+            dedup_cfg = load_dedup_section(own_data.get("dedup"), self.own_config_file)
+            configure_dedup(dedup_cfg)
         else:
+            dedup_cfg = None
             logger.warning(
                 "event=dedup_bootstrap_missing_config server=%s config=%s — "
                 "dedup left unconfigured",
                 self.server_name,
                 self.own_config_file,
             )
+        # Control plane (mcpdl004 REQ-002): the server's own [control] table is a
+        # separate credential from the tool token. An unset variable resolves to an
+        # empty token, which closes only the control paths and logs the server name;
+        # the tool Bearer middleware and its fail-closed behavior are untouched.
+        from shared.mcp_call_state_contract import resolve_control_token
+
+        from mcp_servers.control_api import configure_control
+
+        control_table = own_data.get("control") if own_data is not None else None
+        control_token = resolve_control_token(
+            (control_table or {}).get("auth_token", "")
+        )
+        configure_control(control_token, dedup_cfg, self.server_name)
+
         configure_tool_retry_policies(getattr(self, "mcp_tools", ()))
 
         self._enforce_startup_posture_gate()

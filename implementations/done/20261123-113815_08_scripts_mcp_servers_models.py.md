@@ -66,9 +66,9 @@ Handlers and wiring (rows 09 and 10).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-144718 | 20261123-144718 | CallStateResponse and ReconcileResponse added with extra=forbid and closed-vocabulary validators (decision, outcome, agent_state, result_class, error_code, ledger_status through agent_state_for totality) |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-144718 | 20261123-144718 | no new test module here; covered by row 29 tests/mcp_servers/test_call_state_api.py (19 tests, green) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-144718 | 20261123-144718 | ruff format/check, mypy, lint-imports pass; extra fields and out-of-vocabulary values rejected, in_progress accepted through the row 29 run |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
