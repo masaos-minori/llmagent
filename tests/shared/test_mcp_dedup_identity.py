@@ -10,8 +10,8 @@ Contract asserted (public surface only, per row 11 Design decisions):
 - DedupStore.start_state: first_initialization | healthy on safe opens.
 - Unsafe opens raise the typed store_error taxonomy (mcp_dedup.DedupStoreError)
   with .state = lost | replaced | legacy_or_unverified | schema_mismatch.
-- Creation writes store_meta + PRAGMA user_version = 1 + the external
-  installation marker atomically.
+- Creation writes store_meta + PRAGMA user_version (`_USER_VERSION`) + the
+  external installation marker atomically.
 - resolve_store(path) is the operator resolution: validates state, archives the
   old file, issues a new generation, logs the decision. An empty file alone
   never resolves; a healthy store refuses resolution.
@@ -114,7 +114,7 @@ class TestFirstInitialization:
             assert store.start_state == "first_initialization"
         finally:
             store.close()
-        assert _user_version(path) == 1
+        assert _user_version(path) == mcp_dedup._USER_VERSION
         assert _tables(path) >= _STORE_TABLES
         meta = _store_meta(path)
         assert str(meta["store_uuid"])
@@ -217,6 +217,40 @@ class TestSchemaMismatch:
             DedupStore(path)
         assert exc.value.state == "schema_mismatch"
         assert not isinstance(exc.value, RuntimeError)
+
+    def test_store_stamped_at_old_version_is_refused_after_bump(self, tmp_path):
+        """REQ-006: a store created before the 1-to-2 bump fails the open-time
+        gate as schema_mismatch; the operator re-initializes it."""
+        path, store = _make_healthy(tmp_path)
+        store.close()
+        conn = sqlite3.connect(path)
+        conn.execute("PRAGMA user_version = 1")
+        conn.commit()
+        conn.close()
+        with pytest.raises(_store_error()) as exc:
+            DedupStore(path)
+        assert exc.value.state == "schema_mismatch"
+
+    def test_pre_change_shape_without_metadata_columns_is_refused(self, tmp_path):
+        """REQ-006: the pre-change ledger shape (no result-metadata columns,
+        version 1) is refused; no in-place migration is attempted."""
+        path, store = _make_healthy(tmp_path)
+        store.close()
+        conn = sqlite3.connect(path)
+        for col in (
+            "result_sha256",
+            "result_size_bytes",
+            "result_class",
+            "result_code",
+            "external_ref",
+        ):
+            conn.execute(f"ALTER TABLE dedup_call_state DROP COLUMN {col}")
+        conn.execute("PRAGMA user_version = 1")
+        conn.commit()
+        conn.close()
+        with pytest.raises(_store_error()) as exc:
+            DedupStore(path)
+        assert exc.value.state == "schema_mismatch"
 
 
 class TestOperatorResolution:

@@ -36,6 +36,7 @@ from db.schema_sql import (
 )
 from db.store_protocols import get_embedding_dims
 from eventbus.db_tools import schema_sql as eventbus_schema_sql
+from shared.mcp_dedup_schema import _USER_VERSION
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _INIT_DB = _REPO_ROOT / "deploy" / "init_db.sh"
@@ -436,7 +437,7 @@ def test_dedup_store_initialized_with_identity_stamp_and_marker(
     assert dedup_db.is_file()
     conn = sqlite3.connect(dedup_db)
     try:
-        assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 1
+        assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == _USER_VERSION
         assert conn.execute("SELECT 1 FROM store_meta LIMIT 1").fetchone() is not None
     finally:
         conn.close()

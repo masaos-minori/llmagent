@@ -2,8 +2,10 @@
 
 Single-process state machine and config coverage for the rewritten store:
 acquisition vocabulary, owner-conditional finalization, attempt history,
-stamped identity (PRAGMA user_version = 1 + store_meta + installation
-marker), retention-scoped purge, and lease-expiry reconciliation.
+stamped identity (`_USER_VERSION` + store_meta + installation marker),
+retention-scoped purge, and lease-expiry reconciliation.
+Result metadata and result-class classification (mcpdl004 REQ-003) is covered
+in TestResultMetadata and TestCallStateView.
 Multi-caller concurrency lives in test_mcp_dedup_concurrency.py; the
 identity/loss matrix lives in test_mcp_dedup_identity.py.
 
@@ -12,6 +14,8 @@ All SQLite access is on tmp_path files; /opt/llm/db/ is never touched.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import sqlite3
 import subprocess
 import sys
@@ -21,6 +25,7 @@ from pathlib import Path
 import pytest
 from shared.config_errors import ConfigMissingError, ConfigParseError
 from shared.mcp_dedup import (
+    _USER_VERSION,
     DEFAULT_DB_PATH,
     DedupLeaseConflict,
     DedupStore,
@@ -294,7 +299,9 @@ class TestFingerprintGate:
         s.close()
         conn = _raw_connect(path)
         try:
-            assert int(conn.execute("PRAGMA user_version").fetchone()[0]) == 1
+            assert (
+                int(conn.execute("PRAGMA user_version").fetchone()[0]) == _USER_VERSION
+            )
             tables = {
                 str(r[0])
                 for r in conn.execute(
@@ -359,7 +366,7 @@ class TestFingerprintGate:
         path = tmp_path / "mcp_dedup.sqlite"
         DedupStore(str(path)).close()
         conn = _raw_connect(path)
-        conn.execute("PRAGMA user_version = 2")
+        conn.execute(f"PRAGMA user_version = {_USER_VERSION + 1}")
         conn.commit()
         conn.close()
         with pytest.raises(DedupStoreError) as excinfo:
@@ -653,3 +660,137 @@ class TestDedupDbDirContract:
     def test_env_override_relocates_contract_dir(self, tmp_path, monkeypatch):
         monkeypatch.setenv("LLMAGENT_DB_DIR", str(tmp_path))
         assert dedup_db_dir() == tmp_path
+
+
+class TestResultMetadata:
+    """mcpdl004 REQ-003: classification and metadata at store time."""
+
+    def test_small_result_stores_complete_with_hash_and_size(self, store):
+        store.try_acquire_execution("k1", "web_search", "h1", _SNAP, "owner-a")
+        store.record_completed("k1", _SNAP, {"ok": True}, "owner-a")
+        row = store.get_execution("k1")
+        assert row is not None
+        serialized = json.dumps({"ok": True}, ensure_ascii=False)
+        assert row.result_class == "complete"
+        assert (
+            row.result_sha256 == hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+        )
+        assert row.result_size_bytes == len(serialized.encode("utf-8"))
+        assert row.result_code is None
+        assert row.external_ref is None
+
+    def test_oversized_result_stores_redacted_preview(self, store):
+        payload = "x" * 9000
+        store.try_acquire_execution("k1", "web_search", "h1", _SNAP, "owner-a")
+        store.record_completed("k1", _SNAP, payload, "owner-a")
+        row = store.get_execution("k1")
+        assert row is not None and row.result_class == "redacted_preview"
+        stored = row.result
+        assert stored["truncated"] is True
+        assert stored["sha256"] == row.result_sha256
+        serialized = json.dumps(payload, ensure_ascii=False)
+        assert row.result_size_bytes == len(serialized.encode("utf-8"))
+        assert len(stored["preview"]) <= 1000
+
+    def test_redaction_precedes_preview_slicing(self, store):
+        payload = (
+            "Bearer dummy-secret ?sig=dummy ?token=dummy /home/user/private "
+            + "y" * 9000
+        )
+        store.try_acquire_execution("k1", "web_search", "h1", _SNAP, "owner-a")
+        store.record_completed("k1", _SNAP, payload, "owner-a")
+        row = store.get_execution("k1")
+        assert row is not None and row.result_class == "redacted_preview"
+        preview = row.result["preview"]
+        assert "<redacted>" in preview
+        assert "dummy-secret" not in preview
+        assert "/home/user" not in preview
+        # A complete result is stored unredacted: redaction is preview-only.
+        store.try_acquire_execution("k2", "web_search", "h2", _SNAP, "owner-a")
+        store.record_completed("k2", _SNAP, "Bearer dummy-secret", "owner-a")
+        row2 = store.get_execution("k2")
+        assert row2 is not None and row2.result_class == "complete"
+        assert "dummy-secret" in row2.result
+
+    def test_record_failed_stores_replay_unavailable(self, store):
+        store.try_acquire_execution("k1", "git", "h1", _SNAP, "owner-a")
+        store.record_failed("k1", "timeout", "owner-a")
+        row = store.get_execution("k1")
+        assert row is not None
+        assert row.result_class == "replay_unavailable"
+        assert row.result_code == "timeout"
+
+    def test_external_ref_stores_secure_reference(self, store):
+        store.try_acquire_execution("k1", "github", "h1", _SNAP, "owner-a")
+        store.record_completed(
+            "k1", _SNAP, {"ok": True}, "owner-a", external_ref="obj-42"
+        )
+        row = store.get_execution("k1")
+        assert row is not None
+        assert row.result_class == "secure_reference"
+        assert row.external_ref == "obj-42"
+
+
+class TestCallStateView:
+    """mcpdl004 REQ-001/REQ-005: the read-only control-API projection."""
+
+    def test_pending_with_live_lease_maps_to_in_progress(self, store):
+        store.try_acquire_execution("k1", "git", "h1", _SNAP, "owner-a")
+        view = store.call_state_view("k1")
+        assert view is not None
+        assert view.lease_live is True
+        assert view.agent_state == "in_progress"
+        assert view.reconciliation_required is False
+        assert view.error_code == "none"
+        assert view.attempts_exhausted is False
+
+    def test_pending_with_expired_lease_maps_to_reconciliation_required(self, store):
+        store.try_acquire_execution("k1", "git", "h1", _SNAP, "owner-a")
+        view = store.call_state_view("k1", now_epoch=time.time() + 600)
+        assert view is not None
+        assert view.lease_live is False
+        assert view.agent_state == "reconciliation_required"
+        assert view.reconciliation_required is True
+
+    def test_completed_and_failed_rows_map_through_the_table(self, store):
+        store.try_acquire_execution("k1", "git", "h1", _SNAP, "owner-a")
+        store.record_completed("k1", _SNAP, {"ok": True}, "owner-a")
+        view = store.call_state_view("k1")
+        assert view is not None and view.agent_state == "completed"
+        assert view.result_class == "complete"
+        store.try_acquire_execution("k2", "git", "h2", _SNAP, "owner-a")
+        store.record_failed("k2", "timeout", "owner-a")
+        view = store.call_state_view("k2")
+        assert view is not None and view.agent_state == "failed"
+        assert view.error_code == "handler_failed"
+        assert view.result_class == "replay_unavailable"
+
+    def test_unknown_key_returns_none(self, store):
+        assert store.call_state_view("missing-key") is None
+
+    def test_attempts_exhausted_reflects_max_attempts(self, tmp_path):
+        cfg = DedupStoreConfig(
+            db_path=str(tmp_path / "x.sqlite"), lease_seconds=30, max_attempts=2
+        )
+        store = open_dedup_store(cfg)
+        try:
+            store.try_acquire_execution("k1", "git", "h1", _SNAP, "owner-a")
+            assert store.call_state_view("k1").attempts_exhausted is False
+            store._conn.execute(
+                "UPDATE dedup_call_state SET attempt_number = 2 WHERE key = 'k1'"
+            )
+            assert store.call_state_view("k1").attempts_exhausted is True
+        finally:
+            store.close()
+
+    def test_append_reconcile_evidence_records_history_and_leaves_row(self, store):
+        store.try_acquire_execution("k1", "git", "h1", _SNAP, "owner-a")
+        before = store.get_execution("k1")
+        store.append_reconcile_evidence("k1", "ambiguous", "deadbeef")
+        hist = _history(store)
+        assert hist[-1][1] == "reconcile_decision"
+        assert hist[-1][2] == "ambiguous:deadbeef"
+        after = store.get_execution("k1")
+        assert after == before
+        with pytest.raises(ValueError, match="not in RECONCILE_OUTCOMES"):
+            store.append_reconcile_evidence("k1", "found", "deadbeef")
