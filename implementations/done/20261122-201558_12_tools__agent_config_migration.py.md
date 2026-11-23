@@ -36,11 +36,7 @@ N/A: revert the commit.
 Deterministic output: rows in the order the mapping declares them, values read from the mapping only, no values copied from documents.
 ### Details
 - Called from `tools/generate_reference_table.py` through `_MANIFEST_BUILDERS` and `_table_from_entries`.
-
-### Companion test files
-- `tests/tools/test_generate_reference_table.py`
-  - Procedure: Cover the mapping read and the table rendering for the new domain (REQ-002).
-  - Validation: `uv run pytest tests/tools/test_generate_reference_table.py`
+- Tests for the mapping read and the table rendering live in `tests/tools/test_generate_reference_table.py`, which is the companion of the sibling procedure seq 04 (`tools/generate_reference_table.py`); a test file belongs to exactly one procedure, so it is not repeated here. Run `uv run pytest tests/tools/test_generate_reference_table.py` as the validation.
 
 ## Validation plan
 - `routing.md` Tools sequence on the new module.
@@ -80,4 +76,4 @@ The domain registration (seq 04), the committed manifest (seq 13), the destinati
 - **Source plan**: `plans/20261122-190238_agentcfg006_reduction-integration-verification.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261122-201558
-- **Related target files**: `tools/_agent_config_migration.py`, `tests/tools/test_generate_reference_table.py`
+- **Related target files**: `tools/_agent_config_migration.py`
