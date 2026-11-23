@@ -43,6 +43,7 @@ The dispatcher calls the single acquisition operation of `issues/20261120-115841
 - Exactly-once execution must hold across async callers, connections, and processes; the dispatcher never holds a SQLite transaction open during handler execution.
 - A change to an ADR decision, invariant, or authority edge needs a maintainer approval record in the same change (`governance_01`, `governance_05`); do not write or simulate that approval. The ADR-008 and ADR-004 questions are owned by `issues/20261120-115841_mcpdl002_store-identity-continuity.md`.
 - The storage DDL change forces database recreation; plan the rollout together with `issues/20261120-115841_mcpdl002_store-identity-continuity.md`.
+- The overlay-only fallback for a retryable tool whose dedup store is unavailable (`_dedup_context()`) and the warning-only handling of a failed store write after a successful open are ADR-004 exceptions that the governance inventory lists without a maintainer approval record (`docs/00_governance/governance_03_issue-and-uncertainty-management.md`, Known Issues MCP-001 and MCP-002). Keep their behavior unchanged here, do not treat them as approved, and do not write the approval.
 
 ## Acceptance Criteria
 - [ ] Exactly one caller executes the handler for a new logical call, and concurrent callers do not execute it.
@@ -76,6 +77,7 @@ Yes. Document the dispatcher behavior for each state and the recovery policies a
 - `不明`: whether the dispatcher already serializes acquisition in-process (the review claims it does not); confirm by the dispatcher concurrency test before changing it.
 - `不明`: heartbeat interval and lease duration values (set in `issues/20261120-115841_mcpdl002_store-identity-continuity.md` and `issues/20261120-115842_mcpdl003_dedup-config-isolation.md`).
 - `不明`: the final state vocabulary, decided once in `issues/20261120-115841_mcpdl002_store-identity-continuity.md` together with `issues/20261120-115843_mcpdl004_call-state-control-api.md` and `issues/20261120-115845_mcpdl006_two-layer-failure-verification.md`.
+- `不明`: whether the maintainer approves or removes the two ADR-004 exceptions above (MCP-001, MCP-002); a removal would change the dispatcher rule defined in this issue.
 
 ## AI Implementation Instruction
 Write the 100-caller dispatcher concurrency test first and confirm it fails on current code. Change the dispatcher and the storage of `issues/20261120-115841_mcpdl002_store-identity-continuity.md` in one release. Do not touch unrelated files, do not implement out-of-scope items, and do not write maintainer approval statements. Stop and report if the store contract conflicts with ADR-008.

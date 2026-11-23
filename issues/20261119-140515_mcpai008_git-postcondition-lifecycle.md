@@ -33,6 +33,7 @@ Make outcomes evidence-based and cancellable: a success needs fresh repository o
 
 ## Constraints
 - Keep Git retry classification aligned with `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`; ADR changes require an approval record (governance_01, governance_05), never a simulated one.
+- `repository_state.py` `verify_authorization()` already rejects `git_add` and `git_commit` on a protected HEAD, but no ADR-012 Invariant mandates it and no protected-branch test covers it (governance Known Issue MCP-005, `docs/00_governance/governance_03_issue-and-uncertainty-management.md`). This issue verifies postconditions only: do not change the authorization behavior, and leave the protected-branch tests to the work that follows the maintainer's Invariant decision.
 
 ## Acceptance Criteria
 - [ ] Pipeline results contain a fresh post-operation state and each Git write has a documented postcondition.
@@ -59,6 +60,7 @@ Yes. Per-operation postconditions and timeout outcomes (failure behavior), not a
 ## Unresolved Questions
 - `不明`: whether a subprocess-based pull and push is compatible with the current Git library usage.
 - `不明`: which handle leaks remain after the archived mcp005 plan.
+- `不明`: whether the maintainer adds an ADR-012 Invariant for the HEAD-destination check or declares it out of scope (MCP-005); the postcondition tests added here must not be read as covering it.
 
 ## AI Implementation Instruction
 Write the real-repository integration tests first. Keep the change inside the Git MCP server. Stop and report if the cancellable subprocess requires a new dependency.

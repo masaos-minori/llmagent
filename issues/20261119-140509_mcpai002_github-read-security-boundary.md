@@ -46,6 +46,7 @@ Make the common service boundary authoritative: the allowlist check runs inside 
 - No result-filtering-only design.
 - Configuration parsing must stay strict (coordinate field validation with `issues/20261119-140510_mcpai003_github-pydantic-schema-source.md`).
 - Posture documentation must name the exact runtime guard of every published check.
+- The governance inventory records (Needs Confirmation NC-001) that `config/github_mcp_server.toml` ships `path_denylist = []`, that the config build accepts it while an empty `allowed_root` or `protected_branches` is rejected, and that the ADR-004 Group 1 exception has no written rationale. Applying the denylist to reads has no effect while the list is empty. Do not change the empty-list acceptance or ship a non-empty default here, and do not write the rationale (maintainer only).
 
 ## Acceptance Criteria
 - [ ] Every repository-scoped read and write enforces `allowed_repos` through one common boundary.
@@ -82,6 +83,7 @@ Yes. Update the GitHub security posture and design description: intent, boundari
 - `不明`: case-normalization policy for `owner/repo` (casefold versus preserving the API's canonical form).
 - `不明`: default value of `max_file_read_size_kb`.
 - `不明`: whether write paths should also be denied by path denylist beyond the current behavior ("according to the documented policy").
+- `不明`: whether the maintainer keeps the empty `path_denylist` exception (with a rationale in ADR-004 Group 1) or removes it (NC-001); the answer decides whether this issue also adds a configuration rejection.
 
 ## AI Implementation Instruction
 Add the failing out-of-allowlist and pre-API-access regression tests first. Keep changes inside the GitHub MCP server and its tests, add no extra settings beyond those listed, and stop and report if a read path cannot be routed through `_get_repo()`.
