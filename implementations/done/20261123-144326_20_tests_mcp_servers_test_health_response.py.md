@@ -56,8 +56,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the degradation-path and metrics-block tests | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the degradation-path and metrics-block tests | Completed | 20261123-230806 | 20261123-230806 | Added TestDedupHealthDetails and the DEDUP_METRIC_KEYS constant, plus a seeded_store fixture that opens a tmp_path store the way tests/shared/test_mcp_dedup.py does and seeds one row per state. Every existing assertion is unchanged. Run: tests/mcp_servers/test_health_response.py 14 passed (10 pre-existing plus 4 new). Deviation: the constant lists the 10 payload fields including lock_wait_ms, which the metrics payload writes last; the first run failed on that omission and the constant was corrected. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-230806 | 20261123-230806 | ruff format and check pass, run_validation_gates.py all applicable gates Pass, the suppression-justification hook passes after the nosec justification was written in the em-dash form. End-of-unit run for the health-exposure unit: full suite with coverage 13660 passed 4 skipped, diff-scoped coverage 94 percent against the 90 gate. Deviation: the run was executed once for the whole diff. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

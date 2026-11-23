@@ -27,6 +27,7 @@ from shared.mcp_dedup_rows import (
     AcquisitionResult,
     CallStateView,
     DedupLeaseConflict,
+    DedupMetricsView,
     DedupRow,
     _row_from_record,
     classify_result,
@@ -48,6 +49,10 @@ class DedupLedger:
     _lock: threading.Lock
     _lease_seconds: int
     _max_attempts: int
+
+    # Read bounds for the metrics view (mcpdl005 REQ-004): reporting limits, not thresholds (D-6).
+    DEDUP_READ_TIMEOUT_SECONDS = 10
+    MAX_METRICS_ROW_STATES = 32
 
     # --- write helpers -------------------------------------------------
     def _write_txn(self, statements: list[tuple[str, tuple[Any, ...]]]) -> int:
@@ -478,6 +483,10 @@ class DedupLedger:
         with self._lock:
             return self._fetch_locked(key)
 
+    def get_dedup_metrics_view(self) -> DedupMetricsView:
+        """Read-only view bound to this ledger, for the health metrics read (REQ-004)."""
+        return DedupMetricsView(self)
+
     def call_state_view(
         self, key: str, *, now_epoch: float | None = None
     ) -> CallStateView | None:
@@ -548,6 +557,12 @@ class DedupLedger:
         leave replayable state behind)."""
         self._write_txn([("DELETE FROM dedup_call_state WHERE key = ?", (key,))])
 
+    def _legal_hold_states(self) -> tuple[str, ...]:
+        """States the sweep must skip (REQ-003), read from the store's own config so
+        purge_expired() and its only caller keep their signatures. No config means no hold."""
+        config = getattr(self, "_config", None)
+        return tuple(getattr(config, "legal_hold_states", ())) if config else ()
+
     def purge_expired(
         self, retention_days: int, *, now_epoch: float | None = None
     ) -> int:
@@ -555,18 +570,26 @@ class DedupLedger:
         retention, and attempt history older than retention.
 
         Pending rows are never purged here; their expiry path is classification.
+        Rows in a configured legal-hold state are excluded (REQ-003); with no hold the
+        emitted SQL is byte-identical to before, and a held row is not counted as purged —
+        that is what makes it visible as held rather than as retained at large.
         """
         now = time.time() if now_epoch is None else now_epoch
         cutoff = now - retention_days * 86400
+        hold = self._legal_hold_states()
+        sql = (
+            "DELETE FROM dedup_call_state"
+            " WHERE status IN ('completed', 'failed', 'interrupted')"
+            " AND updated_epoch < ?"
+        )
+        params: tuple[Any, ...] = (cutoff,)
+        if hold:
+            sql += f" AND status NOT IN ({', '.join('?' for _ in hold)})"
+            params += tuple(hold)
         with self._lock:
             try:
                 self._conn.execute("BEGIN IMMEDIATE")
-                cur = self._conn.execute(
-                    "DELETE FROM dedup_call_state"
-                    " WHERE status IN ('completed', 'failed', 'interrupted')"
-                    " AND updated_epoch < ?",
-                    (cutoff,),
-                )
+                cur = self._conn.execute(sql, params)
                 purged_rows = cur.rowcount
                 cur = self._conn.execute(
                     "DELETE FROM call_attempt_history WHERE recorded_epoch < ?",

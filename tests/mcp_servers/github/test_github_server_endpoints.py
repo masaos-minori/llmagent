@@ -27,14 +27,31 @@ with lines 107-112, 122, 133, 144-158, 178 uncovered).
 from __future__ import annotations
 
 import json
+import pathlib
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+import mcp_servers.dispatch as dispatch
 import pytest
 from fastapi.testclient import TestClient
 from mcp_servers.github import github_server
 
 from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
+# The REQ-004 metric fields the health `details.dedup` block publishes (mcpdl005).
+# A per-metric status block appears only when that metric's threshold key is configured.
+DEDUP_FIELDS = {
+    "schema_version",
+    "db_path",
+    "generated_epoch",
+    "row_states",
+    "pending_overdue",
+    "growth_rows_per_hour",
+    "wal_size_bytes",
+    "legal_hold_states",
+    "held_past_retention",
+    "lock_wait_ms",
+}
 
 
 class _FakeService:
@@ -178,6 +195,9 @@ class TestHealthEndpoint:
     def test_degraded_when_github_token_not_set(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # The no-store case: with no store wired the details dict is what it was before this row.
+        monkeypatch.setattr(dispatch, "_dedup_store", None)
+        monkeypatch.setattr(dispatch, "_dedup_config", None)
         monkeypatch.setattr(github_server, "_GITHUB_TOKEN", "")
         resp = client.get("/health")
         assert resp.status_code == 503
@@ -190,6 +210,8 @@ class TestHealthEndpoint:
     def test_healthy_when_github_token_set(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        monkeypatch.setattr(dispatch, "_dedup_store", None)
+        monkeypatch.setattr(dispatch, "_dedup_config", None)
         monkeypatch.setattr(github_server, "_GITHUB_TOKEN", "ghp_test_token")
         resp = client.get("/health")
         assert resp.status_code == 200
@@ -198,6 +220,24 @@ class TestHealthEndpoint:
         assert body["ready"] is True
         assert body["dependencies"] == {}
         assert body["details"] == {"service": "github-mcp"}
+
+    def test_health_details_publish_the_dedup_block_when_a_store_is_wired(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+        isolated_dedup: pathlib.Path,
+    ) -> None:
+        monkeypatch.setattr(github_server, "_GITHUB_TOKEN", "ghp_test_token")
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        body = resp.json()
+
+        # The `service` key stays as it is; `dedup` is the single new key (REQ-004).
+        assert body["details"]["service"] == "github-mcp"
+        assert set(body["details"]) == {"service", "dedup"}
+        block = body["details"]["dedup"]
+        assert set(block) == DEDUP_FIELDS
+        assert block["db_path"] == str(isolated_dedup)
 
 
 class TestDispatchGithubTool:

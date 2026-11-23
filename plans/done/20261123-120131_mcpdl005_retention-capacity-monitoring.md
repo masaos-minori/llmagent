@@ -532,10 +532,10 @@ Table structure and vocabulary: see `templates/execution-status.md`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the retention matrix first (REQ-001, REQ-003). | In Progress | — | — | Implementation procedures generated 20261123-144326; implementation owned by skills/code-implementation. |
-| 2 | Tests written from the matrix, before the code (REQ-001, REQ-002, REQ-003, REQ-008). | In Progress | — | — | Implementation procedures generated 20261123-144326; implementation owned by skills/code-implementation. |
-| 3 | Add the legal-hold exclusion to the terminal-only purge (REQ-002). | In Progress | — | — | Implementation procedures generated 20261123-144326; implementation owned by skills/code-implementation. |
-| 4 | Threshold mechanism, metrics module, health wiring, criteria rows (REQ-004, REQ-005, REQ-007). | In Progress | — | — | Implementation procedures generated 20261123-144326; implementation owned by skills/code-implementation. |
+| 1 | Write the retention matrix first (REQ-001, REQ-003). | Completed | — | 20261123-230914 | Implementation procedures generated 20261123-144326; implementation owned by skills/code-implementation. |
+| 2 | Tests written from the matrix, before the code (REQ-001, REQ-002, REQ-003, REQ-008). | Completed | — | 20261123-230914 | Implementation procedures generated 20261123-144326; implementation owned by skills/code-implementation. |
+| 3 | Add the legal-hold exclusion to the terminal-only purge (REQ-002). | Completed | — | 20261123-230914 | Implementation procedures generated 20261123-144326; implementation owned by skills/code-implementation. |
+| 4 | Threshold mechanism, metrics module, health wiring, criteria rows (REQ-004, REQ-005, REQ-007). | Completed | — | 20261123-230914 | Implementation procedures generated 20261123-144326; implementation owned by skills/code-implementation. |
 | 5 | Record the ADR-008 resolution (REQ-006). | Completed | 2026-11-23 | 2026-11-23 | Reported in `issues/20261123-120131_unknowns.md`; resolved by the repository owner with terminal-row-only scope in `issues/20261123-120131_02_unknowns.md`; recorded in `U-3`, `REQ-002`, and `Assumptions`. |
 | 6 | Deploy after commit and push (all). | Pending | — | — | User's decision; approval gate. |
 
@@ -552,21 +552,21 @@ Table structure and vocabulary: see `templates/execution-status.md`.
 | implementations/20261123-144326_02_docs_23_agent_agent_10_05_operations-and-observability-monitoring.md.md | 4 | Procedure | Pending | — | — |
 | implementations/20261123-144326_03_docs_22_mcp_mcp_02_02_startup-modes-and-health.md.md | 4 | Procedure | Pending | — | — |
 | implementations/20261123-144326_04_docs_22_mcp_mcp_06_01_configuration-file-inventory.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_05_scripts_shared_mcp_dedup_metrics.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_06_scripts_shared_mcp_dedup.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_07_scripts_shared_mcp_dedup_ledger.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261123-144326_08_scripts_shared_mcp_dedup_config.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_09_scripts_mcp_servers_health_response.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_10_scripts_mcp_servers_file_common.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_11_scripts_mcp_servers_cicd_cicd_server.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_12_scripts_mcp_servers_git_git_server.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_13_scripts_mcp_servers_github_github_server.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_14_scripts_mcp_servers_mdq_mdq_server.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_15_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_16_scripts_mcp_servers_shell_shell_server.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_17_scripts_mcp_servers_web_search_web_search_server.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261123-144326_18_tests_shared_test_mcp_dedup.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261123-144326_20_tests_mcp_servers_test_health_response.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261123-144326_05_scripts_shared_mcp_dedup_metrics.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-144326_06_scripts_shared_mcp_dedup.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-144326_07_scripts_shared_mcp_dedup_ledger.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261123-144326_08_scripts_shared_mcp_dedup_config.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-144326_09_scripts_mcp_servers_health_response.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-144326_10_scripts_mcp_servers_file_common.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-144326_11_scripts_mcp_servers_cicd_cicd_server.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-144326_12_scripts_mcp_servers_git_git_server.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-144326_13_scripts_mcp_servers_github_github_server.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-144326_14_scripts_mcp_servers_mdq_mdq_server.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-144326_15_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-144326_16_scripts_mcp_servers_shell_shell_server.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-144326_17_scripts_mcp_servers_web_search_web_search_server.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261123-144326_18_tests_shared_test_mcp_dedup.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-144326_20_tests_mcp_servers_test_health_response.py.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

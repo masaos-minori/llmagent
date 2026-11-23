@@ -39,8 +39,8 @@ Merge the dedup store metrics block into the mdq-mcp `/health` `details`, keepin
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the handler change per Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the handler change per Procedure/Method/Details | Completed | 20261123-223506 | 20261123-223506 | Changed: scripts/mcp_servers/mdq/mdq_server.py (added the health_response import, changed the health_check import from check_health to _degraded_response since check_health has no other use in the file, and health() now composes the response itself from _collect_dependencies plus the already-imported build_mdq_posture and _degraded_response so it owns details and can merge the block; the degraded branch is checked before the healthy branch, in the same order check_health() uses). mdq details content stays as _collect_dependencies() builds it. The reference test test_mdq_health_endpoint.py is unchanged and passes in the combined run of the per-server health test files. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-230806 | 20261123-230806 | This member Step 3e: ruff format and check pass, run_validation_gates.py fast mode all applicable gates Pass, lint-imports 6 contracts kept, mypy clean across scripts/, bandit clean on this file. Validation-plan run of the nine health test files: 248 passed, 1 skipped. Full suite runs once at end of the release unit. End-of-unit run for the health-exposure unit: full suite with coverage 13660 passed 4 skipped, diff-scoped coverage 94 percent, all gates pass. Deviation: the run was executed once for the whole diff. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

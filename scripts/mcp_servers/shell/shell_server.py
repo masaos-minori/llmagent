@@ -29,7 +29,7 @@ from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
-from mcp_servers.health_response import make_health_response
+from mcp_servers.health_response import dedup_health_details, make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCPServer,
@@ -147,6 +147,7 @@ async def health() -> JSONResponse:
         "service": "shell-mcp",
         "sandbox_backend": _service.sandbox_backend,
     }
+    details.update(dedup_health_details())
     result: JSONResponse = make_health_response(
         deps, details, security=_security_posture
     )

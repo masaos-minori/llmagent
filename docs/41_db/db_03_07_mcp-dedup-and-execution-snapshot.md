@@ -92,8 +92,10 @@ is the public facade):
   only then may one reacquisition proceed (`attempt_number + 1`), gated by `dedup.max_attempts`.
   Reacquisition never rewrites the stored snapshot.
 - Attempt history: `call_attempt_history` records every decision (attempt, completed, failed,
-  reconciled) per key with its attempt number. History entries outlive the terminal row's purge
-  cutoff only within the same retention window (see retention sweep below).
+  reconciled) per key with its attempt number. History entries are deleted by their own
+  `recorded_epoch` past the retention cutoff, independently of the parent row's state (see
+  retention sweep below); this state-independent rule is recorded as intentional (`U-5`, owner
+  decision `D-2`).
 - Result size cap: a stored result larger than 8000 serialized characters is replaced by a
   truncated sentinel (`{"truncated": true, "sha256": <full-payload hash>, "preview": <first 1000 chars>}`).
   The preview is built by redacting the serialized text first (bearing tokens, secret query
@@ -117,9 +119,11 @@ is the public facade):
   `scripts/shared/tool_constants.py` remains only as reference data, drift-checked against the
   declarations in tests; there is no config-file `[retry_class]` mirror.
 - Retention sweep: `purge_expired(retention_days)` deletes terminal rows older than the retention
-  window (default 14 days) together with their `call_attempt_history` entries. Pending rows are
-  never purged; their timeout path is lease classification. The dispatcher purges once per
-  process on first use.
+  window (default 14 days), and separately deletes `call_attempt_history` entries recorded before
+  the same cutoff regardless of the parent row's state. States listed in `legal_hold_states`
+  (`[dedup]` config entry) are excluded from the sweep. Pending rows are never purged; their
+  timeout path is lease classification. The dispatcher purges once per process on first use.
+  The per-state eligibility matrix is in the Retention and Capacity Monitoring section below.
 - Idempotency key: the key is the caller-supplied logical call id, carried end to end
   (`X-Idempotency-Key` at the transport; the agent passes `context.call_id` through
   `scripts/agent/tool_runner.py::_logical_call_id`). Nothing is derived — the old hash
@@ -209,6 +213,60 @@ Side notes:
   and never re-dispatches the call.
 - Interrupted rows are never silently re-executed for `non_retryable` tools: the refusal is
   the guarantee, and the operator decides the next step.
+
+## Retention and Capacity Monitoring
+
+Retention eligibility is defined per stored state. The sweep is `purge_expired(retention_days)`
+(`scripts/shared/mcp_dedup_ledger.py`, line 551), run at most once per process on first use by
+`_purge_once` in `scripts/mcp_servers/dispatch.py`; it deletes rows only and never rewrites a
+row's state.
+
+| State or table | Stored status | Retention applies | Rule | Legal hold |
+|---|---|---|---|---|
+| completed | `completed` | Yes | terminal row past the `retention_days` cutoff on `updated_epoch` | excluded when the state is listed in `legal_hold_states` |
+| failed | `failed` | Yes | same terminal rule | same |
+| interrupted | `interrupted` | Yes | same terminal rule | same |
+| pending (unresolved) | `pending` | No | never swept; its lifecycle is `reconcile_execution` (line 395): an expired lease with attempts remaining becomes `interrupted` through the audited transition, and attempts exhausted is a refusal (outcome unknown) | n/a, no held row can exist in this state |
+
+The three result classifications (`reconciliation_required`, `outcome_unknown`,
+`replay_unavailable`) have no stored status; their matrix rows map them to the stored status of
+the row they describe (`pending`, or `interrupted` for an interrupted execution) and are
+state-conditional definitions applied when those states exist — that vocabulary belongs to the
+mcpdl006 plan (`U-6`), and behaviour is asserted only for what is observable.
+
+`call_attempt_history` has no stored state, so its retention cannot be decided by the matrix:
+entries are deleted by `recorded_epoch` past the same cutoff regardless of the parent state,
+recorded as intentional (`U-5`, owner decision `D-2`). A state-dependent history exception would
+need a separate owner approval.
+
+Legal-hold boundary: `legal_hold_states` (new) is an optional `[dedup]` entry listing stored
+state names excluded from the sweep; `purge_expired` gains the `AND status NOT IN (...)`
+exclusion reading the store's own config. Held rows are reported as held, not as
+retained-at-large (`held_past_retention`). Configuration-based only: no schema change, no
+fingerprint change (`U-2`).
+
+Capacity fields — the payload contract of `collect_dedup_metrics()` (new), read-only: no write,
+no migration, no new service. Published through the health `details` block:
+
+| Field | Meaning |
+|---|---|
+| `schema_version` | metrics payload contract version |
+| `db_path`, `generated_epoch` | store path and read time |
+| `row_states` | per-status row counts |
+| `pending_overdue` | `pending` rows with `lease_expires_epoch` past the read time |
+| `growth_rows_per_hour` | rows created within the last hour |
+| `wal_size_bytes` | size of the store's `-wal` file |
+| `lock_wait_ms` | elapsed milliseconds to acquire the store lock and run the reads |
+| `legal_hold_states` | the configured held states |
+| `held_past_retention` | held-state rows past the retention cutoff |
+| `rows`, `growth`, `wal` | per-threshold blocks `value`, `threshold`, `status` (`ok`, `warning`, `fail`); present only when the matching `[dedup]` threshold key is set |
+
+Status-only semantics (owner decision `D-6`): a computed status never changes store or
+dispatcher behaviour, and threshold values are operator-supplied (`U-1`). The operator criteria
+for these fields are in
+[agent_10_05](../23_agent/agent_10_05_operations-and-observability-monitoring.md); the payload
+shape for the wired servers is in [mcp_02_02](../22_mcp/mcp_02_02_startup-modes-and-health.md);
+the key inventory is in [mcp_06_01](../22_mcp/mcp_06_01_configuration-file-inventory.md).
 
 ## Adoption Path (Current-Only Policy)
 

@@ -57,9 +57,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the matrix-shaped purge and lifecycle cases to `TestTtlPurge` | Pending | — | — | |
-| 2 | Add the read-only metrics-view test class | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the matrix-shaped purge and lifecycle cases to `TestTtlPurge` | Completed | 20261123-230806 | 20261123-230806 | Confirmed that test_expired_terminal_states_all_purged already covers completed, failed and interrupted past the cutoff, so no matrix case duplicates it. Added to TestTtlPurge: test_overdue_pending_never_purged, test_reconciled_row_becomes_sweepable, test_held_terminal_row_not_purged, test_no_hold_purge_behaviour_unchanged. Every existing assertion is unchanged. The hold case builds a second store from a DedupStoreConfig passed as config=. Deviation: the per-state decision asserted here is state eligibility plus the hold exclusion, not a per-state threshold, because thresholds are report-only and never gate behaviour (owner decision D-6). The sweep cutoff is updated_epoch, so the reconcile case asserts eligibility at a later clock rather than at the reconcile time. |
+| 2 | Add the read-only metrics-view test class | Completed | 20261123-230806 | 20261123-230806 | Added TestDedupMetricsView: per-state counts, pending_overdue counting only expired leases, created_since after a floor, wal_size_bytes and lock_wait_ms at or above 0, and held_past_retention counting the held row as held. Read-only proven by row count, one get_execution row, _history(), and the connection total_changes being identical before and after the reads. Run: tests/shared/test_mcp_dedup.py 74 passed (68 pre-existing plus 6 new). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-230806 | 20261123-230806 | ruff format and check pass, run_validation_gates.py all applicable gates Pass, mypy clean on the primary invocation, bandit clean, module size pass. End-of-unit run for the release unit (matrix and its test): full suite with coverage 13660 passed 4 skipped, diff-scoped coverage 94 percent against the 90 gate. Deviation: the end-of-unit run was executed once for the whole diff because both release units' changes are in one uncommitted diff. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

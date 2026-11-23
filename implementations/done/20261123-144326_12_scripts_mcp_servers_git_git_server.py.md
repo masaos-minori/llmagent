@@ -38,8 +38,8 @@ Merge the dedup store metrics block into the git-mcp `/health` `details` (REQ-00
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the handler change per Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the handler change per Procedure/Method/Details | Completed | 20261123-223506 | 20261123-223506 | Changed: scripts/mcp_servers/git/git_server.py (the health_response import also imports dedup_health_details, and details.update(dedup_health_details()) is added in health() after the service and audit_failure_count keys are built and before make_health_response). The existing audit_failure_count key is untouched. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-230806 | 20261123-230806 | This member Step 3e: ruff format and check pass, run_validation_gates.py fast mode all applicable gates Pass, lint-imports 6 contracts kept, mypy clean across scripts/, bandit unchanged on this file (the pre-existing B101 finding on the untouched line 366). The reference tests are unchanged and pass: tests/mcp_servers/git/test_git_health_posture.py and tests/mcp_servers/git/test_git_security_compliance.py are green in the combined run of the per-server health test files. Full suite runs once at end of the release unit. End-of-unit run for the health-exposure unit: full suite with coverage 13660 passed 4 skipped, diff-scoped coverage 94 percent, all gates pass. Deviation: the run was executed once for the whole diff. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

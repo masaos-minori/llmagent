@@ -54,8 +54,8 @@ Per-server handler wiring and the metrics module itself (other Plan rows); thres
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-212420 | 20261123-212449 | adversarial verification: anchors exist in current doc; procedure-length finding (78 lines) kept as full form because this row carries the details.dedup field table changed: docs/22_mcp/mcp_02_02_startup-modes-and-health.md (details.dedup paragraph + field table + status/degradation rules + Server-Specific row) |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | — | 20261123-212449 | quality/structure/content_policy pass; consistency --domain mcp: 1 warning for dedup_health_details() (new), allowed red state attributed to sibling seq 09; documentation-only case replaced test runs |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

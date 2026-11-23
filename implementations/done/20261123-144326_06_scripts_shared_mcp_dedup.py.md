@@ -24,17 +24,20 @@
 `scripts/shared/mcp_dedup.py`
 
 ### Procedure
-1. Add a block importing `METRICS_SCHEMA_VERSION` and `collect_dedup_metrics` from `shared.mcp_dedup_metrics`, placed with the other submodule import blocks (the existing pattern at lines 46-80, which imports `shared.mcp_dedup_config`, `shared.mcp_dedup_ledger`, `shared.mcp_dedup_rows`, `shared.mcp_dedup_schema`).
-2. Add both names to `__all__` (lines 85-107), keeping the file's existing grouping: constant names with the constants, snake_case names with `classify_interrupted` and `load_dedup_section`.
+1. Add a block importing `METRICS_SCHEMA_VERSION` and `collect_dedup_metrics` from `shared.mcp_dedup_metrics`, placed with the other submodule import blocks (the existing pattern at lines 46-89, which imports `shared.mcp_call_state_contract`, `shared.mcp_dedup_config`, `shared.mcp_dedup_ledger`, `shared.mcp_dedup_rows`, `shared.mcp_dedup_schema`); the new block goes between `mcp_dedup_ledger` and `mcp_dedup_rows` because ruff rule `I` (isort) orders them by module name.
+2. Add both names to `__all__` (lines 93-121), keeping the file's existing grouping: constant names with the constants, snake_case names with `classify_interrupted` and `load_dedup_section`.
 3. Leave the module docstring's module-family paragraph accurate: add the metrics module to the sentence that lists which submodule owns what.
 
 ### Method
 - Re-export only: no new class, no new argument, no change to `DedupStore`, `open_dedup_store`, or `read_store_identity`.
-- No name collision check is needed: neither name appears in the module today, and `grep` for both names in `scripts/` returns nothing until row 05 lands.
+- No name collision: `grep` for both names in `scripts/` now returns only their definitions in
+  `scripts/shared/mcp_dedup_metrics.py` (row 05, already landed in this batch), so the facade
+  re-export is the only consumer.
 
 ### Details
 - The facade already owns the store lifecycle and the WAL pragma (`scripts/shared/mcp_dedup.py` line 169), and the new names touch neither, so the diff is import-and-list only.
-- Module size stays under the 24576 B gate: the file is 20435 B before this change.
+- Module size stays under the 24576 B gate: the file is 20748 B before this change (the 20435 B
+  figure recorded at generation time is the measured value corrected in this cycle).
 - `tests/shared/test_mcp_dedup.py` imports facade names (`DedupStore`, `DedupStoreConfig`, `open_dedup_store`, `load_dedup_section`) and keeps working unchanged; the new-name assertions live in the row 05 companion test.
 
 ## Compatibility considerations
@@ -64,9 +67,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the import block and the two `__all__` entries per Procedure/Method/Details | Pending | — | — | |
-| 2 | Extend facade coverage in the row 05 companion test rather than a new file here | Pending | — | — | No test file of its own: this row has no companion |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the import block and the two `__all__` entries per Procedure/Method/Details | Completed | — | 20261123-215732 | changed: scripts/shared/mcp_dedup.py (import block between mcp_dedup_ledger and mcp_dedup_rows, two __all__ entries, module-family docstring sentence). 3b corrections: isort placement, __all__ line range 93-121, measured size 20748 B, names now exist from row 05. |
+| 2 | Extend facade coverage in the row 05 companion test rather than a new file here | Completed | — | 20261123-220043 | No test file of its own: this row has no companion No test file of its own. Facade coverage is asserted in tests/shared/test_mcp_dedup_metrics.py TestFacadeReExport (row 05 companion), which is red only on symbols a later member creates. Impact-selected run for this file: tests/shared/test_mcp_dedup.py 55 passed, 13 deselected. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-230806 | 20261123-230806 | This member's Step 3e: ruff format/check pass, tools/run_validation_gates.py fast mode all applicable gates Pass, lint-imports 6 contracts kept, bandit reports only the pre-existing B101 at line 385. mypy is red only on symbols created by siblings (view = row 07, config fields = row 08). Full suite runs once at end of the release unit. End-of-unit run for the release unit: full suite with coverage 13660 passed 4 skipped, diff-scoped coverage 94 percent against the 90 gate, all other gates pass. Deviation: the run was executed once for the whole diff, as recorded in row 05. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

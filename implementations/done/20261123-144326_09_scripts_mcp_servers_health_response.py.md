@@ -69,8 +69,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `dedup_health_details()` (new) per Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | No test step: the payload assertions belong to `tests/mcp_servers/test_health_response.py` (row 20) and `tests/shared/test_mcp_dedup.py` (row 18) |
+| 1 | Implement `dedup_health_details()` (new) per Procedure/Method/Details | Completed | — | 20261123-222910 | Changed: scripts/mcp_servers/health_response.py (dedup_health_details new, module logger, logging and sqlite3 imports). make_health_response unchanged: same payload keys, defaults, status-code selection, signature, defensive details copy. Store and config are read through the imported dispatch module with getattr, and the dispatcher import is function-local so module import order is unchanged. Degradation returns an empty dict and logs a warning; the returned dict is new so the caller's details is never mutated. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261123-222916 | No test step: the payload assertions belong to `tests/mcp_servers/test_health_response.py` (row 20) and `tests/shared/test_mcp_dedup.py` (row 18) This member Step 3e: ruff format/check pass, run_validation_gates.py fast mode all applicable gates Pass, lint-imports 6 contracts kept, mypy clean across scripts/, bandit clean on this file. tests/mcp_servers/test_health_response.py 10 passed unchanged, and the check_doc_symbols warning for dedup_health_details is resolved by this row. Full suite runs once at end of the release unit. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -23,7 +23,7 @@ N/A: docs-only change.
 ### Procedure
 - In the `## Monitoring Partial Completions and Truncation` table, add a new row `Dedup Store Capacity Status (MCP dedup store)` directly after the `Dedup Protection Degraded (MCP dedup store)` row.
 - Detection Method cell: each wired server's `GET /health` `details.dedup` block reports per-metric `status` (`ok`/`warning`/`fail`) for row count, row growth, and WAL size against the optional `[dedup]` threshold keys `max_dedup_rows`, `max_dedup_growth_per_hour`, `max_dedup_wal_mb`; absent keys report no status and an unavailable store reports no `dedup` key; `legal_hold_states` and `held_past_retention` report held-state rows past the retention as held rows.
-- Action cell: check the configured thresholds and `retention_days`; terminal rows past the retention are swept at server startup, unresolved states are not swept — their lifecycle belongs to `reconcile_execution()` and the matrix in [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md).
+- Action cell: check the configured thresholds and `retention_days`; terminal rows past the retention are swept at most once per process on first use, unresolved states are not swept — their lifecycle belongs to `reconcile_execution()` and the matrix in [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md).
 - Add a short paragraph under the table: the existing `Dedup Protection Degraded` row stays as a list of log conditions, and its numeric criteria are the thresholds this Plan's monitoring phase wires; no automatic action or alert is introduced.
 ### Method
 - Table-row and paragraph additions only; match the table's existing cell and relative-link style; no new section and no `## Needs Confirmation` subsection (open decisions live in the Plan's Unknowns).
@@ -53,8 +53,8 @@ Threshold values (`U-1`); alert delivery (`U-7`); automatic restart/escalation/p
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-212240 | 20261123-212329 | 3b correction applied: sweep trigger corrected to once-per-process on first use; procedure-length finding (77 lines) kept as full form because this row carries criteria-table cell text; no test step applies (documentation-only case, replaced by tool-gates checkers) changed: docs/23_agent/agent_10_05_operations-and-observability-monitoring.md (capacity criteria row + status-only paragraph) |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | — | 20261123-212329 | checkers pass; consistency warning in agent_14 is pre-existing, unrelated to this cycle; documentation-only case replaced tool-gates checkers for tests |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

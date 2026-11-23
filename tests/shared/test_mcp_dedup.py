@@ -519,6 +519,158 @@ class TestTtlPurge:
         row = store.get_execution("k1")
         assert row is not None and row.status == "pending"
 
+    def test_overdue_pending_never_purged(self, store):
+        # REQ-002: an expired lease is reported as overdue by the read path, but the
+        # sweep still leaves the pending row outside its scope.
+        now = time.time()
+        old = now - 30 * 86400
+        store.try_acquire_execution(
+            "k1", "web_search", "h1", _SNAP, "owner-a", now_epoch=old
+        )
+        row = store.get_execution("k1")
+        assert row is not None and row.lease_expires_epoch < now
+        assert store.get_dedup_metrics_view().pending_overdue(now) == 1
+        assert store.purge_expired(retention_days=14, now_epoch=now) == 0
+        assert store.get_execution("k1") is not None
+
+    def test_reconciled_row_becomes_sweepable(self, store):
+        # A stale pending row is outside the sweep until reconciliation moves it to a
+        # terminal state; the row's own updated_epoch then decides the cutoff.
+        now = time.time()
+        old = now - 30 * 86400
+        store.try_acquire_execution(
+            "k1", "web_search", "h1", _SNAP, "owner-a", now_epoch=old
+        )
+        assert store.purge_expired(retention_days=14, now_epoch=now) == 0
+        store.reconcile_execution("k1", now_epoch=now)
+        assert store.get_execution("k1").status == "interrupted"
+        later = now + 15 * 86400
+        assert store.purge_expired(retention_days=14, now_epoch=later) == 1
+        assert store.get_execution("k1") is None
+
+    def test_held_terminal_row_not_purged(self, tmp_path):
+        # REQ-003: the same age means different actions per state. The held state is
+        # skipped by the sweep and stays visible as held rather than as retained at large.
+        now = time.time()
+        old = now - 15 * 86400
+        cfg = DedupStoreConfig(
+            db_path=str(tmp_path / "held.sqlite"), legal_hold_states=("completed",)
+        )
+        store = DedupStore(str(cfg.db_path), lease_seconds=30, config=cfg)
+        try:
+            store.try_acquire_execution(
+                "kc", "web_search", "h1", _SNAP, "o", now_epoch=old
+            )
+            store.record_completed("kc", _SNAP, "done", "o", now_epoch=old)
+            store.try_acquire_execution(
+                "kf", "web_search", "h2", _SNAP, "o", now_epoch=old
+            )
+            store.record_failed("kf", "timeout", "o", now_epoch=old)
+            assert store.purge_expired(retention_days=14, now_epoch=now) == 1
+            assert store.get_execution("kc") is not None
+            assert store.get_execution("kf") is None
+            view = store.get_dedup_metrics_view()
+            assert view.row_states() == {"completed": 1}
+            assert view.held_past_retention(now, retention_days=14) == 1
+        finally:
+            store.close()
+
+    def test_no_hold_purge_behaviour_unchanged(self, store):
+        # Without a configured hold the sweep is what it was before this row: every
+        # terminal state past the cutoff is deleted, and nothing is reported as held.
+        now = time.time()
+        old = now - 15 * 86400
+        assert store._legal_hold_states() == ()
+        store.try_acquire_execution("kc", "web_search", "h1", _SNAP, "o", now_epoch=old)
+        store.record_completed("kc", _SNAP, "done", "o", now_epoch=old)
+        store.try_acquire_execution("kf", "web_search", "h2", _SNAP, "o", now_epoch=old)
+        store.record_failed("kf", "timeout", "o", now_epoch=old)
+        store.try_acquire_execution("ki", "web_search", "h3", _SNAP, "o", now_epoch=old)
+        store.mark_interrupted("ki", "o", now_epoch=old)
+        assert store.purge_expired(retention_days=14, now_epoch=now) == 3
+        for key in ("kc", "kf", "ki"):
+            assert store.get_execution(key) is None
+        assert store.get_dedup_metrics_view().held_past_retention(now, 14) == 0
+
+
+class TestDedupMetricsView:
+    def test_view_reports_counts_and_boundaries(self, tmp_path):
+        now = time.time()
+        old = now - 30 * 86400
+        cfg = DedupStoreConfig(
+            db_path=str(tmp_path / "view.sqlite"),
+            retention_days=14,
+            max_dedup_rows=3000,
+            max_dedup_growth_per_hour=500,
+            max_dedup_wal_mb=64,
+            legal_hold_states=("completed",),
+        )
+        store = DedupStore(str(cfg.db_path), lease_seconds=30, config=cfg)
+        try:
+            store.try_acquire_execution(
+                "kc", "web_search", "h1", _SNAP, "o", now_epoch=old
+            )
+            store.record_completed("kc", _SNAP, "done", "o", now_epoch=old)
+            store.try_acquire_execution(
+                "kp", "web_search", "h2", _SNAP, "o", now_epoch=old
+            )
+            view = store.get_dedup_metrics_view()
+            assert view.db_path == str(cfg.db_path)
+            assert view.row_states() == {"completed": 1, "pending": 1}
+            # `pending_overdue` counts only rows whose lease is past the clock it is given.
+            assert view.pending_overdue(now) == 1
+            assert view.pending_overdue(old) == 0
+            assert view.created_since(now - 3600) == 0
+            assert view.created_since(old) == 2
+            # REQ-003: the held row is counted as held, not as retained at large (AC-3).
+            assert view.held_past_retention(now, cfg.retention_days) == 1
+            assert view.wal_size_bytes() >= 0
+            assert view.lock_wait_ms() >= 0
+        finally:
+            store.close()
+
+    def test_read_pass_leaves_the_ledger_unchanged(self, tmp_path):
+        # AC-8: the view issues reads only, so a metrics pass cannot mutate the ledger.
+        now = time.time()
+        old = now - 30 * 86400
+        cfg = DedupStoreConfig(
+            db_path=str(tmp_path / "readonly.sqlite"), legal_hold_states=("completed",)
+        )
+        store = DedupStore(str(cfg.db_path), lease_seconds=30, config=cfg)
+        try:
+            store.try_acquire_execution(
+                "kc", "web_search", "h1", _SNAP, "o", now_epoch=old
+            )
+            store.record_completed("kc", _SNAP, "done", "o", now_epoch=old)
+            view = store.get_dedup_metrics_view()
+            before_count = store._conn.execute(
+                "SELECT COUNT(*) FROM dedup_call_state"
+            ).fetchone()[0]
+            before_row = store.get_execution("kc")
+            before_history = _history(store)
+            before_changes = store._conn.total_changes
+
+            for value in (
+                view.row_states(),
+                view.pending_overdue(now),
+                view.created_since(now - 3600),
+                view.held_past_retention(now, cfg.retention_days),
+                view.wal_size_bytes(),
+            ):
+                assert value is not None
+
+            after_count = store._conn.execute(
+                "SELECT COUNT(*) FROM dedup_call_state"
+            ).fetchone()[0]
+            assert after_count == before_count
+            assert store.get_execution("kc") == before_row
+            assert _history(store) == before_history
+            # No write happened on the connection during the pass.
+            assert store._conn.total_changes == before_changes
+            assert view.lock_wait_ms() >= 0
+        finally:
+            store.close()
+
 
 class TestLeaseClassification:
     def test_expired_lease_classifies_interrupted_without_mutation(self, store):

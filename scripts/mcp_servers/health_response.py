@@ -16,8 +16,14 @@ Usage:
 
 from __future__ import annotations
 
+import logging
+import sqlite3
+
 from fastapi.responses import JSONResponse
+from shared.mcp_dedup import collect_dedup_metrics
 from shared.security.posture_contract import SecurityPosture
+
+logger = logging.getLogger(__name__)
 
 HEALTH_STATUS_OK = "ok"
 HEALTH_STATUS_DEGRADED = "degraded"
@@ -55,3 +61,30 @@ def make_health_response(
     if security is not None:
         payload["security"] = security.to_dict()
     return JSONResponse(payload, status_code=status_code)
+
+
+def dedup_health_details() -> dict[str, object]:
+    """Build the `details.dedup` block for a server's health response (REQ-004).
+
+    The store and config are read through the imported dispatcher module, because a module-level
+    name import would capture `None` at import time. The dispatcher import is function-local so
+    module import order stays as it is.
+
+    Returns:
+        `{"dedup": <metrics payload>}`, or `{}` when there is no store, no config, or the read
+        cannot complete. Degradation is silent by design, mirroring `_purge_once`: `/health` never
+        fails because the store is busy or broken, and a reported status never gates behaviour (D-6).
+        The dict returned is new, so the `details` dict a caller passes to `make_health_response`
+        is never mutated and each server's `service` key stays as it is.
+    """
+    from mcp_servers import dispatch
+
+    store = getattr(dispatch, "_dedup_store", None)
+    config = getattr(dispatch, "_dedup_config", None)
+    if store is None or config is None:
+        return {}
+    try:
+        return {"dedup": collect_dedup_metrics(store, config)}
+    except (sqlite3.Error, OSError) as exc:
+        logger.warning("dedup metrics read failed, no dedup block reported: %s", exc)
+        return {}

@@ -38,8 +38,8 @@ Merge the dedup store metrics block into the web-search-mcp `/health` `details`,
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the handler change per Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the handler change per Procedure/Method/Details | Completed | 20261123-223506 | 20261123-223506 | Changed: scripts/mcp_servers/web_search/web_search_server.py (the health_response import also imports dedup_health_details, and details.update(dedup_health_details()) is added in health_endpoint() after the service, provider, metrics, browser_provider and browser_metrics keys are built and before make_health_response). The existing metrics keys are not renamed or touched, and the local metrics module and the deps degradation branches stay as they are. The reference test test_web_search_health.py is unchanged and passes: 35 passed. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-230806 | 20261123-230806 | This member Step 3e: ruff format and check pass, run_validation_gates.py fast mode all applicable gates Pass, lint-imports 6 contracts kept, mypy clean across scripts/, bandit clean on this file. Validation-plan run of the nine health test files: 248 passed, 1 skipped. Full suite runs once at end of the release unit. End-of-unit run for the health-exposure unit: full suite with coverage 13660 passed 4 skipped, diff-scoped coverage 94 percent, all gates pass. Deviation: the run was executed once for the whole diff. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

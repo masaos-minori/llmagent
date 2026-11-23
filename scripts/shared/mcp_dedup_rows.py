@@ -4,6 +4,10 @@ The ledger row/acquisition records, the stored-result cap, read-time lease
 classification, and the typed store/lease errors (REQ-002/REQ-006). Split from
 shared/mcp_dedup.py by the scripts/ module size gate (24576 B); re-exported
 through the shared.mcp_dedup facade.
+
+The metrics view at the end of this file is the read-only projection of one
+ledger for the health `details` block (mcpdl005 REQ-004): it borrows the
+ledger's lock and connection and issues no write.
 """
 
 from __future__ import annotations
@@ -15,7 +19,11 @@ import sqlite3
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from shared.mcp_dedup_ledger import DedupLedger
 
 from shared.mcp_call_state_contract import RESULT_CLASSES
 from shared.mcp_dedup_schema import RESULT_MAX_CHARS, RESULT_PREVIEW_CHARS
@@ -234,3 +242,115 @@ def classify_interrupted(
         # back to the lease window measured from the row's creation.
         expired = now - row.created_epoch > lease_seconds
     return "interrupted" if expired else "pending"
+
+
+class DedupMetricsView:
+    """Read-only projection of one ledger for the health `details` block (REQ-004).
+
+    Bound to the ledger's own `_lock` and `_conn`, so the metrics read uses the store's
+    configured busy_timeout and no second connection. Every helper issues one SELECT or one file
+    stat and returns a JSON-safe value — counts and the store path, never `snapshot_json`,
+    `result_json`, key values, or owner ids. No write and no `BEGIN IMMEDIATE`, so a read cannot
+    mutate the ledger or extend a lease. A helper returns None when the lock is not acquired within
+    the ledger's `DEDUP_READ_TIMEOUT_SECONDS`; the reported status never gates store or dispatcher
+    behaviour (owner decision D-6).
+    """
+
+    def __init__(self, ledger: DedupLedger) -> None:
+        self._ledger = ledger
+        self._wait_ms = 0
+
+    @property
+    def db_path(self) -> str:
+        """The store path, the same value the store's public property exposes."""
+        return str(getattr(self._ledger, "db_path", ""))
+
+    def lock_wait_ms(self) -> int:
+        """Milliseconds this pass spent acquiring the lock; read it last."""
+        return self._wait_ms
+
+    def _acquire(self) -> bool:
+        """Acquire the ledger lock within the read bound, accumulating the elapsed wait.
+
+        The wait is recorded on a failed attempt too, so `lock_wait_ms` reports what the pass
+        actually spent waiting, not only the successful acquisitions.
+        """
+        started = time.monotonic()
+        acquired = self._ledger._lock.acquire(
+            timeout=self._ledger.DEDUP_READ_TIMEOUT_SECONDS
+        )
+        self._wait_ms += int((time.monotonic() - started) * 1000)
+        return acquired
+
+    def _count(self, sql: str, params: tuple[Any, ...]) -> int | None:
+        """One COUNT under the ledger lock; None when the read bound is exceeded."""
+        if not self._acquire():
+            return None
+        try:
+            rec = self._ledger._conn.execute(sql, params).fetchone()
+            return int(rec[0]) if rec is not None else None
+        finally:
+            self._ledger._lock.release()
+
+    def row_states(self) -> dict[str, int] | None:
+        """Per-status counts, at most `MAX_METRICS_ROW_STATES` distinct states."""
+        if not self._acquire():
+            return None
+        try:
+            return {
+                rec[0]: int(rec[1])
+                for rec in self._ledger._conn.execute(
+                    "SELECT status, COUNT(*) FROM dedup_call_state GROUP BY status LIMIT ?",
+                    (self._ledger.MAX_METRICS_ROW_STATES,),
+                )
+            }
+        finally:
+            self._ledger._lock.release()
+
+    def pending_overdue(self, now_epoch: float) -> int | None:
+        """Pending rows whose lease is past `now_epoch`."""
+        return self._count(
+            "SELECT COUNT(*) FROM dedup_call_state"
+            " WHERE status = 'pending' AND lease_expires_epoch < ?",
+            (now_epoch,),
+        )
+
+    def created_since(self, floor_epoch: float) -> int | None:
+        """Rows with `created_epoch` at or after `floor_epoch`."""
+        return self._count(
+            "SELECT COUNT(*) FROM dedup_call_state WHERE created_epoch >= ?",
+            (floor_epoch,),
+        )
+
+    def held_past_retention(self, now_epoch: float, retention_days: int) -> int | None:
+        """Held rows past the retention age: what the sweep left behind (REQ-003).
+
+        0 when no hold is configured; None when the lock is not acquired within the read bound,
+        the same contract as the other helpers.
+        """
+        if not self._acquire():
+            return None
+        held = tuple(self._ledger._legal_hold_states())
+        try:
+            if not held:
+                return 0
+            placeholders = ", ".join("?" for _ in held)
+            sql = f"SELECT COUNT(*) FROM dedup_call_state WHERE status IN ({placeholders}) AND updated_epoch < ?"  # nosec B608 — the placeholder list is generated from the validated LEGAL_HOLD_STATES names, every value bound through ? parameters
+            rec = self._ledger._conn.execute(
+                sql,
+                (*held, now_epoch - retention_days * 86400),
+            ).fetchone()
+            return int(rec[0]) if rec is not None else None
+        finally:
+            self._ledger._lock.release()
+
+    def wal_size_bytes(self) -> int | None:
+        """Size of the store's `-wal` file; 0 when the file does not exist."""
+        if not self._acquire():
+            return None
+        try:
+            return int(Path(f"{self.db_path}-wal").stat().st_size)
+        except OSError:
+            return 0
+        finally:
+            self._ledger._lock.release()

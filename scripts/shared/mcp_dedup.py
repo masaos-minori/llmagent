@@ -26,7 +26,8 @@ marker, and operator resolution) and re-exports the public surface; every
 (REQ-010), shared/mcp_dedup_schema.py the canonical DDL and state vocabularies,
 shared/mcp_dedup_rows.py the row/result records and typed errors, and
 shared/mcp_dedup_ledger.py the call-ledger state machine (the DedupLedger base
-of DedupStore). The store opens only through an injected `DedupStoreConfig`
+of DedupStore), and shared/mcp_dedup_metrics.py the read-only capacity metrics
+payload assembled from the ledger's metrics view (mcpdl005 REQ-004). The store opens only through an injected `DedupStoreConfig`
 (REQ-001): this module performs no config discovery and keeps no cache
 (REQ-003). The fingerprint written at first init is compared on every reopen
 (`identity_mismatch` refusal, REQ-007).
@@ -61,6 +62,10 @@ from shared.mcp_dedup_config import (
     load_dedup_section,
 )
 from shared.mcp_dedup_ledger import DedupLedger
+from shared.mcp_dedup_metrics import (
+    METRICS_SCHEMA_VERSION,
+    collect_dedup_metrics,
+)
 from shared.mcp_dedup_rows import (
     AcquisitionResult,
     CallStateView,
@@ -105,6 +110,7 @@ __all__ = [
     "DedupStore",
     "DedupStoreConfig",
     "DedupStoreError",
+    "METRICS_SCHEMA_VERSION",
     "RECONCILE_OUTCOMES",
     "RESULT_CLASSES",
     "RESULT_MAX_CHARS",
@@ -114,6 +120,7 @@ __all__ = [
     "TERMINAL_STATES",
     "classify_interrupted",
     "classify_result",
+    "collect_dedup_metrics",
     "load_dedup_section",
     "open_dedup_store",
     "read_store_identity",

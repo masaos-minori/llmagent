@@ -45,7 +45,7 @@ from mcp_servers.dispatch import (
     _to_call_tool_response,
     dispatch_tool,
 )
-from mcp_servers.health_response import make_health_response
+from mcp_servers.health_response import dedup_health_details, make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCPServer,
@@ -197,6 +197,7 @@ async def health() -> JSONResponse:
     except (RuntimeError, OSError):
         deps["config"] = "check failed"
     details: dict[str, object] = {"service": "cicd-mcp"}
+    details.update(dedup_health_details())
     result: JSONResponse = make_health_response(
         deps, details, security=_security_posture
     )

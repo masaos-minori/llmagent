@@ -22,7 +22,7 @@ from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response
-from mcp_servers.health_response import make_health_response
+from mcp_servers.health_response import dedup_health_details, make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCPServer,
@@ -145,6 +145,7 @@ async def health_endpoint() -> JSONResponse:
     details["metrics"] = metrics.snapshot()
     details["browser_provider"] = health.browser_health_details()
     details["browser_metrics"] = metrics.browser_snapshot()
+    details.update(dedup_health_details())
     if health.is_degraded():
         deps["web_search_provider"] = "degraded: repeated provider failures"
     if health.is_browser_degraded():

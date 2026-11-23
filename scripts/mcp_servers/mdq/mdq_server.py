@@ -30,8 +30,9 @@ from shared.security.result_dto import SecurityCheckStatus
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
+from mcp_servers.health_response import dedup_health_details, make_health_response
 from mcp_servers.mdq.audit_target import extract_audit_target
-from mcp_servers.mdq.health_check import _collect_dependencies, check_health
+from mcp_servers.mdq.health_check import _collect_dependencies, _degraded_response
 from mcp_servers.mdq.mdq_models import (
     GetChunkRequest,
     GrepDocsRequest,
@@ -445,7 +446,25 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 @app.get("/health")
 async def health() -> JSONResponse:
     """Return health check status."""
-    result: JSONResponse = check_health()
+    # The handler composes the response itself from the parts check_health() uses, so it owns
+    # details and can merge the read-only dedup block into it. The branches are the same as
+    # check_health()'s, so the payload is otherwise identical.
+    (
+        deps,
+        details,
+        mdq_cfg,
+        db_file_present,
+        schema_error,
+        schema_checked,
+        index_stats,
+    ) = _collect_dependencies()
+    details.update(dedup_health_details())
+    posture = build_mdq_posture(
+        mdq_cfg, db_file_present, schema_error, schema_checked, index_stats
+    )
+    if deps:
+        return _degraded_response(deps, details, posture)
+    result: JSONResponse = make_health_response(deps, details, security=posture)
     return result
 
 

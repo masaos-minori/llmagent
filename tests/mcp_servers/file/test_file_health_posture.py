@@ -2,7 +2,9 @@
 
 Tests for scripts/mcp_servers/file/common.py: _health() publishes a Security Posture through the
 shared response builder, keeps the payload unchanged when no posture is supplied, and never folds
-posture data into details.
+posture data into details. The same details dict is the one the read-only dedup metrics block is
+published through (mcpdl005 REQ-004), so the no-store case is kept as the exact-equality assertion
+and the store-configured case asserts the single "dedup" key.
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import mcp_servers.dispatch as dispatch
 import pytest
 from fastapi.responses import JSONResponse
 from mcp_servers.file.common import _health
@@ -38,6 +41,20 @@ POSTURE_KEYS = {
     "ready",
     "fingerprint",
     "checks",
+}
+# The REQ-004 metric fields the health `details.dedup` block publishes (mcpdl005).
+# A per-metric status block appears only when that metric's threshold key is configured.
+DEDUP_FIELDS = {
+    "schema_version",
+    "db_path",
+    "generated_epoch",
+    "row_states",
+    "pending_overdue",
+    "growth_rows_per_hour",
+    "wal_size_bytes",
+    "legal_hold_states",
+    "held_past_retention",
+    "lock_wait_ms",
 }
 
 
@@ -141,9 +158,29 @@ class TestHealthWithPosture:
 
     @pytest.mark.asyncio
     async def test_posture_data_is_not_folded_into_details(
-        self, tmp_path: Path
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # The no-store case: with no store wired, details is what it was before this row.
+        monkeypatch.setattr(dispatch, "_dedup_store", None)
+        monkeypatch.setattr(dispatch, "_dedup_config", None)
         response = await _health([str(tmp_path)], _posture(validated=True))
         body = _body(response)
 
         assert body["details"] == {}
+
+    @pytest.mark.asyncio
+    async def test_details_carries_the_dedup_block_when_a_store_is_wired(
+        self, tmp_path: Path, isolated_dedup: Path
+    ) -> None:
+        response = await _health([str(tmp_path)], _posture(validated=True))
+        body = _body(response)
+
+        # `dedup` is the single new details key, and nothing of the posture is folded into it.
+        details = body["details"]
+        assert isinstance(details, dict)
+        assert set(details) == {"dedup"}
+        block = details["dedup"]
+        assert isinstance(block, dict)
+        assert set(block) == DEDUP_FIELDS
+        assert block["db_path"] == str(isolated_dedup)
+        assert not (set(block) & POSTURE_KEYS)

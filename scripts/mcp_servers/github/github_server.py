@@ -56,7 +56,7 @@ from mcp_servers.github.github_service_dispatch import GitHubService
 from mcp_servers.github.github_service_init import _GITHUB_TOKEN, build_service
 from mcp_servers.github.github_service_security import validate_github_security
 from mcp_servers.github.github_tools import TOOL_LIST
-from mcp_servers.health_response import make_health_response
+from mcp_servers.health_response import dedup_health_details, make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCPServer,
@@ -177,6 +177,7 @@ async def health() -> JSONResponse:
     if not _GITHUB_TOKEN:
         deps["github_token"] = "not_set"
     details: dict[str, object] = {"service": "github-mcp"}
+    details.update(dedup_health_details())
     result: JSONResponse = make_health_response(
         deps, details, security=_security_posture
     )

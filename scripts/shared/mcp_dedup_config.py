@@ -43,6 +43,26 @@ _DEDUP_INT_KEYS: dict[str, tuple[int, int, int]] = {
     "max_attempts": (DEFAULT_MAX_ATTEMPTS, *_MAX_ATTEMPTS_RANGE),
 }
 
+_MAX_DEDUP_ROWS_RANGE = (1, 10000000)
+_MAX_DEDUP_GROWTH_PER_HOUR_RANGE = (1, 1000000)
+_MAX_DEDUP_WAL_MB_RANGE = (1, 4096)
+
+# Optional capacity keys (REQ-007). These are validation ranges, not threshold values:
+# the values themselves are operator-supplied (U-1), so no default is invented here and an
+# absent key stays unset. None of these names is part of `_config_fingerprint`, so store
+# identity is unchanged (owner decision D-5).
+DEDUP_OPTIONAL_INT_KEYS: dict[str, tuple[int, int]] = {
+    # name -> (low, high)
+    "max_dedup_rows": _MAX_DEDUP_ROWS_RANGE,
+    "max_dedup_growth_per_hour": _MAX_DEDUP_GROWTH_PER_HOUR_RANGE,
+    "max_dedup_wal_mb": _MAX_DEDUP_WAL_MB_RANGE,
+}
+
+# States the legal-hold list may name (REQ-003), the four row states of the `status` CHECK in
+# shared/mcp_dedup_schema.py. Kept as a module-level frozenset so the shared leaf gains no new
+# import.
+LEGAL_HOLD_STATES = frozenset({"pending", "completed", "failed", "interrupted"})
+
 
 @dataclass(frozen=True)
 class DedupStoreConfig:
@@ -53,6 +73,12 @@ class DedupStoreConfig:
     pending_timeout_minutes: int = DEFAULT_PENDING_TIMEOUT_MINUTES
     lease_seconds: int = DEFAULT_LEASE_SECONDS
     max_attempts: int = DEFAULT_MAX_ATTEMPTS
+    # Unset when the key is absent: these report-only boundaries never change store or
+    # dispatcher behaviour (owner decision D-6) and are excluded from _config_fingerprint (D-5).
+    max_dedup_rows: int | None = None
+    max_dedup_growth_per_hour: int | None = None
+    max_dedup_wal_mb: int | None = None
+    legal_hold_states: tuple[str, ...] = ()
 
 
 def _config_fingerprint(config: DedupStoreConfig) -> str:
@@ -101,6 +127,59 @@ def _validated_int(
     return int(raw)
 
 
+def _validated_optional_int(
+    filename: str,
+    dedup: Mapping[str, Any],
+    name: str,
+    low: int,
+    high: int,
+) -> int | None:
+    """Validate one optional capacity key (REQ-007), fail-closed like the committed keys.
+
+    An absent key returns `None` — no default value is invented for it (U-1). The checks and the
+    `dedup.<name>` message shapes are the same as `_validated_int()`: reject a bool or a non-int,
+    then reject a value outside the inclusive bounds.
+    """
+    if name not in dedup:
+        return None
+    raw = dedup[name]
+    if isinstance(raw, bool) or not isinstance(raw, int):
+        raise ConfigParseError(filename, ValueError(f"dedup.{name} must be an integer"))
+    if not low <= raw <= high:
+        raise ConfigParseError(
+            filename,
+            ValueError(f"dedup.{name} out of range {low}..{high}: {raw}"),
+        )
+    return int(raw)
+
+
+def _validated_hold_states(filename: str, dedup: Mapping[str, Any]) -> tuple[str, ...]:
+    """Validate the optional `legal_hold_states` list (REQ-003).
+
+    Absent or empty means no hold. A list is fail-closed: every name must be a string and a
+    stored row state (`LEGAL_HOLD_STATES`), so the list cannot name anything the store does not
+    hold.
+    """
+    raw = dedup.get("legal_hold_states")
+    if raw is None:
+        return ()
+    if not isinstance(raw, list):
+        raise ConfigParseError(
+            filename,
+            ValueError("dedup.legal_hold_states must be a list of state names"),
+        )
+    for state in raw:
+        if not isinstance(state, str) or state not in LEGAL_HOLD_STATES:
+            raise ConfigParseError(
+                filename,
+                ValueError(
+                    f"dedup.legal_hold_states names a state that is not a stored row state: "
+                    f"{state}"
+                ),
+            )
+    return tuple(raw)
+
+
 def load_dedup_section(
     section: Mapping[str, Any] | None, filename: str
 ) -> DedupStoreConfig:
@@ -112,7 +191,9 @@ def load_dedup_section(
     table raises `ConfigMissingError`; invalid types, booleans-as-integers,
     unknown keys, out-of-range integers, and a `db_path` that is not the
     canonical store path (`dedup_db_dir() / mcp_dedup.sqlite`) raise
-    `ConfigParseError` with `dedup.<key>`-prefixed messages (REQ-006).
+    `ConfigParseError` with `dedup.<key>`-prefixed messages (REQ-006). The optional capacity
+    keys and `legal_hold_states` (REQ-003, REQ-007) are validated by the same contract: absent
+    means unset, and nothing here invents a threshold value (U-1).
     """
     if section is None:
         raise ConfigMissingError(f"{filename} carries no [dedup] table")
@@ -139,7 +220,13 @@ def load_dedup_section(
             ),
         )
 
-    unknown_keys = sorted(set(section) - {"db_path"} - set(_DEDUP_INT_KEYS))
+    unknown_keys = sorted(
+        set(section)
+        - {"db_path"}
+        - set(_DEDUP_INT_KEYS)
+        - set(DEDUP_OPTIONAL_INT_KEYS)
+        - {"legal_hold_states"}
+    )
     if unknown_keys:
         raise ConfigParseError(
             filename, ValueError(f"unknown dedup keys: {', '.join(unknown_keys)}")
@@ -149,10 +236,18 @@ def load_dedup_section(
         name: _validated_int(filename, section, name, spec[0], spec[1], spec[2])
         for name, spec in _DEDUP_INT_KEYS.items()
     }
+    optional = {
+        name: _validated_optional_int(filename, section, name, spec[0], spec[1])
+        for name, spec in DEDUP_OPTIONAL_INT_KEYS.items()
+    }
     return DedupStoreConfig(
         db_path=db_path,
         retention_days=values["retention_days"],
         pending_timeout_minutes=values["pending_timeout_minutes"],
         lease_seconds=values["lease_seconds"],
         max_attempts=values["max_attempts"],
+        max_dedup_rows=optional["max_dedup_rows"],
+        max_dedup_growth_per_hour=optional["max_dedup_growth_per_hour"],
+        max_dedup_wal_mb=optional["max_dedup_wal_mb"],
+        legal_hold_states=_validated_hold_states(filename, section),
     )

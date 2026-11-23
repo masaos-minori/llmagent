@@ -49,7 +49,7 @@ from mcp_servers.git.git_security import (
 from mcp_servers.git.git_service import build_service
 from mcp_servers.git.git_tools import TOOL_LIST
 from mcp_servers.git.repository_state import RepositoryState
-from mcp_servers.health_response import make_health_response
+from mcp_servers.health_response import dedup_health_details, make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCPServer,
@@ -383,6 +383,7 @@ async def health() -> JSONResponse:
         "service": "git-mcp",
         "audit_failure_count": _audit_failure_count,
     }
+    details.update(dedup_health_details())
     result: JSONResponse = make_health_response(
         deps, details, security=_security_posture
     )

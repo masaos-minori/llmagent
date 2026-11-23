@@ -42,9 +42,9 @@ Merge the dedup store metrics block into the github-mcp `/health` `details` (REQ
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the handler change per Procedure/Method/Details | Pending | — | — | |
-| 2 | Extend the companion test's `details` expectation | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the handler change per Procedure/Method/Details | Completed | 20261123-223506 | 20261123-223506 | Changed: scripts/mcp_servers/github/github_server.py (the health_response import also imports dedup_health_details, and details.update(dedup_health_details()) is added in health() after the service key is built and before make_health_response). deps and the security argument are untouched. |
+| 2 | Extend the companion test's `details` expectation | Completed | 20261123-223506 | 20261123-223506 | Extended tests/mcp_servers/github/test_github_server_endpoints.py with a DEDUP_FIELDS constant. Both exact-equality assertions (the degraded-token test and the healthy-token test) are kept as the no-store case, and those tests now state the precondition by patching the dispatch store and config globals to None because the session's autouse bootstrap fixture configures a store from the isolated config copy. A store-configured test uses the conftest isolated_dedup fixture and asserts details carries the dedup block with the REQ-004 fields and the service key unchanged. Run: 12 passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-230806 | 20261123-230806 | This member Step 3e: ruff format and check pass, run_validation_gates.py fast mode all applicable gates Pass, lint-imports 6 contracts kept, mypy clean across scripts/, bandit unchanged on this file (the pre-existing B105 finding on the untouched not_set line). Validation-plan run of the nine health test files: 248 passed, 1 skipped. Full suite runs once at end of the release unit. End-of-unit run for the health-exposure unit: full suite with coverage 13660 passed 4 skipped, diff-scoped coverage 94 percent, all gates pass. Deviation: the run was executed once for the whole diff. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

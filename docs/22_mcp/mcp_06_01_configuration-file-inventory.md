@@ -71,7 +71,31 @@ Bearer-token constraint: every HTTP MCP server carries its own server-side `auth
 as an `"${ENV:...}"` reference, and the agent presents the matching token from
 `agent.toml`'s `[mcp_servers.*].auth_token`. Both sides must resolve to one shared-secret
 value, so the agent and the server reference the same environment variable
-(`MCP_<SERVER_KEY>_AUTH_TOKEN`). See [mcp_06_14](mcp_06_14_mcp-authentication-setup.md).
+### The `[dedup]` key contract
+
+The `[dedup]` table in `config/<key>_mcp_server.toml` is read once per process at bootstrap by
+`load_dedup_section()` (`scripts/shared/mcp_dedup_config.py`), the startup gate
+`scripts/mcp_servers/server.py` runs. It covers the 10 servers that have a `[dedup]` table.
+
+| Key | Scope |
+|---|---|
+| `db_path` | Existing key. Dedup store path, pinned to the dedup database directory contract in [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md) |
+| `retention_days` | Existing key (default 14). Retention sweep window; sweep eligibility matrix in [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md) |
+| `lease_seconds` | Existing key (30, accepted range 1..3600). Acquisition lease |
+| `max_attempts` | Existing key (3, accepted range 1..10). Attempt cap |
+| `max_dedup_rows` | Optional integer, accepted range 1..10000000. Per-metric row-count status only |
+| `max_dedup_growth_per_hour` | Optional integer, accepted range 1..1000000. Per-metric growth status only |
+| `max_dedup_wal_mb` | Optional integer, accepted range 1..4096. Per-metric WAL status only |
+| `legal_hold_states` | Optional list of stored state names (`pending`, `completed`, `failed`, `interrupted`) excluded from the retention sweep |
+
+Rules: absent means unset — no per-metric status is computed for that key, and an absent or empty
+`legal_hold_states` means no hold. Out-of-range, non-integer, or unknown state-name values fail
+closed at startup (`ConfigParseError`), like the existing four keys. The new keys are optional:
+the 10 committed `config/*_mcp_server.toml` files carry none of them and stay valid unchanged, so
+no config file changes. The new keys are excluded from the store identity fingerprint
+(`_config_fingerprint`), so store identity is unchanged. The reported status never gates store or
+dispatcher behaviour. Sweep and hold semantics: [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md);
+the health `details.dedup` exposure: [mcp_02_02](mcp_02_02_startup-modes-and-health.md).
 
 ## API key env files (`conf.d/`)
 

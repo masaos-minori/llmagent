@@ -27,7 +27,7 @@ from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
-from mcp_servers.health_response import make_health_response
+from mcp_servers.health_response import dedup_health_details, make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.rag_pipeline.rag_pipeline_models import (
     RagPipelineConfig,
@@ -204,6 +204,7 @@ async def health() -> JSONResponse:
     """Health check endpoint. Returns degraded when embed_url is unusable."""
     deps = await _check_health_deps()
     details: dict[str, object] = {"service": "rag-pipeline-mcp"}
+    details.update(dedup_health_details())
     result: JSONResponse = make_health_response(
         deps, details, security=_security_posture
     )

@@ -43,9 +43,9 @@ Merge the dedup store metrics block into the shared `_health()` helper used by t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the `_health()` change per Procedure/Method/Details | Pending | — | — | |
-| 2 | Extend the companion test's `details` expectation | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the `_health()` change per Procedure/Method/Details | Completed | 20261123-223506 | 20261123-223506 | Changed: scripts/mcp_servers/file/common.py (the health_response import also imports dedup_health_details, _health() builds a local details dict and merges the block instead of passing an inline empty dict, and the docstring sentence that said details stays empty now names the single dedup key and its absence without a store). _build_health_deps and the optional posture argument untouched, so the three file servers inherit the change. |
+| 2 | Extend the companion test's `details` expectation | Completed | 20261123-223506 | 20261123-223506 | Extended tests/mcp_servers/file/test_file_health_posture.py with a DEDUP_FIELDS constant. The exact-equality assertion is kept as the no-store case, and that test now states the precondition by patching the dispatch store and config globals to None because the session's autouse bootstrap fixture configures a store from the isolated config copy. A store-configured test asserts details carries only the dedup key, its fields match the REQ-004 set, and no posture field appears in it. Run: 8 passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-230806 | 20261123-230806 | This member Step 3e: ruff format and check pass, run_validation_gates.py fast mode all applicable gates Pass, lint-imports 6 contracts kept, mypy clean across scripts/, bandit clean on this file. Validation-plan run of the nine health test files: 248 passed, 1 skipped (the mdq skip is the pre-existing git-fame skip). Full suite runs once at end of the release unit. End-of-unit run for the health-exposure unit: full suite with coverage 13660 passed 4 skipped, diff-scoped coverage 94 percent against the 90 gate, all gates pass. Deviation: the run was executed once for the whole diff. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

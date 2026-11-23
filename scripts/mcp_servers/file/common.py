@@ -28,7 +28,7 @@ from shared.security.result_dto import (
     SecurityCheckStatus,
 )
 
-from mcp_servers.health_response import make_health_response
+from mcp_servers.health_response import dedup_health_details, make_health_response
 
 
 class FileAuthorizationError(RuntimeError):
@@ -232,10 +232,14 @@ async def _health(
 ) -> JSONResponse:
     """Build and return a health check response, publishing this server's posture when given.
 
-    deps stays the availability view and details stays empty: posture data is not folded into
-    details. ready is derived by make_health_response() so the three file servers cannot each
+    deps stays the availability view and details is not folded with posture data. details carries the
+    read-only dedup metrics block under the single "dedup" key only when this server's dedup store
+    is open (REQ-004); without a store the helper returns nothing and details stays as it is today.
+    ready is derived by make_health_response() so the three file servers cannot each
     invent their own rule. The posture parameter is optional so a file server that has not been
     wired yet keeps publishing today's payload unchanged.
     """
     deps = _build_health_deps(allowed_dirs)
-    return make_health_response(deps, {}, security=posture)
+    details: dict[str, object] = {}
+    details.update(dedup_health_details())
+    return make_health_response(deps, details, security=posture)

@@ -52,8 +52,8 @@ Editing any `config/*_mcp_server.toml` file (not a target row); numeric threshol
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-212603 | 20261123-212654 | adversarial verification: no AUTO-GENERATED guard confirmed, no [dedup] keys listed today, Key/Scope table style confirmed, ranges match sibling procedure seq 08 changed: docs/22_mcp/mcp_06_01_configuration-file-inventory.md ([dedup] key contract subsection: existing 4 keys + 4 new optional keys with ranges, absent semantics, fail-closed, fingerprint exclusion) |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | — | 20261123-212654 | quality/structure/content_policy pass; generate_reference_table --check no drift; consistency --domain mcp: only the pre-existing seq 03 warning, no finding on this file; documentation-only case replaced test runs |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

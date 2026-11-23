@@ -41,6 +41,31 @@ The `make_health_response()` helper sets `operator_action_required = not ready`,
 
 **`details`**: Server-specific supplementary information (e.g., `sandbox_backend`, `service`). Empty dict if not applicable.
 
+The 10 servers with a `[dedup]` table may carry the single key `dedup` in `details`, computed
+read-only (SELECT and PRAGMA reads only) by `dedup_health_details()`
+(`scripts/mcp_servers/health_response.py`). The top-level payload keys are unchanged. Field set:
+
+| Field | Meaning |
+|---|---|
+| `schema_version`, `db_path`, `generated_epoch` | payload contract version, store path, read time |
+| `row_states` | per-status row counts |
+| `pending_overdue` | `pending` rows with `lease_expires_epoch` past the read time |
+| `growth_rows_per_hour` | rows created within the last hour |
+| `wal_size_bytes` | size of the store's `-wal` file |
+| `lock_wait_ms` | elapsed milliseconds to acquire the store lock and run the reads |
+| `legal_hold_states` | the configured held states |
+| `held_past_retention` | held-state rows past the retention cutoff |
+| `rows`, `growth`, `wal` | per-threshold blocks `value`, `threshold`, `status` (`ok`, `warning`, `fail`) |
+
+Status rule: a per-metric status is reported only when its threshold key
+(`max_dedup_rows`, `max_dedup_growth_per_hour`, `max_dedup_wal_mb`) is configured; absent keys
+report no status. `legal_hold_states` and `held_past_retention` report held rows as held, not as
+retained-at-large. A reported status never changes store or dispatcher behaviour and never
+alters `status`, `ready`, or `operator_action_required`.
+
+Degradation rule: when the dedup store is unavailable or the open is refused, `details` gains no
+`dedup` key and the existing degradation path is unchanged.
+
 **`security`**: Security Posture block. Every MCP server validates its own security settings at startup and publishes the result here, so the key is present in all 10 server responses. `ready` requires `security.validated` in addition to an empty `dependencies` dict. The block carries exactly these keys:
 
 | Key | Meaning |
@@ -111,6 +136,7 @@ Every server reports unmet prerequisites through `dependencies` (a non-empty val
 | file-read/write/delete-mcp | `dependencies.filesystem` when the workspace root is not a directory |
 | rag-pipeline-mcp | `dependencies.embed_url` is `"not configured"` (embedding URL unset), `"unreachable"` (embedding URL configured but the reachability probe fails), or `dependencies.config` is `"check failed"` (failed config check) |
 | git-mcp | `dependencies.git` when `git` is not found |
+| the 10 servers with a `[dedup]` table | `details.dedup` is the metrics block defined in Standard `/health` Response Semantics above, read-only; per-server content (for example mdq's row counts or web-search's `metrics`) is unchanged. Retention eligibility matrix: [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md); `[dedup]` key inventory: [mcp_06_01](mcp_06_01_configuration-file-inventory.md) |
 
 ---
 
