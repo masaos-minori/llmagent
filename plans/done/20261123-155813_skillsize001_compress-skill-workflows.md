@@ -181,10 +181,10 @@ separate scope-of-record.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Size-check tool | Pending | — | — | |
-| 2 | Phase 2: Wiring | Pending | — | — | |
-| 3 | Phase 3: Runtime split | Pending | — | — | |
-| 4 | Phase 4: Baseline and verification | Pending | — | — | |
+| 1 | Phase 1: Size-check tool | In Progress | — | — |  |
+| 2 | Phase 2: Wiring | In Progress | — | — |  |
+| 3 | Phase 3: Runtime split | In Progress | — | — |  |
+| 4 | Phase 4: Baseline and verification | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -194,7 +194,19 @@ separate scope-of-record.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261123-160210_01_tools_check_skill_size.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261123-160210_02_tests_tools_test_check_skill_size.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261123-160210_03_tools_TOOL_DESCRIPTIONS.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261123-160210_04_tools__validation_gate_defs.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261123-160210_05_rules_tool-gates.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261123-160210_06_.github_workflows_ci.yml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261123-160210_07_rules_skill-runtime.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-160210_08_skills_DESIGN.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-160210_09_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-160210_10_skills_plan-to-implementation-procedure_workflow.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-160210_11_prompts_01_issue-to-plan.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-160210_12_prompts_02_plan-to-implementation-procedure.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-160210_13_tools_check_skill_size_baseline.txt.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -223,3 +235,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-003 | Issue Required Changes (Stage 2); prompt citation | prompts/01_issue-to-plan.md | 3 | AC-3 | `check_skills_references.py` | Confirmed by repository evidence |
 | REQ-003 | Issue Required Changes (Stage 2); prompt citation | prompts/02_plan-to-implementation-procedure.md | 3 | AC-3 | `check_skills_references.py` | Confirmed by repository evidence |
 | REQ-004 | Issue Acceptance Criteria (size-budget check passes; reduction measured) | tools/check_skill_size_baseline.txt | 4 | AC-4 | `check_skill_size.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261123-160210 -->
