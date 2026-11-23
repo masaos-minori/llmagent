@@ -13,6 +13,7 @@ import httpx
 from shared.json_utils import extract_llm_content, parse_http_json
 from shared.llm_client import build_llm_url
 
+from agent.bg_task_monitor import current_task_target
 from agent.services.exceptions import SessionTitleGenerationError
 from agent.services.models import SessionTitleResult
 
@@ -26,6 +27,27 @@ _TITLE_PROMPT = "Summarise the following user message in one short phrase (8 wor
 
 class SessionTitleService:
     """Generate a short LLM-based title for a session and persist it."""
+
+    @staticmethod
+    def _save(ctx: AgentContext, title: str) -> None:
+        """Write ``title`` to the session that created the task; never log the text.
+
+        A stale target (the session changed since) is refused by set_title and
+        nothing is written.
+        """
+        target = current_task_target()
+        persisted = ctx.session.set_title(title, target=target)
+        if target is not None and persisted is False:
+            logger.info(
+                "Session title discarded: session %s generation %s is not current",
+                target.session_id,
+                target.generation,
+            )
+        else:
+            logger.info(
+                "Session title generated: session=%s",
+                ctx.session.session_id if target is None else target.session_id,
+            )
 
     async def generate(self, ctx: AgentContext, first_input: str) -> SessionTitleResult:
         """Call the chat LLM to produce a short title.
@@ -53,8 +75,7 @@ class SessionTitleService:
                 raise SessionTitleGenerationError(
                     "LLM returned empty content — try adjusting your prompt"
                 )
-            ctx.session.set_title(title)
-            logger.info("Session title generated: %r", title)
+            self._save(ctx, title)
             return SessionTitleResult(title=title)
         except SessionTitleGenerationError:
             raise

@@ -105,6 +105,47 @@ def _make_bare_repl() -> AgentREPL:
 # ── _get_chunk_count ──────────────────────────────────────────────────────────
 
 
+class TestPersistSessionStateSnapshot:
+    @pytest.mark.asyncio
+    async def test_both_steps_receive_the_one_captured_snapshot(self) -> None:
+        repl = _make_bare_repl()
+        snapshot = MagicMock(name="snapshot")
+        repl._persister.capture_snapshot = MagicMock(return_value=snapshot)
+
+        await repl._persist_session_state()
+
+        repl._persister.capture_snapshot.assert_called_once_with()
+        repl._persister.persist_session_memories.assert_awaited_once_with(snapshot)
+        repl._persister.persist_session_diagnostics.assert_awaited_once_with(snapshot)
+
+    @pytest.mark.asyncio
+    async def test_stale_generation_since_capture_writes_nothing(self) -> None:
+        from agent.session_persister import SessionPersister
+
+        repl = _make_bare_repl()
+        ctx = repl._ctx
+        ctx.session = MagicMock(session_id=3, generation=1)
+        ctx.session.memory_finalized_count.return_value = 0
+        ctx.conv.history = [{"role": "user", "content": "hi"}]
+        ctx.services = MagicMock()
+        ctx.services.memory.on_session_stop = AsyncMock()
+        store = MagicMock()
+        repl._persister = SessionPersister(ctx, store, MagicMock())
+        real_capture = repl._persister.capture_snapshot
+
+        def capture_then_transition():
+            snap = real_capture()
+            ctx.session.generation = 2  # a transition lands right after the capture
+            return snap
+
+        repl._persister.capture_snapshot = capture_then_transition
+
+        await repl._persist_session_state()
+
+        ctx.services.memory.on_session_stop.assert_not_called()
+        store.save.assert_not_called()
+
+
 class TestGetWorkflowStatus:
     def test_returns_unknown_when_orchestrator_is_none(self) -> None:
         repl = _make_bare_repl()

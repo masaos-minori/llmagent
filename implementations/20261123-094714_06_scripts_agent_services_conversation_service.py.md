@@ -57,10 +57,10 @@ Transition pipeline (seq 02), command display text (seq 13), docs (seq 15, 17).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After seq 02 |
-| 2 | Add or update tests per Validation plan (companion row 25) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs via seq 15, 17 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261123-122900 | After seq 02 Blocked: file outside procedure scope - scripts/agent/commands/command_defs_list.py (also tests/agent/test_session_correlation_refresh.py). SessionTransitionService.clear_new is async (finalization awaits Memory), so clear_conversation and the _cmd_clear handler must become async; CommandDef('/clear').is_async=False in command_defs_list.py and registry.py:81 rejects an async handler under is_async=False. Plan is archived (amend_plan refuses). No file edited for this row. Partial: only the in-scope wording change was applied to scripts/agent/services/conversation_service.py and tests/agent/services/test_conversation_service.py; routing /clear new through the service not done Resolved: Blocker cleared by procedures 33 (command_defs_list.py is_async=True), 13 (async _cmd_clear), 34/35 (consumer tests); now implementing routing through SessionTransitionService.clear_new Changed: scripts/agent/services/conversation_service.py (async clear_conversation; /clear new via SessionTransitionService.clear_new) |
+| 2 | Add or update tests per Validation plan (companion row 25) | Completed | — | 20261123-122900 | Changed: tests/agent/services/test_conversation_service.py (async API, real-service finalization order, rollback, refusal) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-122901 | 20261123-123427 | 3e clean; awaiting end-of-batch run End-of-batch run passed: 13519 passed, 5 skipped; mypy 608 files clean; lint-imports 6 kept; diff-cover 98% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261123-122901 | Docs via seq 15, 17 N/A: docs handled by procedures 15-20 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

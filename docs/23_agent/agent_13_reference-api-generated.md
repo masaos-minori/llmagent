@@ -35,7 +35,12 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |---|---|---|---|
 | `scripts/agent/audit_event_emitter.py` | `format_session_id` | `def format_session_id(session_id) -> str` | Format session_id for audit logs, returning empty string when None. |
 |  | `AuditEventEmitter` | `class AuditEventEmitter` | Constructs and emits audit events for turn lifecycle boundaries. |
-| `scripts/agent/bg_task_monitor.py` | `BgTaskMonitor` | `class BgTaskMonitor` | Monitors background task failures and enforces threshold-based policies. |
+| `scripts/agent/bg_task_monitor.py` | `TaskIdentity` | `class TaskIdentity` | Who created a background task: its type, instance, session and generation. |
+|  | `new_task_identity` | `def new_task_identity(task_type, session_id, generation) -> TaskIdentity` | Build an identity with a fresh instance id. |
+|  | `bind_task_identity` | `def bind_task_identity(identity) -> Iterator[None]` | Bind ``identity`` for tasks created inside the ``with`` block. |
+|  | `current_task_identity` | `def current_task_identity() -> TaskIdentity \| None` | Return the identity bound where the running task was created, if any. |
+|  | `current_task_target` | `def current_task_target() -> SessionTarget \| None` | Return the session target captured where the running task was created. |
+|  | `BgTaskMonitor` | `class BgTaskMonitor` | Monitors background task failures and enforces threshold-based policies. |
 | `scripts/agent/cli_view.py` | `WriterBase` | `class WriterBase` | Base class providing default implementations for output methods. |
 |  | `CLIView` | `class CLIView` | Manages terminal output: readline history, tab completion, and progress status line. |
 | `scripts/agent/config_builders.py` | `resolved_config_dir` | `def resolved_config_dir() -> Path` | Return the resolved agent config directory via the shared resolver. |
@@ -132,9 +137,13 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/resource_shutdown_coordinator.py` | `ResourceShutdownCoordinator` | `class ResourceShutdownCoordinator` | Coordinates resource shutdown across all subsystems. |
 | `scripts/agent/secrets_masker.py` | `detects_secrets` | `def detects_secrets(text) -> bool` | Return True when any SECRET_PATTERNS substitution would change the text. |
 | `scripts/agent/session.py` | `SchemaMissingError` | `class SchemaMissingError` | Raised when required SQLite schema tables are missing. |
+|  | `SessionTarget` | `class SessionTarget` | Immutable identity of a session at one point in time. |
 |  | `AgentSession` | `class AgentSession` | Manages REPL session and message persistence in SQLite. |
 | `scripts/agent/session_message_repo.py` | `SessionMessageRepository` | `class SessionMessageRepository` | Repository for session message operations. |
-| `scripts/agent/session_persister.py` | `SessionPersister` | `class SessionPersister` | Handles persistence of session-level data at shutdown. |
+| `scripts/agent/session_persister.py` | `WarningSink` | `class WarningSink` | Where non-fatal persistence warnings are written (``CLIView`` satisfies it). |
+|  | `SessionStatsSnapshot` | `class SessionStatsSnapshot` | Immutable copy of the session statistics the persisted summary reads. |
+|  | `SessionPersistenceSnapshot` | `class SessionPersistenceSnapshot` | Immutable view of the session state taken once for persistence. |
+|  | `SessionPersister` | `class SessionPersister` | Handles persistence of session-level data at shutdown. |
 | `scripts/agent/signal_handler.py` | `SignalHandler` | `class SignalHandler` | Encapsulates platform-specific signal handling for the REPL. |
 | `scripts/agent/startup.py` | `StartupInterrupted` | `class StartupInterrupted` | Raised when a SIGINT/SIGTERM shutdown request interrupts the startup sequence. |
 |  | `StartupOrchestrator` | `class StartupOrchestrator` | Runs the full agent startup sequence before the REPL input loop begins. |

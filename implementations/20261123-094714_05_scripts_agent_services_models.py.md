@@ -51,10 +51,10 @@ Producer changes (seq 04), consumer wording (seq 12), tests (seq 23).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by seq 23 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Generated docs via seq 18-19 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261123-122204 | Changed: scripts/agent/services/models.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261123-122204 | Covered by seq 23 Changed: tests/agent/test_session_restore.py (seq 23). Four-count tests added |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-122204 | 20261123-123427 | 3e clean (ruff, mypy 608 files, lint-imports, bandit -ll, module size, docstrings, suppression, compat shims, mock patch targets). Full suite 2 failed/13510 passed, failures in out-of-scope tests (see report); diff-cover 98% End-of-batch run passed: 13519 passed, 5 skipped; mypy 608 files clean; lint-imports 6 kept; diff-cover 98% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261123-122205 | Generated docs via seq 18-19 N/A: docs handled by procedures 15-20 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

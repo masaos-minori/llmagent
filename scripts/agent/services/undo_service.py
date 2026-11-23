@@ -12,6 +12,7 @@ from the DB so memory and DB converge.
 from __future__ import annotations
 
 import logging
+import sqlite3
 from typing import TYPE_CHECKING, cast
 
 from agent.services.models import UndoResult
@@ -23,6 +24,23 @@ if TYPE_CHECKING:
     from agent.services.models import DeletedRow
 
 logger = logging.getLogger(__name__)
+
+
+class UndoReloadError(RuntimeError):
+    """Raised when the memory reload after the undo DB delete failed.
+
+    The DB rows are already deleted; in-memory history still holds them. The
+    persisted rows are the recovery source: ``/session load <id>`` re-reads them.
+    """
+
+    def __init__(self, deleted_count: int, session_id: int | None) -> None:
+        """Record how many rows were deleted and which session they belonged to."""
+        super().__init__(
+            f"Undo reload failed after deleting {deleted_count} row(s) "
+            f"from session {session_id}"
+        )
+        self.deleted_count = deleted_count
+        self.session_id = session_id
 
 
 def _match_deleted_tail(
@@ -93,9 +111,18 @@ def undo_last_turn(ctx: AgentContext) -> UndoResult:
         # Ambiguous match (e.g. orphan DB rows absent from memory): reload the
         # remaining conversation from the DB and log the decision.
         # deleted_rows is non-empty, so the DB delete succeeded and session_id is set.
-        remaining, _found, _floor = ctx.session.fetch_messages(
-            cast(int, ctx.session.session_id)
-        )
+        try:
+            remaining, _found, _floor = ctx.session.fetch_messages(
+                cast(int, ctx.session.session_id)
+            )
+        except (sqlite3.Error, RuntimeError, OSError) as exc:
+            logger.error(
+                "Undo: reload after deleting %d row(s) failed (%s); history and DB "
+                "now differ until the session is reloaded",
+                len(deleted_rows),
+                type(exc).__name__,
+            )
+            raise UndoReloadError(len(deleted_rows), ctx.session.session_id) from exc
         ctx.conv.history = remaining
         logger.warning(
             "Undo: ambiguous match for %d deleted row(s) (%s); reloaded memory "

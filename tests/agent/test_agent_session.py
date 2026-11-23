@@ -19,7 +19,13 @@ from unittest.mock import patch
 
 import pytest
 from agent.context import ConversationState
-from agent.session import AgentSession, SchemaMissingError
+from agent.session import (
+    SESSION_TITLE_DISPLAY_MAX_CHARS,
+    SESSION_TITLE_STORAGE_MAX_CHARS,
+    AgentSession,
+    SchemaMissingError,
+    SessionTarget,
+)
 from agent.turn_persistence import TurnPersistence
 
 from tests.agent._config_test_defaults import MIN_DB_CONFIG
@@ -169,6 +175,66 @@ class TestStart:
         first_id = session.session_id
         session.start()
         assert session.session_id != first_id
+
+
+class TestGenerationAndTarget:
+    def test_generation_starts_at_zero(self, session: AgentSession) -> None:
+        assert session.generation == 0
+        assert session.capture_target() == SessionTarget(None, 0)
+
+    def test_start_increments_generation_each_time(self, session: AgentSession) -> None:
+        session.start()
+        first = session.generation
+        session.start()
+        assert first >= 1
+        assert session.generation == first + 1
+
+    def test_assigning_a_new_id_advances_generation(
+        self, session: AgentSession
+    ) -> None:
+        session.start()
+        before = session.generation
+        session.session_id = 99
+        assert session.generation == before + 1
+
+    def test_assigning_the_same_id_keeps_generation(
+        self, session: AgentSession
+    ) -> None:
+        session.start()
+        before = session.generation
+        session.session_id = session.session_id
+        assert session.generation == before
+
+    def test_switch_session_always_advances_generation(
+        self, session: AgentSession
+    ) -> None:
+        session.start()
+        before = session.generation
+        session.switch_session(session.session_id)
+        assert session.generation == before + 1
+
+    def test_restore_identity_puts_back_both_fields(
+        self, session: AgentSession
+    ) -> None:
+        session.start()
+        target = session.capture_target()
+        session.switch_session(42)
+        session.restore_identity(target.session_id, target.generation)
+        assert session.capture_target() == target
+
+    def test_target_is_immutable(self, session: AgentSession) -> None:
+        target = session.capture_target()
+        with pytest.raises(AttributeError):
+            target.generation = 5  # type: ignore[misc] — frozen dataclass write is the assertion
+
+    def test_is_current_target_detects_stale_generation(
+        self, session: AgentSession
+    ) -> None:
+        session.start()
+        target = session.capture_target()
+        assert session.is_current_target(target)
+        session.switch_session(session.session_id)
+        assert not session.is_current_target(target)
 
 
 # ── save() ────────────────────────────────────────────────────────────────────
@@ -439,6 +505,67 @@ class TestSetTitle:
 
     def test_no_op_when_session_id_none(self, session: AgentSession) -> None:
         session.set_title("ghost")  # should not raise
+
+    def test_matching_target_writes(self, session: AgentSession) -> None:
+        session.start()
+        target = session.capture_target()
+        assert session.set_title("Fresh", target=target) is True
+        assert any(r["title"] == "Fresh" for r in session.list_sessions())
+
+    def test_stale_target_returns_false_without_write(
+        self, session: AgentSession
+    ) -> None:
+        session.start()
+        old_id = session.session_id
+        target = session.capture_target()
+        session.start()
+        assert session.set_title("Stale", target=target) is False
+        rows = {r["session_id"]: r["title"] for r in session.list_sessions()}
+        assert rows[old_id] is None
+        assert rows[session.session_id] is None
+
+    def test_stale_target_clears_pending_of_its_own_session_only(
+        self, session: AgentSession
+    ) -> None:
+        session.start()
+        old_id = session.session_id
+        target = session.capture_target()
+        session.set_title_pending(True, old_id)
+        session.start()
+        session.set_title_pending(True)
+        session.set_title("Stale", target=target)
+        assert not session.is_title_pending(old_id)
+        assert session.is_title_pending()
+
+    def test_storage_and_display_limits_are_separate_names(self) -> None:
+        assert SESSION_TITLE_STORAGE_MAX_CHARS == 32
+        assert SESSION_TITLE_DISPLAY_MAX_CHARS == 32
+
+
+class TestMemoryFinalizedMarker:
+    def test_marker_defaults_to_zero_and_records(self, session: AgentSession) -> None:
+        assert session.memory_finalized_count(5) == 0
+        session.record_memory_finalized(5, 3)
+        assert session.memory_finalized_count(5) == 3
+        assert session.memory_finalized_count(6) == 0
+
+
+class TestTitlePendingPerSession:
+    def test_pending_is_tracked_per_session_id(self, session: AgentSession) -> None:
+        session.start()
+        first = session.session_id
+        session.set_title_pending(True)
+        session.start()
+        assert not session.is_title_pending()
+        assert session.is_title_pending(first)
+
+    def test_set_title_resets_pending_for_current_session(
+        self, session: AgentSession
+    ) -> None:
+        session.start()
+        session.set_title_pending(True)
+        session.set_title("done")
+        assert not session.is_title_pending()
 
 
 # ── list_sessions() ───────────────────────────────────────────────────────────

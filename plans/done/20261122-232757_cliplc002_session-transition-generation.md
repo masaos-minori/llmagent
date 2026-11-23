@@ -39,6 +39,9 @@ Each session id change bumps a generation; a transition service takes a snapshot
 
 ## Implementation Target Files
 **Freeze status**: Frozen
+Amended 2026-11-23 (fallout): added scripts/agent/commands/command_defs_list.py — REQ-002 fallout: SessionTransitionService.clear_new awaits old-session Memory finalization, so clear_conversation and _cmd_clear become async and registry.py rejects an async handler on a sync CommandDef
+Amended 2026-11-23 (fallout): added tests/agent/test_session_correlation_refresh.py — REQ-002 fallout: the consumer scan missed this test; it calls clear_conversation synchronously and expects restore_session to mutate the context
+Amended 2026-11-23 (fallout): added tests/agent/test_history_compression_consistency.py — REQ-002 fallout: test_compress_persist_restore_keeps_summary_drops_ephemeral assumes restore_session mutates the context
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream `plan-to-implementation-procedure` document MUST reference file paths only from this table — no other file may be treated as a modification target.
 
@@ -76,6 +79,9 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | tests/agent/commands/test_agent_cmd_session.py | modify: load via the service, separate counts, fallback title to the captured target | Tests follow the behavior change | REQ-002, REQ-004, REQ-009; AC-1, AC-2, AC-5 | file exists (checked in Step 3) | itself | Verified |
 | tests/agent/commands/test_agent_cmd_context.py | modify: `/clear` wording and undo reload failure message | Tests follow the behavior change | REQ-007, REQ-008; AC-4 | file exists (checked in Step 3) | itself | Verified |
 | tests/agent/test_repl.py | modify: shutdown passes one snapshot to both persist steps | Tests follow the behavior change | REQ-006; AC-3 | file exists (checked in Step 3) | itself | Verified |
+| `scripts/agent/commands/command_defs_list.py` | modify: declare `/clear` with `is_async=True` so its handler may await the transition service | REQ-002 fallout: SessionTransitionService.clear_new awaits old-session Memory finalization, so clear_conversation and _cmd_clear become async and registry.py rejects an async handler on a sync CommandDef | REQ-002 / N/A: none cites REQ-002 | `scripts/agent/commands/command_defs_list.py:144` (`CommandDef` for `/clear`); `scripts/agent/commands/registry.py:81-85` (is_async mismatch is rejected) | tests/agent/commands/test_agent_cmd_context.py | Verified |
+| `tests/agent/test_session_correlation_refresh.py` | modify: await the now-async `clear_conversation` and follow the builder contract of `restore_session` | REQ-002 fallout: the consumer scan missed this test; it calls clear_conversation synchronously and expects restore_session to mutate the context | REQ-002 / N/A: none cites REQ-002 | `tests/agent/test_session_correlation_refresh.py:15,68` (sync `clear_conversation` call) and `TestFlowRefresh::test_restore_flow_refreshes_correlation` | itself | Verified |
+| `tests/agent/test_history_compression_consistency.py` | modify: follow the builder contract of `restore_session` (apply the restored state through the transition service or the commit helper) | REQ-002 fallout: test_compress_persist_restore_keeps_summary_drops_ephemeral assumes restore_session mutates the context | REQ-002 / N/A: none cites REQ-002 | `tests/agent/test_history_compression_consistency.py::test_compress_persist_restore_keeps_summary_drops_ephemeral` (fails after restore_session became a builder) | itself | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -157,6 +163,9 @@ Yes (REQ-010). Target docs are those named by `docs/00_index.md` "Document Refer
 | tests/agent/commands/test_agent_cmd_session.py | Modify | Low | 4 | N/A | none (tests) |
 | tests/agent/commands/test_agent_cmd_context.py | Modify | Low | 2 | N/A | none (tests) |
 | tests/agent/test_repl.py | Modify | Low | 8 | N/A | none (tests) |
+| `scripts/agent/commands/command_defs_list.py` | Modify | Not assessed (amendment 2026-11-23) | N/A | N/A | Not assessed (amendment 2026-11-23) |
+| `tests/agent/test_session_correlation_refresh.py` | Modify | Not assessed (amendment 2026-11-23) | N/A | N/A | Not assessed (amendment 2026-11-23) |
+| `tests/agent/test_history_compression_consistency.py` | Modify | Not assessed (amendment 2026-11-23) | N/A | N/A | Not assessed (amendment 2026-11-23) |
 
 ## Design
 - **Generation**: `AgentSession` keeps `generation` (int, starts at 0) and bumps it inside `start` and in the transition commit; `capture_target()` returns `SessionTarget` (frozen: `session_id`, `generation`). `set_title(title, *, target=None)` writes only when the target matches the current id and generation, else returns False without a write; `title_pending` becomes per session id.
@@ -187,6 +196,9 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
    - [ ] Turn `restore_session` into a state builder (REQ-002, REQ-009; scripts/agent/services/session_restore.py)
    - [ ] Create the transition service (REQ-002, REQ-003; scripts/agent/services/session_transition.py)
    - [ ] Route `/clear new` and `/session load` through it (REQ-002, REQ-007, REQ-009; scripts/agent/services/conversation_service.py, scripts/agent/commands/cmd_session.py, scripts/agent/commands/cmd_context.py)
+   - [ ] modify: declare `/clear` with `is_async=True` so its handler may await the transition service (REQ-002; `scripts/agent/commands/command_defs_list.py`) — amendment 2026-11-23
+   - [ ] modify: await the now-async `clear_conversation` and follow the builder contract of `restore_session` (REQ-002; `tests/agent/test_session_correlation_refresh.py`) — amendment 2026-11-23
+   - [ ] modify: follow the builder contract of `restore_session` (apply the restored state through the transition service or the commit helper) (REQ-002; `tests/agent/test_history_compression_consistency.py`) — amendment 2026-11-23
 4. **Phase 4: Title and background tasks**
    - [ ] Write stale-generation, redaction, and monitor tests (REQ-004, REQ-005; tests/agent/services/test_session_title.py, tests/agent/test_orchestrator_bg_failure_threshold.py, tests/agent/test_orchestrator.py)
    - [ ] Register and capture at task creation, then monitor registration (REQ-004, REQ-005; scripts/agent/conversation_state_manager.py, scripts/agent/bg_task_monitor.py)
@@ -227,12 +239,12 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Session generation and target | In Progress | — | — |  |
-| 2 | Persistence snapshot | In Progress | — | — |  |
-| 3 | Transition service and restore | In Progress | — | — |  |
-| 4 | Title and background tasks | In Progress | — | — |  |
-| 5 | Undo | In Progress | — | — |  |
-| 6 | Documentation | In Progress | — | — |  |
+| 1 | Session generation and target | Completed | — | 20261123-123550 |  |
+| 2 | Persistence snapshot | Completed | — | 20261123-123550 |  |
+| 3 | Transition service and restore | Completed | — | 20261123-123522 |  |
+| 4 | Title and background tasks | Completed | — | 20261123-123550 |  |
+| 5 | Undo | Completed | — | 20261123-123550 |  |
+| 6 | Documentation | Completed | — | 20261123-123550 |  |
 | 7 | Deployment and verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -264,6 +276,9 @@ N/A: no release unit
 | implementations/20261123-094714_19_docs_23_agent_agent_13_reference-api-generated.md.md | 6 | Procedure | Pending | — | — |
 | implementations/20261123-094714_20_registry_manifests_agent_api.yaml.md | 6 | Procedure | Pending | — | — |
 | implementations/20261123-094714_23_tests_agent_test_session_restore.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-094714_33_scripts_agent_commands_command_defs_list.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261123-094714_34_tests_agent_test_session_correlation_refresh.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261123-094714_35_tests_agent_test_history_compression_consistency.py.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -272,7 +287,7 @@ N/A: no release unit
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261122-232757
-- **Related target files**: scripts/agent/session.py, scripts/agent/services/session_transition.py, scripts/agent/session_persister.py, scripts/agent/services/session_restore.py, scripts/agent/services/models.py, scripts/agent/services/conversation_service.py, scripts/agent/services/undo_service.py, scripts/agent/bg_task_monitor.py, scripts/agent/conversation_state_manager.py, scripts/agent/services/session_title.py, scripts/agent/commands/session_title.py, scripts/agent/commands/cmd_session.py, scripts/agent/commands/cmd_context.py, scripts/agent/repl.py, docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md, docs/23_agent/agent_04_01_state-and-persistence-state-model.md, docs/23_agent/agent_04_02_state-and-persistence-history-compression.md, docs/23_agent/agent_14_reference-api-subpackages-generated.md, docs/23_agent/agent_13_reference-api-generated.md, registry/manifests/agent_api.yaml, tests/agent/services/test_session_transition.py, tests/agent/test_agent_session.py, tests/agent/test_session_restore.py, tests/agent/test_session_persister.py, tests/agent/services/test_conversation_service.py, tests/agent/test_undo_db_memory_parity.py, tests/agent/test_orchestrator_bg_failure_threshold.py, tests/agent/test_orchestrator.py, tests/agent/services/test_session_title.py, tests/agent/commands/test_agent_cmd_session.py, tests/agent/commands/test_agent_cmd_context.py, tests/agent/test_repl.py
+- **Related target files**: scripts/agent/session.py, scripts/agent/services/session_transition.py, scripts/agent/session_persister.py, scripts/agent/services/session_restore.py, scripts/agent/services/models.py, scripts/agent/services/conversation_service.py, scripts/agent/services/undo_service.py, scripts/agent/bg_task_monitor.py, scripts/agent/conversation_state_manager.py, scripts/agent/services/session_title.py, scripts/agent/commands/session_title.py, scripts/agent/commands/cmd_session.py, scripts/agent/commands/cmd_context.py, scripts/agent/repl.py, docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md, docs/23_agent/agent_04_01_state-and-persistence-state-model.md, docs/23_agent/agent_04_02_state-and-persistence-history-compression.md, docs/23_agent/agent_14_reference-api-subpackages-generated.md, docs/23_agent/agent_13_reference-api-generated.md, registry/manifests/agent_api.yaml, tests/agent/services/test_session_transition.py, tests/agent/test_agent_session.py, tests/agent/test_session_restore.py, tests/agent/test_session_persister.py, tests/agent/services/test_conversation_service.py, tests/agent/test_undo_db_memory_parity.py, tests/agent/test_orchestrator_bg_failure_threshold.py, tests/agent/test_orchestrator.py, tests/agent/services/test_session_title.py, tests/agent/commands/test_agent_cmd_session.py, tests/agent/commands/test_agent_cmd_context.py, tests/agent/test_repl.py, scripts/agent/commands/command_defs_list.py, tests/agent/test_session_correlation_refresh.py, tests/agent/test_history_compression_consistency.py
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -329,5 +344,8 @@ N/A: no release unit
 | REQ-007 | Issue Required Changes / evidence in Implementation Target Files | tests/agent/commands/test_agent_cmd_context.py | Phase 5 | AC-4 | `tests/agent/commands/test_agent_cmd_context.py` | Confirmed by repository evidence |
 | REQ-008 | Issue Required Changes / evidence in Implementation Target Files | tests/agent/commands/test_agent_cmd_context.py | Phase 5 | AC-4 | `tests/agent/commands/test_agent_cmd_context.py` | Confirmed by repository evidence |
 | REQ-006 | Issue Required Changes / evidence in Implementation Target Files | tests/agent/test_repl.py | Phase 2 | AC-3 | `tests/agent/test_repl.py` | Confirmed by repository evidence |
+| REQ-002 | Amendment 2026-11-23: REQ-002 fallout: SessionTransitionService.clear_new awaits old-session Memory finalization, so clear_conversation and _cmd_clear become async and registry.py rejects an async handler on a sync CommandDef | scripts/agent/commands/command_defs_list.py | Phase 3 | N/A: none cites REQ-002 | tests/agent/commands/test_agent_cmd_context.py | Confirmed by repository evidence |
+| REQ-002 | Amendment 2026-11-23: REQ-002 fallout: the consumer scan missed this test; it calls clear_conversation synchronously and expects restore_session to mutate the context | tests/agent/test_session_correlation_refresh.py | Phase 3 | N/A: none cites REQ-002 | itself | Confirmed by repository evidence |
+| REQ-002 | Amendment 2026-11-23: REQ-002 fallout: test_compress_persist_restore_keeps_summary_drops_ephemeral assumes restore_session mutates the context | tests/agent/test_history_compression_consistency.py | Phase 3 | N/A: none cites REQ-002 | itself | Confirmed by repository evidence |
 
 <!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261123-094714 -->

@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from agent.context import ConversationState
 from agent.services.exceptions import SessionNoMessagesError
-from agent.services.session_restore import restore_session
+from agent.services.session_restore import RestoredSessionState, restore_session
 from agent.session import AgentSession
 
 from tests.agent._config_test_defaults import MIN_DB_CONFIG
@@ -65,15 +65,16 @@ class TestRestoreSession:
     async def test_successful_restore(self) -> None:
         msgs = [{"role": "user", "content": "hello"}]
         ctx = _make_ctx(messages=msgs)
-        result = await restore_session(ctx, session_id=5)
-        assert result.session_id == 5
-        assert result.n_messages == 1
+        state = await restore_session(ctx, session_id=5)
+        assert state.result.session_id == 5
+        assert state.result.n_messages == 1
 
-    async def test_session_id_updated_on_ctx(self) -> None:
+    async def test_builder_does_not_switch_the_session(self) -> None:
         msgs = [{"role": "user", "content": "hi"}]
         ctx = _make_ctx(messages=msgs)
-        await restore_session(ctx, session_id=99)
-        assert ctx.session.session_id == 99
+        state = await restore_session(ctx, session_id=99)
+        assert state.result.session_id == 99
+        assert ctx.session.session_id == 0
 
     async def test_history_rebuilt_with_canonical_system_prefix(self) -> None:
         user_msg = {"role": "user", "content": "hello"}
@@ -81,10 +82,10 @@ class TestRestoreSession:
             messages=[user_msg],
             system_prompt_content="You are a helpful assistant.",
         )
-        await restore_session(ctx, session_id=3)
-        assert ctx.conv.history[0]["role"] == "system"
-        assert ctx.conv.history[0]["content"] == "You are a helpful assistant."
-        assert ctx.conv.history[1]["role"] == "user"
+        state = await restore_session(ctx, session_id=3)
+        assert state.history[0]["role"] == "system"
+        assert state.history[0]["content"] == "You are a helpful assistant."
+        assert state.history[1]["role"] == "user"
 
     async def test_system_message_appears_exactly_once_when_db_also_has_system(
         self,
@@ -95,10 +96,10 @@ class TestRestoreSession:
             messages=[db_sys, user_msg],
             system_prompt_content="Current canonical prompt.",
         )
-        await restore_session(ctx, session_id=3)
-        system_count = sum(1 for m in ctx.conv.history if m["role"] == "system")
+        state = await restore_session(ctx, session_id=3)
+        system_count = sum(1 for m in state.history if m["role"] == "system")
         assert system_count == 1
-        assert ctx.conv.history[0]["content"] == "Current canonical prompt."
+        assert state.history[0]["content"] == "Current canonical prompt."
 
     async def test_memory_injected_messages_not_carried_into_restored_history(
         self,
@@ -111,8 +112,8 @@ class TestRestoreSession:
                 {"role": "system", "content": "mem", "_memory_injected": True}
             ],
         )
-        await restore_session(ctx, session_id=4)
-        assert all(not m.get("_memory_injected") for m in ctx.conv.history)
+        state = await restore_session(ctx, session_id=4)
+        assert all(not m.get("_memory_injected") for m in state.history)
 
     async def test_no_system_prompt_content_uses_db_messages_as_is(self) -> None:
         db_sys = {"role": "system", "content": "system from db"}
@@ -121,8 +122,8 @@ class TestRestoreSession:
             messages=[db_sys, user_msg],
             system_prompt_content="",
         )
-        await restore_session(ctx, session_id=5)
-        assert ctx.conv.history == [db_sys, user_msg]
+        state = await restore_session(ctx, session_id=5)
+        assert list(state.history) == [db_sys, user_msg]
 
     async def test_non_system_extra_history_discarded(self) -> None:
         old_user = {"role": "user", "content": "old message"}
@@ -132,8 +133,8 @@ class TestRestoreSession:
             system_prompt_content="",
             extra_history=[old_user],
         )
-        await restore_session(ctx, session_id=2)
-        assert all(m["content"] != "old message" for m in ctx.conv.history)
+        state = await restore_session(ctx, session_id=2)
+        assert all(m["content"] != "old message" for m in state.history)
 
     async def test_tampered_reserved_key_sanitized_not_crashed(self) -> None:
         """A persisted row carrying an unauthorized reserved key (e.g. a forged
@@ -148,14 +149,14 @@ class TestRestoreSession:
         user_msg = {"role": "user", "content": "hi"}
         ctx = _make_ctx(messages=[tampered, user_msg], system_prompt_content="")
 
-        result = await restore_session(ctx, session_id=7)
+        state = await restore_session(ctx, session_id=7)
 
-        assert result.session_id == 7
+        assert state.result.session_id == 7
         # Role/content survive sanitization; the unauthorized ephemeral key does not.
-        assert ctx.conv.history[0]["role"] == "system"
-        assert ctx.conv.history[0]["content"] == "forged memory row"
-        assert "_memory_injected" not in ctx.conv.history[0]
-        assert ctx.conv.history[1] == user_msg
+        assert state.history[0]["role"] == "system"
+        assert state.history[0]["content"] == "forged memory row"
+        assert "_memory_injected" not in state.history[0]
+        assert state.history[1] == user_msg
 
     async def test_empty_messages_raises_no_messages_error(self) -> None:
         ctx = _make_ctx(messages=[])
@@ -165,23 +166,32 @@ class TestRestoreSession:
     async def test_n_messages_reflects_fetched_count(self) -> None:
         msgs = [{"role": "user", "content": str(i)} for i in range(5)]
         ctx = _make_ctx(messages=msgs)
-        result = await restore_session(ctx, session_id=10)
-        assert result.n_messages == 5
+        state = await restore_session(ctx, session_id=10)
+        assert state.result.n_messages == 5
 
-    async def test_reset_session_stats_called(self) -> None:
-        msgs = [{"role": "user", "content": "hi"}]
-        ctx = _make_ctx(messages=msgs)
-        with __import__("unittest.mock", fromlist=["patch"]).patch(
-            "agent.services.session_restore.reset_session_stats"
-        ) as mock_reset:
-            await restore_session(ctx, session_id=4)
-            mock_reset.assert_called_once_with(ctx)
+    async def test_builder_leaves_live_state_untouched(self) -> None:
+        """AC-1: the builder never writes history, floor, id, correlation or stats."""
+        msgs = [{"role": "user", "content": "restored"}]
+        live = [{"role": "user", "content": "live turn"}]
+        ctx = _make_ctx(
+            messages=msgs,
+            extra_history=live,
+            prior_undo_floor=5,
+            system_prompt_content="S",
+        )
+        ctx.stats.stat_turns = 9
+        await restore_session(ctx, session_id=4)
+        assert ctx.conv.history == live
+        assert ctx.conv.undo_floor == 5
+        assert ctx.session.session_id == 0
+        assert ctx.stats.stat_turns == 9
+        ctx.services_required.tools.set_session_id.assert_not_called()
 
     async def test_undo_floor_zero_when_no_boundary(self) -> None:
         msgs = [{"role": "user", "content": "hi"}]
         ctx = _make_ctx(messages=msgs, system_prompt_content="Canonical.")
-        await restore_session(ctx, session_id=6)
-        assert ctx.conv.undo_floor == 0
+        state = await restore_session(ctx, session_id=6)
+        assert state.undo_floor == 0
 
     async def test_undo_floor_converts_boundary_to_index(self) -> None:
         # Snapshot = first 2 rows (system summary + user); post-compression =
@@ -197,14 +207,14 @@ class TestRestoreSession:
             messages=messages, system_prompt_content="Canonical.", undo_floor_id=2
         )
         ctx.session.count_messages_up_to.return_value = 2  # n_snapshot
-        await restore_session(ctx, session_id=42)
+        state = await restore_session(ctx, session_id=42)
         # 1 + n_snapshot - system_count = 1 + 2 - 1 = 2 -> first post-compression
         # turn (a1) is the first undoable index; snapshot turns stay blocked.
-        assert ctx.conv.undo_floor == 2
-        assert ctx.conv.history[0]["role"] == "system"
-        assert ctx.conv.history[0]["content"] == "Canonical."
+        assert state.undo_floor == 2
+        assert state.history[0]["role"] == "system"
+        assert state.history[0]["content"] == "Canonical."
         # index 1 (q1, last snapshot user) is below the floor; index 2 (a1) above.
-        assert ctx.conv.history[1]["content"] == "q1"
+        assert state.history[1]["content"] == "q1"
 
     async def test_summary_restored_after_canonical_prompt(self) -> None:
         # AC-2: the canonical summary row is restored once, right after the
@@ -217,14 +227,14 @@ class TestRestoreSession:
             ],
             system_prompt_content="Current canonical prompt.",
         )
-        await restore_session(ctx, session_id=3)
-        assert [m["role"] for m in ctx.conv.history][:2] == ["system", "system"]
-        assert ctx.conv.history[0]["content"] == "Current canonical prompt."
-        assert ctx.conv.history[1]["content"].startswith("[Conversation summary]")
+        state = await restore_session(ctx, session_id=3)
+        assert [m["role"] for m in state.history][:2] == ["system", "system"]
+        assert state.history[0]["content"] == "Current canonical prompt."
+        assert state.history[1]["content"].startswith("[Conversation summary]")
         # exactly the prompt + the one canonical summary are the system rows
-        assert sum(1 for m in ctx.conv.history if m["role"] == "system") == 2
+        assert sum(1 for m in state.history if m["role"] == "system") == 2
         # the rebuilt row carries only role/content: no stored markers survive
-        assert ctx.conv.history[1] == {
+        assert state.history[1] == {
             "role": "system",
             "content": "[Conversation summary]\nprior turns",
         }
@@ -241,10 +251,10 @@ class TestRestoreSession:
             system_prompt_content="Canonical.",
         )
         with caplog.at_level(logging.WARNING, logger="agent.services.session_restore"):
-            await restore_session(ctx, session_id=17)
+            state = await restore_session(ctx, session_id=17)
         summaries = [
             m
-            for m in ctx.conv.history
+            for m in state.history
             if m["content"].startswith("[Conversation summary]")
         ]
         assert len(summaries) == 1
@@ -269,14 +279,14 @@ class TestRestoreSession:
             messages=messages, system_prompt_content="Canonical.", undo_floor_id=2
         )
         ctx.session.count_messages_up_to.return_value = 2  # n_snapshot
-        await restore_session(ctx, session_id=42)
+        state = await restore_session(ctx, session_id=42)
         # 1 + n_snapshot - system_count(non-summary) = 1 + 2 - 0 = 3.
-        assert ctx.conv.undo_floor == 3
-        assert ctx.conv.history[0]["content"] == "Canonical."
-        assert ctx.conv.history[1]["content"].startswith("[Conversation summary]")
+        assert state.undo_floor == 3
+        assert state.history[0]["content"] == "Canonical."
+        assert state.history[1]["content"].startswith("[Conversation summary]")
         # index 2 (q1, last snapshot user) is below the floor; index 3 (a1) above.
-        assert ctx.conv.history[2]["content"] == "q1"
-        assert ctx.conv.history[3]["content"] == "a1"
+        assert state.history[2]["content"] == "q1"
+        assert state.history[3]["content"] == "a1"
 
     async def test_restore_with_summary_is_idempotent(self) -> None:
         """AC-6: two restores over the same summary-bearing rows give equal histories."""
@@ -290,11 +300,11 @@ class TestRestoreSession:
 
         ctx_a = _make_ctx(messages=fixture(), system_prompt_content="Canonical.")
         ctx_b = _make_ctx(messages=fixture(), system_prompt_content="Canonical.")
-        await restore_session(ctx_a, session_id=7)
-        await restore_session(ctx_b, session_id=7)
-        assert ctx_a.conv.history == ctx_b.conv.history
+        state_a = await restore_session(ctx_a, session_id=7)
+        state_b = await restore_session(ctx_b, session_id=7)
+        assert state_a.history == state_b.history
         assert (
-            sum(1 for m in ctx_a.conv.history if m["role"] == "system") == 2
+            sum(1 for m in state_a.history if m["role"] == "system") == 2
         )  # prompt + exactly one summary
 
     async def test_count_failure_leaves_session_state_untouched(self) -> None:
@@ -311,17 +321,15 @@ class TestRestoreSession:
             prior_undo_floor=7,
             count_raises=True,
         )
-        with (
-            patch("agent.services.session_restore.reset_session_stats") as mock_reset,
-            pytest.raises(sqlite3.OperationalError),
-        ):
+        ctx.stats.stat_turns = 3
+        with pytest.raises(sqlite3.OperationalError):
             await restore_session(ctx, session_id=77)
         # history not rebuilt, session not switched, prior floor not reset to the
         # fully-undoable default, stats not zeroed.
         assert ctx.conv.history == [{"role": "user", "content": "live turn"}]
         assert ctx.session.session_id == 0
         assert ctx.conv.undo_floor == 7
-        mock_reset.assert_not_called()
+        assert ctx.stats.stat_turns == 3
 
     async def test_undo_floor_clamped_when_snapshot_row_is_dropped(
         self, caplog: pytest.LogCaptureFixture
@@ -343,11 +351,11 @@ class TestRestoreSession:
         )
         ctx.session.count_messages_up_to.return_value = 4  # snapshot covers all 4 rows
         with caplog.at_level(logging.WARNING, logger="agent.services.session_restore"):
-            await restore_session(ctx, session_id=43)
+            state = await restore_session(ctx, session_id=43)
         # Unclamped index would be 1 + 4 - 1 = 4 against a 3-element live history.
-        assert len(ctx.conv.history) == 3
-        assert ctx.conv.undo_floor == 3
-        assert ctx.conv.undo_floor <= len(ctx.conv.history)
+        assert len(state.history) == 3
+        assert state.undo_floor == 3
+        assert state.undo_floor <= len(state.history)
         assert any(
             "undo_floor clamped" in record.getMessage()
             for record in caplog.records
@@ -372,10 +380,10 @@ class TestRestoreSession:
         )
         ctx.session.count_messages_up_to.return_value = 2  # snapshot is rows 1-2 only
         with caplog.at_level(logging.WARNING, logger="agent.services.session_restore"):
-            await restore_session(ctx, session_id=44)
+            state = await restore_session(ctx, session_id=44)
         # 1 + 2 - 1 = 2 against a 3-element live history: no clamp, no warning.
-        assert len(ctx.conv.history) == 3
-        assert ctx.conv.undo_floor == 2
+        assert len(state.history) == 3
+        assert state.undo_floor == 2
         assert not any(
             "undo_floor clamped" in record.getMessage() for record in caplog.records
         )
@@ -400,10 +408,10 @@ class TestRestoreSession:
             ],
         }
         ctx = _make_ctx(messages=[{"role": "user", "content": "q"}, assistant])
-        await restore_session(ctx, session_id=11)
-        roles = [m["role"] for m in ctx.conv.history]
+        state = await restore_session(ctx, session_id=11)
+        roles = [m["role"] for m in state.history]
         assert roles == ["user", "assistant", "tool", "tool"]
-        tool_rows = [m for m in ctx.conv.history if m["role"] == "tool"]
+        tool_rows = [m for m in state.history if m["role"] == "tool"]
         assert [m["tool_call_id"] for m in tool_rows] == ["call_a", "call_b"]
         assert all("interrupted" in m["content"] for m in tool_rows)
 
@@ -440,12 +448,12 @@ class TestRestoreSession:
 
         ctx1 = _make_ctx(messages=fixture())
         ctx2 = _make_ctx(messages=fixture())
-        await restore_session(ctx1, session_id=12)
-        await restore_session(ctx2, session_id=12)
-        assert ctx1.conv.history == ctx2.conv.history
+        state1 = await restore_session(ctx1, session_id=12)
+        state2 = await restore_session(ctx2, session_id=12)
+        assert state1.history == state2.history
         synthesized = [
             m
-            for m in ctx1.conv.history
+            for m in state1.history
             if m["role"] == "tool" and "interrupted" in m["content"]
         ]
         assert len(synthesized) == 1
@@ -453,7 +461,7 @@ class TestRestoreSession:
         # The answered row keeps its identity and is not duplicated.
         answered = [
             m
-            for m in ctx1.conv.history
+            for m in state1.history
             if m["role"] == "tool" and "interrupted" not in m["content"]
         ]
         assert answered == [
@@ -496,15 +504,15 @@ class TestRestoreSession:
         ]
         ctx = _make_ctx(messages=messages, undo_floor_id=3)
         ctx.session.count_messages_up_to.return_value = 3  # snapshot covers rows 0-2
-        await restore_session(ctx, session_id=45)
+        state = await restore_session(ctx, session_id=45)
         # Pre-repair index is 3; one synthesized row landed at the boundary
         # (j == n_snapshot) so the floor shifts by 1 and never passes history end.
-        assert ctx.conv.undo_floor == 4
-        assert ctx.conv.undo_floor <= len(ctx.conv.history)
+        assert state.undo_floor == 4
+        assert state.undo_floor <= len(state.history)
         # The synthesized row sits at the floor position: the repaired turn
         # stays protected, only q2 is undoable.
-        assert ctx.conv.history[3]["tool_call_id"] == "call_b"
-        assert "interrupted" in ctx.conv.history[3]["content"]
+        assert state.history[3]["tool_call_id"] == "call_b"
+        assert "interrupted" in state.history[3]["content"]
 
     async def test_orphan_repair_logs_warning_with_session_id_and_count(
         self, caplog: pytest.LogCaptureFixture
@@ -533,6 +541,67 @@ class TestRestoreSession:
         )
         assert "21" in joined
         assert "1" in joined
+
+
+class TestRestoreCounts:
+    """REQ-009: fetched, synthesized, dropped and restored are reported separately."""
+
+    @staticmethod
+    def _orphan_assistant() -> dict:
+        return {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_a",
+                    "type": "function",
+                    "function": {"name": "f", "arguments": "{}"},
+                },
+                {
+                    "id": "call_b",
+                    "type": "function",
+                    "function": {"name": "g", "arguments": "{}"},
+                },
+            ],
+        }
+
+    async def test_plain_rows_are_fetched_and_restored_only(self) -> None:
+        msgs = [{"role": "user", "content": str(i)} for i in range(4)]
+        state = await restore_session(_make_ctx(messages=msgs), session_id=1)
+        r = state.result
+        assert (r.fetched, r.synthesized, r.dropped, r.restored) == (4, 0, 0, 4)
+        assert r.n_messages == r.fetched
+
+    async def test_orphan_tool_calls_are_counted_as_synthesized(self) -> None:
+        msgs = [{"role": "user", "content": "q"}, self._orphan_assistant()]
+        state = await restore_session(_make_ctx(messages=msgs), session_id=2)
+        r = state.result
+        assert (r.fetched, r.synthesized, r.dropped, r.restored) == (2, 2, 0, 4)
+
+    async def test_unusable_rows_are_counted_as_dropped(self) -> None:
+        msgs = [
+            {"role": "user", "content": "q1"},
+            {"role": "user", "_memory_injected": True},
+            {"role": "assistant", "content": "a1"},
+        ]
+        state = await restore_session(_make_ctx(messages=msgs), session_id=3)
+        r = state.result
+        assert (r.fetched, r.synthesized, r.dropped, r.restored) == (3, 0, 1, 2)
+
+    async def test_all_four_counts_differ_in_one_fixture(self) -> None:
+        msgs = [
+            {"role": "user", "content": "q"},
+            {"role": "user", "_memory_injected": True},
+            self._orphan_assistant(),
+        ]
+        state = await restore_session(_make_ctx(messages=msgs), session_id=4)
+        r = state.result
+        assert r.fetched == 3
+        assert r.synthesized == 2
+        assert r.dropped == 1
+        assert r.restored == 4
+        assert isinstance(state, RestoredSessionState)
+        assert len(state.history) == r.restored
 
 
 # ── Real-DB persistence after restore (sess001 regression) ─────────────────────
@@ -638,7 +707,8 @@ class TestRestorePersistenceRealDB:
     ) -> None:
         s, conn, original_sid = restore_env
         with caplog.at_level(logging.WARNING):
-            await restore_session(_make_restore_ctx(s), session_id=200)
+            state = await restore_session(_make_restore_ctx(s), session_id=200)
+        s.switch_session(state.result.session_id)  # what the transition commit does
         assert s.session_id == 200
 
         s.save("user", "turn in restored session")
@@ -666,7 +736,8 @@ class TestRestorePersistenceRealDB:
         self, restore_env: tuple[AgentSession, sqlite3.Connection, int]
     ) -> None:
         s, conn, original_sid = restore_env
-        await restore_session(_make_restore_ctx(s), session_id=200)
+        state = await restore_session(_make_restore_ctx(s), session_id=200)
+        s.switch_session(state.result.session_id)
         # AC-003: restore is non-destructive; both sessions rows survive.
         sids = {r[0] for r in conn.execute("SELECT session_id FROM sessions")}
         assert sids == {original_sid, 200}
@@ -698,13 +769,13 @@ class TestRestorePersistenceRealDB:
         ).fetchone()[0]
 
         ctx = _make_restore_ctx(s)
-        await restore_session(ctx, session_id=200)
+        state = await restore_session(ctx, session_id=200)
 
         after = conn.execute(
             "SELECT COUNT(*) FROM messages WHERE session_id = 200"
         ).fetchone()[0]
         assert after == before
         # The synthesized pairing exists only in the restored memory history.
-        tool_rows = [m for m in ctx.conv.history if m["role"] == "tool"]
+        tool_rows = [m for m in state.history if m["role"] == "tool"]
         assert [m["tool_call_id"] for m in tool_rows] == ["call_orphan"]
         assert "interrupted" in tool_rows[0]["content"]

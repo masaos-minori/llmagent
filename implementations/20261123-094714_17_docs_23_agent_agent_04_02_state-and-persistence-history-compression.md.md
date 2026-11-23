@@ -50,8 +50,8 @@ Command reference (seq 15), state model (seq 16).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the Data Classification table rows for /clear and session load | Pending | — | — | Docs-only row: no test step |
-| 2 | Run the doc checkers named in `rules/tool-gates.md` | Pending | — | — | |
+| 1 | Update the Data Classification table rows for /clear and session load | Completed | — | 20261123-121907 | Docs-only row: no test step Changed: docs/23_agent/agent_04_02_state-and-persistence-history-compression.md (Data Classification rows for history, undo_floor, stats, messages) |
+| 2 | Run the doc checkers named in `rules/tool-gates.md` | Completed | — | 20261123-121908 | Same doc checkers as seq 15 pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

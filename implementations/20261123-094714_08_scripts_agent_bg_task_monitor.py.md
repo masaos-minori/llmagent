@@ -58,10 +58,10 @@ Task-creation capture (seq 09), title log redaction (seq 10-11).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion row 27) | Pending | — | — | Tests written first per plan Phase 4 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261123-122205 | Changed: scripts/agent/bg_task_monitor.py (also hosts the identity ContextVar helpers; on_error still receives the original exception) |
+| 2 | Add or update tests per Validation plan (companion row 27) | Completed | — | 20261123-122205 | Tests written first per plan Phase 4 Changed: tests/agent/test_orchestrator_bg_failure_threshold.py. Grouping and redaction tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-122205 | 20261123-123428 | 3e clean (ruff, mypy 608 files, lint-imports, bandit -ll, module size, docstrings, suppression, compat shims, mock patch targets). Full suite 2 failed/13510 passed, failures in out-of-scope tests (see report); diff-cover 98% End-of-batch run passed: 13519 passed, 5 skipped; mypy 608 files clean; lint-imports 6 kept; diff-cover 98% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261123-122206 | N/A for this row N/A: docs handled by procedures 15-20 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

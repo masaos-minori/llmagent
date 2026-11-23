@@ -51,8 +51,8 @@ Command-facing text (seq 15), the compression doc (seq 17).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add generation, snapshot, and per-session pending sections | Pending | — | — | Docs-only row: no test step |
-| 2 | Run the doc checkers named in `rules/tool-gates.md` | Pending | — | — | |
+| 1 | Add generation, snapshot, and per-session pending sections | Completed | — | 20261123-121907 | Docs-only row: no test step Changed: docs/23_agent/agent_04_01_state-and-persistence-state-model.md (generation/target, transition and persistence snapshots, memory finalization marker, title fallback audit format) |
+| 2 | Run the doc checkers named in `rules/tool-gates.md` | Completed | — | 20261123-121907 | Same doc checkers as seq 15 pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

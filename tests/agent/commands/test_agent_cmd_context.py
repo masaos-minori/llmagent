@@ -6,7 +6,7 @@ Behavior-lock tests for _ContextMixin: _cmd_undo, _cmd_clear, _cmd_history.
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.commands.cmd_context import _ContextMixin
@@ -267,36 +267,137 @@ class TestCmdUndo:
         assert ctx.conv.history == [_system_msg(), _user_msg(), _assistant_msg()]
         assert ctx.stats.stat_turns == 1
 
+    def test_undo_reload_failure_reports_count_and_recovery_hint(
+        self, capsys: Any
+    ) -> None:
+        from agent.services.undo_service import UndoReloadError
+
+        ctx = _make_ctx()
+        ctx.conv.history = [_system_msg(), _user_msg(), _assistant_msg()]
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "agent.services.undo_service.undo_last_turn",
+            side_effect=UndoReloadError(3, 17),
+        ):
+            cmd._cmd_undo()
+        out = capsys.readouterr().out
+        assert "removed 3 message(s)" in out
+        assert "could not be reloaded" in out
+        assert "/session load 17" in out
+        assert "Last turn undone" not in out
+
+    def test_undo_reload_failure_through_the_real_service_is_not_silent(
+        self, capsys: Any
+    ) -> None:
+        import sqlite3
+
+        ctx = _make_ctx()
+        ctx.conv.history = [_system_msg(), _user_msg("q"), _assistant_msg("a")]
+        ctx.conv.undo_floor = 0
+        # The DB delete returns rows the memory tail cannot match -> reload path.
+        ctx.session.undo_last_turn.return_value = [
+            DeletedRow(message_id=9, role="tool", content="orphan", tool_call_id="x")
+        ]
+        ctx.session.fetch_messages.side_effect = sqlite3.OperationalError("disk gone")
+        cmd = _FakeCmd(ctx)
+
+        cmd._cmd_undo()
+
+        out = capsys.readouterr().out
+        assert "/session load 1" in out
+        assert "Last turn undone" not in out
+
 
 # ── _cmd_clear ────────────────────────────────────────────────────────────────
 
 
+def _service_patch(clear_new: Any) -> Any:
+    service = MagicMock()
+    service.clear_new = clear_new
+    return patch(
+        "agent.services.conversation_service.SessionTransitionService.for_context",
+        return_value=service,
+    )
+
+
 class TestCmdClear:
-    def test_clear_keeps_system_message(self) -> None:
+    async def test_clear_keeps_system_message(self) -> None:
         ctx = _make_ctx()
         ctx.conv.history = [_system_msg(), _user_msg(), _assistant_msg()]
         cmd = _FakeCmd(ctx)
-        cmd._cmd_clear()
+        await cmd._cmd_clear()
         assert ctx.conv.history == [_system_msg()]
 
-    def test_clear_resets_stats(self) -> None:
+    async def test_clear_resets_stats(self) -> None:
         ctx = _make_ctx()
         ctx.conv.history = [_system_msg()]
         ctx.stats.stat_turns = 5
         ctx.stats.stat_tool_calls = 10
         cmd = _FakeCmd(ctx)
-        cmd._cmd_clear()
+        await cmd._cmd_clear()
         assert ctx.stats.stat_turns == 0
         assert ctx.stats.stat_tool_calls == 0
 
-    def test_clear_new_starts_new_session(self, capsys: Any) -> None:
+    async def test_clear_new_goes_through_the_transition_service(
+        self, capsys: Any
+    ) -> None:
         ctx = _make_ctx()
         ctx.conv.history = [_system_msg()]
         cmd = _FakeCmd(ctx)
-        cmd._cmd_clear("new")
-        ctx.session.start.assert_called_once()
+        clear_new = AsyncMock(return_value=2)
+        with _service_patch(clear_new):
+            await cmd._cmd_clear("new")
+        clear_new.assert_awaited_once_with()
+        ctx.session.start.assert_not_called()
+        assert "New session" in capsys.readouterr().out
+
+    async def test_clear_message_says_in_memory_and_that_saved_rows_remain(
+        self, capsys: Any
+    ) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [_system_msg(), _user_msg()]
+        cmd = _FakeCmd(ctx)
+        await cmd._cmd_clear()
         out = capsys.readouterr().out
-        assert "New session" in out
+        assert "In-memory conversation history cleared" in out
+        assert "Saved messages and long-term Memory are unchanged" in out
+        assert "/session load" in out
+        ctx.session.delete_session.assert_not_called()
+
+    async def test_clear_new_message_says_in_memory_and_that_saved_rows_remain(
+        self, capsys: Any
+    ) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [_system_msg(), _user_msg()]
+        cmd = _FakeCmd(ctx)
+        with _service_patch(AsyncMock(return_value=2)):
+            await cmd._cmd_clear("new")
+        out = capsys.readouterr().out
+        assert "In-memory conversation history cleared" in out
+        assert "saved messages remain in the database" in out
+
+    async def test_clear_new_refused_during_a_turn_is_reported_without_success(
+        self, capsys: Any
+    ) -> None:
+        from agent.services.session_transition import SessionTransitionRefusedError
+
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        refusal = AsyncMock(
+            side_effect=SessionTransitionRefusedError("A turn is running.")
+        )
+        with _service_patch(refusal):
+            await cmd._cmd_clear("new")
+        out = capsys.readouterr().out
+        assert "A turn is running." in out
+        assert "cleared" not in out
+
+    def test_clear_handler_is_a_coroutine_declared_async(self) -> None:
+        import inspect
+
+        clear_def = next(c for c in _COMMANDS if c.name == "/clear")
+        assert clear_def.is_async is True
+        assert inspect.iscoroutinefunction(_FakeCmd._cmd_clear)
 
 
 # ── removed command rejection ─────────────────────────────────────────────────

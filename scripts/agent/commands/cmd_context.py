@@ -5,7 +5,7 @@ Context and history mixin for CommandRegistry.
 
 Provides _ContextMixin with:
   _cmd_context   — /context: runtime state and budget breakdown
-  _cmd_clear     — /clear: reset history and session stats
+  _cmd_clear     — /clear: reset in-memory conversation history and session stats
   _cmd_undo      — /undo: roll back the last turn
   _cmd_history   — /history: show recent messages
 
@@ -115,20 +115,42 @@ class _ContextMixin(MixinBase, TokenDisplay):
                     pct = n * 100 // total_tokens if total_tokens > 0 else 0
                     self._out.write(f"  {cat:<14}: {n:>8,} tokens ({pct:>3}%)")
 
-    def _cmd_clear(self, args: str = "") -> None:
-        """Reset conversation history to system prompt only and clear session stats."""
+    async def _cmd_clear(self, args: str = "") -> None:
+        """Reset in-memory conversation history to the system prompt; clear stats.
+
+        Saved messages are not deleted; ``/clear new`` also starts a new session
+        through the transition service (the old session is finalized first).
+        """
+        from agent.services.session_transition import (  # lazy import
+            SessionTransitionRefusedError,
+        )
+
         parsed = parse_command_args(args.split())
         new_session = parsed.subcommand == "new"
-        result = clear_conversation(self._ctx, new_session=new_session)
+        try:
+            result = await clear_conversation(self._ctx, new_session=new_session)
+        except SessionTransitionRefusedError as e:
+            self._out.write_validation_error(str(e))
+            return
         self._out.write_success(result.message)
 
     def _cmd_undo(self) -> None:
         """Roll back the last user+assistant turn, gated by the compression boundary."""
         from agent.services.undo_service import (  # lazy import
+            UndoReloadError,
             undo_last_turn,
         )
 
-        result = undo_last_turn(self._ctx)
+        try:
+            result = undo_last_turn(self._ctx)
+        except UndoReloadError as e:
+            self._out.write_error(
+                f"Undo removed {e.deleted_count} message(s) from the saved session, "
+                "but the in-memory conversation history could not be reloaded and "
+                "now differs from it. "
+                f"Run /session load {e.session_id} to reload the saved messages."
+            )
+            return
         if result.block_reason:  # blocked by the boundary (rows 05/06)
             self._out.write_no_data(result.block_reason)
         else:

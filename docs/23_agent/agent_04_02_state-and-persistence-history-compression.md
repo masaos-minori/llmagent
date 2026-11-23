@@ -129,13 +129,13 @@ state view.
 
 | Data type | Scope | Storage | When persisted | Cleared by |
 |---|---|---|---|---|
-| `ctx.conv.history` | Session | In-memory | Per message (asynchronously, before LLM call) | `/clear` or end of session |
+| `ctx.conv.history` | Session | In-memory | Per message (asynchronously, before LLM call); a `/session load` or `/clear new` transition finalizes the previous session first, then replaces the history (from the saved rows for a load) | `/clear` (in-memory conversation history only; the saved `messages` rows remain and return on `/session load`) or end of session |
 | `ctx.conv.*` flags | Session | In-memory | — (not persisted) | Session restart |
-| `ctx.conv.undo_floor` | Session | In-memory | Updated at each compression; restored from `sessions` on `/session load` | `/clear` (reset to 0) |
+| `ctx.conv.undo_floor` | Session | In-memory | Updated at each compression; restored from `sessions` on `/session load` | `/clear` (reset to 0 in memory; the persisted boundary in `sessions` is unchanged) |
 | `ctx.turn.current_turn_id` | Turn | In-memory | — (not persisted) | End of each turn |
-| `ctx.stats.*` | Session | In-memory | — (reported via `/stats`) | `/clear` |
+| `ctx.stats.*` | Session | In-memory | — (reported via `/stats`) | `/clear` or a session transition (`/session load`, `/clear new`) |
 | `sessions` table | Persistent | SQLite | Upon session creation; title generated asynchronously during the first turn; compression boundary for `/undo` updated at each compression | `/session delete` |
-| `messages` table | Persistent | SQLite | Every call to `AgentSession.save()` | `/session delete` or `/undo` |
+| `messages` table | Persistent | SQLite | Every call to `AgentSession.save()` | `/session delete` or `/undo` (a failed in-memory reload after `/undo` is reported with a `/session load` hint, never left silent); never by `/clear` |
 | Memory JSONL / `memories` table | Persistent | JSONL + SQLite | During memory extraction (asynchronously) | `/memory delete` or `/memory prune` (not cleared by `/session delete`) |
 
 ## Key Constraints

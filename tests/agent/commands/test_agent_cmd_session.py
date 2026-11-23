@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.commands.cmd_session import _SessionMixin
-from agent.session import AgentSession
+from agent.session import AgentSession, SessionTarget
 
 from tests.agent._config_test_defaults import MIN_DB_CONFIG, MIN_MAINTENANCE_CONFIG
 
@@ -26,6 +26,7 @@ def _make_session(
     s.list_sessions.return_value = list_return or []
     s.delete_session.return_value = delete_return
     s.is_title_pending.return_value = title_pending
+    s.capture_target.return_value = SessionTarget(session_id, 1)
     return s
 
 
@@ -253,6 +254,136 @@ class TestCmdSessionLoad:
         mock_load.assert_not_called()
 
 
+class TestLoadSessionViaTransitionService:
+    """REQ-002/REQ-009: load goes through the service and reports four counts."""
+
+    @staticmethod
+    def _service(**kwargs):
+        service = MagicMock()
+        service.load = AsyncMock(**kwargs)
+        return service
+
+    @pytest.mark.asyncio
+    async def test_load_uses_the_transition_service_and_reports_four_counts(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from agent.services.models import SessionRestoreResult
+
+        cmd = _make_cmd()
+        result = SessionRestoreResult(
+            session_id=7, n_messages=9, fetched=9, synthesized=2, dropped=1, restored=10
+        )
+        service = self._service(return_value=result)
+        with patch(
+            "agent.services.session_transition.SessionTransitionService.for_context",
+            return_value=service,
+        ) as for_context:
+            await cmd._load_session(7)
+
+        for_context.assert_called_once_with(cmd._ctx)
+        service.load.assert_awaited_once_with(7)
+        assert (
+            "Session 7 loaded: 9 fetched, 2 synthesized, 1 dropped, 10 restored."
+            in capsys.readouterr().out
+        )
+
+    @pytest.mark.asyncio
+    async def test_not_found_is_reported_as_no_data(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from agent.services.exceptions import SessionNotFoundError
+
+        cmd = _make_cmd()
+        service = self._service(
+            side_effect=SessionNotFoundError("Session 9 not found.")
+        )
+        with patch(
+            "agent.services.session_transition.SessionTransitionService.for_context",
+            return_value=service,
+        ):
+            await cmd._load_session(9)
+
+        assert "Session 9 not found." in capsys.readouterr().out
+
+    @pytest.mark.asyncio
+    async def test_active_turn_refusal_is_reported_with_its_reason(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from agent.services.session_transition import SessionTransitionRefusedError
+
+        cmd = _make_cmd()
+        service = self._service(
+            side_effect=SessionTransitionRefusedError("A turn is still running; wait.")
+        )
+        with patch(
+            "agent.services.session_transition.SessionTransitionService.for_context",
+            return_value=service,
+        ):
+            await cmd._load_session(3)
+
+        out = capsys.readouterr().out
+        assert "A turn is still running; wait." in out
+        assert "loaded" not in out
+
+    @pytest.mark.asyncio
+    async def test_other_failures_propagate_after_the_service_rolled_back(self) -> None:
+        cmd = _make_cmd()
+        service = self._service(side_effect=RuntimeError("commit failed"))
+        with (
+            patch(
+                "agent.services.session_transition.SessionTransitionService.for_context",
+                return_value=service,
+            ),
+            pytest.raises(RuntimeError, match="commit failed"),
+        ):
+            await cmd._load_session(3)
+
+
+class TestSessionListPendingPerSession:
+    @pytest.mark.asyncio
+    async def test_generating_is_shown_per_session_not_only_for_the_current_one(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        sessions = [
+            {
+                "session_id": 1,
+                "title": "Current",
+                "created_at": "t",
+                "is_current": True,
+            },
+            {"session_id": 2, "title": "Other", "created_at": "t", "is_current": False},
+        ]
+        cmd = _make_cmd(session_id=1, sessions=sessions)
+        cmd._ctx.session.is_title_pending.side_effect = lambda sid: sid == 2
+
+        await cmd._cmd_session("list")
+
+        out = capsys.readouterr().out
+        lines = {
+            int(line.split()[0].rstrip("*")): line
+            for line in out.splitlines()
+            if line.strip()[:1].isdigit()
+        }
+        assert "(generating...)" in lines[2]
+        assert "Current" in lines[1]
+        assert "(generating...)" not in lines[1]
+
+    @pytest.mark.asyncio
+    async def test_long_titles_are_truncated_at_the_display_limit(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        sessions = [
+            {"session_id": 1, "title": "X" * 40, "created_at": "t", "is_current": False}
+        ]
+        cmd = _make_cmd(sessions=sessions)
+
+        await cmd._cmd_session("list")
+
+        out = capsys.readouterr().out
+        assert "X" * 29 + "..." in out
+        assert "X" * 30 not in out
+
+
 class TestCmdSessionRename:
     @pytest.mark.asyncio
     async def test_rename_updates_title(self, capsys: pytest.CaptureFixture) -> None:
@@ -307,7 +438,9 @@ class TestGenerateSessionTitle:
             )
             await cmd._generate_session_title("")
 
-        cmd._ctx.session.set_title.assert_called_with("(New Session)")
+        cmd._ctx.session.set_title.assert_called_with(
+            "(New Session)", target=SessionTarget(1, 1)
+        )
 
     @pytest.mark.asyncio
     async def test_fallback_long_input_truncates_with_ellipsis(self) -> None:
@@ -325,7 +458,7 @@ class TestGenerateSessionTitle:
             )
             await cmd._generate_session_title(long_input)
 
-        call_args = cmd._ctx.session.set_title.call_args[0][0]
+        call_args = cmd._ctx.session.set_title.call_args.args[0]
         assert call_args.endswith("...")
         assert len(call_args) <= 32
 
@@ -344,7 +477,9 @@ class TestGenerateSessionTitle:
             )
             await cmd._generate_session_title("Hello World")
 
-        cmd._ctx.session.set_title.assert_called_with("Hello World")
+        cmd._ctx.session.set_title.assert_called_with(
+            "Hello World", target=SessionTarget(1, 1)
+        )
 
     @pytest.mark.asyncio
     async def test_pending_state_cleared_on_success(self) -> None:
@@ -357,8 +492,8 @@ class TestGenerateSessionTitle:
             MockSvc.return_value.generate = AsyncMock(return_value=None)
             await cmd._generate_session_title("hello")
 
-        cmd._ctx.session.set_title_pending.assert_any_call(True)
-        cmd._ctx.session.set_title_pending.assert_called_with(False)
+        cmd._ctx.session.set_title_pending.assert_any_call(True, 1)
+        cmd._ctx.session.set_title_pending.assert_called_with(False, 1)
 
     @pytest.mark.asyncio
     async def test_pending_state_cleared_on_failure(self) -> None:
@@ -375,7 +510,7 @@ class TestGenerateSessionTitle:
             )
             await cmd._generate_session_title("test")
 
-        cmd._ctx.session.set_title_pending.assert_called_with(False)
+        cmd._ctx.session.set_title_pending.assert_called_with(False, 1)
 
 
 class TestGenerateSessionTitleVisibility:
@@ -424,7 +559,96 @@ class TestGenerateSessionTitleVisibility:
             )
             await cmd._generate_session_title("hello")
 
-        cmd._ctx.session.set_title_pending.assert_called_with(False)
+        cmd._ctx.session.set_title_pending.assert_called_with(False, 1)
+
+
+class TestGenerateSessionTitleTargeting:
+    """REQ-004/REQ-005: writes follow the captured target; logs and audit stay redacted."""
+
+    SECRET_INPUT = "my confidential launch plan for the quarter that is long enough"
+    SECRET_REASON = "internal-host-10.1.2.3 refused"
+
+    @staticmethod
+    def _failing_service(reason: str):
+        from agent.services.exceptions import SessionTitleGenerationError
+
+        err = SessionTitleGenerationError(reason)
+        err.__cause__ = ConnectionError(reason)
+        return AsyncMock(side_effect=err)
+
+    @pytest.mark.asyncio
+    async def test_fallback_title_goes_to_the_captured_target_not_the_current_session(
+        self,
+    ) -> None:
+        from agent.bg_task_monitor import TaskIdentity, bind_task_identity
+
+        cmd = _make_cmd(session_id=2)  # the live session moved on to 2
+        identity = TaskIdentity("session_title", "i-1", 1, 1)  # task created in 1
+
+        with (
+            patch("agent.commands.session_title.SessionTitleService") as MockSvc,
+            bind_task_identity(identity),
+        ):
+            MockSvc.return_value.generate = self._failing_service("x")
+            await cmd._generate_session_title("Hello")
+
+        session = cmd._ctx.session
+        session.set_title.assert_called_once_with("Hello", target=SessionTarget(1, 1))
+        session.set_title_pending.assert_any_call(True, 1)
+        session.set_title_pending.assert_called_with(False, 1)
+        assert all(
+            call.args[1] == 1 for call in session.set_title_pending.call_args_list
+        )
+
+    @pytest.mark.asyncio
+    async def test_audit_and_warning_carry_no_title_text_and_no_raw_reason(
+        self,
+    ) -> None:
+        import logging
+
+        cmd = _make_cmd()
+        audit_logger = cmd._ctx.services.audit_logger
+        records: list[str] = []
+
+        class _Capture(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                records.append(record.getMessage())
+
+        log = logging.getLogger("agent.commands.session_title")
+        handler = _Capture(logging.DEBUG)
+        log.addHandler(handler)
+        log.setLevel(logging.DEBUG)
+        try:
+            with patch("agent.commands.session_title.SessionTitleService") as MockSvc:
+                MockSvc.return_value.generate = self._failing_service(
+                    self.SECRET_REASON
+                )
+                await cmd._generate_session_title(self.SECRET_INPUT)
+        finally:
+            log.removeHandler(handler)
+
+        audit_logger.warning.assert_called_once()
+        fmt, *args = audit_logger.warning.call_args.args
+        audited = fmt % tuple(args)
+        assert (
+            audited
+            == "session_title_fallback session_id=1 generation=1 error=ConnectionError"
+        )
+        everything = " ".join([audited, *records])
+        assert "confidential" not in everything
+        assert "10.1.2.3" not in everything
+        assert any("ConnectionError" in r for r in records)
+
+    @pytest.mark.asyncio
+    async def test_stale_fallback_write_is_not_audited(self) -> None:
+        cmd = _make_cmd()
+        cmd._ctx.session.set_title.return_value = False  # target no longer current
+        with patch("agent.commands.session_title.SessionTitleService") as MockSvc:
+            MockSvc.return_value.generate = self._failing_service("x")
+            await cmd._generate_session_title("Hello")
+
+        cmd._ctx.services.audit_logger.warning.assert_not_called()
+        cmd._ctx.session.set_title_pending.assert_called_with(False, 1)
 
 
 # ── /session health ─────────────────────────────────────────────────────────────

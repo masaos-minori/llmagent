@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import orjson
 import pytest
 from agent.config_dataclasses import DiagnosticsConfig
 from agent.diagnostic_store import DiagnosticStore
-from agent.session_persister import SessionPersister
+from agent.session_persister import SessionPersistenceSnapshot, SessionPersister
 from agent.workflow.state_store import StateStore
 
 from tests.agent._config_test_defaults import MIN_DB_CONFIG
@@ -79,6 +80,9 @@ def db():
 def _ctx(session_id: int | None) -> MagicMock:
     ctx = MagicMock()
     ctx.session.session_id = session_id
+    ctx.session.generation = 4
+    ctx.session.memory_finalized_count.return_value = 0
+    ctx.turn.current_turn_id = "turn-1"
     ctx.stats.stat_latency = {}
     ctx.stats.stat_turns = 3
     ctx.stats.stat_tool_calls = 1
@@ -384,3 +388,157 @@ class TestPersistSessionMemoriesGate:
         assert "user" in caplog.text
         assert "rogue_key" in caplog.text
         assert secret not in caplog.text
+
+
+class TestSessionPersistenceSnapshot:
+    def test_capture_copies_state_once(self) -> None:
+        ctx = _ctx(7)
+        ctx.conv.history = [{"role": "user", "content": "hello"}]
+        ctx.stats.stat_latency = {"llm": [0.5, 1.5]}
+        persister = SessionPersister(ctx, MagicMock(), MagicMock())
+
+        snap = persister.capture_snapshot()
+
+        assert snap.session_id == 7
+        assert snap.generation == 4
+        assert snap.turn_id == "turn-1"
+        assert snap.stats.turns == 3
+        assert snap.stats.latency["llm"] == (0.5, 1.5)
+        assert snap.history == ({"role": "user", "content": "hello"},)
+
+    def test_history_mutation_after_capture_does_not_change_snapshot(self) -> None:
+        ctx = _ctx(7)
+        ctx.conv.history = [{"role": "user", "content": "hello"}]
+        persister = SessionPersister(ctx, MagicMock(), MagicMock())
+        snap = persister.capture_snapshot()
+
+        ctx.conv.history[0]["content"] = "changed"
+        ctx.conv.history.append({"role": "assistant", "content": "extra"})
+        ctx.stats.stat_turns = 99
+
+        assert snap.history == ({"role": "user", "content": "hello"},)
+        assert snap.stats.turns == 3
+
+    def test_snapshot_is_frozen(self) -> None:
+        persister = SessionPersister(_ctx(7), MagicMock(), MagicMock())
+        snap = persister.capture_snapshot()
+        with pytest.raises(AttributeError):
+            snap.generation = 1  # type: ignore[misc] — frozen dataclass write is the assertion
+        with pytest.raises(TypeError):
+            snap.stats.latency["x"] = ()  # type: ignore[index] — read-only mapping write is the assertion
+
+    @pytest.mark.asyncio
+    async def test_both_steps_use_the_same_snapshot_state(self, db) -> None:
+        ctx = _ctx(7)
+        ctx.services = SimpleNamespace(
+            memory=MagicMock(on_session_stop=AsyncMock()), llm=None, hist_mgr=None
+        )
+        ctx.conv.history = [{"role": "user", "content": "hello"}]
+        persister = SessionPersister(
+            ctx,
+            DiagnosticStore(
+                diagnostics_cfg=DiagnosticsConfig(), db_config=MIN_DB_CONFIG
+            ),
+            MagicMock(),
+        )
+        snap = persister.capture_snapshot()
+        # Live state moves on after capture: the steps must still read the snapshot.
+        ctx.conv.history = [{"role": "user", "content": "later"}]
+        ctx.stats.stat_turns = 50
+
+        await persister.persist_session_memories(snap)
+        await persister.persist_session_diagnostics(snap)
+
+        kwargs = ctx.services.memory.on_session_stop.await_args.kwargs
+        assert kwargs["session_id"] == 7
+        assert kwargs["turn_id"] == "turn-1"
+        assert [m.content for m in kwargs["history"]] == ["hello"]
+        row = db.conn.execute("SELECT content FROM session_diagnostics").fetchone()
+        assert orjson.loads(row[0])["turns"] == 3
+
+    @pytest.mark.asyncio
+    async def test_stale_generation_rejected_without_writes(self, db, caplog) -> None:
+        ctx = _ctx(7)
+        ctx.services = MagicMock()
+        ctx.services.memory.on_session_stop = AsyncMock()
+        persister = SessionPersister(
+            ctx,
+            DiagnosticStore(
+                diagnostics_cfg=DiagnosticsConfig(), db_config=MIN_DB_CONFIG
+            ),
+            MagicMock(),
+        )
+        snap = persister.capture_snapshot()
+        ctx.session.generation = 5  # a transition advanced the generation
+
+        with caplog.at_level(logging.WARNING, logger="agent.session_persister"):
+            await persister.persist_session_memories(snap)
+            await persister.persist_session_diagnostics(snap)
+
+        ctx.services.memory.on_session_stop.assert_not_called()
+        assert db.count() == 0
+        assert caplog.text.count("no longer matches the live session") == 2
+
+    @pytest.mark.asyncio
+    async def test_snapshot_without_session_skips(self, db) -> None:
+        ctx = _ctx(7)
+        ctx.services = MagicMock()
+        ctx.services.memory.on_session_stop = AsyncMock()
+        persister = SessionPersister(ctx, MagicMock(), MagicMock())
+        empty = SessionPersistenceSnapshot(
+            session_id=None,
+            generation=4,
+            history=(),
+            turn_id=None,
+            stats=persister.capture_snapshot().stats,
+        )
+
+        await persister.persist_session_memories(empty)
+        await persister.persist_session_diagnostics(empty)
+
+        ctx.services.memory.on_session_stop.assert_not_called()
+        assert db.count() == 0
+
+
+class TestMemoryFinalizationGuard:
+    @pytest.mark.asyncio
+    async def test_second_finalization_of_same_history_is_skipped(self, caplog) -> None:
+        ctx = _ctx(7)
+        ctx.services = MagicMock()
+        ctx.services.memory.on_session_stop = AsyncMock()
+        ctx.conv.history = [{"role": "user", "content": "hello"}]
+        ctx.session.memory_finalized_count.return_value = 1
+        persister = SessionPersister(ctx, MagicMock(), MagicMock())
+
+        with caplog.at_level(logging.INFO, logger="agent.session_persister"):
+            await persister.persist_session_memories()
+
+        ctx.services.memory.on_session_stop.assert_not_called()
+        assert "already finalized" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_success_records_the_finalized_message_count(self) -> None:
+        ctx = _ctx(7)
+        ctx.services = MagicMock()
+        ctx.services.memory.on_session_stop = AsyncMock()
+        ctx.conv.history = [
+            {"role": "user", "content": "a"},
+            {"role": "assistant", "content": "b"},
+        ]
+        persister = SessionPersister(ctx, MagicMock(), MagicMock())
+
+        await persister.persist_session_memories()
+
+        ctx.session.record_memory_finalized.assert_called_once_with(7, 2)
+
+    @pytest.mark.asyncio
+    async def test_failure_does_not_record(self) -> None:
+        ctx = _ctx(7)
+        ctx.services = MagicMock()
+        ctx.services.memory.on_session_stop = AsyncMock(side_effect=RuntimeError("x"))
+        ctx.conv.history = [{"role": "user", "content": "a"}]
+        persister = SessionPersister(ctx, MagicMock(), MagicMock())
+
+        await persister.persist_session_memories()
+
+        ctx.session.record_memory_finalized.assert_not_called()

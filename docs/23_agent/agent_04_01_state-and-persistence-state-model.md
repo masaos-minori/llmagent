@@ -33,7 +33,15 @@ Documents the relationship between session persistence and conversation history 
 
 `AgentSession` manages the session and message tables in `session.sqlite`. A session row is created at REPL start, each turn's messages are appended, `/session load <id>` reconstructs `ctx.conv.history` from stored messages, and `/session delete <id>` removes the session together with its messages (cascade). `/session load` keeps the conversation summary of a compressed session: one canonical summary row, recognized by a shared constant, is restored after the current prompt, while every other persisted system row is still dropped.
 
-`session_id` is mutable on restore: `/session load` (`restore_session()`) reassigns the live session's `session_id`, and the message repository rebuilds to the new id on next use, so post-restore turns are attributed to the restored session. Skipped-save counters belong to the live repository instance.
+`session_id` is mutable on restore: `/session load` reassigns the live session's `session_id` as part of its transition commit, and the message repository rebuilds to the new id on next use, so post-restore turns are attributed to the restored session. Skipped-save counters belong to the live repository instance.
+
+#### Session generation and target
+
+The live session carries a monotonically increasing generation. It is runtime-only state (no schema column) that advances on every session id change, including a reload of the same id. An immutable session target pairs the session id with the generation. Work that must land in the session that started it, such as title generation, carries the target captured when it was created and is refused when the live session id or generation no longer matches, so a late result cannot change the current session. Title-generation pending state is tracked per session id, so a title task of an earlier session cannot flip it for the current one. Background tasks are registered with their type, instance, session id, and generation, and their failures are grouped by type.
+
+#### Transition and persistence snapshots
+
+A session transition (`/session load` and `/clear new`, see [agent_07_07](agent_07_07_cli-and-commands-slash-commands-session-mcp.md) for the command semantics) works from an immutable snapshot of the live session fields: id, generation, history, undo boundary, correlation id, and statistics. The new state is built off to the side, all fields are committed together, and the snapshot is restored when any step fails. Shutdown persistence takes one immutable snapshot (session id, generation, a copy of the history, turn id, and statistics) and uses it for both Memory extraction and diagnostics; persistence is refused when the generation changed since the capture. Memory extraction creates new entries on every run, so a session whose history was already finalized is not extracted again from an unchanged history.
 
 ### Message Saving Rules
 
@@ -68,7 +76,7 @@ In the first user turn, if session title generation fails, the following fallbac
 | `first_input` is empty | `"(New Session)"` | WARNING |
 | `set_title()` DB write failure | Title is not persisted | ERROR |
 
-All failure cases are non-blocking, and the session continues normally. When a fallback occurs, an audit log entry is issued: `session_title_fallback session_id=<id> fallback=<title> reason=<error>`. `set_title_pending` is reset to `False` in a `finally` block regardless of the result.
+All failure cases are non-blocking, and the session continues normally. When a fallback occurs, an audit log entry is issued: `session_title_fallback session_id=<id> generation=<n> error=<exception class>`. Neither the audit entry nor the logs carry the title text or the raw failure reason, and the fallback title is written only while the session and generation that started the task are still current. Title pending for that session is reset in a `finally` block regardless of the result.
 
 ## Responsibility Boundary
 

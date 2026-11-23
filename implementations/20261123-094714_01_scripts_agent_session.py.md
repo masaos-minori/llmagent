@@ -62,10 +62,10 @@ The transition service (seq 02), title-task capture (seq 09-11), command display
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion row 22) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs handled by seq 15-20 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261123-120528 | Changed: scripts/agent/session.py (+ UNK-03 marker memory_finalized_count/record_memory_finalized; temporary SESSION_TITLE_MAX_CHARS alias removed at seq 12) |
+| 2 | Add or update tests per Validation plan (companion row 22) | Completed | — | 20261123-120528 | Changed: tests/agent/test_agent_session.py; targeted tests pass (testmon not usable on cold data; rg-selected tests/agent files, 508+ passed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-120528 | 20261123-123425 | 3e: ruff, mypy (607 files), lint-imports, bandit, module size, docstrings, suppression, compat shims clean; awaiting end-of-batch full run End-of-batch run passed: 13519 passed, 5 skipped; mypy 608 files clean; lint-imports 6 kept; diff-cover 98% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261123-120528 | Docs handled by seq 15-20 N/A: docs handled by procedures 15-20 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

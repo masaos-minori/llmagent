@@ -8,7 +8,11 @@ notification, and pause state management.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+import contextvars
+import itertools
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from shared.logger import Logger
@@ -20,13 +24,75 @@ BG_FAILURE_THRESHOLD: int = 10
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
+    from agent.session import SessionTarget
+
+_instance_ids = itertools.count(1)
+
+
+@dataclass(frozen=True)
+class TaskIdentity:
+    """Who created a background task: its type, instance, session and generation."""
+
+    task_type: str
+    instance_id: str
+    session_id: int | None
+    generation: int
+
+
+# A task copies the context current at ``asyncio.create_task``, so an identity bound
+# just before the call is visible inside the task (see ``bind_task_identity``) and to
+# the monitor through ``task.get_context()``. The ``on_first_turn`` callable signature
+# therefore stays unchanged.
+_TASK_IDENTITY: contextvars.ContextVar[TaskIdentity | None] = contextvars.ContextVar(
+    "bg_task_identity", default=None
+)
+
+
+def new_task_identity(
+    task_type: str, session_id: int | None, generation: int
+) -> TaskIdentity:
+    """Build an identity with a fresh instance id."""
+    return TaskIdentity(
+        task_type, f"{task_type}-{next(_instance_ids)}", session_id, generation
+    )
+
+
+@contextmanager
+def bind_task_identity(identity: TaskIdentity) -> Iterator[None]:
+    """Bind ``identity`` for tasks created inside the ``with`` block.
+
+    The one documented place a background task gets its identity: wrap the
+    ``asyncio.create_task`` call, and read it back inside the task with
+    ``current_task_identity`` / ``current_task_target``.
+    """
+    token = _TASK_IDENTITY.set(identity)
+    try:
+        yield
+    finally:
+        _TASK_IDENTITY.reset(token)
+
+
+def current_task_identity() -> TaskIdentity | None:
+    """Return the identity bound where the running task was created, if any."""
+    return _TASK_IDENTITY.get()
+
+
+def current_task_target() -> SessionTarget | None:
+    """Return the session target captured where the running task was created."""
+    from agent.session import SessionTarget  # lazy import: avoids an import cycle
+
+    identity = _TASK_IDENTITY.get()
+    if identity is None:
+        return None
+    return SessionTarget(identity.session_id, identity.generation)
 
 
 class BgTaskMonitor:
     """Monitors background task failures and enforces threshold-based policies.
 
     Responsibilities:
-      - Track consecutive failures per task name
+      - Track consecutive failures per task type (tasks registered with an identity)
+        or per task name (tasks without one)
       - Notify user at threshold breach (first hit + every 5 thereafter)
       - Pause agent when pause_on_critical_failure is enabled
 
@@ -52,6 +118,32 @@ class BgTaskMonitor:
         self._pause_on_critical_failure = pause_on_critical_failure
         self._consecutive_failures: dict[str, int] = {}
         self._bg_pause_state: dict[str, bool] = {}
+        self._identities: dict[asyncio.Task[Any], TaskIdentity] = {}
+
+    def register(
+        self,
+        task: asyncio.Task[Any],
+        task_type: str,
+        session_id: int | None,
+        generation: int,
+        instance_id: str | None = None,
+    ) -> TaskIdentity:
+        """Register ``task`` with its type, instance id, session id and generation."""
+        identity = TaskIdentity(
+            task_type,
+            instance_id or f"{task_type}-{next(_instance_ids)}",
+            session_id,
+            generation,
+        )
+        self._identities[task] = identity
+        return identity
+
+    def _identity_of(self, task: asyncio.Task[Any]) -> TaskIdentity | None:
+        """Return the explicit registration, else the identity bound at creation."""
+        registered = self._identities.pop(task, None)
+        if registered is not None:
+            return registered
+        return task.get_context().get(_TASK_IDENTITY)
 
     @property
     def bg_pause_state(self) -> dict[str, bool]:
@@ -78,7 +170,8 @@ class BgTaskMonitor:
         called on a cancelled task (``CancelledError`` derives from ``BaseException``
         and would raise).
         """
-        task_name = task.get_name()
+        identity = self._identity_of(task)
+        task_name = task.get_name() if identity is None else identity.task_type
         count = self._consecutive_failures.get(task_name, 0)
 
         if task.cancelled():
@@ -93,9 +186,9 @@ class BgTaskMonitor:
             else:
                 count = self._count_failure(task_name, exc, count)
                 if count == 1 and isinstance(exc, Exception):
-                    self._report_first_failure(task_name, exc)
+                    self._report_first_failure(task_name, exc, identity)
                 elif count >= BG_FAILURE_THRESHOLD and isinstance(exc, Exception):
-                    self._report_threshold_failure(task_name, exc, count)
+                    self._report_threshold_failure(task_name, exc, count, identity)
 
         self._consecutive_failures[task_name] = count
         self._tasks.discard(task)
@@ -111,26 +204,47 @@ class BgTaskMonitor:
             return count
         return count + 1
 
-    def _report_first_failure(self, task_name: str, exc: Exception) -> None:
-        logger.warning("First background task failure (%s): %s", task_name, exc)
+    @staticmethod
+    def _describe(task_name: str, identity: TaskIdentity | None) -> str:
+        """Return the task key plus session identity; never exception or title text."""
+        if identity is None:
+            return task_name
+        return (
+            f"{task_name} instance={identity.instance_id} "
+            f"session={identity.session_id} generation={identity.generation}"
+        )
+
+    def _report_first_failure(
+        self, task_name: str, exc: Exception, identity: TaskIdentity | None = None
+    ) -> None:
+        logger.warning(
+            "First background task failure (%s): %s",
+            self._describe(task_name, identity),
+            type(exc).__name__,
+        )
         if self._on_error is not None:
             try:
                 self._on_error(exc)
             except Exception as notif_err:  # noqa: BLE001 — on_error callback must never raise; catch-all prevents notification failure from crashing the turn
                 logger.error(
                     "Failed to notify user of background task failure: %s",
-                    notif_err,
+                    type(notif_err).__name__,
                 )
 
     def _report_threshold_failure(
-        self, task_name: str, exc: Exception, count: int
+        self,
+        task_name: str,
+        exc: Exception,
+        count: int,
+        identity: TaskIdentity | None = None,
     ) -> None:
+        described = self._describe(task_name, identity)
         if count == BG_FAILURE_THRESHOLD or (count - BG_FAILURE_THRESHOLD) % 5 == 0:
             logger.error(
                 "Consecutive background task failures (%d) for '%s': %s",
                 count,
-                task_name,
-                exc,
+                described,
+                type(exc).__name__,
             )
             if count == BG_FAILURE_THRESHOLD:
                 self.notify_bg_failure_threshold(task_name, count)
@@ -138,8 +252,8 @@ class BgTaskMonitor:
             logger.warning(
                 "Background task failure #%d (%s): %s",
                 count,
-                task_name,
-                exc,
+                described,
+                type(exc).__name__,
             )
 
     def notify_bg_failure_threshold(self, task_name: str, count: int) -> None:
@@ -155,7 +269,7 @@ class BgTaskMonitor:
                 logger.critical(
                     "Failed to notify user of threshold breach for '%s': %s",
                     task_name,
-                    notif_err,
+                    type(notif_err).__name__,
                 )
         else:
             logger.critical(str(message))

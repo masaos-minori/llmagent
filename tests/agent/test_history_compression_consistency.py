@@ -732,9 +732,9 @@ async def test_compress_persist_restore_keeps_summary_drops_ephemeral(
     ctx.session.count_messages_up_to = session.count_messages_up_to
     ctx.conv = ConversationState()
     ctx.conv.system_prompt_content = "Canonical prompt."
-    await restore_session(ctx, session_id=1)
+    state = await restore_session(ctx, session_id=1)
 
-    rebuilt = ctx.conv.history
+    rebuilt = state.history
     sys_idx = [i for i, m in enumerate(rebuilt) if m["role"] == "system"]
     assert sys_idx == [0, 1]
     assert rebuilt[0]["content"] == "Canonical prompt."
@@ -744,4 +744,4 @@ async def test_compress_persist_restore_keeps_summary_drops_ephemeral(
     assert not any(m["content"] == "mem block" for m in rebuilt)
     # prompt(0) + summary(1) protected, last snapshot user(2) blocked,
     # first post-compression assistant row(3) is the undoable index.
-    assert ctx.conv.undo_floor == 3
+    assert state.undo_floor == 3

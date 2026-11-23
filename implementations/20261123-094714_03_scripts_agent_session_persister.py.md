@@ -60,10 +60,10 @@ Shutdown capture (seq 14), transition integration (seq 02).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion row 24) | Pending | — | — | Tests written first per plan Phase 2 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Generated docs via seq 19 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261123-120528 | Changed: scripts/agent/session_persister.py (finalized guard reads session marker) |
+| 2 | Add or update tests per Validation plan (companion row 24) | Completed | — | 20261123-120528 | Tests written first per plan Phase 2 Changed: tests/agent/test_session_persister.py; targeted tests pass (testmon not usable on cold data; rg-selected tests/agent files, 508+ passed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-120528 | 20261123-123426 | 3e: ruff, mypy (607 files), lint-imports, bandit, module size, docstrings, suppression, compat shims clean; awaiting end-of-batch full run End-of-batch run passed: 13519 passed, 5 skipped; mypy 608 files clean; lint-imports 6 kept; diff-cover 98% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261123-120528 | Generated docs via seq 19 N/A: docs handled by procedures 15-20 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

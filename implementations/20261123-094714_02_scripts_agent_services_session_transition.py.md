@@ -66,10 +66,10 @@ The restore builder (seq 04), command rewiring (seq 06, 12), persistence snapsho
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion row 21) | Pending | — | — | Tests written first per plan Phase 3 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Generated docs via seq 18-20 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261123-122203 | Changed: scripts/agent/services/session_transition.py (new). UNK-01: persistence_boundary never cleared, idle = current_turn_id None and workflow.active False. UNK-02: finalization failure warns. UNK-03: Memory extraction not idempotent (uuid4 ids), guarded by AgentSession finalized-count marker. Build runs before finalization for load |
+| 2 | Add or update tests per Validation plan (companion row 21) | Completed | — | 20261123-122203 | Tests written first per plan Phase 3 Changed: tests/agent/services/test_session_transition.py (new). 19 tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-122203 | 20261123-123425 | 3e clean (ruff, mypy 608 files, lint-imports, bandit -ll, module size, docstrings, suppression, compat shims, mock patch targets). Full suite 2 failed/13510 passed, failures in out-of-scope tests (see report); diff-cover 98% End-of-batch run passed: 13519 passed, 5 skipped; mypy 608 files clean; lint-imports 6 kept; diff-cover 98% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261123-122204 | Generated docs via seq 18-20 N/A: docs handled by procedures 15-20 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -114,10 +114,20 @@ class McpProbeResult:
 
 @dataclass(frozen=True)
 class SessionRestoreResult:
-    """Result of restoring a session from the database."""
+    """Result of restoring a session from the database.
+
+    ``fetched`` rows were read from the DB, ``synthesized`` tool rows were added to
+    pair interrupted tool calls, ``dropped`` rows failed validation, and ``restored``
+    is the length of the rebuilt in-memory history. ``n_messages`` mirrors
+    ``fetched``.
+    """
 
     session_id: int
     n_messages: int
+    fetched: int = 0
+    synthesized: int = 0
+    dropped: int = 0
+    restored: int = 0
 
 
 @dataclass(frozen=True)

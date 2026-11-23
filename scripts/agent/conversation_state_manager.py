@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 from shared.types import LLMMessage
 
+from agent.bg_task_monitor import bind_task_identity, new_task_identity
 from agent.memory.snippet_filter import build_memory_block
 from agent.message_schema import validate_message
 
@@ -26,6 +27,9 @@ if TYPE_CHECKING:
 
 # Ephemeral keys used to identify messages that should be cleaned up between turns.
 _EPHEMERAL_KEYS: frozenset[str] = frozenset({"_ephemeral", "_memory_injected"})
+
+# Task type of the first-turn background task (the session title generator).
+_FIRST_TURN_TASK_TYPE = "session_title"
 
 
 class ConversationStateManager:
@@ -105,10 +109,19 @@ class ConversationStateManager:
         await ctx.conv.append_message({"role": "user", "content": line})
         ctx.stats.stat_turns += 1
         if ctx.stats.stat_turns == 1 and self._on_first_turn is not None:
-            _task = asyncio.create_task(
-                self._on_first_turn(line),
-                name=getattr(self._on_first_turn, "__name__", "unknown_bg_task"),
+            # The first-turn task is the session title generator. Its identity is
+            # bound for the create_task call only; the task copies that context, so
+            # the title code and the monitor read the session and generation that
+            # created it (agent.bg_task_monitor.bind_task_identity).
+            target = ctx.session.capture_target()
+            identity = new_task_identity(
+                _FIRST_TURN_TASK_TYPE, target.session_id, target.generation
             )
+            with bind_task_identity(identity):
+                _task = asyncio.create_task(
+                    self._on_first_turn(line),
+                    name=getattr(self._on_first_turn, "__name__", "unknown_bg_task"),
+                )
             self._tasks.add(_task)
             _task.add_done_callback(self._on_discard)
         # Persist through the turn's atomic boundary (SEQ-06) so the user row is

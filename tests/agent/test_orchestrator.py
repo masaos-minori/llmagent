@@ -16,12 +16,13 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.bg_task_monitor import current_task_target
 from agent.context import ConversationState, TurnState, WorkflowState
 from agent.history import CompressResult, HistoryCompressionError
 from agent.llm_turn_executor import LlmTurnExecutor
 from agent.message_schema import ValidationResult
 from agent.orchestrator import BG_FAILURE_THRESHOLD, Orchestrator
-from agent.session import AgentSession
+from agent.session import AgentSession, SessionTarget
 from agent.session_message_repo import SessionMessageRepository
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_persistence import ConversationPersistenceError
@@ -2593,6 +2594,63 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
             orch._conversation_manager.sync_system_prompt()
 
         assert ctx.conv.history == [{"role": "user", "content": "hi"}]
+
+
+class TestFirstTurnTaskIdentity:
+    """REQ-004/REQ-005: the title task is created with the session target captured
+    at creation, visible inside the task, and grouped by type in the monitor."""
+
+    @staticmethod
+    def _orch_with_recording_first_turn(
+        ctx: MagicMock, seen: list[Any]
+    ) -> Orchestrator:
+        async def _first_turn(line: str) -> None:
+            seen.append(current_task_target())
+
+        orch = Orchestrator(ctx, on_first_turn=_first_turn)
+        orch._diagnostic_store = MagicMock()
+        ctx.diagnostics = orch._diagnostic_store
+        return orch
+
+    @pytest.mark.asyncio
+    async def test_title_task_sees_the_target_captured_at_creation(self) -> None:
+        ctx = _make_ctx()
+        ctx.conv.system_prompt_content = ""
+        ctx.stats.stat_turns = 0  # the append makes it turn 1 and spawns the task
+        ctx.turn.background_tasks = set()
+        ctx.session.capture_target.return_value = SessionTarget(12, 3)
+        seen: list[Any] = []
+        orch = self._orch_with_recording_first_turn(ctx, seen)
+
+        await orch._conversation_manager.append_user_message("hello")
+        # A transition lands before the task runs: it must still see the old target.
+        ctx.session.capture_target.return_value = SessionTarget(99, 4)
+        await asyncio.gather(*list(ctx.turn.background_tasks))
+
+        assert seen == [SessionTarget(12, 3)]
+        assert current_task_target() is None  # the binding did not leak to the caller
+
+    @pytest.mark.asyncio
+    async def test_title_task_failure_is_grouped_under_its_type(self) -> None:
+        ctx = _make_ctx()
+        ctx.conv.system_prompt_content = ""
+        ctx.stats.stat_turns = 0
+        ctx.turn.background_tasks = set()
+        ctx.session.capture_target.return_value = SessionTarget(12, 3)
+
+        async def _failing(line: str) -> None:
+            raise RuntimeError("secret title reason")
+
+        orch = Orchestrator(ctx, on_first_turn=_failing)
+        orch._diagnostic_store = MagicMock()
+        ctx.diagnostics = orch._diagnostic_store
+
+        await orch._conversation_manager.append_user_message("hello")
+        await asyncio.gather(*list(ctx.turn.background_tasks), return_exceptions=True)
+        await asyncio.sleep(0)  # let the done callbacks run
+
+        assert orch._bg_task_monitor.get_consecutive_failures("session_title") == 1
+        assert orch._bg_task_monitor.get_consecutive_failures("_failing") == 0
 
 
 class TestDiscardAndLogConsecutiveFailures:

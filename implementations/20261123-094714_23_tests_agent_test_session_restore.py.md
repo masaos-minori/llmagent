@@ -52,8 +52,8 @@ Builder implementation (seq 04), result fields (seq 05), service integration tes
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Tests-first row |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Test-only row: implement step is the test change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261123-122208 | Tests-first row Changed: tests/agent/test_session_restore.py (executed together with seq 04 because the builder change breaks the old assertions) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-122208 | 20261123-123431 | Test-only row: implement step is the test change Targeted tests pass (31); awaiting end-of-batch run, blocked by out-of-scope test failures End-of-batch run passed: 13519 passed, 5 skipped; mypy 608 files clean; lint-imports 6 kept; diff-cover 98% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

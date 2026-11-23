@@ -50,8 +50,8 @@ The doc guarded blocks (seq 18-19).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the manifest with the generator | Pending | — | — | Docs-only row: no test step |
-| 2 | Run generate_reference_table.py --check | Pending | — | — | |
+| 1 | Regenerate the manifest with the generator | Completed | — | 20261123-121911 | Docs-only row: no test step Changed: registry/manifests/agent_api.yaml via generate_reference_table.py --manifests --type agent |
+| 2 | Run generate_reference_table.py --check | Completed | — | 20261123-121912 | generate_reference_table.py --check: No drift found |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

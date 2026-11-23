@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from db.config import DbConfig
@@ -31,7 +32,20 @@ class SchemaMissingError(RuntimeError):
     """Raised when required SQLite schema tables are missing."""
 
 
-SESSION_TITLE_MAX_CHARS = 32
+SESSION_TITLE_STORAGE_MAX_CHARS = 32
+SESSION_TITLE_DISPLAY_MAX_CHARS = 32
+
+
+@dataclass(frozen=True)
+class SessionTarget:
+    """Immutable identity of a session at one point in time.
+
+    A task that must write into the session that created it carries a target and
+    is refused when the live session id or generation no longer matches.
+    """
+
+    session_id: int | None
+    generation: int
 
 
 class AgentSession:
@@ -42,6 +56,8 @@ class AgentSession:
     """
 
     _repo: SessionMessageRepository | None = None
+    _session_id: int | None = None  # current session DB row ID
+    _generation: int = 0
 
     @property
     def _message_repo(self) -> SessionMessageRepository:
@@ -59,6 +75,66 @@ class AgentSession:
     def _message_repo(self, value: SessionMessageRepository) -> None:
         self._repo = value
 
+    @property
+    def session_id(self) -> int | None:
+        """Return the current session DB row ID (None before ``start``)."""
+        return self._session_id
+
+    @session_id.setter
+    def session_id(self, value: int | None) -> None:
+        """Assign the session id; any change of id advances the generation."""
+        if value != self._session_id:
+            self._generation += 1
+        self._session_id = value
+
+    @property
+    def generation(self) -> int:
+        """Return the monotonically increasing session generation."""
+        return self._generation
+
+    def capture_target(self) -> SessionTarget:
+        """Return the immutable (session id, generation) pair of the live session."""
+        return SessionTarget(self._session_id, self._generation)
+
+    def is_current_target(self, target: SessionTarget) -> bool:
+        """Return True when ``target`` still names the live session and generation."""
+        return (
+            target.session_id == self._session_id
+            and target.generation == self._generation
+        )
+
+    def memory_finalized_count(self, session_id: int) -> int:
+        """Return how many history messages were already memory-finalized.
+
+        Memory extraction creates fresh entries on every run, so a session
+        finalized at a transition must not be finalized again from the same
+        history at exit (0 when the session was never finalized).
+        """
+        return self._memory_finalized.get(session_id, 0)
+
+    def record_memory_finalized(self, session_id: int, n_messages: int) -> None:
+        """Record that ``session_id`` was memory-finalized over ``n_messages``."""
+        self._memory_finalized[session_id] = n_messages
+
+    def switch_session(self, session_id: int | None) -> None:
+        """Make ``session_id`` current and always advance the generation.
+
+        Used by the transition commit so tasks bound to the previous generation
+        are rejected even when the same session id is loaded again.
+        """
+        self._session_id = session_id
+        self._generation += 1
+
+    def restore_identity(self, session_id: int | None, generation: int) -> None:
+        """Put back a previously captured identity (transition rollback only).
+
+        The generation is set to ``generation`` exactly; the caller guarantees
+        ``generation`` was captured from this session, so it never moves backwards
+        past a value another task already observed.
+        """
+        self._session_id = session_id
+        self._generation = generation
+
     def __init__(
         self,
         *,
@@ -75,9 +151,11 @@ class AgentSession:
         ``[diagnostics]`` table fails closed during this build.
         """
         self._db_config = db_config
-        self.session_id: int | None = None  # current session DB row ID
+        self._session_id = None
+        self._generation = 0
         self._strict_mode = strict_mode
-        self._title_pending: bool = False
+        self._title_pending_ids: set[int | None] = set()
+        self._memory_finalized: dict[int, int] = {}
         if diagnostics_cfg is None:
             diagnostics_cfg = build_agent_config().diagnostics
         self._diagnostic_store = DiagnosticStore(
@@ -204,29 +282,47 @@ class AgentSession:
             self.session_id, strict_mode=self._strict_mode, db_config=self._db_config
         )
 
-    def is_title_pending(self) -> bool:
-        """Return True if title generation is in progress."""
-        return self._title_pending
+    def is_title_pending(self, session_id: int | None = None) -> bool:
+        """Return True if title generation is in progress for a session.
 
-    def set_title_pending(self, pending: bool) -> None:
-        """Set title generation pending state."""
-        self._title_pending = pending
+        Without ``session_id`` the current session is checked.
+        """
+        key = self._session_id if session_id is None else session_id
+        return key in self._title_pending_ids
 
-    def set_title(self, title: str) -> bool:
-        """Set the session title (truncated to SESSION_TITLE_MAX_CHARS).
+    def set_title_pending(self, pending: bool, session_id: int | None = None) -> None:
+        """Set title generation pending state for a session.
+
+        Without ``session_id`` the current session is updated.
+        """
+        key = self._session_id if session_id is None else session_id
+        if pending:
+            self._title_pending_ids.add(key)
+        else:
+            self._title_pending_ids.discard(key)
+
+    def set_title(self, title: str, *, target: SessionTarget | None = None) -> bool:
+        """Set a session title (truncated to SESSION_TITLE_STORAGE_MAX_CHARS).
+
+        With no ``target`` the current session is written. With a ``target`` the
+        write happens only while the target still names the live session and
+        generation; a stale target returns False without any write.
 
         Returns True when the title was persisted, False when there is no active
-        session (session_id is None). Raises sqlite3.Error on DB failure.
+        session or the target is stale. Raises sqlite3.Error on DB failure.
         """
-        self._title_pending = False
-        if self.session_id is None:
+        if target is not None and not self.is_current_target(target):
+            self.set_title_pending(False, target.session_id)
+            return False
+        self.set_title_pending(False)
+        if self._session_id is None:
             return False
         with SQLiteHelper("session", db_config=self._db_config).open(
             write_mode=True
         ) as db:
             db.execute(
                 "UPDATE sessions SET title = ? WHERE session_id = ?",
-                (title[:SESSION_TITLE_MAX_CHARS], self.session_id),
+                (title[:SESSION_TITLE_STORAGE_MAX_CHARS], self._session_id),
             )
             db.commit()
         return True

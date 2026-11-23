@@ -8,7 +8,7 @@ Provides _SessionMixin with:
   _generate_session_title  — background task: LLM-generated short title (delegates to SessionTitleService)
   _session_load_safe       — safe session restore by ID
   _session_delete          — session deletion with self-guard
-  _load_session            — restore messages into ctx.conv.history (delegates to restore_session)
+  _load_session            — switch sessions atomically (delegates to SessionTransitionService)
 """
 
 import asyncio
@@ -79,7 +79,7 @@ class _SessionMixin(MixinBase):
     def _session_list(self, limit_arg: str) -> None:
         """List sessions table; limit_arg is the raw CLI positional (digit string or empty)."""
         from agent.commands.session_title import (  # lazy import
-            SESSION_TITLE_MAX_CHARS,
+            SESSION_TITLE_DISPLAY_MAX_CHARS,
             SESSION_TITLE_TRUNCATE_AT,
         )
 
@@ -111,16 +111,14 @@ class _SessionMixin(MixinBase):
                     message_count=int(r.get("message_count", 0)),
                 )
             )
-        current_id = self._ctx.session.session_id
         table_rows = []
         for sr in session_rows:
-            is_current = sr.session_id == current_id
-            if is_current and self._ctx.session.is_title_pending():
+            if self._ctx.session.is_title_pending(sr.session_id):
                 title_display = "(generating...)"
             elif sr.title:
                 title_display = (
                     sr.title[:SESSION_TITLE_TRUNCATE_AT] + "..."
-                    if len(sr.title) > SESSION_TITLE_MAX_CHARS
+                    if len(sr.title) > SESSION_TITLE_DISPLAY_MAX_CHARS
                     else sr.title
                 )
             else:
@@ -206,14 +204,14 @@ class _SessionMixin(MixinBase):
             if not title:
                 self._out.write_validation_error("/session rename <title>")
                 return
-            from agent.commands.session_title import SESSION_TITLE_MAX_CHARS
+            from agent.session import SESSION_TITLE_STORAGE_MAX_CHARS  # lazy import
 
             persisted = self._ctx.session.set_title(title)
             if not persisted:
                 self._out.write_validation_error("/session rename <title>")
                 return
             self._out.write_success(
-                f"Session renamed: {title[:SESSION_TITLE_MAX_CHARS]!r}"
+                f"Session renamed: {title[:SESSION_TITLE_STORAGE_MAX_CHARS]!r}"
             )
             return
 
@@ -252,18 +250,26 @@ class _SessionMixin(MixinBase):
         )
 
     async def _load_session(self, session_id: int) -> None:
-        """Restore a previous session via session_restore service."""
+        """Switch to a stored session through the atomic transition service."""
         from agent.services.exceptions import (  # lazy import
             SessionNotFoundError,
         )
-        from agent.services.session_restore import (  # lazy import
-            restore_session,
+        from agent.services.session_transition import (  # lazy import
+            SessionTransitionRefusedError,
+            SessionTransitionService,
         )
 
         try:
-            result = await restore_session(self._ctx, session_id)
-            self._out.write_success(
-                f"Session {result.session_id} loaded: {result.n_messages} messages restored."
+            result = await SessionTransitionService.for_context(self._ctx).load(
+                session_id
             )
         except SessionNotFoundError as e:
             self._out.write_no_data(str(e))
+        except SessionTransitionRefusedError as e:
+            self._out.write_validation_error(str(e))
+        else:
+            self._out.write_success(
+                f"Session {result.session_id} loaded: {result.fetched} fetched, "
+                f"{result.synthesized} synthesized, {result.dropped} dropped, "
+                f"{result.restored} restored."
+            )

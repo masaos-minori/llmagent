@@ -54,10 +54,10 @@ A failed restore leaves history, session id, undo floor, correlation, and stats 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Land with seq 02/05 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Row 23 has its own document (seq 23) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Generated docs via seq 18 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261123-122204 | Land with seq 02/05 Changed: scripts/agent/services/session_restore.py (builder returns RestoredSessionState) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261123-122204 | Row 23 has its own document (seq 23) Changed: tests/agent/test_session_restore.py (edited together with seq 23). Consumers outside scope now fail: tests/agent/test_session_correlation_refresh.py::test_restore_flow_refreshes_correlation, tests/agent/test_history_compression_consistency.py::test_compress_persist_restore_keeps_summary_drops_ephemeral |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-122204 | 20261123-123426 | 3e clean (ruff, mypy 608 files, lint-imports, bandit -ll, module size, docstrings, suppression, compat shims, mock patch targets). Full suite 2 failed/13510 passed, failures in out-of-scope tests (see report); diff-cover 98% End-of-batch run passed: 13519 passed, 5 skipped; mypy 608 files clean; lint-imports 6 kept; diff-cover 98% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261123-122204 | Generated docs via seq 18 N/A: docs handled by procedures 15-20 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -56,10 +56,10 @@ Service messages (seq 06), error type (seq 07), docs (seq 15).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | After seq 06, 07 |
-| 2 | Add or update tests per Validation plan (companion row 31) | Pending | — | — | Tests written first per plan Phase 5 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs via seq 15 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261123-122902 | After seq 06, 07 Changed: scripts/agent/commands/cmd_context.py Reopened after procedure 33: _cmd_clear is async def, awaits clear_conversation, reports SessionTransitionRefusedError via write_validation_error (cmd_context.py) |
+| 2 | Add or update tests per Validation plan (companion row 31) | Completed | — | 20261123-122902 | Tests written first per plan Phase 5 Changed: tests/agent/commands/test_agent_cmd_context.py. Undo recovery hint and clear wording tests Reopened: tests/agent/commands/test_agent_cmd_context.py updated for async _cmd_clear, service routing and refusal |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-122208 | 20261123-123430 | 3e clean (ruff, mypy 608 files, lint-imports, bandit -ll, module size, docstrings, suppression, compat shims, mock patch targets). Full suite 2 failed/13510 passed, failures in out-of-scope tests (see report); diff-cover 98% End-of-batch run passed: 13519 passed, 5 skipped; mypy 608 files clean; lint-imports 6 kept; diff-cover 98% |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261123-122208 | Docs via seq 15 N/A: docs handled by procedures 15-20 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

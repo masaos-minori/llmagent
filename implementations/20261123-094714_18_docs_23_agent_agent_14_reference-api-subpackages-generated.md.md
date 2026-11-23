@@ -50,8 +50,8 @@ The package-level table (seq 19) and the manifests (seq 20).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the guarded block with the generator | Pending | — | — | Docs-only row: no test step |
-| 2 | Run generate_reference_table.py --check and the doc checkers from `rules/tool-gates.md` | Pending | — | — | |
+| 1 | Regenerate the guarded block with the generator | Completed | — | 20261123-121908 | Docs-only row: no test step Changed: docs/23_agent/agent_14_reference-api-subpackages-generated.md via generate_reference_table.py --type agent_subpackages (dry-run first) |
+| 2 | Run generate_reference_table.py --check and the doc checkers from `rules/tool-gates.md` | Completed | — | 20261123-121909 | generate_reference_table.py --check: No drift found; doc checkers pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

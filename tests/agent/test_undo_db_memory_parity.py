@@ -287,6 +287,75 @@ class TestUndoReloadFallback:
         )
 
 
+class TestUndoReloadFailure:
+    def _ambiguous_setup(self, env: _Env) -> list[dict]:
+        env.session.save_many(
+            [
+                ("user", "q1", None, None),
+                ("assistant", "a1", None, None),
+                ("user", "q2", None, None),
+                ("assistant", "a2", None, None),
+            ]
+        )
+        env.conn.execute(
+            "INSERT INTO messages (session_id, role, content, tool_call_id)"
+            " VALUES (?, 'tool', 'orphan-result', 'tcX')",
+            (env.sid,),
+        )
+        env.conn.commit()
+        return [
+            {"role": "user", "content": "q1"},
+            {"role": "assistant", "content": "a1"},
+            {"role": "user", "content": "q2"},
+            {"role": "assistant", "content": "a2"},
+        ]
+
+    def test_reload_failure_after_delete_raises_explicit_error(
+        self, env: _Env, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """REQ-008: the reload failing after the DB delete is never silent."""
+        history = self._ambiguous_setup(env)
+        ctx = _ctx(env.session, history)
+
+        with (
+            caplog.at_level(logging.ERROR, logger="agent.services.undo_service"),
+            patch.object(
+                env.session,
+                "fetch_messages",
+                side_effect=sqlite3.OperationalError("disk gone: secret-detail"),
+            ),
+            pytest.raises(undo_service.UndoReloadError) as excinfo,
+        ):
+            undo_service.undo_last_turn(ctx)
+
+        err = excinfo.value
+        # The DB delete already happened: q2, a2 and the orphan tool row.
+        assert err.deleted_count == 3
+        assert err.session_id == env.sid
+        assert isinstance(err.__cause__, sqlite3.OperationalError)
+        assert _contents(env.session, env.sid) == ["q1", "a1"]
+        assert "OperationalError" in caplog.text
+        assert "secret-detail" not in caplog.text
+        # The in-memory history was not replaced by a partial reload.
+        assert len(ctx.conv.history) == 4
+
+    def test_runtime_error_from_strict_reload_is_wrapped_too(self, env: _Env) -> None:
+        history = self._ambiguous_setup(env)
+        with (
+            patch.object(
+                env.session, "fetch_messages", side_effect=RuntimeError("strict")
+            ),
+            pytest.raises(undo_service.UndoReloadError),
+        ):
+            undo_service.undo_last_turn(_ctx(env.session, history))
+
+    def test_successful_reload_is_unchanged(self, env: _Env) -> None:
+        history = self._ambiguous_setup(env)
+        ctx = _ctx(env.session, history)
+        undo_service.undo_last_turn(ctx)
+        assert [m["content"] for m in ctx.conv.history] == ["q1", "a1"]
+
+
 class TestUndoArtifactTrim:
     def test_injected_block_trimmed_on_primary_path(self, env: _Env) -> None:
         """T-004 (REQ-002): a memory-only _memory_injected block immediately before

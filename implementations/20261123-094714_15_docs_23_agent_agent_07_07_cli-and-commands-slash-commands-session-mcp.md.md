@@ -52,8 +52,8 @@ The state-model and compression docs (seq 16-17), generated tables (seq 18-20).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the Session Category paragraph and affected command entries | Pending | — | — | Docs-only row: no test step |
-| 2 | Run the doc checkers named in `rules/tool-gates.md` | Pending | — | — | |
+| 1 | Rewrite the Session Category paragraph and affected command entries | Completed | — | 20261123-121906 | Docs-only row: no test step Changed: docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md. Scope note: /clear new is documented as an in-memory reset that starts a new session (not as an atomic transition) because seq 06 routing is Blocked; /session load transition semantics and four counts documented. |
+| 2 | Run the doc checkers named in `rules/tool-gates.md` | Completed | — | 20261123-121906 | Checkers pass: check_docs_quality, check_docs_structure, check_docs_content_policy --strict, check_docs_consistency --domain agent (only the pre-existing agent_14 /db warning), check_docs_japanese, check_needs_confirmation_inventory |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

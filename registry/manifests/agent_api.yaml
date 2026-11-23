@@ -11,6 +11,31 @@ entries:
   summary: Constructs and emits audit events for turn lifecycle boundaries.
 - file: scripts/agent/bg_task_monitor.py
   kind: class
+  name: TaskIdentity
+  signature: class TaskIdentity
+  summary: 'Who created a background task: its type, instance, session and generation.'
+- file: scripts/agent/bg_task_monitor.py
+  kind: function
+  name: new_task_identity
+  signature: def new_task_identity(task_type, session_id, generation) -> TaskIdentity
+  summary: Build an identity with a fresh instance id.
+- file: scripts/agent/bg_task_monitor.py
+  kind: function
+  name: bind_task_identity
+  signature: def bind_task_identity(identity) -> Iterator[None]
+  summary: Bind ``identity`` for tasks created inside the ``with`` block.
+- file: scripts/agent/bg_task_monitor.py
+  kind: function
+  name: current_task_identity
+  signature: def current_task_identity() -> TaskIdentity | None
+  summary: Return the identity bound where the running task was created, if any.
+- file: scripts/agent/bg_task_monitor.py
+  kind: function
+  name: current_task_target
+  signature: def current_task_target() -> SessionTarget | None
+  summary: Return the session target captured where the running task was created.
+- file: scripts/agent/bg_task_monitor.py
+  kind: class
   name: BgTaskMonitor
   signature: class BgTaskMonitor
   summary: Monitors background task failures and enforces threshold-based policies.
@@ -947,10 +972,10 @@ entries:
   signature: def collect_context_state(ctx) -> ContextStateView
   summary: Aggregate runtime context data for /context display.
 - file: scripts/agent/services/conversation_service.py
-  kind: function
+  kind: async function
   name: clear_conversation
-  signature: def clear_conversation(ctx, *, new_session) -> ConversationActionResult
-  summary: Reset conversation history to system prompt only and clear session stats.
+  signature: async def clear_conversation(ctx, *, new_session) -> ConversationActionResult
+  summary: Reset in-memory conversation history to the system prompt and clear stats.
 - file: scripts/agent/services/db_maintenance_service.py
   kind: class
   name: DbMaintenanceService
@@ -1235,20 +1260,45 @@ entries:
     -> tuple[list[LLMMessage], int]
   summary: Pair assistant tool_calls rows with tool-result rows at load time.
 - file: scripts/agent/services/session_restore.py
+  kind: class
+  name: RestoredSessionState
+  signature: class RestoredSessionState
+  summary: State rebuilt from a stored session, ready to be committed atomically.
+- file: scripts/agent/services/session_restore.py
   kind: async function
   name: restore_session
-  signature: async def restore_session(ctx, session_id) -> SessionRestoreResult
-  summary: 'Restore session: rebuild history, switch session ID, reset stats.'
+  signature: async def restore_session(ctx, session_id) -> RestoredSessionState
+  summary: Build the restored state of a stored session without mutating ``ctx``.
 - file: scripts/agent/services/session_title.py
   kind: class
   name: SessionTitleService
   signature: class SessionTitleService
   summary: Generate a short LLM-based title for a session and persist it.
+- file: scripts/agent/services/session_transition.py
+  kind: class
+  name: SessionTransitionRefusedError
+  signature: class SessionTransitionRefusedError
+  summary: Raised when a transition is requested while a turn is running.
+- file: scripts/agent/services/session_transition.py
+  kind: class
+  name: SessionTransitionSnapshot
+  signature: class SessionTransitionSnapshot
+  summary: Immutable copy of every field a transition commit changes.
+- file: scripts/agent/services/session_transition.py
+  kind: class
+  name: SessionTransitionService
+  signature: class SessionTransitionService
+  summary: Runs ``/clear new`` and ``/session load`` as one atomic transition.
 - file: scripts/agent/services/tool_validation.py
   kind: async function
   name: check_tool_definitions_runtime
   signature: async def check_tool_definitions_runtime(ctx) -> HealthCheckResult
   summary: 'Runtime validation: no raise, warnings only.'
+- file: scripts/agent/services/undo_service.py
+  kind: class
+  name: UndoReloadError
+  signature: class UndoReloadError
+  summary: Raised when the memory reload after the undo DB delete failed.
 - file: scripts/agent/services/undo_service.py
   kind: function
   name: undo_last_turn
@@ -1276,6 +1326,11 @@ entries:
   summary: Raised when required SQLite schema tables are missing.
 - file: scripts/agent/session.py
   kind: class
+  name: SessionTarget
+  signature: class SessionTarget
+  summary: Immutable identity of a session at one point in time.
+- file: scripts/agent/session.py
+  kind: class
   name: AgentSession
   signature: class AgentSession
   summary: Manages REPL session and message persistence in SQLite.
@@ -1284,6 +1339,22 @@ entries:
   name: SessionMessageRepository
   signature: class SessionMessageRepository
   summary: Repository for session message operations.
+- file: scripts/agent/session_persister.py
+  kind: class
+  name: WarningSink
+  signature: class WarningSink
+  summary: Where non-fatal persistence warnings are written (``CLIView`` satisfies
+    it).
+- file: scripts/agent/session_persister.py
+  kind: class
+  name: SessionStatsSnapshot
+  signature: class SessionStatsSnapshot
+  summary: Immutable copy of the session statistics the persisted summary reads.
+- file: scripts/agent/session_persister.py
+  kind: class
+  name: SessionPersistenceSnapshot
+  signature: class SessionPersistenceSnapshot
+  summary: Immutable view of the session state taken once for persistence.
 - file: scripts/agent/session_persister.py
   kind: class
   name: SessionPersister
