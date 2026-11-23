@@ -9,7 +9,7 @@ repeats append to `call_attempt_history`. Lease expiry alone only yields
 
 The store carries an identity created at initialization (single-row `store_meta`:
 store UUID, generation, schema/config fingerprints, created epoch; `PRAGMA
-user_version = 1`; external installation marker `.mcp_dedup_installed`). Opening
+user_version = 2`; external installation marker `.mcp_dedup_installed`). Opening
 a store classifies its start state: `first_initialization` and `healthy` open;
 `lost`, `replaced`, `legacy_or_unverified`, and `schema_mismatch` raise the typed
 `DedupStoreError` taxonomy with the state attached, blocking side-effecting use
@@ -43,6 +43,11 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from shared.mcp_call_state_contract import (
+    CONTROL_ERROR_CODES,
+    RECONCILE_OUTCOMES,
+    RESULT_CLASSES,
+)
 from shared.mcp_dedup_config import (
     _LEASE_SECONDS_RANGE,
     _MAX_ATTEMPTS_RANGE,
@@ -58,10 +63,13 @@ from shared.mcp_dedup_config import (
 from shared.mcp_dedup_ledger import DedupLedger
 from shared.mcp_dedup_rows import (
     AcquisitionResult,
+    CallStateView,
     DedupLeaseConflict,
     DedupRow,
     DedupStoreError,
+    StoredResult,
     classify_interrupted,
+    classify_result,
 )
 from shared.mcp_dedup_schema import (
     _ATTEMPT_HISTORY_SCHEMA,
@@ -85,6 +93,8 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "ACQUISITION_STATES",
     "AcquisitionResult",
+    "CONTROL_ERROR_CODES",
+    "CallStateView",
     "DEFAULT_DB_PATH",
     "DEFAULT_LEASE_SECONDS",
     "DEFAULT_MAX_ATTEMPTS",
@@ -95,11 +105,15 @@ __all__ = [
     "DedupStore",
     "DedupStoreConfig",
     "DedupStoreError",
+    "RECONCILE_OUTCOMES",
+    "RESULT_CLASSES",
     "RESULT_MAX_CHARS",
     "RESULT_PREVIEW_CHARS",
     "START_STATES",
+    "StoredResult",
     "TERMINAL_STATES",
     "classify_interrupted",
+    "classify_result",
     "load_dedup_section",
     "open_dedup_store",
     "read_store_identity",

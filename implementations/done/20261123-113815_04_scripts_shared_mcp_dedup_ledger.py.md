@@ -69,9 +69,9 @@ The control endpoints (row 09) and reconcile decision logic (row 09).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-160000 | 20261123-160000 | widened _fetch_locked, metadata finalization, call_state_view, append_reconcile_evidence |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-160000 | 20261123-160000 | row 26 TestCallStateView |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-160000 | 20261123-160000 | gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

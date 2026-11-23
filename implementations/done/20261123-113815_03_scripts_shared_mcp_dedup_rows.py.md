@@ -69,9 +69,9 @@ SQL changes (row 04) and re-exports (row 05).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-135004 | 20261123-135004 | StoredResult, classify_result, redact_preview, CallStateView, DedupRow fields |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-135004 | 20261123-135004 | row 26 TestResultMetadata |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-135004 | 20261123-135004 | gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

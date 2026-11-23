@@ -19,12 +19,17 @@ from collections.abc import Mapping
 from typing import Any
 
 from shared.execution_snapshot import snapshot_json, snapshots_equal
+from shared.mcp_call_state_contract import (
+    RECONCILE_OUTCOMES,
+    agent_state_for,
+)
 from shared.mcp_dedup_rows import (
     AcquisitionResult,
+    CallStateView,
     DedupLeaseConflict,
     DedupRow,
-    _cap_result,
     _row_from_record,
+    classify_result,
 )
 
 logger = logging.getLogger(__name__)
@@ -251,22 +256,35 @@ class DedupLedger:
         owner_id: str,
         *,
         now_epoch: float | None = None,
+        external_ref: str | None = None,
     ) -> None:
-        """Owner-conditional finalization; exactly one updated row (REQ-004)."""
+        """Owner-conditional finalization; exactly one updated row (REQ-004).
+
+        Result metadata is classified once at store time (REQ-003):
+        `secure_reference` is stored only when `external_ref` is supplied.
+        """
         now = time.time() if now_epoch is None else now_epoch
+        stored = classify_result(result)
+        result_class = "secure_reference" if external_ref else stored.result_class
         self._finalize(
             key,
             "completed",
             [
                 (
                     "UPDATE dedup_call_state SET status='completed', snapshot_json=?,"
-                    " updated_epoch=?, result_json=?, lease_expires_epoch=NULL"
+                    " updated_epoch=?, result_json=?, result_sha256=?,"
+                    " result_size_bytes=?, result_class=?, external_ref=?,"
+                    " lease_expires_epoch=NULL"
                     " WHERE key=? AND status='pending' AND owner_id=?"
                     " AND lease_expires_epoch > ?",
                     (
                         snapshot_json(snapshot),
                         now,
-                        _cap_result(result),
+                        stored.payload,
+                        stored.sha256,
+                        stored.size_bytes,
+                        result_class,
+                        external_ref,
                         key,
                         owner_id,
                         now,
@@ -286,7 +304,8 @@ class DedupLedger:
         now_epoch: float | None = None,
     ) -> None:
         """Owner-conditional terminal failure; 'failed' is only produced here
-        by an owner-finalized handler error (REQ-003)."""
+        by an owner-finalized handler error (REQ-003). The result class is
+        `replay_unavailable` with `result_code` = the error class (REQ-003)."""
         now = time.time() if now_epoch is None else now_epoch
         self._finalize(
             key,
@@ -294,10 +313,19 @@ class DedupLedger:
             [
                 (
                     "UPDATE dedup_call_state SET status='failed', updated_epoch=?,"
-                    " result_json=?, lease_expires_epoch=NULL"
+                    " result_json=?, result_class=?, result_code=?,"
+                    " lease_expires_epoch=NULL"
                     " WHERE key=? AND status='pending' AND owner_id=?"
                     " AND lease_expires_epoch > ?",
-                    (now, json.dumps({"error_class": error_class}), key, owner_id, now),
+                    (
+                        now,
+                        json.dumps({"error_class": error_class}),
+                        "replay_unavailable",
+                        error_class,
+                        key,
+                        owner_id,
+                        now,
+                    ),
                 )
             ],
             owner_id,
@@ -437,7 +465,8 @@ class DedupLedger:
     def _fetch_locked(self, key: str) -> DedupRow | None:
         rec = self._conn.execute(
             "SELECT key, tool_name, args_hash, status, owner_id, lease_expires_epoch,"
-            " attempt_number, snapshot_json, created_epoch, updated_epoch, result_json"
+            " attempt_number, snapshot_json, created_epoch, updated_epoch, result_json,"
+            " result_sha256, result_size_bytes, result_class, result_code, external_ref"
             " FROM dedup_call_state WHERE key = ?",
             (key,),
         ).fetchone()
@@ -448,6 +477,71 @@ class DedupLedger:
         pattern — acquisition is only through try_acquire_execution)."""
         with self._lock:
             return self._fetch_locked(key)
+
+    def call_state_view(
+        self, key: str, *, now_epoch: float | None = None
+    ) -> CallStateView | None:
+        """Read-only control-API projection of one row (REQ-001); None for an
+        unknown key. `lease_live` is a pending row with an unexpired lease;
+        `attempts_exhausted` is `attempt_number >= max_attempts`;
+        `agent_state` comes from the shared mapping; `error_code` is
+        `handler_failed` for failed rows, else `none`."""
+        now = time.time() if now_epoch is None else now_epoch
+        with self._lock:
+            row = self._fetch_locked(key)
+            if row is None:
+                return None
+            lease_live = row.status == "pending" and (
+                row.lease_expires_epoch is not None and row.lease_expires_epoch > now
+            )
+        agent_state = agent_state_for(row.status, lease_live)
+        return CallStateView(
+            key=row.key,
+            tool_name=row.tool_name,
+            ledger_status=row.status,
+            attempt_number=row.attempt_number,
+            lease_live=lease_live,
+            lease_expires_epoch=row.lease_expires_epoch,
+            result_class=row.result_class,
+            result_code=row.result_code,
+            result_size_bytes=row.result_size_bytes,
+            result_sha256=row.result_sha256,
+            external_ref=row.external_ref,
+            attempts_exhausted=row.attempt_number >= self._max_attempts,
+            agent_state=agent_state,
+            reconciliation_required=agent_state == "reconciliation_required",
+            error_code="handler_failed" if row.status == "failed" else "none",
+        )
+
+    def append_reconcile_evidence(
+        self,
+        key: str,
+        outcome: str,
+        digest: str,
+        *,
+        now_epoch: float | None = None,
+    ) -> None:
+        """Append one reconcile decision to the attempt history (REQ-004):
+        outcome `reconcile_decision`, detail `<outcome>:<digest>`. It never
+        touches `dedup_call_state`; the decision and a non-sensitive digest are
+        recorded without sensitive payloads."""
+        if outcome not in RECONCILE_OUTCOMES:
+            raise ValueError(
+                f"append_reconcile_evidence: outcome {outcome!r} is not in "
+                "RECONCILE_OUTCOMES"
+            )
+        now = time.time() if now_epoch is None else now_epoch
+        self._write_txn(
+            [
+                (
+                    "INSERT INTO call_attempt_history (key, attempt_number, owner_id,"
+                    " outcome, detail, recorded_epoch)"
+                    " SELECT ?, COALESCE(MAX(attempt_number), 1), NULL, ?, ?, ?"
+                    " FROM call_attempt_history WHERE key = ?",
+                    (key, "reconcile_decision", f"{outcome}:{digest}", now, key),
+                )
+            ]
+        )
 
     def clear(self, key: str) -> None:
         """Delete the row for a key (used for dry-run outcomes that must not

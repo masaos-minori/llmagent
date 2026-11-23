@@ -63,8 +63,8 @@ Any production change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-160000 | 20261123-160000 | no change needed |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-160000 | 20261123-160000 | suite green with the widened SELECT |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

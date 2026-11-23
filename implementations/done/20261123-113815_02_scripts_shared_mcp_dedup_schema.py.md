@@ -68,9 +68,9 @@ Ledger writes (row 04), row classification (row 03), and operator runbook text (
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-135004 | 20261123-135004 | five nullable result columns, _USER_VERSION = 2 |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-135004 | 20261123-135004 | covered by rows 26 and 27 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-135004 | 20261123-135004 | gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

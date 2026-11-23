@@ -63,9 +63,9 @@ Logic changes in the split modules.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-160000 | 20261123-160000 | facade re-exports and docstring version 2 |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-160000 | 20261123-160000 | covered by row 26 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-160000 | 20261123-160000 | gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

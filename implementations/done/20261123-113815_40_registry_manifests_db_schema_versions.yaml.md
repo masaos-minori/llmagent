@@ -62,8 +62,8 @@ Any manual edit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the artifact with the command in Procedure | Pending | — | — | |
-| 2 | Run `uv run python tools/generate_reference_table.py --check` and confirm no drift | Pending | — | — | |
+| 1 | Regenerate the artifact with the command in Procedure | Completed | 20261123-161500 | 20261123-161500 | regenerated with the generator; only version and content_hash changed |
+| 2 | Run `uv run python tools/generate_reference_table.py --check` and confirm no drift | Completed | 20261123-161500 | 20261123-161500 | --check reports no drift, 33 tests green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

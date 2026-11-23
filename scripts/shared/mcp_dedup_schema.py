@@ -35,12 +35,14 @@ ACQUISITION_STATES = frozenset(
 )
 
 # Stored-result cap: payloads over this many serialized characters are replaced
-# by a truncated sentinel (preview + hash of the full payload). Tunable; raise
-# if replayed results are observed to be truncated in normal operation.
+# by a truncated sentinel (redacted preview + hash of the full payload); the
+# hash, size, and result class are stored as columns, not only the preview.
+# Tunable; raise if replayed results are observed to be truncated in normal
+# operation.
 RESULT_MAX_CHARS = 8000
 RESULT_PREVIEW_CHARS = 1000
 
-_USER_VERSION = 1
+_USER_VERSION = 2
 _INSTALL_MARKER_NAME = ".mcp_dedup_installed"
 
 _SCHEMA = """
@@ -55,7 +57,12 @@ CREATE TABLE IF NOT EXISTS dedup_call_state (
     snapshot_json TEXT NOT NULL,
     created_epoch REAL NOT NULL,
     updated_epoch REAL NOT NULL,
-    result_json TEXT
+    result_json TEXT,
+    result_sha256 TEXT,
+    result_size_bytes INTEGER,
+    result_class TEXT,
+    result_code TEXT,
+    external_ref TEXT
 )
 """
 _STORE_META_SCHEMA = """

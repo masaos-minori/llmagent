@@ -68,6 +68,7 @@ class McpServerConfig:
     health_timeout: float | None = None  # per-server health-check timeout; None → 5.0
     startup_timeout_sec: int = 30  # subprocess startup health-poll timeout in seconds
     auth_token: str = ""  # Bearer token sent by ToolExecutor
+    control_auth_token: str = ""  # Bearer token for the control API paths (mcpdl004)
     role: str = ""  # human-readable role label
     cmd: list[str] = field(
         default_factory=list

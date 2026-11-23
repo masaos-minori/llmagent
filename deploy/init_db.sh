@@ -109,7 +109,7 @@ echo "OK: workflow.sqlite, rag.sqlite, session.sqlite match the canonical schema
 # The dedup store is created through the shared loader path (shared.mcp_dedup),
 # never by raw DDL in this script (ADR-008 schema authority). Opening the store
 # runs first-initialization in one sequence: identity row in store_meta,
-# PRAGMA user_version = 1, and the .mcp_dedup_installed marker next to the DB
+# PRAGMA user_version (_USER_VERSION), and the .mcp_dedup_installed marker next to the DB
 # file. Only `first_initialization` and `healthy` open; a pre-existing store in
 # any other start state (legacy_or_unverified / schema_mismatch / lost / replaced)
 # aborts the run. This script never mutates, archives, or deletes a database
@@ -127,7 +127,7 @@ from pathlib import Path
 from shared.config_errors import ConfigMissingError, ConfigParseError
 from shared.mcp_dedup import DedupStoreError, open_dedup_store
 from shared.mcp_dedup_config import load_dedup_section
-from shared.mcp_dedup_schema import _INSTALL_MARKER_NAME
+from shared.mcp_dedup_schema import _INSTALL_MARKER_NAME, _USER_VERSION
 from shared.runtime_paths import resolve_config_dir
 
 # Every deployed *_mcp_server.toml must carry a valid [dedup] table; all ten
@@ -175,8 +175,10 @@ try:
             )
         finally:
             conn.close()
-        if user_version != 1:
-            problems.append(f"PRAGMA user_version={user_version}, expected 1")
+        if user_version != _USER_VERSION:
+            problems.append(
+                f"PRAGMA user_version={user_version}, expected {_USER_VERSION}"
+            )
         if not has_identity:
             problems.append("store_meta carries no identity row")
     if not (path.parent / _INSTALL_MARKER_NAME).is_file():
@@ -186,8 +188,8 @@ try:
     if problems:
         sys.exit(1)
     print(
-        f"OK: dedup store verified (identity row, PRAGMA user_version=1, marker"
-        f" {_INSTALL_MARKER_NAME})"
+        f"OK: dedup store verified (identity row, PRAGMA user_version={_USER_VERSION},"
+        f" marker {_INSTALL_MARKER_NAME})"
     )
 finally:
     store.close()

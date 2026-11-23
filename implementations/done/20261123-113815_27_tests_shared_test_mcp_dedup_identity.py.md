@@ -63,8 +63,8 @@ Ledger metadata tests (row 26).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-160000 | 20261123-160000 | pin follows _USER_VERSION; two refusal tests added |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-160000 | 20261123-160000 | 24 tests green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

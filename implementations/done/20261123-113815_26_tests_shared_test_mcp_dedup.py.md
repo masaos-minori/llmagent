@@ -65,8 +65,8 @@ Identity-test fixtures (row 27) and API tests (row 29).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-160000 | 20261123-160000 | pins follow _USER_VERSION; TestResultMetadata and TestCallStateView added |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-160000 | 20261123-160000 | 55 tests green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
