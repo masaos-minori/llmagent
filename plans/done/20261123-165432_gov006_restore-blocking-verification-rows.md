@@ -198,13 +198,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | ADR-003 INV-07 test in `tests/shared/test_tool_executor_routing.py` | Pending | — | — | |
-| 2 | ADR-003 INV-04 tests in `tests/shared/test_route_resolver.py` | Pending | — | — | |
-| 3 | ADR-002 INV-03 test in `tests/mcp_servers/test_config_isolation_import.py` | Pending | — | — | |
-| 4 | ADR-003 INV-03 test in `tests/agent/test_safety_tier_single_source.py` | Pending | — | — | |
-| 5 | ADR-012 INV-04 test in `tests/mcp_servers/git/test_git_approval_independence.py` | Pending | — | — | |
-| 6 | ADR-001 INV-02 test in `tests/agent/workflow/test_no_workflow_bypass.py` | Pending | — | — | |
-| 7 | Restore rows and close ledger entries in the four ADRs, `docs/10_adr/adr_01_index.md`, `docs/00_governance/governance_03_issue-and-uncertainty-management.md`, `tests/test_run_cited_adr_tests.py` | Pending | — | — | |
+| 1 | ADR-003 INV-07 test in `tests/shared/test_tool_executor_routing.py` | In Progress | — | — |  |
+| 2 | ADR-003 INV-04 tests in `tests/shared/test_route_resolver.py` | In Progress | — | — |  |
+| 3 | ADR-002 INV-03 test in `tests/mcp_servers/test_config_isolation_import.py` | In Progress | — | — |  |
+| 4 | ADR-003 INV-03 test in `tests/agent/test_safety_tier_single_source.py` | In Progress | — | — |  |
+| 5 | ADR-012 INV-04 test in `tests/mcp_servers/git/test_git_approval_independence.py` | In Progress | — | — |  |
+| 6 | ADR-001 INV-02 test in `tests/agent/workflow/test_no_workflow_bypass.py` | In Progress | — | — |  |
+| 7 | Restore rows and close ledger entries in the four ADRs, `docs/10_adr/adr_01_index.md`, `docs/00_governance/governance_03_issue-and-uncertainty-management.md`, `tests/test_run_cited_adr_tests.py` | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -214,7 +214,18 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261123-165833_01_tests_shared_test_tool_executor_routing.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261123-165833_02_tests_shared_test_route_resolver.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261123-165833_03_tests_mcp_servers_test_config_isolation_import.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261123-165833_04_tests_agent_test_safety_tier_single_source.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261123-165833_05_tests_mcp_servers_git_test_git_approval_independence.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261123-165833_06_tests_agent_workflow_test_no_workflow_bypass.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261123-165833_07_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 7 | Procedure | Pending | — | — |
+| implementations/20261123-165833_08_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md | 7 | Procedure | Pending | — | — |
+| implementations/20261123-165833_09_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md | 7 | Procedure | Pending | — | — |
+| implementations/20261123-165833_10_docs_10_adr_adr_02_02_001_agent-workflow-engine-mandatory.md.md | 7 | Procedure | Pending | — | — |
+| implementations/20261123-165833_11_docs_10_adr_adr_01_index.md.md | 7 | Procedure | Pending | — | — |
+| implementations/20261123-165833_12_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 7 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -247,3 +258,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-008 | Constraints; Testing Expectations | `tests/agent/test_safety_tier_single_source.py` | Phase 4 | AC-008 | mutation check and `git diff --stat` | Explicit in issue |
 | REQ-008 | Constraints; Testing Expectations | `tests/mcp_servers/git/test_git_approval_independence.py` | Phase 5 | AC-008 | mutation check and `git diff --stat` | Explicit in issue |
 | REQ-008 | Constraints; Testing Expectations | `tests/agent/workflow/test_no_workflow_bypass.py` | Phase 6 | AC-008 | mutation check and `git diff --stat` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261123-165833 -->
