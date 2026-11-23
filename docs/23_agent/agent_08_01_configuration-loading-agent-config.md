@@ -19,7 +19,7 @@ related:
 
 ## Purpose
 
-Documents the `AgentConfig` structure, configuration file ownership, and classification of hot-reloads.
+Documents the `AgentConfig` structure, configuration file ownership, the classification of hot-reloads, and the per-key reference for the keys `config/agent.toml` defines.
 
 ## Design Intent
 
@@ -62,9 +62,171 @@ Changes to MCP server `auth_token` and to allowlists/denylists require a restart
 
 - **Configuration Files**: `config/agent.toml` is the canonical source.
 - **Field-level Mapping**: `agent/services/config_reload.py` is the canonical per-field classification.
+- **Per-Key Reference**: this document owns the per-key reference. The code default is owned by the dataclass that declares it and the deployed value by `config/agent.toml`; the reference restates neither.
 
+## Per-Key Reference (config/agent.toml)
+
+Reference for every key `config/agent.toml` defines: the component that reads the key, the value type,
+the unit the reading code applies, the default the owning dataclass declares, and the reload
+classification.
+
+Reading rules:
+
+- The deployed value is not copied here. `config/agent.toml` is the canonical source for the current
+  operational value (`skills/DESIGN.md` No concrete configuration values); this reference states only
+  the code default.
+- A unit is named only where the reading code establishes it. `n/a` means the value carries no unit. Where the reading code does not establish one, the Unit cell states that the unit is unverified rather than guessing it.
+- Reload class reuses the categories defined in
+  [agent_07_06](agent_07_06_cli-and-commands-hot-reload.md) and the classification
+  `agent/services/config_reload.py` performs:
+  - `[OK]` - `CONFIG_FIELD_REGISTRY` entry, applied by `/reload`.
+  - `[STARTUP-ONLY]` - `CONFIG_FIELD_REGISTRY` entry with `hot_reloadable=False`; reported as
+    startup-only.
+  - `[RESTART]` - key is not a `CONFIG_FIELD_REGISTRY` entry, so `/reload` reports nothing for it and
+    the running object keeps the value read at build time.
+  - `[LIVE]` - `diagnostics.*`, effective on the next `DiagnosticStore` call without `/reload`.
+- `masked_fields` is not a registry entry; it reaches the tool section through
+  `ConfigReloadRequest.masked_fields`, so it is reported as applied.
+- A key read by another process is scoped to that process's own configuration file. The RAG Pipeline MCP
+  process reads the database paths, the SQLite extension path, and the two SQLite timeouts from
+  `config/rag_pipeline_mcp_server.toml`; the rows below describe the Agent process.
+
+### Explicit Values Equal Code Defaults
+
+The default declared by the dataclass that owns a key is the single source of that key's value when the
+key is absent from `config/agent.toml`. A value written in the file MUST equal that default: the file and
+the code cannot disagree, and a difference is accepted only as an explicit, commented operational override
+recorded in the file itself. Stating a value that equals the default records the deployed posture without
+creating a second source, so this reference holds the code default and never the deployed value. Auditing
+the policy means comparing each key the file states with the Code default column below.
+
+### Database and retention
+
+| Key name | Reading component | Value type | Unit | Code default | Reload class |
+|---|---|---|---|---|---|
+| `rag_db_path` | SQLiteHelper | string | path | `(no default: required)` | [RESTART] |
+| `session_db_path` | rotate_session_db() | string | path | `(no default: required)` | [RESTART] |
+| `workflow_db_path` | rotate_workflow_db() | string | path | `'/opt/llm/db/workflow.sqlite'` | [RESTART] |
+| `sqlite_vec_so` | SQLiteHelper | string | path | `''` | [RESTART] |
+| `sqlite_timeout` | SQLiteHelper | integer | seconds | `30` | [RESTART] |
+| `sqlite_busy_timeout_ms` | apply_connection_pragmas() | integer | milliseconds | `30000` | [RESTART] |
+| `sqlite_wal_checkpoint_mode` | checkpoint_wal() | string | mode name | `'TRUNCATE'` | [RESTART] |
+| `sqlite_retention_max_sessions` | _delete_sessions_beyond_limit() | integer | session rows | `100` | [RESTART] |
+| `sqlite_retention_max_age_days` | _delete_sessions_by_age() | integer | days | `90` | [RESTART] |
+| `sqlite_archive_dir` | rotate_session_db() | string | path | `''` | [RESTART] |
+| `sqlite_corrupt_archive_max_files` | purge_corrupt_archives() | integer | artifact files | `10` | [RESTART] |
+| `sqlite_corrupt_archive_max_age_days` | purge_corrupt_archives() | integer | days | `30` | [RESTART] |
+| `sqlite_archive_max_files` | _sweep_rotation_archives() | integer | artifact files | `14` | [RESTART] |
+| `sqlite_archive_max_age_days` | _sweep_rotation_archives() | integer | days | `30` | [RESTART] |
+| `sqlite_drill_artifact_max_files` | _sweep_drill_artifacts() | integer | artifact files | `14` | [RESTART] |
+| `sqlite_drill_artifact_max_age_days` | _sweep_drill_artifacts() | integer | days | `30` | [RESTART] |
+| `sqlite_quarantine_max_files` | _sweep_quarantine_dirs() | integer | artifact entries | `10` | [RESTART] |
+| `sqlite_quarantine_max_age_days` | _sweep_quarantine_dirs() | integer | days | `90` | [RESTART] |
+| `pending_timeout_minutes` | WorkflowEngine | integer | minutes | `10` | [RESTART] |
+
+### LLM and context
+
+| Key name | Reading component | Value type | Unit | Code default | Reload class |
+|---|---|---|---|---|---|
+| `llm_url` | LLMClient | string | URL | `''` | [OK] |
+| `llm_retry_base_delay` | LLMClient | float | seconds | `1.0` | [OK] |
+| `http_timeout` | LLMClient | float | seconds | `30.0` | [OK] |
+| `context_char_limit` | HistoryManager | integer | characters | `8000` | [STARTUP-ONLY] |
+| `context_compress_turns` | HistoryManager | integer | turns | `4` | [STARTUP-ONLY] |
+| `context_token_limit` | HistoryManager | integer | tokens | `0` | [STARTUP-ONLY] |
+| `tokenize_url` | HistoryManager | string | URL | `''` | [RESTART] |
+| `history_protect_turns` | HistoryManager | integer | turns | `2` | [RESTART] |
+| `llm_max_tokens` | LLMClient | integer | tokens | `1024` | [OK] |
+| `llm_temperature` | LLMClient | float | n/a | `0.2` | [OK] |
+| `sse_heartbeat_timeout` | RobustSSEParser | float | seconds | `30.0` | [OK] |
+| `sse_malformed_retry` | RobustSSEParser | integer | attempts | `2` | [OK] |
+| `sse_reconnect_max` | LLMClient | integer | attempts | `1` | [OK] |
+| `llm_stream_retry_on_heartbeat_timeout` | LLMClient | boolean | n/a | `True` | [OK] |
+| `llm_stream_retry_on_malformed_chunk` | LLMClient | boolean | n/a | `False` | [OK] |
+
+### Tool execution and approval
+
+| Key name | Reading component | Value type | Unit | Code default | Reload class |
+|---|---|---|---|---|---|
+| `max_tool_turns` | llm_turn_runner.run() | integer | turns | `5` | [OK] |
+| `serial_tool_calls` | execute_all_tool_calls() | boolean | n/a | `False` | [OK] |
+| `tool_dedup_max_repeats` | ToolLoopGuard | integer | identical calls | `3` | [RESTART] |
+| `tool_cycle_detect_window` | ToolLoopGuard | integer | consecutive calls | `2` | [RESTART] |
+| `tool_error_max_consecutive` | ToolLoopGuard | integer | consecutive failures | `3` | [RESTART] |
+| `tool_error_retry_max` | ToolLoopGuard | integer | retries | `1` | [RESTART] |
+| `tool_concurrency_limits` | ToolTransportInvoker | mapping | concurrent calls | `{}` | [RESTART] |
+| `tool_result_max_llm_chars` | execute_one_tool_call() | integer | characters | `8000` | [OK] |
+| `tool_results_turn_max_chars` | _collect_tool_result_msgs() | integer | characters | `50000` | [RESTART] |
+| `masked_fields` | mask_args() | string list | field name | `['content', 'old_text', 'new_text']` | [OK] |
+| `plan_blocked_tools` | ToolPolicy | string list | tool name | `list(_DEFAULT_PLAN_BLOCKED_TOOLS))` | [OK] |
+| `tool_policy_mode` | check_preflight() | string | mode name | `'explicit_allowlist'` | [OK] |
+| `allowed_tools` | check_preflight() | string list | tool name | `[]` | [OK] |
+| `allowed_root` | ToolPolicy | string | path prefix | `''` | [OK] |
+| `approval_github_allowed_repos` | check_allowed_repo() | string list | repo name | `[]` | [OK] |
+| `approval_high_risk_branches` | _escalate_for_github_branch() | string list | branch name | `['main', 'master']` | [OK] |
+| `approval_protected_paths` | _escalate_for_path() | string list | path prefix | `list(_DEFAULT_PROTECTED_PATHS))` | [OK] |
+| `approval_shell_safe_prefixes` | _special_case_risk() | string list | command prefix | `list(_DEFAULT_SHELL_SAFE_PREFIXES))` | [OK] |
+
+### Memory
+
+| Key name | Reading component | Value type | Unit | Code default | Reload class |
+|---|---|---|---|---|---|
+| `use_memory_layer` | memory service factory | boolean | n/a | `True` | [STARTUP-ONLY] |
+| `memory_jsonl_dir` | resolve_memory_jsonl_dir() | string | path | `'/opt/llm/memory'` | [RESTART] |
+| `memory_max_inject_semantic` | InjectionPolicy | integer | entries | `5` | [RESTART] |
+| `memory_max_inject_episodic` | InjectionPolicy | integer | entries | `3` | [RESTART] |
+| `memory_min_importance` | InjectionPolicy | float | heuristic score | `0.3` | [RESTART] |
+| `memory_dedup_threshold` | `_link_duplicates()` | float | unverified: compared as L2 distance, while the per-type values are on a 0-1 scale | `0.3` | [RESTART] |
+| `memory_embed_url` | embedding client | string | URL | `''` | [OK] |
+| `memory_embed_enabled` | memory service factory | boolean | n/a | `True` | [STARTUP-ONLY] |
+| `memory_local_only` | memory service factory | boolean | n/a | `False` | [OK] |
+| `memory_embed_timeout_sec` | embedding client | float | seconds | `5.0` | [RESTART] |
+| `memory_max_content_chars` | memory store | integer | characters | `500` | [RESTART] |
+| `memory_retention_days` | memory prune | integer | days | `90` | [OK] |
+| `memory_max_pinned` | memory store | integer | entries | `10` | [OK] |
+
+### Observability
+
+| Key name | Reading component | Value type | Unit | Code default | Reload class |
+|---|---|---|---|---|---|
+| `otel_enabled` | build_tracer() | boolean | n/a | `False` | [RESTART] |
+| `otel_endpoint` | build_tracer() | string | URL | `''` | [RESTART] |
+| `otel_service_name` | build_tracer() | string | name | `'llm-agent'` | [RESTART] |
+
+### Diagnostics
+
+| Key name | Reading component | Value type | Unit | Code default | Reload class |
+|---|---|---|---|---|---|
+| `diagnostics.encryption_key` | DiagnosticStore | string | key | `''` | [LIVE] |
+| `diagnostics.retention_days` | DiagnosticStore | integer | days | `30` | [LIVE] |
+
+### MCP server definitions
+
+| Key name | Reading component | Value type | Unit | Code default | Reload class |
+|---|---|---|---|---|---|
+| `mcp_servers.*.transport` | McpServerConfig | enum | n/a | `(no default: required)` | [RESTART] |
+| `mcp_servers.*.url` | McpServerConfig | string | n/a | `(no default: required)` | [RESTART] |
+| `mcp_servers.*.startup_mode` | McpServerConfig | enum | n/a | `StartupMode.NONE` | [RESTART] |
+| `mcp_servers.*.auth_token` | McpServerConfig | string | n/a | `''` | [RESTART] |
+| `mcp_servers.*.role` | McpServerConfig | string | n/a | `''` | [RESTART] |
+| `mcp_servers.*.cmd` | McpServerConfig | string list | n/a | `[]` | [RESTART] |
+ROWS: 76
 ## Keywords
 
 - configuration loading
 - config file ownership
 - hot-reload eligibility
+- per-key configuration reference
+
+## Removed Key Migration Reference (auto-generated)
+
+<!-- AUTO-GENERATED: generate_reference_table.py agent-config-migration-reference -->
+Generated from `_REMOVED_KEY_REPLACEMENTS` in `scripts/agent/production_config_validator.py` — the same mapping the fatal unknown-key error reads. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.
+
+| Removed key (`config/agent.toml`) | Replacement (single source) |
+|---|---|
+| `approval_dry_run_tools` | the per-tool preview_capability field in config/tool_catalog.toml |
+| `approval_resource_keys` | the per-tool resource_scope_keys field in config/tool_catalog.toml |
+| `approval_risk_rules` | the declared agent_safety_tier (the single risk source; no config replacement key) |
+| `tool_safety_tiers` | the per-tool agent_safety_tier field in config/tool_catalog.toml |
+<!-- END AUTO-GENERATED -->

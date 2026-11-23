@@ -72,6 +72,19 @@ _REMOVED_PRODUCTION_KEYS: frozenset[str] = frozenset(
     }
 )
 
+# Agentcfg006 REQ-002: the single-source migration mapping for those removed keys.
+# It is read by the per-key error below and by the agent-config-migration generator
+# in tools/generate_reference_table.py, which parses this literal from source, so the
+# error text and the generated reference table cannot diverge. Each value is the
+# landed agentcfg003 replacement: the field each tool's producer declares in
+# config/tool_catalog.toml. Keep this a plain dict literal for the ast reader.
+_REMOVED_KEY_REPLACEMENTS: dict[str, str] = {
+    "tool_safety_tiers": "the per-tool agent_safety_tier field in config/tool_catalog.toml",
+    "approval_risk_rules": "the declared agent_safety_tier (the single risk source; no config replacement key)",
+    "approval_resource_keys": "the per-tool resource_scope_keys field in config/tool_catalog.toml",
+    "approval_dry_run_tools": "the per-tool preview_capability field in config/tool_catalog.toml",
+}
+
 # The named git write tools carry a declared-tier risk floor (see
 # _check_approval_risk_floor).
 _GIT_RISK_FLOOR_TOOLS: frozenset[str] = frozenset(
@@ -272,19 +285,34 @@ class ProductionConfigValidator:
         # the unknown-key pass skips the keys this rule already reported.
         errors.extend(check_agent_refiner_keys(config))
 
-        # Unknown top-level key rejection
+        # Unknown top-level key rejection. Agentcfg006 REQ-003 (AC-4): a mapped key
+        # gets a per-key error naming its replacement; the prefix is kept so the
+        # existing message-substring assertions stay valid. Unmapped keys keep the
+        # generic combined message.
         unknown_keys = [
             key
             for key in ProductionConfigValidator._check_unknown_production_keys(config)
             if key not in _AGENT_REFINER_KEYS
         ]
         if unknown_keys:
-            unknown_list = ", ".join(repr(k) for k in unknown_keys)
-            self._record(
-                errors,
-                warnings,
-                f"Unknown config keys: {unknown_list}",
-            )
+            unmapped: list[str] = []
+            for key in unknown_keys:
+                replacement = _REMOVED_KEY_REPLACEMENTS.get(key)
+                if replacement is None:
+                    unmapped.append(key)
+                    continue
+                self._record(
+                    errors,
+                    warnings,
+                    f"Unknown config keys: {key!r} — replaced by {replacement}",
+                )
+            if unmapped:
+                unknown_list = ", ".join(repr(k) for k in unmapped)
+                self._record(
+                    errors,
+                    warnings,
+                    f"Unknown config keys: {unknown_list}",
+                )
 
         return ConfigValidationResult(errors=errors, warnings=warnings)
 

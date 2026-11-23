@@ -1,0 +1,15 @@
+entries:
+- key: approval_dry_run_tools
+  replacement: the per-tool preview_capability field in config/tool_catalog.toml
+- key: approval_resource_keys
+  replacement: the per-tool resource_scope_keys field in config/tool_catalog.toml
+- key: approval_risk_rules
+  replacement: the declared agent_safety_tier (the single risk source; no config replacement
+    key)
+- key: tool_safety_tiers
+  replacement: the per-tool agent_safety_tier field in config/tool_catalog.toml
+generated_by: tools/generate_reference_table.py
+manifest: agent_config_migration
+sources:
+- scripts/agent/production_config_validator.py
+version: 2

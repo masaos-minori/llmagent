@@ -31,6 +31,12 @@ import yaml
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from tools._agent_config_migration import (
+    mapping_entries as _agent_config_migration_entries,
+)
+from tools._agent_config_migration import (
+    render_migration_table as _render_agent_config_migration_table,
+)
 from tools._contract_manifests import (
     ManifestError,
     envelope,
@@ -64,6 +70,9 @@ COMPONENT_MANDATORINESS_REGISTRY = (
     REPO_ROOT / "registry" / "component_mandatoriness.yaml"
 )
 ADR_INDEX_SRC = REPO_ROOT / "docs" / "10_adr" / "adr_01_index.md"
+PRODUCTION_VALIDATOR_SRC = (
+    REPO_ROOT / "scripts" / "agent" / "production_config_validator.py"
+)
 
 _URL_PORT_RE = re.compile(r":(\d{2,5})\"?\s*$")
 _TOOL_LIST_NAME_RE = re.compile(r'\{\s*"name":\s*"([a-z][a-z0-9_]*)"')
@@ -90,6 +99,7 @@ GUARD_START_AGENT_SUBPACKAGES = "<!-- AUTO-GENERATED: generate_reference_table.p
 GUARD_START_EVENTBUS = "<!-- AUTO-GENERATED: generate_reference_table.py eventbus-class-function-reference -->"
 GUARD_START_MEMORY = "<!-- AUTO-GENERATED: generate_reference_table.py memory-class-function-reference -->"
 GUARD_START_MANDATORINESS = "<!-- AUTO-GENERATED: generate_reference_table.py component-mandatoriness-reference -->"
+GUARD_START_AGENT_CONFIG_MIGRATION = "<!-- AUTO-GENERATED: generate_reference_table.py agent-config-migration-reference -->"
 
 REFERENCE_DOC_MCP = REPO_ROOT / "docs" / "22_mcp" / "mcp_01_tool_ownership_matrix.md"
 REFERENCE_DOC_DEPLOYMENT = (
@@ -109,6 +119,12 @@ REFERENCE_DOC_MEMORY = (
 )
 REFERENCE_DOC_MANDATORINESS = (
     REPO_ROOT / "docs" / "23_agent" / "agent_08_04_configuration-mcp-approval-obs.md"
+)
+REFERENCE_DOC_AGENT_CONFIG_MIGRATION = (
+    REPO_ROOT
+    / "docs"
+    / "23_agent"
+    / "agent_08_01_configuration-loading-agent-config.md"
 )
 
 # ---------------------------------------------------------------------------
@@ -426,6 +442,10 @@ DOMAIN_GENERATORS = {
         "Component mandatoriness classification reference table",
         generate_mandatoriness_reference_table,
     ),
+    "agent_config_migration": (
+        "Agent-config removed-key migration table",
+        lambda: _domain_table("agent_config_migration"),
+    ),
 }
 
 DOMAIN_DOCS = {
@@ -436,6 +456,7 @@ DOMAIN_DOCS = {
     "eventbus": REFERENCE_DOC_EVENTBUS,
     "memory": REFERENCE_DOC_MEMORY,
     "mandatoriness": REFERENCE_DOC_MANDATORINESS,
+    "agent_config_migration": REFERENCE_DOC_AGENT_CONFIG_MIGRATION,
 }
 
 DOMAIN_GUARDS = {
@@ -446,6 +467,7 @@ DOMAIN_GUARDS = {
     "eventbus": (GUARD_START_EVENTBUS, GUARD_END),
     "memory": (GUARD_START_MEMORY, GUARD_END),
     "mandatoriness": (GUARD_START_MANDATORINESS, GUARD_END),
+    "agent_config_migration": (GUARD_START_AGENT_CONFIG_MIGRATION, GUARD_END),
 }
 
 DOMAIN_WELCOME_LINES = {
@@ -456,6 +478,7 @@ DOMAIN_WELCOME_LINES = {
     "eventbus": "Generated from `registry/manifests/eventbus_api.yaml` (`scripts/eventbus/*.py` top-level public classes and functions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.",
     "memory": "Generated from `registry/manifests/memory_api.yaml` (`scripts/agent/memory/*.py` top-level public classes and functions). Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.",
     "mandatoriness": "Generated from `registry/component_mandatoriness.yaml`. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --type mandatoriness` to refresh.",
+    "agent_config_migration": "Generated from `_REMOVED_KEY_REPLACEMENTS` in `scripts/agent/production_config_validator.py` — the same mapping the fatal unknown-key error reads. Do not hand-edit between the guard comments; run `python tools/generate_reference_table.py --manifests` to refresh.",
 }
 
 DOMAIN_HEADING = {
@@ -465,6 +488,7 @@ DOMAIN_HEADING = {
     "agent_subpackages": "## Subpackage Class/Function Reference (auto-generated)",
     "memory": "## Module Class/Function Reference (auto-generated)",
     "eventbus": "## Module Class/Function Reference (auto-generated)",
+    "agent_config_migration": "## Removed Key Migration Reference (auto-generated)",
 }
 
 # ---------------------------------------------------------------------------
@@ -503,6 +527,7 @@ _MANIFEST_SOURCES: dict[str, list[str]] = {
     "agent_api": ["scripts/agent"],
     "eventbus_api": ["scripts/eventbus"],
     "memory_api": ["scripts/agent/memory"],
+    "agent_config_migration": ["scripts/agent/production_config_validator.py"],
 }
 
 MANIFESTS_BY_DOMAIN: dict[str, tuple[str, ...]] = {
@@ -515,6 +540,7 @@ MANIFESTS_BY_DOMAIN: dict[str, tuple[str, ...]] = {
     "eventbus": ("eventbus_api", "eventbus_route_roles"),
     "memory": ("memory_api",),
     "mandatoriness": ("component_mandatoriness",),
+    "agent_config_migration": ("agent_config_migration",),
 }
 
 UNBOUND_MANIFESTS: tuple[str, ...] = (
@@ -535,6 +561,7 @@ _RENDER_MANIFEST: dict[str, str] = {
     "eventbus": "eventbus_api",
     "memory": "memory_api",
     "mandatoriness": "component_mandatoriness",
+    "agent_config_migration": "agent_config_migration",
 }
 
 
@@ -1009,6 +1036,9 @@ _MANIFEST_BUILDERS: dict[str, Callable[[], list[dict[str, Any]]]] = {
     "agent_api": lambda: _api_manifest_entries("agent"),
     "eventbus_api": lambda: _api_manifest_entries("eventbus"),
     "memory_api": lambda: _api_manifest_entries("memory"),
+    "agent_config_migration": lambda: _agent_config_migration_entries(
+        PRODUCTION_VALIDATOR_SRC
+    ),
 }
 
 
@@ -1039,6 +1069,8 @@ def _table_from_entries(domain: str, entries: list[dict[str, Any]]) -> str:
         return _render_deployment_table([e for e in entries if e["kind"] == "db_path"])
     if domain == "mandatoriness":
         return _render_mandatoriness_table(entries)
+    if domain == "agent_config_migration":
+        return _render_agent_config_migration_table(entries)
     if domain == "agent":
         return render_symbol_table([e for e in entries if _agent_entry_is_top_level(e)])
     if domain == "agent_subpackages":

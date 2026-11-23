@@ -17,6 +17,7 @@ from typing import Any
 import jsonschema
 import pytest
 
+import tools._agent_config_migration as acm
 import tools.generate_reference_table as grt
 from tools import _contract_manifests as cm
 from tools.check_docs_structure import MAX_SIZE
@@ -234,6 +235,12 @@ _FULL_SOURCES: dict[str, str] = {
     "scripts/agent/widget.py": _FIXTURE_MODULE,
     "scripts/eventbus/widget.py": _FIXTURE_MODULE,
     "scripts/agent/memory/widget.py": _FIXTURE_MODULE,
+    "scripts/agent/production_config_validator.py": (
+        "_REMOVED_KEY_REPLACEMENTS: dict[str, str] = {\n"
+        '    "tool_safety_tiers": "the per-tool agent_safety_tier field in config/tool_catalog.toml",\n'
+        '    "approval_risk_rules": "the declared agent_safety_tier (single risk source)",\n'
+        "}\n"
+    ),
 }
 
 
@@ -287,6 +294,11 @@ def _synthetic_repo(
         grt,
         "COMPONENT_MANDATORINESS_REGISTRY",
         tmp_path / "registry" / "component_mandatoriness.yaml",
+    )
+    monkeypatch.setattr(
+        grt,
+        "PRODUCTION_VALIDATOR_SRC",
+        tmp_path / "scripts" / "agent" / "production_config_validator.py",
     )
 
 
@@ -884,3 +896,108 @@ class TestHealthContracts:
         branch = _schema_branch("health_contracts")
         assert "disposition" not in branch["properties"]
         assert "disposition" not in branch["required"]
+
+
+class TestAgentConfigMigration:
+    """T-016/T-017 (REQ-002): the migration table reads the validator mapping as
+    source text, and the domain is registered through the contract-manifest path so
+    `--check` covers it."""
+
+    def test_mapping_read_from_source_text(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _synthetic_repo(tmp_path, monkeypatch, _FULL_SOURCES)
+        mapping = acm.read_mapping(grt.PRODUCTION_VALIDATOR_SRC)
+        assert mapping == {
+            "tool_safety_tiers": (
+                "the per-tool agent_safety_tier field in config/tool_catalog.toml"
+            ),
+            "approval_risk_rules": "the declared agent_safety_tier (single risk source)",
+        }
+
+    def test_entries_are_sorted_and_schema_valid(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _synthetic_repo(tmp_path, monkeypatch, _FULL_SOURCES)
+        manifest = grt.build_manifest("agent_config_migration")
+        assert manifest["sources"] == ["scripts/agent/production_config_validator.py"]
+        entries = manifest["entries"]
+        assert [e["key"] for e in entries] == [
+            "approval_risk_rules",
+            "tool_safety_tiers",
+        ]
+        schema = json.loads(Path(cm.SCHEMA_PATH).read_text(encoding="utf-8"))
+        jsonschema.validate(manifest, schema)
+        branch = _schema_branch("agent_config_migration")
+        assert branch["required"] == ["key", "replacement"]
+        assert cm.dump_manifest(manifest) == cm.dump_manifest(
+            grt.build_manifest("agent_config_migration")
+        )
+
+    def test_table_renders_only_mapping_values(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _synthetic_repo(tmp_path, monkeypatch, _FULL_SOURCES)
+        entries = grt._MANIFEST_BUILDERS["agent_config_migration"]()
+        table = grt._table_from_entries("agent_config_migration", entries)
+        lines = table.splitlines()
+        assert lines[0] == (
+            "| Removed key (`config/agent.toml`) | Replacement (single source) |"
+        )
+        assert len(lines) == 2 + len(entries)
+        for entry in entries:
+            assert f"| `{entry['key']}` | {entry['replacement']} |" in lines
+        assert "agent_safety_tier" in table
+
+    def test_unreadable_or_malformed_mapping_is_rejected(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _synthetic_repo(tmp_path, monkeypatch, _FULL_SOURCES)
+        src = grt.PRODUCTION_VALIDATOR_SRC
+        for text in (
+            "x = 1\n",
+            '_REMOVED_KEY_REPLACEMENTS = ["tool_safety_tiers"]\n',
+            '_REMOVED_KEY_REPLACEMENTS = {1: "x"}\n',
+            '_REMOVED_KEY_REPLACEMENTS = {"tool_safety_tiers": None}\n',
+            '_REMOVED_KEY_REPLACEMENTS = {"a": "x", "a": "y"}\n',
+        ):
+            src.write_text(text, encoding="utf-8")
+            with pytest.raises(cm.ManifestError):
+                grt.build_manifest("agent_config_migration")
+
+    def test_domain_is_registered_for_check(self) -> None:
+        domain = "agent_config_migration"
+        assert domain in grt.DOMAIN_GENERATORS
+        assert grt.DOMAIN_DOCS[domain] == grt.REFERENCE_DOC_AGENT_CONFIG_MIGRATION
+        assert domain in grt.MANIFESTS_BY_DOMAIN["agent_config_migration"]
+        assert grt._RENDER_MANIFEST[domain] == "agent_config_migration"
+        assert "agent_config_migration" in grt._MANIFEST_BUILDERS
+        assert grt._MANIFEST_SOURCES["agent_config_migration"] == [
+            "scripts/agent/production_config_validator.py"
+        ]
+        assert domain in grt.DOMAIN_GUARDS
+        assert grt.DOMAIN_HEADING[domain]
+        assert grt.DOMAIN_WELCOME_LINES[domain]
+
+    def test_check_reports_stale_and_missing_block(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _synthetic_repo(tmp_path, monkeypatch, _FULL_SOURCES)
+        _write_committed_manifests(["agent_config_migration"])
+        doc = tmp_path / "doc.md"
+        doc.write_text("# Doc\n", encoding="utf-8")
+        monkeypatch.setattr(grt, "DOMAIN_DOCS", {"agent_config_migration": doc})
+        doc.write_text(
+            grt.render_updated_doc("agent_config_migration", doc.read_text())
+        )
+        assert grt.check_drift(["agent_config_migration"]) == []
+
+        edited = doc.read_text().replace("(single source)", "(HAND-EDIT)", 1)
+        doc.write_text(edited, encoding="utf-8")
+        assert grt.check_drift(["agent_config_migration"]) == [
+            "doc.md (--type agent_config_migration)"
+        ]
+        doc.write_text("# no guard\n", encoding="utf-8")
+        assert grt.check_drift(["agent_config_migration"]) == [
+            "doc.md (guarded block missing)"
+        ]

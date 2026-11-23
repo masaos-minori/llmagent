@@ -8,7 +8,7 @@ End-to-end coverage against the real reduced `config/agent.toml` (REQ-001 - star
 One file is modified: the new integration test module. `config/agent.toml`, `config/rag_pipeline_mcp_server.toml`, and `config/tool_catalog.toml` are read as references, not modified.
 
 ## Assumptions
-- `config/agent.toml` stays as it is today and already passes strict validation (falsifiable by re-running `tests/shared/test_config_validator.py` line 173 before this file is executed).
+- `config/agent.toml` stays as it is today and already passes strict validation (falsifiable by re-running `tests/shared/test_config_validator.py` line 171 before this file is executed).
 - The tests do not touch `/opt/llm` (issue constraint).
 - The mcpdl003 overlap on shared files does not affect this row; no sequencing dependency.
 
@@ -55,8 +55,8 @@ No source, config, or documentation changes; existing unit-level real-file tests
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the test module per Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) and the module | Pending | — | — | |
+| 1 | Implement the test module per Procedure/Method/Details | Completed | 2026-11-22 | 2026-11-22 | 9 tests; reads the real config/ through the startup loader; assertions compare against values that differ from code defaults |
+| 2 | Run the validation sequence (`rules/toolchain.md`) and the module | Completed | 2026-11-22 | 2026-11-22 | ruff + mypy clean on the module; module passes; full suite and diff-cover pass via tools/run_validation_gates.py --full |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -410,6 +410,13 @@ ROUTING_GATES: tuple[Gate, ...] = (
         mode=MODE_FAST,
     ),
     Gate(
+        name="check_config_comment_length",
+        command=(("uv", "run", "python", "tools/check_config_comment_length.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("config/**",),
+    ),
+    Gate(
         name="generate_reference_table_check",
         command=(
             (

@@ -4,7 +4,11 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from agent.production_config_validator import ProductionConfigValidator
+from agent.production_config_validator import (
+    _REMOVED_KEY_REPLACEMENTS,
+    _REMOVED_PRODUCTION_KEYS,
+    ProductionConfigValidator,
+)
 from shared.component_mandatoriness import (
     ComponentClassification,
     load_component_mandatoriness,
@@ -271,6 +275,59 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
         result = ProductionConfigValidator().validate(config)
         assert any(
             "Unknown config keys" in err and "security_lockdown_enabled" in err
+            for err in result.errors
+        )
+
+
+class TestProductionConfigValidatorRemovedKeyMigrationMessage:
+    """Tests for the per-key migration message (REQ-003, AC-4)."""
+
+    def test_every_removed_key_has_a_mapping_entry(self) -> None:
+        """The single source must cover every key the validator rejects."""
+        assert set(_REMOVED_PRODUCTION_KEYS) == set(_REMOVED_KEY_REPLACEMENTS)
+
+    def test_each_removed_key_names_its_replacement(self) -> None:
+        """AC-4: the error for a mapped key keeps the prefix and names the replacement
+        held in the single-source mapping."""
+        for key, replacement in sorted(_REMOVED_KEY_REPLACEMENTS.items()):
+            result = ProductionConfigValidator().validate({key: True})
+            assert any(
+                "Unknown config keys" in err and key in err and replacement in err
+                for err in result.errors
+            ), f"{key} must name its replacement"
+
+    def test_tool_safety_tiers_message_names_the_declared_field(self) -> None:
+        """The landed replacement for the removed tier map: the per-tool field each
+        producer declares in the tool catalog, not a config key."""
+        result = ProductionConfigValidator().validate({"tool_safety_tiers": True})
+        assert any(
+            "Unknown config keys" in err
+            and "tool_safety_tiers" in err
+            and "agent_safety_tier" in err
+            and "config/tool_catalog.toml" in err
+            for err in result.errors
+        )
+
+    def test_unmapped_key_keeps_the_generic_message(self) -> None:
+        """A key with no migration entry is reported by the unchanged generic path."""
+        result = ProductionConfigValidator().validate({"unknown_mistyped_key": True})
+        assert any(
+            "Unknown config keys: 'unknown_mistyped_key'" in err
+            and "replaced by" not in err
+            for err in result.errors
+        )
+
+    def test_mapped_and_unmapped_keys_are_reported_separately(self) -> None:
+        result = ProductionConfigValidator().validate(
+            {"tool_safety_tiers": True, "unknown_mistyped_key": True}
+        )
+        assert any(
+            "Unknown config keys: 'tool_safety_tiers'" in err and "replaced by" in err
+            for err in result.errors
+        )
+        assert any(
+            "Unknown config keys: 'unknown_mistyped_key'" in err
+            and "replaced by" not in err
             for err in result.errors
         )
 

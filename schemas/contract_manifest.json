@@ -19,9 +19,10 @@
         "agent_api",
         "eventbus_api",
         "memory_api",
-        "component_mandatoriness"
+        "component_mandatoriness",
+        "agent_config_migration"
       ],
-      "description": "Manifest identity — the REQ-006 contract manifests plus the three rendering manifests (agent_api/eventbus_api/memory_api) and the REQ-007 component_mandatoriness manifest (added by mcpgate001 row 09). Deferred REQ-007 names (adr_authority, architecture_assumptions) are added by their own plans."
+      "description": "Manifest identity — the REQ-006 contract manifests plus the three rendering manifests (agent_api/eventbus_api/memory_api), the REQ-007 component_mandatoriness manifest (added by mcpgate001 row 09), and the agentcfg006 agent_config_migration mapping mirror. Deferred REQ-007 names (adr_authority, architecture_assumptions) are added by their own plans."
     },
     "version": {
       "type": "integer",
@@ -289,6 +290,24 @@
                 "owner": { "type": "string", "minLength": 1 },
                 "authority_adr": { "type": "string", "pattern": "^ADR-[0-9]{3}$" },
                 "rationale": { "type": "string", "minLength": 1, "description": "Rendered as the reference table's third column." }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "manifest": { "const": "agent_config_migration" } }, "required": ["manifest"] },
+      "then": {
+        "properties": {
+          "entries": {
+            "items": {
+              "type": "object",
+              "required": ["key", "replacement"],
+              "additionalProperties": false,
+              "properties": {
+                "key": { "type": "string", "minLength": 1, "description": "Natural key: removed key read from the validator mapping." },
+                "replacement": { "type": "string", "minLength": 1, "description": "The new key or owning file the removed key was replaced by; read from the same mapping the fatal error message uses." }
               }
             }
           }

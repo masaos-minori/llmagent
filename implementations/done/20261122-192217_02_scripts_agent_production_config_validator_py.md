@@ -37,7 +37,7 @@ N/A: revert the commit.
 ### Method
 Per-key error format per corrected design D3: `Unknown config keys: <key> — replaced by <new key or owning file>`. The prefix-preserving form keeps every existing message-substring assertion valid.
 ### Details
-- Replacement values reflect the landed agentcfg003 semantics (producer-declared tier, `config/tool_catalog.toml` ownership); use the meanings already documented in the validator comment at line 60 and the Plan's Background, not new design.
+- Replacement values reflect the landed agentcfg003 semantics (producer-declared tier, `config/tool_catalog.toml` ownership), corrected by Step 3a on 2026-11-22: the Issue's Background contains no migration mapping, so the values are derived from the landed sources — the validator comment at lines 62-65 (the removed per-tool maps have no compatibility reader), `agent/config_dataclasses.py` `ApprovalConfig` docstring (REQ-005), `agent/tool_approval.py` lines 65-71 (REQ-009), `agent/tool_policy.py` `classify_risk` docstring (REQ-004/REQ-011), and ADR-003 amendment (2026-11-21). Owner confirmed the derived mapping on 2026-11-22: `tool_safety_tiers` → per-tool `agent_safety_tier` in `config/tool_catalog.toml`; `approval_risk_rules` → the declared `agent_safety_tier` as the single risk source (no config replacement key); `approval_resource_keys` → per-tool `resource_scope_keys` in `config/tool_catalog.toml`; `approval_dry_run_tools` → per-tool `preview_capability` in `config/tool_catalog.toml`.
 
 ### Companion test files
 - `tests/agent/test_production_config_validator.py`
@@ -59,9 +59,9 @@ No change to `config/agent.toml`; no change to the valid-key table (mcpdl003's s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the mapping constant and the per-key fatal message per Procedure/Method/Details | Pending | — | — | |
-| 2 | Add per-key assertions in the companion test file per Validation plan | Pending | — | — | Companion: `tests/agent/test_production_config_validator.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) incl. the three pinned test files | Pending | — | — | |
+| 1 | Add the mapping constant and the per-key fatal message per Procedure/Method/Details | Completed | 2026-11-22 | 2026-11-22 | mapping constant + per-key message with the Unknown config keys prefix; values derived from landed agentcfg003 sources (owner confirmed 2026-11-22) |
+| 2 | Add per-key assertions in the companion test file per Validation plan | Completed | 2026-11-22 | 2026-11-22 | Companion: `tests/agent/test_production_config_validator.py` 5 tests added; existing pinned assertions unchanged and still passing |
+| 3 | Run the validation sequence (`rules/toolchain.md`) incl. the three pinned test files | Completed | 2026-11-22 | 2026-11-22 | ruff/mypy/bandit/lint-imports clean; target + 3 pinned test files pass; full suite passed on re-run (first run reported a single non-reproduced pytest failure) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

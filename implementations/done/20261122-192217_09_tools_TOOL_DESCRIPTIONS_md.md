@@ -12,6 +12,7 @@ Registry-file change only: add the row for `check_config_comment_length.py` (def
 
 ## Design decisions
 - Follow the existing two-part inventory format (summary table row and detail section) used by sibling checker entries.
+- No exception mechanism is involved: `check_tool_descriptions_sync.py` has no baseline or self-exception, so the row is simply added and the checker then passes. Only the private helper `_agent_config_migration.py` (sibling procedure seq 12) needs the "Reference generation (private)" shape used by `_contract_manifests.py`.
 
 ## Alternatives considered
 N/A: the sync checker enforces the row; no alternative.
@@ -49,8 +50,8 @@ The tool itself (sibling procedure seq 07).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the tool row | Pending | — | — | Same change as seq 07 |
-| 2 | Run `check_tool_descriptions_sync.py` | Pending | — | — | Docs-only row: no test step |
+| 1 | Add the tool row | Completed | 2026-11-22 | 2026-11-22 | Same change as seq 07; Index row plus the "Config Comment Lint" detail section, and the `_agent_config_migration.py` row for seq 12 in the Index and "Reference Generators" section |
+| 2 | Run `check_tool_descriptions_sync.py` | Completed | 2026-11-22 | 2026-11-23 | "No issues found"; the pre-commit hook also passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
