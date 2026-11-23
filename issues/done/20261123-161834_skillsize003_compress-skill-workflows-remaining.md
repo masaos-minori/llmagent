@@ -61,7 +61,7 @@ Yes: the skills, prompts, and templates named above change; each stage records w
 - Changing harness behavior (how a skill is loaded or compacted).
 
 ## Dependencies
-- Depends on `plans/20261123-161734_skillsize002_compress-skill-workflows-structure.md` (Stage A) being implemented first: this issue starts from its recorded numbers and uses its split pattern. Order: that Plan, then this issue.
+- Split decision (2026-11-23, at planning): Stage B is planned in `plans/20261123-162854_skillsize003_compress-skill-workflows-remaining.md` (measured saving about 8 KB over the two workflows); Stages C to F stay unplanned until the maintainer confirms their benefit after Stage B is measured. Earlier note: depends on `plans/done/20261123-161734_skillsize002_compress-skill-workflows-structure.md` (Stage A, implemented in `5acb76cdf`) being implemented first: this issue starts from its recorded numbers and uses its split pattern. Order: that Plan, then this issue.
 - Related: `issues/20261123-155940_skillsize002_compress-skill-workflows-structure.md` (the parent issue; its verification and Stage A plan).
 - Sibling check (2026-11-23): no other open issue or plan targets the skill, prompt, or template files named here.
 
