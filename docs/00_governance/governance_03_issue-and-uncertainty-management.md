@@ -342,21 +342,7 @@ An item is removed from this active inventory once it is resolved (exactly one n
 
 ### Active Items
 
-#### CSC-001
-
-- **ID:** CSC-001
-- **Decision target:** Acceptance of a RAG fallback result under an unverifiable corpus identity
-- **Claim type:** Present-behavior claim retained in a Withdrawn ADR
-- **Canonical source:** `docs/10_adr/adr_02_06_010_rag-fallback.md` `## Status` (`Withdrawn`) and its withdrawal note ("The text below remains as the record of the withdrawn decision")
-- **Conflicting source or evidence:** The same ADR's Decision item 11 and the failure-outcome table row `Identity unverifiable (either identity absent)` still state the identity-comparison and unverifiable-handling contract in the present tense
-- **Conflict category:** Internal contradiction in one canonical source: withdrawn status vs surviving normative wording
-- **Impact:** Readers of the normative sections can take the withdrawn fallback's identity handling as current behavior although the corpus-identity handling no longer exists
-- **Severity:** High
-- **Blocking status:** Blocking
-- **Required action:** The corpus-identity modules are gone: no `corpus_identity.py` exists under `scripts/rag/` and no `scripts/` or `tests/` file references it. The surviving present-tense wording in ADR-010 (Decision item 11 and the failure-outcome table row) is still to be moved to the withdrawn record or removed, a maintainer decision
-- **Owner:** Repository owner
-- **Validation evidence:** `rg corpus_identity scripts/ tests/` lists no file
-- **Status**: open
+No active Canonical Source Conflict items remain.
 
 ## Part 4: Configuration Drift
 
@@ -512,7 +498,7 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Decision:** Withdrawal of the fallback decision
 - **Approver:** Not recorded
 - **Date:** Not recorded
-- **Scope:** Status, Withdrawal Approval Record
+- **Scope:** Status, Withdrawal Approval Record, historical marking of the corpus-identity passages (Decision Details 11 and 14, the two identity rows of the failure-outcome table, INV-09, one Negative Consequence, one Review Trigger)
 
 #### AAL-014
 

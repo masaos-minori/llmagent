@@ -29,7 +29,7 @@ Withdrawn
 
 ADR-010 contributes no authority target and no edge in `config/adr_authority.toml`, so it intentionally has no node in the generated graph sections of `adr_01_index.md` (ADR-016 status rules: a Withdrawn ADR owns no decision target or non-`Reference` edge).
 
-RAG is reached only through the rag-pipeline MCP server over the common MCP transport, and no remote delegation or fallback to another execution path exists. The text below remains as the record of the withdrawn decision. The present-tense wording that survives in Decision Detail 11 and in the failure-outcome table row `Identity unverifiable (either identity absent)` is tracked as CSC-001 in `governance_03_issue-and-uncertainty-management.md`.
+RAG is reached only through the rag-pipeline MCP server over the common MCP transport, and no remote delegation or fallback to another execution path exists. The text below remains as the record of the withdrawn decision. The corpus-identity passages (Decision Details 11 and 14, the two identity rows of the failure-outcome table, INV-09, one Negative Consequence, and one Review Trigger) are marked as withdrawn history and written in the past tense.
 
 ## Summary
 
@@ -75,7 +75,7 @@ This problem applies only to a process that delegates over HTTP. No production p
 8. The result source (Remote/Local/Fallback) is tracked and recorded in metrics and logs.
 9. Parse errors (an unparsable body or a non-string `result`) are logged and treated as empty results without fallback; the caller can tell this from a valid empty answer only through the log.
 10. Local DB access uses only `rag.sqlite`.
-11. Result consistency between the external RAG and the local RAG is detected on every fallback: the remote and local corpus identities are compared before a fallback result is accepted (`rag_05_07-rag-index-consistency-checks.md`), and a mismatch between two present identities is enforced per `rag_identity_mismatch_policy` (`rag_05_01-configuration-reference.md`, `reject` default), while an unverifiable identity (either side absent) proceeds and is recorded. This detects a divergence; it is not corpus synchronization. Equal identities mean the same corpus identity, not identical search results. The two modes still read from their own configured database paths, and the availability-first fallback is unchanged.
+11. Withdrawn (identity gate removed): before the withdrawal, result consistency between the external RAG and the local RAG was detected on every fallback: the remote and local corpus identities were compared before a fallback result was accepted (`rag_05_07-rag-index-consistency-checks.md`), a mismatch between two present identities was enforced per `rag_identity_mismatch_policy` (`rag_05_01-configuration-reference.md`, `reject` default), and an unverifiable identity (either side absent) proceeded and was recorded. This detected a divergence; it was not corpus synchronization. Equal identities meant the same corpus identity, not identical search results. The two modes still read from their own configured database paths, and the availability-first fallback was unchanged. The identity contract, the comparison gate, and the policy key no longer exist.
 12. The result vocabulary is `remote_nonempty`, `remote_empty`, `in_process_fallback`, `auth_error` (internal to `HttpAugment`), and the public enums `ResultSource` and `HttpResultKind` (`SUCCESS`, `EMPTY`, `ERROR`, `NOT_USED`, `AUTH_ERROR`).
 13. The failure outcomes of the HTTP delegation path are fixed by the table below; each cause has exactly one outcome.
 
@@ -87,11 +87,11 @@ This problem applies only to a process that delegates over HTTP. No production p
     | HTTP 5xx or transport error after the bounded retries | `transient_failure`; falls back |
     | HTTP 200 with `is_error=true` | `transient_failure`; falls back |
     | Unparsable body or non-string `result` | Empty result; no fallback |
-    | Identity mismatch (both identities present and unequal) | Fallback rejected under the default `reject` policy; tolerated and marked degraded under `degraded` |
-    | Identity unverifiable (either identity absent) | Fallback proceeds and the unverifiable state is recorded |
+    | Withdrawn: identity mismatch (both identities present and unequal) | Withdrawn: fallback was rejected under the default `reject` policy and was tolerated and marked degraded under `degraded` |
+    | Withdrawn: identity unverifiable (either identity absent) | Withdrawn: fallback proceeded and the unverifiable state was recorded |
     | Local `rag.sqlite` cannot be opened during fallback | `RagPipelineError`; no further fallback |
 
-14. Identity sources: the remote identity is parsed from the `corpus_identity` object of a successful response and is absent after a failed call, so it is always absent on the fallback path; the local identity is read from the local corpus metadata at fallback time. Both are evaluated per request, never cached, and the remote value is self-reported by the authenticated service and not independently verified.
+14. Withdrawn (identity gate removed): the remote identity was parsed from the `corpus_identity` object of a successful response and was absent after a failed call, so it was always absent on the fallback path; the local identity was read from the local corpus metadata at fallback time. Both were evaluated per request, never cached, and the remote value was self-reported by the authenticated service and not independently verified.
 
 ### Scope
 
@@ -159,7 +159,7 @@ Tracking the result source shows which path produced the result, which helps deb
 
 - Performance may degrade during fallback
 - Search-result equivalence between the two modes is not guaranteed
-- Both modes are expected to use the same `rag_db_path` by convention; a divergence is not prevented and is detected only at fallback time, by the corpus identity comparison
+- Both modes are expected to use the same `rag_db_path` by convention; a divergence is not prevented (Withdrawn: it was detected only at fallback time, by the corpus identity comparison, which was removed)
 - Error classification is complex
 
 ### Operational Consequences
@@ -182,7 +182,7 @@ Tracking the result source shows which path produced the result, which helps deb
 - INV-06: The result source (Remote/Local/Fallback) is tracked and recorded in metrics and logs.
 - INV-07: Parse errors (an unparsable body or a non-string `result`) are logged and treated as empty results.
 - INV-08: Local DB access uses only `rag.sqlite`.
-- INV-09: Search-result equivalence between the external RAG and the local RAG is not guaranteed. Database sharing is a deployment convention that is not enforced, and a corpus divergence is detected only by the identity comparison at fallback (Decision Details item 11), which is a detection and not a synchronization.
+- INV-09: Search-result equivalence between the external RAG and the local RAG is not guaranteed. Database sharing is a deployment convention that is not enforced (Withdrawn: a corpus divergence was detected only by the identity comparison at fallback (Decision Details item 11), which was a detection and not a synchronization, and which no longer exists).
 - INV-10: The result vocabulary is `remote_nonempty`, `remote_empty`, `in_process_fallback`, `auth_error`, `ResultSource`, and `HttpResultKind` (including `AUTH_ERROR`).
 
 ## Failure Policy
@@ -263,7 +263,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
 - The external RAG service and the in-process RAG must return consistent results
-- The `rag_identity_mismatch_policy` is changed below `reject`, or the remote/local identity-comparison gate (`rag_05_07-rag-index-consistency-checks.md`) is extended to a fallback path other than the HTTP delegation path
+- Withdrawn (identity gate removed; no longer applicable): the `rag_identity_mismatch_policy` was changed below `reject`, or the remote/local identity-comparison gate (`rag_05_07-rag-index-consistency-checks.md`) was extended to a fallback path other than the HTTP delegation path
 - The set of failures that trigger the fallback (including the 401/403 handling) changes
 - Fallback to a destination other than the in-process RAG is proposed
 
