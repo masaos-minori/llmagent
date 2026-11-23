@@ -153,9 +153,9 @@ separate scope-of-record.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Create the edge file and slim the workflow | Pending | — | — | |
-| 2 | Phase 2: Citations and baseline | Pending | — | — | |
-| 3 | Phase 3: Verification | Pending | — | — | |
+| 1 | Phase 1: Create the edge file and slim the workflow | In Progress | — | — |  |
+| 2 | Phase 2: Citations and baseline | In Progress | — | — |  |
+| 3 | Phase 3: Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -165,7 +165,11 @@ separate scope-of-record.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261123-162003_01_skills_code-implementation_workflow-edge.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261123-162003_02_skills_code-implementation_workflow.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261123-162003_03_prompts_03_implementation.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261123-162003_04_templates_implementation-procedure.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261123-162003_05_tools_check_skill_size_baseline.txt.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -187,3 +191,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-003 | Issue Constraints (references stay valid); citation scan | prompts/03_implementation.md | 2 | AC-3 | `check_skills_references.py` | Confirmed by repository evidence |
 | REQ-003 | Issue Constraints (references stay valid); citation scan | templates/implementation-procedure.md | 2 | AC-3 | `check_skills_references.py` | Confirmed by repository evidence |
 | REQ-004 | Issue Required Changes (lower the baseline) | tools/check_skill_size_baseline.txt | 2 | AC-5 | `check_skill_size.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261123-162003 -->
