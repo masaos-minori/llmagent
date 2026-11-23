@@ -170,6 +170,7 @@ class TestBuildMcpServers:
         assert s.call_timeout_sec == 60.0
         assert s.startup_timeout_sec == 30
         assert s.role == ""
+        assert s.control_auth_token == ""
 
     def test_auth_token_and_role_parsed(self) -> None:
         cfg = {
@@ -186,6 +187,28 @@ class TestBuildMcpServers:
         s = result["secure"]
         assert s.auth_token == "my-secret"
         assert s.role == "file_write"
+
+    def test_control_auth_token_resolves_tolerantly(self, monkeypatch) -> None:
+        """mcpdl004 REQ-002: a resolved ${ENV:...} control token is used, and an unset
+        variable leaves it empty (control closed) instead of stopping the Agent."""
+        monkeypatch.setenv("MCP_TEST_CONTROL_TOKEN", "control-secret")
+        cfg = {
+            "mcp_servers": {
+                "ctrl": {
+                    "transport": "http",
+                    "url": "http://127.0.0.1:8000",
+                    "auth_token": "test-token",
+                    "control_auth_token": "${ENV:MCP_TEST_CONTROL_TOKEN}",
+                }
+            }
+        }
+        result = _build_mcp_servers(cfg)
+        assert result["ctrl"].control_auth_token == "control-secret"
+
+        cfg["mcp_servers"]["ctrl"]["control_auth_token"] = "${ENV:MCP_UNSET_TEST_TOKEN}"
+        monkeypatch.delenv("MCP_UNSET_TEST_TOKEN", raising=False)
+        result = _build_mcp_servers(cfg)
+        assert result["ctrl"].control_auth_token == ""
 
     def test_auth_token_default_empty_raises(self) -> None:
         """mcpauth: an empty auth_token is no longer a valid default for enabled servers (REQ-004)."""

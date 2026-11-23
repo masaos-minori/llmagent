@@ -5,6 +5,7 @@ import asyncio
 import dataclasses
 import logging
 from typing import Any, Literal
+from urllib.parse import quote
 
 import httpx
 
@@ -323,3 +324,89 @@ class HttpTransport:
         )
         logger.error(msg)
         raise TransportError(msg)
+
+
+# Success label for the control client; it is the "none" member of the shared
+# control error vocabulary. The other labels are fixed strings, so a caller can
+# branch on them without ever seeing a response body or exception text.
+CONTROL_SUCCESS_LABEL = "none"
+
+
+@dataclasses.dataclass(frozen=True)
+class ControlCallResult:
+    """Typed outcome of one control-plane request (mcpdl004 REQ-001).
+
+    `error` is a fixed label: `none`, `control_unconfigured`, `timeout`,
+    `transport_error`, `bad_response`, or `http_<status>`. `payload` is the parsed
+    JSON object on success only; no failed-response body is carried, and no raw
+    exception text is stored.
+    """
+
+    ok: bool
+    status_code: int
+    payload: dict[str, Any] | None
+    error: str
+
+
+class ControlClient:
+    """Single-attempt client for GET /v1/call_state/{key} and its reconcile POST.
+
+    Synchronous by design: the stale-call classification path that uses it runs
+    inside a running event loop and cannot await an async transport. Control reads
+    are never retried here; the caller decides. The tool Bearer token is never sent
+    on a control path (mcpdl004 REQ-002).
+    """
+
+    def __init__(
+        self, base_url: str, control_token: str, timeout_sec: float = 3.0
+    ) -> None:
+        self._base_url = base_url.rstrip("/")
+        self._control_token = control_token
+        self._timeout = timeout_sec
+        if control_token:
+            register_secret(control_token)
+
+    def get_call_state(self, key: str) -> ControlCallResult:
+        """Read the call state for one logical call id."""
+        return self._request("GET", f"/v1/call_state/{quote(key, safe='')}")
+
+    def request_reconcile(self, key: str) -> ControlCallResult:
+        """Ask the owning server to reconcile one call; the request has no payload."""
+        return self._request("POST", f"/v1/call_state/{quote(key, safe='')}/reconcile")
+
+    def _request(self, method: str, path: str) -> ControlCallResult:
+        """One request, typed result, no raise. Logs the path and a fixed label only."""
+        if not self._control_token:
+            return self._refuse(method, path, 0, "control_unconfigured")
+        try:
+            # Context manager per call: no connection outlives the request.
+            with httpx.Client(timeout=self._timeout) as client:
+                resp = client.request(
+                    method,
+                    f"{self._base_url}{path}",
+                    headers={"Authorization": f"Bearer {self._control_token}"},
+                )
+        except httpx.TimeoutException:
+            return self._refuse(method, path, 0, "timeout")
+        except httpx.RequestError:
+            return self._refuse(method, path, 0, "transport_error")
+        if not resp.is_success:
+            return self._refuse(
+                method, path, resp.status_code, f"http_{resp.status_code}"
+            )
+        try:
+            data = parse_http_json(resp)
+        except ValueError:
+            return self._refuse(method, path, resp.status_code, "bad_response")
+        if not isinstance(data, dict):
+            return self._refuse(method, path, resp.status_code, "bad_response")
+        return ControlCallResult(True, resp.status_code, data, CONTROL_SUCCESS_LABEL)
+
+    @staticmethod
+    def _refuse(
+        method: str, path: str, status_code: int, label: str
+    ) -> ControlCallResult:
+        """Log the fixed label and the request path only: no body, no exception text."""
+        suffix = f" status={status_code}" if status_code else ""
+        logger.warning(f"Control request {label}: {method} {path}{suffix}")
+        return ControlCallResult(False, status_code, None, label)

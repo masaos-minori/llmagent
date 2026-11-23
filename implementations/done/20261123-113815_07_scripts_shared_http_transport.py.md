@@ -67,9 +67,9 @@ Recovery decisions (row 11) and server endpoints (row 09).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-141607 | 20261123-141607 | ControlCallResult and ControlClient added below HttpTransport; fixed-label errors, single attempt, per-call context manager, register_secret in the constructor |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-141607 | 20261123-141607 | TestControlClient added in the existing test module (7 tests); 35 tests green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-141607 | 20261123-141607 | ruff, mypy, lint-imports, bandit, module-size gate pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

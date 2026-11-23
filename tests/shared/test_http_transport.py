@@ -11,19 +11,27 @@ values, a retry re-sends the identical value, and a call with no context (or
 an empty call_id) is refused before any HTTP request (AC-3). The removed
 derivation tests and the HEAD_KEY literal pin (wfaudit002) are gone with
 derive_idempotency_key.
+
+ControlClient pins (mcpdl004 REQ-001, row 07): every control-plane failure is a
+fixed label in a typed result, never a raise or a response body, and control
+requests are single attempts.
 """
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+import respx
 from mcp_servers.dispatch import _write_tools
 from shared.http_transport import (
     _AMBIGUOUS_RETRY_STATUSES,
     _PRESEND_SAFE_ERRORS,
     _WRITE_TOOLS,
+    ControlCallResult,
+    ControlClient,
     HttpTransport,
     TransportError,
 )
@@ -487,3 +495,112 @@ class TestToolLevelStatusClassification:
         with pytest.raises(TransportError, match="retry suppressed"):
             await transport.call("write_file", {}, _ctx("write_file"))
         assert mock_post.call_count == 1
+
+
+# ── ControlClient (mcpdl004 REQ-001, row 07) ─────────────────────────────────
+
+
+class TestControlClient:
+    """Typed control-plane results: success, timeout, transport failure, non-2xx,
+    unconfigured token. No path raises and no path retries."""
+
+    def _client(self) -> ControlClient:
+        return ControlClient("http://control-server", "dummy-control-token")
+
+    def test_get_call_state_returns_the_parsed_object(self):
+        with respx.mock:
+            route = respx.get("http://control-server/v1/call_state/call-1").mock(
+                return_value=httpx.Response(200, json={"agent_state": "completed"})
+            )
+            result = self._client().get_call_state("call-1")
+            assert route.call_count == 1
+        assert result == ControlCallResult(
+            ok=True,
+            status_code=200,
+            payload={"agent_state": "completed"},
+            error="none",
+        )
+        request = route.calls[0].request
+        assert request.headers["authorization"] == "Bearer dummy-control-token"
+        assert request.url.path == "/v1/call_state/call-1"
+
+    def test_reconcile_is_one_post_with_no_body(self):
+        with respx.mock:
+            route = respx.post(
+                "http://control-server/v1/call_state/call-1/reconcile"
+            ).mock(return_value=httpx.Response(200, json={"decision": "reconciled"}))
+            result = self._client().request_reconcile("call-1")
+            assert route.call_count == 1
+        assert result.ok is True
+        assert result.payload == {"decision": "reconciled"}
+        request = route.calls[0].request
+        assert request.method == "POST"
+        assert request.content == b""
+
+    def test_key_is_url_quoted_on_both_paths(self):
+        # `url.path` percent-decodes, so the wire form is checked on the request URL.
+        with respx.mock:
+            route = respx.get("http://control-server/v1/call_state/a%2Fb").mock(
+                return_value=httpx.Response(200, json={"agent_state": "failed"})
+            )
+            self._client().get_call_state("a/b")
+        assert (
+            str(route.calls[0].request.url)
+            == "http://control-server/v1/call_state/a%2Fb"
+        )
+
+    def test_empty_token_closes_control_without_any_send(self):
+        with respx.mock:
+            route = respx.get("http://control-server/v1/call_state/call-1").mock(
+                return_value=httpx.Response(200, json={})
+            )
+            result = ControlClient("http://control-server", "").get_call_state("call-1")
+            assert route.call_count == 0
+        assert result.error == "control_unconfigured"
+
+    def test_timeout_and_transport_failure_are_labels_not_raises(self):
+        client = self._client()
+        with respx.mock:
+            respx.get("http://control-server/v1/call_state/k").mock(
+                side_effect=httpx.ReadTimeout("read timeout")
+            )
+            timed_out = client.get_call_state("k")
+            respx.get("http://control-server/v1/call_state/k").mock(
+                side_effect=httpx.ConnectError("connection refused")
+            )
+            failed = client.get_call_state("k")
+        assert timed_out.ok is False and timed_out.error == "timeout"
+        assert failed.ok is False and failed.error == "transport_error"
+
+    def test_non_2xx_and_bad_response_carry_fixed_labels(self):
+        client = self._client()
+        with respx.mock:
+            respx.get("http://control-server/v1/call_state/k").mock(
+                return_value=httpx.Response(401, text="dummy-secret-body")
+            )
+            refused = client.get_call_state("k")
+            respx.get("http://control-server/v1/call_state/k").mock(
+                return_value=httpx.Response(200, text="not json")
+            )
+            malformed = client.get_call_state("k")
+            respx.get("http://control-server/v1/call_state/k").mock(
+                return_value=httpx.Response(200, json=["not", "an", "object"])
+            )
+            array = client.get_call_state("k")
+        assert refused.status_code == 401 and refused.error == "http_401"
+        assert refused.payload is None
+        assert malformed.error == "bad_response"
+        assert array.error == "bad_response"
+
+    def test_response_body_and_exception_text_are_not_carried_into_logs(self, caplog):
+        client = self._client()
+        with caplog.at_level(logging.WARNING, logger="shared.http_transport"):
+            with respx.mock:
+                respx.get("http://control-server/v1/call_state/k").mock(
+                    side_effect=httpx.ConnectError("secret-token-should-not-appear")
+                )
+                client.get_call_state("k")
+        text = caplog.text
+        assert "transport_error" in text
+        assert "dummy-control-token" not in text
+        assert "secret-token-should-not-appear" not in text

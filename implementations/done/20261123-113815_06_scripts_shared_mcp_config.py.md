@@ -66,9 +66,9 @@ Server-side `[control]` loading (row 10) and `config/agent.toml` entries (row 14
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-140902 | 20261123-140902 | field added after auth_token; resolved with resolve_control_token and registered when non-empty |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-140902 | 20261123-140902 | test added for tolerant resolution (the procedure expected no test change); 96 tests green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-140902 | 20261123-140902 | ruff, mypy, lint-imports, bandit pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

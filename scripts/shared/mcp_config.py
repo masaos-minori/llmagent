@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 
 from shared.config_utils import resolve_env_ref
 from shared.logger import register_secret
+from shared.mcp_call_state_contract import resolve_control_token
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +280,11 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
 
     resolved_auth_token = resolve_env_ref(v.get("auth_token", ""))
     register_secret(resolved_auth_token)
+    # The control token is optional: an unset variable closes the control paths
+    # instead of stopping the Agent (mcpdl004 REQ-002).
+    resolved_control_token = resolve_control_token(v.get("control_auth_token", ""))
+    if resolved_control_token:
+        register_secret(resolved_control_token)
 
     return McpServerConfig(
         transport=TransportType(transport),
@@ -289,6 +295,7 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         max_stderr_log_size_mb=float(v.get("max_stderr_log_size_mb", 100.0)),
         max_stderr_log_files=int(v.get("max_stderr_log_files", 3)),
         auth_token=resolved_auth_token,
+        control_auth_token=resolved_control_token,
         call_timeout_sec=float(v.get("call_timeout_sec", 60.0)),
         health_timeout=health_timeout,
         role=v.get("role", ""),
