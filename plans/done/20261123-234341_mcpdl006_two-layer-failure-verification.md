@@ -25,7 +25,7 @@ Source: consolidated MCP deduplication two-layer defense backlog (`memo-issue.md
 ## Problem
 Verified against the current test tree, the Issue's claim still reproduces:
 
-- The authoritative mapping is verified only at unit level: `tests/shared/test_mcp_call_state_contract.py` asserts `agent_state_for` totality in one process; `tests/mcp_servers/test_call_state_api.py` serves the control API through `fastapi.testclient.TestClient` (in-process ASGI, `tests/mcp_servers/test_call_state_api.py:49-65`); `tests/agent/test_mcp_call_recovery.py` answers the Agent's control calls through respx-mocked routes. No test crosses a process boundary for the state mapping.
+- The authoritative mapping is verified only at unit level: `tests/shared/test_mcp_call_state_contract.py` asserts `agent_state_for` totality in one process; `tests/mcp_servers/test_call_state_api.py` serves the control API through `fastapi.testclient.TestClient` (in-process ASGI, `tests/mcp_servers/test_call_state_api.py:49-65`); `tests/agent/test_mcp_call_recovery.py` answers the Agent's control calls through respx-mocked routes (`tests/agent/test_mcp_call_recovery.py:125-126`, wiring the `FakeControlPlane` handler defined at `:51-70`). No test crosses a process boundary for the state mapping.
 - Genuine cross-process coverage is limited to `tests/integration/test_mcp_transport_crash.py` (raw subprocess stdio EOF, no state mapping or dedup gate) and `tests/integration/test_agent_mcp_integration.py` (respx-mocked HTTP in a single process).
 - Multi-process capability exists only as short-lived subprocesses on one DB path in `tests/shared/test_mcp_dedup_concurrency.py`, and as a real uvicorn subprocess on a free loopback port in `tests/integration/test_production_security_regression.py:264-293`. Neither is wired to the call-state control plane.
 
@@ -51,7 +51,7 @@ Add integration tests only, reusing the repository's existing cross-process patt
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `tests/integration/conftest.py` | modify | Add the cross-layer fixtures: a real control-API subprocess on an ephemeral loopback port and a shared `tmp_path` store handle used by both sides. | REQ-006; AC-006 | The file already holds `tmp_sqlite_db` (`tests/integration/conftest.py:59-73`), `hold_write_lock` (`:88-100`) and the subprocess fixture pattern (`:103-121`); no control-API fixture exists. The port pattern exists at `tests/integration/test_production_security_regression.py:279-283` (checked in Step 3). | New fixtures consumed by `tests/integration/test_call_state_matrix_across_processes.py` and `tests/integration/test_call_state_crash_injection_across_processes.py`; the existing fixtures are exercised unchanged. | Verified |
-| `tests/integration/test_call_state_matrix_across_processes.py` | create (new file) | Test-only matrix: every `agent_state_for` transition observed through two processes, plus the at-most-once and fail-closed assertions. | REQ-001, REQ-003, REQ-004; AC-001, AC-002, AC-003, AC-005, AC-006 | No existing test crosses a process boundary for the mapping (`tests/mcp_servers/test_call_state_api.py:49-65` in-process ASGI, `tests/agent/test_mcp_call_recovery.py:59-70` respx mock); the mapping itself is implemented at `scripts/shared/mcp_call_state_contract.py:57-74`. (checked in Step 2/3) | `test_x01..x07` per transition, `test_x10` cross-process single-execution race, `test_x11` unknown outcome never rerun, `test_x12..x16` fail-closed boundaries. | Verified |
+| `tests/integration/test_call_state_matrix_across_processes.py` | create (new file) | Test-only matrix: every `agent_state_for` transition observed through two processes, plus the at-most-once and fail-closed assertions. | REQ-001, REQ-003, REQ-004; AC-001, AC-002, AC-003, AC-005, AC-006 | No existing test crosses a process boundary for the mapping (`tests/mcp_servers/test_call_state_api.py:49-65` in-process ASGI, `tests/agent/test_mcp_call_recovery.py:125-126` respx mock wiring a `FakeControlPlane` handler); the mapping itself is implemented at `scripts/shared/mcp_call_state_contract.py:57-74`. (checked in Step 2/3; line citation corrected in this pass) | `test_x01..x07` per transition, `test_x10` cross-process single-execution race, `test_x11` unknown outcome never rerun, `test_x12..x16` fail-closed boundaries. | Verified |
 | `tests/integration/test_call_state_crash_injection_across_processes.py` | create (new file) | Crash injection at the Agent and MCP points, asserted through the mapping and the dedup gate; reconciliation-only recovery for a lost response. | REQ-002, REQ-005; AC-004 | The kill-mid-operation pattern exists (`tests/integration/test_mcp_transport_crash.py:40-65`, `tests/shared/test_mcp_dedup_concurrency.py:316-336`) but asserts transport EOF, not the state mapping; the recovery service that must not re-execute is implemented at `scripts/agent/mcp_call_recovery.py:1-12`. (checked in Step 3) | `test_c01..c03` Agent crash points, `test_c04..c07` MCP crash points, `test_c08` reconciliation without re-execution. | Verified |
 
 ## Reference Files
@@ -189,10 +189,10 @@ Table structure and vocabulary: `templates/execution-status.md`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: cross-layer fixtures in `tests/integration/conftest.py` (REQ-006) | Pending | — | — | |
-| 2 | Phase 2: cross-layer state-mapping matrix in `tests/integration/test_call_state_matrix_across_processes.py` (REQ-001, REQ-003, REQ-004) | Pending | — | — | |
-| 3 | Phase 3: crash injection through the mapping and dedup gate in `tests/integration/test_call_state_crash_injection_across_processes.py` (REQ-002, REQ-005) | Pending | — | — | |
-| 4 | Phase 4: validation of the three target files (no deploy step) | Pending | — | — | |
+| 1 | Phase 1: cross-layer fixtures in `tests/integration/conftest.py` (REQ-006) | In Progress | — | — |  |
+| 2 | Phase 2: cross-layer state-mapping matrix in `tests/integration/test_call_state_matrix_across_processes.py` (REQ-001, REQ-003, REQ-004) | In Progress | — | — |  |
+| 3 | Phase 3: crash injection through the mapping and dedup gate in `tests/integration/test_call_state_crash_injection_across_processes.py` (REQ-002, REQ-005) | In Progress | — | — |  |
+| 4 | Phase 4: validation of the three target files (no deploy step) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -202,7 +202,9 @@ Table structure and vocabulary: `templates/execution-status.md`.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261124-001146_01_tests_integration_conftest.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261124-001146_02_tests_integration_test_call_state_matrix_across_processes.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261124-001146_03_tests_integration_test_call_state_crash_injection_across_processes.py.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -228,3 +230,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-006 | Constraints; marker definition `pyproject.toml:146`; existing convention `tests/integration/test_standard_config_integration.py:50` | `tests/integration/conftest.py` | Phase 1 | AC-006 | Integration run and 5-run flakiness check | Confirmed by repository evidence |
 | REQ-006 | Constraints | `tests/integration/test_call_state_matrix_across_processes.py` | Phase 2 | AC-006 | Marker and `tmp_path` isolation | Confirmed by repository evidence |
 | REQ-006 | Constraints | `tests/integration/test_call_state_crash_injection_across_processes.py` | Phase 3 | AC-006 | Marker and `tmp_path` isolation | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261124-001146 -->
