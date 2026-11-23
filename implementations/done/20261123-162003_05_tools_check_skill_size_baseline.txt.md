@@ -66,8 +66,8 @@ Other entries.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the config loading test and the comment-length checker named in Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-162340 | 20261123-162624 | Lowered the workflow.md ceiling to 42118 and added the measurement header line |
+| 2 | Run the config loading test and the comment-length checker named in Validation plan | Completed | 20261123-162624 | 20261123-162624 | check_skill_size passes; 19 tool tests pass; gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

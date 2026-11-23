@@ -69,8 +69,8 @@ Editing `workflow.md` (procedure 02).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-162340 | 20261123-162624 | Created workflow-edge.md (12258 B) by slicing the original lines; one recorded rewrite: '(this file)' to '(workflow.md)' in the release-unit batch text |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Completed | 20261123-162624 | 20261123-162624 | check_skills_references and check_skills_heading_cycles pass; the five moved groups are byte-identical to the original |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

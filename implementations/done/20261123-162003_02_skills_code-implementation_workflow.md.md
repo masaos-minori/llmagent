@@ -71,8 +71,8 @@ The edge file (procedure 01) and other skills.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-162340 | 20261123-162624 | Replaced the five moved bodies with trigger lines; workflow.md 52593 to 42118 B (10475 B smaller) |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` for a changed `docs/` file (`uv run python tools/run_validation_gates.py`) | Completed | 20261123-162624 | 20261123-162624 | Extraction check: 39 MUST/MUST NOT/SHOULD sentences, none missing; text outside the moved ranges preserved in order; reference and heading-cycle checks pass; gates pass. Full suite 13572 passed, 2 failed in tests/db/test_schema_validation_per_database.py (mcp_dedup stamp 2 vs user_version=1, caused by the concurrent mcpdl004 schema bump, unrelated) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -104,7 +104,7 @@ to the item.
 - **Release unit** — the `## Scope` line carries the unit name when the Plan's `### Release units`
   entry lists the Plan step that cites this document's `File Path` in its `Phases`; the generation
   workflow copies the name from that entry. Otherwise keep the default
-  `N/A: not part of a release unit`. `skills/code-implementation/workflow.md` Batch mode reads it.
+  `N/A: not part of a release unit`. `skills/code-implementation/workflow-edge.md` Batch mode reads it.
 
 - "Target file" (singular) names exactly the one `File Path` this document modifies —
   the one `Implementation Target Files` row (`templates/plan.md`) this document was

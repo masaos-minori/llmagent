@@ -82,7 +82,7 @@ Step 7 in full.
 
 ### Rollback on failure
 
-Follow `skills/code-implementation/workflow.md` Rollback on Failure in full.
+Follow `skills/code-implementation/workflow-edge.md` Rollback on Failure in full.
 
 ### Final Report
 

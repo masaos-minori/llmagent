@@ -153,9 +153,9 @@ separate scope-of-record.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Create the edge file and slim the workflow | In Progress | — | — |  |
-| 2 | Phase 2: Citations and baseline | In Progress | — | — |  |
-| 3 | Phase 3: Verification | Pending | — | — |  |
+| 1 | Phase 1: Create the edge file and slim the workflow | Completed | — | 20261123-162631 |  |
+| 2 | Phase 2: Citations and baseline | Completed | — | 20261123-162631 |  |
+| 3 | Phase 3: Verification | Completed | — | 20261123-162631 | Extraction, reference, heading-cycle, size checks and gates pass; full suite has 2 unrelated failures from the concurrent mcpdl004 schema bump |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -165,11 +165,11 @@ separate scope-of-record.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261123-162003_01_skills_code-implementation_workflow-edge.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261123-162003_02_skills_code-implementation_workflow.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261123-162003_03_prompts_03_implementation.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261123-162003_04_templates_implementation-procedure.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261123-162003_05_tools_check_skill_size_baseline.txt.md | 2 | Procedure | Pending | — | — |
+| implementations/20261123-162003_01_skills_code-implementation_workflow-edge.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-162003_02_skills_code-implementation_workflow.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-162003_03_prompts_03_implementation.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-162003_04_templates_implementation-procedure.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-162003_05_tools_check_skill_size_baseline.txt.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
