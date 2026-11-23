@@ -7,7 +7,7 @@ Low
 37 ADR decision-text changes (AAL-001 to AAL-038, with 018 absent) are written into ADRs with approver and date `Not recorded`, including seven entries that set a verification row to Non-Blocking. Close each through a recorded approval or a revert.
 
 ## Background
-Source: `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 5 (37 entries, counted by `grep`). Entries tied to other work: AAL-013 and AAL-024 to AAL-028 (`issues/20261123-104600_gov001_resolve-adr-contradictions.md`), AAL-014, AAL-015, AAL-036 (`issues/20261123-104601_gov002_git-protected-head-tests.md`), AAL-006 to AAL-010 and AAL-029 (`issues/20261123-104603_gov004_eventbus-client-decision.md`), and AAL-002, AAL-003, AAL-019 (ADR-004 exceptions carried in `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`, `issues/20261119-140509_mcpai002_github-read-security-boundary.md`, and `issues/20261119-140519_mcpai012_mcp-design-docs-update.md`). The rest are AAL-001, 004, 005, 011, 012, 016, 017, 020 to 023, 030 to 035, 037, 038, of which AAL-001 and AAL-031 to AAL-035 each set an INV verification row of ADR-001, ADR-002, or ADR-003 to Non-Blocking. Rules in the document: an entry is removed once its approval is recorded in the ADR's `### Approval Record` or the pending change is reverted; an implementer must not write an approval.
+Source: `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 5 (37 entries, counted by `grep`). Entries tied to other work (re-verified 2026-11-23): AAL-013 (ADR-010 fallback withdrawal) and AAL-024 to AAL-028 (ADR-008 scope, schema-mismatch, retention, and canonical-store text) were named after `issues/done/20261123-104600_gov001_resolve-adr-contradictions.md`, but that issue is archived and left all six entries in the ledger, so they are open items of this issue, not entries that close with it; AAL-014, AAL-015, AAL-036 (ADR-012) belong with `issues/done/20261123-104601_gov002_git-protected-head-tests.md`, which is archived without removing them (it added a regression test class for the HEAD-destination check only, and AAL-036 still sets INV-04 to Non-Blocking); AAL-006 to AAL-010 and AAL-029 follow the decisions of `issues/20261123-104603_gov004_eventbus-client-decision.md`, whose plan is a Draft blocked on maintainer decisions; AAL-002, AAL-003, AAL-019 (ADR-004 exceptions) are carried in `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`, `issues/20261119-140509_mcpai002_github-read-security-boundary.md`, and `issues/20261119-140519_mcpai012_mcp-design-docs-update.md`. The rest are AAL-001, 004, 005, 011, 012, 016, 017, 020 to 023, 030 to 035, 037, 038, of which AAL-001 and AAL-031 to AAL-035 each set an INV verification row of ADR-001, ADR-002, or ADR-003 to Non-Blocking. Plan feasibility (re-checked 2026-11-23): every entry ends only through a maintainer-stated approval or a revert, and `AAL-018` is absent by numbering; no part of this issue can be planned as implementer work without a maintainer statement per entry. Rules in the document: an entry is removed once its approval is recorded in the ADR's `### Approval Record` or the pending change is reverted; an implementer must not write an approval.
 
 ## Problem
 A large backlog of unapproved decision text stays in force, and the Non-Blocking rows weaken verification until approved.
@@ -29,7 +29,7 @@ Each entry ends as an approval recorded in its ADR or a reverted change; each No
 
 ## Constraints
 - The maintainer states every approval; an implementer never writes an approver, a date, or an approval sentence, and never an entry for a past approval.
-- Entries tied to the issues listed in Background close with those issues.
+- Entries tied to open issues listed in Background close with those issues; entries named after an archived issue (AAL-013, AAL-024 to AAL-028, AAL-014, AAL-015, AAL-036) are handled here.
 
 ## Acceptance Criteria
 - [ ] Every ledger entry is removed through a recorded approval or a revert.
@@ -45,7 +45,7 @@ Yes: the ADRs concerned and the governance inventory.
 - Changing ADR decisions beyond approving or reverting the pending text.
 
 ## Dependencies
-- Depends on `issues/20261123-104600_gov001_resolve-adr-contradictions.md`, `issues/20261123-104601_gov002_git-protected-head-tests.md`, and `issues/20261123-104603_gov004_eventbus-client-decision.md` for their entries.
+- Depends on `issues/20261123-104603_gov004_eventbus-client-decision.md` for AAL-006 to AAL-010 and AAL-029. gov001 and gov002 are archived and no longer gate their entries.
 - Depends on the ADR-004 decisions carried in `issues/20261119-140508_mcpai001_atomic-dedup-state-machine.md`, `issues/20261119-140509_mcpai002_github-read-security-boundary.md`, and `issues/20261119-140519_mcpai012_mcp-design-docs-update.md` for AAL-002, AAL-003, AAL-019.
 
 ## Unresolved Questions
