@@ -128,9 +128,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the regression tests | Pending | — | — | |
-| 2 | Record the state in the ADR and the inventory | Pending | — | — | |
-| 3 | Verification | Pending | — | — | |
+| 1 | Add the regression tests | Completed | — | 20261123-112813 |  |
+| 2 | Record the state in the ADR and the inventory | Completed | — | 20261123-112813 |  |
+| 3 | Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -140,7 +140,9 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261123-111623_01_tests_mcp_servers_git_test_repository_state.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-111623_02_docs_10_adr_adr_02_03_012_mcp-git-server-side-write-enforcement.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-111623_03_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -158,3 +160,5 @@ N/A: no release unit
 | REQ-002 | Issue Required Changes (record the decision); ADR-012 Known Deviations bullet | docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md | Phase 2 | AC-2 | `check_known_deviation_sync.py` | Confirmed by repository evidence |
 | REQ-003 | Issue Acceptance Criteria (inventory matches); MCP-005 entry | docs/00_governance/governance_03_issue-and-uncertainty-management.md | Phase 2 | AC-2 | `check_issue_inventory_conformance.py` | Confirmed by repository evidence |
 | REQ-004 | Issue Constraints (no behavior change, no approval text); citation-count pin | tests/mcp_servers/git/test_repository_state.py | Phase 3 | AC-3 | `git diff --stat -- scripts/ docs/10_adr/adr_01_index.md tests/test_run_cited_adr_tests.py` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261123-111623 -->

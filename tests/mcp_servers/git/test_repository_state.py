@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import MagicMock, patch
 
 import git
@@ -973,3 +973,135 @@ class TestStage7RejectionCharacterization:
             "Stage 5",
             "Stage 5b",
         ]
+
+
+_HEAD_DESTINATION_TOOLS = ("git_add", "git_commit")
+
+
+def _head_state(
+    branch: str | None,
+    *,
+    head_type: Literal["branch", "detached"] = "branch",
+    ref_valid: bool = True,
+) -> RepositoryState:
+    """A RepositoryState whose current HEAD is ``branch`` (no real repository)."""
+    return RepositoryState(
+        path="/tmp/head-destination",
+        is_dirty=False,
+        head_type=head_type,
+        active_branch=branch,
+        untracked_file_count=0,
+        protected_branch=False,
+        ref_valid=ref_valid,
+    )
+
+
+@pytest.mark.parametrize("tool", _HEAD_DESTINATION_TOOLS)
+class TestHeadDestinationProtection:
+    """git_add/git_commit change the current HEAD, so a protected HEAD is rejected.
+
+    ADR-012 MCP-005: the check is enforced by ``verify_authorization()`` but no
+    Invariant mandates it; these tests pin the existing behavior.
+    """
+
+    def test_rejects_a_protected_head(self, tool: str) -> None:
+        ok, message = _head_state("main").verify_authorization(
+            tool, protected_branches=["main"]
+        )
+
+        assert ok is False
+        assert "protected branch" in message
+
+    @pytest.mark.parametrize(
+        "protected", ["Main", "refs/heads/main", "refs/heads/MAIN"]
+    )
+    def test_rejects_normalized_protected_forms(
+        self, tool: str, protected: str
+    ) -> None:
+        ok, message = _head_state("main").verify_authorization(
+            tool, protected_branches=[protected]
+        )
+
+        assert ok is False
+        assert "protected branch" in message
+
+    def test_allows_a_non_protected_head(self, tool: str) -> None:
+        ok, message = _head_state("feature/x").verify_authorization(
+            tool, protected_branches=["main"]
+        )
+
+        assert (ok, message) == (True, "")
+
+    @pytest.mark.parametrize("protected", [None, []])
+    def test_allows_when_no_branch_is_protected(
+        self, tool: str, protected: list[str] | None
+    ) -> None:
+        ok, message = _head_state("main").verify_authorization(
+            tool, protected_branches=protected
+        )
+
+        assert (ok, message) == (True, "")
+
+    def test_destination_is_the_head_not_the_requested_branch(self, tool: str) -> None:
+        protected_head = _head_state("main").verify_authorization(
+            tool, requested_branch="develop", protected_branches=["main"]
+        )
+        non_protected_head = _head_state("develop").verify_authorization(
+            tool, requested_branch="main", protected_branches=["main"]
+        )
+
+        assert protected_head[0] is False
+        assert non_protected_head == (True, "")
+
+    def test_real_repository_head_is_rejected_then_allowed_after_checkout(
+        self, tool: str, working_repo: str
+    ) -> None:
+        repo = git.Repo(working_repo)
+        protected = repo.active_branch.name
+
+        on_protected = RepositoryState.snapshot(working_repo)
+        assert (
+            on_protected.verify_authorization(tool, protected_branches=[protected])[0]
+            is False
+        )
+
+        repo.git.checkout("-b", "feature/head-destination")
+        on_feature = RepositoryState.snapshot(working_repo)
+        assert on_feature.verify_authorization(
+            tool, protected_branches=[protected]
+        ) == (True, "")
+
+    def test_detached_head_is_currently_denied(
+        self, tool: str, detached_repo: str
+    ) -> None:
+        # Pins the denial only. The reason text and the effect of
+        # allow_detached_head are under review (plan gov002 UNK-02).
+        state = RepositoryState.snapshot(detached_repo)
+
+        assert state.verify_authorization(tool, protected_branches=["main"])[0] is False
+        for allow in (False, True):
+            result = WriteProtectionPipeline(state).run(
+                tool,
+                lambda: "ran",
+                allow_detached_head=allow,
+                protected_branches=["main"],
+            )
+            assert result.ok is False
+
+    def test_pipeline_rejects_at_stage_3_without_running_the_operation(
+        self, tool: str
+    ) -> None:
+        calls: list[str] = []
+
+        def _op() -> str:
+            calls.append(tool)
+            return "ran"
+
+        result = WriteProtectionPipeline(_head_state("main")).run(
+            tool, _op, protected_branches=["main"]
+        )
+
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 3"
+        assert "protected branch" in result.rejection_message
+        assert calls == []
