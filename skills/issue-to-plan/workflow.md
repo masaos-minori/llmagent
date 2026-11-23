@@ -232,30 +232,9 @@ Step 2's same-cycle dedup rule and depth ceiling apply to this step.
   the same target without a changed input (`rules/ai-execution.md` Tool Usage). This
   does not change `workflow-path-b.md`'s "once all four analyses are complete" gate.
 
-- **Consumer scan** (a change to a persisted schema, a public API, or a shared
-  constant, or the removal or rename of a class, method, function, or field that other
-  modules call or read): before Step 5, run `uv run python tools/scan_change_consumers.py --seed
-  <seed>` once per changed symbol, column or table name, constant, or file, and record
-  every candidate in the Plan's `Design` section as a target row, a reference row, or
-  `not affected: {reason}` (format: `templates/plan.md`). The report lists candidates
-  only, so a missing consumer is not evidence of absence; read its testmon state line.
-  The scan is guidance and does not block the Plan.
+- **Consumer scan** (a change to a persisted schema, a public API, or a shared constant, or the removal or rename of a symbol that other modules call or read): load `skills/issue-to-plan/workflow-edge.md` and follow its "Step 3: consumer scan" section.
 
-- **Predictable fallout check** (any Plan that adds code to a file, changes a list or
-  inventory, or adds or removes a tool): before Step 5, check each item below and record
-  the result in the Plan's `Design` section as a target row, a reference row, or
-  `not affected: {reason}`. A hit found here becomes a row at freeze instead of a
-  fallout amendment during implementation.
-  - Module size: for a `scripts/` or `tools/` file that gains code, compare `wc -c
-    <file>` with the 24576 B gate (`rules/tool-gates.md` `check_module_size.py` rows). A file
-    that would pass the gate gets a split row for the extracted module.
-  - Pinned counts: search `tests/` for the changed list, table, or inventory and read the
-    assertions on its length or count (for example a cited-node total). A test that pins
-    the old count is a target row.
-  - Tool inventory: an added or removed `tools/*.py` needs the `tools/TOOL_DESCRIPTIONS.md`
-    row (`check_tool_descriptions_sync.py`).
-  - Generated blocks: a change under a generated-reference domain needs the regenerated
-    output (`generate_reference_table.py --check`).
+- **Predictable fallout check** (any Plan that adds code to a file, changes a list or inventory, or adds or removes a tool): load `skills/issue-to-plan/workflow-edge.md` and follow its "Step 3: predictable fallout check" section.
 
 Read only the section(s) located via `rg`/grep for the target symbol or claim, unless
 that section alone omits context the claim depends on (e.g. a decorator, base class, or
@@ -322,13 +301,7 @@ Using the Path A/B classification from Step 3:
 - **Path B**: load `workflow-path-b.md` now and perform all four of its analyses
   (architecture, dependency graphing, historical, operational dependency inspection)
   before creating the Plan.
-- **Design decisions (Path B only)**: when the Issue leaves a design choice open (a new
-  module boundary, a public contract, a data or configuration ownership question), load
-  `skills/python-design/SKILL.md` now (not in Step 0) and apply it narrowly: its Step 4
-  decision entries, and Step 8's phase list and risks for those decisions only. Do not run
-  its nine steps or write its Final Output document; the Plan is the single plan document.
-  Record each decision (alternatives, compatibility impact) in the Plan's `Design` section,
-  and a choice that stays open as an Unknown.
+- **Design decisions (Path B only)**: when the Issue leaves a design choice open: load `skills/issue-to-plan/workflow-edge.md` and follow its "Step 5: design decisions (Path B only)" section.
 
 #### Validation quality analysis (baseline — run regardless of Path A/B)
 
@@ -615,29 +588,7 @@ If reaching `Pass` requires more than 3 consecutive correction-and-recheck cycle
 Step 2's cycle bound above), stop and report `Blocked` per that bound rather than
 cycling through Step 2/Step 8 indefinitely.
 
-If Step 8 reports `Fail` or `Partial`, resume from the Step matching the failure's cause,
-not from Step 5 (full Plan regeneration), unless the cause is shown to invalidate multiple
-sections:
-
-| Failure cause | Re-entry Step |
-|---|---|
-| A Requirement field is unmapped | Step 4 (Issue→Plan field mapping) |
-| A Requirement is untraceable | Step 7 (Requirement Traceability) |
-| An `Implementation Target Files` row fails Plan Freeze validation, or the section's additional checks fail (path in both sections, non-file row) | Correct that row per `rules/workflow-lifecycle.md`'s Revalidation procedure, then re-run only this Step's freeze check |
-| The section is not `Frozen` for any other reason (e.g. a row remains `Needs confirmation`) | Resolve the cause per `rules/workflow-lifecycle.md` Initial validation (re-verify, correct, or route to `Unknowns`), then re-run Step 8b |
-
-A not-`Frozen` Plan is never a terminal state for the Issue: MUST NOT proceed to Step 10 or
-move the Issue to `issues/done/`. The Issue stays in `issues/`, and Step 8 is re-run
-(8a and 8b) after each correction until it reports `Pass`. If the 3-cycle bound above is
-reached, report `Blocked`; the Issue still stays in `issues/`, and a later run may
-re-enter at Step 8 against the existing Plan instead of regenerating it.
-
-Corrections are scoped to the affected section(s) by default.
-
-If Step 8 (or an earlier Step's revalidation) requires correcting the Plan document via
-Edit, see `rules/workflow-lifecycle.md` Plan-Document Correction Handling for whether
-`AGENTS.md` Rollback Directive applies (it does not) and how a repeated-correction risk is
-bounded instead.
+Applies only when Step 8 reports `Fail`, `Partial`, or `Blocked` (the re-entry table, the not-`Frozen` rule, and the Plan-document correction pointer): load `skills/issue-to-plan/workflow-edge.md` and follow its "Step 8c: re-entry after a failed Step 8" section.
 
 Before delivering, cross-check (MUST NOT re-derive): goal is one sentence and verifiable;
 scope has explicit in/out boundaries; assumptions are falsifiable; no blocking Unknowns

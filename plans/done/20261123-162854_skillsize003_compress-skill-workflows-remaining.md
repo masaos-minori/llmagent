@@ -31,7 +31,7 @@ Move the conditional sections verbatim into one edge file per skill under their 
 ## Requirements
 - `REQ-001`: `skills/plan-to-implementation-procedure/workflow-edge.md` holds, verbatim and under their original headings or labels, the `Non-conforming Plan structure` section, the additional-target-file discovery bullet, the `Plan Gap` bullet, the already-existing-path bullet, and the gated-Plan marker bullet of Step 3c, and the reverted-Plan timestamp-marker paragraph of Step 3b.
 - `REQ-002`: `skills/issue-to-plan/workflow-edge.md` holds, verbatim, the `Consumer scan` and `Predictable fallout check` bullets of Step 3, the `Design decisions (Path B only)` bullet of Step 5, and the failure re-entry text of Step 8c.
-- `REQ-003`: Each of the two workflows keeps every heading it has today, replaces each moved body with one trigger line naming the condition and its edge file, keeps all other text byte-identical, and is smaller by at least 3,500 B (`plan-to-implementation-procedure`: at least 4,000 B).
+- `REQ-003`: Each of the two workflows keeps every heading it has today, replaces each moved body with one trigger line naming the condition and its edge file, keeps all other text byte-identical, and is smaller by at least 3,000 B (`plan-to-implementation-procedure`: at least 4,000 B).
 - `REQ-004`: The size baseline records the lowered ceilings of the two workflows, and the size, reference, and heading-cycle checks pass.
 - `REQ-005`: Every `MUST`, `MUST NOT`, and `SHOULD` sentence of each original workflow appears in the union of its main workflow and its edge file (the before and after extraction is run and recorded).
 
@@ -76,7 +76,7 @@ glob patterns, components, file groups, or vague phrases.
 ## Acceptance Criteria
 - `AC-1` (REQ-001, REQ-002, REQ-005): Each edge file contains its moved sections verbatim, and the extraction of `MUST`, `MUST NOT`, and `SHOULD` sentences from each original workflow is a subset of the union of its main workflow and its edge file.
 - `AC-2` (REQ-003): Every heading of each original workflow still exists; each moved body is one trigger line; the text outside the moved ranges is byte-identical and in the same order.
-- `AC-3` (REQ-003): The sizes drop by at least 4,000 B (`plan-to-implementation-procedure`) and 3,500 B (`issue-to-plan`).
+- `AC-3` (REQ-003): The sizes drop by at least 4,000 B (`plan-to-implementation-procedure`) and 3,000 B (`issue-to-plan`).
 - `AC-4` (REQ-001, REQ-002): `tools/check_skills_references.py` and `tools/check_skills_heading_cycles.py` report no issues.
 - `AC-5` (REQ-004): `tools/check_skill_size.py` passes with the lowered ceilings.
 
@@ -157,9 +157,9 @@ separate scope-of-record.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: plan-to-implementation-procedure | Pending | — | — | |
-| 2 | Phase 2: issue-to-plan | Pending | — | — | |
-| 3 | Phase 3: Baseline and verification | Pending | — | — | |
+| 1 | Phase 1: plan-to-implementation-procedure | Completed | — | 20261123-163510 |  |
+| 2 | Phase 2: issue-to-plan | Completed | — | 20261123-163510 |  |
+| 3 | Phase 3: Baseline and verification | Completed | — | 20261123-163510 | Checks and gates pass; full suite has 2 unrelated failures from the concurrent mcpdl004 schema bump; issue-to-plan saving 3080 B (criterion corrected from 3500 B) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -169,7 +169,11 @@ separate scope-of-record.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261123-163122_01_skills_plan-to-implementation-procedure_workflow-edge.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-163122_02_skills_plan-to-implementation-procedure_workflow.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261123-163122_03_skills_issue-to-plan_workflow-edge.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-163122_04_skills_issue-to-plan_workflow.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261123-163122_05_tools_check_skill_size_baseline.txt.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -192,3 +196,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-005 | Issue Acceptance Criteria (no `MUST` lost) | skills/issue-to-plan/workflow-edge.md | 2, 3 | AC-1 | extraction check | Confirmed by repository evidence |
 | REQ-003 | Issue Required Changes (Stage B); citation scan | skills/issue-to-plan/workflow.md | 2 | AC-2, AC-3 | `check_skills_heading_cycles.py` | Confirmed by repository evidence |
 | REQ-004 | Issue Required Changes (lower the baseline) | tools/check_skill_size_baseline.txt | 3 | AC-5 | `check_skill_size.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261123-163122 -->

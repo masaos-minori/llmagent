@@ -3,6 +3,7 @@
 # Per-invocation load (bytes, Step 0 file lists): plan-to-implementation-procedure 166871 -> 152099,
 # issue-to-plan 145745 -> 130991 (each 14.7 KB lower). A ceiling, not a license: lower it with --update-baseline.
 # skillsize002 Stage A (2026-11-23): code-implementation workflow.md 52593 -> 42118 B (workflow-edge.md 12258 B is loaded only when its trigger holds); the repeated load (workflow, SKILL.md, prompt) is 10475 B lower.
+# skillsize003 Stage B (2026-11-23): plan-to-implementation-procedure workflow.md 39108 -> 34876 B (edge 6089 B), issue-to-plan workflow.md 45620 -> 42540 B (edge 4512 B); the repeated load is 4232 B and 3080 B lower.
 prompts/05_skills.md	18962
 prompts/08_document-sync.md	19015
 rules/ai-execution.md	17031
@@ -10,8 +11,8 @@ rules/tool-gates.md	19478
 skills/code-implementation/workflow.md	42118
 skills/git-commit-and-sync/workflow.md	22947
 skills/issue-creator/workflow.md	22841
-skills/issue-to-plan/workflow.md	45620
-skills/plan-to-implementation-procedure/workflow.md	39108
+skills/issue-to-plan/workflow.md	42540
+skills/plan-to-implementation-procedure/workflow.md	34876
 skills/python-code-review/workflow.md	17024
 skills/python-debug-root-cause/workflow.md	30767
 skills/python-design/workflow.md	22436
