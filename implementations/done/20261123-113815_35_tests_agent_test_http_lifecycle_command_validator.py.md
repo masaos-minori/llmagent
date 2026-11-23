@@ -61,8 +61,8 @@ Production code.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-145732 | 20261123-145732 | test added next to the auth-token pass-through test, parametrized over MCP_SHELL_CONTROL_TOKEN and MCP_MDQ_CONTROL_TOKEN, asserting both token families are kept and SOME_OTHER_TOKEN is dropped |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-145732 | 20261123-145732 | ruff format/check pass; 111 unit tests plus the 8 integration-gate tests green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

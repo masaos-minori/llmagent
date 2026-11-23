@@ -293,6 +293,28 @@ class TestCommandValidatorFilterEnv:
         assert result["HOME"] == "/home/tester"
         assert result["MCP_SHELL_AUTH_TOKEN"] == "tok"
 
+    @pytest.mark.parametrize(
+        "var", ["MCP_SHELL_CONTROL_TOKEN", "MCP_MDQ_CONTROL_TOKEN"]
+    )
+    def test_control_token_is_inherited_and_unrelated_token_dropped(self, var):
+        # mcpdl004 REQ-002: the child must resolve its own [control] auth_token, while
+        # a variable outside both token families stays dropped.
+        with patch.dict(
+            os.environ,
+            {
+                "PATH": "/usr/bin",
+                "MCP_SHELL_AUTH_TOKEN": "tok",
+                var: "control-tok",
+                "SOME_OTHER_TOKEN": "unrelated",
+            },
+            clear=False,
+        ):
+            result = CommandValidator().filter_env({})
+        assert result is not None
+        assert result[var] == "control-tok"
+        assert result["MCP_SHELL_AUTH_TOKEN"] == "tok"
+        assert "SOME_OTHER_TOKEN" not in result
+
     def test_denylisted_key_in_server_env_is_blocked(self):
         with patch.dict(os.environ, {"PATH": "/usr/bin"}, clear=False):
             result = CommandValidator().filter_env({"PYTHONPATH": "/z"})

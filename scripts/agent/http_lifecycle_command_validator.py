@@ -34,6 +34,11 @@ _DEFAULT_PROTECTED_ENV_VARS: frozenset[str] = frozenset(
 # form as the imported _ENV_KEY_DENYLIST, so a newly configured server's own
 # MCP_<NAME>_AUTH_TOKEN is covered without editing this file.
 #
+# MCP_*_CONTROL_TOKEN is admitted for the same reason: each server's [control] table
+# resolves its own control token from the inherited environment (mcpdl004 REQ-002),
+# and without this pattern every subprocess server would resolve an empty token and
+# keep its control paths closed.
+#
 # Required, not optional: each server's config/<server>_mcp_server.toml sets
 # auth_token = "${ENV:MCP_<NAME>_AUTH_TOKEN}" and the child resolves it from its
 # inherited environment (shared/config_utils.py::resolve_env_ref), so dropping the
@@ -56,6 +61,7 @@ _DEFAULT_ALLOWED_ENV_VARS: frozenset[str] = frozenset(
         "LANG",
         "LC_*",
         "MCP_*_AUTH_TOKEN",
+        "MCP_*_CONTROL_TOKEN",
         "GITHUB_TOKEN",
         "LLMAGENT_CONFIG_DIR",
         "LLMAGENT_SUDACHI_DICT",
@@ -218,8 +224,9 @@ class CommandValidator:
 
         The inherited part is the Agent process's own environment reduced to
         ``_DEFAULT_ALLOWED_ENV_VARS``: a subprocess server receives only the runtime
-        basics, the shared ``MCP_*_AUTH_TOKEN`` tokens and ``GITHUB_TOKEN``, and the
-        ``LLMAGENT_*`` path overrides — never an unrelated parent credential.
+        basics, the shared ``MCP_*_AUTH_TOKEN`` and ``MCP_*_CONTROL_TOKEN`` tokens and
+        ``GITHUB_TOKEN``, and the ``LLMAGENT_*`` path overrides — never an unrelated
+        parent credential.
 
         The server's configured ``env`` is merged on top, and is the route for any
         variable outside the allowlist. Two filters apply to it: a key matching

@@ -48,3 +48,9 @@ db_path = "/opt/llm/db/mcp_dedup.sqlite"
 retention_days = 14
 lease_seconds = 30
 max_attempts = 3
+
+# [control]: Agent-only control credential (mcpdl004). It is a separate token
+# from the tool auth_token above, so a tool token never reaches a control path.
+# An unset variable resolves to an empty token, which closes only control paths.
+[control]
+auth_token = "${ENV:MCP_GITHUB_CONTROL_TOKEN}"

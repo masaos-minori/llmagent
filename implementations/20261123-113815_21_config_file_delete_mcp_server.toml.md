@@ -63,8 +63,8 @@ Server code and the Agent entry (rows 09, 10, 14).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the config loading test and the comment-length checker named in Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-145718 | 20261123-145718 | [control] table appended after [dedup] with auth_token = "${ENV:MCP_FILE_DELETE_CONTROL_TOKEN}" and a three-line comment (separate credential, empty token closes only control paths) |
+| 2 | Run the config loading test and the comment-length checker named in Validation plan | Completed | 20261123-145718 | 20261123-145718 | the file parses as TOML, tests/mcp_servers/ (2807 passed incl. the config fixture and per-server config tests) and check_config_comment_length.py (0 errors) are green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

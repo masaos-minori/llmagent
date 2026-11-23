@@ -63,9 +63,9 @@ Documentation of the list (row 36) and tests (row 35).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261123-145732 | 20261123-145732 | MCP_*_CONTROL_TOKEN added to _DEFAULT_ALLOWED_ENV_VARS with the reason stated in the comment above it; the filter_env docstring names both token families. Denylist and protected-variable sets unchanged |
+| 2 | Add or update tests per Validation plan | Completed | 20261123-145732 | 20261123-145732 | covered by row 35 tests/agent/test_http_lifecycle_command_validator.py plus the allowlist integration gate, which reads config/agent.toml and now finds the control references |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261123-145732 | 20261123-145732 | ruff format/check, mypy, lint-imports pass; 119 tests green across the unit and integration gate, and check_config_comment_length.py reports 0 errors |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

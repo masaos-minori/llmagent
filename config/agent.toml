@@ -233,6 +233,7 @@ transport        = "http"
 url              = "http://127.0.0.1:8009"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_SHELL_AUTH_TOKEN}"
+control_auth_token = "${ENV:MCP_SHELL_CONTROL_TOKEN}"
 role             = "execute"
 cmd              = ["/opt/llm/bin/mcp_shell"]
 
@@ -241,6 +242,7 @@ transport        = "http"
 url              = "http://127.0.0.1:8014"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_GIT_AUTH_TOKEN}"
+control_auth_token = "${ENV:MCP_GIT_CONTROL_TOKEN}"
 role             = "file_write"
 cmd              = ["/opt/llm/bin/mcp_git"]
 
@@ -249,6 +251,7 @@ transport        = "http"
 url              = "http://127.0.0.1:8004"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_WEB_SEARCH_AUTH_TOKEN}"
+control_auth_token = "${ENV:MCP_WEB_SEARCH_CONTROL_TOKEN}"
 role             = "search"
 cmd              = ["/opt/llm/bin/mcp_web_search"]
 
@@ -257,6 +260,7 @@ transport        = "http"
 url              = "http://127.0.0.1:8008"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_FILE_DELETE_AUTH_TOKEN}"
+control_auth_token = "${ENV:MCP_FILE_DELETE_CONTROL_TOKEN}"
 role             = "file_delete"
 cmd              = ["/opt/llm/bin/mcp_file_delete"]
 
@@ -265,6 +269,7 @@ transport        = "http"
 url              = "http://127.0.0.1:8007"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_FILE_WRITE_AUTH_TOKEN}"
+control_auth_token = "${ENV:MCP_FILE_WRITE_CONTROL_TOKEN}"
 role             = "file_write"
 cmd              = ["/opt/llm/bin/mcp_file_write"]
 
@@ -273,6 +278,7 @@ transport        = "http"
 url              = "http://127.0.0.1:8005"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_FILE_READ_AUTH_TOKEN}"
+control_auth_token = "${ENV:MCP_FILE_READ_CONTROL_TOKEN}"
 role             = "file_read"
 cmd              = ["/opt/llm/bin/mcp_file_read"]
 
@@ -281,6 +287,7 @@ transport        = "http"
 url              = "http://127.0.0.1:8006"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_GITHUB_AUTH_TOKEN}"
+control_auth_token = "${ENV:MCP_GITHUB_CONTROL_TOKEN}"
 role             = "search"
 cmd              = ["/opt/llm/bin/mcp_github"]
 
@@ -289,6 +296,7 @@ transport        = "http"
 url              = "http://127.0.0.1:8012"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_CICD_AUTH_TOKEN}"
+control_auth_token = "${ENV:MCP_CICD_CONTROL_TOKEN}"
 role             = "query"
 cmd              = ["/opt/llm/bin/mcp_cicd"]
 
@@ -297,6 +305,7 @@ transport        = "http"
 url              = "http://127.0.0.1:8010"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_RAG_PIPELINE_AUTH_TOKEN}"
+control_auth_token = "${ENV:MCP_RAG_PIPELINE_CONTROL_TOKEN}"
 role             = "query"
 cmd              = ["/opt/llm/bin/mcp_rag_pipeline"]
 
@@ -305,6 +314,7 @@ transport        = "http"
 url              = "http://127.0.0.1:8013"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_MDQ_AUTH_TOKEN}"
+control_auth_token = "${ENV:MCP_MDQ_CONTROL_TOKEN}"
 role             = "query"
 cmd              = ["/opt/llm/bin/mcp_mdq"]
 
