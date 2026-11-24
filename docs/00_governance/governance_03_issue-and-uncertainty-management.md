@@ -254,7 +254,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 #### SHARED-004
 
 - **ID:** SHARED-004
-- **Title:** ADR-008 lifecycle policies left undecided for Episodic Memory and for capacity monitoring
+- **Title:** ADR-008 Episodic retention and capacity monitoring decisions are not implemented and lack numeric values
 - **Status**: open
 - **Severity:** Medium
 - **Area:** Shared/DB
@@ -264,12 +264,12 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
 - **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
-- **Summary:** The Episodic Memory retention policy, its Session DB schema-mismatch handling, and capacity monitoring for stores other than eventbus.sqlite are not decided.
-- **Current Description:** ADR-008 Decision Details 22 and 23 and the Recovery Policy Matrix record these cells as undecided.
-- **Observed Implementation:** No policy or signal exists for the affected cells.
-- **Impact:** An operator cannot tell how Episodic Memory is retained or how its schema mismatch is handled.
+- **Summary:** ADR-008 Decision Details 23, 24, and 26 (state-aware Episodic retention, mandatory capacity monitoring for the five non-EventBus stores) are not implemented, and the retention period per event type, the capacity thresholds and signal names, and the failure behavior when mandatory input exceeds the context limit are undecided.
+- **Current Description:** ADR-008 states the retention and capacity rules; numeric values are left to configuration and are not yet decided.
+- **Observed Implementation:** No Episodic retention, capacity signal, or threshold exists in code or configuration.
+- **Impact:** An operator cannot tell when Episodic Memory is purged or when a store is near capacity.
 - **Recommended Action:** Maintainer decides each policy and the ADR-008 matrix is updated; then this entry is removed.
-- **Resolution Target:** each undecided matrix cell has an approved policy
+- **Resolution Target:** the numeric values are approved and the retention and capacity behavior is implemented and verified
 
 ## Part 2: Needs Confirmation Inventory
 

@@ -119,7 +119,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 47600 (2026-11-24): the maintainer's approval of the six-store scope,
     # the schema-mismatch rule, the memory model, and the memory lifecycle decisions was
     # recorded in the Approval Record (replacing three pending bullets); 46907 -> 47600.
-    "adr_02_05_008_db-sqlite-4db-separation.md": 47600,
+    # Re-accepted at 49132 (2026-11-24): Decision Details 26 and 27, the Episodic
+    # taxonomy, retention, search, and Repository Context safety clauses, and the
+    # capacity rows grew the ADR 47600 -> 49132; the ceiling equals the accepted size.
+    "adr_02_05_008_db-sqlite-4db-separation.md": 49132,
     # Accepted at 39575 (2026-11-24, adrdoc001 procedure 20261124-094801_01): the
     # single-source-of-truth, state-aware retention, replay-floor, and capacity decisions
     # (Decision Details 15 to 20), INV-17 to INV-22, the Known Deviations, and the two
@@ -136,7 +139,9 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 41389 (2026-11-24, adrdoc001 procedure 20261124-094801_03): the
     # ADR-006 INV-17 to INV-22 and ADR-008 INV-19 to INV-22 matrix rows and the regenerated
     # guarded blocks grew the index 37826 -> 41389; the ceiling equals the accepted size.
-    "adr_01_index.md": 41389,
+    # Re-accepted at 41640 (2026-11-24): the ADR-008 INV-20 and INV-21 matrix rows gained
+    # the secret-rejection, state-aware retention, and required-FTS evidence; 41389 -> 41640.
+    "adr_01_index.md": 41640,
     # Re-accepted at 33915 (2026-11-20, adrchk021 procedure 20261120-174933_01): the
     # MCP-005 Known Issue entry (git_add/git_commit protected-branch gap registration)
     # grew the ledger 31908 -> 33915; the ceiling equals the accepted size.
