@@ -413,7 +413,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Phase 1: budget, outcome vocabulary, configuration surface | In Progress | 20261125-073338 | — | OD-03 decided 2026-11-24: 45 s default, configurable; R1-budget-and-config complete 2026-11-25 (rows 1, 17, 18, 19, 44); the repl.py budget wiring moved to row 7 in R4 by user decision 2026-11-25 |
-| 2 | Phase 2: db-owned write gate | In Progress | — | — | UNK-01 interrupt coverage measured here |
+| 2 | Phase 2: db-owned write gate | Completed | 20261125-082622 | 20261125-082622 | UNK-01 interrupt coverage measured here: `interrupt_when` (`scripts/db/helper.py:158-184`) already exposes the handle the settle step needs and is verified ungated by `tests/db/test_sqlite_helper.py::TestWriteGateRefusal::test_interrupt_when_is_not_gated`; the coordinator consumes it in R4. R2-write-gate complete 2026-11-25 (rows 2, 3, 4, 21, 25): the guard is statement-aware (`execute`/`executemany` gated on `is_write_statement`, `commit` gated on `conn.in_transaction`, `executescript` always gated) so the read paths REQ-006 and REQ-008 need stay open |
 | 3 | Phase 3: acceptance gate for turns, commands, approvals | In Progress | — | — |  |
 | 4 | Phase 4: coordinator sequence, writer settling, snapshot step | In Progress | — | — | OD-01 and OD-02 decided 2026-11-24; UNK-02 measured here |
 | 5 | Phase 5: bounded checkpoint, atomic publication, backup naming | In Progress | — | — | UNK-01 and UNK-05 measured here |
@@ -434,9 +434,9 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | implementations/20261125-000005_01_scripts_agent_shutdown_budget.py.md | 1 | Procedure | Completed | — | — |
-| implementations/20261125-000005_02_scripts_db_write_gate.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-000005_03_scripts_db_helper.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-000005_04_scripts_db___init__.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-000005_02_scripts_db_write_gate.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-000005_03_scripts_db_helper.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-000005_04_scripts_db___init__.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261125-000005_05_scripts_agent_resource_shutdown_coordinator.py.md | 4 | Procedure | Pending | — | — |
 | implementations/20261125-000005_06_scripts_agent_wal_checkpoint_manager.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261125-000005_07_scripts_agent_repl.py.md | 1 | Procedure | Pending | — | — |
@@ -452,8 +452,8 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261125-000005_17_scripts_agent_config_dataclasses.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261125-000005_18_scripts_agent_config_builders.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261125-000005_19_config_agent.toml.md | 1 | Procedure | Completed | — | — |
-| implementations/20261125-000005_21_tests_db_test_write_gate.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-000005_25_tests_db_test_helper_thread_safety.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-000005_21_tests_db_test_write_gate.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-000005_25_tests_db_test_helper_thread_safety.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261125-000005_27_tests_agent_test_repl.py.md | 1 | Procedure | Pending | — | — |
 | implementations/20261125-000005_35_tests_agent_test_http_lifecycle_integration.py.md | 6 | Procedure | Pending | — | — |
 | implementations/20261125-000005_36_tests_agent_test_http_lifecycle.py.md | 6 | Procedure | Pending | — | — |

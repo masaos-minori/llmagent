@@ -10,6 +10,7 @@ Public API (import from db.* submodules directly for clarity):
   - db.maintenance: WAL checkpoint, vacuum, purge, rotation, recovery
   - db.artifact_retention: bounded retention sweeps for non-corrupt artifacts
   - db.schema_sql:  DDL templates for schema creation
+  - db.write_gate:  WriteGate, WriteGateClosed, get_write_gate
 """
 
 from db.artifact_retention import (
@@ -63,6 +64,7 @@ from db.store_protocols import (
     get_embedding_dims,
     validate_embedding_blob,
 )
+from db.write_gate import WriteGate, WriteGateClosed, get_write_gate
 
 __all__ = [
     "ArtifactRetentionConfig",
@@ -85,11 +87,14 @@ __all__ = [
     "SQLiteVectorStore",
     "VectorStore",
     "WalCheckpointCounts",
+    "WriteGate",
+    "WriteGateClosed",
     "build_db_config",
     "check_rag_consistency",
     "checkpoint_wal",
     "get_embedding_bytes",
     "get_embedding_dims",
+    "get_write_gate",
     "is_consistent",
     "prune_old_memories",
     "purge_archive_artifacts",

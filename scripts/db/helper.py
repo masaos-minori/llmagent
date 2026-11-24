@@ -22,6 +22,7 @@ from urllib.request import pathname2url
 
 from db.config import DbConfig
 from db.models import DbHealthMetrics, WalCheckpointCounts
+from db.write_gate import get_write_gate, is_write_statement
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,12 @@ class SQLiteHelper:
 
     Connections default to sqlite3 check_same_thread=True; False is only for
     sequential cross-thread reuse (see open/_connect).
+
+    Every write entry point consults the process-wide db write gate
+    (`db/write_gate.py`): once shutdown begins, a write is refused with
+    `WriteGateClosed` unless the shutdown step that performs it authorized the
+    write. Read paths are never gated, so the snapshot and checkpoint steps keep
+    reading while writes are refused.
     """
 
     _CHECKPOINT_MODES: frozenset[str] = frozenset(
@@ -154,6 +161,25 @@ class SQLiteHelper:
         if self.conn is None:
             raise RuntimeError("DB not open — call open() first")
         return self.conn
+
+    def _ensure_write_allowed(self, operation: str) -> None:
+        """Refuse a write the db write gate does not allow (REQ-004, AC-2).
+
+        Raises WriteGateClosed before any statement is prepared, so a refused
+        write never allocates a cursor or opens a transaction. The exception is
+        not caught here: the caller decides whether a refused write is fatal, and
+        the gate has already counted it.
+        """
+        get_write_gate().check_write(operation)
+
+    def _ensure_statement_allowed(self, operation: str, sql: str) -> None:
+        """Gate a statement only when it writes; reads are never gated (REQ-006).
+
+        execute and executemany serve the read paths too, so the gate is
+        consulted on the classified statement, not on the method name.
+        """
+        if is_write_statement(sql):
+            self._ensure_write_allowed(operation)
 
     def interrupt_when(
         self,
@@ -379,6 +405,9 @@ class SQLiteHelper:
             sequential cross-thread use, never concurrent. An override cannot
             re-configure a connection already opened via reuse_connection.
         """
+        if write_mode:
+            # A write-mode open is a write-path action: refused once the gate closes.
+            self._ensure_write_allowed("open")
         self._reuse_connection = reuse_connection
         if reuse_connection and self.conn is not None:
             return self
@@ -442,6 +471,7 @@ class SQLiteHelper:
         no dangling transaction remains. Re-raises the original exception.
         Does not catch BaseException (KeyboardInterrupt, SystemExit).
         """
+        self._ensure_write_allowed(f"begin {mode.lower()}")
         conn = self._require_conn()
         conn.execute(f"BEGIN {mode}")
         try:
@@ -484,11 +514,15 @@ class SQLiteHelper:
         )
 
     def checkpoint(self, mode: str = "TRUNCATE") -> WalCheckpointCounts:
-        """Run WAL checkpoint; return WalCheckpointCounts."""
+        """Run WAL checkpoint; return WalCheckpointCounts.
+
+        Gated as a write: the shutdown sequence runs it inside an authorized step.
+        """
         if mode not in self._CHECKPOINT_MODES:
             raise ValueError(
                 f"checkpoint mode must be one of {sorted(self._CHECKPOINT_MODES)}",
             )
+        self._ensure_write_allowed("checkpoint")
         conn = self._require_conn()
         row = conn.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()  # nosec B608
         result = WalCheckpointCounts(
@@ -501,6 +535,7 @@ class SQLiteHelper:
 
     def vacuum(self) -> None:
         """Rebuild the DB file in place to reclaim free pages."""
+        self._ensure_write_allowed("vacuum")
         conn = self._require_conn()
         conn.execute("VACUUM")
         logger.info("VACUUM completed: %s", self._db_path)
@@ -510,12 +545,22 @@ class SQLiteHelper:
         sql: str,
         params: dict[str, Any] | tuple[Any, ...] = (),
     ) -> sqlite3.Cursor:
-        """Execute a SQL statement with positional (tuple) or named (dict) params."""
+        """Execute a SQL statement with positional (tuple) or named (dict) params.
+
+        A write statement is gated; a read statement is never gated, so the
+        snapshot and checkpoint steps keep reading after writes stop.
+        """
+        self._ensure_statement_allowed("execute", sql)
         conn = self._require_conn()
         return conn.execute(sql, params)
 
     def executescript(self, sql_script: str) -> None:
-        """Execute multiple SQL statements; commits any pending transaction first."""
+        """Execute multiple SQL statements; commits any pending transaction first.
+
+        Always gated: a script commits its own statements, so they cannot be
+        classified one by one.
+        """
+        self._ensure_write_allowed("executescript")
         conn = self._require_conn()
         conn.executescript(sql_script)
 
@@ -524,7 +569,8 @@ class SQLiteHelper:
         sql: str,
         params_seq: list[tuple[Any, ...]],
     ) -> sqlite3.Cursor:
-        """Execute a SQL statement once per row in params_seq."""
+        """Execute a SQL statement once per row in params_seq; a write is gated."""
+        self._ensure_statement_allowed("executemany", sql)
         conn = self._require_conn()
         return conn.executemany(sql, params_seq)
 
@@ -538,8 +584,15 @@ class SQLiteHelper:
         return conn.execute(sql, params).fetchall()
 
     def commit(self) -> None:
-        """Commit the current transaction on self.conn."""
+        """Commit the current transaction on self.conn.
+
+        Gated only when a transaction is actually open: conn.in_transaction is
+        SQLite's own answer to whether this call makes a write durable, so a
+        commit with nothing to commit is not refused.
+        """
         conn = self._require_conn()
+        if conn.in_transaction:
+            self._ensure_write_allowed("commit")
         try:
             conn.commit()
         except sqlite3.OperationalError as e:

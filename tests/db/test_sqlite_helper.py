@@ -6,10 +6,12 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from db.helper import SQLiteHelper
+from db.write_gate import WriteGate, WriteGateClosed, get_write_gate
 
 from tests.agent._config_test_defaults import MIN_DB_CONFIG, PERMISSIVE_SQLITE_VEC_SO
 
@@ -79,6 +81,19 @@ def helper(conn: sqlite3.Connection) -> SQLiteHelper:
     h = SQLiteHelper("rag", db_config=MIN_DB_CONFIG)
     h.conn = conn
     return h
+
+
+@pytest.fixture
+def gate() -> Iterator[WriteGate]:
+    """The process-wide write gate, reset before and after the case.
+
+    SQLiteHelper consults the module-level gate, so a case that closes it must
+    hand the next test in the same xdist worker an open one.
+    """
+    shared = get_write_gate()
+    shared.reset()
+    yield shared
+    shared.reset()
 
 
 class TestBeginImmediateRollback:
@@ -772,3 +787,105 @@ class TestCommitOnExit:
             db.commit()
 
         assert self._rows(path) == [(1,)]
+
+
+class TestWriteGateRefusal:
+    """The gate-aware refusal paths added to the write methods (cliplc004 REQ-004).
+
+    The gate is consulted before any statement is prepared, so a refused write
+    leaves no cursor, no transaction, and no row. Read methods and the interrupt
+    handle are never gated.
+    """
+
+    def test_execute_of_a_write_is_refused_and_writes_nothing(
+        self, helper: SQLiteHelper, gate: WriteGate, conn: sqlite3.Connection
+    ) -> None:
+        gate.close()
+        with pytest.raises(WriteGateClosed):
+            helper.execute("INSERT INTO test_table (id, value) VALUES (1, 'refused')")
+        assert helper.fetchall("SELECT * FROM test_table WHERE id=1") == []
+        assert gate.refused_count == 1
+
+    def test_execute_of_a_select_is_allowed_while_closed(
+        self, helper: SQLiteHelper, gate: WriteGate
+    ) -> None:
+        gate.close_now()
+        assert helper.execute("SELECT value FROM test_table").fetchall() == []
+        assert gate.refused_count == 0
+
+    def test_executemany_of_a_write_is_refused(
+        self, helper: SQLiteHelper, gate: WriteGate
+    ) -> None:
+        gate.close_now()
+        with pytest.raises(WriteGateClosed):
+            helper.executemany(
+                "INSERT INTO test_table (id, value) VALUES (?, ?)",
+                [(1, "a"), (2, "b")],
+            )
+        assert helper.fetchall("SELECT * FROM test_table") == []
+
+    def test_executescript_is_refused(
+        self, helper: SQLiteHelper, gate: WriteGate
+    ) -> None:
+        gate.close_now()
+        with pytest.raises(WriteGateClosed):
+            helper.executescript("INSERT INTO test_table (id, value) VALUES (1, 'a');")
+
+    def test_commit_of_an_open_transaction_is_refused_and_leaves_it_open(
+        self, helper: SQLiteHelper, gate: WriteGate, conn: sqlite3.Connection
+    ) -> None:
+        """A write begun before shutdown cannot be made durable after it."""
+        helper.execute("INSERT INTO test_table (id, value) VALUES (1, 'in-flight')")
+        gate.close_now()
+        with pytest.raises(WriteGateClosed):
+            helper.commit()
+        assert conn.in_transaction is True
+
+    def test_commit_with_no_open_transaction_is_not_a_write(
+        self, helper: SQLiteHelper, gate: WriteGate
+    ) -> None:
+        helper.fetchall("SELECT * FROM test_table")
+        gate.close_now()
+        helper.commit()
+        assert gate.refused_count == 0
+
+    def test_begin_immediate_is_refused_before_any_begin(
+        self, helper: SQLiteHelper, gate: WriteGate, conn: sqlite3.Connection
+    ) -> None:
+        gate.close_now()
+        with pytest.raises(WriteGateClosed):
+            with helper.begin_immediate():
+                pass  # unreachable: the guard raises first
+        assert conn.in_transaction is False
+
+    def test_begin_exclusive_is_refused_before_any_begin(
+        self, helper: SQLiteHelper, gate: WriteGate, conn: sqlite3.Connection
+    ) -> None:
+        gate.close_now()
+        with pytest.raises(WriteGateClosed):
+            with helper.begin_exclusive():
+                pass
+        assert conn.in_transaction is False
+
+    def test_an_authorized_step_writes_through_the_closed_gate(
+        self, helper: SQLiteHelper, gate: WriteGate
+    ) -> None:
+        gate.close_now()
+        with gate.authorize("persist_snapshot"):
+            helper.execute(
+                "INSERT INTO test_table (id, value) VALUES (1, 'authorized')"
+            )
+            helper.commit()
+        rows = helper.fetchall("SELECT value FROM test_table WHERE id=1")
+        assert [row["value"] for row in rows] == ["authorized"]
+        assert gate.refused_count == 0
+
+    def test_interrupt_when_is_not_gated(
+        self, helper: SQLiteHelper, gate: WriteGate
+    ) -> None:
+        """REQ-005: settling an in-flight statement is not a write."""
+        gate.close_now()
+        stop = threading.Event()
+        helper.interrupt_when(stop)
+        helper.interrupt_when(None)
+        assert gate.refused_count == 0

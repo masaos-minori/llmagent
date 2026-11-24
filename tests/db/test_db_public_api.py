@@ -50,3 +50,16 @@ def test_db_wildcard_import_works():
     """from db import * should not raise."""
     ns: dict = {}
     exec("from db import *", ns)  # noqa: S102
+
+
+def test_write_gate_symbols_are_exported(_reload_db):
+    """The shutdown coordinator reaches the write gate through db's public API.
+
+    The generic case above only proves each listed name resolves; this one pins
+    the names themselves, which is what rows 3 and 5 of the shutdown Plan import.
+    """
+    db_mod = _reload_db
+    for name in ("WriteGate", "WriteGateClosed", "get_write_gate"):
+        assert name in db_mod.__all__, f"{name!r} is not exported from db"
+        assert getattr(db_mod, name) is not None
+    assert db_mod.get_write_gate() is db_mod.get_write_gate()

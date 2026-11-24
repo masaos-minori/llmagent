@@ -28,11 +28,13 @@ Create the test file that pins the write gate: its three states, the refusal of 
 `tests/db/test_write_gate.py` (new)
 
 ### Procedure
-1. Cover the state machine: open allows a write, closing refuses an unauthorized write, closed refuses every write.
-2. Cover the authorized-operation context: a write inside it succeeds in `closing`, and the authorization does not outlive the block.
-3. Cover each write entry point in `scripts/db/helper.py:350-543` and assert `WriteGateClosed` (new) is raised in `closing` and `closed`.
-4. Cover the read paths: reads succeed in every state (REQ-006, REQ-008).
-5. Cover the refused-write counter: each refusal increments it once, including a swallowed exception.
+1. Cover the state machine: open allows a write, closing refuses an unauthorized write, closed refuses every write, `close()` steps open to closing to closed and is idempotent, and `close_now()` goes straight to closed.
+2. Cover the authorized-operation context: a write inside `authorize(step_name)` succeeds in `closing` and in `closed`, and the authorization does not outlive the block.
+3. Cover each write entry point the Plan lists (`open(write_mode=True)`, `execute`, `executemany`, `executescript`, `commit`, `begin_immediate`, `begin_exclusive`, `checkpoint`, `vacuum`) and assert `WriteGateClosed` (new) is raised in `closing` and `closed`.
+4. Cover the read paths: `fetchall`, `health_check`, `interrupt_when`, and `execute` with a `SELECT` succeed in every state (REQ-006, REQ-008).
+5. Cover the statement classifier directly: `SELECT`, `EXPLAIN`, and a bare `PRAGMA journal_mode` are reads; `INSERT`, `UPDATE`, `DELETE`, `REPLACE`, `CREATE`, `DROP`, `VACUUM`, an assigned `PRAGMA foreign_keys=ON`, an argument-bearing `PRAGMA wal_checkpoint(TRUNCATE)`, and an unknown keyword are writes; a leading `--` comment does not hide a write.
+6. Cover the refused-write counter: each refusal increments it once, including a swallowed exception.
+7. Cover the process-wide accessor: `get_write_gate()` returns the same instance every call, and the fixture calls `reset()` on it so a closed gate cannot leak into the next test in the same xdist worker.
 
 ### Method
 
@@ -74,9 +76,9 @@ Create the test file that pins the write gate: its three states, the refusal of 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-082622 | 20261125-082622 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-082622 | 20261125-082622 | this row is the test row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-082622 | 20261125-082622 | R2 unit run: fast gates Pass; full suite 14217 passed / 7 skipped; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

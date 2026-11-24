@@ -20,6 +20,10 @@ Give the database layer one authority that decides when a write is allowed: `Wri
 - Authorized writes use an explicit context (a context manager that names the step holding the authorization) rather than a bypass flag on each write function: the authorization is scoped, cannot leak past the `with` block, and is auditable.
 - Refusals raise one exception type (`WriteGateClosed` (new)) and increment a counter, so a caller that swallows the error is still counted in the report (REQ-012).
 - Compatibility impact: no existing signature changes; existing write calls behave identically while the gate is `open`.
+- Verified against source 2026-11-25 (execution): the Plan's REQ-004 names the method `gate.authorize(operation_name)` (`plans/done/20261124-095950_cliplc004_bounded-shutdown-machine.md:78`), so the context manager is `authorize(step_name)`, not `authorized(step_name)`. `WriteGateClosed` subclasses `RuntimeError`, the repository convention for an operational refusal (`scripts/mcp_servers/file/common.py:34`, `scripts/mcp_servers/cicd/cicd_models.py:63`).
+- Authorization is held in a `contextvars.ContextVar` stack, not a plain instance field: the shutdown steps run their DB work on `asyncio.to_thread` workers (`scripts/agent/wal_checkpoint_manager.py:66,134`, `scripts/agent/turn_persistence.py:105-207`), and `asyncio.to_thread` copies the caller's context, so a step authorized by the coordinator covers the write its worker performs, while a thread that was not started inside the `with` block (a background writer left over from normal operation) does not inherit it.
+- `reset()` (new) returns the gate to `open` with a zero counter, documented the way `clear_shutdown_flag` is (`scripts/eventbus/db_conn.py:54-61`): a fresh app lifecycle or a fresh test context must not inherit a previous shutdown's state. Without it the process-wide gate would leak a closed state into the next test in the same xdist worker.
+- `is_write_statement(sql)` (new) exists because `SQLiteHelper.execute` is not a write-only entry point: 22 call sites in `scripts/` pass a literal `SELECT` through it (`grep -c "\.execute(\s*[\"']SELECT" scripts/`), and REQ-006 and REQ-008 require reads to keep working while writes are refused. The rule is: strip leading whitespace and `--` / block comments, take the first keyword, treat `SELECT`, `EXPLAIN`, and a bare `PRAGMA name` as reads, and treat everything else — including `WITH`, `VALUES`, and an assigned or argument-bearing `PRAGMA` — as a write (fail closed). `scripts/` contains no CTE, so the fail-closed branch refuses no read that exists today.
 
 ## Alternatives considered
 
@@ -32,8 +36,9 @@ Give the database layer one authority that decides when a write is allowed: `Wri
 ### Procedure
 1. Define `WriteGateState` (new) with `open`, `closing`, `closed`.
 2. Define `WriteGateClosed` (new), the exception raised when a write is refused.
-3. Define `WriteGate` (new): `close()` (new) (open to closing, closing to closed), `close_now()` (new) (straight to closed), `check_write()` (new) raising `WriteGateClosed` (new) unless the state is `open` or the caller holds an authorization, `refused_count` (new), and `authorized(step_name)` (new) returning the scoped context manager.
-4. Provide one module-level gate instance and an accessor the db layer uses internally.
+3. Define `WriteGate` (new): `state` and `refused_count` (new) properties, `close()` (new) (open to closing, closing to closed, idempotent), `close_now()` (new) (straight to closed), `check_write(operation)` (new) raising `WriteGateClosed` (new) unless the state is `open` or the caller holds an authorization, `authorize(step_name)` (new) returning the scoped context manager, and `reset()` (new).
+4. Define `is_write_statement(sql)` (new): the classifier the helper consults, fail-closed on an unknown leading keyword (see Design decisions).
+5. Provide one module-level gate instance with `get_write_gate()` (new) as the accessor, following the existing db shutdown-flag precedent `scripts/eventbus/db_conn.py:34-61` (`set_shutdown_flag` / `is_shutting_down` / `clear_shutdown_flag`), which the Plan cites as the model.
 
 ### Method
 - State machine plus a counter, no I/O: the gate decides and records, it does not own connections or transactions.
@@ -77,9 +82,9 @@ Give the database layer one authority that decides when a write is allowed: `Wri
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | companion row 21 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-082622 | 20261125-082622 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-082622 | 20261125-082622 | companion row 21 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-082622 | 20261125-082622 | R2 unit run: fast gates Pass; full suite 14217 passed / 7 skipped; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

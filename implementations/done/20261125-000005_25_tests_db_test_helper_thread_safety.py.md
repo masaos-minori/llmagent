@@ -16,8 +16,9 @@ Make the threaded write paths in the helper thread-safety tests gate-aware, so t
 ## Design decisions
 
 - Add refusal cases to the existing threaded cases rather than writing a new file: these tests already drive writes from worker threads, which is the path where a gate check could plausibly be missed.
-- Assert the refusal in the worker thread and the success in an authorized context separately, so a leak of authorization across threads would fail a case rather than pass silently.
+- Assert the refusal in the worker thread and the success in an authorized context separately, so a leak of authorization would fail a case rather than pass silently.
 - Keep the existing concurrency assertions untouched: this row adds expectations, it does not rework the threading scenarios.
+- Verified against source 2026-11-25 (execution): the authorization is a `contextvars` stack (row 2), so the two directions have to be tested separately. `asyncio.to_thread` copies the caller's context, so a worker started inside `authorize(...)` is authorized — that is how the coordinator's checkpoint and backup steps reach the DB (`scripts/agent/wal_checkpoint_manager.py:66,134`). A worker started with no authorization held is refused, and an authorization entered in the worker itself does not reach the calling thread.
 
 ## Alternatives considered
 
@@ -71,9 +72,9 @@ Make the threaded write paths in the helper thread-safety tests gate-aware, so t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-082622 | 20261125-082622 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-082622 | 20261125-082622 | this row is the test row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-082622 | 20261125-082622 | R2 unit run: fast gates Pass; full suite 14217 passed / 7 skipped; diff-cover 100% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
