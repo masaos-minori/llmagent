@@ -6,10 +6,13 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import threading
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from agent.services.models import RagFtsRebuildResult
+from agent.services.rag_maintenance_service import RagMaintenanceService
 from db.config import DbConfig
 
 # Minimal RAG schema for FTS trigger tests; chunks_vec is stubbed (vec0 not required).
@@ -55,6 +58,37 @@ AFTER UPDATE ON chunks BEGIN
     VALUES (new.chunk_id, COALESCE(new.normalized_content, new.content));
 END;
 """
+
+
+class _RefusedByStop:
+    """Mirrors `helper.interrupt_when`'s contract: the next statement is refused.
+
+    The progress handler only fires after `check_every` VM steps, so a single-statement run
+    on a real connection cannot be stopped deterministically; this is the same shape as
+    `_FakeDB` in `tests/db/test_db_maintenance.py`.
+    """
+
+    def __init__(self, stop: threading.Event) -> None:
+        self._stop = stop
+
+    def open(self, **_kwargs: object) -> _RefusedByStop:
+        return self
+
+    def __enter__(self) -> _RefusedByStop:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        return None
+
+    def interrupt_when(self, stop: threading.Event, *, check_every: int = 1000) -> None:
+        self._stop = stop
+
+    def execute(self, sql: str, params: tuple | dict = ()) -> None:
+        if self._stop.is_set():
+            raise sqlite3.OperationalError("interrupted")
+
+    def commit(self) -> None:
+        return None
 
 
 def _make_db_cfg(tmp_path: Path, rag_name: str = "rag.sqlite") -> DbConfig:
@@ -189,8 +223,6 @@ class TestFtsTriggerSync:
     ) -> None:
         """INV-07: FTS trigger and manual rebuild (RagMaintenanceService.rebuild_fts())
         produce identical chunks_fts contents for the same underlying chunk data."""
-        from agent.services.rag_maintenance_service import RagMaintenanceService
-
         db_file = tmp_path / "rag.sqlite"
         conn = sqlite3.connect(str(db_file))
         conn.executescript(_FTS_SCHEMA_SQL)
@@ -221,7 +253,10 @@ class TestFtsTriggerSync:
         conn.close()
 
         service = RagMaintenanceService(_make_db_cfg(tmp_path, rag_name="rag.sqlite"))
-        service.rebuild_fts()
+        result = service.rebuild_fts()
+        assert result.chunks == 2
+        assert result.fts_rows == 2
+        assert result.verified is True
 
         conn2 = sqlite3.connect(str(db_file))
         after = conn2.execute(
@@ -229,6 +264,82 @@ class TestFtsTriggerSync:
         ).fetchall()
         conn2.close()
         assert before == after
+
+    def test_rebuild_fts_result_reports_the_counts_the_postcondition_measured(
+        self, tmp_path: Path
+    ) -> None:
+        """REQ-004: the result carries the counts measured after the commit, not the counts
+        the run attempted. chunks_fts is an external-content table, so the index rows are
+        read from chunks_fts_docsize as `scripts/db/rag_consistency_queries.py:24` does."""
+        conn = sqlite3.connect(str(tmp_path / "rag.sqlite"))
+        conn.executescript(_FTS_SCHEMA_SQL)
+        conn.execute(
+            "INSERT INTO documents(url, lang) VALUES(?, ?)", ("http://a.com", "en")
+        )
+        conn.execute(
+            "INSERT INTO chunks(doc_id, content, normalized_content, chunk_index)"
+            " VALUES(?,?,?,?)",
+            (1, "hello world", None, 0),
+        )
+        conn.execute(
+            "INSERT INTO chunks(doc_id, content, normalized_content, chunk_index)"
+            " VALUES(?,?,?,?)",
+            (1, "こんにちは世界", "こんにちは 世界", 1),
+        )
+        conn.commit()
+        # Leave the index short of the chunk table so the postcondition has something to measure.
+        conn.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('delete-all')")
+        conn.commit()
+        conn.close()
+
+        result = RagMaintenanceService(_make_db_cfg(tmp_path)).rebuild_fts()
+
+        assert isinstance(result, RagFtsRebuildResult)
+        assert result.chunks == 2
+        assert result.fts_rows == 2
+        assert result.verified is True
+        assert result.interrupted is False
+
+    def test_run_that_cannot_measure_the_postcondition_does_not_report_success(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A run stopped before the postcondition reports the state it was in, not a count.
+
+        The cancellation mechanism itself is asserted in
+        `tests/agent/services/test_rag_maintenance_persistence.py` (row 46); this asserts
+        only that an unmeasured postcondition cannot be reported as success (REQ-004).
+        """
+        import agent.services.rag_maintenance_service as svc_module
+
+        path = tmp_path / "rag.sqlite"
+        conn = sqlite3.connect(str(path))
+        conn.executescript(_FTS_SCHEMA_SQL)
+        conn.execute(
+            "INSERT INTO documents(url, lang) VALUES(?, ?)", ("http://a.com", "en")
+        )
+        conn.execute(
+            "INSERT INTO chunks(doc_id, content, normalized_content, chunk_index)"
+            " VALUES(?,?,?,?)",
+            (1, "hello world", "hello world", 0),
+        )
+        conn.commit()
+        conn.close()
+
+        stop = threading.Event()
+        stop.set()
+        monkeypatch.setattr(
+            svc_module, "SQLiteHelper", lambda *_a, **_k: _RefusedByStop(stop)
+        )
+
+        result = RagMaintenanceService(_make_db_cfg(tmp_path)).rebuild_fts(stop=stop)
+
+        assert result.interrupted is True
+        assert result.verified is False
+        assert result.fts_rows == 0
+
+        check = sqlite3.connect(str(path))
+        assert check.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 1
+        check.close()
 
     def test_no_unsanctioned_direct_chunks_fts_write(self) -> None:
         """DESIGN-2: only sanctioned files may write to chunks_fts directly."""

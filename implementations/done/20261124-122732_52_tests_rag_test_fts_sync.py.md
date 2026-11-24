@@ -67,8 +67,8 @@ Assert the FTS rebuild postcondition: the reported result reflects the row count
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read the result object and assert the postcondition | Pending | — | — | Phase 4 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Read the result object and assert the postcondition | Completed | — | 20261124-192923 | Phase 4 Phase 4 part done: TestRebuildFtsPostcondition reads the result object and asserts the counts are the state after the commit, read through chunks_fts_docsize, and that a run whose postcondition does not agree is reported unverified. 8 tests pass. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-192923 | ruff, ruff format and mypy clean on this file; targeted pytest passes. tools/check_chunks_fts_invariant.py reports no violation, so no docs row or tool-description entry changes for this row. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

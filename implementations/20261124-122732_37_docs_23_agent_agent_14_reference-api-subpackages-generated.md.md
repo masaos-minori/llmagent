@@ -73,8 +73,8 @@ Regenerate the subpackage API table so the new service module and the new `Memor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate from the manifests | Pending | — | — | Phase 7 |
-| 2 | Run the generator drift check and the structure checker (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Regenerate from the manifests | In Progress | — | — | Phase 7 Phase 4 part: the same generator run rendered the RagFtsRebuildResult row in the subpackage table; no hand editing. |
+| 2 | Run the generator drift check and the structure checker (`rules/tool-gates.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

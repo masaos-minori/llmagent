@@ -8,6 +8,8 @@ Contracts under test:
 - reconcile_url() inserts only the missing chunks_fts entries of one URL, never deletes an
   entry that is not indexed, leaves chunks_vec alone, and persists.
 - A failing commit leaves the database unchanged for a new connection.
+- rebuild_fts() reports the counts the postcondition measured after the commit, and a run
+  stopped by the job's cancellation event reports itself as stopped rather than as success.
 - recover() reports integrity_ok from the integrity outcome, not from the VACUUM step.
 
 The tests replace the SQLiteHelper name of the service module with a factory for a file
@@ -18,9 +20,10 @@ for the vec0 table; commit behavior does not depend on the table type.
 from __future__ import annotations
 
 import sqlite3
+import threading
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import agent.services.rag_maintenance_service as svc_module
 import pytest
@@ -67,6 +70,33 @@ class _FailingCommitHelper(SQLiteHelper):
 
     def commit(self) -> None:
         raise RuntimeError("commit failed")
+
+
+class _RefusedAfterStopHelper(SQLiteHelper):
+    """SQLiteHelper that refuses the next statement once the job's event is set.
+
+    The real `interrupt_when` observes the event through the connection progress handler,
+    which only fires after `check_every` VM steps, so a short statement on a real connection
+    is not stopped deterministically. This records the event it is given and applies the
+    documented contract, so the tests prove the write path accepts the event and reports the
+    state it reached, not a count it did not measure.
+    """
+
+    received: ClassVar[list[threading.Event]] = []
+
+    def interrupt_when(
+        self, stop: threading.Event | None, *, check_every: int = 1000
+    ) -> None:
+        if stop is None:
+            return
+        self._stop = stop
+        type(self).received.append(stop)
+        super().interrupt_when(stop, check_every=check_every)
+
+    def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
+        if getattr(self, "_stop", None) is not None and self._stop.is_set():
+            raise sqlite3.OperationalError("interrupted")
+        return super().execute(sql, params)
 
 
 def _query(path: Path, sql: str) -> list[Any]:
@@ -228,6 +258,61 @@ class TestReconcileUrl:
 
         match = "SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH 'alpha'"
         assert _query(rag_db_path, match) == []
+
+
+class TestRebuildFtsPostcondition:
+    """Row 46: the FTS result is the postcondition's measurement, and a stopped run is reported as stopped."""
+
+    def test_postcondition_counts_are_the_rows_the_commit_left(
+        self, rag_db_path: Path, use_file_db: Callable[..., None]
+    ) -> None:
+        """The result reports what the index holds after the commit, not what the run inserted."""
+        _make_fts_gap(rag_db_path, 1, "alpha text")
+        use_file_db()
+
+        result = RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_fts()
+
+        assert result.chunks == 3
+        assert result.fts_rows == 3
+        assert result.verified is True
+        assert _query(rag_db_path, "SELECT COUNT(*) FROM chunks_fts_docsize") == [(3,)]
+
+    def test_stopped_run_reports_the_state_it_was_in(
+        self, rag_db_path: Path, use_file_db: Callable[..., None]
+    ) -> None:
+        """The job's event reaches the connection, and the run reports itself as stopped.
+
+        A stopped run never reports success, and it reports no count it did not measure
+        (REQ-002, REQ-004).
+        """
+        _make_fts_gap(rag_db_path, 1, "alpha text")
+        _RefusedAfterStopHelper.received.clear()
+        use_file_db(_RefusedAfterStopHelper)
+        stop = threading.Event()
+        stop.set()
+
+        result = RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_fts(stop=stop)
+
+        assert _RefusedAfterStopHelper.received == [stop]
+        assert result.interrupted is True
+        assert result.verified is False
+        assert result.rows_inserted == 0
+        assert result.fts_rows == 0
+        # The run wrote nothing, so the gap the fixture left is still there.
+        assert _query(rag_db_path, "SELECT COUNT(*) FROM chunks_fts_docsize") == [(2,)]
+
+    def test_write_methods_accept_the_cancellation_event(
+        self, rag_db_path: Path, use_file_db: Callable[..., None]
+    ) -> None:
+        """Both RAG write paths install the event on the connection they run on (REQ-002)."""
+        _RefusedAfterStopHelper.received.clear()
+        use_file_db(_RefusedAfterStopHelper)
+        stop = threading.Event()
+
+        RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_fts(stop=stop)
+        RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_vec(stop=stop)
+
+        assert _RefusedAfterStopHelper.received == [stop, stop]
 
 
 class TestRecoverIntegrityMapping:

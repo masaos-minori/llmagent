@@ -75,11 +75,11 @@ Make the RAG service surface match what it does: rename the vector method to the
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Accept the cancellation event | Pending | — | — | Phase 1 |
-| 2 | Add the FTS postcondition and the result object | Pending | — | — | Phase 4 |
+| 1 | Accept the cancellation event | Completed | — | 20261124-192923 | Phase 1 Phase 4 part: stop is accepted by rebuild_fts() and rebuild_vec() and passed to db.interrupt_when; a non-interruption sqlite3.OperationalError is re-raised rather than reported as an interrupted run. |
+| 2 | Add the FTS postcondition and the result object | Completed | — | 20261124-192923 | Phase 4 Phase 4 part done: rebuild_fts() returns RagFtsRebuildResult and measures the postcondition after the commit, reading the index row count from chunks_fts_docsize against chunks, so verified is the measured agreement; the counts are chunks and fts_rows, not an attempt flag. |
 | 3 | Rename `rebuild_vec` to `prune_orphan_vectors` (new) | Pending | — | — | Phase 6 |
-| 4 | Update the companion test per Validation plan | Pending | — | — | Covered by this document |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 4 | Update the companion test per Validation plan | In Progress | — | — | Covered by this document Phase 4 part done in tests/agent/services/test_rag_maintenance_persistence.py (row 46): TestRebuildFtsPostcondition asserts the postcondition counts, that a run stopped by the event reports interrupted and not a measured count, and that both write paths accept the event. 17 tests pass. The renamed-operation assertion is the Phase 6 part. |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | In Progress | — | — | Phase 4 part: ruff, ruff format, mypy, bandit (0 Medium/High), module-size gate and radon pass on this file; tools/check_chunks_fts_invariant.py reports no violation; the targeted tests pass (tests/rag/test_fts_sync.py 8, tests/agent/services/test_rag_maintenance_persistence.py 17). The rename gates are the Phase 6 part. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

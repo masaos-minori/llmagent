@@ -6,6 +6,7 @@ Operates exclusively on rag.sqlite.
 
 from __future__ import annotations
 
+import sqlite3
 import threading
 
 from db.config import DbConfig
@@ -18,7 +19,11 @@ from db.rag_consistency import (
 from db.recovery import recover_corruption
 from shared.db_maintenance import count_table
 
-from agent.services.models import DbRecoverResult, RagConsistencyResult
+from agent.services.models import (
+    DbRecoverResult,
+    RagConsistencyResult,
+    RagFtsRebuildResult,
+)
 
 
 class RagMaintenanceService:
@@ -41,20 +46,52 @@ class RagMaintenanceService:
             chunks = count_table(db, "chunks")
         return docs, chunks
 
-    def rebuild_fts(self) -> None:
+    def rebuild_fts(
+        self, *, stop: threading.Event | None = None
+    ) -> RagFtsRebuildResult:
         """Rebuild the FTS5 chunks_fts index using COALESCE(normalized_content, content).
 
         The FTS5 built-in 'rebuild' reads chunks.content directly, missing
         normalized_content for Japanese chunks.  This explicit delete-all +
         re-insert preserves the same rule as the chunks_ai trigger.
+
+        `stop` is the job's cancellation event, passed to the connection's progress
+        handler (REQ-002). The postcondition re-counts the index against `chunks` after
+        the commit, so the result reports what the index holds, not what the run attempted
+        to insert (REQ-004). A stopped run reports the state it was in, never a count it
+        did not measure.
         """
-        with SQLiteHelper("rag", db_config=self._db_config).open(write_mode=True) as db:
-            db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('delete-all')")
-            db.execute(
-                "INSERT INTO chunks_fts(rowid, content)"
-                " SELECT chunk_id, COALESCE(normalized_content, content) FROM chunks"
-            )
-            db.commit()
+        with SQLiteHelper("rag", db_config=self._db_config).open(
+            write_mode=True, row_factory=True
+        ) as db:
+            if stop is not None:
+                db.interrupt_when(stop)
+            try:
+                db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES('delete-all')")
+                cursor = db.execute(
+                    "INSERT INTO chunks_fts(rowid, content)"
+                    " SELECT chunk_id, COALESCE(normalized_content, content) FROM chunks"
+                )
+                inserted = cursor.rowcount
+                db.commit()
+            except sqlite3.OperationalError:
+                if stop is None or not stop.is_set():
+                    raise
+                return RagFtsRebuildResult(interrupted=True)
+            chunks = count_table(db, "chunks")
+            # `chunks_fts` is an external-content table, so its own count reflects the
+            # `chunks` rows. The index rows are the ones the postcondition must measure,
+            # which is why the count is read from chunks_fts_docsize, as the consistency
+            # check reads it (`scripts/db/rag_consistency_queries.py:24`).
+            fts_rows = db.execute("SELECT COUNT(*) FROM chunks_fts_docsize").fetchone()[
+                0
+            ]
+        return RagFtsRebuildResult(
+            rows_inserted=inserted,
+            chunks=chunks,
+            fts_rows=fts_rows,
+            verified=fts_rows == chunks,
+        )
 
     def consistency(
         self, *, stop: threading.Event | None = None
@@ -89,13 +126,18 @@ class RagMaintenanceService:
             logical_ok=result.logical_ok,
         )
 
-    def rebuild_vec(self) -> int:
+    def rebuild_vec(self, *, stop: threading.Event | None = None) -> int:
         """Remove chunks_vec rows that have no chunks row.
 
         Returns the number of chunks_vec rows left. Vector rows cannot be regenerated
         from chunks: the embeddings live only in chunks_vec.
+
+        `stop` is the job's cancellation event, passed to the connection's progress
+        handler (REQ-002).
         """
         with SQLiteHelper("rag", db_config=self._db_config).open(write_mode=True) as db:
+            if stop is not None:
+                db.interrupt_when(stop)
             orphans = db.execute(
                 "SELECT chunk_id FROM chunks_vec"
                 " WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks)"

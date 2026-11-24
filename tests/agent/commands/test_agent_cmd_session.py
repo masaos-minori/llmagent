@@ -941,6 +941,9 @@ class TestCmdSessionPurgeKeepsActive:
         # _cmd_session dispatches purge through asyncio.to_thread, so the
         # in-memory connection must be usable from the executor thread.
         conn = sqlite3.connect(":memory:", check_same_thread=False)
+        # The service's postcondition counts through `count_table`, which reads the count by
+        # column name, so the stand-in connection carries the row factory it asks for.
+        conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys=ON")
         conn.executescript(_SESSION_SCHEMA)
         for title, created_at in [
@@ -968,6 +971,18 @@ class TestCmdSessionPurgeKeepsActive:
         assert db.conn is not None
         survived = {r[0] for r in db.conn.execute("SELECT session_id FROM sessions")}
         assert survived == {1, 3}  # decoy deleted; guarded row survives
+
+        # The counts the message reports are the postcondition read after the commit, so
+        # they are the rows the connection still holds rather than what the run assumed
+        # while it was deleting (row 42, step 1).
+        reported = {
+            line[2:].split(":", 1)[0].strip(): line.split(":", 1)[1].strip()
+            for line in out.splitlines()
+            if line.startswith("  ") and ":" in line and not line.startswith("  job ")
+        }
+        assert reported["rows_before"] == "3"
+        assert reported["rows_after"] == str(len(survived))
+        assert job.verified is True
 
 
 class TestCmdSessionJobRecords:
@@ -1011,6 +1026,9 @@ class TestCmdSessionJobRecords:
         from tests.db.test_db_maintenance import _SESSION_SCHEMA, _FakeDB
 
         conn = sqlite3.connect(":memory:", check_same_thread=False)
+        # The service's postcondition counts through `count_table`, which reads the count by
+        # column name, so the stand-in connection carries the row factory it asks for.
+        conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys=ON")
         conn.executescript(_SESSION_SCHEMA)
         conn.execute(
@@ -1040,6 +1058,38 @@ class TestCmdSessionJobRecords:
         job = _reported_job(out, registry)
         assert job.operation == "purge"
         assert job.state is JobState.CANCELLED
+        assert "success" not in out.lower()
+
+    @pytest.mark.asyncio
+    async def test_run_that_did_not_measure_its_postcondition_is_not_reported_success(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """REQ-004: the outcome is the job record, so an unverified run cannot read as success.
+
+        The postcondition here shows pages left to reclaim, which is the state the record
+        carries; the message reports the job, not a fixed success string.
+        """
+        from unittest.mock import patch
+
+        from agent.services.models import DbVacuumResult
+
+        cmd = _make_cmd()
+        registry = cmd._ctx.services.job_registry
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.vacuum.return_value = DbVacuumResult(
+                mode="STRICT",
+                page_count_before=12,
+                page_count_after=12,
+                pages_reclaimed=0,
+                verified=False,
+            )
+            MockSvc.return_value = mock_svc
+            await cmd._cmd_session("vacuum")
+            out = capsys.readouterr().out
+
+        job = _reported_job(out, registry)
+        assert job.verified is False
         assert "success" not in out.lower()
 
 

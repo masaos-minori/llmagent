@@ -4,6 +4,7 @@ Tests for memory consistency check and rebuild:
   - import_ops.import_from_jsonl()
   - /memory check-consistency command
   - /memory rebuild command
+  - the rebuild run reports the check result as its outcome before any success line (REQ-004)
 """
 
 from __future__ import annotations
@@ -560,6 +561,82 @@ class TestCmdMemoryRebuild:
 
         assert result.error == "disk full"
         patched_import.assert_not_called()
+
+    async def test_the_job_outcome_carries_the_check_before_success(self) -> None:
+        """REQ-004: the check result is part of the reported outcome, and success follows it.
+
+        A test that only asserted the check output could not show the ordering, so the calls
+        are recorded in the order the run made them.
+        """
+        from unittest.mock import patch
+
+        from agent.memory.models import ConsistencyReport
+
+        mixin = _make_mixin()
+        mem = MagicMock()
+        mem.ingestion._jsonl = MagicMock()
+        mem.ingestion._jsonl.count_all.return_value = 4
+        mem.ingestion._jsonl.iter_records.return_value = []
+        mem.store.list_entries.return_value = []
+        mem.store.check_consistency.return_value = ConsistencyReport(
+            memories=4, fts=4, vec=0
+        )
+
+        reported: list[str] = []
+
+        def record_table(_headers: list[str], rows: list[list[str]]) -> None:
+            # The pre-run summary table and the check table are different reports; only the
+            # check's result may stand as the run's outcome.
+            labels = {row[0] for row in rows}
+            reported.append("check" if "Consistent" in labels else "summary")
+
+        mixin._out.write_table.side_effect = record_table
+        mixin._out.write_success.side_effect = lambda *_a, **_k: reported.append(
+            "success"
+        )
+
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(4, 4)
+        ):
+            result = await mixin.rebuild(mem, ["--confirm"])
+
+        assert reported == ["summary", "check", "success"]
+        job = mixin._registry().lookup(result.job_id)
+        assert job is not None
+        assert job.verified is True
+        assert result.verified is True
+
+    async def test_unverified_run_reports_the_check_not_success(self) -> None:
+        """A run whose postcondition failed reports the check result, never success."""
+        from unittest.mock import patch
+
+        from agent.memory.models import ConsistencyReport
+
+        mixin = _make_mixin()
+        mem = MagicMock()
+        mem.ingestion._jsonl = MagicMock()
+        mem.ingestion._jsonl.count_all.return_value = 4
+        mem.ingestion._jsonl.iter_records.return_value = []
+        mem.store.list_entries.return_value = []
+        mem.store.check_consistency.return_value = ConsistencyReport(
+            memories=4, fts=2, vec=0
+        )
+
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(4, 4)
+        ):
+            result = await mixin.rebuild(mem, ["--confirm"])
+
+        mixin._out.write_success.assert_not_called()
+        # The check's own result is what the run reported.
+        rows = mixin._out.write_table.call_args[0][1]
+        values = {row[0]: row[1] for row in rows}
+        assert "NO" in values["Consistent"]
+
+        job = mixin._registry().lookup(result.job_id)
+        assert job is not None
+        assert job.verified is False
+        assert result.verified is False
 
 
 # ── /memory reindex command ───────────────────────────────────────────────────

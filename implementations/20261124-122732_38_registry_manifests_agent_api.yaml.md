@@ -72,8 +72,8 @@ Regenerate the agent API manifest so it records the new public symbols of the jo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the manifest | Pending | — | — | Phase 7 |
-| 2 | Run the generator drift check (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Regenerate the manifest | In Progress | — | — | Phase 7 Phase 4 part: the generator was run here to satisfy the pre-commit manifest gate, which refused the Phase 4 commit because the new RagFtsRebuildResult dataclass (row 22) makes the manifest stale. The manifest and agent_14 table entries for that class were generated in this pass and committed with it. |
+| 2 | Run the generator drift check (`rules/tool-gates.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -51,6 +51,8 @@ class RebuildResult:
     error: str | None = None
     # The run the result belongs to, so the reported outcome and the job record agree.
     job_id: str = ""
+    # The consistency check's result, so a run that did not verify cannot read as success.
+    verified: bool = False
 
 
 class MemoryRebuildOps:
@@ -197,10 +199,11 @@ class MemoryRebuildOps:
     def _run_import(
         self, job: MaintenanceJob, mem: MemoryServices, summary: RebuildResult
     ) -> RebuildResult:
-        """Run the granted work and record its outcome on the job (REQ-006).
+        """Run the granted work, measure the postcondition, then report the run (REQ-004).
 
-        The postcondition before the success line is the verified-result contract and lands
-        with that phase; here the run only records its terminal state.
+        The consistency check is the run's postcondition: it is measured before any success
+        line and its result is carried into the reported outcome, so a run that did not
+        verify is reported as the check result, never as success.
         """
         jsonl_store = mem.ingestion._jsonl
         try:
@@ -216,28 +219,37 @@ class MemoryRebuildOps:
                 allow_loss="allow_loss" in job.grants,
                 db_config=self._ctx.cfg.db,
             )
-            self._out.write_success(
-                f"Imported {inserted} entries from {summary.jsonl_count} "
-                "JSONL archive records."
+            verified = self.check_consistency(mem)
+            outcome = replace(
+                summary,
+                inserted=inserted,
+                sqlite_after=mem.store.check_consistency().memories,
+                verified=verified,
             )
-            _emit_memory_audit(
-                self._ctx,
-                MemoryOpResult(
-                    ok=True,
-                    memory_id="",
-                    action="rebuild",
-                    dry_run=False,
-                    count=summary.jsonl_count,
-                ),
-            )
-            self.check_consistency(mem)
-            after = mem.store.check_consistency().memories
-            outcome = replace(summary, inserted=inserted, sqlite_after=after)
         except Exception as exc:  # noqa: BLE001 — the run's outcome is recorded, not raised
             return self._refused_run(
                 job, summary, f"Rebuild aborted: backup failed: {exc}", error=str(exc)
             )
-        self._finish_and_report(job, "")
+        # The outcome is reported on the job record before any success line (REQ-004).
+        self._finish_and_report(job, "", verified=verified)
+        if not verified:
+            # The check already stated its result, including the repair commands; the run is
+            # reported as unverified, so nothing here may read as success.
+            return outcome
+        self._out.write_success(
+            f"Imported {inserted} entries from {summary.jsonl_count} "
+            "JSONL archive records."
+        )
+        _emit_memory_audit(
+            self._ctx,
+            MemoryOpResult(
+                ok=True,
+                memory_id="",
+                action="rebuild",
+                dry_run=False,
+                count=summary.jsonl_count,
+            ),
+        )
         return outcome
 
     def _run_index(self, job: MaintenanceJob, idx: str) -> None:
@@ -275,12 +287,13 @@ class MemoryRebuildOps:
         job: MaintenanceJob,
         outcome: str,
         *,
+        verified: bool = False,
         state: JobState = JobState.COMPLETED,
     ) -> None:
         """Record the terminal outcome, then report the run by its job id and state (REQ-004)."""
         if state is JobState.COMPLETED and job.stop_event.is_set():
             state = JobState.CANCELLED
-        self._registry().finish(job, outcome=outcome, verified=False, state=state)
+        self._registry().finish(job, outcome=outcome, verified=verified, state=state)
         self._out.write(f"  job {job.job_id} {job.state}")
 
     def _report_refusal(self, job: MaintenanceJob, decision: ApprovalDecision) -> None:
@@ -325,15 +338,20 @@ class MemoryRebuildOps:
             for e in entries:
                 f.write(_json_dumps(asdict(e)) + "\n")
 
-    def check_consistency(self, mem: MemoryServices) -> None:
-        """Check consistency between SQLite, JSONL, FTS5, and vec row counts."""
+    def check_consistency(self, mem: MemoryServices) -> bool:
+        """Check consistency between SQLite, JSONL, FTS5, and vec row counts.
+
+        Returns whether the state the check measured is consistent. The caller reports that
+        as the run's postcondition, so a run that did not verify is not reported as success
+        (REQ-004).
+        """
         from agent.memory.exceptions import MemoryConsistencyError
 
         try:
             report = mem.store.check_consistency()
         except MemoryConsistencyError as e:
             self._out.write(f"  [memory] check-consistency error: {e}")
-            return
+            return False
         jsonl_store = mem.ingestion._jsonl
         jsonl_count = jsonl_store.count_all()
         embed_enabled = self._ctx.cfg.memory.memory_embed_enabled
@@ -374,6 +392,7 @@ class MemoryRebuildOps:
         _emit_memory_audit(
             self._ctx, MemoryOpResult(ok=ok, memory_id="", action="check-consistency")
         )
+        return ok
 
 
 def _loss_message(count: int) -> str:

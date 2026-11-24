@@ -1,6 +1,6 @@
 """tests/test_cmd_memory.py
 Tests for _MemoryMixin._cmd_memory() dispatch: no-args→status, disabled→M-02,
-removed-subcommand rejection, and reindex routing.
+removed-subcommand rejection, reindex routing, and the postcondition before the success line.
 """
 
 from __future__ import annotations
@@ -315,7 +315,8 @@ class TestMemoryRunsAsTrackedJobs:
 
     The fixture owns one registry instance and the command path reaches it, as the
     factory-built process does; the flag forms are asserted as recorded grants rather than
-    as the authority that permits the run.
+    as the authority that permits the run, and the reported outcome is the postcondition's
+    result rather than a success line.
     """
 
     async def test_run_records_a_job_and_reports_the_job_id_and_state(self):
@@ -382,6 +383,50 @@ class TestMemoryRunsAsTrackedJobs:
         assert "allow_loss" in str(result.error)
         assert any(f"job {result.job_id}" in msg for msg in messages)
         assert registry.lookup(result.job_id).state is JobState.FAILED
+
+    async def test_postcondition_runs_before_the_success_line(self):
+        """The check result is the run's outcome; success follows only a verified run."""
+        mixin, messages = _make_mixin()
+        mem = _make_memory_store()
+        # The fixture's context has embedding enabled, so the check requires the vec rows too.
+        mem.store.check_consistency = lambda: SimpleNamespace(
+            memories=3, fts=3, vec=3, jsonl=3
+        )
+        mixin._ctx.services_required.memory = mem
+
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+        ):
+            await mixin._cmd_memory("rebuild --confirm")
+
+        result = mixin._rebuild_ops.results[0]
+        assert result.verified is True
+        table_at = next(i for i, msg in enumerate(messages) if "Consistent" in msg)
+        success_at = next(i for i, msg in enumerate(messages) if "Imported" in msg)
+        assert table_at < success_at
+
+    async def test_unverified_postcondition_is_reported_instead_of_success(self):
+        """A run the postcondition did not confirm reports the check, never a success line."""
+        mixin, messages = _make_mixin()
+        mem = _make_memory_store()
+        mem.store.check_consistency = lambda: SimpleNamespace(
+            memories=3, fts=1, vec=0, jsonl=3
+        )
+        mixin._ctx.services_required.memory = mem
+        registry = mixin._ctx.services_required.job_registry
+
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+        ):
+            await mixin._cmd_memory("rebuild --confirm")
+
+        result = mixin._rebuild_ops.results[0]
+        assert result.verified is False
+        assert not any("Imported" in msg for msg in messages)
+        assert "NO" in " ".join(messages)
+        job = registry.lookup(result.job_id)
+        assert job is not None
+        assert job.verified is False
 
     async def test_repair_guidance_names_the_registered_commands(self):
         from agent.commands.memory_rebuild_ops import MemoryRebuildOps

@@ -1229,6 +1229,11 @@ entries:
   summary: RAG consistency check result with issues, detailed report, and severity.
 - file: scripts/agent/services/models.py
   kind: class
+  name: RagFtsRebuildResult
+  signature: class RagFtsRebuildResult
+  summary: Result of an FTS index rebuild, with the counts the postcondition measured.
+- file: scripts/agent/services/models.py
+  kind: class
   name: ExportResult
   signature: class ExportResult
   summary: Result of exporting session data in a specific format.

@@ -182,6 +182,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `DbPurgeResult` | `class DbPurgeResult` | Result of purging old sessions from the database. |
 |  | `DbRecoverResult` | `class DbRecoverResult` | Result of a database recovery attempt. |
 |  | `RagConsistencyResult` | `class RagConsistencyResult` | RAG consistency check result with issues, detailed report, and severity. |
+|  | `RagFtsRebuildResult` | `class RagFtsRebuildResult` | Result of an FTS index rebuild, with the counts the postcondition measured. |
 |  | `ExportResult` | `class ExportResult` | Result of exporting session data in a specific format. |
 |  | `ConfigReloadRequest` | `class ConfigReloadRequest` | Typed request for apply_config. All fields optional; missing fields are skipped. |
 |  | `SessionRow` | `class SessionRow` | One row from session.list_sessions(): session_id, title, created_at, is_current, message_count. |

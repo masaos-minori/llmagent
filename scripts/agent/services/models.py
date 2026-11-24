@@ -211,36 +211,59 @@ class DbCheckpointResult:
     `verified` is the postcondition result, so a caller cannot report success without
     having measured it (REQ-004). `interrupted` records a run stopped by the job's
     cancellation event, which is never a success.
+
+    `journal_mode` and `wal_size_bytes` are the values measured after the checkpoint,
+    not the values the run itself reported.
     """
 
     mode: str
     pages_written: int
     verified: bool = False
     interrupted: bool = False
+    journal_mode: str = ""
+    wal_size_bytes: int = 0
 
 
 @dataclass(frozen=True)
 class DbVacuumResult:
-    """Result of a vacuum run; the page counts are measured by the postcondition."""
+    """Result of a vacuum run; the page counts are measured by the postcondition.
+
+    `pages_reclaimed` is the delta between the page count measured before the run and the
+    page count measured after it; `verified` is true only when the postcondition showed
+    no pages left to reclaim.
+    """
 
     mode: str
     verified: bool = False
     interrupted: bool = False
+    page_count_before: int = 0
+    page_count_after: int = 0
+    pages_reclaimed: int = 0
 
 
 @dataclass(frozen=True)
 class DbPurgeResult:
-    """Result of purging old sessions from the database."""
+    """Result of purging old sessions from the database.
+
+    `rows_before` and `rows_after` are the row counts read before and after the delete,
+    so `verified` means the re-count agreed with the rows the run reported as removed.
+    """
 
     sessions_removed: int
     kept_active_session: int | None = None  # id exempted from retention, None otherwise
     verified: bool = False
     interrupted: bool = False
+    rows_before: int = 0
+    rows_after: int = 0
 
 
 @dataclass(frozen=True)
 class DbRecoverResult:
-    """Result of a database recovery attempt."""
+    """Result of a database recovery attempt.
+
+    `post_check` is the integrity result measured after the run; `verified` is true only
+    when that re-check passed, so a recovery cannot report success from the pre-run check.
+    """
 
     integrity_ok: bool
     recovered: bool
@@ -248,6 +271,7 @@ class DbRecoverResult:
     logical_ok: bool | None = None
     verified: bool = False
     interrupted: bool = False
+    post_check: str = ""
 
 
 @dataclass(frozen=True)
@@ -265,6 +289,22 @@ class RagConsistencyResult:
     findings: tuple[ConsistencyFinding, ...] = ()
     fatal_count: int = 0
     degraded_count: int = 0
+
+
+@dataclass(frozen=True)
+class RagFtsRebuildResult:
+    """Result of an FTS index rebuild, with the counts the postcondition measured.
+
+    `chunks` and `fts_rows` are read after the insert and the commit, so `verified` means
+    the index matches the chunk table, not that the insert ran. A run stopped by the job's
+    cancellation event reports the state it was in, never a count it did not measure (REQ-004).
+    """
+
+    rows_inserted: int = 0
+    chunks: int = 0
+    fts_rows: int = 0
+    verified: bool = False
+    interrupted: bool = False
 
 
 @dataclass(frozen=True)

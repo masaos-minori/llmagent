@@ -73,9 +73,9 @@ Pass the cancellation event through the Session maintenance wrapper and return v
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Forward the cancellation event | Completed | — | 20261124-160831 | Phase 1 Phase 1 part done: stop is passed through to each operation. |
-| 2 | Return the result objects | Pending | — | — | Phase 4 |
+| 2 | Return the result objects | Completed | — | 20261124-192923 | Phase 4 Phase 4 part done here, recorded as a deviation to row 4 per the 2026-11-24 decision: the measurement lives in this service and is measured on the same connection the run used. checkpoint re-reads journal_mode and the WAL file size; vacuum reads page_count before and after plus freelist_count; purge re-counts sessions rows after the commit; recover re-runs quick_check. A stopped run carries no postcondition values and is never verified. Helper functions _pragma_text, _pragma_int, _file_size were added. |
 | 3 | Update the companion test per Validation plan | Completed | — | 20261124-160831 | Covered by this document Phase 1 part covered by tests/db/test_db_maintenance.py and tests/agent/commands/test_command_blocking_offload.py; both pass. |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-160831 | Phase 1 part: ruff, mypy pass. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-192923 | Phase 1 part: ruff, mypy pass. Phase 4 part: ruff, ruff format, mypy, bandit (0 Medium/High), module-size gate and radon pass on this file. Deviation on the test location: the postcondition is asserted in tests/agent/commands/test_agent_cmd_session.py (row 42), because tests/db/test_db_maintenance.py covers the primitives only and no service-layer test file exists for this wrapper. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

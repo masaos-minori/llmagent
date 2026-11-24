@@ -410,7 +410,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | 1 | Phase 1: registry core, wiring, and registry tests | Completed | — | 20261124-160831 | Not gated: no owner decision is open Phase 1 landed. Rows 1, 17, 18, 19 complete and archived. Rows 3, 4, 21, 42 have their Phase 1 part done; their remaining steps are Phase 4 and Phase 6 rows. Deviations recorded in the procedure documents: profiles supply the approval level, approval comes through the request-bound confirmation API, result dataclasses extend the existing names, _install_stop installs the handler only when stop is not None. |
 | 2 | Phase 2: job commands, completion, contract checker | Completed | — | 20261124-165333 | OD-02 decided 2026-11-24: top-level `/jobs` Phase 2 landed. Rows 10, 11, 24, 41, 49, 63 complete and archived; row 09 keeps only its Phase 6 rename step. Handler placed in cmd_session.py _SessionMixin per the OD-02 decision; repl.py unchanged because the completion set derives from _COMMANDS; the /jobs chapter mention was added in this phase so the coverage gate passes with the index row. |
 | 3 | Phase 3: Memory approval levels and repair guidance | In Progress | — | — | OD-03 decided 2026-11-24: flags stay as recorded grants Phase 3 landed: Memory handlers are async, registered as jobs against StoreTarget.SESSION, and decided by the declared level. Behavior change to record: a run with no recorded grant is refused, so `/memory reindex --fts` without --confirm no longer runs (CONFIRM profile); the flags are recorded grants only, with no interactive prompt on the Memory path. Rows 05 and 43 keep their later-phase steps; row 51's async call sites were awaited here. Tests written first (rows 43, 56). |
-| 4 | Phase 4: verified results and postconditions | In Progress | — | — |  |
+| 4 | Phase 4: verified results and postconditions | Completed | — | 20261124-192923 | Phase 4 landed. Deviation recorded per the 2026-11-24 decision: the Session postconditions are measured in the service layer (db_maintenance_service.py) on the same connection the run used, and db_session_ops.py only forwards, so verified is set in the service rather than the command layer. Rows 04, 05, 21, 51, 52 are complete and archived; rows 22, 42, 43 keep their Phase 5 and Phase 6 parts. No outcome string is synthesized for an unverified run: the job state stays completed with verified=False. Tests were written first in the order the plan names. The Phase 4 gates pass on the whole diff, including lint-imports 6 kept and the FTS invariant checker. |
 | 5 | Phase 5: Memory service layer, transactions, pin and prune atomicity | In Progress | — | — | UNK-02 must be resolved in this phase |
 | 6 | Phase 6: RAG vector operation contract and its documents | In Progress | — | — | OD-01 decided 2026-11-24: rename to `/session rag-prune-vec`; UNK-05 closed |
 | 7 | Phase 7: documentation and generated artifacts | In Progress | — | — |  |
@@ -428,8 +428,8 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 |---------|--------------|------|--------|-------|----------|
 | implementations/20261124-122732_01_scripts_agent_services_maintenance_jobs.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261124-122732_03_scripts_agent_commands_cmd_session.py.md | 1,6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_04_scripts_agent_commands_db_session_ops.py.md | 1,4 | Procedure | Pending | — | — |
-| implementations/20261124-122732_05_scripts_agent_commands_memory_rebuild_ops.py.md | 3,4 | Procedure | Pending | — | — |
+| implementations/20261124-122732_04_scripts_agent_commands_db_session_ops.py.md | 1,4 | Procedure | Completed | — | — |
+| implementations/20261124-122732_05_scripts_agent_commands_memory_rebuild_ops.py.md | 3,4 | Procedure | Completed | — | — |
 | implementations/20261124-122732_06_scripts_agent_commands_memory_data_ops.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_07_scripts_agent_commands_cmd_memory.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_08_scripts_agent_commands_memory_status.py.md | 5 | Procedure | Pending | — | — |
@@ -445,7 +445,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261124-122732_18_scripts_agent_context.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261124-122732_19_scripts_db_maintenance.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261124-122732_20_scripts_db_rag_consistency.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_21_scripts_agent_services_db_maintenance_service.py.md | 1,4 | Procedure | Pending | — | — |
+| implementations/20261124-122732_21_scripts_agent_services_db_maintenance_service.py.md | 1,4 | Procedure | Completed | — | — |
 | implementations/20261124-122732_22_scripts_agent_services_rag_maintenance_service.py.md | 4,6 | Procedure | Pending | — | — |
 | implementations/20261124-122732_23_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md | 6,7 | Procedure | Pending | — | — |
 | implementations/20261124-122732_24_docs_23_agent_agent_07_03_cli-and-commands-command-registry.md.md | 2 | Procedure | Completed | — | — |
@@ -472,8 +472,8 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261124-122732_48_tests_agent_commands_test_memory_status.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_49_tests_agent_commands_test_command_def_sync.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261124-122732_50_tests_agent_commands_test_removed_commands.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_51_tests_agent_commands_test_memory_consistency.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261124-122732_52_tests_rag_test_fts_sync.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261124-122732_51_tests_agent_commands_test_memory_consistency.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261124-122732_52_tests_rag_test_fts_sync.py.md | 4 | Procedure | Completed | — | — |
 | implementations/20261124-122732_55_scripts_agent_memory_rebuild_ops.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_57_tests_agent_memory_test_memory_vec_session.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_58_tests_agent_memory_test_jsonl_store.py.md | 5 | Procedure | Pending | — | — |
