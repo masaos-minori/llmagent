@@ -5,11 +5,20 @@ removed-subcommand rejection, and reindex routing.
 
 from __future__ import annotations
 
+import inspect
 import tempfile
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from agent.memory.enums import MemoryType
+from agent.memory.types import MemoryEntry, SourceType
+from agent.services.maintenance_jobs import (
+    ApprovalLevel,
+    JobState,
+    MaintenanceJobRegistry,
+)
+from agent.session import SessionTarget
 
 from tests.agent._config_test_defaults import MIN_DB_CONFIG
 
@@ -20,29 +29,23 @@ _TMP_JSONL_DIR = tempfile.mkdtemp(prefix="mem-cmd-test-jsonl-")
 class _MockRebuildOps:
     """Minimal mock of MemoryRebuildOps that delegates to the real implementation."""
 
-    def __init__(self, out):
+    def __init__(self, out, ctx):
         self._out = out
+        self._ctx = ctx
         self.reindex_calls: list[tuple[object, list]] = []
+        self.results: list[object] = []
 
-    def rebuild(self, mem, sub_tokens=None):
+    async def rebuild(self, mem, sub_tokens=None):
         from agent.commands.memory_rebuild_ops import MemoryRebuildOps
 
-        # Create a minimal context for the real implementation
-        ctx = SimpleNamespace(
-            cfg=SimpleNamespace(
-                memory=SimpleNamespace(
-                    memory_embed_enabled=True,
-                    memory_jsonl_dir=_TMP_JSONL_DIR,
-                )
-            ),
-            services=SimpleNamespace(audit_logger=None),
-            services_required=SimpleNamespace(memory=mem, audit_logger=None),
-            stats=SimpleNamespace(stat_memory_consistency_failures=0),
-        )
-        ops = MemoryRebuildOps(ctx, self._out)
-        ops.rebuild(mem, sub_tokens)
+        # The real implementation runs against the same context the command path uses,
+        # so the registry the run records on is the one the fixture owns.
+        ops = MemoryRebuildOps(self._ctx, self._out)
+        result = await ops.rebuild(mem, sub_tokens)
+        self.results.append(result)
+        return result
 
-    def reindex(self, mem, sub_tokens=None):
+    async def reindex(self, mem, sub_tokens=None):
         self.reindex_calls.append((mem, list(sub_tokens or [])))
 
 
@@ -81,15 +84,29 @@ def _make_mixin():
             # The command receives the typed configuration from the process that owns
             # the file; the fixture supplies it directly instead of reading a config file.
             db=MIN_DB_CONFIG,
-            memory=SimpleNamespace(memory_embed_enabled=True, memory_max_pinned=10),
+            memory=SimpleNamespace(
+                memory_embed_enabled=True,
+                memory_max_pinned=10,
+                memory_jsonl_dir=_TMP_JSONL_DIR,
+            ),
         ),
-        services=SimpleNamespace(audit_logger=None),
-        services_required=SimpleNamespace(memory=_make_memory_store()),
+        services=SimpleNamespace(
+            audit_logger=None,
+            memory=_make_memory_store(),
+            # The single registry instance the command path reaches, as AppServices does.
+            job_registry=MaintenanceJobRegistry(),
+        ),
         stats=SimpleNamespace(stat_memory_consistency_failures=0),
+        session=SimpleNamespace(
+            capture_target=lambda: SessionTarget(session_id=1, generation=1)
+        ),
     )
+    # Alias for AgentContext.services_required property; the fixture owns one registry.
+    ctx.services_required = ctx.services
     messages: list[str] = []
     out = SimpleNamespace(
         write=lambda msg: messages.append(msg),
+        write_error=lambda msg: messages.append(msg),
         write_success=lambda msg: messages.append(msg),
         write_validation_error=lambda msg: messages.append(msg),
         write_table=lambda header, rows: messages.append(
@@ -103,9 +120,25 @@ def _make_mixin():
     mixin = _ConcreteMemoryMixin.__new__(_ConcreteMemoryMixin)
     mixin._ctx = ctx
     mixin._out = out
-    mixin._rebuild_ops = _MockRebuildOps(out)
+    mixin._rebuild_ops = _MockRebuildOps(out, ctx)
     mixin._data_ops = _MockDataOps(out)
     return mixin, messages
+
+
+def _entry(memory_id: str) -> MemoryEntry:
+    """One stored memory, as the backup writer receives it from the store."""
+    return MemoryEntry(
+        memory_id=memory_id,
+        memory_type=MemoryType.SEMANTIC,
+        source_type=SourceType.CONVERSATION,
+        session_id=1,
+        turn_id="t1",
+        project="p",
+        repo="r",
+        branch="b",
+        content="c",
+        summary="s",
+    )
 
 
 def _make_memory_store():
@@ -120,10 +153,7 @@ def _make_memory_store():
     store.import_from_jsonl = _import
     store.check_consistency = lambda: SimpleNamespace(memories=3, fts=3, vec=0)
     # Entries whose ids all exist in the archive below (SQLite-only count is 0).
-    store.list_entries = lambda limit=50: [
-        SimpleNamespace(memory_id="m1"),
-        SimpleNamespace(memory_id="m2"),
-    ]
+    store.list_entries = lambda limit=50: [_entry("m1"), _entry("m2")]
 
     # Mock the JSONL ingestion layer
     jsonl = SimpleNamespace(
@@ -278,3 +308,94 @@ class TestAsyncHandlersAreAwaited:
         memory = next(c for c in _COMMANDS if c.name == "/memory")
         assert memory.is_async is True
         assert inspect.iscoroutinefunction(_MemoryMixin._cmd_memory)
+
+
+class TestMemoryRunsAsTrackedJobs:
+    """The run is recorded as a job and reported through its job id (REQ-001, REQ-003).
+
+    The fixture owns one registry instance and the command path reaches it, as the
+    factory-built process does; the flag forms are asserted as recorded grants rather than
+    as the authority that permits the run.
+    """
+
+    async def test_run_records_a_job_and_reports_the_job_id_and_state(self):
+        mixin, messages = _make_mixin()
+        mem = _make_memory_store()
+        mixin._ctx.services_required.memory = mem
+        registry = mixin._ctx.services_required.job_registry
+
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+        ):
+            await mixin._cmd_memory("rebuild --confirm")
+
+        result = mixin._rebuild_ops.results[0]
+        job = registry.lookup(result.job_id)
+        assert job is not None
+        assert job.operation == "rebuild"
+        assert job.session_target == "1:1"
+        assert job.grants == ["confirm"]
+        assert registry.grant(result.job_id).approved is True
+        assert job.state is JobState.COMPLETED
+        assert any(f"job {result.job_id} {job.state}" in msg for msg in messages)
+
+    async def test_run_with_no_recorded_grant_is_refused_by_the_approval_level(self):
+        mixin, messages = _make_mixin()
+        mem = _make_memory_store()
+        mixin._ctx.services_required.memory = mem
+        registry = mixin._ctx.services_required.job_registry
+
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)
+        ):
+            await mixin._cmd_memory("rebuild")
+
+        result = mixin._rebuild_ops.results[0]
+        decision = registry.grant(result.job_id)
+        assert decision is not None
+        assert decision.level is ApprovalLevel.CONFIRM
+        assert decision.approved is False
+        assert result.dry_run is True
+        assert any(f"job {result.job_id}" in msg for msg in messages)
+
+    async def test_handlers_are_async_so_the_run_can_be_tracked(self):
+        from agent.commands.memory_rebuild_ops import MemoryRebuildOps
+
+        assert inspect.iscoroutinefunction(MemoryRebuildOps.rebuild)
+        assert inspect.iscoroutinefunction(MemoryRebuildOps.reindex)
+
+    async def test_loss_message_names_the_job_the_run_was_recorded_on(self):
+        mixin, messages = _make_mixin()
+        mem = _make_memory_store()
+        mixin._ctx.services_required.memory = mem
+        registry = mixin._ctx.services_required.job_registry
+
+        def _import(*args, **kwargs):
+            raise ValueError("backup without allow_loss: memories would be lost")
+
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", side_effect=_import
+        ):
+            await mixin._cmd_memory("rebuild --confirm")
+
+        result = mixin._rebuild_ops.results[0]
+        assert "allow_loss" in str(result.error)
+        assert any(f"job {result.job_id}" in msg for msg in messages)
+        assert registry.lookup(result.job_id).state is JobState.FAILED
+
+    async def test_repair_guidance_names_the_registered_commands(self):
+        from agent.commands.memory_rebuild_ops import MemoryRebuildOps
+
+        mixin, messages = _make_mixin()
+        mem = _make_memory_store()
+        mem.store.check_consistency = lambda: SimpleNamespace(
+            memories=3, fts=2, vec=1, jsonl=3
+        )
+        ops = MemoryRebuildOps(mixin._ctx, mixin._out)
+        ops.check_consistency(mem)
+
+        joined = " ".join(messages)
+        assert "/memory reindex --fts" in joined, f"got: {messages}"
+        assert "/memory reindex --vec" in joined, f"got: {messages}"
+        assert "rebuild-fts" not in joined
+        assert "rebuild-vec" not in joined

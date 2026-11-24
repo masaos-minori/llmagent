@@ -78,11 +78,11 @@ Make the Memory rebuild and reindex handlers run as tracked jobs: approval comes
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Make the handlers async and route approval through the registry | Pending | — | — | Phase 3 |
+| 1 | Make the handlers async and route approval through the registry | Completed | — | 20261124-180503 | Phase 3 Phase 3: rebuild() and reindex() are async and run as registered jobs against the store target the run writes to; approval is the registry level for the operation, the flags are recorded grants. Job id and terminal state are reported on the run line. |
 | 2 | Move the consistency check ahead of the success line and fold it into the result | Pending | — | — | Phase 4 |
-| 3 | Correct the repair guidance to registered command forms | Pending | — | — | Phase 3 |
-| 4 | Update tests per Validation plan | Pending | — | — | Row 43 is its own document; `tests/agent/commands/test_memory_rebuild_guard.py` (row 56) is covered by row 55's document |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Correct the repair guidance to registered command forms | Completed | — | 20261124-180503 | Phase 3 Guidance strings now name /memory reindex --fts and /memory reindex --vec; no document names the memory repair forms, so no docs row is affected in this phase. |
+| 4 | Update tests per Validation plan | In Progress | — | — | Row 43 is its own document; `tests/agent/commands/test_memory_rebuild_guard.py` (row 56) is covered by row 55's document Phase 3 tests written first (rows 43 and 56); postcondition assertion is the Phase 4 part of rows 43 and 51. |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-180503 | ruff clean; mypy clean on scripts/; bandit 0 Medium/High; module size gate OK; radon: rebuild A(4), reindex A(4) (baseline B(7)), check_consistency B(10) at baseline, helper _index_target B(6). Targeted tests pass: 57 in the three test files, 488 in tests/agent/commands/. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

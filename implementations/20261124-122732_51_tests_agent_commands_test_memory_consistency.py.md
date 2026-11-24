@@ -66,8 +66,8 @@ Assert that the Memory consistency check result is part of the reported job outc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Assert the consistency result is folded into the job outcome | Pending | — | — | Phase 4 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Assert the consistency result is folded into the job outcome | In Progress | — | — | Phase 4 Phase 3 part recorded: the async call sites in this file are awaited and the fixture now supplies the real registry, so the run and its job record are the same instance. Phase 4 adds the ordering assertion and the failed-postcondition case. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

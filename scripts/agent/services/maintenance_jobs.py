@@ -2,7 +2,7 @@
 
 MaintenanceJobRegistry — the in-process record of every Session, RAG, and Memory
 maintenance run: job id, operation, target store, approval level, cancelability,
-state, progress, and terminal outcome (REQ-001).
+state, progress, recorded grants, and terminal outcome (REQ-001).
 
 Data and transitions only. The module holds no database connection, runs no SQL,
 formats no command output, and does not import `agent.commands`; the command layer
@@ -91,6 +91,9 @@ class MaintenanceJob:
     progress: int = 0
     outcome: str = ""
     verified: bool = False
+    # Grants the caller observed for this run, recorded as provenance. They are not the
+    # authority that permits the run; `approval_level` is (REQ-003).
+    grants: list[str] = field(default_factory=list)
     session_target: str = ""
     stop_event: threading.Event = field(default_factory=threading.Event, repr=False)
     precondition: Callable[[], bool] | None = field(default=None, repr=False)
@@ -250,7 +253,10 @@ class MaintenanceJobRegistry:
 
         `none` needs no grant; `confirm` needs a request-bound confirmation bound to
         this run; `guard` needs the confirmation plus the stored precondition, whose
-        result is recorded on the decision. A flag outside the registry grants nothing.
+        result is recorded on the decision. `confirmed` is the caller's statement that a
+        grant was obtained for this run, through the input controller or through a grant
+        recorded on the job with `record_grant`. A flag the caller read without recording
+        it grants nothing here.
         """
         if job.approval_level is ApprovalLevel.NONE:
             decision = ApprovalDecision(job.job_id, job.approval_level, True)
@@ -285,6 +291,16 @@ class MaintenanceJobRegistry:
     def grant(self, job_id: str) -> ApprovalDecision | None:
         """Return the approval decision recorded for one run, if any."""
         return self._grants.get(job_id)
+
+    def record_grant(self, job: MaintenanceJob, grant: str) -> MaintenanceJob:
+        """Record one grant the caller observed for a run on the job record.
+
+        The grant is provenance: it says how the run was approved, so a later read of the
+        record can distinguish a granted run from one that decided itself (REQ-003).
+        Recording it does not approve the run; `authorize` does.
+        """
+        job.grants.append(grant)
+        return job
 
     def start(self, job: MaintenanceJob) -> MaintenanceJob:
         """Move a pending job to running once its approval level is satisfied.

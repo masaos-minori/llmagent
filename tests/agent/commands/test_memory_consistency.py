@@ -22,6 +22,12 @@ from agent.memory.jsonl_store import JsonlMemoryStore
 from agent.memory.models import ConsistencyReport
 from agent.memory.types import MemoryEntry
 from agent.memory.write_ops import add as write_add
+from agent.services.maintenance_jobs import (
+    ApprovalLevel,
+    JobState,
+    MaintenanceJobRegistry,
+)
+from agent.session import SessionTarget
 
 from tests.agent._config_test_defaults import MIN_DB_CONFIG
 
@@ -304,8 +310,11 @@ def _make_mixin(embed_enabled: bool = False) -> object:
 
     ctx = MagicMock()
     ctx.services_required.audit_logger = None
+    # The single registry instance the command path reaches, as AppServices does.
+    ctx.services_required.job_registry = MaintenanceJobRegistry()
     ctx.cfg.memory.memory_embed_enabled = embed_enabled
     ctx.cfg.memory.memory_jsonl_dir = _TMP_JSONL_DIR
+    ctx.session.capture_target.return_value = SessionTarget(session_id=1, generation=1)
     out = MagicMock(spec=CliOutputPort)
     return MemoryRebuildOps(ctx, out)
 
@@ -362,7 +371,7 @@ class TestCmdMemoryCheckConsistency:
 
 
 class TestCmdMemoryRebuild:
-    def test_dry_run_writes_dry_run_message(self) -> None:
+    async def test_dry_run_writes_dry_run_message(self) -> None:
         from unittest.mock import patch
 
         mixin = _make_mixin()
@@ -375,7 +384,7 @@ class TestCmdMemoryRebuild:
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)
         ):
-            mixin.rebuild(mem, ["--dry-run"])
+            await mixin.rebuild(mem, ["--dry-run"])
 
         all_messages = [c[0][0] for c in mixin._out.write.call_args_list]
         assert any("dry-run" in msg for msg in all_messages)
@@ -383,7 +392,7 @@ class TestCmdMemoryRebuild:
         table_rows = mixin._out.write_table.call_args[0][1]
         assert any("5" in str(row) for row in table_rows)
 
-    def test_rebuild_writes_success(self) -> None:
+    async def test_rebuild_writes_success(self) -> None:
         from unittest.mock import patch
 
         from agent.memory.models import ConsistencyReport
@@ -401,13 +410,13 @@ class TestCmdMemoryRebuild:
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(4, 4)
         ):
-            mixin.rebuild(mem, ["--confirm"])
+            await mixin.rebuild(mem, ["--confirm"])
 
         mixin._out.write_success.assert_called_once()
         msg = mixin._out.write_success.call_args[0][0]
         assert "4" in msg
 
-    def test_dry_run_table_reports_metrics(self) -> None:
+    async def test_dry_run_table_reports_metrics(self) -> None:
         from unittest.mock import patch
 
         mixin = _make_mixin()
@@ -424,7 +433,7 @@ class TestCmdMemoryRebuild:
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(7, 0)
         ):
-            mixin.rebuild(mem, ["--dry-run"])
+            await mixin.rebuild(mem, ["--dry-run"])
 
         headers, rows = mixin._out.write_table.call_args[0]
         assert headers == ["Metric", "Value"]
@@ -433,7 +442,7 @@ class TestCmdMemoryRebuild:
         assert values["Current SQLite memories"] == "6"
         assert "SQLite-only (at risk)" in values
 
-    def test_sqlite_only_counts_ids_absent_from_archive(self) -> None:
+    async def test_sqlite_only_counts_ids_absent_from_archive(self) -> None:
         from types import SimpleNamespace
         from unittest.mock import patch
 
@@ -459,11 +468,11 @@ class TestCmdMemoryRebuild:
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(2, 2)
         ):
-            result = mixin.rebuild(mem, ["--dry-run"])
+            result = await mixin.rebuild(mem, ["--dry-run"])
 
         assert result.sqlite_only == 1
 
-    def test_confirm_refuses_sqlite_only_without_allow_loss(self) -> None:
+    async def test_confirm_refuses_sqlite_only_without_allow_loss(self) -> None:
 
         from unittest.mock import patch
 
@@ -488,13 +497,13 @@ class TestCmdMemoryRebuild:
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(2, 2)
         ) as patched_import:
-            result = mixin.rebuild(mem, ["--confirm"])
+            result = await mixin.rebuild(mem, ["--confirm"])
 
         assert result.loss_blocked is True
         assert result.sqlite_only == 1
         patched_import.assert_not_called()
 
-    def test_confirm_proceeds_with_allow_loss(self) -> None:
+    async def test_confirm_proceeds_with_allow_loss(self) -> None:
         from unittest.mock import patch
 
         mixin = _make_mixin()
@@ -514,13 +523,13 @@ class TestCmdMemoryRebuild:
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(2, 2)
         ) as patched_import:
-            result = mixin.rebuild(mem, ["--confirm", "--allow-loss"])
+            result = await mixin.rebuild(mem, ["--confirm", "--allow-loss"])
 
         assert result.loss_blocked is False
         assert result.sqlite_only == 1
         patched_import.assert_called_once()
 
-    def test_backup_failure_aborts_rebuild(self) -> None:
+    async def test_backup_failure_aborts_rebuild(self) -> None:
         from unittest.mock import patch
 
         from agent.commands.memory_rebuild_ops import MemoryRebuildOps
@@ -547,7 +556,7 @@ class TestCmdMemoryRebuild:
                 return_value=(2, 2),
             ) as patched_import,
         ):
-            result = mixin.rebuild(mem, ["--confirm"])
+            result = await mixin.rebuild(mem, ["--confirm"])
 
         assert result.error == "disk full"
         patched_import.assert_not_called()
@@ -557,49 +566,70 @@ class TestCmdMemoryRebuild:
 
 
 class TestCmdMemoryReindex:
-    def test_reindex_fts_delegates_and_audits(self) -> None:
+    async def test_reindex_fts_delegates_and_audits(self) -> None:
         mixin = _make_mixin()
         mem = MagicMock()
         with patch(
             "agent.commands.memory_rebuild_ops._reindex", return_value=42
         ) as spy:
-            mixin.reindex(mem, ["--fts"])
+            await mixin.reindex(mem, ["--fts", "--confirm"])
 
         spy.assert_called_once_with("fts", db_config=mixin._ctx.cfg.db)
         mixin._out.write_success.assert_called_once()
         msg = mixin._out.write_success.call_args[0][0]
         assert "memories_fts rebuilt: 42" in msg
 
-    def test_reindex_vec_requires_embedding(self) -> None:
+    async def test_reindex_vec_requires_embedding(self) -> None:
         mixin = _make_mixin(embed_enabled=False)
         mem = MagicMock()
         with patch(
             "agent.commands.memory_rebuild_ops._reindex", return_value=99
         ) as spy:
-            mixin.reindex(mem, ["--vec"])
+            await mixin.reindex(mem, ["--vec"])
 
         spy.assert_not_called()
         any_msg = " ".join(c[0][0] for c in mixin._out.write.call_args_list)
         assert "embedding disabled" in any_msg
 
-    def test_reindex_missing_args_prints_usage(self) -> None:
+    async def test_reindex_missing_args_prints_usage(self) -> None:
         mixin = _make_mixin()
         mem = MagicMock()
         with patch("agent.commands.memory_rebuild_ops._reindex", return_value=1) as spy:
-            mixin.reindex(mem, [])
+            await mixin.reindex(mem, [])
 
         spy.assert_not_called()
         mixin._out.write_validation_error.assert_called_once()
 
-    def test_reindex_vec_success(self) -> None:
+    async def test_reindex_vec_success(self) -> None:
         mixin = _make_mixin(embed_enabled=True)
         mem = MagicMock()
         with patch("agent.commands.memory_rebuild_ops._reindex", return_value=7) as spy:
-            mixin.reindex(mem, ["--vec"])
+            await mixin.reindex(mem, ["--vec", "--confirm"])
 
         spy.assert_called_once_with("vec", db_config=mixin._ctx.cfg.db)
         msg = mixin._out.write_success.call_args[0][0]
         assert "memories_vec rebuilt: 7" in msg
+
+    async def test_reindex_without_a_recorded_grant_is_refused(self) -> None:
+        """The `confirm` level for `reindex` decides, not the flag on the line (REQ-003)."""
+        mixin = _make_mixin()
+        mem = MagicMock()
+        registry = mixin._ctx.services_required.job_registry
+        with patch("agent.commands.memory_rebuild_ops._reindex", return_value=1) as spy:
+            await mixin.reindex(mem, ["--fts"])
+
+        spy.assert_not_called()
+        line = mixin._out.write_error.call_args[0][0]
+        job_id = line.split(":", 1)[0].removeprefix("job ").strip()
+        job = registry.lookup(job_id)
+        assert job is not None
+        assert job.operation == "reindex"
+        assert job.grants == []
+        assert job.state is JobState.PENDING
+        decision = registry.grant(job_id)
+        assert decision is not None
+        assert decision.approved is False
+        assert decision.level is ApprovalLevel.CONFIRM
 
 
 # ── rebuild_ops.reindex dispatcher ────────────────────────────────────────────

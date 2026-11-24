@@ -74,10 +74,10 @@ Move the Memory command tests from the flag-based approval and direct-SQLite exp
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace flag-based approval with registry approval expectations | Pending | — | — | Phase 3 |
+| 1 | Replace flag-based approval with registry approval expectations | Completed | — | 20261124-180503 | Phase 3 Approval expectations are the registry decision: a run with no recorded grant is refused, the flags are asserted as recorded grants on the job. The fixture owns one MaintenanceJobRegistry and the command path reaches it. |
 | 2 | Replace the direct-SQLite mocks with the service-layer path | Pending | — | — | Phase 5 |
-| 3 | Assert the postcondition and the corrected guidance | Pending | — | — | Phase 3, Phase 4 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Assert the postcondition and the corrected guidance | In Progress | — | — | Phase 3, Phase 4 Phase 3 part done: the repair guidance names /memory reindex --fts and --vec, and the run reports the job id and terminal state. The postcondition-before-success assertion is the Phase 4 part. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | In Progress | — | — | Phase 3 files pass: test_cmd_memory.py 15, test_memory_rebuild_guard.py 14, test_memory_consistency.py 28. The service-layer routing assertion is the Phase 5 part. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
