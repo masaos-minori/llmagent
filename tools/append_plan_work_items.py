@@ -1,32 +1,29 @@
 #!/usr/bin/env python3
-"""tools/append_plan_work_items.py — Append Work Items rows for generated procedures.
+"""Verify a procedure pass against its Plan and write the Work Items Created rows.
 
-`skills/plan-to-implementation-procedure/workflow.md` Step 4 requires one
-`### Work Items Created` row in the Plan for every implementation-procedure document the
-pass generated: Item ID is the document path, Related Step is the `Implementation steps`
-entry that cites its target file, Type is `Procedure`, Status is `Pending`. Writing that
-row by hand for a whole batch is the same operation repeated once per document, so this
-tool writes it from the documents themselves:
+For a pass prefix and a Plan:
 
-- The batch is the set of files under `implementations/` carrying the Plan's recorded
-  implementation-procedure pass timestamp; `- **Source plan**:` must name the Plan, so a
-  document of another pass is never added. The pass timestamp must already be recorded in
-  the Plan; nothing is written to the Plan here except the table rows.
-- Each document's target file is the first path in its `- **Related target files**:` line.
-  The step is the `Implementation steps` entry whose text names that path; a path named
-  only by a wildcard bullet ("every row ...") falls back to the phase recorded in
-  `### Requirement Traceability`, which `issue-to-plan` Step 5 numbers the same as the
-  Execution Status rows.
-- A document already represented by an Item ID row is skipped, so a resumed pass appends
-  only what is missing. No other column or section is written.
+  1. Parse the Plan's `Implementation Target Files` rows and its `Implementation steps`
+     phase citations.
+  2. Map each generated document under `implementations/` to exactly one target row by its
+     `Implementation > Target file`; check the coverage rules the workflow requires: one
+     document per code or standalone row, companion rows covered by their owner's document,
+     no document naming more than one target file, no companion also targeted or companioned
+     elsewhere, and every document's Execution Status steps `Pending`.
+  3. Print one Work Items Created row per generated document in `seq` order, where Related
+     Step is the phase(s) citing that row, and write them into the Plan, replacing the
+     placeholder row.
+
+Coverage rules are checked before any write; a failure prints the findings and writes
+nothing. Pass `--dry-run` to report without writing.
 
 Usage:
-    python -m tools.append_plan_work_items <plan.md> [--dry-run]
+    uv run python tools/append_plan_work_items.py 20261124-122732 plans/x.md
+    uv run python tools/append_plan_work_items.py 20261124-122732 plans/x.md --dry-run
 
-Output: one line per added row, then a count. Exit 0 when nothing needed to be added or
-every document is represented, 1 when a document has no row or its step cannot be resolved
-or the pass timestamp is absent, 2 on a usage error. A dry run prints the diff and writes
-nothing.
+Exit codes:
+    0  Coverage holds (rows printed, and written unless --dry-run)
+    1  A coverage rule failed
 """
 
 from __future__ import annotations
@@ -35,211 +32,212 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from typing import TypedDict
 
-REPO = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
+IMPL_DIR = REPO_ROOT / "implementations"
 
-if __package__ in (None, ""):
-    sys.path.insert(0, str(REPO))
-
-from tools._atomic_write import add_dry_run_argument, atomic_write_text, print_dry_run
-from tools._tool_common import EXIT_ERROR, EXIT_FINDINGS, EXIT_OK
-from tools.generate_workitem import _PASS_TIMESTAMP_MARKER_RE, IMPLEMENTATIONS_DIR
-
-WORK_ITEMS_HEADING = "### Work Items Created"
-WORK_ITEM_TYPE = "Procedure"
-WORK_ITEM_STATUS = "Pending"
-EMPTY_CELL = "—"
-SOURCE_PLAN_FIELD = "- **Source plan**:"
-TARGET_FILES_FIELD = "- **Related target files**:"
-PATH_PREFIXES = ("scripts/", "tests/", "config/", "registry/", "docs/")
+WORK_ITEMS_HEADER = "### Work Items Created"
+PLACEHOLDER_ROW = "| — | — | — | — | — | — |"
+DOC_TARGET_RE = re.compile(r"^### Target file\n`(?P<path>[^`]+)`", re.MULTILINE)
+DOC_RELEASE_UNIT_RE = re.compile(
+    r"^\*\*Release unit\*\*: .+? \(Phase (\d+)\)", re.MULTILINE
+)
+PATH_RE = r"(?:scripts|tests|docs|config|registry|tools|templates)/[^\s;),\`]+"
 
 
-def recorded_timestamp(text: str) -> str:
-    """The pass timestamp already recorded in the Plan, or an empty string when absent."""
-    for line in text.splitlines():
-        match = _PASS_TIMESTAMP_MARKER_RE.match(line.strip())
-        if match:
-            return match.group(1)
-    return ""
+class DocInfo(TypedDict):
+    name: str
+    target: str
+    companions: list[str]
+    statuses: list[str]
+    phase: int | None
 
 
-def step_map(text: str) -> dict[str, int]:
-    """`target file path` to `Implementation steps` entry number, read from the steps section."""
-    steps: dict[str, int] = {}
-    lines = text[text.index("## Implementation steps") :].splitlines()
-    step = 0
-    for line in lines[1:]:
-        # The steps list ends at the first heading after it.
-        if line.startswith("#"):
-            break
-        stripped = line.strip()
-        match = re.match(r"^(\d+)\. \*\*", stripped)
-        if match:
-            step = int(match.group(1))
-            continue
-        for cell in stripped.split("`")[1::2]:
-            if cell.startswith(PATH_PREFIXES):
-                steps.setdefault(cell, step)
-    return steps
-
-
-def traceability_phase(text: str) -> dict[str, int]:
-    """Fallback `target file path` to step number from the Requirement Traceability table."""
-    phases: dict[str, int] = {}
-    for line in text.splitlines():
-        if not line.startswith("| REQ-"):
-            continue
-        cells = [cell.strip() for cell in line.strip("|").split("|")]
-        if len(cells) != 7:
-            continue
-        path = cells[2].strip("`")
-        marker = cells[3]
-        if path not in phases:
-            first = re.search(r"Phase (\d+)", marker)
-            if first:
-                phases[path] = int(first.group(1))
-    return phases
-
-
-def batch_documents(plan: Path, text: str, timestamp: str) -> list[Path]:
-    """The procedure documents of this pass, in row order, that name the Plan as their source."""
-    kept: list[Path] = []
-    for doc in sorted(IMPLEMENTATIONS_DIR.glob(f"{timestamp}_*.md")):
-        body = doc.read_text(encoding="utf-8")
-        for line in body.splitlines():
-            if line.startswith(SOURCE_PLAN_FIELD):
-                value = line[len(SOURCE_PLAN_FIELD) :].strip()
-                if Path(value).name == plan.name:
-                    kept.append(doc)
-                break
-    return kept
-
-
-def target_file(doc: Path) -> str:
-    """First path of the document's Related target files line, which is its own target file."""
-    for line in doc.read_text(encoding="utf-8").splitlines():
-        if line.startswith(TARGET_FILES_FIELD):
-            return line[len(TARGET_FILES_FIELD) :].split(",")[0].strip().strip("`")
-    return ""
-
-
-def table_data_rows(text: str, heading: str) -> list[list[str]]:
-    """Data rows of the Markdown table under `heading`, in file order; the header row is skipped."""
-    rows: list[list[str]] = []
-    inside = False
-    header_seen = False
-    for line in text.splitlines():
-        if line.strip() == heading:
-            inside, header_seen = True, False
-            continue
-        if not inside:
-            continue
+def parse_target_rows(plan_text: str) -> list[dict[str, str]]:
+    """Return one dict per `Implementation Target Files` row, in table order."""
+    lines = plan_text.splitlines()
+    start = _section(lines, "## Implementation Target Files")
+    rows: list[dict[str, str]] = []
+    for line in lines[start + 1 :]:
         if line.startswith("## "):
             break
-        if not line.startswith("| "):
+        if not line.startswith("| ") or line.startswith("|---"):
             continue
-        if not header_seen:
-            header_seen = True
+        cols = [c.strip() for c in line.strip("|").split("|")]
+        if len(cols) < 7 or cols[0] == "File Path":
             continue
-        rows.append([cell.strip() for cell in line.strip("|").split("|")])
+        rows.append({"seq": str(len(rows) + 1), "path": cols[0]})
     return rows
 
 
-def insert_rows(text: str, rows: list[list[str]]) -> str:
-    """Append the rows after the last data row of the Work Items Created table."""
-    lines = text.splitlines()
-    position = None
-    for index, line in enumerate(lines):
-        if line.strip() == WORK_ITEMS_HEADING:
-            position = index
-        elif (
-            line.startswith("| ")
-            and position is not None
-            and not set(line) <= set("|- ")
-        ):
-            position = index
-        elif line.startswith("## ") and position is not None:
+def parse_phase_citations(plan_text: str) -> dict[str, list[int]]:
+    """Map a target-file path to the phase numbers that cite it."""
+    lines = plan_text.splitlines()
+    start = _section(lines, "## Implementation steps")
+    cited: dict[str, list[int]] = {}
+    current = 0
+    for line in lines[start + 1 :]:
+        if line.startswith("#"):
             break
-    if position is None:
-        raise ValueError(f"{WORK_ITEMS_HEADING} not found")
-    appended = ["| " + " | ".join(row) + " |" for row in rows]
-    return "\n".join(lines[: position + 1] + appended + lines[position + 1 :]) + "\n"
-
-
-def build_rows(
-    plan: Path, text: str, timestamp: str
-) -> tuple[list[list[str]], list[str]]:
-    """The rows to append, and the documents that cannot be represented."""
-    steps = step_map(text)
-    phases = traceability_phase(text)
-    known = {row[0] for row in table_data_rows(text, WORK_ITEMS_HEADING)}
-    rows: list[list[str]] = []
-    unresolved: list[str] = []
-    for doc in batch_documents(plan, text, timestamp):
-        item_id = f"implementations/{doc.name}"
-        if item_id in known:
+        match = re.match(r"^ ?(\d+)\. \*\*Phase", line)
+        if match:
+            current = int(match.group(1))
             continue
-        path = target_file(doc)
-        step = steps.get(path) or phases.get(path)
-        if not path or not step:
-            unresolved.append(item_id)
+        if not current:
             continue
-        rows.append(
-            [
-                item_id,
-                str(step),
-                WORK_ITEM_TYPE,
-                WORK_ITEM_STATUS,
-                EMPTY_CELL,
-                EMPTY_CELL,
-            ]
-        )
-    return rows, unresolved
+        for path in re.findall(PATH_RE, line):
+            cited.setdefault(path, [])
+            if current not in cited[path]:
+                cited[path].append(current)
+    return cited
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Append Work Items rows for generated procedures."
-    )
-    parser.add_argument(
-        "plan",
-        help="Plan file under plans/ (the pass timestamp must already be recorded)",
-    )
-    add_dry_run_argument(parser)
-    args = parser.parse_args(argv)
+def parse_generated_docs(prefix: str) -> dict[str, DocInfo]:
+    """Return each generated document's target path, companions, and step statuses."""
+    docs: dict[str, DocInfo] = {}
+    for doc in sorted(IMPL_DIR.glob(f"{prefix}_*.md")):
+        text = doc.read_text(encoding="utf-8")
+        target = DOC_TARGET_RE.search(text)
+        if not target:
+            raise SystemExit(f"{doc}: no Target file section")
+        companions = _companion_paths(text)
+        statuses = _execution_statuses(doc, text)
+        release = DOC_RELEASE_UNIT_RE.search(text)
+        docs[str(int(doc.name.split("_")[1]))] = {
+            "name": doc.name,
+            "target": target.group("path"),
+            "companions": companions,
+            "statuses": statuses,
+            "phase": int(release.group(1)) if release else None,
+        }
+    return docs
 
-    plan = Path(args.plan)
-    if not plan.is_file():
-        print(f"plan not found: {plan}", file=sys.stderr)
-        return EXIT_ERROR
 
-    text = plan.read_text(encoding="utf-8")
-    timestamp = recorded_timestamp(text)
-    if not timestamp:
-        print(
-            "no implementation-procedure pass timestamp recorded in the plan",
-            file=sys.stderr,
-        )
-        return EXIT_FINDINGS
+def _companion_paths(text: str) -> list[str]:
+    """Return the paths named in the document's Companion test files section."""
+    paths: list[str] = []
+    started = False
+    for line in text.splitlines():
+        if line.startswith("### Companion test files"):
+            started = True
+            continue
+        if not started:
+            continue
+        if line.startswith("## ") or line.startswith("### "):
+            break
+        match = re.match(r"- `(?P<path>[^`]+)`", line)
+        if not match:
+            continue
+        paths.append(match.group("path"))
+    return paths
 
-    rows, unresolved = build_rows(plan, text, timestamp)
-    for item in unresolved:
-        print(f"unresolved step: {item}", file=sys.stderr)
-    if unresolved:
-        return EXIT_FINDINGS
-    if not rows:
-        print("no rows to add; every document of the pass is already recorded")
-        return EXIT_OK
 
-    new = insert_rows(text, rows)
-    if args.dry_run:
-        print_dry_run(plan, text, new)
-        return EXIT_OK
-    atomic_write_text(plan, new)
+def _execution_statuses(doc: Path, text: str) -> list[str]:
+    """Return the Status column of the document's Execution Status table rows."""
+    statuses: list[str] = []
+    started = False
+    for line in text.splitlines():
+        if line.startswith("### Execution Status"):
+            started = True
+            continue
+        if line.startswith("#"):
+            break
+        if not started or not line.startswith("| "):
+            continue
+        cols = [c.strip() for c in line.strip("|").split("|")]
+        if len(cols) < 3 or not cols[0].isdigit():
+            continue
+        statuses.append(cols[2])
+    return statuses
+
+
+def _section(lines: list[str], heading: str) -> int:
+    for i, line in enumerate(lines):
+        if line.startswith(heading):
+            return i
+    raise SystemExit(f"plan has no {heading} section")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("prefix")
+    parser.add_argument("plan")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+
+    plan_path = Path(args.plan)
+    plan_text = plan_path.read_text(encoding="utf-8")
+    rows = parse_target_rows(plan_text)
+    phases = parse_phase_citations(plan_text)
+    docs = parse_generated_docs(args.prefix)
+
+    findings: list[str] = []
+    owner_of: dict[str, str] = {}
+    for seq, doc in docs.items():
+        if len(doc["companions"]) > 1:
+            findings.append(f"{doc['name']}: more than one companion")
+        for comp in doc["companions"]:
+            if comp in owner_of:
+                findings.append(f"{comp}: companion of rows {owner_of[comp]} and {seq}")
+            owner_of[comp] = seq
+        if any(s != "Pending" for s in doc["statuses"]):
+            findings.append(f"{doc['name']}: Execution Status step not Pending")
+
+    uncovered = []
     for row in rows:
-        print(f"added: {row[0]} -> step {row[1]}")
-    print(f"{len(rows)} rows added to {plan}")
-    return EXIT_FINDINGS if unresolved else EXIT_OK
+        if row["seq"] in docs:
+            doc = docs[row["seq"]]
+            if doc["target"] != row["path"]:
+                findings.append(f"row {row['seq']}: document targets {doc['target']}")
+            cited = phases.get(row["path"], [])
+            if doc["phase"] is None:
+                findings.append(f"{doc['name']}: no phase cites this row")
+            elif doc["phase"] not in cited:
+                findings.append(
+                    f"{doc['name']}: names Phase {doc['phase']}, the plan cites it in {cited}"
+                )
+            continue
+        if row["path"] in owner_of:
+            continue
+        uncovered.append(f"{row['seq']} {row['path']}")
+    if uncovered:
+        findings.append("rows with no document: " + ", ".join(uncovered))
+    for seq, doc in docs.items():
+        if doc["target"] not in {r["path"] for r in rows}:
+            findings.append(f"{doc['name']}: target is not a Plan row")
+
+    if findings:
+        print("\n".join(f"FINDING: {f}" for f in findings))
+        return 1
+
+    new_rows = []
+    for seq in sorted(docs, key=int):
+        doc = docs[seq]
+        cited = sorted(phases.get(doc["target"], []))
+        steps = ",".join(str(p) for p in cited) or "—"
+        new_rows.append(
+            f"| implementations/{doc['name']} | {steps} | Procedure | Pending | — | — |"
+        )
+
+    print(
+        f"{len(rows)} rows, {len(docs)} documents, {len(owner_of)} companions covered: ok"
+    )
+    if args.dry_run:
+        print("\n".join(new_rows))
+        return 0
+
+    lines = plan_text.splitlines()
+    header = _section(lines, WORK_ITEMS_HEADER)
+    for i in range(header, len(lines)):
+        if lines[i].startswith(PLACEHOLDER_ROW):
+            lines[i] = "\n".join(new_rows)
+            break
+    else:
+        raise SystemExit("plan has no Work Items Created placeholder row")
+    plan_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"wrote {len(new_rows)} Work Items Created rows")
+    return 0
 
 
 if __name__ == "__main__":
