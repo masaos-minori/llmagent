@@ -169,6 +169,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # grew the ledger 36248 -> 36807; the ceiling equals the accepted size.
     # Re-accepted at 39898 (2026-11-24): SHARED-004 split into SHARED-004 to SHARED-007.
     "governance_03_issue-and-uncertainty-management.md": 39898,
+    # Re-accepted at 33078 (2026-11-25): closes a pre-existing gap — the generated
+    # subpackage index grew past MAX_SIZE through cliplc003's agent subpackage
+    # additions without the ceiling being recorded. The ceiling equals the accepted
+    # size, so further growth must be re-accepted.
+    "agent_14_reference-api-subpackages-generated.md": 33078,
 }
 
 

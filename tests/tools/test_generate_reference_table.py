@@ -20,7 +20,7 @@ import pytest
 import tools._agent_config_migration as acm
 import tools.generate_reference_table as grt
 from tools import _contract_manifests as cm
-from tools.check_docs_structure import MAX_SIZE
+from tools.check_docs_structure import MAX_SIZE, SIZE_EXCEPTIONS
 from tools.generate_reference_table import (
     generate_agent_reference_table,
     generate_deployment_reference_table,
@@ -874,7 +874,9 @@ class TestSymbolEntries:
             ("agent_subpackages", grt.REFERENCE_DOC_AGENT_SUBPACKAGES),
         ):
             rendered = grt.render_updated_doc(domain, doc.read_text(encoding="utf-8"))
-            assert len(rendered.encode("utf-8")) < MAX_SIZE
+            # Same ceiling resolution as the checker: per-file exception first.
+            limit = SIZE_EXCEPTIONS.get(doc.name, MAX_SIZE)
+            assert len(rendered.encode("utf-8")) <= limit
 
 
 class TestHealthContracts:
