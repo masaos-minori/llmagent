@@ -2,18 +2,16 @@
 
 Pins the deployment contract for the registered configuration fields: the
 inventory measured at execution time is 18 explicit values equal to their code
-defaults, 12 differing, and 2 registered fields absent from the file
-(``tool.disabled_tools``, ``approval.gitops_push_blocked``). An explicit value
-that equals its code default must stay in the file (REQ-005), so the test fails
-if such a value is dropped. The precedence case proves an explicit value wins
-over the code default.
+defaults, 12 differing, and 3 registered fields absent from the file
+(``tool.disabled_tools``, ``approval.gitops_push_blocked``,
+``approval.approval_medium_preview_fallback``). An explicit value that equals its
+code default must stay in the file (REQ-005), so the test fails if such a value is
+dropped. The precedence case proves an explicit value wins over the code default.
 
 Inventory scope: the values registered in ``scripts/agent/services/config_field_registry.py``
-(32 entries after agentcfg003 landed and after the two prompt entries were
-removed by row 07). Counts were re-measured against the current source on
-2026-11-22 and match the recorded contract; if the mcpdl003 plan adds its
-approval-grant key before this test runs, the differing count becomes 13 and
-the recorded contract must be re-measured against the state at that time.
+(33 entries after cliplc001 registered ``approval_medium_preview_fallback`` and
+after the two prompt entries were removed by row 07). Counts were re-measured
+against the current source on 2026-11-25 and match the recorded contract.
 """
 
 from __future__ import annotations
@@ -48,6 +46,7 @@ RECORDED_DIFFERING_FIELDS = frozenset(
 )
 RECORDED_ABSENT_FIELDS = frozenset(
     {
+        "approval.approval_medium_preview_fallback",
         "approval.gitops_push_blocked",
         "tool.disabled_tools",
     }
