@@ -5,6 +5,7 @@ DbMaintenanceService — maintenance operations on session.sqlite only.
 
 from __future__ import annotations
 
+import threading
 from dataclasses import replace
 
 from db.config import DbConfig
@@ -25,6 +26,7 @@ from agent.services.models import (
     DbPurgeResult,
     DbRecoverResult,
     DbStats,
+    DbVacuumResult,
 )
 
 
@@ -59,24 +61,35 @@ class DbMaintenanceService:
             size_bytes=raw.db_size_bytes,
         )
 
-    def checkpoint(self, mode: str | None) -> DbCheckpointResult:
-        """Run WAL checkpoint on session.sqlite."""
+    def checkpoint(
+        self, mode: str | None, *, stop: threading.Event | None = None
+    ) -> DbCheckpointResult:
+        """Run WAL checkpoint on session.sqlite and return the measured outcome.
+
+        `stop` is the job's cancellation event, forwarded to the primitive; the
+        wrapper decides nothing about it (REQ-002).
+        """
         effective = mode or self._maintenance.wal_checkpoint_mode
         with SQLiteHelper("session", db_config=self._db_config).open(
             write_mode=True
         ) as db:
-            raw = checkpoint_wal(db, self._maintenance, effective)
+            counts = checkpoint_wal(db, self._maintenance, effective, stop=stop)
         return DbCheckpointResult(
             mode=effective,
-            pages_written=raw.pages_checkpointed,
+            pages_written=counts.pages_checkpointed,
+            interrupted=counts.interrupted,
         )
 
-    def vacuum(self) -> None:
-        """Run VACUUM on session.sqlite."""
+    def vacuum(self, *, stop: threading.Event | None = None) -> DbVacuumResult:
+        """Run VACUUM on session.sqlite and report the run as the primitive measured it."""
         with SQLiteHelper("session", db_config=self._db_config).open(
             write_mode=True
         ) as db:
-            vacuum_db(db)
+            raw = vacuum_db(db, stop=stop)
+        return DbVacuumResult(
+            mode=raw.mode.value,
+            interrupted=raw.interrupted,
+        )
 
     def purge(
         self,
@@ -84,20 +97,29 @@ class DbMaintenanceService:
         max_age_days: int | None,
         *,
         current_session_id: int | None = None,
+        stop: threading.Event | None = None,
     ) -> DbPurgeResult:
-        """Purge old sessions per retention config; optionally guard the active session."""
+        """Purge old sessions per retention config; optionally guard the active session.
+
+        `stop` is the job's cancellation event, forwarded to the primitive (REQ-002).
+        """
         cfg = _resolve_retention(self._maintenance, max_sessions, max_age_days)
         with SQLiteHelper("session", db_config=self._db_config).open(
             write_mode=True
         ) as db:
-            raw = purge_old_sessions(db, cfg, keep_session_id=current_session_id)
+            raw = purge_old_sessions(
+                db, cfg, keep_session_id=current_session_id, stop=stop
+            )
         data = raw.data or {}
         return DbPurgeResult(
             sessions_removed=data.get("age_deleted", 0) + data.get("count_deleted", 0),
             kept_active_session=data.get("kept_active_session"),
+            interrupted=raw.interrupted,
         )
 
-    def recover_session(self, backup_path: str | None) -> DbRecoverResult:
+    def recover_session(
+        self, backup_path: str | None, *, stop: threading.Event | None = None
+    ) -> DbRecoverResult:
         """Run integrity check on session.sqlite; restore from backup_path if corruption found."""
         raw = recover_corruption(self._db_config, backup_path, target="session")
         return DbRecoverResult(
@@ -105,6 +127,7 @@ class DbMaintenanceService:
             recovered=raw.action == "restored",
             detail=raw.detail or "",
             logical_ok=raw.logical_ok,
+            interrupted=bool(stop is not None and stop.is_set()),
         )
 
 

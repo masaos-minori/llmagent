@@ -407,7 +407,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: registry core, wiring, and registry tests | In Progress | — | — | Not gated: no owner decision is open |
+| 1 | Phase 1: registry core, wiring, and registry tests | Completed | — | 20261124-160831 | Not gated: no owner decision is open Phase 1 landed. Rows 1, 17, 18, 19 complete and archived. Rows 3, 4, 21, 42 have their Phase 1 part done; their remaining steps are Phase 4 and Phase 6 rows. Deviations recorded in the procedure documents: profiles supply the approval level, approval comes through the request-bound confirmation API, result dataclasses extend the existing names, _install_stop installs the handler only when stop is not None. |
 | 2 | Phase 2: job commands, completion, contract checker | In Progress | — | — | OD-02 decided 2026-11-24: top-level `/jobs` |
 | 3 | Phase 3: Memory approval levels and repair guidance | In Progress | — | — | OD-03 decided 2026-11-24: flags stay as recorded grants |
 | 4 | Phase 4: verified results and postconditions | In Progress | — | — |  |
@@ -426,7 +426,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261124-122732_01_scripts_agent_services_maintenance_jobs.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261124-122732_01_scripts_agent_services_maintenance_jobs.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261124-122732_03_scripts_agent_commands_cmd_session.py.md | 1,6 | Procedure | Pending | — | — |
 | implementations/20261124-122732_04_scripts_agent_commands_db_session_ops.py.md | 1,4 | Procedure | Pending | — | — |
 | implementations/20261124-122732_05_scripts_agent_commands_memory_rebuild_ops.py.md | 3,4 | Procedure | Pending | — | — |
@@ -441,9 +441,9 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261124-122732_14_scripts_agent_memory_write_ops.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_15_scripts_agent_memory_pin_ops.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_16_scripts_agent_memory_import_ops.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261124-122732_17_scripts_agent_factory.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261124-122732_18_scripts_agent_context.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261124-122732_19_scripts_db_maintenance.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261124-122732_17_scripts_agent_factory.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261124-122732_18_scripts_agent_context.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261124-122732_19_scripts_db_maintenance.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261124-122732_20_scripts_db_rag_consistency.py.md | 6 | Procedure | Pending | — | — |
 | implementations/20261124-122732_21_scripts_agent_services_db_maintenance_service.py.md | 1,4 | Procedure | Pending | — | — |
 | implementations/20261124-122732_22_scripts_agent_services_rag_maintenance_service.py.md | 4,6 | Procedure | Pending | — | — |

@@ -4,11 +4,19 @@ Behavior-lock tests for _SessionMixin slash-command handlers.
 
 from __future__ import annotations
 
+import threading
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.commands.cmd_session import _SessionMixin
+from agent.services.maintenance_jobs import (
+    JobState,
+    MaintenanceJob,
+    MaintenanceJobRegistry,
+    StoreTarget,
+)
+from agent.services.models import DbRecoverResult
 from agent.session import AgentSession, SessionTarget
 
 from tests.agent._config_test_defaults import MIN_DB_CONFIG, MIN_MAINTENANCE_CONFIG
@@ -35,7 +43,16 @@ def _make_cmd(
     session_id: int | None = 1,
     sessions: list | None = None,
     title_pending: bool = False,
+    job_registry: MaintenanceJobRegistry | None = None,
+    confirmed: bool = True,
+    guard_ok: bool = True,
 ) -> _SessionMixin:
+    """Build one command instance with the registry and the approval answer.
+
+    The existing fixture shape is kept: the single registry instance the command path
+    reaches is the one on `ctx.services`, as in the factory-built process, so the job
+    record a test asserts on is the one the dispatch actually created.
+    """
     session = _make_session(
         session_id=session_id, list_return=sessions, title_pending=title_pending
     )
@@ -54,6 +71,8 @@ def _make_cmd(
             llm=MagicMock(),
             http=MagicMock(),
             audit_logger=MagicMock(),
+            # The single registry instance the command path reaches, as AppServices does.
+            job_registry=job_registry or MaintenanceJobRegistry(),
         ),
     )
     ctx.services_required = (
@@ -67,7 +86,25 @@ def _make_cmd(
     from agent.commands.db_session_ops import DbSessionOps
 
     cmd._db_session_ops = DbSessionOps(ctx, cmd._out)  # type: ignore[attr-defined]
+    # The approval step reads stdin; the fixture answers it so the run is recorded.
+    cmd._confirm_for_job = AsyncMock(return_value=confirmed)  # type: ignore[assignment]
+    cmd._free_space_guard = MagicMock(return_value=guard_ok)  # type: ignore[assignment]
     return cmd
+
+
+def _reported_job(out: str, registry: MaintenanceJobRegistry) -> MaintenanceJob:
+    """Return the job record behind the reported line.
+
+    The emitted line is `job {job_id} {terminal state}`; the record is the one the run
+    created, so the test compares the message with the record rather than the text alone
+    (row 42, step 2).
+    """
+    line = next(line for line in out.splitlines() if line.startswith("  job "))
+    _, job_id, state = line.split()
+    job = registry.lookup(job_id)
+    assert job is not None, f"no job record for the reported id {job_id}"
+    assert job.state == state
+    return job
 
 
 class TestCmdSessionList:
@@ -734,13 +771,20 @@ class TestCmdSessionVacuum:
     async def test_vacuum_success(self, capsys: pytest.CaptureFixture) -> None:
         from unittest.mock import patch
 
+        from agent.services.models import DbVacuumResult
+
         cmd = _make_cmd()
         with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
             mock_svc = MagicMock()
+            mock_svc.vacuum.return_value = DbVacuumResult(mode="STRICT")
             MockSvc.return_value = mock_svc
             await cmd._cmd_session("vacuum")
             out = capsys.readouterr().out
-            assert "complete" in out.lower()
+            job = _reported_job(out, cmd._ctx.services.job_registry)
+            assert job.operation == "vacuum"
+            # The guard is the approval for this operation; the fixture grants it.
+            assert job.state is JobState.COMPLETED
+            assert "completed" in out.lower()
 
     @pytest.mark.asyncio
     async def test_vacuum_error_raises(self) -> None:
@@ -773,7 +817,10 @@ class TestCmdSessionPurge:
             MockSvc.return_value = mock_svc
             await cmd._cmd_session("purge")
             out = capsys.readouterr().out
-            assert "Purged" in out
+            job = _reported_job(out, cmd._ctx.services.job_registry)
+            assert job.operation == "purge"
+            assert job.state is JobState.COMPLETED
+            assert "8" in out
 
     @pytest.mark.asyncio
     async def test_purge_with_max_sessions(self, capsys: pytest.CaptureFixture) -> None:
@@ -787,7 +834,11 @@ class TestCmdSessionPurge:
             mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
             MockSvc.return_value = mock_svc
             await cmd._cmd_session("purge --max-sessions 10")
-            mock_svc.purge.assert_called_once_with(10, None, current_session_id=1)
+            job = _reported_job(capsys.readouterr().out, cmd._ctx.services.job_registry)
+            # The run receives the job's own cancellation event, not one it created.
+            mock_svc.purge.assert_called_once_with(
+                10, None, current_session_id=1, stop=job.stop_event
+            )
 
     @pytest.mark.asyncio
     async def test_purge_with_max_age_days(self, capsys: pytest.CaptureFixture) -> None:
@@ -801,7 +852,10 @@ class TestCmdSessionPurge:
             mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
             MockSvc.return_value = mock_svc
             await cmd._cmd_session("purge --max-age-days 30")
-            mock_svc.purge.assert_called_once_with(None, 30, current_session_id=1)
+            job = _reported_job(capsys.readouterr().out, cmd._ctx.services.job_registry)
+            mock_svc.purge.assert_called_once_with(
+                None, 30, current_session_id=1, stop=job.stop_event
+            )
 
     @pytest.mark.asyncio
     async def test_purge_error_raises(self) -> None:
@@ -907,22 +961,101 @@ class TestCmdSessionPurgeKeepsActive:
             MockHelper.return_value = helper
             await cmd._cmd_session("purge --max-age-days 1")  # real service + ops
         out = capsys.readouterr().out
-        assert "kept active session 1" in out
+        job = _reported_job(out, cmd._ctx.services.job_registry)
+        assert job.operation == "purge"
+        assert job.state is JobState.COMPLETED
+        assert "kept_active_session" in out and "1" in out
         assert db.conn is not None
         survived = {r[0] for r in db.conn.execute("SELECT session_id FROM sessions")}
         assert survived == {1, 3}  # decoy deleted; guarded row survives
+
+
+class TestCmdSessionJobRecords:
+    """Row 42, steps 2 and 3: a maintenance call records a job and reports its state.
+
+    The message is read from the job record, so a run that was stopped reports
+    `cancelled` and never a success line.
+    """
+
+    @pytest.mark.asyncio
+    async def test_maintenance_call_records_a_job_and_reports_its_state(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import DbPurgeResult
+
+        cmd = _make_cmd()
+        registry = cmd._ctx.services.job_registry
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.purge.return_value = DbPurgeResult(sessions_removed=2)
+            MockSvc.return_value = mock_svc
+            await cmd._cmd_session("purge")
+            out = capsys.readouterr().out
+
+        job = _reported_job(out, registry)
+        assert job.operation == "purge"
+        assert job.store is StoreTarget.SESSION
+        target = cmd._ctx.session.capture_target()
+        assert job.session_target == f"{target.session_id}:{target.generation}"
+        assert job.state is JobState.COMPLETED
+
+    @pytest.mark.asyncio
+    async def test_run_stopped_at_a_progress_callback_reports_cancelled(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        import sqlite3
+        from unittest.mock import patch
+
+        from tests.db.test_db_maintenance import _SESSION_SCHEMA, _FakeDB
+
+        conn = sqlite3.connect(":memory:", check_same_thread=False)
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.executescript(_SESSION_SCHEMA)
+        conn.execute(
+            "INSERT INTO sessions (title, created_at) VALUES ('old', '2000-01-01 00:00:00')"
+        )
+        conn.commit()
+        db = _FakeDB(conn)
+
+        def cancelling_handler(
+            stop: threading.Event, *, check_every: int = 1000
+        ) -> None:
+            """The cancellation arrives while the run is in progress, at the next statement."""
+            _FakeDB.interrupt_when(db, stop, check_every=check_every)
+            stop.set()
+
+        db.interrupt_when = cancelling_handler
+
+        cmd = _make_cmd(session_id=1)
+        registry = cmd._ctx.services.job_registry
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
+            helper = MagicMock()
+            helper.open.return_value.__enter__.return_value = db
+            MockHelper.return_value = helper
+            await cmd._cmd_session("purge --max-age-days 1")
+
+        out = capsys.readouterr().out
+        job = _reported_job(out, registry)
+        assert job.operation == "purge"
+        assert job.state is JobState.CANCELLED
+        assert "success" not in out.lower()
 
 
 # ── /session recover ────────────────────────────────────────────────────────────
 
 
 class TestCmdSessionRecover:
-    def _make_recovery_result(self, success: bool, action: str = "vacuum") -> MagicMock:
-        result = MagicMock()
-        result.integrity_ok = success
-        result.recovered = action == "restored"
-        result.detail = "integrity ok" if success else "integrity failed"
-        return result
+    def _make_recovery_result(
+        self, success: bool, action: str = "vacuum"
+    ) -> DbRecoverResult:
+        """Build the result object the recovery operation returns, not a stand-in."""
+        return DbRecoverResult(
+            integrity_ok=success,
+            recovered=action == "restored",
+            detail="integrity ok" if success else "integrity failed",
+        )
 
     @pytest.mark.asyncio
     async def test_recover_success(self, capsys: pytest.CaptureFixture) -> None:
@@ -935,7 +1068,10 @@ class TestCmdSessionRecover:
             MockSvc.return_value = mock_svc
             await cmd._cmd_session("recover")
             out = capsys.readouterr().out
-            assert "succeeded" in out.lower() or "usage" in out.lower()
+            job = _reported_job(out, cmd._ctx.services.job_registry)
+            assert job.operation == "recover"
+            assert job.state is JobState.COMPLETED
+            assert "integrity ok" in out
 
     @pytest.mark.asyncio
     async def test_recover_with_backup_path(

@@ -25,6 +25,7 @@ from agent.lifecycle_router import (
     _ServerLifecycleRouter,
     _SubprocessLifecycleManager,
 )
+from agent.services.maintenance_jobs import MaintenanceJobRegistry
 from shared.mcp_config import (
     McpServerConfig,
     StartupMode,
@@ -223,6 +224,25 @@ class TestBuildAgentContext:
         for _ in range(3):
             registry.record_failure("test_server")
         assert registry.get_state("test_server") != McpServerHealthState.HEALTHY
+
+    def test_job_registry_is_constructed_and_injected(self, monkeypatch: Any) -> None:
+        # REQ-001/REQ-005: the factory builds the registry and the context receives it
+        _apply_patches(monkeypatch)
+        ctx = _make_ctx()
+        view = _make_view()
+        build_agent_context(ctx, view)
+        assert isinstance(ctx.services.job_registry, MaintenanceJobRegistry)
+
+    def test_job_registry_has_one_owner_per_context(self, monkeypatch: Any) -> None:
+        # Two contexts are two processes' worth of state: each gets its own registry,
+        # so the one-writer-per-store guard is not shared between them.
+        _apply_patches(monkeypatch)
+        view = _make_view()
+        first = _make_ctx()
+        second = _make_ctx()
+        build_agent_context(first, view)
+        build_agent_context(second, view)
+        assert first.services.job_registry is not second.services.job_registry
 
     def test_on_llm_usage_callback_accumulates_tokens(self, monkeypatch: Any) -> None:
         # _on_llm_usage コールバックが stat_input/output_tokens を正しく蓄積すること

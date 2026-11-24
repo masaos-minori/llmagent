@@ -72,10 +72,10 @@ Pass the cancellation event through the Session maintenance wrapper and return v
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Forward the cancellation event | Pending | — | — | Phase 1 |
+| 1 | Forward the cancellation event | Completed | — | 20261124-160831 | Phase 1 Phase 1 part done: stop is passed through to each operation. |
 | 2 | Return the result objects | Pending | — | — | Phase 4 |
-| 3 | Update the companion test per Validation plan | Pending | — | — | Covered by this document |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Update the companion test per Validation plan | Completed | — | 20261124-160831 | Covered by this document Phase 1 part covered by tests/db/test_db_maintenance.py and tests/agent/commands/test_command_blocking_offload.py; both pass. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-160831 | Phase 1 part: ruff, mypy pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

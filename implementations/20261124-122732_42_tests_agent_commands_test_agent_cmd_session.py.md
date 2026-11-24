@@ -72,9 +72,9 @@ Update the Session command tests so maintenance calls are asserted as job-record
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the job-record and outcome assertions | Pending | — | — | Phase 1 |
+| 1 | Add the job-record and outcome assertions | Completed | — | 20261124-160831 | Phase 1 Phase 1 part done: TestCmdSessionJobRecords asserts a maintenance call records a job and reports job {job_id} {terminal state}, and that a run stopped at a progress callback reports cancelled. 78 passed. Deviation: the existing fixture builds the registry directly on ctx.services rather than through the factory path, and the fixture patches the approval answer; message assertions that no longer hold (Purged, kept active session 1) compare the emitted line with the job record instead. |
 | 2 | Replace the retired subcommand name | Pending | — | — | Phase 6 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-160831 | Phase 1 part: ruff and targeted pytest pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

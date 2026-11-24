@@ -15,11 +15,16 @@ from enum import StrEnum
 
 @dataclass(frozen=True)
 class WalCheckpointCounts:
-    """Result of a WAL checkpoint (busy, log_size=pages_in_wal, pages_checkpointed)."""
+    """Result of a WAL checkpoint (busy, log_size=pages_in_wal, pages_checkpointed).
+
+    `interrupted` marks a run stopped by the job's cancellation event; its counters
+    are then zero because nothing completed, and the run is never reported as success.
+    """
 
     busy: int
     log_size: int
     pages_checkpointed: int
+    interrupted: bool = False
 
 
 @dataclass(frozen=True)

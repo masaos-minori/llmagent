@@ -102,6 +102,7 @@ class TestAppServicesValidation:
                 hist_mgr=object(),
                 audit_logger=object(),
                 memory=None,
+                job_registry=object(),
             )
 
     def test_rejects_none_llm_service(self) -> None:
@@ -115,6 +116,7 @@ class TestAppServicesValidation:
                 hist_mgr=object(),
                 audit_logger=object(),
                 memory=None,
+                job_registry=object(),
             )
 
     def test_rejects_none_tools_service(self) -> None:
@@ -128,6 +130,7 @@ class TestAppServicesValidation:
                 hist_mgr=object(),
                 audit_logger=object(),
                 memory=None,
+                job_registry=object(),
             )
 
     def test_rejects_none_lifecycle_service(self) -> None:
@@ -141,6 +144,7 @@ class TestAppServicesValidation:
                 hist_mgr=object(),
                 audit_logger=object(),
                 memory=None,
+                job_registry=object(),
             )
 
     def test_rejects_none_hist_mgr_service(self) -> None:
@@ -154,6 +158,7 @@ class TestAppServicesValidation:
                 hist_mgr=None,
                 audit_logger=object(),
                 memory=None,
+                job_registry=object(),
             )
 
     def test_rejects_none_audit_logger_service(self) -> None:
@@ -169,7 +174,39 @@ class TestAppServicesValidation:
                 hist_mgr=object(),
                 audit_logger=None,
                 memory=None,
+                job_registry=object(),
             )
+
+    def test_rejects_none_job_registry_service(self) -> None:
+        """RuntimeError raised when the job registry is None (REQ-005)."""
+        with pytest.raises(
+            RuntimeError, match="required service 'job_registry' is None"
+        ):
+            AppServices(
+                http=object(),
+                llm=object(),
+                tools=object(),
+                lifecycle=object(),
+                hist_mgr=object(),
+                audit_logger=object(),
+                memory=None,
+                job_registry=None,
+            )
+
+    def test_carries_the_registry_instance_unchanged(self) -> None:
+        """The container holds the instance it was given, so the guard has one owner."""
+        registry = object()
+        svc = AppServices(
+            http=object(),
+            llm=object(),
+            tools=object(),
+            lifecycle=object(),
+            hist_mgr=object(),
+            audit_logger=object(),
+            memory=None,
+            job_registry=registry,
+        )
+        assert svc.job_registry is registry
 
     def test_allows_none_memory_service(self) -> None:
         """memory is optional — no error when None."""
@@ -181,6 +218,7 @@ class TestAppServicesValidation:
             hist_mgr=object(),
             audit_logger=object(),
             memory=None,
+            job_registry=object(),
         )
         assert svc.memory is None
 

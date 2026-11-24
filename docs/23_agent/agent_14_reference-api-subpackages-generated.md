@@ -146,6 +146,17 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `render_export` | `def render_export(history, fmt) -> str` | Render conversation history to a string in the requested format. |
 |  | `write_export` | `def write_export(content, outfile, n_messages, out) -> None` | Write export content to stdout or a file. |
 | `scripts/agent/services/io_ports.py` | `ExportOutputPort` | `class ExportOutputPort` | Output abstraction for conversation export operations. |
+| `scripts/agent/services/maintenance_jobs.py` | `JobState` | `class JobState` | Lifecycle states of a maintenance run. |
+|  | `ApprovalLevel` | `class ApprovalLevel` | Approval a run needs, declared with the operation rather than the command line. |
+|  | `Cancelability` | `class Cancelability` | Whether SQLite can still interrupt the operation at its next progress callback. |
+|  | `StoreTarget` | `class StoreTarget` | Target store a write job runs against; one running writer per store. |
+|  | `JobConflictError` | `class JobConflictError` | Raised when a write job is registered against a store that has one running. |
+|  | `MaintenanceJob` | `class MaintenanceJob` | One maintenance run as the registry records it. |
+|  | `ApprovalDecision` | `class ApprovalDecision` | Result of the approval step for one run, recorded on the job. |
+|  | `CancelResult` | `class CancelResult` | Result of a cancellation request, so the caller can state it instead of guessing. |
+|  | `OperationProfile` | `class OperationProfile` | What the registry declares about one operation: level, cancelability, writer slot. |
+|  | `profile_for` | `def profile_for(operation) -> OperationProfile` | Return the declared profile for one operation. |
+|  | `MaintenanceJobRegistry` | `class MaintenanceJobRegistry` | Owner of the maintenance job records for one process. |
 | `scripts/agent/services/mcp_health.py` | `ServerFailureClass` | `class ServerFailureClass` | Kind of MCP server failure. Availability is reachability; Safety and Integrity are posture. |
 |  | `PostureGate` | `class PostureGate` | One server's permission to serve tools, decided from the posture it published. |
 |  | `classify_server_failure` | `def classify_server_failure(gate) -> ServerFailureClass \| None` | Return the failure kind of one gate, or None when the gate is green. |
@@ -167,6 +178,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `DbStats` | `class DbStats` | Database statistics including document, chunk, session, and message counts. |
 |  | `DbHealth` | `class DbHealth` | Database health check result including integrity, WAL pages, and size. |
 |  | `DbCheckpointResult` | `class DbCheckpointResult` | Result of a database checkpoint operation. |
+|  | `DbVacuumResult` | `class DbVacuumResult` | Result of a vacuum run; the page counts are measured by the postcondition. |
 |  | `DbPurgeResult` | `class DbPurgeResult` | Result of purging old sessions from the database. |
 |  | `DbRecoverResult` | `class DbRecoverResult` | Result of a database recovery attempt. |
 |  | `RagConsistencyResult` | `class RagConsistencyResult` | RAG consistency check result with issues, detailed report, and severity. |

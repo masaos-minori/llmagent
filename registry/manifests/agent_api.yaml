@@ -1041,6 +1041,64 @@ entries:
   name: ExportOutputPort
   signature: class ExportOutputPort
   summary: Output abstraction for conversation export operations.
+- file: scripts/agent/services/maintenance_jobs.py
+  kind: class
+  name: JobState
+  signature: class JobState
+  summary: Lifecycle states of a maintenance run.
+- file: scripts/agent/services/maintenance_jobs.py
+  kind: class
+  name: ApprovalLevel
+  signature: class ApprovalLevel
+  summary: Approval a run needs, declared with the operation rather than the command
+    line.
+- file: scripts/agent/services/maintenance_jobs.py
+  kind: class
+  name: Cancelability
+  signature: class Cancelability
+  summary: Whether SQLite can still interrupt the operation at its next progress callback.
+- file: scripts/agent/services/maintenance_jobs.py
+  kind: class
+  name: StoreTarget
+  signature: class StoreTarget
+  summary: Target store a write job runs against; one running writer per store.
+- file: scripts/agent/services/maintenance_jobs.py
+  kind: class
+  name: JobConflictError
+  signature: class JobConflictError
+  summary: Raised when a write job is registered against a store that has one running.
+- file: scripts/agent/services/maintenance_jobs.py
+  kind: class
+  name: MaintenanceJob
+  signature: class MaintenanceJob
+  summary: One maintenance run as the registry records it.
+- file: scripts/agent/services/maintenance_jobs.py
+  kind: class
+  name: ApprovalDecision
+  signature: class ApprovalDecision
+  summary: Result of the approval step for one run, recorded on the job.
+- file: scripts/agent/services/maintenance_jobs.py
+  kind: class
+  name: CancelResult
+  signature: class CancelResult
+  summary: Result of a cancellation request, so the caller can state it instead of
+    guessing.
+- file: scripts/agent/services/maintenance_jobs.py
+  kind: class
+  name: OperationProfile
+  signature: class OperationProfile
+  summary: 'What the registry declares about one operation: level, cancelability,
+    writer slot.'
+- file: scripts/agent/services/maintenance_jobs.py
+  kind: function
+  name: profile_for
+  signature: def profile_for(operation) -> OperationProfile
+  summary: Return the declared profile for one operation.
+- file: scripts/agent/services/maintenance_jobs.py
+  kind: class
+  name: MaintenanceJobRegistry
+  signature: class MaintenanceJobRegistry
+  summary: Owner of the maintenance job records for one process.
 - file: scripts/agent/services/mcp_health.py
   kind: class
   name: ServerFailureClass
@@ -1149,6 +1207,11 @@ entries:
   name: DbCheckpointResult
   signature: class DbCheckpointResult
   summary: Result of a database checkpoint operation.
+- file: scripts/agent/services/models.py
+  kind: class
+  name: DbVacuumResult
+  signature: class DbVacuumResult
+  summary: Result of a vacuum run; the page counts are measured by the postcondition.
 - file: scripts/agent/services/models.py
   kind: class
   name: DbPurgeResult

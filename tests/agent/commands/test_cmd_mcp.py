@@ -805,6 +805,7 @@ class TestCmdMcpStatusToolDiagnostics:
             lifecycle=MagicMock(),
             hist_mgr=MagicMock(),
             audit_logger=MagicMock(),
+            job_registry=object(),
             memory=None,
         )
         assert svc.memory is None

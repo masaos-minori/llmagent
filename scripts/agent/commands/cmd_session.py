@@ -13,16 +13,36 @@ Provides _SessionMixin with:
 
 import asyncio
 import logging
+import shutil
+import threading
 from collections.abc import Awaitable, Callable
+from dataclasses import asdict, is_dataclass
+from pathlib import Path
 from typing import Any
 
 from agent.commands.db_session_ops import DbSessionOps
 from agent.commands.exceptions import CommandValidationError
 from agent.commands.mixin_base import MixinBase
+from agent.commands.output_port import OutputPort
 from agent.commands.session_title import SessionTitleGen
 from agent.commands.utils import parse_command_args, parse_int_arg
+from agent.repl_input_controller import (
+    InputBusyError,
+    InputOutcome,
+    InputRequest,
+    PromptKind,
+    get_input_controller,
+)
 from agent.services.db_maintenance_service import DbMaintenanceService
 from agent.services.export_formatter import render_export, write_export
+from agent.services.maintenance_jobs import (
+    ApprovalLevel,
+    JobConflictError,
+    JobState,
+    MaintenanceJob,
+    StoreTarget,
+    profile_for,
+)
 from agent.services.models import SessionRow
 from agent.services.rag_maintenance_service import RagMaintenanceService
 
@@ -182,6 +202,119 @@ class _SessionMixin(MixinBase):
         content = render_export(ctx.conv.history, fmt)
         write_export(content, outfile, len(ctx.conv.history))
 
+    def _job_session_target(self) -> str:
+        """Return the live session identity the job is attributed to (REQ-001)."""
+        target = self._ctx.session.capture_target()
+        return f"{target.session_id}:{target.generation}"
+
+    def _free_space_guard(self) -> bool:
+        """Guard precondition for VACUUM: free space must cover twice the DB file."""
+        db_path = Path(self._ctx.cfg.db.session_db_path)
+        try:
+            return shutil.disk_usage(db_path.parent).free >= 2 * db_path.stat().st_size
+        except OSError:
+            return False
+
+    async def _confirm_for_job(self, job: MaintenanceJob, out: OutputPort) -> bool:
+        """Ask one approval for a run through the request-bound input controller.
+
+        The approval is bound to this run because the operation id is the job id: a
+        confirmation obtained for another run is not accepted (REQ-003).
+        """
+        request = InputRequest(
+            PromptKind.NORMAL,
+            f"Approve {job.operation} on {job.store} (job {job.job_id})? [y/N] ",
+            operation_id=job.job_id,
+            destructive=True,
+        )
+        try:
+            result = await get_input_controller().submit(request)
+        except InputBusyError:
+            out.write("  [approval] Input is busy; approval refused")
+            return False
+        if result.outcome is not InputOutcome.COMPLETED:
+            return False
+        return result.text.strip().lower() in {"y", "yes"}
+
+    def _report_job(self, job: MaintenanceJob, result: object) -> None:
+        """Emit the job id and its terminal state, then the values the result measured.
+
+        A stopped run is reported as `cancelled`, never as success (REQ-004).
+        """
+        self._out.write(f"  job {job.job_id} {job.state}")
+        if not is_dataclass(result) or isinstance(result, type):
+            return
+        pairs = [
+            (name, str(value))
+            for name, value in asdict(result).items()
+            if name not in ("verified", "interrupted")
+        ]
+        if pairs:
+            self._out.write_kv(pairs)
+
+    async def _run_maintenance_job(
+        self,
+        operation: str,
+        store: StoreTarget,
+        run: Callable[[threading.Event | None], object],
+    ) -> None:
+        """Record one maintenance run: register, approve, run, report, in that order.
+
+        A second write job against a store that already has a running writer is
+        refused naming the running job id, not queued (REQ-001). The run receives the
+        job's cancellation event, so `/jobs cancel <id>` is the only way it stops, and
+        an awaiter cancelled before the worker finished ends as `outcome_unknown`
+        (REQ-002, REQ-004).
+        """
+        registry = self._ctx.services_required.job_registry
+        profile = profile_for(operation)
+        guard = (
+            self._free_space_guard
+            if profile.approval_level is ApprovalLevel.GUARD
+            else None
+        )
+        try:
+            job = registry.register(
+                operation=operation,
+                store=store,
+                session_target=self._job_session_target(),
+                precondition=guard,
+            )
+        except JobConflictError as exc:
+            self._out.write_error(f"job refused: {exc}")
+            return
+        approved = (
+            profile.approval_level is ApprovalLevel.NONE
+            or await self._confirm_for_job(job, self._out)
+        )
+        decision = registry.authorize(job, confirmed=approved)
+        if not decision.approved:
+            self._out.write_error(f"job {job.job_id}: {decision.detail}")
+            return
+        registry.start(job)
+        try:
+            outcome = await asyncio.to_thread(run, job.stop_event)
+        except asyncio.CancelledError:
+            registry.mark_outcome_unknown(job)
+            raise
+        except Exception as exc:
+            registry.finish(
+                job, outcome=str(exc), verified=False, state=JobState.FAILED
+            )
+            raise
+        state = (
+            JobState.CANCELLED
+            if getattr(outcome, "interrupted", False)
+            else JobState.COMPLETED
+        )
+        registry.finish(
+            job,
+            outcome="",
+            verified=bool(getattr(outcome, "verified", False)),
+            state=state,
+        )
+        self._report_job(job, outcome)
+
     async def _cmd_session(self, args: str) -> None:
         """Handle /session list [n] | load <id> | rename <title> | delete <id>
         | export markdown|md|json [file]
@@ -221,21 +354,54 @@ class _SessionMixin(MixinBase):
             return
 
         rest = args.strip()[len(sub) :].strip()
+        # Each maintenance entry is register -> run -> report through the registry, so a
+        # refused duplicate run reports the running job id instead of starting (REQ-001).
+        # The offload shape is unchanged: the registry records the run, it does not move
+        # where the work happens. The RAG handlers receive the event in Phase 4, so the
+        # entries that cannot pass it do not call with it.
         db_dispatch: dict[str, Callable[[], Awaitable[None]]] = {
             "export": lambda: asyncio.to_thread(self._session_export, rest),
-            "stats": lambda: asyncio.to_thread(self._db_session_stats),
-            "health": lambda: asyncio.to_thread(self._db_session_ops.health),
-            "checkpoint": lambda: asyncio.to_thread(
-                self._db_session_ops.checkpoint, rest.strip().upper() or None
+            "stats": lambda: self._run_maintenance_job(
+                "stats", StoreTarget.SESSION, lambda stop: self._db_session_stats()
             ),
-            "vacuum": lambda: asyncio.to_thread(self._db_session_ops.vacuum),
-            "purge": lambda: asyncio.to_thread(self._db_session_ops.purge, rest),
-            "recover": lambda: asyncio.to_thread(
-                self._db_session_ops.recover, rest.strip() or None
+            "health": lambda: self._run_maintenance_job(
+                "health",
+                StoreTarget.SESSION,
+                lambda stop: self._db_session_ops.health(),
             ),
-            "rag-consistency": lambda: asyncio.to_thread(self._rag_consistency),
-            "rag-rebuild-fts": lambda: asyncio.to_thread(self._rag_rebuild_fts),
-            "rag-rebuild-vec": lambda: asyncio.to_thread(self._rag_rebuild_vec),
+            "checkpoint": lambda: self._run_maintenance_job(
+                "checkpoint",
+                StoreTarget.SESSION,
+                lambda stop: self._db_session_ops.checkpoint(
+                    rest.strip().upper() or None, stop=stop
+                ),
+            ),
+            "vacuum": lambda: self._run_maintenance_job(
+                "vacuum",
+                StoreTarget.SESSION,
+                lambda stop: self._db_session_ops.vacuum(stop=stop),
+            ),
+            "purge": lambda: self._run_maintenance_job(
+                "purge",
+                StoreTarget.SESSION,
+                lambda stop: self._db_session_ops.purge(rest, stop=stop),
+            ),
+            "recover": lambda: self._run_maintenance_job(
+                "recover",
+                StoreTarget.SESSION,
+                lambda stop: self._db_session_ops.recover(
+                    rest.strip() or None, stop=stop
+                ),
+            ),
+            "rag-consistency": lambda: self._run_maintenance_job(
+                "consistency", StoreTarget.RAG, lambda stop: self._rag_consistency()
+            ),
+            "rag-rebuild-fts": lambda: self._run_maintenance_job(
+                "rebuild", StoreTarget.RAG, lambda stop: self._rag_rebuild_fts()
+            ),
+            "rag-rebuild-vec": lambda: self._run_maintenance_job(
+                "rebuild", StoreTarget.RAG, lambda stop: self._rag_rebuild_vec()
+            ),
         }
         handler = db_dispatch.get(sub)
         if handler is not None:

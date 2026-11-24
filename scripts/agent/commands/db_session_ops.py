@@ -1,12 +1,27 @@
-"""scripts/agent/commands/db_session_ops.py — Session database operation handlers."""
+"""scripts/agent/commands/db_session_ops.py — Session database operation handlers.
+
+Each operation takes the job's cancellation event and returns its result object;
+none of them emits the success line. The caller reports the job id and the terminal
+state from that result, so an interrupted run cannot print success (REQ-004).
+`health` stays read-only and returns its measurements unchanged.
+"""
 
 from __future__ import annotations
+
+import threading
 
 from agent.commands.exceptions import CommandValidationError
 from agent.commands.output_port import OutputPort
 from agent.commands.utils import parse_command_args, parse_int_arg
 from agent.context import AgentContext
 from agent.services.db_maintenance_service import DbMaintenanceService
+from agent.services.models import (
+    DbCheckpointResult,
+    DbHealth,
+    DbPurgeResult,
+    DbRecoverResult,
+    DbVacuumResult,
+)
 
 
 class DbSessionOps:
@@ -16,35 +31,31 @@ class DbSessionOps:
         """Initialize the database session operations handler with context and output port."""
         self._ctx = ctx
         self._out = out
+        self._service: DbMaintenanceService | None = None
 
-    def health(self) -> None:
-        """Print DB health metrics: integrity, size."""
-        info = DbMaintenanceService(
-            self._ctx.cfg.db, self._ctx.cfg.maintenance
-        ).health()
-        self._out.write_kv(
-            [
-                ("integrity_ok", str(info.integrity_ok)),
-                ("db_size", f"{info.size_bytes:,} bytes"),
-                ("target", "Session"),
-            ]
-        )
+    def _service_for_call(self) -> DbMaintenanceService:
+        """Return the service instance this handler keeps, so one instance carries every run."""
+        if self._service is None:
+            self._service = DbMaintenanceService(
+                self._ctx.cfg.db, self._ctx.cfg.maintenance
+            )
+        return self._service
 
-    def checkpoint(self, mode: str | None) -> None:
+    def health(self) -> DbHealth:
+        """Return DB health metrics: integrity, size. Read-only, no writer slot."""
+        return self._service_for_call().health()
+
+    def checkpoint(
+        self, mode: str | None, *, stop: threading.Event | None = None
+    ) -> DbCheckpointResult:
         """Run WAL checkpoint. mode: PASSIVE|FULL|RESTART|TRUNCATE (default from config)."""
-        result = DbMaintenanceService(
-            self._ctx.cfg.db, self._ctx.cfg.maintenance
-        ).checkpoint(mode)
-        self._out.write_success(
-            f"WAL checkpoint complete: mode={result.mode}, pages_written={result.pages_written} [Session]"
-        )
+        return self._service_for_call().checkpoint(mode, stop=stop)
 
-    def vacuum(self) -> None:
+    def vacuum(self, *, stop: threading.Event | None = None) -> DbVacuumResult:
         """Run VACUUM to rebuild the DB file and reclaim free pages."""
-        DbMaintenanceService(self._ctx.cfg.db, self._ctx.cfg.maintenance).vacuum()
-        self._out.write_success("VACUUM complete. [Session]")
+        return self._service_for_call().vacuum(stop=stop)
 
-    def purge(self, rest: str) -> None:
+    def purge(self, rest: str, *, stop: threading.Event | None = None) -> DbPurgeResult:
         """Purge old sessions. Options: --max-sessions N --max-age-days N"""
         parsed = parse_command_args(rest.split())
         try:
@@ -60,32 +71,16 @@ class DbSessionOps:
             )
         except CommandValidationError:
             self._out.write_validation_error("/session purge …")
-            return
-        result = DbMaintenanceService(
-            self._ctx.cfg.db, self._ctx.cfg.maintenance
-        ).purge(
-            max_sessions, max_age_days, current_session_id=self._ctx.session.session_id
+            return DbPurgeResult(sessions_removed=0)
+        return self._service_for_call().purge(
+            max_sessions,
+            max_age_days,
+            current_session_id=self._ctx.session.session_id,
+            stop=stop,
         )
-        if result.kept_active_session is not None:
-            self._out.write_success(
-                f"Purged: {result.sessions_removed} session(s) removed "
-                f"(kept active session {result.kept_active_session}) [Session]"
-            )
-        else:
-            self._out.write_success(
-                f"Purged: {result.sessions_removed} session(s) removed [Session]"
-            )
 
-    def recover(self, backup_path: str | None) -> None:
+    def recover(
+        self, backup_path: str | None, *, stop: threading.Event | None = None
+    ) -> DbRecoverResult:
         """Run integrity check on session.sqlite; restore from backup_path if corruption found."""
-        result = DbMaintenanceService(
-            self._ctx.cfg.db, self._ctx.cfg.maintenance
-        ).recover_session(backup_path)
-        if result.integrity_ok:
-            self._out.write_success(f"Recovery succeeded: {result.detail} [Session]")
-        else:
-            self._out.write_no_data(f"Recovery failed: {result.detail} [Session]")
-        if result.logical_ok is True:
-            self._out.write_success("Logical verification passed [Session]")
-        elif result.logical_ok is False:
-            self._out.write_no_data("Logical verification failed: see logs [Session]")
+        return self._service_for_call().recover_session(backup_path, stop=stop)

@@ -4,6 +4,7 @@ Unit tests for db_maintenance: purge_old_sessions, rotate_*_db, checkpoint_wal, 
 
 import os
 import sqlite3
+import threading
 import time
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
@@ -31,7 +32,7 @@ from db.maintenance import (
     purge_old_sessions,
     vacuum_db,
 )
-from db.models import RecoveryResult
+from db.models import RecoveryResult, WalCheckpointCounts
 from db.recovery import DbCondition, recover_corruption
 from db.rotation import (
     _archive_db_file,
@@ -97,12 +98,23 @@ class _FakeDB:
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self.conn: sqlite3.Connection | None = conn
+        self._stop: threading.Event | None = None
+
+    def interrupt_when(self, stop: threading.Event, *, check_every: int = 1000) -> None:
+        """Mirror helper.interrupt_when: refuse the next statement once `stop` is set."""
+        self._stop = stop
+
+    def _refuse_if_stopped(self) -> None:
+        if self._stop is not None and self._stop.is_set():
+            raise sqlite3.OperationalError("interrupted")
 
     def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
+        self._refuse_if_stopped()
         assert self.conn is not None
         return self.conn.execute(sql, params)
 
     def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
+        self._refuse_if_stopped()
         assert self.conn is not None
         return self.conn.execute(sql, params).fetchall()
 
@@ -1920,3 +1932,87 @@ class TestRotationSameSecondCollision:
         assert first.name == f"workflow_{fixed_ts}.sqlite"
         assert second.name == f"workflow_{fixed_ts}_2.sqlite"
         assert first.exists() and second.exists()
+
+
+class TestCancellationIsHonored:
+    """REQ-002 / AC-2: each operation honors the stop event and reports the stopped run.
+
+    The event is installed through the progress-handler mechanism (`db/helper.py`), so a
+    stopped run is reported as `interrupted`, never as a completed run, and a call
+    without an event keeps the existing behavior.
+    """
+
+    def _stopped_event(self) -> threading.Event:
+        """An event already set, so the first statement after it is refused."""
+        stop = threading.Event()
+        stop.set()
+        return stop
+
+    def _refusing_db(self) -> MagicMock:
+        """A helper stand-in that raises the interrupt once the event is set."""
+        db = MagicMock()
+        exc = sqlite3.OperationalError("interrupted")
+        db.execute.side_effect = exc
+        db.fetchall.side_effect = exc
+        db.vacuum.side_effect = exc
+        db.checkpoint.side_effect = exc
+        return db
+
+    def test_without_an_event_no_handler_is_installed(self) -> None:
+        db = MagicMock()
+        db.checkpoint.return_value = WalCheckpointCounts(1, 2, 3)
+        counts = checkpoint_wal(db, _make_maintenance(), "TRUNCATE")
+        assert counts.interrupted is False
+        db.interrupt_when.assert_not_called()
+
+    def test_checkpoint_installs_the_event_and_reports_stopped(self) -> None:
+        stop = self._stopped_event()
+        db = self._refusing_db()
+        counts = checkpoint_wal(db, _make_maintenance(), "TRUNCATE", stop=stop)
+        assert counts.interrupted is True
+        db.interrupt_when.assert_called_once_with(stop)
+
+    def test_vacuum_installs_the_event_and_reports_stopped(self) -> None:
+        stop = self._stopped_event()
+        db = self._refusing_db()
+        result = vacuum_db(db, stop=stop)
+        assert result.success is False
+        assert result.interrupted is True
+        assert result.detail == "interrupted"
+        db.interrupt_when.assert_called_once_with(stop)
+
+    def test_purge_installs_the_event_and_reports_stopped(self) -> None:
+        stop = self._stopped_event()
+        db = self._refusing_db()
+        result = purge_old_sessions(db, RetentionConfig(max_sessions=1), stop=stop)  # type: ignore[arg-type]
+        assert result.success is False
+        assert result.interrupted is True
+        assert result.data == {
+            "age_deleted": 0,
+            "count_deleted": 0,
+            "kept_active_session": None,
+        }
+        db.interrupt_when.assert_called_once_with(stop)
+
+    def test_prune_installs_the_event_and_reports_stopped(self) -> None:
+        stop = self._stopped_event()
+        db = self._refusing_db()
+        result = prune_old_memories(db, older_than_days=30, stop=stop)  # type: ignore[arg-type]
+        assert result.success is False
+        assert result.interrupted is True
+        db.interrupt_when.assert_called_once_with(stop)
+
+    def test_archive_retention_is_honored_at_the_database_boundary(
+        self, tmp_path: Path
+    ) -> None:
+        """File deletion has no progress callback, so the event is checked per database."""
+        stop = self._stopped_event()
+        cfg = CorruptArchiveRetentionConfig(max_files=1, max_age_days=0)
+        db_cfg = _make_db_cfg(tmp_path)
+        for name in ("rag", "session"):
+            (tmp_path / f"{name}_corrupt_20200101_000000.sqlite").write_text("x")
+        result = purge_corrupt_archives(cfg, db_cfg, stop=stop)
+        assert result.success is False
+        assert result.interrupted is True
+        assert result.data == {"age_deleted": 0, "count_deleted": 0}
+        assert any(p.name.endswith(".sqlite") for p in tmp_path.iterdir())

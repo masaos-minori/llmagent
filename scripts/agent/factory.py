@@ -36,6 +36,7 @@ from agent.history import HistoryManager
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.lifecycle_router import _ServerLifecycleRouter
 from agent.repository_gateway import RepositoryGateway
+from agent.services.maintenance_jobs import MaintenanceJobRegistry
 from agent.workflow.state_store import StateStore
 
 if TYPE_CHECKING:
@@ -351,6 +352,7 @@ def build_agent_context(
     tools_result = _build_tool_executor(ctx, http)
     hist_result = _build_history_manager(ctx, view, http)
     memory = _build_memory_services(ctx, http)
+    job_registry = MaintenanceJobRegistry()
 
     ctx.services = AppServices(
         http=http,
@@ -360,6 +362,7 @@ def build_agent_context(
         hist_mgr=hist_result.history_manager,
         audit_logger=audit_logger,
         memory=memory,
+        job_registry=job_registry,
         gateway=RepositoryGateway(
             executor=tools_result.tools, cfg=ctx.cfg, audit_logger=audit_logger
         ),

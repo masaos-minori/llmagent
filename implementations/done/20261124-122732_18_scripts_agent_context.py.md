@@ -72,9 +72,9 @@ Carry the job registry on `AppServices` so the command registry can reach the si
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Carry the registry on `AppServices` as a required service | Pending | — | — | Phase 1 |
-| 2 | Update the companion test per Validation plan | Pending | — | — | Covered by this document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Carry the registry on `AppServices` as a required service | Completed | — | 20261124-160811 | Phase 1 job_registry added as a required service on AppServices. |
+| 2 | Update the companion test per Validation plan | Completed | — | 20261124-160811 | Covered by this document tests/agent/test_context.py updated; passes. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-160811 | Quality gates and targeted pytest pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -86,9 +86,9 @@ Create the single owner of maintenance job records so every Session, RAG, and Me
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Define the enums, the job record, and the registry per Procedure | Pending | — | — | Tests are written first in the same phase |
-| 2 | Add the companion test file per Validation plan | Pending | — | — | `tests/agent/services/test_maintenance_jobs.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Define the enums, the job record, and the registry per Procedure | Completed | — | 20261124-160811 | Tests are written first in the same phase Done. Deviation from the procedure: register() derives approval level and cancelability from OPERATION_PROFILES/profile_for() rather than receiving the operation record from the caller; the profile table is the operation record the plan describes. Approved through the existing request-bound confirmation API per the owner decision of 2026-11-24. |
+| 2 | Add the companion test file per Validation plan | Completed | — | 20261124-160811 | `tests/agent/services/test_maintenance_jobs.py` Written: tests/agent/services/test_maintenance_jobs.py, 24 passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-160811 | ruff, mypy, bandit, check_module_size pass; targeted pytest passes. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -75,10 +75,10 @@ Make each Session maintenance operation return a result object that carries its 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the cancellation event and the result types per Procedure | Pending | — | — | Phase 1 |
+| 1 | Add the cancellation event and the result types per Procedure | Completed | — | 20261124-160831 | Phase 1 Phase 1 part done: operations take stop and return the result objects; success strings removed; health returns DbHealth. Deviation: the service instance is built once per handler instance in _service_for_call so the existing class-patch fixtures still work. |
 | 2 | Add the postcondition measurements per Procedure step 2 | Pending | — | — | Phase 4 (R4) |
-| 3 | Update the affected tests per Validation plan | Pending | — | — | Row 42 is its own document (named by two rows); `tests/db/test_db_maintenance.py` (row 61) is covered by row 20 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Update the affected tests per Validation plan | Completed | — | 20261124-160831 | Row 42 is its own document (named by two rows); `tests/db/test_db_maintenance.py` (row 61) is covered by row 20 Phase 1 part done in row 42 and tests/db/test_db_maintenance.py: pinned purge call assertions now pass stop=, typed result dataclasses replace MagicMock results. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-160831 | Phase 1 part: ruff, mypy pass; targeted pytest passes. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

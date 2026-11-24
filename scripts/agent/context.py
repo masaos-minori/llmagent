@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from agent.lifecycle_protocol import LifecycleManagerProtocol
     from agent.memory.services import MemoryServices
     from agent.repository_gateway import RepositoryGateway
+    from agent.services.maintenance_jobs import MaintenanceJobRegistry
     from agent.turn_persistence import TurnPersistence
 
 
@@ -327,6 +328,8 @@ class AppServices:
 
     All required services are non-None.  memory is None when
     use_memory_layer=False (intentionally absent, not uninitialised).
+    job_registry is the single MaintenanceJobRegistry instance the command
+    mixins reach, so the one-writer-per-store guard is process-global.
     gateway is None until factory.py constructs and injects RepositoryGateway.
     """
 
@@ -339,6 +342,7 @@ class AppServices:
         hist_mgr: HistoryManager,
         audit_logger: Logger,
         memory: MemoryServices | None,
+        job_registry: MaintenanceJobRegistry,
         health_registry: McpServerHealthRegistry | None = None,
         gateway: RepositoryGateway | None = None,
         runtime_tools: RuntimeToolRegistry | None = None,
@@ -352,6 +356,7 @@ class AppServices:
             ("lifecycle", lifecycle),
             ("hist_mgr", hist_mgr),
             ("audit_logger", audit_logger),
+            ("job_registry", job_registry),
         ]:
             if _value is None:
                 raise RuntimeError(f"AppServices: required service '{_name}' is None")
@@ -362,6 +367,7 @@ class AppServices:
         self.hist_mgr = hist_mgr
         self.audit_logger = audit_logger
         self.memory = memory
+        self.job_registry = job_registry
         self.health_registry = health_registry
         self.gateway: RepositoryGateway | None = gateway
         self.runtime_tools: RuntimeToolRegistry | None = runtime_tools

@@ -74,10 +74,10 @@ Run the `/session` maintenance subcommands through the job registry so each run 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Wire `db_dispatch` through the registry and emit the job id and terminal state | Pending | — | — | Phase 1 |
-| 2 | Update `tests/agent/commands/test_agent_cmd_session.py` for the message and dispatch shape | Pending | — | — | Row 42 is its own document (named by two rows) |
+| 1 | Wire `db_dispatch` through the registry and emit the job id and terminal state | Completed | — | 20261124-160831 | Phase 1 Phase 1 part done: each maintenance entry in db_dispatch routes through _run_maintenance_job (register, approve, start, run off-loop, finish, report). export is not a job and is unchanged; stats and health register with ApprovalLevel.NONE. |
+| 2 | Update `tests/agent/commands/test_agent_cmd_session.py` for the message and dispatch shape | Completed | — | 20261124-160831 | Row 42 is its own document (named by two rows) Phase 1 part done through row 42. |
 | 3 | Rename the vector subcommand and handler | Pending | — | — | Phase 6, same unit as the docs rows |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-160831 | Phase 1 part: ruff, mypy pass; check_docs_consistency has no name drift while the rename is deferred to Phase 6 (row 3 step 3). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

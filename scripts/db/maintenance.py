@@ -21,6 +21,7 @@ Typical maintenance schedule:
 
 import logging
 import sqlite3
+import threading
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -61,6 +62,9 @@ class MaintenanceResult:
     mode: MaintenanceMode
     detail: str | None = None
     data: dict | None = None
+    # Set when the run was stopped by the cancellation event rather than by a DB
+    # error. A stopped run is never reported as success (REQ-004).
+    interrupted: bool = False
 
 
 # ── Error handling helper ──────────────────────────────────────────────────────
@@ -88,6 +92,54 @@ def _handle_maintenance_error(
         detail=str(exc),
         data=extra_data,
     )
+
+
+def _stopped_result(
+    action: str,
+    mode: MaintenanceMode,
+    data: dict | None = None,
+) -> MaintenanceResult:
+    """Report a run stopped by the cancellation event.
+
+    A stopped run is not an error and is never reported as success.
+    """
+    logger.info("%s interrupted by cancellation", action)
+    return MaintenanceResult(
+        success=False,
+        action=action,
+        mode=mode,
+        detail="interrupted",
+        data=data,
+        interrupted=True,
+    )
+
+
+def _stopped_or_error(
+    action: str,
+    mode: MaintenanceMode,
+    exc: Exception,
+    *,
+    data: dict | None = None,
+) -> MaintenanceResult:
+    """Report a run stopped by the cancellation event, or handle the error.
+
+    An interrupt is reported as a stopped run; every other failure follows the
+    existing mode policy in `_handle_maintenance_error`.
+    """
+    if str(exc) == "interrupted":
+        return _stopped_result(action, mode, data)
+    return _handle_maintenance_error(exc, action, mode, extra_data=data)
+
+
+def _install_stop(db: SQLiteHelper, stop: threading.Event | None) -> None:
+    """Install the cancellation handler only when the job supplied an event.
+
+    A call with `stop=None` keeps the existing behavior: no progress handler is
+    installed, so the run cannot be interrupted.
+    """
+    if stop is None:
+        return
+    db.interrupt_when(stop)
 
 
 # ── Config helpers ─────────────────────────────────────────────────────────────
@@ -245,19 +297,35 @@ def checkpoint_wal(
     db: SQLiteHelper,
     maintenance: DbMaintenanceConfig,
     mode: str | None = None,
+    *,
+    stop: threading.Event | None = None,
 ) -> WalCheckpointCounts:
-    """Flush the WAL file and return checkpoint counters.
+    """Run a WAL checkpoint and return the counters with the interrupted flag.
 
     `mode` overrides the default; when it is absent the mode comes from the
     injected typed configuration. Raises ValueError for an unknown mode.
+
+    `stop` is the job's cancellation event: a set event aborts the statement at the
+    next progress callback, and the run is reported as interrupted with zero counters
+    rather than as a completed checkpoint (REQ-002).
     """
     if mode is None:
         mode = maintenance.wal_checkpoint_mode
-    return db.checkpoint(mode)
+    _install_stop(db, stop)
+    try:
+        return db.checkpoint(mode)
+    except sqlite3.OperationalError as exc:
+        if str(exc) == "interrupted":
+            logger.info("checkpoint_wal interrupted by cancellation")
+            return WalCheckpointCounts(0, 0, 0, interrupted=True)
+        raise
 
 
 def vacuum_db(
-    db: SQLiteHelper, mode: MaintenanceMode = MaintenanceMode.STRICT
+    db: SQLiteHelper,
+    mode: MaintenanceMode = MaintenanceMode.STRICT,
+    *,
+    stop: threading.Event | None = None,
 ) -> MaintenanceResult:
     """Run VACUUM to rebuild the DB file and reclaim freed pages.
 
@@ -267,12 +335,17 @@ def vacuum_db(
     This function performs no config loading; elsewhere in this module
     config-load failures propagate in both modes.
     Cannot run inside a transaction; requires ~2× DB size in free disk space.
+
+    `stop` is the job's cancellation event; a VACUUM past its last progress
+    callback cannot be interrupted, so the operation is recorded `not_cancelable`
+    at registration rather than here (REQ-002).
     """
+    _install_stop(db, stop)
     try:
         db.vacuum()
         return MaintenanceResult(success=True, action="vacuum", mode=mode)
     except (sqlite3.Error, RuntimeError) as e:
-        return _handle_maintenance_error(e, "vacuum", mode)
+        return _stopped_or_error("vacuum", mode, e)
 
 
 def _delete_sessions_by_age(
@@ -365,6 +438,7 @@ def purge_old_sessions(
     mode: MaintenanceMode = MaintenanceMode.STRICT,
     *,
     keep_session_id: int | None = None,
+    stop: threading.Event | None = None,
 ) -> MaintenanceResult:
     """Delete sessions exceeding the retention policy (age-based then count-based).
 
@@ -383,7 +457,12 @@ def purge_old_sessions(
     When `keep_session_id` is given and that session was a delete candidate under at
     least one rule, it is exempted and surfaced as `data["kept_active_session"]`
     (None when nothing was exempted).
+
+    `stop` is the job's cancellation event: an interrupt rolls the transaction back,
+    so a stopped run leaves the previous state and is reported as stopped (REQ-002).
     """
+    zeroed = {"age_deleted": 0, "count_deleted": 0, "kept_active_session": None}
+    _install_stop(db, stop)
     try:
         with db.begin_immediate():
             age_deleted, age_exempted = _delete_sessions_by_age(
@@ -407,16 +486,7 @@ def purge_old_sessions(
             },
         )
     except sqlite3.Error as e:
-        return _handle_maintenance_error(
-            e,
-            "purge",
-            mode,
-            extra_data={
-                "age_deleted": 0,
-                "count_deleted": 0,
-                "kept_active_session": None,
-            },
-        )
+        return _stopped_or_error("purge", mode, e, data=zeroed)
 
 
 def _delete_corrupt_archives_by_age(
@@ -475,6 +545,8 @@ def purge_corrupt_archives(
     cfg: CorruptArchiveRetentionConfig,
     db_cfg: DbConfig,
     mode: MaintenanceMode = MaintenanceMode.STRICT,
+    *,
+    stop: threading.Event | None = None,
 ) -> MaintenanceResult:
     """Delete timestamped *_corrupt_* archive files (created by
     db.recovery._restore_from_backup()) exceeding the retention policy
@@ -485,12 +557,22 @@ def purge_corrupt_archives(
     Negative-retention `ValueError`s raised by the delete helpers propagate in
     both modes. The typed configuration and the database paths are supplied by the
     caller that owns the configuration; this module reads no config file.
+
+    `stop` is the job's cancellation event. File deletion has no SQLite progress
+    callback, so the event is honored at the per-database boundary: the archives
+    already deleted stay deleted and the run is reported as stopped (REQ-002).
     """
     age_deleted = 0
     count_deleted = 0
 
     try:
         for raw_path in (db_cfg.rag_db_path, db_cfg.session_db_path):
+            if stop is not None and stop.is_set():
+                return _stopped_result(
+                    "purge_corrupt_archives",
+                    mode,
+                    data={"age_deleted": age_deleted, "count_deleted": count_deleted},
+                )
             db_path = Path(raw_path)
             archive_dir = db_path.parent
             pattern = f"{db_path.stem}_corrupt_*{db_path.suffix}"
@@ -520,6 +602,8 @@ def prune_old_memories(
     db: SQLiteHelper,
     older_than_days: int,
     mode: MaintenanceMode = MaintenanceMode.STRICT,
+    *,
+    stop: threading.Event | None = None,
 ) -> MaintenanceResult:
     """Delete memories older than older_than_days via SQLiteMemoryDeleteStore.
 
@@ -527,7 +611,11 @@ def prune_old_memories(
     In BEST_EFFORT mode, returns MaintenanceResult(success=False, detail=str(exc)).
     This function performs no config loading; elsewhere in this module
     config-load failures propagate in both modes.
+
+    `stop` is the job's cancellation event: an interrupt is reported as a stopped
+    run, not as a completed prune (REQ-002).
     """
+    _install_stop(db, stop)
     try:
         store = SQLiteMemoryDeleteStore(db)
         delete_result = store.delete_memories_before(older_than_days)
@@ -546,4 +634,4 @@ def prune_old_memories(
             },
         )
     except sqlite3.Error as e:
-        return _handle_maintenance_error(e, "prune", mode)
+        return _stopped_or_error("prune", mode, e)

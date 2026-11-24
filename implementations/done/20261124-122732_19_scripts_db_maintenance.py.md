@@ -74,9 +74,9 @@ Accept a cancellation event on the long-running maintenance primitives and pass 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the cancellation event and `interrupt_when` calls | Pending | — | — | Phase 1 |
-| 2 | Update the companion test per Validation plan | Pending | — | — | Covered by this document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the cancellation event and `interrupt_when` calls | Completed | — | 20261124-160811 | Phase 1 stop parameter added to the five operations; interrupt_when installed only when stop is not None, so stop=None behavior is unchanged. |
+| 2 | Update the companion test per Validation plan | Completed | — | 20261124-160811 | Covered by this document Test class TestCancellationIsHonored added: 123 passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-160811 | ruff, mypy, bandit, check_module_size pass (23302 B, under the 24576 B gate). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

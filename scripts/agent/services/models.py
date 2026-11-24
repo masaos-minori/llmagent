@@ -206,10 +206,26 @@ class DbHealth:
 
 @dataclass(frozen=True)
 class DbCheckpointResult:
-    """Result of a database checkpoint operation."""
+    """Result of a database checkpoint operation.
+
+    `verified` is the postcondition result, so a caller cannot report success without
+    having measured it (REQ-004). `interrupted` records a run stopped by the job's
+    cancellation event, which is never a success.
+    """
 
     mode: str
     pages_written: int
+    verified: bool = False
+    interrupted: bool = False
+
+
+@dataclass(frozen=True)
+class DbVacuumResult:
+    """Result of a vacuum run; the page counts are measured by the postcondition."""
+
+    mode: str
+    verified: bool = False
+    interrupted: bool = False
 
 
 @dataclass(frozen=True)
@@ -218,6 +234,8 @@ class DbPurgeResult:
 
     sessions_removed: int
     kept_active_session: int | None = None  # id exempted from retention, None otherwise
+    verified: bool = False
+    interrupted: bool = False
 
 
 @dataclass(frozen=True)
@@ -228,6 +246,8 @@ class DbRecoverResult:
     recovered: bool
     detail: str
     logical_ok: bool | None = None
+    verified: bool = False
+    interrupted: bool = False
 
 
 @dataclass(frozen=True)
