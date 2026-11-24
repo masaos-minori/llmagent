@@ -484,6 +484,63 @@ class TestBuildAgentConfig:
         )
 
 
+# ── cliplc004 shutdown configuration surface ──────────────────────────────────
+
+_SHUTDOWN_FLOAT_DEFAULTS = {
+    "shutdown_deadline_seconds": 45.0,
+    "shutdown_settle_seconds": 10.0,
+    "shutdown_termination_confirm_seconds": 2.0,
+}
+
+
+class TestShutdownConfigSurface:
+    """cliplc004 REQ-002 / REQ-011: the four shutdown keys are built with the
+    frozen defaults when absent and honored when present."""
+
+    @pytest.mark.parametrize("key, default", _SHUTDOWN_FLOAT_DEFAULTS.items())
+    def test_absent_key_keeps_the_frozen_float_default(
+        self, key: str, default: float
+    ) -> None:
+        cfg = build_agent_config({**_MIN_CFG})
+        value = getattr(cfg, key)
+        assert value == default, key
+        assert isinstance(value, float), key
+
+    def test_absent_force_exit_keeps_the_safe_default(self) -> None:
+        cfg = build_agent_config({**_MIN_CFG})
+        assert cfg.shutdown_force_exit_on_second_sigint is False
+
+    @pytest.mark.parametrize("key", list(_SHUTDOWN_FLOAT_DEFAULTS))
+    def test_present_key_is_read_as_float(self, key: str) -> None:
+        cfg = build_agent_config({**_MIN_CFG, key: 7.5})
+        value = getattr(cfg, key)
+        assert value == 7.5, key
+        assert isinstance(value, float), key
+
+    def test_force_exit_true_is_honored(self) -> None:
+        cfg = build_agent_config(
+            {**_MIN_CFG, "shutdown_force_exit_on_second_sigint": True}
+        )
+        assert cfg.shutdown_force_exit_on_second_sigint is True
+
+    def test_force_exit_false_is_honored_not_only_true(self) -> None:
+        # REQ-011: the default is the safe value; an explicit false must stay false.
+        cfg = build_agent_config(
+            {**_MIN_CFG, "shutdown_force_exit_on_second_sigint": False}
+        )
+        assert cfg.shutdown_force_exit_on_second_sigint is False
+
+    def test_builder_defaults_match_the_dataclass_defaults(self) -> None:
+        # The builder's _get_or_default fallback and the AgentConfig field default
+        # must be the same number (row 17); config/agent.toml declares the same.
+        from dataclasses import fields
+
+        cfg = build_agent_config({**_MIN_CFG})
+        for f in fields(AgentConfig):
+            if f.name.startswith("shutdown_"):
+                assert getattr(cfg, f.name) == f.default, f.name
+
+
 # ── load_config ───────────────────────────────────────────────────────────────
 
 

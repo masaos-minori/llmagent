@@ -34,6 +34,14 @@ pending_timeout_minutes = 10
 # AgentConfig.approval_grant_ttl_seconds (range 60..3600 in production).
 approval_grant_ttl_seconds = 300.0
 
+# Bounded shutdown machine (cliplc004): total deadline armed by the first
+# shutdown request, writer-settling window, and termination confirm window.
+shutdown_deadline_seconds = 45.0
+shutdown_settle_seconds = 10.0
+shutdown_termination_confirm_seconds = 2.0
+# Second SIGINT interrupts the running step; force exit only when true.
+shutdown_force_exit_on_second_sigint = false
+
 # ── LLM endpoints ─────────────────────────────────────────────────────────────
 
 llm_url = "http://192.168.11.228:8080"

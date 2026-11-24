@@ -13,7 +13,7 @@ Give the shutdown sequence one clock and one outcome vocabulary: `ShutdownBudget
 - The budget is constructed unarmed during the REPL wiring (`scripts/agent/repl.py:85-92`) and armed by the first shutdown request; `arm()` returning `False` for later requests is what makes the first signal win (Plan Design, "One budget, many consumers").
 - Arming and the interrupt request can arrive from a signal-handler thread while the event loop reads `remaining()`, so the mutable state is guarded by a `threading.Lock` and the clock is monotonic rather than wall-clock.
 - The total is passed in by the caller from the `AgentConfig` deadline field (row 17); this module reads no configuration itself.
-- Overlap: `scripts/agent/repl.py` is also a target of the frozen cliplc003 Plan (`plans/done/20261124-001800_cliplc003_maintenance-job-framework.md`), whose procedures under `implementations/20261124-122732_` must execute before this Plan's row 7 edits the same wiring.
+- Overlap: `scripts/agent/repl.py` was also a target of the cliplc003 Plan (`plans/done/20261124-001800_cliplc003_maintenance-job-framework.md`). cliplc003 landed upstream (commits `7e31a92e7..dfb9862e3`, procedures archived under `implementations/done/`), so this Plan's row 7 edits build on the landed wiring.
 
 ## Design decisions
 
@@ -21,6 +21,7 @@ Give the shutdown sequence one clock and one outcome vocabulary: `ShutdownBudget
 - `ShutdownStepRecord` (new) and `ShutdownReport` (new) are frozen dataclasses assembled by appending records; the report is not mutated after a step finishes.
 - One outcome enum (`completed`, `timed_out`, `failed`, `not_started` (new), `outcome_unknown`) is shared with the MCP step, which maps the existing `TerminationOutcome` values into it instead of inventing a second vocabulary (REQ-012).
 - `detail` (new) on the record holds a reason category plus a bounded, path-free summary; paths and exception text stay in the logger (REQ-013).
+- Concrete API (decided at execution 2026-11-25): `ShutdownBudget(total_seconds, clock=time.monotonic)` takes an injectable monotonic clock so the clamping and idempotence tests are deterministic; `armed` and `interrupt_requested` are properties; `mark_closed()` moves the phase to `closed` when the sequence finishes; the eight step names are module constants plus a `SHUTDOWN_STEPS` tuple in the REQ-001 order.
 
 ## Alternatives considered
 
@@ -34,8 +35,8 @@ Give the shutdown sequence one clock and one outcome vocabulary: `ShutdownBudget
 
 ### Procedure
 1. Define `ShutdownPhase` (new) with the states accepting, draining, closed.
-2. Define `ShutdownBudget` (new): `arm()` (new) returning `False` for every request after the first, `remaining()` (new) clamped at zero, `phase`, `request_interrupt()` (new), and `interrupt_requested` (new).
-3. Define the eight step-name constants: `enter_shutdown` (new), `settle_writers` (new), `persist_snapshot` (new), `checkpoint` (new), `backup` (new), `terminate_lifecycles` (new), `close_hooks` (new), `report` (new).
+2. Define `ShutdownBudget` (new): `arm()` (new) returning `False` for every request after the first (arming also moves the phase to `draining`), `remaining()` (new) clamped at zero, `armed` (new) and `interrupt_requested` (new) properties, `phase`, `mark_closed()` (new), and `request_interrupt()` (new).
+3. Define the eight step-name constants: `enter_shutdown` (new), `settle_writers` (new), `persist_snapshot` (new), `checkpoint` (new), `backup` (new), `terminate_lifecycles` (new), `close_hooks` (new), `report` (new), plus the `SHUTDOWN_STEPS` tuple in the REQ-001 order.
 4. Define `ShutdownOutcome` (new) with the five values, `ShutdownStepRecord` (new) (name, outcome, elapsed_s, detail), and `ShutdownReport` (new) (records, refused-write count, unsettled-writer names).
 
 ### Method
@@ -85,9 +86,9 @@ Give the shutdown sequence one clock and one outcome vocabulary: `ShutdownBudget
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the budget tests first (companion file) | Pending | — | — | Phase 1 lists tests first |
-| 2 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the budget tests first (companion file) | Completed | 20261125-073338 | 20261125-074347 | Phase 1 lists tests first |
+| 2 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261125-074347 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-074347 | 20261125-075448 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -395,6 +395,14 @@ class AgentConfig:
     pending_timeout_minutes: int = 10
     # Grant horizon consumed by tool_approval._issue_grant (replaces _GRANT_TTL_SECONDS).
     approval_grant_ttl_seconds: float = 300.0
+    # cliplc004 bounded shutdown: total deadline armed by the first shutdown
+    # request, the writer-settling window, and the per-process termination
+    # confirm window (seconds).
+    shutdown_deadline_seconds: float = 45.0
+    shutdown_settle_seconds: float = 10.0
+    shutdown_termination_confirm_seconds: float = 2.0
+    # Second SIGINT interrupts the running step; os._exit only when True (REQ-011).
+    shutdown_force_exit_on_second_sigint: bool = False
 
     def __post_init__(self) -> None:
         """Validate cross-field dependencies between sub-configs."""

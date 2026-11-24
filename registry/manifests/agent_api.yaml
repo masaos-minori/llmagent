@@ -1479,6 +1479,31 @@ entries:
   signature: async def retry_once_with_delay(fn, delay, shutdown_event, interrupt_msg,
     *, skip_first_attempt, fatal_prefix) -> T
   summary: Execute *fn* once; if it raises, wait *delay* seconds and retry once.
+- file: scripts/agent/shutdown_budget.py
+  kind: class
+  name: ShutdownPhase
+  signature: class ShutdownPhase
+  summary: Whether the shutdown machine still accepts new work (REQ-003).
+- file: scripts/agent/shutdown_budget.py
+  kind: class
+  name: ShutdownOutcome
+  signature: class ShutdownOutcome
+  summary: What one shutdown step proved about itself (REQ-012).
+- file: scripts/agent/shutdown_budget.py
+  kind: class
+  name: ShutdownStepRecord
+  signature: class ShutdownStepRecord
+  summary: One step's outcome line (REQ-012).
+- file: scripts/agent/shutdown_budget.py
+  kind: class
+  name: ShutdownReport
+  signature: class ShutdownReport
+  summary: 'The whole sequence: one record per step plus the counts the report step'
+- file: scripts/agent/shutdown_budget.py
+  kind: class
+  name: ShutdownBudget
+  signature: class ShutdownBudget
+  summary: One global shutdown deadline, armed by the first shutdown request (REQ-002).
 - file: scripts/agent/signal_handler.py
   kind: class
   name: SignalHandler

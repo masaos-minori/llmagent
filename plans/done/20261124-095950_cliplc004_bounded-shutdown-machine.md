@@ -412,7 +412,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: budget, outcome vocabulary, configuration surface | In Progress | — | — | OD-03 decided 2026-11-24: 45 s default, configurable |
+| 1 | Phase 1: budget, outcome vocabulary, configuration surface | In Progress | 20261125-073338 | — | OD-03 decided 2026-11-24: 45 s default, configurable; R1-budget-and-config complete 2026-11-25 (rows 1, 17, 18, 19, 44); the repl.py budget wiring moved to row 7 in R4 by user decision 2026-11-25 |
 | 2 | Phase 2: db-owned write gate | In Progress | — | — | UNK-01 interrupt coverage measured here |
 | 3 | Phase 3: acceptance gate for turns, commands, approvals | In Progress | — | — |  |
 | 4 | Phase 4: coordinator sequence, writer settling, snapshot step | In Progress | — | — | OD-01 and OD-02 decided 2026-11-24; UNK-02 measured here |
@@ -433,7 +433,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261125-000005_01_scripts_agent_shutdown_budget.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-000005_01_scripts_agent_shutdown_budget.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261125-000005_02_scripts_db_write_gate.py.md | 2 | Procedure | Pending | — | — |
 | implementations/20261125-000005_03_scripts_db_helper.py.md | 2 | Procedure | Pending | — | — |
 | implementations/20261125-000005_04_scripts_db___init__.py.md | 2 | Procedure | Pending | — | — |
@@ -449,9 +449,9 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261125-000005_14_scripts_agent_lifecycle_protocol.py.md | 6 | Procedure | Pending | — | — |
 | implementations/20261125-000005_15_scripts_agent_lifecycle_router.py.md | 6 | Procedure | Pending | — | — |
 | implementations/20261125-000005_16_scripts_agent_startup.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_17_scripts_agent_config_dataclasses.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-000005_18_scripts_agent_config_builders.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-000005_19_config_agent.toml.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-000005_17_scripts_agent_config_dataclasses.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-000005_18_scripts_agent_config_builders.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-000005_19_config_agent.toml.md | 1 | Procedure | Completed | — | — |
 | implementations/20261125-000005_21_tests_db_test_write_gate.py.md | 2 | Procedure | Pending | — | — |
 | implementations/20261125-000005_25_tests_db_test_helper_thread_safety.py.md | 2 | Procedure | Pending | — | — |
 | implementations/20261125-000005_27_tests_agent_test_repl.py.md | 1 | Procedure | Pending | — | — |
@@ -463,7 +463,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261125-000005_40_tests_agent_test_agent_factory.py.md | 6 | Procedure | Pending | — | — |
 | implementations/20261125-000005_42_tests_agent_test_startup_mcp_starter.py.md | 6 | Procedure | Pending | — | — |
 | implementations/20261125-000005_43_tests_agent_test_startup_mcp_lifecycle.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_44_tests_agent_test_config_builders.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-000005_44_tests_agent_test_config_builders.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261125-000005_45_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 7 | Procedure | Pending | — | — |
 | implementations/20261125-000005_46_docs_23_agent_agent_02_runtime-architecture.md.md | 7 | Procedure | Pending | — | — |
 | implementations/20261125-000005_47_docs_23_agent_agent_07_05_cli-and-commands-repl-io.md.md | 7 | Procedure | Pending | — | — |

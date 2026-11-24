@@ -148,6 +148,18 @@ def _assemble_agent_config(cfg: dict[str, Any]) -> AgentConfig:
         approval_grant_ttl_seconds=_get_or_default(
             cfg, "approval_grant_ttl_seconds", _get_float, 300.0
         ),
+        shutdown_deadline_seconds=_get_or_default(
+            cfg, "shutdown_deadline_seconds", _get_float, 45.0
+        ),
+        shutdown_settle_seconds=_get_or_default(
+            cfg, "shutdown_settle_seconds", _get_float, 10.0
+        ),
+        shutdown_termination_confirm_seconds=_get_or_default(
+            cfg, "shutdown_termination_confirm_seconds", _get_float, 2.0
+        ),
+        shutdown_force_exit_on_second_sigint=_get_or_default(
+            cfg, "shutdown_force_exit_on_second_sigint", _get_bool, False
+        ),
     )
 
 

@@ -3,7 +3,7 @@
 Replace the two expectations this Plan deliberately changes in the REPL test file — the checkpoint-before-cancel ordering and the session-tag backup name — while keeping the path-containment and symlink expectations holding against the temporary-then-publish flow (REQ-001: one owner and sequence; REQ-006: bounded sequence; REQ-009: safe backup name and publication; AC-1, AC-3).
 
 ## Scope
-**Release unit**: R1-budget-and-config (Phase 1); the ordering and name cases are exercised again by R4 and R5
+**Release unit**: R4-sequence-and-snapshot (Phase 4) + R5-checkpoint-and-backup (Phase 5), executed last; moved from R1 by user decision 2026-11-25, consistent with this file's Design decision that it must land with rows 5, 6, 7 and 8
 
 - In scope: the ordering test, the backup-name assertions, and the containment expectations in this file.
 - Out of scope: the coordinator (row 5), the checkpoint manager (row 6), and the input-loop acceptance cases (row 22).

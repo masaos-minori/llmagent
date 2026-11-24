@@ -72,9 +72,9 @@ Build the four shutdown fields from configuration in the agent-config builder, s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | row 44 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261125-074347 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261125-074347 | row 44 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-074347 | 20261125-075448 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
