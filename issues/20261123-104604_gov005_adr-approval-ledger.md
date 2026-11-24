@@ -17,6 +17,29 @@ Source: `docs/00_governance/governance_03_issue-and-uncertainty-management.md` P
 - Rules in the document (Part 5 `### Rules`): an entry is removed once its approval is recorded in the ADR's `### Approval Record` or the pending change is reverted; `Approver` and `Date` stay `Not recorded` until the maintainer states them; an implementer must not write approval text or an entry for a past approval.
 - Plan feasibility: the approval or revert of every entry needs a maintainer statement; the only part an implementer can do alone is (a) the per-ADR review package and (b) writing the missing automated test behind the remaining Non-Blocking row (AAL-032).
 
+### Review package for the ADR-006 and ADR-008 entries changed on 2026-11-24
+
+Prepared from the ADR amendment of 2026-11-24 (`issues/done/20261124-093927_adrdoc001_adr-eventbus-memory-amendment.md` and its plan). It contains no approval text; `Approver` and `Date` stay `Not recorded`. The "Proposed disposition" column is a recommendation of the preparer, not a decision.
+
+| Entry | ADR | Old decision | Proposed decision | Implementation impact (tracking Known Issue) | Verification expectation | Proposed disposition |
+|---|---|---|---|---|---|---|
+| AAL-024 | ADR-008 | Four platform databases | Six SQLite stores (title, Summary, Scope, Recovery Policy Matrix) | None (documentation) | Existing `tools/check_db_separation.py` covers the four platform-domain databases | Approve |
+| AAL-025 | ADR-008 | Schema mismatch: archive and recreate, memory recovered from the JSONL archive with `/memory rebuild` | Archive and recreate; Episodic Memory is not carried over (only the JSONL precondition is removed) | None for the rule; the `/memory rebuild` removal is SHARED-003 | Existing | Approve |
+| AAL-028 | ADR-008 | INV-04 without the outbox record | INV-04 names the `dlq_outbox` durable promotion record | None | Existing | Approve |
+| AAL-029 | ADR-006 | No-loss claims plus an accepted retention risk | No-loss claims hold under the ADR-008 schema-mismatch rule (the retention-risk part is withdrawn) | None | Existing | Approve |
+| AAL-039 | ADR-008 | Semantic and Episodic memory, JSONL archive, pin, manual writes, `/memory` | Repository Context (non-persistent) and Episodic Memory (only persistent memory, `session.sqlite` only); INV-19 to INV-22 | Large: remove the old memory model and JSONL, add the Repository Context loader, `/reload` snapshot and diagnostics, retire configuration keys (SHARED-003) | INV-20 to INV-22 Not verified until implemented | Approve; undecided parts stay under SHARED-004 |
+| AAL-040 | ADR-006 | JSONL archive as a secondary audit log | No `events.jsonl`; `eventbus.sqlite` is the sole source of truth (Decision Details 15 to 17, INV-17, INV-18, INV-21) | Medium: remove the JSONL append and its metric from the publish route (EVENTBUS-001) | INV-17 partial, INV-18 and INV-21 Not verified | Approve |
+| AAL-041 | ADR-006 | Unbounded growth accepted | State-aware retention, replay floor with HTTP 410 `replay_position_expired`, capacity and readiness rules (Decision Details 18 to 20, INV-19, INV-20, INV-22) | Large: retention task and registry, purge, floor check, health fields, configuration keys, EventBus schema change (recreate policy) (EVENTBUS-002) | INV-19, INV-20, INV-22 Not verified | Approve; purge stays forbidden until the registry is implemented |
+
+Not touched by the amendment and still pending: AAL-006 to AAL-009 and AAL-037 (ADR-006), AAL-010 and AAL-011 (ADR-008).
+
+Maintainer decisions stated in the session of 2026-11-24 (preference statements that unblock the approvals; they are not Approval Records, and each text change that follows needs its own pending entry or approval):
+- D1, retention-participant registry: an explicit registry in `eventbus.sqlite` with explicit registration and decommission. Follow-up: amend ADR-006 Decision Detail 18 from the open owner decision to this model (a new pending entry), and update EVENTBUS-002 and the EventBus documents that cite the open decision.
+- D3, Episodic Memory schema mismatch: the ADR-008 Decision Detail 22 text (archive and recreate, Episodic Memory not carried over) is the final policy. Follow-up: remove the "undecided (SHARED-004)" qualifier for the schema-mismatch handling from `agent_09_01`, `db_03`, `deployment_01`, ADR-008 Known Deviations, and SHARED-004; retention and event categories stay undecided.
+- D10, `/memory`: remove it from the code first (the SHARED-003 implementation issue), then remove the retired entry, the retired usage-form table, and the retired configuration-key rows from the documents.
+
+Decisions still open (each cites its Known Issue): the `/subscribe` meaning of `since_seq=0` (ADR-006 open decision); Episodic event categories and retention (SHARED-004); Repository Context configuration keys, source list, and authority values (SHARED-003); the failure behavior when mandatory input exceeds the context limit (SHARED-004); archive retention bounds and the minimum number of verified generations (EVENTBUS-002); the EventBus-generated retention timestamp column (EVENTBUS-002); health field names, thresholds, and the audit-log destination (EVENTBUS-002).
+
 ## Problem
 A large backlog of unapproved decision text stays in force, and the Non-Blocking rows weaken verification until approved.
 
@@ -31,7 +54,7 @@ Each entry ends as an approval recorded in its ADR or a reverted change; each No
 - The ADRs named per entry (ADR-001, 002, 003, 004, 005, 006, 008, 009, 010, 012, 014, 015) and `docs/10_adr/adr_01_index.md` (Invariant Verification Matrix)
 
 ## Required Changes
-- Produce a per-ADR review package (entry, text change, evidence) for the maintainer. Deliverable form and location are an open question (see Unresolved Questions); it contains no approval text.
+- Keep the review package under Background up to date: it is the deliverable for the maintainer (entry, old and proposed decision, implementation impact, verification expectation); it contains no approval text. Its form and location were decided by the maintainer on 2026-11-24 (a repository document; this issue is the location, because `docs/` keeps current specifications only).
 - After the maintainer's statement, record the approval in the ADR's `### Approval Record` and remove the ledger entry, or revert the change.
 - For the remaining Non-Blocking verification row (AAL-032, ADR-002 INV-04), the maintainer either approves the Non-Blocking value, or an implementer adds the missing automated test (the rows cite none), sets the row to Blocking with the test cited as evidence, and the entry is then removed as a reverted change; the matrix `adr_01_index.md` and its citation count stay consistent.
 
@@ -61,7 +84,7 @@ Yes: the ADRs concerned and the governance inventory.
 
 ## Unresolved Questions
 - `不明`: the maintainer's decision per entry (approve or revert), all 32.
-- `不明`: whether the maintainer wants the per-ADR review package, and in what form and location (a one-time artifact or a repository document); without that answer it is not planned.
+- `不明`: whether the proposed dispositions in the review package are accepted; each approval still needs the maintainer's own statement.
 - `不明`: for the remaining Non-Blocking row (AAL-032, ADR-002 INV-04), approve the Non-Blocking value or have an automated test added; the second option is the only part an implementer can plan on its own.
 
 ## AI Implementation Instruction
