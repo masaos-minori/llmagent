@@ -58,8 +58,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document per Implementation | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | Release unit terminology-sweep |
+| 1 | Edit the document per Implementation | Completed | 20261124-110725 | 20261124-110725 | Changed: 41/db_db_03_architecture_and_schema-migration-and-scaling |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261124-110725 | 20261124-110725 | Release unit terminology-sweep eight consistency domains, docs structure/quality/content-policy, ADR checks, known-deviation sync, needs-confirmation inventory, reference and authority drift, DB separation, 75 cited ADR tests and 117 tests pass; preservation findings on the ADR-004 label are intended |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

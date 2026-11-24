@@ -60,7 +60,7 @@ To prevent orphaned records, `delete_document()` enforces a strict deletion orde
 
 ### Session and Memory Access Rule
 
-Session operations (`AgentSession`, `SessionMessageRepository`, `/session`, `/undo`) must not call memory operations, and memory operations must not read or modify `sessions` or `messages`. Memory is read for context only through the memory injection path and written only by memory ingestion and `/memory` commands.
+Session operations (`AgentSession`, `SessionMessageRepository`, `/session`, `/undo`) must not call Episodic Memory operations, and Episodic Memory operations must not read or modify `sessions` or `messages`. Episodic Memory is read for context only through the memory injection path and written only by internal generation; no user command writes it.
 
 **Design judgment:** `memories.session_id` has no foreign key, so the database does not enforce this separation; the access rule does.
 

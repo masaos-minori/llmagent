@@ -151,10 +151,11 @@ responsible for reusing knowledge across sessions.
   It may refer to a session that has already been deleted and has no foreign-key
   constraint to `sessions`.
 - `/undo`, history compression, `/session load`, `/session delete`, and
-  `/session purge` do not modify long-term memory.
-- Long-term memory is modified only by memory ingestion and `/memory` operations.
-- `/session export` exports conversation history only. Memory backup and
-  recovery use the JSONL archive and `/memory rebuild`.
+  `/session purge` do not modify Episodic Memory.
+- Episodic Memory is generated and managed internally; no command gives users add, delete, prune, or rebuild operations (ADR-008).
+- `/session export` exports conversation history only. Episodic Memory is backed up and
+  recovered only with the Session DB (see agent_09_01), and Repository Context is reloaded
+  from the configured files.
 
 Lifetimes differ: `ctx.conv.history` is session-scoped and is restored from `messages`. The memory injection message is a temporary system context for one turn; it is never persisted to `messages`, is not restored by `/session load`, and is removed when the turn ends. Deduplication between restored history and injected memory belongs to memory injection, which skips memories whose provenance `session_id` equals the current session; the session side has no deduplication duty.
 

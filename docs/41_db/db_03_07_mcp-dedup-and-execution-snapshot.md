@@ -32,7 +32,7 @@ Agent-facing semantics: [agent_04_03](../23_agent/agent_04_03_state-and-persiste
 
 ## The Standalone `mcp_dedup.sqlite` Store
 
-`mcp_dedup.sqlite` is a fifth database file outside the original four-database set.
+`mcp_dedup.sqlite` is one of the six SQLite stores: a store outside the four platform domains.
 [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) separates stores by owner:
 this file is owned by the shared MCP dispatcher layer (`scripts/shared/mcp_dedup.py`,
 `DedupStore`) and is never opened by the agent, the RAG pipeline, or the MDQ index.

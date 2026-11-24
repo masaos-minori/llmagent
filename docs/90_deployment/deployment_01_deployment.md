@@ -307,19 +307,19 @@ The generalized gate is the shared validator `scripts/shared/schema_fingerprint`
 
 Run `init_db.sh` before `setup_services.sh`. Any rag, session, workflow, or EventBus database whose shape does not match the current canonical schema by the shared fingerprint — including one carrying the legacy marker tables — is refused by the gates and recreated, not migrated: archive it first (`rotate_all_dbs()`, `eventbus.db_tools rotate`), delete it, then run `init_db.sh`; no deployment script records or stamps a version on an existing database. `setup_services.sh` proves Event Bus liveness and readiness with a bounded poll before reporting success: a dead child, a persistent connection failure, or a `/health` body failing the readiness predicate (`liveness` and `readiness` both true: liveness requires the DLQ sweep task and the authorization sweep task to be running, readiness requires a connectable database) is fatal, with child cleanup and last-response logging; an HTTP 503 carrying only capacity-only `degraded_reasons` (`lock_wait_high`, `slow_consumers_detected`, `query_duration_high`, `broker_queue_backlog_high`, `subscribers_at_capacity`) is tolerated. The workflow definition must not contain `require_approval`; the loader rejects the key.
 
-**Recreating `session.sqlite`.** `session.sqlite` has no incremental migration, so a schema change to it (for example the `sessions.undo_floor_message_id` column of the `/undo` compression boundary) requires recreating the file. The recreated file is empty, and the memory tables recover separately.
+**Recreating `session.sqlite`.** `session.sqlite` has no incremental migration, so a schema change to it (for example the `sessions.undo_floor_message_id` column of the `/undo` compression boundary) requires recreating the file. The recreated file is empty, and Episodic Memory is not carried over (ADR-008 Decision Detail 22).
 
 | Step | Action |
 |---|---|
-| 1. Prepare | Export sessions worth keeping with `/session export`; note the pinned memories |
+| 1. Prepare | Export sessions worth keeping with `/session export` |
 | 2. Stop | Stop the agent |
 | 3. Archive | Archive every DB with `rotate_all_dbs()` (db_07, DB Recreation Procedure, Step 1) |
 | 4. Delete | Delete only `session.sqlite` (`session_db_path` in `agent.toml`) |
 | 5. Create | Run only `create_session_schema()`; do not touch other DBs |
-| 6. Recover memory | Start the agent and run `/memory rebuild` (dry run first, then `--confirm`; add `--allow-loss` if memories exist only in SQLite). Deletes and pins recorded as change events are reproduced; earlier ones are not |
+| 6. Episodic Memory | Not carried over by recreation. To keep it, restore a verified backup of the whole Session DB instead of recreating; the final policy is undecided (SHARED-004) |
 | 7. Verify | Confirm the new column with `PRAGMA table_info(sessions)` |
 
-Sessions, messages, and diagnostics are not recovered; past sessions can no longer be loaded.
+Sessions, messages, diagnostics, and Episodic Memory are not recovered; past sessions can no longer be loaded.
 
 ### 3.2 Deployment Checklist
 

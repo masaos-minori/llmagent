@@ -1,10 +1,10 @@
 ## Goal
-Mark the memory store paragraph as belonging to the retired model (REQ-003).
+Replace the memory recovery step and the pinned-memory note in the Session DB recreation runbook with the ADR-008 rule (REQ-003).
 
 ## Scope
 **Release unit**: terminology-sweep
 
-- Edits only `docs/41_db/db_05_api_and_operations-protocol-and-backend.md`; applied with the other documents of the release unit because the documents cross-link and are validated together.
+- Edits only `docs/90_deployment/deployment_01_deployment.md`; applied with the other documents of the release unit because the documents cross-link and are validated together.
 
 ## Assumptions
 - The amended ADR-008 (Decision Details 22 to 25, INV-20 to INV-22) is the contract; the document links to it or to `agent_09_01` instead of restating it.
@@ -13,24 +13,26 @@ Mark the memory store paragraph as belonging to the retired model (REQ-003).
 - Before removing or renaming a heading, search for links to its anchor (`rg -n "#<anchor>" docs`) and keep or update them in the same edit set.
 
 ## Design decisions
-- Keep the code-behavior statements; add the status and fix the deletion sentence.
+- Keep the table and step numbers; change step 1 and step 6 and the closing sentences.
 
 ## Alternatives considered
 N/A: documentation only; the Plan fixes the approach.
 
 ## Implementation
 ### Target file
-`docs/41_db/db_05_api_and_operations-protocol-and-backend.md`
+`docs/90_deployment/deployment_01_deployment.md`
 
 ### Procedure
-1. Add a first sentence: the tables named in this paragraph belong to the code that still implements the retired memory model; Episodic Memory replaces them in `session.sqlite` (ADR-008; SHARED-003).
-2. Replace "Cross-table deletion of old memories is delegated to `SQLiteMemoryDeleteStore`." with a statement that it is removal-pending with the retired `/memory` commands (SHARED-003).
+1. Intro sentence: replace "the memory tables recover separately" with "Episodic Memory is not carried over (ADR-008 Decision Detail 22)".
+2. Step 1: remove "note the pinned memories".
+3. Step 6: rename to "Episodic Memory" with the action: not carried over by recreation; to keep it, restore a verified backup of the whole Session DB instead of recreating; the final policy is undecided (SHARED-004).
+4. Closing sentence: add Episodic Memory to the data that is not recovered.
 
 ### Method
-- Use the Edit tool on the paragraph.
+- Use the Edit tool; locate with `rg -n "/memory|pinned memories|memory tables" docs/90_deployment/deployment_01_deployment.md`.
 
 ### Details
-- Do not describe a JSONL store here.
+- Do not mention `/memory rebuild` or the JSONL archive.
 
 ## Compatibility considerations
 N/A: documentation only.
@@ -42,11 +44,11 @@ N/A: no security-relevant change.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run python tools/check_docs_consistency.py --domain db`.
+- `uv run python tools/check_docs_consistency.py --domain deployment`.
 - `uv run python tools/check_docs_quality.py` and `uv run python tools/check_docs_content_policy.py`.
 
 ## Completion criteria
-- The paragraph states its retired status and cites SHARED-003.
+- No `/memory rebuild` step or pinned-memory note remains; the verified-backup rule is stated.
 
 ## Out of Scope
 - Any other file, code, configuration, generated references, and manifests.
@@ -56,8 +58,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document per Implementation | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | Release unit terminology-sweep |
+| 1 | Edit the document per Implementation | Completed | 20261124-110725 | 20261124-110725 | Changed: 90/deployment_deployment_01_deployment |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261124-110725 | 20261124-110725 | Release unit terminology-sweep eight consistency domains, docs structure/quality/content-policy, ADR checks, known-deviation sync, needs-confirmation inventory, reference and authority drift, DB separation, 75 cited ADR tests and 117 tests pass; preservation findings on the ADR-004 label are intended |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -77,4 +79,4 @@ N/A: revert the commit.
 - **Source plan**: plans/20261124-104416_adrdoc004_docs-regenerate-cross-validate.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261124-105117
-- **Related target files**: `docs/41_db/db_05_api_and_operations-protocol-and-backend.md`
+- **Related target files**: `docs/90_deployment/deployment_01_deployment.md`

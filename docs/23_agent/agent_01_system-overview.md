@@ -59,7 +59,7 @@ The system overview should answer "what does this agent do" and "how does it fit
 | `CLIView` | readline, progress display, multiline input |
 | `AgentSession` | sessions/messages SQLite |
 | `AgentConfig` | Composite sub-configs, hot-reload |
-| `MemoryServices` | Optional semantic memory layer |
+| `MemoryServices` | Optional Episodic Memory layer (Repository Context is a separate, non-persistent mechanism) |
 
 ## Key Constraints
 

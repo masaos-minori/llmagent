@@ -206,7 +206,7 @@ Full details: [agent_08_01_configuration-loading-agent-config.md](agent_08_01_co
 
 ## MemoryServices (`agent/memory/`)
 
-- **Role:** Optional persistent semantic memory subsystem.
+- **Role:** Optional Episodic Memory subsystem (persistent in `session.sqlite`).
 - **Primary API:** `memory.on_session_start()`, `memory.on_user_prompt(query, session_id)`, `memory.on_session_stop()`
 - **Caller:** `Orchestrator`, `AgentREPL` (at startup/shutdown)
 - **Callee:** `MemoryStore`, `HybridRetriever`, `EmbeddingClient`

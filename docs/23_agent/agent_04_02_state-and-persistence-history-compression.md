@@ -136,7 +136,7 @@ state view.
 | `ctx.stats.*` | Session | In-memory | — (reported via `/stats`) | `/clear` or a session transition (`/session load`, `/clear new`) |
 | `sessions` table | Persistent | SQLite | Upon session creation; title generated asynchronously during the first turn; compression boundary for `/undo` updated at each compression | `/session delete` |
 | `messages` table | Persistent | SQLite | Every call to `AgentSession.save()` | `/session delete` or `/undo` (a failed in-memory reload after `/undo` is reported with a `/session load` hint, never left silent); never by `/clear` |
-| Memory JSONL / `memories` table | Persistent | JSONL + SQLite | During memory extraction (asynchronously) | `/memory delete` or `/memory prune` (not cleared by `/session delete`) |
+| Episodic Memory (`session.sqlite`) | Persistent | SQLite only | During Episodic Memory generation (asynchronously) | Internal retention only (not cleared by `/session delete`; policy undecided, SHARED-004) |
 
 ## Key Constraints
 

@@ -33,12 +33,12 @@ related:
 
 ### Recreating `session.sqlite`: Session and Memory Recovery
 
-Recreating `session.sqlite` physically removes both sessions and memories, but they are recovered by different paths:
+Recreating `session.sqlite` physically removes both sessions and Episodic Memory; neither is carried over (ADR-008 Decision Detail 22):
 
 1. Export any conversation worth keeping with `/session export` before recreating.
 2. Recreate `session.sqlite` (Archive → Delete → Recreate).
-3. Recover memory only, from the JSONL archive, with `/memory rebuild`.
-4. Past session history is not restored into the database; `/memory rebuild` does not recover sessions and `/session export` output is for human reference only.
+3. To keep Episodic Memory, restore a verified backup of the whole Session DB instead of recreating; whether destructive recreation is the final policy for Episodic Memory is undecided (SHARED-004).
+4. Past session history is not restored into the database, and `/session export` output is for human reference only.
 
 ### 8a. Startup Validation for `workflow.sqlite`
 
@@ -82,7 +82,7 @@ Recreation impact when a database is not accepted (full procedure: [db_07 sectio
 | `workflow.sqlite` | Yes — task history is not carried over | Required: `rotate_all_dbs()` archives it (db_07 section 11, step 1) | Restore the archived file |
 | `eventbus.sqlite` | Yes — events and delivery state are not carried over | Required: `python -m eventbus.db_tools rotate` archives it | Restore the archived file manually; no automated restoration path exists (db_07 section 9) |
 | `mdq.sqlite` | No lasting loss — derived store, rebuilt from the Markdown files | Not required | Delete the file and re-index (section 8d) |
-| `session.sqlite` | Yes — sessions are lost; memory is recovered from the JSONL archive with `/memory rebuild` | Required: export conversations with `/session export`; `rotate_all_dbs()` archives the file | Restore the archived file |
+| `session.sqlite` | Yes — sessions and Episodic Memory are lost; the only recovery source is a verified backup | Required: export conversations with `/session export`; `rotate_all_dbs()` archives the file | Restore the archived file |
 | `rag.sqlite` | Yes — the corpus is re-ingested | Required: `rotate_all_dbs()` archives it | Restore the archived file |
 | `mcp_dedup.sqlite` | No lasting loss — disposable ledger; non-retryable tools are rejected until the operator resolves the state | Not required | Operator resolution: `resolve_store` archives the file as `.corrupt-<ts>` and creates a new generation (db_08 runbook) |
 

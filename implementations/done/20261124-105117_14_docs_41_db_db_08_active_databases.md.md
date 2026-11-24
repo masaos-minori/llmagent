@@ -1,10 +1,10 @@
 ## Goal
-Replace the `/memory` and JSONL recovery statements in the session and memory boundary text with the Episodic rule (REQ-001).
+Update the ADR-008 link text to the amended title (REQ-004).
 
 ## Scope
 **Release unit**: terminology-sweep
 
-- Edits only `docs/23_agent/agent_04_01_state-and-persistence-state-model.md`; applied with the other documents of the release unit because the documents cross-link and are validated together.
+- Edits only `docs/41_db/db_08_active_databases.md`; applied with the other documents of the release unit because the documents cross-link and are validated together.
 
 ## Assumptions
 - The amended ADR-008 (Decision Details 22 to 25, INV-20 to INV-22) is the contract; the document links to it or to `agent_09_01` instead of restating it.
@@ -13,25 +13,23 @@ Replace the `/memory` and JSONL recovery statements in the session and memory bo
 - Before removing or renaming a heading, search for links to its anchor (`rg -n "#<anchor>" docs`) and keep or update them in the same edit set.
 
 ## Design decisions
-- Rewrite the bullet list in place; keep the heading it sits under.
+- One line; keep the link target.
 
 ## Alternatives considered
 N/A: documentation only; the Plan fixes the approach.
 
 ## Implementation
 ### Target file
-`docs/23_agent/agent_04_01_state-and-persistence-state-model.md`
+`docs/41_db/db_08_active_databases.md`
 
 ### Procedure
-1. Replace the bullet "do not modify long-term memory" with the same statement about Episodic Memory.
-2. Replace "Long-term memory is modified only by memory ingestion and `/memory` operations" with: Episodic Memory is generated and managed internally, and no command gives users add, delete, prune, or rebuild operations (ADR-008).
-3. Replace the `/session export` bullet's recovery sentence: Episodic Memory is backed up and recovered only with the Session DB (see `agent_09_01`), and Repository Context is reloaded from the configured files.
+1. Replace the link text "Separating SQLite into Six Databases" with "Separation and Lifecycle Policy for Six SQLite Stores".
 
 ### Method
-- Use the Edit tool; locate with `rg -n -i "long-term memory|/memory|JSONL" docs/23_agent/agent_04_01_state-and-persistence-state-model.md`.
+- Use the Edit tool.
 
 ### Details
-- This file is cited as the session and memory boundary; keep the heading and the other statements.
+- The link target file name (4db) stays until the rename follow-up.
 
 ## Compatibility considerations
 N/A: documentation only.
@@ -43,11 +41,11 @@ N/A: no security-relevant change.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run python tools/check_docs_consistency.py --domain agent`.
+- `uv run python tools/check_docs_consistency.py --domain db`.
 - `uv run python tools/check_docs_quality.py` and `uv run python tools/check_docs_content_policy.py`.
 
 ## Completion criteria
-- No `/memory` operation or JSONL recovery statement remains.
+- The link text shows the amended title; the link resolves.
 
 ## Out of Scope
 - Any other file, code, configuration, generated references, and manifests.
@@ -57,8 +55,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document per Implementation | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | Release unit terminology-sweep |
+| 1 | Edit the document per Implementation | Completed | 20261124-110725 | 20261124-110725 | Changed: 41/db_db_08_active_databases |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261124-110725 | 20261124-110725 | Release unit terminology-sweep eight consistency domains, docs structure/quality/content-policy, ADR checks, known-deviation sync, needs-confirmation inventory, reference and authority drift, DB separation, 75 cited ADR tests and 117 tests pass; preservation findings on the ADR-004 label are intended |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -72,10 +70,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-001
+- **Requirement ID**: REQ-004
 - **Source issue**: issues/20261124-093930_adrdoc004_docs-regenerate-cross-validate.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261124-104416_adrdoc004_docs-regenerate-cross-validate.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261124-105117
-- **Related target files**: `docs/23_agent/agent_04_01_state-and-persistence-state-model.md`
+- **Related target files**: `docs/41_db/db_08_active_databases.md`

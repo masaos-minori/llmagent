@@ -21,9 +21,9 @@ All functions accept the typed configuration supplied by the process that owns `
 - `checkpoint_wal` flushes the WAL. The default mode comes from `DbMaintenanceConfig.wal_checkpoint_mode`, which the owning process builds from `config/agent.toml::sqlite_wal_checkpoint_mode` (a code-level default applies when the key is absent); an invalid mode raises `ValueError`.
 - `vacuum_db` delegates to `db.vacuum()` and must be called outside an active transaction. In BEST_EFFORT mode it catches any `sqlite3.Error` (not only `OperationalError`) plus `RuntimeError`.
 - `purge_old_sessions` performs age-based and count-based session purging as one `BEGIN IMMEDIATE` transaction: both delete rules commit together, and a failure in either rule rolls back the whole purge — a failed BEST_EFFORT purge reports zero counts and leaves the sessions table unchanged. When an active-session guard is supplied, the guarded session is exempt from both retention rules and the exemption is reported in the result data.
-- `prune_old_memories` deletes old memories via `SQLiteMemoryDeleteStore`. The `pruned_ids` in the result data are exactly the ids removed by that delete transaction (`MemoryDeleteResult.deleted_ids`), not a separately selected list.
+- `prune_old_memories` is retired with the `/memory prune` command and removal-pending (SHARED-003); it is not a supported maintenance operation.
 
-Each of `vacuum_db`, `purge_old_sessions` and `prune_old_memories` takes a `MaintenanceMode` and returns a `MaintenanceResult` (`success`, `action`, `mode`, optional failure `detail` and `data`).
+Each of `vacuum_db` and `purge_old_sessions` takes a `MaintenanceMode` and returns a `MaintenanceResult` (`success`, `action`, `mode`, optional failure `detail` and `data`).
 
 **Mode Semantics:**
 - **STRICT (Default):** Behaves as before mode introduction—exceptions propagate directly. A successful operation returns `MaintenanceResult(success=True)`.

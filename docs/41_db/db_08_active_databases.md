@@ -115,7 +115,7 @@ next call of each key runs for real.
 
 ## Related ADRs
 
-- [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) — Separating SQLite into Six Databases
+- [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) — Separation and Lifecycle Policy for Six SQLite Stores
 
 ## Keywords
 

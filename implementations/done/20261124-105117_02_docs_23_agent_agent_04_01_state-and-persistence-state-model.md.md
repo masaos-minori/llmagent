@@ -1,10 +1,10 @@
 ## Goal
-Replace the Memory Status section with the diagnostics owner statement (REQ-001).
+Replace the `/memory` and JSONL recovery statements in the session and memory boundary text with the Episodic rule (REQ-001).
 
 ## Scope
 **Release unit**: terminology-sweep
 
-- Edits only `docs/23_agent/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`; applied with the other documents of the release unit because the documents cross-link and are validated together.
+- Edits only `docs/23_agent/agent_04_01_state-and-persistence-state-model.md`; applied with the other documents of the release unit because the documents cross-link and are validated together.
 
 ## Assumptions
 - The amended ADR-008 (Decision Details 22 to 25, INV-20 to INV-22) is the contract; the document links to it or to `agent_09_01` instead of restating it.
@@ -13,25 +13,25 @@ Replace the Memory Status section with the diagnostics owner statement (REQ-001)
 - Before removing or renaming a heading, search for links to its anchor (`rg -n "#<anchor>" docs`) and keep or update them in the same edit set.
 
 ## Design decisions
-- Rename the section; keep the counters that the code reports.
+- Rewrite the bullet list in place; keep the heading it sits under.
 
 ## Alternatives considered
 N/A: documentation only; the Plan fixes the approach.
 
 ## Implementation
 ### Target file
-`docs/23_agent/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
+`docs/23_agent/agent_04_01_state-and-persistence-state-model.md`
 
 ### Procedure
-1. Rename the heading "Memory Status (`/memory status`)" to "Memory Diagnostics".
-2. Add a first sentence: the `/memory status` command is retired by ADR-008; the diagnostics owner is `/stats`, which is not yet implemented (SHARED-003).
-3. Keep the Mode label, Local-only, FTS fallback count, and Embed skip count bullets as the retrieval modes and counters of the Episodic Memory layer; remove the Pinned bullet.
+1. Replace the bullet "do not modify long-term memory" with the same statement about Episodic Memory.
+2. Replace "Long-term memory is modified only by memory ingestion and `/memory` operations" with: Episodic Memory is generated and managed internally, and no command gives users add, delete, prune, or rebuild operations (ADR-008).
+3. Replace the `/session export` bullet's recovery sentence: Episodic Memory is backed up and recovered only with the Session DB (see `agent_09_01`), and Repository Context is reloaded from the configured files.
 
 ### Method
-- Use the Edit tool; check links to the old heading anchor first.
+- Use the Edit tool; locate with `rg -n -i "long-term memory|/memory|JSONL" docs/23_agent/agent_04_01_state-and-persistence-state-model.md`.
 
 ### Details
-- The mode labels are retrieval modes and stay.
+- This file is cited as the session and memory boundary; keep the heading and the other statements.
 
 ## Compatibility considerations
 N/A: documentation only.
@@ -47,7 +47,7 @@ N/A: revert the commit.
 - `uv run python tools/check_docs_quality.py` and `uv run python tools/check_docs_content_policy.py`.
 
 ## Completion criteria
-- The section names no `/memory` command as supported and has no pinned count.
+- No `/memory` operation or JSONL recovery statement remains.
 
 ## Out of Scope
 - Any other file, code, configuration, generated references, and manifests.
@@ -57,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document per Implementation | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | Release unit terminology-sweep |
+| 1 | Edit the document per Implementation | Completed | 20261124-110725 | 20261124-110725 | Changed: 23/agent_agent_04_01_state-and-persistence-state-model |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261124-110725 | 20261124-110725 | Release unit terminology-sweep eight consistency domains, docs structure/quality/content-policy, ADR checks, known-deviation sync, needs-confirmation inventory, reference and authority drift, DB separation, 75 cited ADR tests and 117 tests pass; preservation findings on the ADR-004 label are intended |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -78,4 +78,4 @@ N/A: revert the commit.
 - **Source plan**: plans/20261124-104416_adrdoc004_docs-regenerate-cross-validate.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261124-105117
-- **Related target files**: `docs/23_agent/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
+- **Related target files**: `docs/23_agent/agent_04_01_state-and-persistence-state-model.md`

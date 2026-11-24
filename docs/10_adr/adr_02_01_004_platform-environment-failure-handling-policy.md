@@ -360,7 +360,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - ADR-002: Per-Process Configuration Ownership and Config Isolation — Config Isolation violation → Fail-Fast
 - ADR-003: RuntimeToolRegistry as the Sole Routing Authority — RuntimeToolRegistry init failure → Fail-Fast; authority for Tool visibility/Routing/Dynamic Health
 - ADR-006: EventBus SQLite Persistence and SSE Delivery — EventBus readiness and shape failures are classified under this policy
-- ADR-008: SQLite Four-Database Separation — dedup-store availability failures reference this ADR's separation decisions
+- ADR-008: Six SQLite Stores: Separation and Lifecycle — dedup-store availability failures reference this ADR's separation decisions
 
 ## Implementation References
 

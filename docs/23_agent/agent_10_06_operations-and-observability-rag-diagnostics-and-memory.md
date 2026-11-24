@@ -50,12 +50,13 @@ related:
 
 The standalone ingestion pipeline prints progress and one `inserted N/M chunks: <url>` line per URL, then a `done:` summary of success, failed and skipped counts. `N = 0` means the URL was skipped because it already exists in `documents`; use `--force` to re-embed. `failed` counts chunks whose embedding or DB write failed.
 
-## Memory Status (`/memory status`)
+## Memory Diagnostics
+
+The `/memory status` command is retired by ADR-008; the diagnostics owner is `/stats`, which is not yet implemented (SHARED-003). The labels and counters below are the retrieval modes and counters of the Episodic Memory layer in the current code.
 
 - **Mode** label: `Hybrid mode (semantic + FTS)` | `Memory enabled, embedding disabled (FTS-only)` | `Degraded mode (circuit open, FTS fallback)` | `Memory layer disabled`
 - **Local-only**: `enabled` if `memory_local_only = true` in `config/agent.toml`
 - **FTS fallback count**: Number of searches since process start that used FTS only; reset on restart
-- **Pinned**: Number of pinned memories and the limit `memory_max_pinned`
 - **Embed skip count**: Number of entries saved without embedding (due to circuit open or embedding disabled)
 
 ## Graceful Shutdown

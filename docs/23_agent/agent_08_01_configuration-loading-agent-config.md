@@ -172,18 +172,18 @@ the policy means comparing each key the file states with the Code default column
 | Key name | Reading component | Value type | Unit | Code default | Reload class |
 |---|---|---|---|---|---|
 | `use_memory_layer` | memory service factory | boolean | n/a | `True` | [STARTUP-ONLY] |
-| `memory_jsonl_dir` | resolve_memory_jsonl_dir() | string | path | `'/opt/llm/memory'` | [RESTART] |
-| `memory_max_inject_semantic` | InjectionPolicy | integer | entries | `5` | [RESTART] |
+| `memory_jsonl_dir` | retired by ADR-008; removal pending (SHARED-003) | string | path | `'/opt/llm/memory'` | [RESTART] |
+| `memory_max_inject_semantic` | retired by ADR-008; removal pending (SHARED-003) | integer | entries | `5` | [RESTART] |
 | `memory_max_inject_episodic` | InjectionPolicy | integer | entries | `3` | [RESTART] |
-| `memory_min_importance` | InjectionPolicy | float | heuristic score | `0.3` | [RESTART] |
+| `memory_min_importance` | retired by ADR-008; removal pending (SHARED-003) | float | heuristic score | `0.3` | [RESTART] |
 | `memory_dedup_threshold` | `_link_duplicates()` | float | unverified: compared as L2 distance, while the per-type values are on a 0-1 scale | `0.3` | [RESTART] |
 | `memory_embed_url` | embedding client | string | URL | `''` | [OK] |
 | `memory_embed_enabled` | memory service factory | boolean | n/a | `True` | [STARTUP-ONLY] |
 | `memory_local_only` | memory service factory | boolean | n/a | `False` | [OK] |
 | `memory_embed_timeout_sec` | embedding client | float | seconds | `5.0` | [RESTART] |
 | `memory_max_content_chars` | memory store | integer | characters | `500` | [RESTART] |
-| `memory_retention_days` | memory prune | integer | days | `90` | [OK] |
-| `memory_max_pinned` | memory store | integer | entries | `10` | [OK] |
+| `memory_retention_days` | retired by ADR-008; removal pending (SHARED-003) | integer | days | `90` | [OK] |
+| `memory_max_pinned` | retired by ADR-008; removal pending (SHARED-003) | integer | entries | `10` | [OK] |
 
 ### Observability
 

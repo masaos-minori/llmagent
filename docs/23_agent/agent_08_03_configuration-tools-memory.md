@@ -69,12 +69,12 @@ Determined by the combination of `use_memory_layer`, `memory_embed_enabled`, and
 - `memory_embed_url` is the embedding endpoint, owned by the Memory section, and must be non-empty when `memory_embed_enabled=True` (`MemoryConfig` validation).
 - `memory_local_only` rejects a non-loopback `memory_embed_url` at startup; the rejection itself is enforced by the runtime check in `scripts/agent/memory/embedding_client.py`.
 - `memory_embed_enabled` enables embedding and KNN for memory search (startup-only).
-- `memory_retention_days` is only the default for `/memory prune`; memories are never deleted automatically.
-- `memory_max_pinned` caps pinned memories.
+- `memory_retention_days` is retired by ADR-008 (it was the default of the retired `/memory prune`); removal pending (SHARED-003).
+- `memory_max_pinned` is retired by ADR-008 together with pinning; removal pending (SHARED-003).
 - `memory_max_content_chars` is a per-entry storage limit.
 - The embedding dimension is not a config key: it is a fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`) used identically by `MemoryStore` and the RAG pipeline.
 
-Injection counts, minimum importance, FTS candidate limit, RRF constant, recency window and the deduplication threshold are plain parameters defined by `MemoryConfig`.
+Injection counts (the semantic count and the minimum importance are retired by ADR-008, SHARED-003), FTS candidate limit, RRF constant, recency window and the deduplication threshold are plain parameters defined by `MemoryConfig`.
 
 ## Responsibility Boundary
 

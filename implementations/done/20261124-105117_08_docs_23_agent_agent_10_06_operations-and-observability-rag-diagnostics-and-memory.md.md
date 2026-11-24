@@ -1,10 +1,10 @@
 ## Goal
-Describe `prune_old_memories` as removal-pending instead of a supported maintenance operation (REQ-003).
+Replace the Memory Status section with the diagnostics owner statement (REQ-001).
 
 ## Scope
 **Release unit**: terminology-sweep
 
-- Edits only `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md`; applied with the other documents of the release unit because the documents cross-link and are validated together.
+- Edits only `docs/23_agent/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`; applied with the other documents of the release unit because the documents cross-link and are validated together.
 
 ## Assumptions
 - The amended ADR-008 (Decision Details 22 to 25, INV-20 to INV-22) is the contract; the document links to it or to `agent_09_01` instead of restating it.
@@ -13,24 +13,25 @@ Describe `prune_old_memories` as removal-pending instead of a supported maintena
 - Before removing or renaming a heading, search for links to its anchor (`rg -n "#<anchor>" docs`) and keep or update them in the same edit set.
 
 ## Design decisions
-- Edit one bullet and one sentence.
+- Rename the section; keep the counters that the code reports.
 
 ## Alternatives considered
 N/A: documentation only; the Plan fixes the approach.
 
 ## Implementation
 ### Target file
-`docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md`
+`docs/23_agent/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`
 
 ### Procedure
-1. Replace the `prune_old_memories` bullet with: it is retired with the `/memory prune` command and removal-pending (SHARED-003); it is not a supported maintenance operation.
-2. Change "Each of `vacuum_db`, `purge_old_sessions` and `prune_old_memories` takes a `MaintenanceMode`" to name `vacuum_db` and `purge_old_sessions` only.
+1. Rename the heading "Memory Status (`/memory status`)" to "Memory Diagnostics".
+2. Add a first sentence: the `/memory status` command is retired by ADR-008; the diagnostics owner is `/stats`, which is not yet implemented (SHARED-003).
+3. Keep the Mode label, Local-only, FTS fallback count, and Embed skip count bullets as the retrieval modes and counters of the Episodic Memory layer; remove the Pinned bullet.
 
 ### Method
-- Use the Edit tool.
+- Use the Edit tool; check links to the old heading anchor first.
 
 ### Details
-- The function still exists in code; do not describe its effect.
+- The mode labels are retrieval modes and stay.
 
 ## Compatibility considerations
 N/A: documentation only.
@@ -42,11 +43,11 @@ N/A: no security-relevant change.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run python tools/check_docs_consistency.py --domain db`.
+- `uv run python tools/check_docs_consistency.py --domain agent`.
 - `uv run python tools/check_docs_quality.py` and `uv run python tools/check_docs_content_policy.py`.
 
 ## Completion criteria
-- The maintenance list names only supported operations plus the removal-pending note.
+- The section names no `/memory` command as supported and has no pinned count.
 
 ## Out of Scope
 - Any other file, code, configuration, generated references, and manifests.
@@ -56,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document per Implementation | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | Release unit terminology-sweep |
+| 1 | Edit the document per Implementation | Completed | 20261124-110725 | 20261124-110725 | Changed: 23/agent_agent_10_06_operations-and-observability-rag-diagnostics-and-memory |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261124-110725 | 20261124-110725 | Release unit terminology-sweep eight consistency domains, docs structure/quality/content-policy, ADR checks, known-deviation sync, needs-confirmation inventory, reference and authority drift, DB separation, 75 cited ADR tests and 117 tests pass; preservation findings on the ADR-004 label are intended |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -71,10 +72,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-003
+- **Requirement ID**: REQ-001
 - **Source issue**: issues/20261124-093930_adrdoc004_docs-regenerate-cross-validate.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261124-104416_adrdoc004_docs-regenerate-cross-validate.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261124-105117
-- **Related target files**: `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md`
+- **Related target files**: `docs/23_agent/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`

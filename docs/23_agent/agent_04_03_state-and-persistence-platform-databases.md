@@ -43,11 +43,11 @@ The Agent layer operates across four SQLite databases (see `DbTarget` in `script
 
 DB paths are configured in `agent.toml` (schema: `scripts/db/config.py`). The RAG and session paths have no defaults and startup fails if they are unset; the workflow and eventbus paths have built-in defaults.
 
-**DB Ownership:** `session.sqlite` is owned by `AgentSession` (`agent/session.py`) and, for memory tables, `MemoryStore` (`agent/memory/store.py`); `workflow.sqlite` by `StateStore` (`agent/workflow/state_store.py`); `rag.sqlite` by the RAG MCP server (`scripts/mcp_servers/rag_pipeline/`).
+**DB Ownership:** `session.sqlite` is owned by `AgentSession` (`agent/session.py`) and, for Episodic Memory, `MemoryStore` (`agent/memory/store.py`); `workflow.sqlite` by `StateStore` (`agent/workflow/state_store.py`); `rag.sqlite` by the RAG MCP server (`scripts/mcp_servers/rag_pipeline/`).
 
-> **Note:** The Memory layer (`MemoryStore` in `agent/memory/store.py`) uses `SQLiteHelper("session")` and persists to `memories`/`memories_fts`/`memories_vec` tables in `session.sqlite`. It is separate from `rag.sqlite` and independent from the RAG document/chunk embedding store. `JsonlMemoryStore` in `agent/memory/jsonl_store.py` separately archives memory to a non-authoritative append-only JSONL file (for backup/audit purposes). `read_all()` returns all entries; no retention filtering is applied at this layer.
+> **Note:** The memory layer (`MemoryStore` in `agent/memory/store.py`) uses `SQLiteHelper("session")` and persists Episodic Memory in `session.sqlite`: events and relations are authoritative, and the FTS and Vector indexes are derived (ADR-008). No JSONL file exists for Agent memory; `JsonlMemoryStore` is retired by ADR-008 and removal-pending (SHARED-003). The layer is separate from `rag.sqlite` and independent from the RAG document/chunk embedding store.
 
-**Logical ownership inside `session.sqlite`:** the file is shared physically, but the tables have separate logical owners. `AgentSession` owns `sessions`, `messages`, and `session_diagnostics`; `MemoryStore` owns `memories`, `memories_fts`, `memories_vec`, and `memory_links`. Session operations never write the memory tables, and memory operations never write the session tables. `memories.session_id` is provenance only (no foreign key), so deleting a session leaves its memories in place. There is no session-scoped memory deletion API: memory rows are removed only by `/memory delete` and `/memory prune`.
+**Logical ownership inside `session.sqlite`:** the file is shared physically, but the data has separate logical owners. `AgentSession` owns `sessions`, `messages`, and `session_diagnostics`; Episodic Memory has its own logical owner. Session operations never write Episodic Memory data, and Episodic Memory operations never write the session tables. Deleting a session leaves Episodic Memory in place; there is no session-scoped Episodic deletion and no user-level deletion API.
 
 ### Session / RAG Responsibility Boundaries
 
@@ -62,7 +62,7 @@ Boundaries:
 - `AgentSession` accesses only `session.sqlite` and imports nothing from the RAG layer. Diagnostic logs (`session_diagnostics`) are written by `DiagnosticStore`.
 - `db/maintenance.py` has no imports from `rag/`; DB rotation is in `db/rotation.py`.
 - `/session stats|health|checkpoint|vacuum|purge|recover` target `DbMaintenanceService`; `/session rag-consistency|rag-rebuild-fts|rag-rebuild-vec` target `RagMaintenanceService`.
-- `prune_old_memories()` belongs to neither service; it is called from the `/memory` commands.
+- `prune_old_memories()` belongs to neither service; it is retired with the `/memory` commands and removal-pending (SHARED-003).
 - `agent/repository_gateway.py` is a tool-call execution gate and is not part of DB responsibility boundaries.
 
 ## Responsibility Boundary
