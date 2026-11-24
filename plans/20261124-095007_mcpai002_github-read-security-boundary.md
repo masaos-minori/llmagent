@@ -1,0 +1,393 @@
+## Goal
+- Make one authorization boundary govern every GitHub call: the allowlist check runs inside `_get_repo()` before any GitHub API access, the same canonical `owner/repo` key is used by the guard, the API call, the error text, and the audit record, searches are scoped at query-construction time, and read paths are subject to the path denylist, a read-size limit, and an explicit binary/UTF-8 policy — so the security posture describes enforcement that actually happens.
+
+## Priority
+High
+
+## Scope
+- **In-Scope**:
+  - Moving the allowlist assertion into `_get_repo()` so repository-scoped reads obtain repositories only through it.
+  - One case-normalization policy for `owner/repo`, applied at the API entry and used consistently by the guard, the API slug, the error message, and the audit target.
+  - Adding `allow_global_search` (default `false`) and scoping the four search tools to `allowed_repos` at query-construction time; parsing caller `repo:`/`org:`/`user:` qualifiers and rejecting any that expand the boundary.
+  - Applying the existing path denylist to `github_get_file_contents`.
+  - Adding `max_file_read_size_kb` (default `0` = unlimited) and checking the content metadata size before decoding.
+  - Replacing the silent `errors="replace"` UTF-8 substitution with an explicit rejection.
+  - Adding the strict config-parsing helper for non-negative numerics (NaN/infinity rejection) and the shared `owner/repo` normalization helper, and using them here.
+  - Adding the two posture checks for the settings introduced here, and naming the runtime guard of every published check in the documentation.
+  - Service-, config-, and HTTP-level tests for the read boundary, and the documentation update.
+- **Out-of-Scope**:
+  - Adoption of the shared helpers by GitHub schema generation, CI/CD, Web Search, and MDQ (owned by the mcpai003, mcpci001, and mdqmcp001 items; this Plan defines them, those items reuse them).
+  - Changing `scripts/shared/config_utils.get_typed()`: existing callers keep their current behavior, including `scripts/mcp_servers/git/git_models.py`'s deliberate acceptance of negative values through its local `_optional_real()`.
+  - Removing the existing explicit write-side `_assert_allowed_repo()` calls (see D-2); write authorization behavior is preserved.
+  - Retry, timeout, and audit behavior of GitHub writes (mcpai006); Pydantic schema source (mcpai003); resource-scope refinement (mcpai013); a base64 file-read tool.
+  - Any ADR, governance, or skill-file change, and the ADR-004 Group 1 `path_denylist` exception itself (its acceptance is unchanged here).
+  - The empty-list acceptance of `path_denylist` and writing its rationale (maintainer only, NC-001).
+- **Dependencies**: Independent of the mcpai001 work; may be implemented in parallel. This Plan defines the shared strict-parsing and `owner/repo` normalization helpers that the mcpai003, mcpci001, and mdqmcp001 items consume, so those items are ordered after this one; it is ordered before the mcpai006, mcpai010, and mcpai013 items, which depend on the boundary this Plan defines. Field validation here is coordinated with the mcpai003 item's schema source so the two do not define the same contract twice.
+
+## Background
+The consolidated review backlog asked for a single enforceable read boundary so that the posture reports what the code enforces. The GitHub MCP server is classified as a high-risk tool (`docs/91_security/security_02_high-risk-tool-common-policy.md`), and its `allowed_repos`, `path_denylist`, `protected_branches`, and size settings are presented as security controls. Those controls are enforced only on the write paths: the guard module owns `_assert_allowed_repo()`, `_assert_allowed_path()`, and `_assert_max_file_size()`, and only write methods call them. Reads, global searches, and the case identity of the repository key are not covered by any guard, and no setting exists for them, so the documentation currently describes a boundary the runtime does not implement.
+
+## Problem
+Verified against the current source. The Issue's evidence section is correct on the enforcement gap; three of its references are corrected below.
+
+- **Read paths are not guarded.** `_get_repo()` (`scripts/mcp_servers/github/github_service_security.py:160-162`) returns `self._gh.get_repo(f"{owner}/{repo}")` without calling `_assert_allowed_repo()`. Eight read methods reach the GitHub API through it with no authorization check: `get_file_contents` (`github_service_file.py:36`), `list_issues` (`github_service_issues.py:40`), `get_issue` (`:53`), `list_pull_requests` (`github_service_pull_requests.py:44`), `get_pull_request` (`:60`), `list_branches` (`github_service_repository.py:71`), `list_commits` (`:115`), `get_commit` (`:138`). Ten write call sites assert explicitly (`github_service_dispatch_writes.py:84`, `github_service_file.py:69,115,162`, `github_service_issues.py:66,108`, `github_service_pull_requests.py:79,127,157`, `github_service_repository.py:88`). No call site uses `self._gh.get_repo` outside `_get_repo()`.
+- **Search paths bypass the boundary entirely.** `search_repositories` (`github_service_repository.py:45`), `search_code` (`:158`), `search_issues` (`github_service_issues.py:88`), and `search_pull_requests` (`github_service_pull_requests.py:103`) pass the caller query to the client with no allowlist check and no qualifier handling.
+- **No case-normalization policy exists.** `grep -rn "def parse_repo|def normalize" scripts/` returns nothing for GitHub; the only repo parser is `scripts/mcp_servers/cicd/cicd_service_business.py:_parse_repo`. The guard compares `f"{owner}/{repo}"` verbatim against `allowed_repos`, so `Owner/Repo` and `owner/repo` are two different keys. `docs/22_mcp/mcp_05_01_access-control-and-allowlists.md:155-166` describes matching normalized names as the same repository — a behavior the code does not implement.
+- **Read size and binary policy do not exist.** `get_file_contents` has no size check, no binary check, and decodes with `errors="replace"` (`github_service_file.py:53`), which silently substitutes U+FFFD for invalid UTF-8. That behavior is locked by `tests/mcp_servers/github/test_service_file.py:107` (`test_decodes_with_replace_on_invalid_utf8`). No `allow_global_search` or `max_file_read_size` key exists in `scripts/` or `config/`.
+- **Config parsing is type-strict but not range-strict.** `scripts/shared/config_utils.py:55-81` rejects a wrong type and a `bool` where an `int`/`float` is expected, and does not reject NaN, infinity, or negative values.
+- **Empty-allowlist behavior.** The guard denies all repositories when `allowed_repos` is empty, the posture reports `server.repo_allowlist` as `FAILED` for an empty allowlist (`github_service_security.py:272,279`), and ADR-004 makes a `FAILED` posture block readiness, so an empty allowlist means no access at all. The Issue's wording that read-only access is permitted with an empty allowlist does not describe the runtime; per the decision recorded in this cycle, the documentation states the fail-closed behavior for reads as well.
+- **Documentation reference corrections.** The Issue cites `docs/22_mcp/mcp_07_01_health-endpoints.md` §55-64; that file does not exist, and the posture content it describes is in `docs/22_mcp/mcp_02_02_startup-modes-and-health.md:69-83`. `scripts/mcp_servers/github/github_model_config.py` is `scripts/mcp_servers/github/github_models_config.py`, and `tests/mcp_servers/github/test_github_model_config.py` does not exist — config-parsing tests are in `tests/mcp_servers/github/test_github_server_auth.py` (`TestGitHubConfigFromDictTypeValidation`). `scripts/mcp_servers/github/mapper.py` contains no repo parsing; it only converts PyGithub objects to response models.
+- **Posture-inventory answer (the Step 3 question).** The GitHub check inventory is a hardcoded sequence inside `validate_github_security()` (`github_service_security.py:260`) plus a named tuple in `tests/mcp_servers/github/test_github_security_validation.py:27-36`, with a length assertion at `:224`. No docs list and no generated snapshot contain the check ids, so adding checks requires updating that tuple and its tests; `tests/mcp_servers/github/test_github_health_posture.py` asserts a subset (`<=`) and is not affected.
+
+## Reason for Change
+- Private repository metadata, paths, source, credentials, issues, and pull request content reachable by the token can be returned for a repository outside the configured boundary, and the posture reports controls that the read and search paths do not enforce.
+- The case identity of the repository key is the identity used by the guard, the audit record, and the Agent's approval decision; a policy that is not implemented anywhere cannot be documented or tested.
+- The Issue is on the critical path for the MCP items that reuse the boundary and the shared helpers defined here.
+
+## Implementation Intent
+Make the common service boundary authoritative: authorization happens once, inside `_get_repo()`, before the first GitHub API access, and every repository-scoped read and write obtains repositories only through it. Keep one definition of repository identity and one definition of strict numeric parsing, both in a shared module, and call them from the guard, the config builder, and the API entry. Scope searches when the query is built, not after results arrive. Add the read-path guards (path, size, decoding) to the existing guard module and call them from the read path. Prefer a few common guard functions over per-operation checks. Preserve existing write authorization behavior and the existing fail-closed behavior.
+
+## Requirements
+- `REQ-001`: `_get_repo()` is the single repository boundary: it applies the allowlist check before the client call, and no service module obtains a repository outside it. Existing explicit write-side assertions are unchanged.
+- `REQ-002`: One case-normalization policy exists for `owner/repo`: the canonical lowercase key is applied at the API entry and used by the guard comparison, the API slug, the authorization error message, and the audit record. Non-canonical input is accepted, not rejected.
+- `REQ-003`: `allow_global_search` is a strict boolean config field, default `false`. When it is `false`, the four search tools are scoped to `allowed_repos` at query-construction time; when `true`, global search is permitted and reported by the posture.
+- `REQ-004`: Caller-supplied `repo:`, `org:`, and `user:` qualifiers are parsed before the API call. A qualifier that names a repository outside `allowed_repos`, or an owner that does not correspond only to allowlisted repositories, is rejected; no result is filtered afterwards.
+- `REQ-005`: `github_get_file_contents` applies the existing path denylist, so denied paths are rejected for reads as the documentation states.
+- `REQ-006`: `max_file_read_size_kb` is a config field parsed with the strict non-negative numeric helper; the content metadata size is checked before decoding. `0` means unlimited, so the shipped default changes no behavior.
+- `REQ-007`: Read decoding is strict UTF-8; content that does not decode is rejected with an explicit `GitHubValidationError`. The silent `errors="replace"` substitution is removed, and no new lossy-decoding field is introduced.
+- `REQ-008`: Strict config parsing rejects NaN, infinity, and negative values, and keeps rejecting a `bool` where a numeric value is expected. Existing `get_typed()` callers are not affected.
+- `REQ-009`: The two settings introduced here are reported by the GitHub security posture, and the documentation names the exact runtime guard for every published check.
+- `REQ-010`: The strict numeric helper and the `owner/repo` normalization helper have exactly one definition, in `scripts/shared/`, and are used here instead of being re-implemented in the GitHub package.
+- `REQ-011`: The documentation states the actual boundary: the allowlist applies to reads and writes, an empty allowlist denies all access including reads, the normalization policy is stated, and search behavior is described at query-construction time.
+
+## Implementation Target Files
+**Freeze status**: Frozen (issue-to-plan Step 8's Implementation Target Files Validation
+passed: `tools/audit_plan_target_paths.py` reported 0 findings, every row is `Verified`, and
+`tools/check_plan_target_overlaps.py` found no overlapping row in another Frozen Plan).
+
+This table is the canonical, frozen source of implementation scope for this Plan. Once
+`Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
+`plan-to-implementation-procedure` document MUST reference file paths only from this
+table — no other file may be treated as a modification target.
+
+| File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
+|---|---|---|---|---|---|---|
+| scripts/shared/repo_identity.py | Create (New file): the single definition of repository identity — `normalize_repo_key(owner, repo)` and the allowlist-entry shape check | No normalization helper exists anywhere in `scripts/`; the policy must be defined once for the guard, the API entry, and the audit record | REQ-002, REQ-010; AC-2 | `grep -rn "def parse_repo\|def normalize" scripts/` returns no GitHub match; the only repo parser is `scripts/mcp_servers/cicd/cicd_service_business.py:_parse_repo`; the `shared must not import from agent, mcp_servers, rag, or db` contract is kept by a stdlib-only module | tests/shared/test_repo_identity.py | Verified (checked in Step 3) |
+| scripts/shared/config_utils.py | Modify: add the strict numeric accessor that rejects NaN, infinity, negative values, and a `bool` where a number is expected; leave `get_typed()` unchanged | `get_typed()` (lines 55-81) type-checks only; no strict-parsing helper exists in `scripts/shared/` | REQ-008, REQ-010; AC-8 | Step 3 read of `scripts/shared/config_utils.py`; `tests/shared/test_config_utils.py` has no NaN/infinity/negative case; `grep -rn "= -[0-9]" config/*.toml` returns no negative value in any shipped config | tests/shared/test_config_utils.py | Verified (checked in Step 3) |
+| scripts/mcp_servers/github/github_models_config.py | Modify: add `allow_global_search: bool = False` and `max_file_read_size_kb: int = 0`, parsed through the shared helpers | `GitHubConfig` has neither field; `from_dict()` uses `get_typed()`/`get_str()` only | REQ-003, REQ-006, REQ-008; AC-3, AC-4, AC-6 | Step 3 read of `scripts/mcp_servers/github/github_models_config.py` (fields at lines 25-60); the existing config-parsing tests are in `tests/mcp_servers/github/test_github_server_auth.py::TestGitHubConfigFromDictTypeValidation` | tests/mcp_servers/github/test_github_server_auth.py | Verified (checked in Step 3) |
+| scripts/mcp_servers/github/github_service_security.py | Modify: apply normalization and the boundary inside `_get_repo()`; make `_assert_allowed_repo()` compare the canonical key; add `_assert_max_read_file_size()` and the search-qualifier/boundary helper; add the two posture checks for the settings introduced here | `_get_repo()` (lines 160-162) does not call the guard; `_assert_allowed_repo()` (line 62) compares the slug verbatim; the check inventory is the hardcoded sequence in `validate_github_security()` (line 260) | REQ-001, REQ-002, REQ-004, REQ-005, REQ-006, REQ-009; AC-1, AC-2, AC-3, AC-5, AC-6, AC-9 | Step 3 read of `scripts/mcp_servers/github/github_service_security.py:62,160-162,260,272,279`; `uv run radon cc scripts/mcp_servers/github/github_service_security.py -s` reports `validate_github_security` at C(11) and the guard methods at A | tests/mcp_servers/github/test_service_security.py | Verified (checked in Step 3) |
+| scripts/mcp_servers/github/github_service_file.py | Modify `get_file_contents`: call the path denylist guard, check the metadata size against the read limit before decoding, and decode strictly with an explicit error | The read path calls only `_get_repo()`; decoding uses `errors="replace"` at line 53 | REQ-005, REQ-006, REQ-007; AC-5, AC-6, AC-7 | Step 3 read of `scripts/mcp_servers/github/github_service_file.py:36-62`; the write paths call `_assert_allowed_path()` and `_assert_max_file_size()` at lines 69-72 | tests/mcp_servers/github/test_service_file.py | Verified (checked in Step 3) |
+| scripts/mcp_servers/github/github_service_repository.py | Modify `search_repositories()` and `search_code()`: build the query inside the boundary and reject out-of-boundary qualifiers | Both search methods pass the caller query straight to the client with no allowlist check | REQ-003, REQ-004; AC-3, AC-4 | Step 3 read of `scripts/mcp_servers/github/github_service_repository.py:45,158` | tests/mcp_servers/github/test_service_repository.py | Verified (checked in Step 3) |
+| scripts/mcp_servers/github/github_service_issues.py | Modify `search_issues()`: build the query inside the boundary and reject out-of-boundary qualifiers | `search_issues()` passes the caller query to `self._gh.search_issues()` with no boundary check | REQ-003, REQ-004; AC-3, AC-4 | Step 3 read of `scripts/mcp_servers/github/github_service_issues.py:88-95` | tests/mcp_servers/github/test_service_issues.py | Verified (checked in Step 3) |
+| scripts/mcp_servers/github/github_service_pull_requests.py | Modify `search_pull_requests()`: build the query inside the boundary and reject out-of-boundary qualifiers | `search_pull_requests()` appends `is:pr` and passes the query to the client with no boundary check | REQ-003, REQ-004; AC-3, AC-4 | Step 3 read of `scripts/mcp_servers/github/github_service_pull_requests.py:103-120` | tests/mcp_servers/github/test_service_pull_requests.py | Verified (checked in Step 3) |
+| scripts/mcp_servers/github/github_server.py | Modify the `/v1/call_tool` audit target so the recorded repository key is the canonical key | The audit target is built from `req.args.get('owner')/req.args.get('repo')` (line 239), so the recorded key keeps the caller's casing while the guard uses another | REQ-002; AC-2 | Step 3 read of `scripts/mcp_servers/github/github_server.py:235-242`; the audit field order is characterized by `tests/mcp_servers/github/test_github_server_endpoints.py` | tests/mcp_servers/github/test_github_server_endpoints.py | Verified (checked in Step 3) |
+| config/github_mcp_server.toml | Modify: add `allow_global_search = false` and `max_file_read_size_kb = 0` with a short comment each, matching the existing comment style | The two settings are read by `GitHubConfig.from_dict()` and are not present in the shipped config | REQ-003, REQ-006; AC-4, AC-6 | Step 3 read of `config/github_mcp_server.toml` (`path_denylist = []` and `max_file_size_kb = 1024` blocks, lines 14-29); `tools/check_config_comment_length.py` bounds each comment block | tests/mcp_servers/github/test_github_server_auth.py | Verified (checked in Step 3) |
+| tests/shared/test_repo_identity.py | Create (New file): normalization cases (mixed case, already-canonical input, non-string input) and allowlist-entry shape cases | No test exercises any repo-normalization behavior | REQ-002, REQ-010; AC-2 | `ls tests/shared/` contains `test_config_utils.py` and no repo-identity test; `tests/shared/` exists | this file | Verified (checked in Step 3) |
+| tests/shared/test_config_utils.py | Modify: add cases for the strict numeric accessor (NaN, infinity, negative, `bool`-for-number rejected, non-negative accepted, `0` accepted when allowed) | `tests/shared/test_config_utils.py` has no range case; the new helper has no coverage | REQ-008, REQ-010; AC-8 | `grep -n "def test" tests/shared/test_config_utils.py` lists type-rejection cases only (lines 17-47) | this file | Verified (checked in Step 3) |
+| tests/mcp_servers/github/test_service_security.py | Modify: replace the `_get_repo()` direct-delegation characterization case with the boundary behavior, and add guard-level cases for the canonical key, the read-size guard, and the search-qualifier helper; add the `repo_scan` test that no service module calls `self._gh.get_repo` outside `_get_repo()` | Line 76 asserts `_get_repo("org", "repo")` delegates to the client without a guard, which REQ-001 changes; the file already characterizes the other guards | REQ-001, REQ-002, REQ-004, REQ-006; AC-1, AC-2, AC-6, AC-10 | Step 3 read of `tests/mcp_servers/github/test_service_security.py` (header lines 11-20 list the gaps this file covers, including `_get_repo`) | this file | Verified (checked in Step 3) |
+| tests/mcp_servers/github/test_service_file.py | Modify `TestGetFileContents`: assert denial for an out-of-allowlist repository, a denied path, an oversized file, and non-decodable content; replace the `errors="replace"` case with the explicit-error policy | `test_decodes_with_replace_on_invalid_utf8` (line 107) locks the behavior REQ-007 removes, and no test covers the read-path path/size guards | REQ-001, REQ-005, REQ-006, REQ-007; AC-1, AC-5, AC-6, AC-7 | `grep -n "def test" tests/mcp_servers/github/test_service_file.py` shows `TestGetFileContents` covering only ref handling, directory rejection, and lossy decoding | this file | Verified (checked in Step 3) |
+| tests/mcp_servers/github/test_service_repository.py | Modify: add read-path allowlist cases (`list_branches`, `list_commits`, `get_commit`) and search-boundary cases for `search_repositories`/`search_code` with no qualifier, an allowed `repo:` qualifier, and a denied one | The existing tests assert no allowlist rejection on the read path | REQ-001, REQ-003, REQ-004; AC-1, AC-3, AC-4 | `grep -n "def test" tests/mcp_servers/github/test_service_repository.py` shows no out-of-allowlist case; all cases use `org/repo` while the allowlist test fixtures use `octocat/hello-world` | this file | Verified (checked in Step 3) |
+| tests/mcp_servers/github/test_service_issues.py | Modify: add read-path allowlist cases (`list_issues`, `get_issue`) and search-boundary cases for `search_issues` | No read-path allowlist test exists; search tests assert query construction only | REQ-001, REQ-004; AC-1, AC-3, AC-4 | `grep -n "def test" tests/mcp_servers/github/test_service_issues.py`; `tests/mcp_servers/github/` has no read-guard test file | this file | Verified (checked in Step 3) |
+| tests/mcp_servers/github/test_service_pull_requests.py | Modify: add read-path allowlist cases (`list_pull_requests`, `get_pull_request`) and search-boundary cases for `search_pull_requests` | No read-path allowlist test exists | REQ-001, REQ-004; AC-1, AC-3, AC-4 | `grep -n "def test" tests/mcp_servers/github/test_service_pull_requests.py`; write-side tests cover the assert path only | this file | Verified (checked in Step 3) |
+| tests/mcp_servers/github/test_github_server_auth.py | Modify `TestGitHubConfigFromDictTypeValidation`: add cases for the two new fields (default values, strict boolean rejection, numeric range rejection) | The config module has no test file of its own; this is the file that characterizes `GitHubConfig.from_dict()` | REQ-003, REQ-006, REQ-008; AC-4, AC-6, AC-8 | `grep -n "def test" tests/mcp_servers/github/test_github_server_auth.py` shows type-validation cases for existing keys only | this file | Verified (checked in Step 3) |
+| tests/mcp_servers/github/test_github_server_endpoints.py | Modify: add the HTTP `/v1/call_tool` case for an out-of-allowlist repository read and the audit-record case for the canonical key | The file characterizes the FastAPI wiring and the audit record's field order; nothing asserts the repository key's form or an authorization rejection at HTTP level | REQ-001, REQ-002; AC-1, AC-2, AC-11 | Step 3 read of `tests/mcp_servers/github/test_github_server_endpoints.py` header (POST `/v1/call_tool` success and unknown-tool paths, audit field order, `request.state` vs header fallback) | this file | Verified (checked in Step 3) |
+| tests/mcp_servers/github/test_github_security_validation.py | Modify: extend `GITHUB_SERVER_CHECK_IDS` with the two new check ids and add the cases for them (search opt-in reported; read-size limit `ok` when positive and `not_applicable` at `0`) | The tuple at lines 27-36 and the length assertion at line 224 pin the current eight-check inventory | REQ-009; AC-9 | `grep -rn "GITHUB_SERVER_CHECK_IDS" tests/` finds it only in this file (lines 27, 204, 208, 222, 224) | this file | Verified (checked in Step 3) |
+| docs/22_mcp/mcp_05_01_access-control-and-allowlists.md | Modify: state that `allowed_repos` applies to reads and writes, that an empty allowlist denies all access including reads, the normalization policy, and the search-qualifier rule | The section describes write-only enforcement (`Applies to every write operation`, lines 81-90) and describes normalized-name matching the code does not implement (lines 155-166) | REQ-011; AC-11 | Step 3 read of `docs/22_mcp/mcp_05_01_access-control-and-allowlists.md:81-90,94-98,155-166` | N/A: documentation only | Verified (checked in Step 3) |
+| docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md | Modify: correct the `allowed_repos` (github-mcp) row to cover reads and writes, and add the check-to-guard rows for the two new checks and the existing published checks | Line 26 records `allowed_repos` as write-only with `_assert_allowed_repo`, and lines 43-49 map settings to checks for other servers without naming GitHub's runtime guard for every published check | REQ-009, REQ-011; AC-7, AC-9, AC-11 | Step 3 read of `docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md:26,31,43-49,93` | N/A: documentation only | Verified (checked in Step 3) |
+| docs/22_mcp/mcp_04_01_web-search-file-read-github.md | Modify: the github-mcp security-controls section states read-path enforcement, the normalization policy, the read-size limit, the binary/UTF-8 policy, and the search boundary at query-construction time | The section lists only write-operation enforcement and `max_file_size_kb` (lines 85-91) | REQ-011; AC-11 | Step 3 read of `docs/22_mcp/mcp_04_01_web-search-file-read-github.md:85-91` | N/A: documentation only | Verified (checked in Step 3) |
+
+Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
+Freeze) for the full validation procedure):
+- One row per file. A directory, glob pattern (`*`, `**`), component/module name, file
+  group, or a vague phrase (e.g. "related files", "as necessary", "etc.") MUST NOT
+  appear as a row — list each file individually by its exact repository-relative path.
+- Record a test, configuration, schema, migration, deployment, or documentation file as
+  its own row when it requires modification — do not fold it into the row for the
+  source file it accompanies.
+- `Validation Status` is `Verified` or `Needs confirmation` per row; every row must be
+  `Verified` before this section may be marked `Frozen`.
+
+## Reference Files
+Files that must be read to implement the targets above, but MUST NOT be modified. Same
+one-file-per-row discipline as `Implementation Target Files` above — no directories,
+glob patterns, components, file groups, or vague phrases.
+
+| File Path | Why It Must Be Read | Related Target File or Requirement |
+|---|---|---|
+| scripts/mcp_servers/github/github_service_dispatch_writes.py | `_execute_with_dedup`/`_execute_with_dry_run` call `_assert_allowed_repo()` at line 84; `not affected: write authorization behavior is preserved (D-2), and the guard is idempotent` | REQ-001 |
+| scripts/mcp_servers/github/mapper.py | Confirms no repository-identity logic exists there; `not affected: it only converts PyGithub objects to response models (the Issue's `parse_repo` reference is corrected in Problem)` | REQ-002 |
+| scripts/mcp_servers/github/github_models_file.py | `GetFileContentsResponse.encoding` stays `utf-8` and no response model echoes `owner`/`repo`; `not affected: the 17 request models declare owner fields but no response model does, so the normalization policy needs no model change` | REQ-002, REQ-007 |
+| scripts/mcp_servers/git/git_models.py | Its local `_optional_real()` deliberately accepts negative numbers and states it is kept local so `get_typed()` is left untouched; `not affected: the new strict helper is additive (REQ-008)` | REQ-008 |
+| scripts/mcp_servers/cicd/cicd_service_business.py | `_parse_repo()` is the only existing repo parser and the candidate consumer of the shared helper; `not affected: adoption is the mcpci001 item's scope` | REQ-010 |
+| scripts/mcp_servers/web_search/web_search_security_checks.py | `_is_hostname_shape()` is the established pattern for a posture-time shape test that keeps the runtime guard authoritative; read to keep the new check's wording consistent; `not affected: no change` | REQ-009 |
+| scripts/shared/security/ and scripts/shared/tool_registry.py | The `SecurityCheckResult`/`SecurityCheckStatus` contract and the shared check helper the new posture checks must use | REQ-009 |
+| tests/mcp_servers/github/test_github_health_posture.py | Asserts the published check ids as a superset (`_GITHUB_CHECK_IDS <= published`, line 89); `not affected: adding check ids keeps a subset assertion green` | REQ-009 |
+| tests/mcp_servers/github/test_github_tool_registry.py | Pins `len(TOOL_LIST) == 21`; `not affected: no tool is added or removed` | REQ-003 |
+| tests/mcp_servers/github/test_github_mapper.py | `not affected: no repo-parsing symbol is added to `mapper.py`` | REQ-002 |
+| docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md | ADR-004 Group 1 is the authority for the fail-closed behavior, the `path_denylist` exception, and the `FAILED` posture blocking readiness; `not affected: no approval is written and no exception is retired` | REQ-011 |
+| docs/00_governance/governance_03_issue-and-uncertainty-management.md | Holds the NC-001 entry for the empty `path_denylist` exception; `not affected: the rationale is a maintainer decision and is not written here` | REQ-011, UNK-01 |
+| docs/91_security/security_02_high-risk-tool-common-policy.md | Line 67 already records `allowed_repos` as fail-closed for all repository access and line 123 lists `github_list_issues` as `READ_ONLY`; read to confirm the new boundary does not contradict it; `not affected` | REQ-011 |
+| docs/22_mcp/mcp_02_02_startup-modes-and-health.md | The actual post-ADR-004 health contract the Issue's citation intended (lines 69-83); `not affected: it defines the block shape, not a per-server check inventory` | REQ-009 |
+| docs/22_mcp/mcp_06_01_configuration-file-inventory.md | Records the empty-`path_denylist` exception and the non-empty-required-keys rule (line 41); `not affected: it does not enumerate per-server keys, so the two new fields need no row` | REQ-006, REQ-011 |
+| docs/22_mcp/mcp_01_tool_ownership_matrix.md | Owns the github-mcp tool list; read to confirm the read tools' ownership is unchanged; `not affected` | REQ-003, REQ-005 |
+| rules/persisted-schema-change.md | Listed for the Plan's completeness check; recorded as not applicable (no DDL, no schema version, no migration) | Design |
+
+## Acceptance Criteria
+- AC-1 (REQ-001): A repository-scoped read (`get_file_contents`, `list_issues`, `get_issue`, `list_pull_requests`, `get_pull_request`, `list_branches`, `list_commits`, `get_commit`) is refused with `GitHubAuthorizationError` for a repository outside `allowed_repos`, and the refusal happens before the first GitHub API call (the mock client records no request). Write behavior is unchanged.
+- AC-2 (REQ-002): `Owner/Repo` and `owner/repo` are the same key for the guard, the API slug, the authorization error text, and the audit record; the canonical form is the lowercase key, and input that is already canonical is unchanged.
+- AC-3 (REQ-003, REQ-004): With `allow_global_search` at its default, each of the four search tools issues its query scoped to an allowlisted repository, and a `repo:` qualifier naming a repository outside `allowed_repos` is rejected before the API call. With `allow_global_search = true`, global search is permitted and reported by the posture.
+- AC-4 (REQ-003, REQ-006): `GitHubConfig.from_dict()` returns the documented defaults (`false`, `0`) when the keys are absent, rejects a non-boolean for `allow_global_search`, and rejects NaN, infinity, and negative values for `max_file_read_size_kb`.
+- AC-5 (REQ-005): A path matching a `path_denylist` pattern is rejected for `github_get_file_contents` as it is for writes; with the shipped empty `path_denylist` nothing changes, which the plan records as the registered ADR-004 exception.
+- AC-6 (REQ-006, REQ-008): With `max_file_read_size_kb` set positive, content whose metadata size exceeds the limit is rejected before any decoding happens; at `0` the read path behaves as it does today.
+- AC-7 (REQ-007): Content that does not decode as UTF-8 is rejected with an explicit error naming the path; no U+FFFD substitution occurs.
+- AC-8 (REQ-008): The strict helper rejects NaN/infinity/negative and `bool`-for-number, and no existing `get_typed()` caller's behavior changes.
+- AC-9 (REQ-009): The posture reports the search-boundary state and the read-size limit, and every published check's runtime guard is named in `docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`; `tests/mcp_servers/github/test_github_security_validation.py` passes with the extended inventory.
+- AC-10 (REQ-001, REQ-004): No service module calls `self._gh.get_repo` outside `_get_repo()`, verified by the `repo_scan` test.
+- AC-11 (REQ-011): The three documentation files describe the boundary as implemented, including fail-closed access for reads with an empty allowlist.
+
+## Tests
+- T-1 (REQ-001, AC-1, AC-10): written first against the unmodified source, per the Issue's implementation instruction. `tests/mcp_servers/github/test_service_file.py`, `test_service_issues.py`, `test_service_pull_requests.py`, `test_service_repository.py`, and `test_service_security.py`: out-of-allowlist read for each read method, plus the `repo_scan` test for the single boundary. These fail before Phase 3 and pass after it.
+- T-2 (REQ-001, AC-1): `tests/mcp_servers/github/test_github_server_endpoints.py` — HTTP `/v1/call_tool` cases for an out-of-allowlist public repository read and a private repository read, asserting the 403 response and that no client request was made.
+- T-3 (REQ-002, AC-2): `tests/shared/test_repo_identity.py` — mixed-case, already-canonical, and non-string inputs; allowlist-entry shape. `tests/mcp_servers/github/test_service_security.py` — a mixed-case key matches a lowercase allowlist entry and the error text names the canonical key. `tests/mcp_servers/github/test_github_server_endpoints.py` — the audit record's `target` carries the canonical key.
+- T-4 (REQ-003, REQ-004, AC-3): search tests in `tests/mcp_servers/github/test_service_repository.py`, `test_service_issues.py`, `test_service_pull_requests.py` — no qualifier, an allowed `repo:` qualifier, and a denied `repo:` qualifier for all four search tools; the query string sent to the client is the scoped one, and the denied qualifier is rejected before the call.
+- T-5 (REQ-005, REQ-006, REQ-007, AC-5, AC-6, AC-7): `tests/mcp_servers/github/test_service_file.py` — denied path, oversized metadata size (with `max_file_read_size_kb` set positive and with `0`), non-decodable content, and the existing directory-object case; `test_decodes_with_replace_on_invalid_utf8` is replaced by the explicit-error case.
+- T-6 (REQ-008, AC-8): `tests/shared/test_config_utils.py` — the strict helper's rejections and acceptances; `tests/mcp_servers/github/test_github_server_auth.py` — `TestGitHubConfigFromDictTypeValidation` cases for the two new fields.
+- T-7 (REQ-009, AC-9): `tests/mcp_servers/github/test_github_security_validation.py` — the extended `GITHUB_SERVER_CHECK_IDS` inventory and the two new checks' status and reason codes; `tests/mcp_servers/github/test_github_health_posture.py` stays green unchanged.
+- T-8 (REQ-011, AC-11): documentation gates for the three changed docs (`check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py`, `check_docs_consistency.py --domain mcp`, `check_needs_confirmation_inventory.py`, `check_docs_japanese.py`).
+- T-9: full validation sequence per `rules/toolchain.md` (ruff, mypy, bandit, the targeted tests, then the full suite with the section 7 marker filter, and `diff-cover` on the implementation diff).
+
+## Documentation Impact
+Yes. Reached through `docs/00_index.md`'s "Document References by Task" rows for the MCP server spec (`22_mcp/mcp_00_document-guide.md`, `22_mcp/mcp_01_system_overview.md`) and the MCP access-control and fail-open/fail-closed rows, three documents change: the access-control document (REQ-011: allowlist scope for reads, the normalization policy, the qualifier rule), the fail-open/fail-closed mapping (REQ-009, REQ-011: the corrected `allowed_repos` row and the check-to-guard rows), and the github-mcp domain spec (REQ-011: read-path controls, binary/UTF-8 policy, read-size limit). No new Needs-confirmation marker is added: NC-001 stays as it is, with its rationale pending the maintainer statement. The final MCP documentation sweep belongs to the mcpai012 item.
+
+## Assumptions
+- The canonical key is the lowercase form of `owner` and `repo`; GitHub repository names are case-insensitive, so a lowercase slug is accepted by the API. Existing tests use lowercase keys, so no existing assertion changes.
+- An empty `allowed_repos` keeps its current meaning: the guard denies all repositories, the posture reports `FAILED`, and ADR-004 keeps the server from becoming ready. No new mode switch is introduced.
+- `max_file_read_size_kb` default `0` means unlimited, following the existing `max_file_size_kb` convention, so the shipped default changes no runtime behavior.
+- The binary-content policy is defined by strict UTF-8 decoding: content that does not decode is rejected. No additional setting is added.
+- The search scoping decision assumed here is one query per allowlisted repository with a `repo:` qualifier appended; the shipped `config/github_mcp_server.toml` lists one repository, so the current deployment issues one query per search call.
+- `path_denylist` stays empty in the shipped config and remains the registered ADR-004 exception; applying it to reads has no effect at the shipped value.
+- The `.testmondata` file is stale relative to this cycle's reading; the implementation phase deletes it before relying on testmon-filtered runs.
+
+## Unknowns
+| ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
+|---|---|---|---|---|
+| UNK-01 | The ADR-004 Group 1 exception rationale for an empty `path_denylist` (NC-001) | A maintainer statement; repository evidence cannot supply it | Recorded as pending in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` and `docs/22_mcp/mcp_06_01_configuration-file-inventory.md`; this Plan writes no rationale and changes no empty-list acceptance | False (no plan action depends on it) |
+| UNK-02 | Case-normalization policy (the Issue's `不明`) | None: the decision was taken in this cycle | Resolved: canonical lowercase key applied at the API entry and used by the guard, the API slug, the error text, and the audit record (REQ-002). Alternatives recorded in Design D-3 | False |
+| UNK-03 | Default value and semantics of `max_file_read_size_kb` (the Issue's `不明`) | None: the decision was taken in this cycle | Resolved: new key, default `0` = unlimited, matching the existing `max_file_size_kb` convention (REQ-006) | False |
+| UNK-04 | Whether write paths should be denied by `path_denylist` "beyond the current behavior" (the Issue's `不明`) | None: the premise is inverted — writes already call `_assert_allowed_path()`; reads do not | Resolved: the denylist is applied to the read path, and the write path keeps its current behavior (REQ-005). The Issue's wording is corrected in Problem | False |
+| UNK-05 | Whether an empty allowlist permits read-only access (the Issue's wording) | None: the runtime behavior is documented in the ADR and the code | Resolved by the decision in this cycle: fail-closed is kept, reads are covered by the same boundary, and the documentation states that an empty allowlist denies all access including reads | False |
+| UNK-06 | Search scoping mechanism under `allow_global_search = false` (GitHub search cannot express an OR of repositories) | None: the decision was taken in this cycle | Resolved: append a `repo:` qualifier for each allowlisted repository at query-construction time; no post-filtering (REQ-003, REQ-004). Recorded in Design D-4 with its cost consequence | False |
+| UNK-07 | Where the shared strict-parsing and repo-identity helpers live (the Issue leaves the location to planning) | None | Resolved: `scripts/shared/config_utils.py` (extended) and `scripts/shared/repo_identity.py` (new file); rejected alternatives recorded in Design D-1 | False |
+
+## Affected areas
+`skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
+columns. The `File` column here MUST be a subset of `Implementation Target Files`'
+rows — this table analyzes change-impact risk for those same files; it is not a
+separate scope-of-record.
+
+| File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
+|---|---|---|---|---|---|
+| scripts/mcp_servers/github/github_service_security.py | Modify | High: the guard module is the base of the GitHub service class (`service_business` → `service_dispatch_writes` → `service_dispatch`), so all 17 read call sites and 10 write call sites in four service modules pass through it, plus the startup posture path | 3 commits | High: single author under three name spellings (`uv run git-fame --since 180.days --incl "scripts/mcp_servers/github/github_service_security.py" .`) | not applicable (rsynced) |
+| scripts/shared/config_utils.py | Modify | Medium: 13 production modules import it (7 MCP server config modules, `db/config.py`, `db/maintenance.py`, `eventbus/config.py`, `shared/mcp_config.py`, `shared/mcp_call_state_contract.py`); the change is additive, so existing callers are not affected | 2 commits | High: single author | not applicable (rsynced) |
+| scripts/shared/repo_identity.py | Create | Medium: imported by `github_models_config.py`, `github_service_security.py`, `github_server.py`, and later by the CI/CD and MDQ items | N/A: new file | N/A: new file | not applicable (rsynced) |
+| scripts/mcp_servers/github/github_models_config.py | Modify | Medium: the GitHub startup config path and the `/health` posture input | 2 commits | High: single author | not applicable (rsynced) |
+| scripts/mcp_servers/github/github_service_file.py | Modify | Medium: one read tool (`github_get_file_contents`) and the three write tools | 0 | High: single author | not applicable (rsynced) |
+| scripts/mcp_servers/github/github_service_repository.py | Modify | Low-Medium: four read tools and two search tools | 0 | High: single author | not applicable (rsynced) |
+| scripts/mcp_servers/github/github_service_issues.py | Modify | Low-Medium: two read tools, one search tool, two write tools | 0 | High: single author | not applicable (rsynced) |
+| scripts/mcp_servers/github/github_service_pull_requests.py | Modify | Low-Medium: two read tools, one search tool, three write tools | 0 | High: single author | not applicable (rsynced) |
+| scripts/mcp_servers/github/github_server.py | Modify | Low: the audit target string only; the response shape is unchanged | 0 | High: single author | not applicable (rsynced) |
+| config/github_mcp_server.toml | Modify | Medium: two new settings read at startup; defaults keep current behavior | 3 commits | High: single author | applies: `deploy.sh` syncs configs to `/opt/llm/`; the github-mcp service must be restarted to pick up the new keys |
+| tests/mcp_servers/github/ test modules (7 files) | Modify | Low: test-only; they pin the guard, the read paths, and the check inventory | 1-2 each | High: single author | not applicable (rsynced) |
+| tests/shared/test_config_utils.py, tests/shared/test_repo_identity.py | Modify / Create | Low: test-only | 1 / N/A | High / N/A | not applicable (rsynced) |
+| docs/22_mcp/mcp_05_01_access-control-and-allowlists.md, docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md, docs/22_mcp/mcp_04_01_web-search-file-read-github.md | Modify | Low: documentation; cross-checked by `check_docs_consistency.py --domain mcp` | 2 / 0 / 0 | High: single author | not applicable (rsynced) |
+
+## Design
+
+### Path B classification
+Path B: 24 target files (9 source modules, 1 new shared module, 1 config file, 3 docs, 10 test files). Rationale: the change spans four service modules, the shared config layer, a new shared module, the startup posture inventory, the shipped configuration, three documentation files, and ten test files — beyond the Path A single-file limit, and it adds a new cross-module contract consumed by sibling issues.
+
+### Architecture analysis
+- `rg "^from|^import" scripts/mcp_servers/github/github_service_security.py | sort -u`: the guard module imports stdlib (`fnmatch`, `logging`, `pathlib`), `shared.security` check types, and the GitHub models module for `GitHubAuthorizationError` inside `_assert_allowed_repo()`. It is the base class of `service_business`, which the write and read operation modules extend, so the read call sites inherit it already.
+- `uv run lint-imports`: `Contracts: 6 kept, 0 broken` over 527 files, including `shared must not import from agent, mcp_servers, rag, or db` and `mcp_servers must not import from agent`. No GitHub-specific contract exists, so the new helper must stay stdlib-only inside `shared/`; the new `scripts/shared/repo_identity.py` keeps the `shared-is-leaf` contract, and the GitHub modules import it through `shared.`.
+- No import cycle: `grimp`/`networkx` cycle check over the GitHub package plus `scripts/shared/` reported no cycles; adding `github_models_config.py` → `shared.repo_identity` and `github_server.py` → `shared.repo_identity` introduces no back edge because `shared/` imports nothing from `mcp_servers/`.
+
+### Dependency graphing
+- `rg "from shared.config_utils import" scripts/` gives 13 production importers. Only `github_models_config.py` changes; the other 12 are `not affected` because the new helper is additive and `get_typed()` is unchanged. `tests/shared/test_config_utils.py` is the test row.
+- `tools/scan_change_consumers.py --seed _get_repo` reports 18 candidates: the four service modules (17 call sites) plus `tests/mcp_servers/github/test_service_security.py`. Every one is recorded as a target row, a `Reference Files` row, or `not affected: the read call sites obtain repositories only through the boundary and need no change`.
+- `tools/scan_change_consumers.py --seed config_utils` reports the 13 importers and the test module; recorded above.
+- `tools/scan_change_consumers.py --seed parse_repo` returned no candidate, confirming no existing symbol to rename.
+- Concrete list: the 9 source modules, the new shared module, the config file, the 3 docs, and the 10 test files in the two tables above.
+- `pydeps` and `universal-ctags` are not installed; the graph question was answered by `lint-imports` and the consumer scanner. `pip-audit` was not run: no dependency is added or upgraded.
+
+### Historical analysis
+- `git log --name-only --pretty=format: --since=30.days -- scripts/ | sed '/^$/d' | sort | uniq -c | sort -rn | head -20` and the per-file counts: the GitHub service modules are not in the repository top 20; the changed group's own counts are 3 (`github_service_security.py`), 2 (`github_models_config.py`), 2 (`config_utils.py`), 3 (`config/github_mcp_server.toml`), and 0 for the four service modules and the docs. Bus factor is single-author on the whole group (`uv run git-fame --since 180.days --incl "scripts/mcp_servers/github/github_service_security.py" .`: 100% one author under three name spellings). The high-churn item in this group is the config file.
+- The archived sibling `issues/done/20261017-115004_mcp006_implement-missing-guard-layers-for-high-risk-tool-categories.md` touched the same guard module; re-verified this cycle: the guard functions it added (`_assert_allowed_repo`, `_assert_allowed_path`, `_assert_max_file_size`) are present and used only on write paths, so this Plan extends the same module rather than re-implementing it.
+
+### Operational dependency inspection
+- `ss -ltnpH 'sport = :8005'` and `ss -ltnp`: no MCP server port is listening on this host (only `opencode`, SSH/SMB, tailscale, and one unrelated high port), so no running github-mcp process holds state or a DB lock.
+- `fuser /opt/llm/*.db`: no file matched (the DB files live under `/opt/llm/db/` and none of this Plan's targets is a database file), so there is no lock to guard. The persisted-schema check is not applicable.
+
+### Consumer scan and predictable fallout check
+- Module size: `wc -c` for the changed source files — `github_service_security.py` 15186, `github_models_config.py` 4622, `github_service_file.py` 7247, `github_service_issues.py` 4488, `github_service_pull_requests.py` 7290, `github_service_repository.py` 6766, `config_utils.py` 2591 — all below the 24576 B gate with headroom for the added guard, helper, and two posture checks, so no split row is required. `config_utils.py` stays small because only one helper is added; `get_typed()` is not extended.
+- Pinned counts: `tests/mcp_servers/github/test_github_tool_registry.py` pins `len(TOOL_LIST) == 21` — `not affected` (no tool added). `tests/mcp_servers/github/test_github_security_validation.py` pins the eight-check inventory (lines 27-36, 204, 208, 222, 224) — a target row. `tests/mcp_servers/github/test_github_health_posture.py` asserts a subset (line 89) — `not affected`. No docs list or generated snapshot contains the check ids.
+- Tool inventory: no `tools/*.py` is added or removed → `tools/TOOL_DESCRIPTIONS.md` and `check_tool_descriptions_sync.py` are `not affected`.
+- Generated blocks: no guarded `AUTO-GENERATED` block under `scripts/mcp_servers/` is affected by adding a helper and two checks (`generate_reference_table.py --check` covers the guarded blocks); the new shared module needs no generated row. `config/github_mcp_server.toml` is covered by `check_config_comment_length.py`, which is why each new comment stays within the 5-line threshold.
+
+### Design decisions
+
+D-1: The shared helper locations.
+- **Decision**: `scripts/shared/repo_identity.py` (new) owns repository identity; `scripts/shared/config_utils.py` gains one strict numeric accessor with explicit NaN/infinity/negative rejection; `get_typed()` is not changed.
+- **Alternatives considered**: put both in `github_service_security.py` — rejected, the Issue requires one shared definition reused by the sibling items, and the guard module's responsibility is enforcement, not string policy; extending `get_typed()` — rejected, it changes the parsing contract for 13 importers including `scripts/mcp_servers/git/git_models.py`, which deliberately accepts negative values through its own helper.
+- **Compatibility impact**: additive only; no existing caller changes behavior. `scripts/mcp_servers/cicd/cicd_service_business.py:_parse_repo` keeps its own implementation until its own issue adopts the helper.
+- **Reversibility**: high — removing the new module and helper reverts to the current state with no data or config change.
+
+D-2: The single boundary is `_get_repo()`; existing explicit write-side assertions stay.
+- **Decision**: `_get_repo()` performs the allowlist check before the client call, so the 8 unguarded read methods become covered without editing their call sites.
+- **Alternatives considered**: remove the 10 explicit write-side assertions for a single enforcement point — rejected here: the Issue's Constraints require write authorization behavior to be preserved, the assertions are characterization-locked by existing tests, and a duplicated check on the write path is a no-op. Rejected as well: adding per-operation checks to each read method — that is what the Issue asks to avoid.
+- **Compatibility impact**: no caller-visible change for writes; reads start failing with `GitHubAuthorizationError` (403) for out-of-boundary repositories.
+- **Reversibility**: high — revert restores the current per-operation pattern.
+
+D-3: Case normalization applied at the API entry, not only at comparison.
+- **Decision**: the canonical lowercase key is produced by `shared.repo_identity.normalize_repo_key()` and used by the guard comparison, the API slug in `_get_repo()`, the authorization error text, and the audit `target`; input that is already canonical is unchanged.
+- **Alternatives considered**: lowercase only for comparison while keeping the caller's casing in the audit record and the API slug — rejected: the identity would differ between the guard, the audit record, and the API call, which is the inconsistency this issue exists to remove. Rejecting mixed-case input with `GitHubValidationError` — rejected: GitHub accepts it, and rejecting it would break callers for no security gain.
+- **Compatibility impact**: mixed-case callers now reach the canonical repository; the audit record and error text show the canonical key. No response model echoes `owner`/`repo` (checked: 17 request models declare the fields, no response model does), so response payloads are unchanged.
+- **Reversibility**: high.
+
+D-4: Search scoping at query-construction time.
+- **Decision**: when `allow_global_search` is `false` (the default), each search call builds its query with a `repo:` qualifier for every allowlisted repository, and a caller qualifier naming a repository outside the boundary — or an `org:`/`user:` value that does not correspond only to allowlisted repositories — is rejected before the API call. When `true`, global search is permitted and the posture reports the opt-in.
+- **Alternatives considered**: post-filtering results — rejected by the Issue's constraint (an out-of-scope query leaks through counts, errors, timing, and logs); requiring the caller to supply an in-boundary `repo:` qualifier when the allowlist has more than one entry — rejected as a caller-facing contract change; deferring multi-entry scoping to a separate issue — rejected, the boundary must be defined once.
+- **Compatibility impact**: search calls in a deployment with a multi-repository allowlist issue one GitHub search request per allowlisted entry; the shipped config has one entry, so the current deployment is unchanged in request count but becomes scoped.
+- **Reversibility**: high — the flag restores the current global-search behavior explicitly.
+
+D-5: Read-path guards and the binary policy.
+- **Decision**: `get_file_contents` calls the existing `_assert_allowed_path()`, then `_assert_max_read_file_size()` on the content metadata size before decoding, then decodes strictly; a decode failure is an explicit `GitHubValidationError`. Binary content is defined as content that does not decode as strict UTF-8; no new setting is introduced.
+- **Alternatives considered**: a declared lossy-decoding field — rejected under the Issue's instruction to add no settings beyond those listed; magic-byte or content-type sniffing — rejected, it would be a second definition of "binary" for one tool.
+- **Compatibility impact**: reads of denied paths and oversized files, and non-UTF-8 content, now fail instead of returning substituted text. With the shipped empty `path_denylist` and the `0` default, only the decoding behavior changes.
+- **Reversibility**: high.
+
+D-6: Posture checks for the two new settings.
+- **Decision**: add `server.global_search` (OK when the boundary is enforced, WARNING when global search is opted in) and `server.max_file_read_size` (OK when positive, NOT_APPLICABLE at `0`), following the existing `_check()`/invariant-result pattern in `validate_github_security()`, and update the pinned inventory. The documentation names the runtime guard of every published check.
+- **Alternatives considered**: add no checks — rejected, AC-005 requires the search opt-in to be reported, and every published GitHub check follows the settings-then-guard pattern; extending the number of GitHub rows in the settings-to-check mapping — required by the same acceptance criterion.
+- **Compatibility impact**: the `/health` security block gains two check entries; `check_docs_consistency.py --domain mcp` must be re-run after the mapping rows change.
+
+### Persisted schema check
+Not applicable: no DDL, no `user_version` change, no migration, no persisted column. The only persisted state affected is the audit log file path, which is unchanged.
+
+## Implementation steps
+
+1. **Phase 1: Shared definitions**
+   - [ ] Create `scripts/shared/repo_identity.py` with `normalize_repo_key()` and the allowlist-entry shape check; write `tests/shared/test_repo_identity.py` first (REQ-002, REQ-010; target row).
+   - [ ] Add the strict numeric accessor to `scripts/shared/config_utils.py` without changing `get_typed()`; extend `tests/shared/test_config_utils.py` (REQ-008, REQ-010; target rows).
+2. **Phase 2: Failing boundary tests (characterization first)**
+   - [ ] Add the out-of-allowlist read cases and the `repo_scan` single-boundary test to `tests/mcp_servers/github/test_service_file.py`, `test_service_issues.py`, `test_service_pull_requests.py`, `test_service_repository.py`, `test_service_security.py`, and the HTTP-level cases to `tests/mcp_servers/github/test_github_server_endpoints.py`; run them against the unmodified source and record the failures (REQ-001; AC-1, AC-10; target rows).
+3. **Phase 3: Boundary enforcement**
+   - [ ] Apply the canonical key and the allowlist check inside `_get_repo()`, and make `_assert_allowed_repo()` compare the canonical key (REQ-001, REQ-002; target row `scripts/mcp_servers/github/github_service_security.py`).
+   - [ ] Add `_assert_max_read_file_size()` and the search-qualifier/boundary helper to the same module (REQ-004, REQ-006; target row).
+   - [ ] Wire the read path: `get_file_contents` calls the path guard, the read-size guard, and strict decoding (REQ-005, REQ-006, REQ-007; target row `scripts/mcp_servers/github/github_service_file.py`).
+   - [ ] Wire the four search methods to the query-construction boundary (REQ-003, REQ-004; target rows in `github_service_repository.py`, `github_service_issues.py`, `github_service_pull_requests.py`).
+   - [ ] Record the canonical key in the audit target at the API entry (REQ-002; target row `scripts/mcp_servers/github/github_server.py`).
+4. **Phase 4: Configuration and posture**
+   - [ ] Add the two fields to `GitHubConfig` parsed through the strict helpers (REQ-003, REQ-006, REQ-008; target row `scripts/mcp_servers/github/github_models_config.py`), and the two keys with short comments to `config/github_mcp_server.toml` (target row).
+   - [ ] Add the two posture checks and update the pinned inventory in `tests/mcp_servers/github/test_github_security_validation.py` (REQ-009; target row).
+5. **Phase 5: Documentation, validation, and deployment**
+   - [ ] Update `docs/22_mcp/mcp_05_01_access-control-and-allowlists.md`, `docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`, and `docs/22_mcp/mcp_04_01_web-search-file-read-github.md` (REQ-009, REQ-011; target rows), then run the documentation gates listed in the Validation plan.
+   - [ ] Run the full validation sequence (T-9), delete `.testmondata`, and confirm no file under `/opt/llm` is touched by the tests.
+   - [ ] Deployment: sync configs with `deploy.sh`, restart github-mcp, and confirm `/health` reports the two new checks with the shipped values (`false`, `0`) as `warning`/`not_applicable` per policy — the deploy step required because `config/github_mcp_server.toml` is a deployed file.
+
+### Release units
+**Unit**: boundary tests | **Phases**: 2, 3 | **Reason**: Phase 2 writes tests that fail until Phase 3 lands, so Phase 2 cannot be validated alone; Phases 1, 4, and 5 pass validation on their own.
+
+## Validation plan
+| Target File/Module | Testing Strategy (Unit/Integration) | Tool / Command to Run | Expected Outcome |
+|---|---|---|---|
+| scripts/shared/repo_identity.py | Unit (pure function) | `uv run pytest tests/shared/test_repo_identity.py` | Mixed-case input yields the canonical key; already-canonical input is unchanged; non-string input is rejected |
+| scripts/shared/config_utils.py | Unit | `uv run pytest tests/shared/test_config_utils.py` | NaN, infinity, negative, and `bool`-for-number are rejected; non-negative values and an allowed `0` pass; existing `get_typed()` cases stay green |
+| scripts/mcp_servers/github/github_models_config.py | Unit (config builder contract) | `uv run pytest tests/mcp_servers/github/test_github_server_auth.py` | Defaults `false`/`0`; strict rejections for the new fields |
+| scripts/mcp_servers/github/github_service_security.py | Unit + static shape | `uv run pytest tests/mcp_servers/github/test_service_security.py`; `uv run radon cc scripts/mcp_servers/github/github_service_security.py -s`; `uv run python tools/check_module_size.py` | `_get_repo()` refuses before the client call; the guard compares the canonical key; no module-size violation; `validate_github_security` complexity is recorded before and after (C(11) at baseline) |
+| scripts/mcp_servers/github/github_service_file.py | Unit (mocked GitHub client) | `uv run pytest tests/mcp_servers/github/test_service_file.py` | Denied path, oversized size, and non-decodable content are refused; `errors="replace"` case replaced; directory case unchanged |
+| scripts/mcp_servers/github/github_service_repository.py, github_service_issues.py, github_service_pull_requests.py | Unit (query construction) | `uv run pytest tests/mcp_servers/github/test_service_repository.py tests/mcp_servers/github/test_service_issues.py tests/mcp_servers/github/test_service_pull_requests.py` | The query sent to the client is scoped to an allowlisted repository; a denied qualifier is refused before the call |
+| scripts/mcp_servers/github/github_server.py | HTTP-level | `uv run pytest tests/mcp_servers/github/test_github_server_endpoints.py` | Out-of-allowlist read returns 403; the audit `target` carries the canonical key; audit field order unchanged |
+| tests/mcp_servers/github/test_github_security_validation.py | Unit (posture inventory) | `uv run pytest tests/mcp_servers/github/test_github_security_validation.py tests/mcp_servers/github/test_github_health_posture.py` | Extended inventory passes; the subset assertion in the health-posture file stays green |
+| config/github_mcp_server.toml | Config gate + startup read | `uv run python tools/check_config_comment_length.py` | New comment blocks are within the 5-line threshold; shipped values keep current behavior |
+| docs/22_mcp/*.md (3 files) | Documentation gates | `uv run python tools/check_docs_quality.py`, `uv run python tools/check_docs_structure.py docs/22_mcp/mcp_05_01_access-control-and-allowlists.md docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md docs/22_mcp/mcp_04_01_web-search-file-read-github.md`, `uv run python tools/check_docs_content_policy.py`, `uv run python tools/check_docs_consistency.py --domain mcp`, `uv run python tools/check_needs_confirmation_inventory.py`, `uv run python tools/check_docs_japanese.py` | No finding; no new Needs-confirmation marker; the mcp-domain cross-check resolves the new config keys against `config/github_mcp_server.toml` and the guard names against `scripts/` |
+| Whole change | Full sequence per `rules/toolchain.md` | `uv run python tools/run_validation_gates.py --full` | ruff, mypy, bandit, and the full test suite pass; `diff-cover` on the implementation diff reaches the repository threshold (`--fail-under=90`); the work-item gate `uv run python tools/check_workitem_structure.py --file plans/20261124-095007_mcpai002_github-read-security-boundary.md` reports no finding |
+| Baseline recorded before writing this Plan | Static baseline | `uv run radon cc scripts/mcp_servers/github/*.py scripts/shared/config_utils.py -s`; `uv run vulture scripts/ --min-confidence 80`; `uv run bandit -r scripts/ -c pyproject.toml -q`; `uv run lint-imports` | GitHub group baseline: `validate_github_security` C(11), `_write_github_audit_log` B(8), everything else A/B; vulture reports no finding in the GitHub group; bandit reports only pre-existing Low `B101` findings, none in the target files; `lint-imports` reports 6 contracts kept, 0 broken, no GitHub contract to preserve |
+
+## Risks
+- **Risk**: adding read enforcement changes behavior for callers that currently read outside `allowed_repos` (the eight read methods). → **Mitigation**: this is the intended security change; it is verified by T-1/T-2 before implementation, the deployment configuration lists one repository, and the documentation change states the boundary. Report the behavior change in the commit message.
+- **Risk**: the default `allow_global_search = false` changes search behavior from global to scoped, and a multi-entry allowlist multiplies search requests. → **Mitigation**: the flag makes global search an explicit opt-in; request count is bounded by the allowlist size and `max_per_page`, and the shipped config has one entry. Rate-limit exposure is recorded here and belongs to the mcpai006 item's retry scope.
+- **Risk**: removing the silent `errors="replace"` substitution changes output for non-UTF-8 content that callers may have relied on. → **Mitigation**: the behavior change is explicit and tested (T-5); the characterisation test that locks the current behavior is updated in the same commit as the implementation, per the release unit.
+- **Risk**: extending `config_utils.py` with a new helper could tempt a change to `get_typed()` and affect 13 importers, including `git_models.py`'s deliberate negative acceptance. → **Mitigation**: D-1 keeps `get_typed()` unchanged; the new helper is additive, and `tests/shared/test_config_utils.py`'s existing cases must stay green.
+- **Risk**: the pinned check inventory in `tests/mcp_servers/github/test_github_security_validation.py` and the docs mapping must change together with the new checks, or the inventory and the documentation diverge. → **Mitigation**: the target rows for the test file and `mcp_05_03` are in the same phase (Phase 4/5), and the docs cross-check gate is run after them.
+- **Risk**: `validate_github_security()` is already C(11) and the two new checks add branches to it. → **Mitigation**: the checks use the existing `_check()`/invariant-result helper rather than new inline branches; the before/after radon numbers are recorded in the Validation plan, and an extraction is only considered if the function reaches the repository's D/E threshold.
+- **Risk**: case normalization at the API entry changes the audit record's repository key form for mixed-case callers. → **Mitigation**: the change is scoped to the audit target string, tested at HTTP level (T-3), and no response model carries the key.
+- **Risk**: `.testmondata` is stale, so a filtered test run may skip the affected tests. → **Mitigation**: delete it before the full run; the targeted runs in the Validation plan do not rely on testmon.
+
+## Execution Status
+
+Table structure, status/type vocabulary, and general guidance: see
+`templates/execution-status.md`. Default rows for a freshly generated Plan (replace
+with the Plan's actual steps once Implementation steps are broken down):
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| — | — | Pending | — | — | |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+- **Workflow phase**: issue-to-plan
+- **Source issue**: issues/20261119-140509_mcpai002_github-read-security-boundary.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: N/A: this document is the generated plan
+- **Source implementation procedure**: N/A: not applicable in this phase
+- **Generated at**: 20261124-095007
+- **Related target files**: scripts/shared/repo_identity.py, scripts/shared/config_utils.py, scripts/mcp_servers/github/github_models_config.py, scripts/mcp_servers/github/github_service_security.py, scripts/mcp_servers/github/github_service_file.py, scripts/mcp_servers/github/github_service_repository.py, scripts/mcp_servers/github/github_service_issues.py, scripts/mcp_servers/github/github_service_pull_requests.py, scripts/mcp_servers/github/github_server.py, config/github_mcp_server.toml, tests/shared/test_repo_identity.py, tests/shared/test_config_utils.py, tests/mcp_servers/github/test_service_security.py, tests/mcp_servers/github/test_service_file.py, tests/mcp_servers/github/test_service_repository.py, tests/mcp_servers/github/test_service_issues.py, tests/mcp_servers/github/test_service_pull_requests.py, tests/mcp_servers/github/test_github_server_auth.py, tests/mcp_servers/github/test_github_server_endpoints.py, tests/mcp_servers/github/test_github_security_validation.py, docs/22_mcp/mcp_05_01_access-control-and-allowlists.md, docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md, docs/22_mcp/mcp_04_01_web-search-file-read-github.md
+
+### Requirement Traceability
+See `templates/requirement-traceability.md` for the canonical column format.
+
+| Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
+|---|---|---|---|---|---|---|
+| REQ-001 | Issue Problem and Required Changes; `github_service_security.py:160-162` and the eight unguarded read methods | scripts/mcp_servers/github/github_service_security.py | Phase 3 | AC-1, AC-10 | T-1 | Confirmed by repository evidence |
+| REQ-001 | Issue Testing Expectations (HTTP-level out-of-scope read) | tests/mcp_servers/github/test_github_server_endpoints.py | Phase 2 | AC-1 | T-2 | Explicit in issue |
+| REQ-001 | Read-path coverage | tests/mcp_servers/github/test_service_file.py | Phase 2 | AC-1 | T-1 | Confirmed by repository evidence |
+| REQ-001 | Read-path coverage | tests/mcp_servers/github/test_service_repository.py | Phase 2 | AC-1 | T-1 | Confirmed by repository evidence |
+| REQ-001 | Read-path coverage | tests/mcp_servers/github/test_service_issues.py | Phase 2 | AC-1 | T-1 | Confirmed by repository evidence |
+| REQ-001 | Read-path coverage | tests/mcp_servers/github/test_service_pull_requests.py | Phase 2 | AC-1 | T-1 | Confirmed by repository evidence |
+| REQ-002 | Issue Unresolved Questions; decision recorded in this cycle; `docs/22_mcp/mcp_05_01` lines 155-166 vs `github_service_security.py:62` | scripts/shared/repo_identity.py | Phase 1 | AC-2 | T-3 | Explicit in issue (resolved by the decision recorded in this cycle) |
+| REQ-002 | Audit-record consistency at the API entry | scripts/mcp_servers/github/github_server.py | Phase 3 | AC-2 | T-3 | Confirmed by repository evidence |
+| REQ-002 | Guard behavior for the canonical key | tests/mcp_servers/github/test_service_security.py | Phase 3 | AC-2 | T-3 | Confirmed by repository evidence |
+| REQ-002 | Coverage of the new shared module | tests/shared/test_repo_identity.py | Phase 1 | AC-2 | T-3 | Derived from confirmed evidence |
+| REQ-003 | Issue Required Changes; no `allow_global_search` exists in `scripts/` or `config/` | scripts/mcp_servers/github/github_models_config.py | Phase 4 | AC-3, AC-4 | T-4, T-6 | Explicit in issue |
+| REQ-003 | Query construction in the repository search tools | scripts/mcp_servers/github/github_service_repository.py | Phase 3 | AC-3 | T-4 | Confirmed by repository evidence |
+| REQ-003 | Search configuration and shipped defaults | config/github_mcp_server.toml | Phase 4 | AC-4 | T-6, Validation plan config gate | Derived from confirmed evidence |
+| REQ-004 | Issue Required Changes; `github_service_issues.py:88` | scripts/mcp_servers/github/github_service_issues.py | Phase 3 | AC-3, AC-4 | T-4 | Explicit in issue |
+| REQ-004 | Issue Required Changes; `github_service_pull_requests.py:103` | scripts/mcp_servers/github/github_service_pull_requests.py | Phase 3 | AC-3, AC-4 | T-4 | Explicit in issue |
+| REQ-004 | Qualifier rule test coverage | tests/mcp_servers/github/test_service_repository.py | Phase 2 | AC-3, AC-4 | T-4 | Derived from confirmed evidence |
+| REQ-004 | Qualifier rule test coverage | tests/mcp_servers/github/test_service_pull_requests.py | Phase 2 | AC-3, AC-4 | T-4 | Derived from confirmed evidence |
+| REQ-005 | Issue Required Changes; `docs/22_mcp/mcp_05_01` lines 94-98 vs `github_service_file.py:36-62` | scripts/mcp_servers/github/github_service_file.py | Phase 3 | AC-5 | T-5 | Confirmed by repository evidence |
+| REQ-005 | Read-path coverage | tests/mcp_servers/github/test_service_file.py | Phase 2 | AC-5 | T-5 | Derived from confirmed evidence |
+| REQ-006 | Issue Required Changes; the absent `max_file_read_size` key; `github_service_file.py:53` | scripts/mcp_servers/github/github_models_config.py | Phase 4 | AC-4, AC-6 | T-6 | Confirmed by repository evidence |
+| REQ-006 | Guard call on the read path | scripts/mcp_servers/github/github_service_security.py | Phase 3 | AC-6 | T-5 | Derived from confirmed evidence |
+| REQ-006 | Shipped default value | config/github_mcp_server.toml | Phase 4 | AC-6 | Validation plan config gate | Derived from confirmed evidence |
+| REQ-007 | Issue Required Changes; `errors="replace"` at `github_service_file.py:53` and the test at `test_service_file.py:107` | scripts/mcp_servers/github/github_service_file.py | Phase 3 | AC-7 | T-5 | Confirmed by repository evidence |
+| REQ-007 | Replacement of the lossy-decoding test | tests/mcp_servers/github/test_service_file.py | Phase 2 | AC-7 | T-5 | Confirmed by repository evidence |
+| REQ-008 | Issue Required Changes; `scripts/shared/config_utils.py:55-81` | scripts/shared/config_utils.py | Phase 1 | AC-8 | T-6 | Confirmed by repository evidence |
+| REQ-008 | Config-builder cases for the new fields | tests/mcp_servers/github/test_github_server_auth.py | Phase 4 | AC-4, AC-8 | T-6 | Confirmed by repository evidence |
+| REQ-008 | Coverage of the strict helper | tests/shared/test_config_utils.py | Phase 1 | AC-8 | T-6 | Confirmed by repository evidence |
+| REQ-009 | Issue Acceptance Criteria and Constraints; pinned inventory at `tests/mcp_servers/github/test_github_security_validation.py:27-36,224` | tests/mcp_servers/github/test_github_security_validation.py | Phase 4 | AC-9 | T-7 | Confirmed by repository evidence |
+| REQ-009 | Check-to-guard mapping documentation | docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md | Phase 5 | AC-9 | T-8 | Explicit in issue |
+| REQ-010 | Issue Required Changes (shared module, location decided when planning) | scripts/shared/repo_identity.py | Phase 1 | AC-9 | T-3 | Explicit in issue |
+| REQ-011 | Issue Documentation Impact; `docs/22_mcp/mcp_05_01` lines 81-90,155-166 | docs/22_mcp/mcp_05_01_access-control-and-allowlists.md | Phase 5 | AC-11 | T-8 | Explicit in issue |
+| REQ-011 | Issue Documentation Impact; github-mcp domain spec lines 85-91 | docs/22_mcp/mcp_04_01_web-search-file-read-github.md | Phase 5 | AC-11 | T-8 | Explicit in issue |
+| REQ-011 | Fail-closed row correction | docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md | Phase 5 | AC-11 | T-8 | Derived from confirmed evidence |
