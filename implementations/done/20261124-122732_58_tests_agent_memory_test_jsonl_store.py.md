@@ -71,8 +71,8 @@ Keep the Memory jsonl archive's append-only contract verified while the delete p
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the interrupted-delete and post-commit-order cases | Pending | — | — | Phase 5 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the interrupted-delete and post-commit-order cases | Completed | — | 20261124-234217 | Phase 5 interrupted-delete case asserted in row 45's file per Details (needs the session-store fixture); this file keeps the append-only cases |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

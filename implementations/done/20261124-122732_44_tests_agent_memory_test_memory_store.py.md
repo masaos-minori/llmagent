@@ -73,8 +73,8 @@ Test the new `MemoryStore` maintenance accessors for existence, transaction boun
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add accessor, transaction-boundary, and cancellation tests | Pending | — | — | Phase 5 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add accessor, transaction-boundary, and cancellation tests | Completed | — | 20261124-234217 | Phase 5. The transaction-boundary assertions read committed state rather than return values, and the interrupted cases use a helper that refuses the next statement once the stop event is set because `interrupt_when` cannot stop a single short statement. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -81,12 +81,9 @@ def build_memory_status(
     if mem is None:
         return None
 
-    # Pinned count is not exposed by services.py, so compute it directly.
-    from db.helper import SQLiteHelper
-
-    with SQLiteHelper("session", db_config=cfg.db).open() as db:
-        pinned_rows = db.fetchall("SELECT count(*) FROM memories WHERE pinned = 1")
-    pinned_count = int(pinned_rows[0][0]) if pinned_rows else 0
+    # The pinned figure reads through the store accessor, so it comes from the same source
+    # the pin limit is evaluated against (REQ-005).
+    pinned_count = mem.store.pinned_count()
     max_pinned = cfg.memory.memory_max_pinned
 
     embed_client = mem.retriever.embed_client

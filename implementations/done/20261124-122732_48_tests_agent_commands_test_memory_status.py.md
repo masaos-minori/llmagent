@@ -68,8 +68,8 @@ Replace the direct `SQLiteHelper` mocks in the status tests with the `MemoryStor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Repoint the mock at the service-layer path | Pending | — | — | Phase 5 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Repoint the mock at the service-layer path | Completed | — | 20261124-234217 | Phase 5. The accessor is the mock, so the test fails if the status path builds its own connection again (AC-5); the rendered-table expectations are unchanged. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -67,8 +67,8 @@ Assert that an interrupted index rebuild leaves the vector table consistent, so 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the interrupted-rebuild consistency case | Pending | — | — | Phase 5 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the interrupted-rebuild consistency case | Completed | — | 20261124-234217 | Phase 5. Asserts the vector table is unchanged after a rollback and the reported count is 0. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

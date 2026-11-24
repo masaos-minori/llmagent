@@ -7,12 +7,19 @@ Replaces MemoryLayer as the AppServices.memory type.
 
 from __future__ import annotations
 
+import threading
+
 from db.config import DbConfig
 
 from agent.memory.embedding_client import EmbeddingClient
 from agent.memory.ingestion import MemoryIngestionService
 from agent.memory.injection import MemoryInjectionService
-from agent.memory.models import HistoryMessage, MemorySnippet
+from agent.memory.models import (
+    HistoryMessage,
+    MemoryImportResult,
+    MemoryMaintenanceResult,
+    MemorySnippet,
+)
 from agent.memory.retriever import HybridRetriever
 from agent.memory.store import MemoryStore
 
@@ -93,3 +100,75 @@ class MemoryServices:
     ) -> list[MemorySnippet]:
         """Return relevant snippets for the current user query."""
         return await self.injection.on_user_prompt(query, session_id)
+
+    # ── Maintenance accessors ─────────────────────────────────────────────────
+    #
+    # Each name is the `MemoryStore` accessor of the same name; the facade forwards and
+    # implements nothing, so the store stays the single owner of the transaction boundary
+    # and the command mixins reach SQLite only through it (REQ-005).
+
+    def pinned_count(self, *, stop: threading.Event | None = None) -> int:
+        """Return the pinned count through the store."""
+        return self.store.pinned_count(stop=stop)
+
+    def delete(
+        self, memory_id: str, *, stop: threading.Event | None = None
+    ) -> MemoryMaintenanceResult:
+        """Delete one entry through the store."""
+        return self.store.delete(memory_id, stop=stop)
+
+    def pin(
+        self,
+        memory_id: str,
+        *,
+        max_pinned: int,
+        stop: threading.Event | None = None,
+    ) -> MemoryMaintenanceResult:
+        """Pin one entry through the store."""
+        return self.store.pin(memory_id, max_pinned=max_pinned, stop=stop)
+
+    def unpin(
+        self, memory_id: str, *, stop: threading.Event | None = None
+    ) -> MemoryMaintenanceResult:
+        """Release one entry through the store."""
+        return self.store.unpin(memory_id, stop=stop)
+
+    def prune(
+        self,
+        days: int,
+        *,
+        dry_run: bool = False,
+        stop: threading.Event | None = None,
+    ) -> MemoryMaintenanceResult:
+        """Prune entries older than `days` days through the store."""
+        return self.store.prune(days, dry_run=dry_run, stop=stop)
+
+    def reindex(
+        self, index_type: str, *, stop: threading.Event | None = None
+    ) -> MemoryMaintenanceResult:
+        """Rebuild one memory index through the store."""
+        return self.store.reindex(index_type, stop=stop)
+
+    def rebuild(
+        self, *, stop: threading.Event | None = None
+    ) -> MemoryMaintenanceResult:
+        """Rebuild both memory indexes through the store."""
+        return self.store.rebuild(stop=stop)
+
+    def import_jsonl(
+        self,
+        jsonl_store: object,
+        *,
+        dry_run: bool = False,
+        backup: bool = False,
+        allow_loss: bool = False,
+        stop: threading.Event | None = None,
+    ) -> MemoryImportResult:
+        """Replay the JSONL archive through the store."""
+        return self.store.import_jsonl(
+            jsonl_store,
+            dry_run=dry_run,
+            backup=backup,
+            allow_loss=allow_loss,
+            stop=stop,
+        )

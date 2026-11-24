@@ -6,6 +6,11 @@ entries:
   summary: Return the flat ``memory_jsonl_dir`` path using the builder default.
 - file: scripts/agent/memory/count_ops.py
   kind: function
+  name: count_pinned
+  signature: def count_pinned(db) -> int
+  summary: Return the number of currently pinned memories on the caller's connection.
+- file: scripts/agent/memory/count_ops.py
+  kind: function
   name: count_by_type
   signature: def count_by_type(*, db_config) -> dict[str, int]
   summary: 'Return {memory_type: count} for all rows in memories. Diagnostic use only.'
@@ -137,7 +142,7 @@ entries:
   kind: function
   name: import_from_jsonl
   signature: def import_from_jsonl(jsonl_store, *, dry_run, embed_dim, backup, allow_loss,
-    db_config) -> tuple[int, int]
+    db_config, db, stop) -> MemoryImportResult
   summary: Import entries from a JSONL archive into SQLite memories/FTS/vec tables.
 - file: scripts/agent/memory/ingestion.py
   kind: class
@@ -182,34 +187,46 @@ entries:
   summary: Row counts across memories / memories_fts / memories_vec tables.
 - file: scripts/agent/memory/models.py
   kind: class
+  name: MemoryMaintenanceResult
+  signature: class MemoryMaintenanceResult
+  summary: Outcome of one Memory maintenance run through a `MemoryStore` accessor.
+- file: scripts/agent/memory/models.py
+  kind: class
+  name: MemoryImportResult
+  signature: class MemoryImportResult
+  summary: 'Outcome of one JSONL replay: the archive counts and the verified post-import
+    state.'
+- file: scripts/agent/memory/models.py
+  kind: class
   name: MemorySnippet
   signature: class MemorySnippet
   summary: One memory snippet ready for LLM context injection.
 - file: scripts/agent/memory/pin_ops.py
   kind: function
   name: pin
-  signature: def pin(memory_id, conn, *, db_config) -> bool
-  summary: Set pinned=1 for memory_id; return True when found.
+  signature: def pin(memory_id, *, db_config, db, stop, max_pinned) -> MemoryMaintenanceResult
+  summary: Set pinned=1 for memory_id and return the measured outcome.
 - file: scripts/agent/memory/pin_ops.py
   kind: function
   name: unpin
-  signature: def unpin(memory_id, conn, *, db_config) -> bool
-  summary: Set pinned=0 for memory_id; return True when found.
+  signature: def unpin(memory_id, *, db_config, db, stop) -> MemoryMaintenanceResult
+  summary: Set pinned=0 for memory_id and return the measured outcome.
 - file: scripts/agent/memory/rebuild_ops.py
   kind: function
   name: rebuild_fts
-  signature: def rebuild_fts(*, db_config) -> int
-  summary: Rebuild memories_fts from the memories table. Returns number of rows inserted.
+  signature: def rebuild_fts(db, *, db_config, stop) -> MemoryMaintenanceResult
+  summary: Rebuild memories_fts from the memories table inside one transaction.
 - file: scripts/agent/memory/rebuild_ops.py
   kind: function
   name: rebuild_vec
-  signature: def rebuild_vec(*, db_config) -> int
-  summary: Rebuild memories_vec from the memories table. Returns number of rows inserted.
+  signature: def rebuild_vec(db, *, db_config, stop) -> MemoryMaintenanceResult
+  summary: Remove memories_vec rows that have no matching memories row, inside one
+    transaction.
 - file: scripts/agent/memory/rebuild_ops.py
   kind: function
   name: reindex
-  signature: def reindex(index_type, *, db_config) -> int
-  summary: Rebuild a single memory index ('fts' or 'vec'); return rows inserted.
+  signature: def reindex(index_type, *, db_config, db, stop) -> MemoryMaintenanceResult
+  summary: Rebuild a single memory index ('fts' or 'vec'); return the measured outcome.
 - file: scripts/agent/memory/retriever.py
   kind: class
   name: FtsRetriever
@@ -318,18 +335,18 @@ entries:
 - file: scripts/agent/memory/write_ops.py
   kind: function
   name: add
-  signature: def add(entry, embedding, embed_dim, *, db_config) -> None
+  signature: def add(entry, embedding, embed_dim, *, db_config, db) -> None
   summary: Insert a new MemoryEntry; sets created_at/updated_at if empty.
 - file: scripts/agent/memory/write_ops.py
   kind: function
   name: upsert
-  signature: def upsert(entry, embedding, embed_dim, *, db_config) -> None
+  signature: def upsert(entry, embedding, embed_dim, *, db_config, db) -> None
   summary: Insert or replace a MemoryEntry; updates updated_at.
 - file: scripts/agent/memory/write_ops.py
   kind: function
   name: delete
-  signature: def delete(memory_id, *, db_config) -> bool
-  summary: Delete one entry by memory_id; return True when found and deleted.
+  signature: def delete(memory_id, *, db_config, db, stop) -> MemoryMaintenanceResult
+  summary: Delete one entry by memory_id and return the measured outcome.
 generated_by: tools/generate_reference_table.py
 manifest: memory_api
 sources:

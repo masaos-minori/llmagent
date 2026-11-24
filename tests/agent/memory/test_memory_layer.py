@@ -935,3 +935,56 @@ class TestMemoryServicesFacade:
         result = await svc.on_user_prompt(query="test query", session_id=1)
         svc.injection.on_user_prompt.assert_called_once_with("test query", 1)
         assert result == [MemorySnippet(text="hit")]
+
+    def test_maintenance_accessors_delegate_to_the_store(self) -> None:
+        """The facade carries the maintenance accessors, so a command mixin never opens a connection.
+
+        Every name the command layer calls must be reachable here and forward to the store:
+        the facade implements nothing, so the store stays the owner of the transaction
+        boundary (REQ-005; AC-5).
+        """
+        svc = self._make_services()
+        names = (
+            "pinned_count",
+            "delete",
+            "pin",
+            "unpin",
+            "prune",
+            "reindex",
+            "rebuild",
+            "import_jsonl",
+        )
+        for name in names:
+            assert callable(getattr(svc, name)), (
+                f"{name} is not reachable through the facade"
+            )
+
+        svc.store.pinned_count.return_value = 2
+        assert svc.pinned_count() == 2
+        svc.store.pinned_count.assert_called_once_with(stop=None)
+
+        svc.store.delete.return_value = "delete-result"
+        assert svc.delete("m1") == "delete-result"
+        svc.store.delete.assert_called_once_with("m1", stop=None)
+
+        svc.store.pin.return_value = "pin-result"
+        assert svc.pin("m1", max_pinned=10) == "pin-result"
+        svc.store.pin.assert_called_once_with("m1", max_pinned=10, stop=None)
+
+        svc.store.prune.return_value = "prune-result"
+        assert svc.prune(30, dry_run=True) == "prune-result"
+        svc.store.prune.assert_called_once_with(30, dry_run=True, stop=None)
+
+        svc.store.reindex.return_value = "reindex-result"
+        assert svc.reindex("fts") == "reindex-result"
+        svc.store.reindex.assert_called_once_with("fts", stop=None)
+
+        svc.store.rebuild.return_value = "rebuild-result"
+        assert svc.rebuild() == "rebuild-result"
+        svc.store.rebuild.assert_called_once_with(stop=None)
+
+        svc.store.import_jsonl.return_value = "import-result"
+        assert svc.import_jsonl("jsonl") == "import-result"
+        svc.store.import_jsonl.assert_called_once_with(
+            "jsonl", dry_run=False, backup=False, allow_loss=False, stop=None
+        )

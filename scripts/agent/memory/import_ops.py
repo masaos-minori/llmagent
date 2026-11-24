@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """scripts/agent/memory/import_ops.py — Import operations for memory tables."""
 
+from __future__ import annotations
+
 import logging
+import sqlite3
+import threading
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from db.config import DbConfig
 from db.helper import SQLiteHelper
 
+from agent.memory.models import MemoryImportResult
 from agent.memory.write_ops import add
 
 logger = logging.getLogger(__name__)
@@ -24,7 +29,9 @@ def import_from_jsonl(
     backup: bool = False,
     allow_loss: bool = False,
     db_config: DbConfig,
-) -> tuple[int, int]:
+    db: SQLiteHelper | None = None,
+    stop: threading.Event | None = None,
+) -> MemoryImportResult:
     """Import entries from a JSONL archive into SQLite memories/FTS/vec tables.
 
     The archive is replayed top-to-bottom to compute the final state before any
@@ -34,9 +41,14 @@ def import_from_jsonl(
     and counted. Only the resulting final state is written, in one transaction, so
     a delete-then-re-add pair never leaves a stale row.
 
-    Returns (jsonl_count, inserted_count): ``jsonl_count`` counts memory lines
-    seen, ``inserted_count`` counts rows written. When ``dry_run=True`` the tables
-    are left untouched and (jsonl_count, 0) is returned.
+    `db` is the connection the `MemoryStore` accessor opened for the run; the transaction
+    boundary is the store's, so this module supplies only the statements inside it. Without
+    it this function opens its own. `stop` is the job's cancellation event: an interrupted
+    run rolls back and reports no inserted count.
+
+    Returns the archive counts and the post-import count measured after the commit, so the
+    reported count is the committed count rather than the number of statements attempted
+    (REQ-004). When ``dry_run=True`` the tables are left untouched and nothing is verified.
 
     ``backup`` / ``allow_loss``: a no-loss ``backup`` cannot proceed past
     records that cannot be reconstructed from the archive alone; ``allow_loss`` opts
@@ -74,7 +86,7 @@ def import_from_jsonl(
     jsonl_count = memory_lines
 
     if dry_run:
-        return jsonl_count, 0
+        return MemoryImportResult(jsonl_count=jsonl_count, skipped=skipped)
 
     # a no-loss backup must not silently drop records that cannot be
     # reconstructed from the archive. The precise SQLite-only detection lives in
@@ -86,18 +98,47 @@ def import_from_jsonl(
             f"{skipped} archive record(s) could not be reconstructed"
         )
 
-    with SQLiteHelper("session", db_config=db_config).open(write_mode=True) as db:
-        db.execute("DELETE FROM memories_vec")
-        db.execute("DELETE FROM memories_fts")
-        db.execute("DELETE FROM memories")
-        db.commit()
-        for mid in state:
-            add(state[mid], embed_dim=embed_dim, db_config=db_config)
+    if db is not None:
+        return _run_import(db, state, jsonl_count, skipped, embed_dim, db_config)
 
-    inserted = len(state)
+    with SQLiteHelper("session", db_config=db_config).open(write_mode=True) as own:
+        own.interrupt_when(stop)
+        return _run_import(own, state, jsonl_count, skipped, embed_dim, db_config)
+
+
+def _run_import(
+    db: SQLiteHelper,
+    state: dict[str, MemoryEntry],
+    jsonl_count: int,
+    skipped: int,
+    embed_dim: int | None,
+    db_config: DbConfig,
+) -> MemoryImportResult:
+    """Replay the archive inside one transaction on the caller's connection."""
+    try:
+        with db.begin_immediate():
+            db.execute("DELETE FROM memories_vec")
+            db.execute("DELETE FROM memories_fts")
+            db.execute("DELETE FROM memories")
+            for entry in state.values():
+                add(entry, embed_dim=embed_dim, db_config=db_config, db=db)
+            attempted = len(state)
+    except sqlite3.Error:
+        # The transaction rolled back, so the archive replay wrote nothing.
+        return MemoryImportResult(
+            jsonl_count=jsonl_count, skipped=skipped, interrupted=True
+        )
+
+    rows = db.fetchall("SELECT COUNT(*) FROM memories")
+    committed = int(rows[0][0]) if rows else 0
     logger.info(
         "import_from_jsonl: inserted %d entries from %d JSONL memory lines",
-        inserted,
+        committed,
         jsonl_count,
     )
-    return jsonl_count, inserted
+    return MemoryImportResult(
+        jsonl_count=jsonl_count,
+        inserted=committed,
+        skipped=skipped,
+        verified=committed == attempted,
+    )

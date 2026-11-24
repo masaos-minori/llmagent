@@ -26,6 +26,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from agent.commands.memory_rebuild_ops import MemoryRebuildOps
+from agent.memory.models import MemoryImportResult
 from agent.services.maintenance_jobs import (
     ApprovalLevel,
     JobState,
@@ -42,6 +43,11 @@ class _Entry:
     """One stored memory, as the backup writer sees it."""
 
     memory_id: str
+
+
+def _import_result(jsonl_count: int, inserted: int) -> MemoryImportResult:
+    """The outcome the import path reports for one run (row 16's result shape)."""
+    return MemoryImportResult(jsonl_count=jsonl_count, inserted=inserted, verified=True)
 
 
 def _make_mem(jsonl_count: int = 5, sqlite_count: int = 3) -> MagicMock:
@@ -96,7 +102,8 @@ async def test_run_is_recorded_as_a_job() -> None:
     ops, _, registry = _make_ops()
     mem = _make_mem()
     with patch(
-        "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+        "agent.commands.memory_rebuild_ops.import_from_jsonl",
+        return_value=_import_result(5, 5),
     ):
         result = await ops.rebuild(mem, ["--confirm"])
     job = _recorded(registry, result.job_id)
@@ -111,7 +118,8 @@ async def test_flags_are_recorded_as_grants_on_the_job() -> None:
     ops, _, registry = _make_ops()
     mem = _make_mem()
     with patch(
-        "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+        "agent.commands.memory_rebuild_ops.import_from_jsonl",
+        return_value=_import_result(5, 5),
     ):
         result = await ops.rebuild(mem, ["--confirm", "--allow-loss"])
     job = _recorded(registry, result.job_id)
@@ -125,7 +133,8 @@ async def test_run_with_no_recorded_grant_is_refused_and_changes_nothing() -> No
     ops, _, registry = _make_ops()
     mem = _make_mem()
     with patch(
-        "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)
+        "agent.commands.memory_rebuild_ops.import_from_jsonl",
+        return_value=_import_result(5, 0),
     ) as mock_import:
         result = await ops.rebuild(mem, [])
         mock_import.assert_not_called()
@@ -150,7 +159,8 @@ async def test_run_reports_the_job_id_and_the_terminal_state() -> None:
     ops, out, registry = _make_ops()
     mem = _make_mem()
     with patch(
-        "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+        "agent.commands.memory_rebuild_ops.import_from_jsonl",
+        return_value=_import_result(5, 5),
     ):
         result = await ops.rebuild(mem, ["--confirm"])
     assert _recorded(registry, result.job_id).state is JobState.COMPLETED
@@ -170,7 +180,8 @@ async def test_backup_failure_ends_the_run_as_failed_naming_the_job_id() -> None
     mem.store.list_entries.return_value = [_Entry(memory_id="m1")]
     try:
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(5, 5),
         ) as mock_import:
             result = await ops.rebuild(mem, ["--confirm"])
             mock_import.assert_not_called()
@@ -204,7 +215,8 @@ async def test_loss_without_a_recorded_grant_is_refused() -> None:
     mem.store.list_entries.return_value = [_Entry(memory_id="not-in-archive")]
     mem.ingestion._jsonl.iter_records.return_value = []
     with patch(
-        "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+        "agent.commands.memory_rebuild_ops.import_from_jsonl",
+        return_value=_import_result(5, 5),
     ) as mock_import:
         result = await ops.rebuild(mem, ["--confirm"])
         mock_import.assert_not_called()
@@ -220,7 +232,8 @@ async def test_loss_grant_lets_the_run_proceed() -> None:
     mem.store.list_entries.return_value = [_Entry(memory_id="not-in-archive")]
     mem.ingestion._jsonl.iter_records.return_value = []
     with patch(
-        "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+        "agent.commands.memory_rebuild_ops.import_from_jsonl",
+        return_value=_import_result(5, 5),
     ):
         result = await ops.rebuild(mem, ["--confirm", "--allow-loss"])
     assert result.loss_blocked is False
@@ -253,7 +266,8 @@ async def test_granted_run_runs_the_consistency_check() -> None:
     ops, _, _ = _make_ops()
     mem = _make_mem()
     with patch(
-        "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+        "agent.commands.memory_rebuild_ops.import_from_jsonl",
+        return_value=_import_result(5, 5),
     ):
         await ops.rebuild(mem, ["--confirm"])
     assert mem.store.check_consistency.call_count >= 2

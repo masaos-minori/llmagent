@@ -10,13 +10,16 @@ behavior before extracting the shared summary-preview formatting logic.
 from __future__ import annotations
 
 import json
-import sqlite3
+import threading
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
 
 import pytest
 from agent.commands.memory_data_ops import MemoryDataOps
+from agent.memory.models import MemoryMaintenanceResult
+from agent.memory.store import MemoryStore
 from agent.repl_input_controller import (
     InputBusyError,
     InputOutcome,
@@ -24,9 +27,18 @@ from agent.repl_input_controller import (
     InputResult,
     PromptKind,
 )
+from agent.services.maintenance_jobs import (
+    ApprovalDecision,
+    ApprovalLevel,
+    JobState,
+    MaintenanceJobRegistry,
+    StoreTarget,
+)
+from db.config import DbConfig
 from db.helper import SQLiteHelper
-from db.maintenance import MaintenanceMode, MaintenanceResult
 from shared.config_loader import ConfigLoader
+
+from tests.agent._config_test_defaults import PERMISSIVE_SQLITE_VEC_SO
 
 
 def _make_entry(
@@ -63,6 +75,82 @@ def _make_ops() -> tuple[MemoryDataOps, MagicMock]:
     ctx = MagicMock()
     out = MagicMock()
     return MemoryDataOps(ctx, out), out
+
+
+def _make_ops_with_registry() -> tuple[
+    MemoryDataOps, MagicMock, MaintenanceJobRegistry
+]:
+    """Ops whose context carries the one registry instance the command path uses (REQ-005).
+
+    A real `MaintenanceJobRegistry` is attached so the approval decision the handler reads is
+    the registry's own, not a stand-in.
+    """
+    ops, out = _make_ops()
+    registry = MaintenanceJobRegistry()
+    ops._ctx.services_required.job_registry = registry
+    return ops, out, registry
+
+
+_SCHEMA_SQL = """
+CREATE TABLE memories (
+    memory_id   TEXT PRIMARY KEY,
+    memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),
+    source_type TEXT NOT NULL DEFAULT 'conversation',
+    session_id  INTEGER,
+    turn_id     TEXT,
+    project     TEXT NOT NULL DEFAULT '',
+    repo        TEXT NOT NULL DEFAULT '',
+    branch      TEXT NOT NULL DEFAULT '',
+    content     TEXT NOT NULL,
+    summary     TEXT NOT NULL DEFAULT '',
+    tags        TEXT NOT NULL DEFAULT '[]',
+    importance  REAL NOT NULL DEFAULT 0.5,
+    pinned      INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+CREATE VIRTUAL TABLE memories_fts USING fts5(memory_id UNINDEXED, content, summary, tags);
+CREATE TABLE memories_vec (memory_id TEXT PRIMARY KEY, embedding BLOB);
+CREATE TABLE memory_links (src_id TEXT, dst_id TEXT);
+"""
+
+
+def _session_config(tmp_path: Path) -> DbConfig:
+    """The typed configuration whose session DB is the temp file the store runs against."""
+    return DbConfig(
+        rag_db_path=str(tmp_path / "rag.sqlite"),
+        session_db_path=str(tmp_path / "session.sqlite"),
+        workflow_db_path=str(tmp_path / "workflow.sqlite"),
+        sqlite_vec_so=PERMISSIVE_SQLITE_VEC_SO,
+    )
+
+
+def _session_store(tmp_path: Path) -> MemoryStore:
+    """A real `MemoryStore` on a temp session DB: the boundary the handler must use (REQ-005)."""
+    cfg = _session_config(tmp_path)
+    with SQLiteHelper("session", db_config=cfg).open(write_mode=True) as db:
+        db.executescript(_SCHEMA_SQL)
+        db.commit()
+    return MemoryStore(db_config=cfg)
+
+
+def _isolate_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point ConfigLoader at a temp root whose memory_jsonl_dir is under tmp_path."""
+    archive_dir = tmp_path / "archive"
+    (tmp_path / "agent.toml").write_text(f'memory_jsonl_dir = "{archive_dir}"\n')
+    monkeypatch.setattr(
+        "shared.config_loader.resolve_config_dir",
+        lambda config_dir=None: tmp_path,
+    )
+    monkeypatch.setattr(ConfigLoader, "_allowed_files", None)
+    return archive_dir
+
+
+def _mem_for(store: MemoryStore) -> MagicMock:
+    """A `MemoryServices` stand-in that carries the store the run executes on."""
+    mem = MagicMock()
+    mem.store = store
+    return mem
 
 
 class TestMemoryListSummaryPreview:
@@ -224,10 +312,11 @@ class TestMemoryDeleteShortId:
         mem = MagicMock()
         mem.store.get_by_id.return_value = None
         mem.store.list_entries.return_value = []
-        with patch("agent.commands.memory_data_ops.write_delete", return_value=False):
-            await ops.memory_delete(mem, ["abcdef12"])
+        await ops.memory_delete(mem, ["abcdef12"])
         lines = [c.args[0] for c in out.write.call_args_list]
         assert any("M-03" in line for line in lines)
+        # An unresolved id never reaches the write path.
+        mem.store.delete.assert_not_called()
 
     async def test_ambiguous_writes_m04(self) -> None:
         ops, out = _make_ops()
@@ -237,27 +326,26 @@ class TestMemoryDeleteShortId:
             _make_entry(memory_id="abcdef12aa"),
             _make_entry(memory_id="abcdef12bb"),
         ]
-        with patch("agent.commands.memory_data_ops.write_delete", return_value=False):
-            await ops.memory_delete(mem, ["abcdef12"])
+        await ops.memory_delete(mem, ["abcdef12"])
         lines = [c.args[0] for c in out.write.call_args_list]
         assert any("M-04" in line for line in lines)
+        mem.store.delete.assert_not_called()
 
     async def test_short_id_resolves_before_delete(self) -> None:
-        ops, out = _make_ops()
+        ops, out, _registry = _make_ops_with_registry()
         mem = MagicMock()
         mem.store.get_by_id.return_value = None
         mem.store.list_entries.return_value = [_make_entry(memory_id="abcdef1234")]
-        with (
-            patch(
-                "agent.commands.memory_data_ops.get_input_controller",
-                return_value=_controller_answering("y"),
-            ),
-            patch(
-                "agent.commands.memory_data_ops.write_delete", return_value=True
-            ) as wd,
+        mem.store.delete.return_value = MemoryMaintenanceResult(
+            operation="delete", count=1, verified=True, ids=("abcdef1234",)
+        )
+        with patch(
+            "agent.commands.memory_data_ops.get_input_controller",
+            return_value=_controller_answering("y"),
         ):
             await ops.memory_delete(mem, ["abcdef12"])
-        wd.assert_called_once_with("abcdef1234", db_config=ops._ctx.cfg.db)
+        # The write goes through the store accessor, not a connection the handler opens.
+        mem.store.delete.assert_called_once_with("abcdef1234", stop=ANY)
         # no M-code emitted on success path
         lines = [c.args[0] for c in out.write.call_args_list]
         assert not any(m in "\n".join(lines) for m in ("M-03", "M-04"))
@@ -269,10 +357,10 @@ class TestMemoryPinShortId:
         mem = MagicMock()
         mem.store.get_by_id.return_value = None
         mem.store.list_entries.return_value = []
-        with patch("agent.commands.memory_data_ops.pin_mem", return_value=True):
-            ops.memory_pin(mem, ["abcdef12"], pin=True)
+        ops.memory_pin(mem, ["abcdef12"], pin=True)
         lines = [c.args[0] for c in out.write.call_args_list]
         assert any("M-03" in line for line in lines)
+        mem.store.pin.assert_not_called()
 
     def test_short_id_resolves_before_pin(self) -> None:
         ops, out = _make_ops()
@@ -280,12 +368,15 @@ class TestMemoryPinShortId:
         mem = MagicMock()
         mem.store.get_by_id.return_value = None
         mem.store.list_entries.return_value = [_make_entry(memory_id="abcdef1234")]
-        with patch.object(ops, "_count_pinned", return_value=0):
-            with patch(
-                "agent.commands.memory_data_ops.pin_mem", return_value=True
-            ) as pm:
-                ops.memory_pin(mem, ["abcdef12"], pin=True)
-        pm.assert_called_once_with("abcdef1234", db_config=ops._ctx.cfg.db)
+        mem.store.pin.return_value = MemoryMaintenanceResult(
+            operation="pin", count=1, verified=True, ids=("abcdef1234",)
+        )
+        ops.memory_pin(mem, ["abcdef12"], pin=True)
+        # The write goes through the store accessor, which evaluates the limit inside
+        # its own transaction (row 15), so the handler reads no count first.
+        mem.store.pin.assert_called_once_with("abcdef1234", max_pinned=10)
+        lines = [c.args[0] for c in out.write.call_args_list]
+        assert not any(m in "\n".join(lines) for m in ("M-03", "M-04", "M-05"))
 
     def test_ambiguous_writes_m04(self) -> None:
         ops, out = _make_ops()
@@ -295,34 +386,81 @@ class TestMemoryPinShortId:
             _make_entry(memory_id="abcdef12aa"),
             _make_entry(memory_id="abcdef12bb"),
         ]
-        with patch("agent.commands.memory_data_ops.pin_mem", return_value=True):
-            ops.memory_pin(mem, ["abcdef12"], pin=True)
+        ops.memory_pin(mem, ["abcdef12"], pin=True)
         lines = [c.args[0] for c in out.write.call_args_list]
         assert any("M-04" in line for line in lines)
+        mem.store.pin.assert_not_called()
 
 
-class TestCountPinned:
-    def test_returns_pinned_count(self) -> None:
-        ops, _ = _make_ops()
-        with (
-            patch(  # mock-patch-ok: _count_pinned binds SQLiteHelper via a local import inside the function
-                "db.helper.SQLiteHelper"
-            ) as sh
-        ):
-            sh.return_value.open.return_value.__enter__.return_value.fetchall.return_value = [
-                ("3",)
-            ]
-            assert ops._count_pinned() == 3
+class TestAtomicPinLimit:
+    """The limit is evaluated inside the write transaction, not before it (REQ-008).
 
-    def test_returns_zero_when_empty(self) -> None:
-        ops, _ = _make_ops()
-        with (
-            patch(  # mock-patch-ok: _count_pinned binds SQLiteHelper via a local import inside the function
-                "db.helper.SQLiteHelper"
-            ) as sh
-        ):
-            sh.return_value.open.return_value.__enter__.return_value.fetchall.return_value = []
-            assert ops._count_pinned() == 0
+    A handler that counts on a second connection can be overtaken by another run between the
+    count and the write, so the limit is only atomic when the check and the write share the
+    transaction the store owns.
+    """
+
+    def test_limit_is_never_exceeded_by_two_concurrent_pins(
+        self, tmp_path: Path
+    ) -> None:
+        store = _session_store(tmp_path)
+        for mid in ("pin-a", "pin-b"):
+            with SQLiteHelper("session", db_config=_session_config(tmp_path)).open(
+                write_mode=True
+            ) as db:
+                db.execute(
+                    "INSERT INTO memories (memory_id, memory_type, content, updated_at, pinned) "
+                    "VALUES (?, 'semantic', 'x', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), 0)",
+                    (mid,),
+                )
+                db.commit()
+        ops, out = _make_ops()
+        ops._ctx.cfg.memory.memory_max_pinned = 1
+        mem = _mem_for(store)
+
+        def pin(mid: str) -> None:
+            ops.memory_pin(mem, [mid], pin=True)
+
+        threads = [
+            threading.Thread(target=pin, args=(mid,)) for mid in ("pin-a", "pin-b")
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Exactly one row is pinned: the second run evaluated the limit against the state the
+        # first transaction committed, not against the state before it.
+        assert store.pinned_count() == 1
+        lines = [c.args[0] for c in out.write.call_args_list]
+        assert sum(1 for line in lines if "M-05" in line) == 1
+
+    def test_refused_pin_writes_m05(self) -> None:
+        ops, out = _make_ops()
+        ops._ctx.cfg.memory.memory_max_pinned = 1
+        mem = MagicMock()
+        mem.store.get_by_id.return_value = None
+        mem.store.list_entries.return_value = [_make_entry(memory_id="abcdef1234")]
+        mem.store.pin.return_value = MemoryMaintenanceResult(
+            operation="pin", refused=True, ids=()
+        )
+        ops.memory_pin(mem, ["abcdef12"], pin=True)
+        lines = [c.args[0] for c in out.write.call_args_list]
+        assert any("M-05" in line for line in lines)
+
+    def test_accepted_pin_writes_the_pinned_line(self) -> None:
+        ops, out = _make_ops()
+        ops._ctx.cfg.memory.memory_max_pinned = 10
+        mem = MagicMock()
+        mem.store.get_by_id.return_value = None
+        mem.store.list_entries.return_value = [_make_entry(memory_id="abcdef1234")]
+        mem.store.pin.return_value = MemoryMaintenanceResult(
+            operation="pin", count=1, verified=True, ids=("abcdef1234",)
+        )
+        ops.memory_pin(mem, ["abcdef12"], pin=True)
+        lines = [c.args[0] for c in out.write.call_args_list]
+        assert not any(m in "\n".join(lines) for m in ("M-03", "M-04", "M-05"))
+        assert any("pinned: abcdef1234" in line for line in lines)
 
 
 class TestMemoryListPinnedFilter:
@@ -355,103 +493,29 @@ class TestMemoryListPinnedFilter:
         assert "entry-b" in joined
 
 
-class TestMemoryPinLimit:
-    def test_pin_at_limit_writes_m05(self) -> None:
-        ops, out = _make_ops()
-        ops._ctx.cfg.memory.memory_max_pinned = 1
-        mem = MagicMock()
-        mem.store.get_by_id.return_value = None
-        mem.store.list_entries.return_value = [_make_entry(memory_id="abcdef1234")]
-        with patch.object(ops, "_count_pinned", return_value=1):
-            with patch(
-                "agent.commands.memory_data_ops.pin_mem", return_value=True
-            ) as pm:
-                ops.memory_pin(mem, ["abcdef12"], pin=True)
-        lines = [c.args[0] for c in out.write.call_args_list]
-        assert any("M-05" in line for line in lines)
-        pm.assert_not_called()
-
-    def test_pin_below_limit_proceeds(self) -> None:
-        ops, out = _make_ops()
-        ops._ctx.cfg.memory.memory_max_pinned = 10
-        mem = MagicMock()
-        mem.store.get_by_id.return_value = None
-        mem.store.list_entries.return_value = [_make_entry(memory_id="abcdef1234")]
-        with patch.object(ops, "_count_pinned", return_value=0):
-            with patch(
-                "agent.commands.memory_data_ops.pin_mem", return_value=True
-            ) as pm:
-                ops.memory_pin(mem, ["abcdef12"], pin=True)
-        pm.assert_called_once_with("abcdef1234", db_config=ops._ctx.cfg.db)
-        lines = [c.args[0] for c in out.write.call_args_list]
-        assert not any(m in "\n".join(lines) for m in ("M-03", "M-04", "M-05"))
-
-
 class TestMemoryPruneEvents:
     async def test_prune_appends_delete_event_per_id(self) -> None:
-        ops, _ = _make_ops()
-        ctx = SimpleNamespace(
-            cfg=SimpleNamespace(memory=SimpleNamespace(memory_retention_days=30)),
-            services_required=SimpleNamespace(audit_logger=None),
-        )
-        prune_result = MaintenanceResult(
-            success=True,
-            action="prune",
-            mode=MaintenanceMode.STRICT,
-            data={"deleted": 2, "pruned_ids": ["id-aaa", "id-bbb"]},
+        ops, _out, _registry = _make_ops_with_registry()
+        mem = MagicMock()
+        mem.store.prune.return_value = MemoryMaintenanceResult(
+            operation="prune", count=2, verified=True, ids=("id-aaa", "id-bbb")
         )
         with (
-            patch(  # mock-patch-ok: memory_prune binds SQLiteHelper via a local import (line 360); prune_old_memories is fully mocked in this test
-                "db.helper.SQLiteHelper"
-            ) as mock_helper_cls,
-            patch(  # mock-patch-ok: collect_prunable_ids is bound via a local import in memory_prune (line 362)
-                "db.store_impl.SQLiteMemoryDeleteStore.collect_prunable_ids",
-                return_value=["id-aaa", "id-bbb"],
-            ),
-            patch("db.maintenance.prune_old_memories", return_value=prune_result),
             patch(
                 "agent.commands.memory_data_ops.get_input_controller",
                 return_value=_controller_answering("y"),
             ),
             patch("agent.commands.memory_data_ops._emit_prune_event") as emit,
         ):
-            mock_h = MagicMock()
-            mock_h.__enter__ = MagicMock(return_value=mock_h)
-            mock_h.__exit__ = MagicMock(return_value=False)
-            mock_h.open.return_value = mock_h
-            mock_helper_cls.return_value = mock_h
-            await ops.memory_prune(MagicMock(), ctx, ["--days", "14"])
+            await ops.memory_prune(mem, ops._ctx, ["--days", "14"])
         emit.assert_has_calls([call("id-aaa"), call("id-bbb")])
 
     async def test_prune_no_pruned_ids_emits_no_events(self) -> None:
-        ops, out = _make_ops()
-        ctx = SimpleNamespace(
-            cfg=SimpleNamespace(memory=SimpleNamespace(memory_retention_days=30)),
-            services_required=SimpleNamespace(audit_logger=None),
-        )
-        prune_result = MaintenanceResult(
-            success=True,
-            action="prune",
-            mode=MaintenanceMode.STRICT,
-            data={"deleted": 0, "pruned_ids": []},
-        )
-        with (
-            patch(  # mock-patch-ok: memory_prune binds SQLiteHelper via a local import (line 360); prune_old_memories is fully mocked in this test
-                "db.helper.SQLiteHelper"
-            ) as mock_helper_cls,
-            patch(  # mock-patch-ok: collect_prunable_ids is bound via a local import in memory_prune (line 362)
-                "db.store_impl.SQLiteMemoryDeleteStore.collect_prunable_ids",
-                return_value=[],
-            ),
-            patch("db.maintenance.prune_old_memories", return_value=prune_result),
-            patch("agent.commands.memory_data_ops._emit_prune_event") as emit,
-        ):
-            mock_h = MagicMock()
-            mock_h.__enter__ = MagicMock(return_value=mock_h)
-            mock_h.__exit__ = MagicMock(return_value=False)
-            mock_h.open.return_value = mock_h
-            mock_helper_cls.return_value = mock_h
-            await ops.memory_prune(MagicMock(), ctx, ["--days", "14"])
+        ops, out, _registry = _make_ops_with_registry()
+        mem = MagicMock()
+        mem.store.prune.return_value = MemoryMaintenanceResult(operation="prune")
+        with patch("agent.commands.memory_data_ops._emit_prune_event") as emit:
+            await ops.memory_prune(mem, ops._ctx, ["--days", "14"])
         emit.assert_not_called()
         # count==0 path writes a plain message and returns before write_success
         lines = [c.args[0] for c in out.write.call_args_list]
@@ -518,75 +582,49 @@ class TestEmitPruneEvent:
 
 
 class TestMemoryPruneRealLoader:
-    """Exercise the real resolver + JSONL append through ``memory_prune`` (REQ-004).
+    """Exercise the real resolver + JSONL append through ``memory_prune`` (REQ-004, REQ-008).
 
     Isolates ``ConfigLoader`` to a temp root whose flat ``memory_jsonl_dir`` points
-    under ``tmp_path``, and backs ``SQLiteHelper`` with a temp-file DB so
-    ``prune_old_memories`` runs for real. Asserts one ``delete`` event per pruned id
-    lands under the isolated archive and the success line prints.
+    under ``tmp_path``, and runs the prune for real through a ``MemoryStore`` on a temp-file
+    DB. Asserts one ``delete`` event per pruned id lands under the isolated archive and the
+    success line prints the count the transaction deleted.
     """
 
-    _SCHEMA_SQL = """
-    CREATE TABLE memories (
-        memory_id   TEXT PRIMARY KEY,
-        memory_type TEXT NOT NULL,
-        updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
-        pinned      INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE VIRTUAL TABLE memories_fts USING fts5(memory_id UNINDEXED, content);
-    CREATE TABLE memories_vec (memory_id TEXT PRIMARY KEY, embedding BLOB);
-    CREATE TABLE memory_links (src_id TEXT, dst_id TEXT);
-    """
-
-    def _isolate_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-        archive_dir = tmp_path / "archive"
-        (tmp_path / "agent.toml").write_text(f'memory_jsonl_dir = "{archive_dir}"\n')
-        monkeypatch.setattr(
-            "shared.config_loader.resolve_config_dir",
-            lambda config_dir=None: tmp_path,
-        )
-        monkeypatch.setattr(ConfigLoader, "_allowed_files", None)
-        return archive_dir
+    def _seed(self, cfg: DbConfig) -> None:
+        with SQLiteHelper("session", db_config=cfg).open(write_mode=True) as db:
+            db.executescript(_SCHEMA_SQL)
+            db.executemany(
+                "INSERT INTO memories (memory_id, memory_type, content, updated_at) "
+                "VALUES (?, ?, 'x', ?)",
+                [
+                    ("old-1", "semantic", "2025-01-01T00:00:00Z"),
+                    ("old-2", "episodic", "2025-01-01T00:00:00Z"),
+                ],
+            )
+            # recent-1 is anchored to SQL now so the row never ages out of the retention
+            # window; a hardcoded date made this test fail once real time passed it.
+            db.execute(
+                "INSERT INTO memories (memory_id, memory_type, content, updated_at) "
+                "VALUES ('recent-1', 'semantic', 'x', strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 days'))"
+            )
+            db.commit()
 
     async def test_prune_appends_delete_event_per_id(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        archive_dir = self._isolate_config(tmp_path, monkeypatch)
-        conn = sqlite3.connect(tmp_path / "session.db")
-        conn.executescript(self._SCHEMA_SQL)
-        conn.executemany(
-            "INSERT INTO memories (memory_id, memory_type, updated_at) VALUES (?, ?, ?)",
-            [
-                ("old-1", "semantic", "2025-01-01T00:00:00"),
-                ("old-2", "episodic", "2025-01-01T00:00:00"),
-            ],
-        )
-        # recent-1 is anchored to SQL now so the row never ages out of the retention
-        # window; a hardcoded date made this test fail once real time passed it.
-        conn.execute(
-            "INSERT INTO memories (memory_id, memory_type, updated_at) "
-            "VALUES ('recent-1', 'semantic', datetime('now', '-1 days'))"
-        )
-        conn.commit()
-        # Real SQLiteHelper bound to the temp-file DB; db_path bypasses build_db_config.
-        helper = SQLiteHelper("session", db_path=str(tmp_path / "session.db"))
-        ops, out = _make_ops()
-        ctx = SimpleNamespace(
-            cfg=SimpleNamespace(memory=SimpleNamespace(memory_retention_days=30)),
-            services_required=SimpleNamespace(audit_logger=None),
-        )
-        with (
-            patch(  # mock-patch-ok: memory_prune binds SQLiteHelper via a local import (line 357); real temp-file DB backs prune_old_memories
-                "db.helper.SQLiteHelper", return_value=helper
-            ),
-            patch(
-                "agent.commands.memory_data_ops.get_input_controller",
-                return_value=_controller_answering("y"),
-            ),
+        archive_dir = _isolate_config(tmp_path, monkeypatch)
+        cfg = _session_config(tmp_path)
+        self._seed(cfg)
+        ops, out, _registry = _make_ops_with_registry()
+        ops._ctx.cfg.db = cfg
+        mem = _mem_for(MemoryStore(db_config=cfg))
+        with patch(
+            "agent.commands.memory_data_ops.get_input_controller",
+            return_value=_controller_answering("y"),
         ):
-            await ops.memory_prune(MagicMock(), ctx, ["--days", "14"])
+            await ops.memory_prune(mem, ops._ctx, ["--days", "14"])
 
         # One delete event per pruned id lands under the resolved archive.
         archive_file = archive_dir / "memories.jsonl"
@@ -601,9 +639,71 @@ class TestMemoryPruneRealLoader:
         success_lines = [c.args[0] for c in out.write_success.call_args_list]
         assert any("Pruned 2 entries" in s for s in success_lines)
 
-        # Rows actually deleted from the DB by the real prune_old_memories.
-        remaining = conn.execute("SELECT count(*) FROM memories").fetchone()[0]
+        # Rows actually deleted from the DB by the real prune.
+        with SQLiteHelper("session", db_config=cfg).open() as db:
+            remaining = db.fetchall("SELECT count(*) FROM memories")[0][0]
         assert remaining == 1
+
+    async def test_reported_count_is_the_count_the_transaction_deleted(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A concurrent writer cannot change what the run reports (REQ-008).
+
+        The prompt's count is read before the confirmation; the reported count is the count
+        the run's own transaction deleted. When the two disagree, the transaction wins.
+        """
+        archive_dir = _isolate_config(tmp_path, monkeypatch)
+        cfg = _session_config(tmp_path)
+        self._seed(cfg)
+        ops, out, _registry = _make_ops_with_registry()
+        ops._ctx.cfg.db = cfg
+        mem = _mem_for(MemoryStore(db_config=cfg))
+
+        def concurrent_writer(request: InputRequest) -> InputResult:
+            # A second writer removes one candidate between the count and the delete.
+            with SQLiteHelper("session", db_config=cfg).open(write_mode=True) as db:
+                db.execute("DELETE FROM memories WHERE memory_id = 'old-2'")
+                db.commit()
+            return InputResult(
+                InputRequest(PromptKind.MEMORY_PRUNE, "prune:14d"),
+                InputOutcome.COMPLETED,
+                "y",
+            )
+
+        ctl = MagicMock()
+        ctl.submit = AsyncMock(side_effect=concurrent_writer)
+        with patch(
+            "agent.commands.memory_data_ops.get_input_controller",
+            return_value=ctl,
+        ):
+            await ops.memory_prune(mem, ops._ctx, ["--days", "14"])
+
+        # The prompt counted 2 candidates; the transaction deleted 1.
+        success_lines = [c.args[0] for c in out.write_success.call_args_list]
+        assert any("Pruned 1 entries" in s for s in success_lines)
+        lines = [
+            ln
+            for ln in (archive_dir / "memories.jsonl").read_text().strip().splitlines()
+            if ln.strip()
+        ]
+        assert [json.loads(ln)["memory_id"] for ln in lines] == ["old-1"]
+
+
+def _job_id_from_output(out: MagicMock) -> str:
+    """Read the job id the handler reported for the run it recorded."""
+    for line in _reported_lines(out):
+        if line.startswith("  job "):
+            return line.split()[1]
+    raise AssertionError("the handler did not report a job")
+
+
+def _reported_lines(out: MagicMock) -> list[str]:
+    """Every line the handler printed, including the refusals it printed as errors."""
+    lines = [c.args[0] for c in out.write.call_args_list]
+    lines += [c.args[0] for c in out.write_error.call_args_list]
+    return lines
 
 
 class TestDeleteConfirmationThroughController:
@@ -612,6 +712,9 @@ class TestDeleteConfirmationThroughController:
         mem = MagicMock()
         mem.store.get_by_id.return_value = None
         mem.store.list_entries.return_value = [_make_entry(memory_id="abcdef1234")]
+        mem.store.delete.return_value = MemoryMaintenanceResult(
+            operation="delete", count=1, verified=True, ids=("abcdef1234",)
+        )
         return mem
 
     @pytest.mark.parametrize(
@@ -626,40 +729,33 @@ class TestDeleteConfirmationThroughController:
     async def test_non_completed_outcome_never_deletes(
         self, outcome: InputOutcome
     ) -> None:
-        ops, out = _make_ops()
-        with (
-            patch(
-                "agent.commands.memory_data_ops.get_input_controller",
-                return_value=_controller_answering("y", outcome),
-            ),
-            patch("agent.commands.memory_data_ops.write_delete") as wd,
+        ops, out, _registry = _make_ops_with_registry()
+        mem = self._mem()
+        with patch(
+            "agent.commands.memory_data_ops.get_input_controller",
+            return_value=_controller_answering("y", outcome),
         ):
-            await ops.memory_delete(self._mem(), ["abcdef12"])
-        wd.assert_not_called()
+            await ops.memory_delete(mem, ["abcdef12"])
+        mem.store.delete.assert_not_called()
         lines = [c.args[0] for c in out.write.call_args_list]
         assert any("Cancelled" in line for line in lines)
 
     async def test_other_answer_does_not_delete(self) -> None:
-        ops, _out = _make_ops()
-        with (
-            patch(
-                "agent.commands.memory_data_ops.get_input_controller",
-                return_value=_controller_answering("n"),
-            ),
-            patch("agent.commands.memory_data_ops.write_delete") as wd,
+        ops, _out, _registry = _make_ops_with_registry()
+        mem = self._mem()
+        with patch(
+            "agent.commands.memory_data_ops.get_input_controller",
+            return_value=_controller_answering("n"),
         ):
-            await ops.memory_delete(self._mem(), ["abcdef12"])
-        wd.assert_not_called()
+            await ops.memory_delete(mem, ["abcdef12"])
+        mem.store.delete.assert_not_called()
 
     async def test_request_is_destructive_and_bound_to_the_memory_id(self) -> None:
-        ops, _out = _make_ops()
+        ops, _out, _registry = _make_ops_with_registry()
         ctl = _controller_answering("yes")
-        with (
-            patch(
-                "agent.commands.memory_data_ops.get_input_controller",
-                return_value=ctl,
-            ),
-            patch("agent.commands.memory_data_ops.write_delete", return_value=True),
+        with patch(
+            "agent.commands.memory_data_ops.get_input_controller",
+            return_value=ctl,
         ):
             await ops.memory_delete(self._mem(), ["abcdef12"])
         request = ctl.submit.await_args.args[0]
@@ -668,18 +764,16 @@ class TestDeleteConfirmationThroughController:
         assert request.destructive is True
 
     async def test_busy_stdin_refuses_the_confirmation(self) -> None:
-        ops, out = _make_ops()
+        ops, out, _registry = _make_ops_with_registry()
+        mem = self._mem()
         ctl = MagicMock()
         ctl.submit = AsyncMock(side_effect=InputBusyError("unresolved"))
-        with (
-            patch(
-                "agent.commands.memory_data_ops.get_input_controller",
-                return_value=ctl,
-            ),
-            patch("agent.commands.memory_data_ops.write_delete") as wd,
+        with patch(
+            "agent.commands.memory_data_ops.get_input_controller",
+            return_value=ctl,
         ):
-            await ops.memory_delete(self._mem(), ["abcdef12"])
-        wd.assert_not_called()
+            await ops.memory_delete(mem, ["abcdef12"])
+        mem.store.delete.assert_not_called()
         lines = [c.args[0] for c in out.write.call_args_list]
         assert any("busy" in line for line in lines)
         assert any("Cancelled" in line for line in lines)
@@ -689,3 +783,126 @@ class TestDeleteConfirmationThroughController:
 
         source = Path(module.__file__).read_text(encoding="utf-8")
         assert "input(" not in source.replace("get_input_controller(", "")
+
+
+class TestDeleteRunThroughRegistry:
+    """The destructive run is a job the registry decides, not a flag the handler reads (REQ-003)."""
+
+    @staticmethod
+    def _mem() -> MagicMock:
+        mem = MagicMock()
+        mem.store.get_by_id.return_value = None
+        mem.store.list_entries.return_value = [_make_entry(memory_id="abcdef1234")]
+        mem.store.delete.return_value = MemoryMaintenanceResult(
+            operation="delete", count=1, verified=True, ids=("abcdef1234",)
+        )
+        return mem
+
+    async def test_the_run_is_recorded_as_a_session_write_job(self) -> None:
+        ops, out, registry = _make_ops_with_registry()
+        mem = self._mem()
+        with patch(
+            "agent.commands.memory_data_ops.get_input_controller",
+            return_value=_controller_answering("y"),
+        ):
+            await ops.memory_delete(mem, ["abcdef1234"])
+        job = registry.lookup(_job_id_from_output(out))
+        assert job is not None
+        assert job.operation == "delete"
+        assert job.store is StoreTarget.SESSION
+        # The confirmation the handler obtained is recorded as the grant for this run.
+        assert job.grants == ["confirm"]
+        assert job.state is JobState.COMPLETED
+        assert job.verified is True
+
+    async def test_a_run_the_registry_refuses_writes_nothing(self) -> None:
+        ops, out, registry = _make_ops_with_registry()
+        mem = self._mem()
+        decision = ApprovalDecision(
+            "job", ApprovalLevel.CONFIRM, False, detail="no grant recorded for this run"
+        )
+        with (
+            patch(
+                "agent.commands.memory_data_ops.get_input_controller",
+                return_value=_controller_answering("y"),
+            ),
+            patch.object(registry, "authorize", return_value=decision),
+        ):
+            await ops.memory_delete(mem, ["abcdef1234"])
+        mem.store.delete.assert_not_called()
+        assert any(
+            "no grant recorded for this run" in line for line in _reported_lines(out)
+        )
+
+    async def test_a_second_writer_on_the_same_store_is_refused(self) -> None:
+        ops, out, registry = _make_ops_with_registry()
+        mem = self._mem()
+        running = registry.register(operation="prune", store=StoreTarget.SESSION)
+        registry.authorize(running, confirmed=True)
+        registry.start(running)
+        with patch(
+            "agent.commands.memory_data_ops.get_input_controller",
+            return_value=_controller_answering("y"),
+        ):
+            await ops.memory_delete(mem, ["abcdef1234"])
+        mem.store.delete.assert_not_called()
+        assert any(running.job_id in line for line in _reported_lines(out))
+
+
+class _FirstStepStore(MemoryStore):
+    """Store whose cancellation hook fires on the first VM step, so a short statement stops.
+
+    `interrupt_when` checks the event every 1000 VM steps, so a single-statement run finishes
+    before the event is observed; the test needs the hook to fire at the start of the statement.
+    """
+
+    @contextmanager
+    def _maintenance_connection(
+        self, stop: threading.Event | None
+    ) -> Generator[SQLiteHelper]:
+        with SQLiteHelper("session", db_config=self._db_config).open(
+            write_mode=True, row_factory=True
+        ) as db:
+            if stop is not None:
+                db.interrupt_when(stop, check_every=1)
+            yield db
+
+
+class TestDeleteConsistencyUnderInterruption:
+    """A rolled-back run reports nothing it did not commit (REQ-008)."""
+
+    async def test_interrupted_delete_emits_no_event_and_keeps_the_row(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        archive_dir = _isolate_config(tmp_path, monkeypatch)
+        cfg = _session_config(tmp_path)
+        with SQLiteHelper("session", db_config=cfg).open(write_mode=True) as db:
+            db.executescript(_SCHEMA_SQL)
+            db.execute(
+                "INSERT INTO memories (memory_id, memory_type, content, updated_at) "
+                "VALUES ('m1', 'semantic', 'x', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"
+            )
+            db.commit()
+        ops, _out, registry = _make_ops_with_registry()
+        ops._ctx.cfg.db = cfg
+        mem = _mem_for(_FirstStepStore(db_config=cfg))
+        job = registry.register(operation="delete", store=StoreTarget.SESSION)
+        job.stop_event.set()
+        with (
+            patch.object(ops, "_register_run", return_value=job),
+            patch(
+                "agent.commands.memory_data_ops.get_input_controller",
+                return_value=_controller_answering("y"),
+            ),
+        ):
+            await ops.memory_delete(mem, ["m1"])
+
+        # The transaction rolled back, so the row is still there and the archive has no line
+        # describing a change that never happened.
+        assert mem.store.get_by_id("m1") is not None
+        archive_file = archive_dir / "memories.jsonl"
+        assert not archive_file.exists() or not archive_file.read_text().strip()
+        recorded = registry.lookup(job.job_id)
+        assert recorded is not None
+        assert recorded.state is JobState.CANCELLED
+        assert recorded.verified is False

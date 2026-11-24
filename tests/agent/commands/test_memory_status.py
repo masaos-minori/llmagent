@@ -115,9 +115,9 @@ def _make_mixin() -> object:
     mixin._ctx = MagicMock()
     mixin._ctx.services_required.audit_logger = None
     # build_memory_status() reads the typed configuration, so the fixture supplies the
-    # fields it actually uses: the session DB is opened through cfg.db, and
-    # cfg.memory.memory_max_pinned is formatted into the table.
-    mixin._ctx.cfg.db = MIN_DB_CONFIG
+    # fields it actually uses. The counts come from the store accessor, so the fixture
+    # supplies no DB path: a status path that opened its own connection would have
+    # nothing to read here and the test would fail.
     mixin._ctx.cfg.memory.memory_max_pinned = 20
     return mixin
 
@@ -177,6 +177,26 @@ class TestCmdMemoryStatus:
         rows = args[1]
         mode_row = next(r for r in rows if r[0] == "Last retrieval mode")
         assert mode_row[1] == "hybrid"
+
+    def test_pinned_count_comes_from_the_store_accessor(
+        self, config: EmbeddingClientConfig
+    ) -> None:
+        """The status figure is read through the store, not a connection the mixin opens.
+
+        The accessor is the mock here, so the test fails if the status path builds its own
+        connection again: the row would then show a count the fixture never supplied (REQ-005).
+        """
+        ec = EmbeddingClient(config, enabled=True)
+        mem = MagicMock()
+        mem.retriever.embed_client = ec
+        mem.retriever.last_retrieval_mode = "hybrid"
+        mem.store.pinned_count.return_value = 3
+        mixin = _make_mixin()
+        mixin._memory_status(mem)
+        rows = mixin._out.write_table.call_args[0][1]
+        pinned_row = next(r for r in rows if r[0] == "Pinned")
+        assert pinned_row[1] == "3 / 20"
+        mem.store.pinned_count.assert_called_once_with()
 
 
 # ── build_status_table mode labels ─────────────────────────────────────────────

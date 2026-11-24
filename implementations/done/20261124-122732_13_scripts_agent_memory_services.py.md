@@ -71,9 +71,9 @@ Expose the new Memory maintenance accessors on the injected `MemoryServices` fac
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Expose the new accessors on the facade | Pending | — | — | Phase 5 |
-| 2 | Update the companion test per Validation plan | Pending | — | — | Covered by this document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Expose the new accessors on the facade | Completed | — | 20261124-234217 | Phase 5. Deviation: `models.py` is not in the frozen target table, so the result dataclasses live in `scripts/agent/memory/models.py`, the Memory package's DTO home; putting them in `scripts/agent/services/models.py` would invert the layer direction because rows 14, 15, 16 and 55 all import the shape. |
+| 2 | Update the companion test per Validation plan | Completed | — | 20261124-234217 | Covered by this document |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

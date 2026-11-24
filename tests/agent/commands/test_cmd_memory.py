@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 import pytest
 from agent.memory.enums import MemoryType
+from agent.memory.models import MemoryImportResult
 from agent.memory.types import MemoryEntry, SourceType
 from agent.services.maintenance_jobs import (
     ApprovalLevel,
@@ -125,6 +126,11 @@ def _make_mixin():
     return mixin, messages
 
 
+def _import_result(jsonl_count: int, inserted: int) -> MemoryImportResult:
+    """The outcome the import path reports for one run (row 16's result shape)."""
+    return MemoryImportResult(jsonl_count=jsonl_count, inserted=inserted, verified=True)
+
+
 def _entry(memory_id: str) -> MemoryEntry:
     """One stored memory, as the backup writer receives it from the store."""
     return MemoryEntry(
@@ -147,8 +153,8 @@ def _make_memory_store():
 
     def _import(jsonl_store, dry_run=False):
         if dry_run:
-            return (5, 0)
-        return (5, 5)
+            return _import_result(5, 0)
+        return _import_result(5, 5)
 
     store.import_from_jsonl = _import
     store.check_consistency = lambda: SimpleNamespace(memories=3, fts=3, vec=0)
@@ -180,7 +186,8 @@ class TestMemoryRebuild:
         mixin._ctx.services_required.memory = mem
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(5, 0),
         ):
             await mixin._cmd_memory("rebuild --dry-run")
 
@@ -195,7 +202,8 @@ class TestMemoryRebuild:
         mixin._ctx.services_required.memory = mem
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(5, 5),
         ):
             await mixin._cmd_memory("rebuild --confirm")
 
@@ -216,6 +224,9 @@ class TestMemoryDispatch:
             retriever=SimpleNamespace(
                 embed_client=None, fts_fallback_count=0, last_retrieval_mode=""
             ),
+            # Status reads the pinned figure through the store accessor (row 8), so the
+            # stand-in supplies it rather than a connection.
+            store=SimpleNamespace(pinned_count=lambda: 0),
             get_stats=lambda: {
                 "total": 0,
                 "semantic": 0,
@@ -326,7 +337,8 @@ class TestMemoryRunsAsTrackedJobs:
         registry = mixin._ctx.services_required.job_registry
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(5, 5),
         ):
             await mixin._cmd_memory("rebuild --confirm")
 
@@ -347,7 +359,8 @@ class TestMemoryRunsAsTrackedJobs:
         registry = mixin._ctx.services_required.job_registry
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(5, 0),
         ):
             await mixin._cmd_memory("rebuild")
 
@@ -395,7 +408,8 @@ class TestMemoryRunsAsTrackedJobs:
         mixin._ctx.services_required.memory = mem
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(5, 5),
         ):
             await mixin._cmd_memory("rebuild --confirm")
 
@@ -416,7 +430,8 @@ class TestMemoryRunsAsTrackedJobs:
         registry = mixin._ctx.services_required.job_registry
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(5, 5),
         ):
             await mixin._cmd_memory("rebuild --confirm")
 

@@ -70,9 +70,9 @@ Read Memory store state through `MemoryStore` instead of opening a `SQLiteHelper
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read status through `MemoryStore` accessors | Pending | — | — | Phase 5 |
-| 2 | Update tests per Validation plan | Pending | — | — | Row 48 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Read status through `MemoryStore` accessors | Completed | — | 20261124-234217 | Phase 5. `build_memory_status()` reads the pinned count through the store accessor; `MemoryStatus` fields and `build_status_table` are unchanged, and status registers with `ApprovalLevel.NONE`. |
+| 2 | Update tests per Validation plan | Completed | — | 20261124-234217 | Row 48 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

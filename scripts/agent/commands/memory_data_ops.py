@@ -11,16 +11,21 @@ from agent.commands.output_port import OutputPort
 from agent.commands.utils import parse_int_arg
 from agent.context import AgentContext
 from agent.memory.config_path import resolve_memory_jsonl_dir
-from agent.memory.pin_ops import pin as pin_mem
-from agent.memory.pin_ops import unpin as unpin_mem
+from agent.memory.models import MemoryMaintenanceResult
 from agent.memory.types import MemoryEntry, MemoryQuery
-from agent.memory.write_ops import delete as write_delete
 from agent.repl_input_controller import (
     InputBusyError,
     InputOutcome,
     InputRequest,
     PromptKind,
     get_input_controller,
+)
+from agent.services.maintenance_jobs import (
+    JobConflictError,
+    JobState,
+    MaintenanceJob,
+    MaintenanceJobRegistry,
+    StoreTarget,
 )
 
 if TYPE_CHECKING:
@@ -200,13 +205,68 @@ class MemoryDataOps:
             return matches[0], ""
         return "", "ambiguous" if matches else "unknown"
 
-    def _count_pinned(self) -> int:
-        """Return the number of currently pinned memories (SQLite-first)."""
-        from db.helper import SQLiteHelper
+    def _resolve_op_target(self, mem: MemoryServices, token: str) -> str | None:
+        """Resolve a state-changing operation's target, writing M-03/M-04 on failure."""
+        mid, status = self._resolve_id(mem, token)
+        if status == "ambiguous":
+            self._out.write(
+                f"  [memory] M-04: ambiguous short ID (matches multiple): {token!r}"
+            )
+            return None
+        if status == "unknown":
+            self._out.write(f"  [memory] M-03: unknown memory ID: {token!r}")
+            return None
+        return mid
 
-        with SQLiteHelper("session", db_config=self._ctx.cfg.db).open() as db:
-            rows = db.fetchall("SELECT count(*) FROM memories WHERE pinned = 1")
-        return int(rows[0][0]) if rows else 0
+    def _registry(self) -> MaintenanceJobRegistry:
+        """Return the single job registry the command path reaches (REQ-005).
+
+        The handler holds no registry of its own: a per-handler registry would not see a run
+        started from another mixin, so the one-writer-per-store guard would not be
+        process-global.
+        """
+        return self._ctx.services_required.job_registry
+
+    def _job_session_target(self) -> str:
+        """Return the live session identity the run is attributed to (REQ-001)."""
+        target = self._ctx.session.capture_target()
+        return f"{target.session_id}:{target.generation}"
+
+    def _register_run(self, operation: str) -> MaintenanceJob | None:
+        """Record one destructive Memory run before anything is written.
+
+        A second write job against `session.sqlite` is refused naming the running job, so the
+        Memory path never takes the writer slot twice.
+        """
+        registry = self._registry()
+        try:
+            return registry.register(
+                operation=operation,
+                store=StoreTarget.SESSION,
+                session_target=self._job_session_target(),
+            )
+        except JobConflictError as exc:
+            self._out.write_error(f"job refused: {exc}")
+            return None
+
+    def _approve_and_report(self, job: MaintenanceJob) -> bool:
+        """Enforce the level the registry declares for the operation, not the command line.
+
+        The confirmation the handler obtained is recorded as the grant for this run, so the
+        decision is bound to the run that requested it (REQ-003).
+        """
+        decision = self._registry().authorize(job, confirmed=bool(job.grants))
+        if not decision.approved:
+            self._out.write_error(f"job {job.job_id}: {decision.detail}")
+        return decision.approved
+
+    def _finish_and_report(
+        self, job: MaintenanceJob, result: MemoryMaintenanceResult
+    ) -> None:
+        """Record the terminal outcome, then report the run by its job id and state (REQ-004)."""
+        state = JobState.CANCELLED if result.interrupted else JobState.COMPLETED
+        self._registry().finish(job, outcome="", verified=result.verified, state=state)
+        self._out.write(f"  job {job.job_id} {job.state}")
 
     def memory_list(self, mem: MemoryServices, args: list[str]) -> None:
         """List entries by type with optional filtering."""
@@ -313,21 +373,20 @@ class MemoryDataOps:
             self._out.write(f"  [memory] M-03: unknown memory ID: {raw!r}")
             return
         if pin:
-            pinned_now = self._count_pinned()
-            max_pinned = self._ctx.cfg.memory.memory_max_pinned
-            if pinned_now >= max_pinned:
+            result = mem.store.pin(
+                mid, max_pinned=self._ctx.cfg.memory.memory_max_pinned
+            )
+            if result.refused:
+                max_pinned = self._ctx.cfg.memory.memory_max_pinned
                 self._out.write(
                     f"  [memory] M-05: pin limit reached ({max_pinned}); "
                     f"cannot pin {mid!r}"
                 )
                 return
-        ok = (
-            pin_mem(mid, db_config=self._ctx.cfg.db)
-            if pin
-            else unpin_mem(mid, db_config=self._ctx.cfg.db)
-        )
+        else:
+            result = mem.store.unpin(mid)
         action = "pinned" if pin else "unpinned"
-        if ok:
+        if result.count:
             self._out.write(f"  [memory] {action}: {mid}")
             _emit_memory_audit(
                 self._ctx, MemoryOpResult(ok=True, memory_id=mid, action=action)
@@ -335,102 +394,147 @@ class MemoryDataOps:
         else:
             self._out.write(f"  [memory] Entry not found: {mid!r}")
 
+    def _report_delete_dry_run(self, mem: MemoryServices, mid: str) -> None:
+        """Report a dry run, which changes nothing and therefore records no job."""
+        exists = mem.store.get_by_id(mid) is not None
+        if exists:
+            self._out.write(f"  [memory] (dry-run) would delete: {mid}")
+        else:
+            self._out.write(f"  [memory] (dry-run) Entry not found: {mid!r}")
+        _emit_memory_audit(
+            self._ctx,
+            MemoryOpResult(ok=exists, memory_id=mid, action="deleted", dry_run=True),
+        )
+
     async def memory_delete(self, mem: MemoryServices, args: list[str]) -> None:
-        """Delete one entry."""
+        """Delete one entry as a tracked run the registry decides (REQ-003, REQ-006).
+
+        The run is recorded before any write, and the confirmation the handler obtains through
+        the request-bound input controller is recorded as the grant for that run: the registry
+        is the authority that permits it, so a handler that never asked is refused. A dry run
+        changes nothing, so there is no run to record.
+        """
         dry_run = "--dry-run" in args
         ids = [a for a in args if not a.startswith("--")]
         if not ids:
             self._out.write_validation_error("/memory delete [--dry-run] <id>")
             return
         raw = ids[0]
-        mid, status = self._resolve_id(mem, raw)
-        if status == "ambiguous":
-            self._out.write(
-                f"  [memory] M-04: ambiguous short ID (matches multiple): {raw!r}"
-            )
-            return
-        if status == "unknown":
-            self._out.write(f"  [memory] M-03: unknown memory ID: {raw!r}")
+        mid = self._resolve_op_target(mem, raw)
+        if mid is None:
             return
         if dry_run:
-            exists = mem.store.get_by_id(mid) is not None
-            if exists:
-                self._out.write(f"  [memory] (dry-run) would delete: {mid}")
-            else:
-                self._out.write(f"  [memory] (dry-run) Entry not found: {mid!r}")
-            _emit_memory_audit(
-                self._ctx,
-                MemoryOpResult(
-                    ok=exists, memory_id=mid, action="deleted", dry_run=True
-                ),
-            )
+            self._report_delete_dry_run(mem, mid)
+            return
+
+        job = self._register_run("delete")
+        if job is None:
             return
         if not await _confirm(
             f"Delete memory {mid}? [y/N]: ", PromptKind.MEMORY_DELETE, mid, self._out
         ):
             self._out.write("  [memory] Cancelled: nothing was deleted")
             return
-        ok = write_delete(mid, db_config=self._ctx.cfg.db)
-        if ok:
+        self._registry().record_grant(job, "confirm")
+        if not self._approve_and_report(job):
+            return
+
+        self._registry().start(job)
+        result = mem.store.delete(mid, stop=job.stop_event)
+        # The outcome is recorded on the job before the run is reported (REQ-004).
+        self._finish_and_report(job, result)
+        if result.count:
             self._out.write(f"  [memory] Deleted: {mid}")
         else:
             self._out.write(f"  [memory] Entry not found: {mid!r}")
         _emit_memory_audit(
-            self._ctx, MemoryOpResult(ok=ok, memory_id=mid, action="deleted")
+            self._ctx,
+            MemoryOpResult(
+                ok=result.verified, memory_id=mid, action="deleted", job_id=job.job_id
+            ),
+        )
+
+    def _emit_prune_events(self, result: MemoryMaintenanceResult) -> None:
+        """Append one archive line per record the transaction committed."""
+        for mid in result.ids:
+            _emit_prune_event(mid)
+
+    def _report_prune_dry_run(self, ctx: AgentContext, days: int, count: int) -> None:
+        """Report a dry run, which changes nothing and therefore records no job."""
+        self._out.write(
+            f"  [memory] (dry-run) would prune {count} entries older than {days} days"
+        )
+        _emit_memory_audit(
+            ctx,
+            MemoryOpResult(
+                ok=True, memory_id="", action="pruned", dry_run=True, count=count
+            ),
         )
 
     async def memory_prune(
         self, mem: MemoryServices, ctx: AgentContext, args: list[str]
     ) -> None:
-        """Delete entries older than N days."""
-        from db.helper import SQLiteHelper
-        from db.maintenance import prune_old_memories
-        from db.store_impl import SQLiteMemoryDeleteStore
+        """Delete entries older than N days as a tracked run the registry decides.
 
+        The count the run reports is the count its own transaction deleted: the selection and
+        the delete happen on one connection inside the store accessor, so a concurrent job
+        cannot change the candidate set between a count read on a second connection and the
+        write (REQ-008). A dry run changes nothing, so there is no run to record.
+        """
         days = _parse_prune_days(self, args, ctx.cfg.memory.memory_retention_days)
         if days is None:
             return
 
         dry_run = "--dry-run" in args
-        with SQLiteHelper("session", db_config=self._ctx.cfg.db).open() as db:
-            store = SQLiteMemoryDeleteStore(db)
-            prunable_ids = store.collect_prunable_ids(days)
-        count = len(prunable_ids)
-
         if dry_run:
-            self._out.write(
-                f"  [memory] (dry-run) would prune {count} entries older than {days} days"
-            )
-            _emit_memory_audit(
-                ctx,
-                MemoryOpResult(
-                    ok=True, memory_id="", action="pruned", dry_run=True, count=count
-                ),
+            self._report_prune_dry_run(
+                ctx, days, mem.store.prune(days, dry_run=True).count
             )
             return
 
-        if count == 0:
+        job = self._register_run("prune")
+        if job is None:
+            return
+        candidates = mem.store.prune(days, dry_run=True).count
+        if candidates == 0:
             self._out.write("  [memory] Nothing is prunable")
             return
 
         if not await _confirm(
-            f"Delete {count} memories not updated for {days} days? [y/N]: ",
+            f"Delete {candidates} memories not updated for {days} days? [y/N]: ",
             PromptKind.MEMORY_PRUNE,
             f"prune:{days}d",
             self._out,
         ):
             self._out.write("  [memory] Cancelled: nothing was deleted")
             return
+        self._registry().record_grant(job, "confirm")
+        if not self._approve_and_report(job):
+            return
 
-        with SQLiteHelper("session", db_config=self._ctx.cfg.db).open(
-            write_mode=True
-        ) as db:
-            prune_result = prune_old_memories(db, days)
-        deleted = (prune_result.data or {}).get("deleted", 0)
-        pruned_ids = (prune_result.data or {}).get("pruned_ids", [])
-        for mid in pruned_ids:
-            _emit_prune_event(mid)
-        self._out.write_success(f"Pruned {deleted} entries older than {days} days")
+        self._registry().start(job)
+        result = mem.store.prune(days, stop=job.stop_event)
+        # The outcome is recorded on the job before the run is reported (REQ-004).
+        self._finish_and_report(job, result)
+        if result.interrupted:
+            # The transaction rolled back, so nothing was pruned and the run is not a success.
+            _emit_memory_audit(
+                ctx,
+                MemoryOpResult(
+                    ok=False, memory_id="", action="pruned", job_id=job.job_id
+                ),
+            )
+            return
+        # The append-only archive line follows the records the transaction committed.
+        self._emit_prune_events(result)
+        self._out.write_success(f"Pruned {result.count} entries older than {days} days")
         _emit_memory_audit(
-            ctx, MemoryOpResult(ok=True, memory_id="", action="pruned", count=deleted)
+            ctx,
+            MemoryOpResult(
+                ok=result.verified,
+                memory_id="",
+                action="pruned",
+                count=result.count,
+                job_id=job.job_id,
+            ),
         )

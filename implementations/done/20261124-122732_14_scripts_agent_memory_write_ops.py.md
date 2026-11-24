@@ -69,8 +69,8 @@ Make a Memory delete keep the SQLite row removal and the jsonl change event cons
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the cancellation event and one transaction boundary for the delete | Pending | — | — | Phase 5 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Tests are rows 45 and 62 |
+| 1 | Add the cancellation event and one transaction boundary for the delete | Completed | — | 20261124-234217 | Phase 5 |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 | Tests are rows 44 and 45. Correction: the earlier note named row 62, which is `tests/db/test_rag_consistency.py` and covers the Phase 6 repair guidance, not this file. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

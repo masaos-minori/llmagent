@@ -10,8 +10,24 @@ def _scalar_count(
 ) -> int:
     """Run a `COUNT(*)`-style query against the session DB and return the scalar result."""
     with SQLiteHelper("session", db_config=db_config).open() as db:
-        rows = db.fetchall(sql, params)
+        return _scalar_count_on(db, sql, params)
+
+
+def _scalar_count_on(
+    db: SQLiteHelper, sql: str, params: tuple[object, ...] = ()
+) -> int:
+    """Run a `COUNT(*)`-style query on the caller's connection and return the scalar result."""
+    rows = db.fetchall(sql, params)
     return int(rows[0][0]) if rows else 0
+
+
+def count_pinned(db: SQLiteHelper) -> int:
+    """Return the number of currently pinned memories on the caller's connection.
+
+    The pin limit is evaluated inside the transaction that writes the pin, so the count
+    must come from the same connection rather than a second one (REQ-008).
+    """
+    return _scalar_count_on(db, "SELECT count(*) FROM memories WHERE pinned = 1")
 
 
 def count_by_type(*, db_config: DbConfig) -> dict[str, int]:

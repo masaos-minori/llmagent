@@ -212,17 +212,18 @@ class MemoryRebuildOps:
                 return self._refused_run(
                     job, summary, _loss_message(summary.sqlite_only), loss_blocked=True
                 )
-            _, inserted = import_from_jsonl(
+            import_result = import_from_jsonl(
                 jsonl_store,
                 dry_run=False,
                 backup=True,
                 allow_loss="allow_loss" in job.grants,
                 db_config=self._ctx.cfg.db,
+                stop=job.stop_event,
             )
             verified = self.check_consistency(mem)
             outcome = replace(
                 summary,
-                inserted=inserted,
+                inserted=import_result.inserted,
                 sqlite_after=mem.store.check_consistency().memories,
                 verified=verified,
             )
@@ -237,7 +238,7 @@ class MemoryRebuildOps:
             # reported as unverified, so nothing here may read as success.
             return outcome
         self._out.write_success(
-            f"Imported {inserted} entries from {summary.jsonl_count} "
+            f"Imported {import_result.inserted} entries from {summary.jsonl_count} "
             "JSONL archive records."
         )
         _emit_memory_audit(
@@ -255,18 +256,24 @@ class MemoryRebuildOps:
     def _run_index(self, job: MaintenanceJob, idx: str) -> None:
         """Run the granted index rebuild and record its outcome on the job (REQ-006)."""
         try:
-            count = _reindex(idx, db_config=self._ctx.cfg.db)
+            result = _reindex(idx, db_config=self._ctx.cfg.db, stop=job.stop_event)
         except Exception as exc:  # noqa: BLE001 — the run's outcome is recorded, not raised
             self._finish_and_report(
                 job, f"index rebuild failed: {exc}", state=JobState.FAILED
             )
             return
-        self._out.write_success(f"memories_{idx} rebuilt: {count} rows [Memory]")
+        if result.interrupted:
+            # The transaction rolled back, so the run measured nothing and cannot read as success.
+            self._finish_and_report(job, "index rebuild interrupted")
+            return
+        self._out.write_success(f"memories_{idx} rebuilt: {result.count} rows [Memory]")
         _emit_memory_audit(
             self._ctx,
-            MemoryOpResult(ok=True, memory_id="", action=f"reindex-{idx}", count=count),
+            MemoryOpResult(
+                ok=True, memory_id="", action=f"reindex-{idx}", count=result.count
+            ),
         )
-        self._finish_and_report(job, "")
+        self._finish_and_report(job, "", verified=result.verified)
 
     def _refused_run(
         self,

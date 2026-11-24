@@ -17,6 +17,8 @@ Give `MemoryStore` the maintenance accessors the command mixins currently bypass
 
 - The accessors take an optional `threading.Event` and pass it to `SQLiteHelper.interrupt_when` (`scripts/db/helper.py:158-162`), so cancellation is expressed through the existing progress-handler mechanism rather than a new interrupt path.
 - Each write accessor runs inside one transaction boundary owned by the store, because the plan's atomicity requirement (REQ-008) is about the whole select-and-delete, not a single statement.
+- The result shapes this row defines live in `scripts/agent/memory/models.py`, the Memory package's DTO home (`ConsistencyReport` is already there), as `MemoryMaintenanceResult` and `MemoryImportResult`. They are not put in `scripts/agent/services/models.py`: that would make `agent.memory` import `agent.services`, inverting the layer direction, and rows 14, 15, 16 and 55 all need to import the shape without a cycle. (Decided 2026-11-24; `models.py` is not in the frozen target table, so this is recorded as a deviation for row 12.)
+- Rows 13, 14, 15, 16 and 55 keep their existing module entry points but take the store's open helper (`db: SQLiteHelper | None`): when the call comes through the store accessor the store owns the transaction boundary; a standalone call opens its own. This keeps one implementation of each statement set, and `MemoryStore` is the only place the Memory package opens a connection for maintenance.
 
 ## Alternatives considered
 
@@ -74,10 +76,10 @@ Give `MemoryStore` the maintenance accessors the command mixins currently bypass
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the maintenance accessors with the cancellation event | Pending | — | — | Phase 1 for the parameter, Phase 5 for the accessors |
-| 2 | Single-transaction boundary for prune and rebuild accessors | Pending | — | — | Phase 5; UNK-02 must be resolved here |
-| 3 | Update tests per Validation plan | Pending | — | — | Row 44 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the maintenance accessors with the cancellation event | Completed | — | 20261124-234217 | Phase 1 for the parameter, Phase 5 for the accessors |
+| 2 | Single-transaction boundary for prune and rebuild accessors | Completed | — | 20261124-234217 | Phase 5; UNK-02 resolved: `open(write_mode=True)` does not begin a transaction, so the boundary is an explicit `begin_immediate()` and seeded rows are committed before the run's `BEGIN`. |
+| 3 | Update tests per Validation plan | Completed | — | 20261124-234217 | Row 44 |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

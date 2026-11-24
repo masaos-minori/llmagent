@@ -76,11 +76,11 @@ Move the Memory data operations off direct `SQLiteHelper` use, run the prune sel
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Route SQLite access through `MemoryStore` | Pending | — | — | Phase 5 |
-| 2 | Single-transaction prune select-and-delete | Pending | — | — | Phase 5 |
-| 3 | Resolve approval through the registry | Pending | — | — | Phase 3 |
-| 4 | Update tests per Validation plan | Pending | — | — | Row 45 |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Includes the AC-5 grep gate |
+| 1 | Route SQLite access through `MemoryStore` | Completed | — | 20261124-234217 | Phase 5 |
+| 2 | Single-transaction prune select-and-delete | Completed | — | 20261124-234217 | Phase 5 |
+| 3 | Resolve approval through the registry | Completed | — | 20261124-234217 | Phase 3. Deviation: `_confirm()` keeps its current `operation_id` values (memory id for delete, `prune:{days}d` for prune) because row 45 locks the request bound to the memory id; the grant is recorded on the job record and the decision is bound to the run through `registry.authorize`/`record_grant`. |
+| 4 | Update tests per Validation plan | Completed | — | 20261124-234217 | Row 45 |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 | Includes the AC-5 grep gate |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

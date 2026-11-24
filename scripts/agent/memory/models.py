@@ -47,6 +47,36 @@ class ConsistencyReport:
 
 
 @dataclass(frozen=True)
+class MemoryMaintenanceResult:
+    """Outcome of one Memory maintenance run through a `MemoryStore` accessor.
+
+    `count` is the number the postcondition measured from the committed state, never the
+    number of statements the run attempted; `verified` records whether that measurement
+    confirmed the intended state. An interrupted run rolls back, so it reports
+    `interrupted=True` with no count and is never verified.
+    """
+
+    operation: str
+    count: int = 0
+    verified: bool = False
+    interrupted: bool = False
+    # A run the transaction itself refused (the pin limit) changed nothing.
+    refused: bool = False
+    ids: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class MemoryImportResult:
+    """Outcome of one JSONL replay: the archive counts and the verified post-import state."""
+
+    jsonl_count: int
+    inserted: int = 0
+    skipped: int = 0
+    verified: bool = False
+    interrupted: bool = False
+
+
+@dataclass(frozen=True)
 class MemorySnippet:
     """One memory snippet ready for LLM context injection."""
 

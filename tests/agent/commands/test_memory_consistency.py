@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import sqlite3
 import tempfile
+import threading
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
@@ -20,7 +21,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 from agent.memory.import_ops import import_from_jsonl
 from agent.memory.jsonl_store import JsonlMemoryStore
-from agent.memory.models import ConsistencyReport
+from agent.memory.models import (
+    ConsistencyReport,
+    MemoryImportResult,
+    MemoryMaintenanceResult,
+)
 from agent.memory.types import MemoryEntry
 from agent.memory.write_ops import add as write_add
 from agent.services.maintenance_jobs import (
@@ -34,6 +39,16 @@ from tests.agent._config_test_defaults import MIN_DB_CONFIG
 
 # Backing dir for rebuild backup writes in unit tests.
 _TMP_JSONL_DIR = tempfile.mkdtemp(prefix="mem-consistency-test-jsonl-")
+
+
+def _import_result(jsonl_count: int, inserted: int) -> MemoryImportResult:
+    """The outcome the import path reports for one run (row 16's result shape)."""
+    return MemoryImportResult(jsonl_count=jsonl_count, inserted=inserted, verified=True)
+
+
+def _index_result(count: int, operation: str = "reindex") -> MemoryMaintenanceResult:
+    """The outcome an index rebuild reports for one run (row 55's result shape)."""
+    return MemoryMaintenanceResult(operation=operation, count=count, verified=True)
 
 
 def _make_entry(
@@ -128,6 +143,15 @@ class _FakeSQLiteHelper:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
         self.conn: sqlite3.Connection | None = conn
+        # `interrupt_when` contract mirror: the statement after the event is set is refused.
+        self._stop: threading.Event | None = None
+
+    def interrupt_when(self, stop: threading.Event, *, check_every: int = 1000) -> None:
+        self._stop = stop
+
+    def _refuse_if_stopped(self) -> None:
+        if self._stop is not None and self._stop.is_set():
+            raise sqlite3.OperationalError("interrupted")
 
     def open(
         self, *, write_mode: bool = False, row_factory: bool = False
@@ -203,12 +227,12 @@ class TestRebuildFromJsonl:
         asyncio.run(jsonl.write(_make_entry(memory_id="e1")))
         asyncio.run(jsonl.write(_make_entry(memory_id="e2")))
 
-        jsonl_count, inserted = import_from_jsonl(
-            jsonl, dry_run=True, db_config=MIN_DB_CONFIG
-        )
+        result = import_from_jsonl(jsonl, dry_run=True, db_config=MIN_DB_CONFIG)
 
-        assert jsonl_count == 2
-        assert inserted == 0
+        assert result.jsonl_count == 2
+        assert result.inserted == 0
+        # A dry run writes nothing, so there is no committed state to verify.
+        assert result.verified is False
         # SQLite untouched
         rows = db_conn.execute("SELECT COUNT(*) FROM memories").fetchone()
         assert rows[0] == 0
@@ -223,10 +247,11 @@ class TestRebuildFromJsonl:
         asyncio.run(jsonl.write(_make_entry(memory_id="e1")))
         asyncio.run(jsonl.write(_make_entry(memory_id="e2", memory_type="episodic")))
 
-        jsonl_count, inserted = import_from_jsonl(jsonl, db_config=MIN_DB_CONFIG)
+        result = import_from_jsonl(jsonl, db_config=MIN_DB_CONFIG)
 
-        assert jsonl_count == 2
-        assert inserted == 2
+        assert result.jsonl_count == 2
+        assert result.inserted == 2
+        assert result.verified is True
         rows = db_conn.execute(
             "SELECT memory_id FROM memories ORDER BY memory_id"
         ).fetchall()
@@ -277,10 +302,11 @@ class TestRebuildFromJsonl:
         write_add(_make_entry(memory_id="existing"), db_config=MIN_DB_CONFIG)
         jsonl = JsonlMemoryStore(tmp_path / "empty.jsonl")
 
-        jsonl_count, inserted = import_from_jsonl(jsonl, db_config=MIN_DB_CONFIG)
+        result = import_from_jsonl(jsonl, db_config=MIN_DB_CONFIG)
 
-        assert jsonl_count == 0
-        assert inserted == 0
+        assert result.jsonl_count == 0
+        assert result.inserted == 0
+        assert result.verified is True
         rows = db_conn.execute("SELECT COUNT(*) FROM memories").fetchone()
         assert rows[0] == 0
 
@@ -383,7 +409,8 @@ class TestCmdMemoryRebuild:
         mem.store.list_entries.return_value = []
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(5, 0),
         ):
             await mixin.rebuild(mem, ["--dry-run"])
 
@@ -409,7 +436,8 @@ class TestCmdMemoryRebuild:
         mem.store.list_entries.return_value = []
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(4, 4)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(4, 4),
         ):
             await mixin.rebuild(mem, ["--confirm"])
 
@@ -432,7 +460,8 @@ class TestCmdMemoryRebuild:
         mem.ingestion._jsonl = jsonl
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(7, 0)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(7, 0),
         ):
             await mixin.rebuild(mem, ["--dry-run"])
 
@@ -467,7 +496,8 @@ class TestCmdMemoryRebuild:
         mem.ingestion._jsonl = jsonl
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(2, 2)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(2, 2),
         ):
             result = await mixin.rebuild(mem, ["--dry-run"])
 
@@ -496,7 +526,8 @@ class TestCmdMemoryRebuild:
         mem.ingestion._jsonl = jsonl
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(2, 2)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(2, 2),
         ) as patched_import:
             result = await mixin.rebuild(mem, ["--confirm"])
 
@@ -522,7 +553,8 @@ class TestCmdMemoryRebuild:
         mem.ingestion._jsonl = jsonl
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(2, 2)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(2, 2),
         ) as patched_import:
             result = await mixin.rebuild(mem, ["--confirm", "--allow-loss"])
 
@@ -554,7 +586,7 @@ class TestCmdMemoryRebuild:
             ),
             patch(
                 "agent.commands.memory_rebuild_ops.import_from_jsonl",
-                return_value=(2, 2),
+                return_value=_import_result(2, 2),
             ) as patched_import,
         ):
             result = await mixin.rebuild(mem, ["--confirm"])
@@ -596,7 +628,8 @@ class TestCmdMemoryRebuild:
         )
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(4, 4)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(4, 4),
         ):
             result = await mixin.rebuild(mem, ["--confirm"])
 
@@ -623,7 +656,8 @@ class TestCmdMemoryRebuild:
         )
 
         with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(4, 4)
+            "agent.commands.memory_rebuild_ops.import_from_jsonl",
+            return_value=_import_result(4, 4),
         ):
             result = await mixin.rebuild(mem, ["--confirm"])
 
@@ -647,11 +681,16 @@ class TestCmdMemoryReindex:
         mixin = _make_mixin()
         mem = MagicMock()
         with patch(
-            "agent.commands.memory_rebuild_ops._reindex", return_value=42
+            "agent.commands.memory_rebuild_ops._reindex",
+            return_value=_index_result(42),
         ) as spy:
             await mixin.reindex(mem, ["--fts", "--confirm"])
 
-        spy.assert_called_once_with("fts", db_config=mixin._ctx.cfg.db)
+        # The run's cancellation event is passed through to the accessor (row 55).
+        spy.assert_called_once()
+        assert spy.call_args.args[0] == "fts"
+        assert spy.call_args.kwargs["db_config"] == mixin._ctx.cfg.db
+        assert isinstance(spy.call_args.kwargs["stop"], threading.Event)
         mixin._out.write_success.assert_called_once()
         msg = mixin._out.write_success.call_args[0][0]
         assert "memories_fts rebuilt: 42" in msg
@@ -671,7 +710,9 @@ class TestCmdMemoryReindex:
     async def test_reindex_missing_args_prints_usage(self) -> None:
         mixin = _make_mixin()
         mem = MagicMock()
-        with patch("agent.commands.memory_rebuild_ops._reindex", return_value=1) as spy:
+        with patch(
+            "agent.commands.memory_rebuild_ops._reindex", return_value=_index_result(1)
+        ) as spy:
             await mixin.reindex(mem, [])
 
         spy.assert_not_called()
@@ -680,10 +721,15 @@ class TestCmdMemoryReindex:
     async def test_reindex_vec_success(self) -> None:
         mixin = _make_mixin(embed_enabled=True)
         mem = MagicMock()
-        with patch("agent.commands.memory_rebuild_ops._reindex", return_value=7) as spy:
+        with patch(
+            "agent.commands.memory_rebuild_ops._reindex", return_value=_index_result(7)
+        ) as spy:
             await mixin.reindex(mem, ["--vec", "--confirm"])
 
-        spy.assert_called_once_with("vec", db_config=mixin._ctx.cfg.db)
+        spy.assert_called_once()
+        assert spy.call_args.args[0] == "vec"
+        assert spy.call_args.kwargs["db_config"] == mixin._ctx.cfg.db
+        assert isinstance(spy.call_args.kwargs["stop"], threading.Event)
         msg = mixin._out.write_success.call_args[0][0]
         assert "memories_vec rebuilt: 7" in msg
 
@@ -692,7 +738,9 @@ class TestCmdMemoryReindex:
         mixin = _make_mixin()
         mem = MagicMock()
         registry = mixin._ctx.services_required.job_registry
-        with patch("agent.commands.memory_rebuild_ops._reindex", return_value=1) as spy:
+        with patch(
+            "agent.commands.memory_rebuild_ops._reindex", return_value=_index_result(1)
+        ) as spy:
             await mixin.reindex(mem, ["--fts"])
 
         spy.assert_not_called()
@@ -718,11 +766,13 @@ class TestReindex:
     ) -> None:
         import agent.memory.rebuild_ops as rebuild_ops
 
-        spy = MagicMock(return_value=7)
+        spy = MagicMock(return_value=_index_result(7))
         monkeypatch.setattr(rebuild_ops, "rebuild_fts", spy)
-        monkeypatch.setattr(rebuild_ops, "rebuild_vec", MagicMock(return_value=0))
+        monkeypatch.setattr(
+            rebuild_ops, "rebuild_vec", MagicMock(return_value=_index_result(0))
+        )
 
-        assert rebuild_ops.reindex("fts", db_config=MIN_DB_CONFIG) == 7
+        assert rebuild_ops.reindex("fts", db_config=MIN_DB_CONFIG).count == 7
         spy.assert_called_once()
 
     def test_reindex_vec_delegates_to_rebuild_vec(
@@ -730,11 +780,13 @@ class TestReindex:
     ) -> None:
         import agent.memory.rebuild_ops as rebuild_ops
 
-        spy = MagicMock(return_value=3)
+        spy = MagicMock(return_value=_index_result(3))
         monkeypatch.setattr(rebuild_ops, "rebuild_vec", spy)
-        monkeypatch.setattr(rebuild_ops, "rebuild_fts", MagicMock(return_value=0))
+        monkeypatch.setattr(
+            rebuild_ops, "rebuild_fts", MagicMock(return_value=_index_result(0))
+        )
 
-        assert rebuild_ops.reindex("vec", db_config=MIN_DB_CONFIG) == 3
+        assert rebuild_ops.reindex("vec", db_config=MIN_DB_CONFIG).count == 3
         spy.assert_called_once()
 
     def test_reindex_unknown_raises_value_error(
@@ -742,8 +794,12 @@ class TestReindex:
     ) -> None:
         import agent.memory.rebuild_ops as rebuild_ops
 
-        monkeypatch.setattr(rebuild_ops, "rebuild_fts", MagicMock(return_value=0))
-        monkeypatch.setattr(rebuild_ops, "rebuild_vec", MagicMock(return_value=0))
+        monkeypatch.setattr(
+            rebuild_ops, "rebuild_fts", MagicMock(return_value=_index_result(0))
+        )
+        monkeypatch.setattr(
+            rebuild_ops, "rebuild_vec", MagicMock(return_value=_index_result(0))
+        )
 
         with pytest.raises(ValueError, match="Unknown index type"):
             rebuild_ops.reindex("bogus", db_config=MIN_DB_CONFIG)

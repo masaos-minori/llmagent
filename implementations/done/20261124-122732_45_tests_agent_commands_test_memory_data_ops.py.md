@@ -76,11 +76,11 @@ Test the Memory data operations for single-transaction prune with re-validated c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace direct-SQLite mocks with the service-layer path | Pending | — | — | Phase 5 |
-| 2 | Add the single-transaction prune and atomic pin-limit tests | Pending | — | — | Phase 5 |
-| 3 | Add the delete-consistency-under-interruption test | Pending | — | — | Phase 5 |
-| 4 | Assert registry approval for destructive runs | Pending | — | — | Phase 3 |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace direct-SQLite mocks with the service-layer path | Completed | — | 20261124-234217 | Phase 5 |
+| 2 | Add the single-transaction prune and atomic pin-limit tests | Completed | — | 20261124-234217 | Phase 5 |
+| 3 | Add the delete-consistency-under-interruption test | Completed | — | 20261124-234217 | Phase 5 |
+| 4 | Assert registry approval for destructive runs | Completed | — | 20261124-234217 | Phase 3 |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

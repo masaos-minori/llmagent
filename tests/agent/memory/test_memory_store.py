@@ -11,7 +11,8 @@ import dataclasses
 import json
 import os
 import sqlite3
-from collections.abc import Generator
+import threading
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
@@ -101,6 +102,15 @@ class _FakeSQLiteHelper:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
         self.conn: sqlite3.Connection | None = conn
+        # `interrupt_when` contract mirror: the statement after the event is set is refused.
+        # The progress handler cannot stop a single short statement deterministically, so the
+        # test drives it through `after_statement` below.
+        self._stop: threading.Event | None = None
+        self.after_statement: Callable[[str], None] | None = None
+        # Statement log with the transaction state at the time of the statement, so a test
+        # can show that a check was evaluated inside the transaction rather than before it.
+        self.statements: list[tuple[str, bool]] = []
+        self.in_transaction = False
 
     def open(
         self, *, write_mode: bool = False, row_factory: bool = False
@@ -115,17 +125,44 @@ class _FakeSQLiteHelper:
     def __exit__(self, *_: object) -> None:
         pass
 
+    def interrupt_when(
+        self, stop: threading.Event | None, *, check_every: int = 1000
+    ) -> None:
+        self._stop = stop
+
+    def close(self) -> None:
+        pass
+
+    def _refuse_if_stopped(self) -> None:
+        if self._stop is not None and self._stop.is_set():
+            raise sqlite3.OperationalError("interrupted")
+
+    def _record(self, sql: str) -> None:
+        self.statements.append((sql, self.in_transaction))
+
     def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
-        return self._conn.execute(sql, params)
+        self._refuse_if_stopped()
+        self._record(sql)
+        cur = self._conn.execute(sql, params)
+        if self.after_statement:
+            self.after_statement(sql)
+        return cur
 
     def fetchall(self, sql: str, params: tuple = ()) -> list:
-        return self._conn.execute(sql, params).fetchall()
+        self._refuse_if_stopped()
+        self._record(sql)
+        cur = self._conn.execute(sql, params)
+        if self.after_statement:
+            self.after_statement(sql)
+        return cur.fetchall()
 
     def commit(self) -> None:
         self._conn.commit()
 
     @contextmanager
     def begin_immediate(self) -> Generator[None]:
+        self._record("BEGIN IMMEDIATE")
+        self.in_transaction = True
         self._conn.execute("BEGIN IMMEDIATE")
         try:
             yield
@@ -136,6 +173,8 @@ class _FakeSQLiteHelper:
             except Exception:  # noqa: BLE001 — rollback-on-error is best-effort; must not mask the original exception being re-raised
                 pass
             raise
+        finally:
+            self.in_transaction = False
 
 
 @pytest.fixture()
@@ -148,8 +187,13 @@ def db_conn() -> Generator[sqlite3.Connection]:
 
 
 @pytest.fixture()
-def store(db_conn: sqlite3.Connection) -> Generator[MemoryStore]:
-    fake = _FakeSQLiteHelper(db_conn)
+def fake(db_conn: sqlite3.Connection) -> _FakeSQLiteHelper:
+    """The in-memory helper the store and the ops modules share, so a test can drive it."""
+    return _FakeSQLiteHelper(db_conn)
+
+
+@pytest.fixture()
+def store(fake: _FakeSQLiteHelper) -> Generator[MemoryStore]:
     with (
         patch("agent.memory.write_ops.SQLiteHelper", return_value=fake),
         patch("agent.memory.store.SQLiteHelper", return_value=fake),
@@ -267,12 +311,16 @@ class TestDelete:
     def test_delete_existing_returns_true(self, store: MemoryStore) -> None:
         entry = _make_entry()
         add(entry, db_config=MIN_DB_CONFIG)
-        assert delete(entry.memory_id, db_config=MIN_DB_CONFIG) is True
+        result = delete(entry.memory_id, db_config=MIN_DB_CONFIG)
+        assert result.count == 1
+        assert result.verified is True
 
     def test_delete_nonexistent_returns_false(
         self, store: MemoryStore, emit: Mock
     ) -> None:
-        assert delete("no-such-id", db_config=MIN_DB_CONFIG) is False
+        result = delete("no-such-id", db_config=MIN_DB_CONFIG)
+        assert result.count == 0
+        assert result.verified is False
         emit.assert_not_called()
 
     def test_delete_removes_from_memories(
@@ -297,7 +345,11 @@ class TestDelete:
             "INSERT INTO memory_links(src_id, dst_id) VALUES(?,?)",
             (entry.memory_id, entry.memory_id),
         )
-        delete(entry.memory_id, db_config=MIN_DB_CONFIG)
+        # The delete runs inside its own transaction, so the seed row has to be committed
+        # before the run begins; an open transaction would refuse the run's BEGIN.
+        db_conn.commit()
+        result = delete(entry.memory_id, db_config=MIN_DB_CONFIG)
+        assert result.count == 1
 
         # Plain tables: filter directly.
         assert (
@@ -374,7 +426,7 @@ class TestDeleteArchiveRealLoader:
         entry = _make_entry()
         add(entry, db_config=MIN_DB_CONFIG)
         # Real resolver resolves the archive path; no KeyError on the flat config.
-        assert delete(entry.memory_id, db_config=MIN_DB_CONFIG) is True
+        assert delete(entry.memory_id, db_config=MIN_DB_CONFIG).count == 1
         archive_file = archive_dir / "memories.jsonl"
         lines = [
             ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
@@ -393,13 +445,13 @@ class TestDeleteArchiveRealLoader:
     ) -> None:
         archive_dir = self._isolate_config(tmp_path, monkeypatch)
         fake = _FakeSQLiteHelper(db_conn)
-        with patch(  # mock-patch-ok: SQLiteHelper imported at call time by pin_ops._set_pinned
-            "db.helper.SQLiteHelper", return_value=fake
+        with patch(  # mock-patch-ok: pin_ops imports SQLiteHelper at module level, so patch its own namespace
+            "agent.memory.pin_ops.SQLiteHelper", return_value=fake
         ):
             entry = _make_entry()
             add(entry, db_config=MIN_DB_CONFIG)
             # Real resolver resolves the archive path; no KeyError on the flat config.
-            assert pin(entry.memory_id, db_config=MIN_DB_CONFIG) is True
+            assert pin(entry.memory_id, db_config=MIN_DB_CONFIG).count == 1
             archive_file = archive_dir / "memories.jsonl"
             lines = [
                 ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
@@ -418,12 +470,12 @@ class TestDeleteArchiveRealLoader:
     ) -> None:
         archive_dir = self._isolate_config(tmp_path, monkeypatch)
         fake = _FakeSQLiteHelper(db_conn)
-        with patch(  # mock-patch-ok: SQLiteHelper imported at call time by pin_ops._set_pinned
-            "db.helper.SQLiteHelper", return_value=fake
+        with patch(  # mock-patch-ok: pin_ops imports SQLiteHelper at module level, so patch its own namespace
+            "agent.memory.pin_ops.SQLiteHelper", return_value=fake
         ):
             entry = _make_entry()
             add(entry, db_config=MIN_DB_CONFIG)
-            assert unpin(entry.memory_id, db_config=MIN_DB_CONFIG) is True
+            assert unpin(entry.memory_id, db_config=MIN_DB_CONFIG).count == 1
             archive_file = archive_dir / "memories.jsonl"
             lines = [
                 ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
@@ -672,34 +724,34 @@ class TestCountPrunable:
 
 class TestPinUnpin:
     def test_pin_sets_pinned(
-        self, store: MemoryStore, db_conn: sqlite3.Connection
+        self, store: MemoryStore, db_conn: sqlite3.Connection, fake: _FakeSQLiteHelper
     ) -> None:
         entry = _make_entry(memory_id="pin-test")
         add(entry, db_config=MIN_DB_CONFIG)
-        ok = pin("pin-test", conn=db_conn, db_config=MIN_DB_CONFIG)
-        assert ok is True
+        ok = pin("pin-test", db=fake, db_config=MIN_DB_CONFIG)
+        assert ok.count == 1
         row = db_conn.execute(
             "SELECT pinned FROM memories WHERE memory_id='pin-test'"
         ).fetchone()
         assert row[0] == 1
 
     def test_unpin_clears_pinned(
-        self, store: MemoryStore, db_conn: sqlite3.Connection
+        self, store: MemoryStore, db_conn: sqlite3.Connection, fake: _FakeSQLiteHelper
     ) -> None:
         entry = dataclasses.replace(_make_entry(memory_id="unpin-test"), pinned=True)
         add(entry, db_config=MIN_DB_CONFIG)
-        ok = unpin("unpin-test", conn=db_conn, db_config=MIN_DB_CONFIG)
-        assert ok is True
+        ok = unpin("unpin-test", db=fake, db_config=MIN_DB_CONFIG)
+        assert ok.count == 1
         row = db_conn.execute(
             "SELECT pinned FROM memories WHERE memory_id='unpin-test'"
         ).fetchone()
         assert row[0] == 0
 
     def test_pin_nonexistent_returns_false(self, store: MemoryStore) -> None:
-        assert pin("no-such-id", db_config=MIN_DB_CONFIG) is False
+        assert pin("no-such-id", db_config=MIN_DB_CONFIG).count == 0
 
     def test_unpin_nonexistent_returns_false(self, store: MemoryStore) -> None:
-        assert unpin("no-such-id", db_config=MIN_DB_CONFIG) is False
+        assert unpin("no-such-id", db_config=MIN_DB_CONFIG).count == 0
 
 
 # ── pin() / unpin() event emission (main path) ──────────────────────────────
@@ -719,8 +771,8 @@ class TestPinUnpinEvents:
         """
         fake = _FakeSQLiteHelper(db_conn)
         with (
-            patch(  # mock-patch-ok: SQLiteHelper imported at call time; write_ops patched at its own namespace
-                "db.helper.SQLiteHelper", return_value=fake
+            patch(  # mock-patch-ok: the ops modules import SQLiteHelper at module level, so patch their own namespaces
+                "agent.memory.pin_ops.SQLiteHelper", return_value=fake
             ),
             patch("agent.memory.write_ops.SQLiteHelper", return_value=fake),
             patch("agent.memory.pin_ops._emit_event", new=MagicMock()) as target,
@@ -730,31 +782,32 @@ class TestPinUnpinEvents:
     def test_pin_emits_event_on_success(self, emit: Mock) -> None:
         entry = _make_entry(memory_id="pin-event")
         add(entry, db_config=MIN_DB_CONFIG)
-        assert pin("pin-event", db_config=MIN_DB_CONFIG) is True
+        assert pin("pin-event", db_config=MIN_DB_CONFIG).count == 1
         emit.assert_called_once_with("pin", "pin-event")
 
     def test_unpin_emits_event_on_success(self, emit: Mock) -> None:
         entry = dataclasses.replace(_make_entry(memory_id="unpin-event"), pinned=True)
         add(entry, db_config=MIN_DB_CONFIG)
-        assert unpin("unpin-event", db_config=MIN_DB_CONFIG) is True
+        assert unpin("unpin-event", db_config=MIN_DB_CONFIG).count == 1
         emit.assert_called_once_with("unpin", "unpin-event")
 
     def test_pin_no_event_on_noop(self, emit: Mock) -> None:
-        assert pin("no-such-id", db_config=MIN_DB_CONFIG) is False
+        assert pin("no-such-id", db_config=MIN_DB_CONFIG).count == 0
         emit.assert_not_called()
 
     def test_unpin_no_event_on_noop(self, emit: Mock) -> None:
-        assert unpin("no-such-id", db_config=MIN_DB_CONFIG) is False
+        assert unpin("no-such-id", db_config=MIN_DB_CONFIG).count == 0
         emit.assert_not_called()
 
-    def test_pin_injected_conn_does_not_emit(
-        self, db_conn: sqlite3.Connection, emit: Mock
+    def test_pin_emits_after_the_commit_on_an_injected_connection(
+        self, db_conn: sqlite3.Connection, fake: _FakeSQLiteHelper, emit: Mock
     ) -> None:
         entry = _make_entry(memory_id="pin-injected")
         add(entry, db_config=MIN_DB_CONFIG)
-        # injected-connection callers are unaffected by event emission
-        assert pin("pin-injected", conn=db_conn, db_config=MIN_DB_CONFIG) is True
-        emit.assert_not_called()
+        # The ops module commits on the connection it is given, so the event follows the
+        # commit on that path too; an event before the commit is what row 58 asserts cannot happen.
+        assert pin("pin-injected", db=fake, db_config=MIN_DB_CONFIG).count == 1
+        emit.assert_called_once_with("pin", "pin-injected")
 
 
 # ── get_by_id() ───────────────────────────────────────────────────────────────
@@ -977,3 +1030,171 @@ class TestUpsertConcurrency:
         finally:
             patcher.stop()
             os.unlink(path) if os.path.exists(path) else None
+
+
+# ── Maintenance accessors (row 44) ────────────────────────────────────────────
+
+
+class TestMaintenanceAccessors:
+    """The store owns the Memory maintenance write path (REQ-005, REQ-002, REQ-008).
+
+    Every assertion reads the committed state through `db_conn`, so a run that reports a count
+    it did not commit, or an interrupted run that leaves partial state, fails here. Cancellation
+    is driven by setting the event and asserting the run stops at the next statement, which is
+    the contract `interrupt_when` can honor on a real connection.
+    """
+
+    @pytest.fixture(autouse=True)
+    def emit(self) -> Generator[tuple[Mock, Mock]]:
+        """Spy on the append-only archive so an accessor never touches the real archive."""
+        with (
+            patch(
+                "agent.memory.write_ops._emit_delete_event", new=MagicMock()
+            ) as delete_event,
+            patch("agent.memory.pin_ops._emit_event", new=MagicMock()) as pin_event,
+        ):
+            yield (delete_event, pin_event)
+
+    def _count(self, db_conn: sqlite3.Connection, table: str) -> int:
+        return int(db_conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+
+    def test_pinned_count_reads_the_store_connection(
+        self, store: MemoryStore, db_conn: sqlite3.Connection
+    ) -> None:
+        add(
+            dataclasses.replace(_make_entry(memory_id="p1"), pinned=True),
+            db_config=MIN_DB_CONFIG,
+        )
+        add(_make_entry(memory_id="p2"), db_config=MIN_DB_CONFIG)
+        assert store.pinned_count() == 1
+        assert self._count(db_conn, "memories") == 2
+
+    def test_delete_reports_the_committed_count(
+        self, store: MemoryStore, db_conn: sqlite3.Connection
+    ) -> None:
+        entry = _make_entry(memory_id="d1")
+        add(entry, db_config=MIN_DB_CONFIG)
+        result = store.delete("d1")
+        assert result.operation == "delete"
+        assert result.count == 1
+        assert result.verified is True
+        assert result.ids == ("d1",)
+        assert self._count(db_conn, "memories") == 0
+        assert self._count(db_conn, "memories_fts") == 0
+        assert self._count(db_conn, "memories_vec") == 0
+
+    def test_reindex_reports_the_count_measured_after_the_commit(
+        self, store: MemoryStore, db_conn: sqlite3.Connection
+    ) -> None:
+        for memory_id in ("r1", "r2"):
+            add(_make_entry(memory_id=memory_id), db_config=MIN_DB_CONFIG)
+        db_conn.execute("DELETE FROM memories_fts")
+        db_conn.commit()
+        assert self._count(db_conn, "memories_fts") == 0
+
+        result = store.reindex("fts")
+        assert result.operation == "reindex"
+        assert result.count == 2
+        assert result.verified is True
+        assert self._count(db_conn, "memories_fts") == 2
+
+    def test_interrupted_reindex_leaves_the_index_unchanged(
+        self, store: MemoryStore, db_conn: sqlite3.Connection, fake: _FakeSQLiteHelper
+    ) -> None:
+        for memory_id in ("r1", "r2"):
+            add(_make_entry(memory_id=memory_id), db_config=MIN_DB_CONFIG)
+        assert store.reindex("fts").verified is True
+        before = self._count(db_conn, "memories_fts")
+
+        stop = threading.Event()
+        # The run stops at the callback after the first statement of the insert loop.
+        fake.after_statement = lambda sql: (
+            stop.set() if sql.startswith("INSERT") else None
+        )
+        result = store.reindex("fts", stop=stop)
+
+        assert result.interrupted is True
+        assert result.verified is False
+        assert result.count == 0
+        assert self._count(db_conn, "memories_fts") == before
+
+    def test_prune_reports_the_rows_actually_deleted(
+        self, store: MemoryStore, db_conn: sqlite3.Connection
+    ) -> None:
+        add(_make_entry(memory_id="old-1"), db_config=MIN_DB_CONFIG)
+        add(_make_entry(memory_id="old-2"), db_config=MIN_DB_CONFIG)
+        for memory_id in ("old-1", "old-2"):
+            db_conn.execute(
+                "UPDATE memories SET updated_at = datetime('now', '-10 days') WHERE memory_id=?",
+                (memory_id,),
+            )
+        db_conn.commit()
+
+        result = store.prune(5)
+        assert result.operation == "prune"
+        assert result.count == 2
+        assert result.verified is True
+        assert self._count(db_conn, "memories") == 0
+
+    def test_interrupted_prune_reports_no_delete(
+        self, store: MemoryStore, db_conn: sqlite3.Connection
+    ) -> None:
+        add(_make_entry(memory_id="old-1"), db_config=MIN_DB_CONFIG)
+        db_conn.execute(
+            "UPDATE memories SET updated_at = datetime('now', '-10 days') WHERE memory_id='old-1'"
+        )
+        db_conn.commit()
+
+        stop = threading.Event()
+        stop.set()
+        result = store.prune(5, stop=stop)
+        assert result.interrupted is True
+        assert result.count == 0
+        assert self._count(db_conn, "memories") == 1
+
+    def test_prune_dry_run_writes_nothing(
+        self, store: MemoryStore, db_conn: sqlite3.Connection, emit: tuple[Mock, Mock]
+    ) -> None:
+        add(_make_entry(memory_id="old-1"), db_config=MIN_DB_CONFIG)
+        db_conn.execute(
+            "UPDATE memories SET updated_at = datetime('now', '-10 days') WHERE memory_id='old-1'"
+        )
+        db_conn.commit()
+
+        result = store.prune(5, dry_run=True)
+        assert result.count == 1
+        assert result.verified is False
+        assert result.ids == ("old-1",)
+        assert self._count(db_conn, "memories") == 1
+
+    def test_pin_limit_is_evaluated_inside_the_transaction(
+        self,
+        store: MemoryStore,
+        db_conn: sqlite3.Connection,
+        fake: _FakeSQLiteHelper,
+        emit: tuple[Mock, Mock],
+    ) -> None:
+        add(
+            dataclasses.replace(_make_entry(memory_id="p1"), pinned=True),
+            db_config=MIN_DB_CONFIG,
+        )
+        add(_make_entry(memory_id="p2"), db_config=MIN_DB_CONFIG)
+
+        result = store.pin("p2", max_pinned=1)
+        assert result.refused is True
+        assert result.count == 0
+        assert result.verified is False
+        row = db_conn.execute(
+            "SELECT pinned FROM memories WHERE memory_id='p2'"
+        ).fetchone()
+        assert row[0] == 0
+
+        check_inside_transaction = [
+            in_tx
+            for sql, in_tx in fake.statements
+            if "count(*) from memories" in sql.lower()
+        ]
+        assert check_inside_transaction and all(check_inside_transaction)
+        assert not any(
+            "UPDATE memories SET pinned" in sql for sql, _ in fake.statements
+        )

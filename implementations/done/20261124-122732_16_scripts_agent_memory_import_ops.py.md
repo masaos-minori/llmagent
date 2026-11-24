@@ -74,9 +74,9 @@ Run the jsonl import as a tracked job with a cancellation boundary and a verifie
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the cancellation event and transaction boundary, return the verified result | Pending | — | — | Phase 5 |
-| 2 | Update the companion test per Validation plan | Pending | — | — | Covered by this document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the cancellation event and transaction boundary, return the verified result | Completed | — | 20261124-234217 | Phase 5. Inserts run inside the store-owned transaction through the optional `db` in `write_ops.add`/`upsert`; a dry run registers no job. |
+| 2 | Update the companion test per Validation plan | Completed | — | 20261124-234217 | Covered by this document |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

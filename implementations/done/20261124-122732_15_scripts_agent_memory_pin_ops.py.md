@@ -69,8 +69,8 @@ Enforce `memory_max_pinned` inside the pin transaction so a concurrent job canno
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Enforce the pinned limit inside the pin transaction | Pending | — | — | Phase 5 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Tests are row 45 |
+| 1 | Enforce the pinned limit inside the pin transaction | Completed | — | 20261124-234217 | Phase 5. Deviation: the limit check now runs on any connection the store hands it, so the event is emitted after the commit on the injected-connection path too; the command pre-check and `MemoryDataOps._count_pinned` are gone and `max_pinned` is passed by the caller. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 | Tests are row 45 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

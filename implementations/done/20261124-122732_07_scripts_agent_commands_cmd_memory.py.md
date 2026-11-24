@@ -70,8 +70,8 @@ Route the Memory maintenance subcommands through the job registry and the Memory
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Resolve the registry through `AppServices` and route through `MemoryServices` | Pending | — | — | Phase 5 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Resolve the registry through `AppServices` and route through `MemoryServices` | Completed | — | 20261124-234217 | Phase 5. The mixin holds no registry of its own; `_emit_memory_audit` reports the job id alongside the result, so `MemoryOpResult` gained a `job_id` field. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

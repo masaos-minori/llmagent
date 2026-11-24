@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
+import threading
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
@@ -62,6 +63,8 @@ class _FakeSQLiteHelper:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
         self.conn: sqlite3.Connection | None = conn
+        # `interrupt_when` contract mirror: the statement after the event is set is refused.
+        self._stop: threading.Event | None = None
 
     def open(
         self, *, write_mode: bool = False, row_factory: bool = False
@@ -76,10 +79,20 @@ class _FakeSQLiteHelper:
     def __exit__(self, *_: object) -> None:
         pass
 
+    def interrupt_when(self, stop: threading.Event, *, check_every: int = 1000) -> None:
+        """Mirror `helper.interrupt_when`: the statement after the event is set is refused."""
+        self._stop = stop
+
+    def _refuse_if_stopped(self) -> None:
+        if self._stop is not None and self._stop.is_set():
+            raise sqlite3.OperationalError("interrupted")
+
     def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
+        self._refuse_if_stopped()
         return self._conn.execute(sql, params)
 
     def fetchall(self, sql: str, params: tuple = ()) -> list:
+        self._refuse_if_stopped()
         return self._conn.execute(sql, params).fetchall()
 
     def commit(self) -> None:
@@ -202,10 +215,11 @@ class TestImportReplayFinalState:
                 ("mem", _make_entry("e2"), ""),
             ],
         )
-        jsonl_count, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
+        result = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
-        assert jsonl_count == 3
-        assert inserted == 2
+        assert result.jsonl_count == 3
+        assert result.inserted == 2
+        assert result.verified is True
         assert set(_ids(db_conn)) == {"e1", "e2"}
         row = db_conn.execute(
             "SELECT content FROM memories WHERE memory_id='e1'"
@@ -228,9 +242,10 @@ class TestImportReplayFinalState:
             ],
         )
 
-        _, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
+        result = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
-        assert inserted == 1
+        assert result.inserted == 1
+        assert result.verified is True
         assert _ids(db_conn) == ["e1"]
 
     def test_delete_stays_deleted(
@@ -248,9 +263,10 @@ class TestImportReplayFinalState:
             ],
         )
 
-        _, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
+        result = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
-        assert inserted == 1
+        assert result.inserted == 1
+        assert result.verified is True
         assert _ids(db_conn) == ["e2"]
 
     def test_many_interleaved_delete_readd_final_state(
@@ -271,11 +287,12 @@ class TestImportReplayFinalState:
         ops += [("mem", _make_entry(f"e{i}"), "") for i in range(n // 2)]
         store = _write_archive(tmp_path / "m.jsonl", ops=ops)
 
-        jsonl_count, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
+        result = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
         # jsonl_count counts memory lines seen (adds + readds); deletes are events.
-        assert jsonl_count == n + n // 2
-        assert inserted == n // 2
+        assert result.jsonl_count == n + n // 2
+        assert result.inserted == n // 2
+        assert result.verified is True
         # Insert set (REQ-003): survivors are exactly the re-added prefix.
         assert set(_ids(db_conn)) == {f"e{i}" for i in range(n // 2)}
         # Write order (REQ-003): rows written in first-seen order, not PK-sorted.
@@ -322,9 +339,10 @@ class TestImportReplayFinalState:
             ],
         )
 
-        _, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
+        result = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
-        assert inserted == 1
+        assert result.inserted == 1
+        assert result.verified is True
         assert _ids(db_conn) == ["e1"]
 
 
@@ -344,10 +362,12 @@ class TestImportMalformedAndShape:
             malformed=["{not json", "also{bad"],
         )
 
-        jsonl_count, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
+        result = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
-        assert jsonl_count == 2
-        assert inserted == 2
+        assert result.jsonl_count == 2
+        assert result.inserted == 2
+        assert result.skipped == 2
+        assert result.verified is True
         assert set(_ids(db_conn)) == {"e1", "e2"}
 
     def test_dry_run_leaves_sqlite_untouched(
@@ -365,12 +385,12 @@ class TestImportMalformedAndShape:
             ],
         )
 
-        jsonl_count, inserted = import_from_jsonl(
-            store, dry_run=True, db_config=MIN_DB_CONFIG
-        )
+        result = import_from_jsonl(store, dry_run=True, db_config=MIN_DB_CONFIG)
 
-        assert jsonl_count == 2
-        assert inserted == 0
+        assert result.jsonl_count == 2
+        assert result.inserted == 0
+        # A dry run writes nothing, so there is no committed state to verify.
+        assert result.verified is False
         assert _ids(db_conn) == ["existing"]
 
     def test_return_shape_single_pass(
@@ -387,9 +407,38 @@ class TestImportMalformedAndShape:
             ],
         )
 
-        jsonl_count, inserted = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
+        result = import_from_jsonl(store, db_config=MIN_DB_CONFIG)
 
-        assert (jsonl_count, inserted) == (2, 2)
+        assert (result.jsonl_count, result.inserted) == (2, 2)
+
+    def test_interrupted_import_writes_nothing(
+        self,
+        tmp_path: Path,
+        import_ops_fake_helper: _FakeSQLiteHelper,
+        db_conn: sqlite3.Connection,
+    ) -> None:
+        """The cancellation event is honored at the transaction boundary (REQ-006).
+
+        The run is stopped before the first insert, so the replay writes nothing and the
+        rows that existed before the run are still there after the rollback.
+        """
+        write_add(_make_entry("existing"), db_config=MIN_DB_CONFIG)
+        store = _write_archive(
+            tmp_path / "m.jsonl",
+            ops=[
+                ("mem", _make_entry("e1"), ""),
+                ("mem", _make_entry("e2"), ""),
+            ],
+        )
+
+        stop = threading.Event()
+        stop.set()
+        result = import_from_jsonl(store, db_config=MIN_DB_CONFIG, stop=stop)
+
+        assert result.interrupted is True
+        assert result.inserted == 0
+        assert result.verified is False
+        assert _ids(db_conn) == ["existing"]
 
     def test_non_store_raises_type_error(self) -> None:
         with pytest.raises(TypeError):
@@ -426,9 +475,10 @@ class TestBackupGuard:
             malformed=["{bad json"],
         )
 
-        _, inserted = import_from_jsonl(
+        result = import_from_jsonl(
             store, backup=True, allow_loss=True, db_config=MIN_DB_CONFIG
         )
 
-        assert inserted == 1
+        assert result.inserted == 1
+        assert result.verified is True
         assert _ids(db_conn) == ["e1"]

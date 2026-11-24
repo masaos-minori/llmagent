@@ -45,6 +45,8 @@ class MemoryOpResult:
     action: MemoryAction | str
     dry_run: bool = False
     count: int = 0  # number of entries affected by prune
+    # The run the result belongs to, so the audit line and the job record agree (REQ-001).
+    job_id: str = ""
     messages: list[str] = field(default_factory=list)
 
 
@@ -62,6 +64,7 @@ def _emit_memory_audit(ctx: AgentContext, result: MemoryOpResult) -> None:
                 "dry_run": result.dry_run,
                 "count": result.count,
                 "ok": result.ok,
+                "job_id": result.job_id,
                 "ts": time.time(),
             },
         ),

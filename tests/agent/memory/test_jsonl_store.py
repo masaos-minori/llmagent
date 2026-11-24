@@ -319,3 +319,51 @@ class TestDataIntegrity:
         assert entry.project == original.project
         assert entry.repo == original.repo
         assert entry.branch == original.branch
+
+
+# ── JsonlMemoryStore — append-only under the delete path ─────────────────────
+
+
+class TestAppendOnlyUnderDeletePath:
+    """The append-only contract holds while the delete path appends an event (REQ-006).
+
+    The interrupted-delete case is asserted in `tests/agent/commands/test_memory_data_ops.py`
+    (row 45), because it needs the session-store fixture; this file keeps the archive side of
+    the contract: the delete path's writer appends, it never truncates or rewrites.
+    """
+
+    def test_delete_event_never_truncates_or_rewrites_the_archive(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        store = JsonlMemoryStore(tmp_path / "store.jsonl")
+        asyncio.run(store.write(_make_entry(memory_id="m-a")))
+        asyncio.run(store.write(_make_entry(memory_id="m-b")))
+
+        before = store._path.read_text(encoding="utf-8")
+        store.append_event("delete", "m-a")
+        after = store._path.read_text(encoding="utf-8")
+
+        # Append-only: everything written before the event is still the file's prefix.
+        assert after.startswith(before)
+        appended = orjson.loads(after[len(before) :])
+        assert appended["event"] == "delete"
+        assert appended["memory_id"] == "m-a"
+
+    def test_event_line_follows_the_records_it_describes(self, tmp_path: Path) -> None:
+        store = JsonlMemoryStore(tmp_path / "store.jsonl")
+        asyncio.run(store.write(_make_entry(memory_id="m-a")))
+        asyncio.run(store.write(_make_entry(memory_id="m-b")))
+
+        # The delete path appends after its SQLite commit, so the event line is the last
+        # record and replay reproduces the committed row set.
+        store.append_event("delete", "m-a")
+
+        records = list(store.iter_records())
+        assert [kind for kind, _ in records] == ["memory", "memory", "event"]
+        assert [data["memory_id"] for kind, data in records if kind == "memory"] == [
+            "m-a",
+            "m-b",
+        ]
+        assert records[-1][1]["event"] == "delete"
+        assert records[-1][1]["memory_id"] == "m-a"

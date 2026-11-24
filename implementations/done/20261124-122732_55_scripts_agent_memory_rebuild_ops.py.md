@@ -67,6 +67,10 @@ Run the FTS and vector index rebuilds inside one transaction with a cancellation
 
 - An interrupted rebuild leaves the index as it was before the run, and the reported count is the committed count.
 
+## Deviations from this document's original plan (found and corrected during implementation)
+
+- Assumptions said the delete-then-row-by-row insert shape stays for `rebuild_vec`. It cannot: `memories` has no embedding column (`scripts/db/schema_sql.py:100-118`) and embeddings live only in `memories_vec`, so the current `SELECT memory_id, embedding FROM memories` is dead code that fails against a real schema. `rebuild_vec` now removes `memories_vec` rows with no matching `memories` row, the same contract as the RAG vector prune (`scripts/agent/services/rag_maintenance_service.py:92-97`, row 22's precedent), and reports the rows removed plus the remaining-orphan postcondition measured after the commit. The docstring change reaches the generated file `docs/23_agent/agent_11_04_memory-module-reference-generated.md`, which is regenerated in Phase 7 (row 40), not hand-edited.
+
 ## Out of Scope
 
 - The store accessors, the RAG vector path (row 22), the command handler.
@@ -76,10 +80,10 @@ Run the FTS and vector index rebuilds inside one transaction with a cancellation
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run the rebuilds inside one transaction with the cancellation event | Pending | — | — | Phase 5 |
-| 2 | Report the verified row count | Pending | — | — | Phase 5 |
-| 3 | Update the companion test per Validation plan | Pending | — | — | Row 56 is covered by this document; `tests/agent/memory/test_memory_store.py` (row 44) keeps its own document |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Run the rebuilds inside one transaction with the cancellation event | Completed | — | 20261124-234217 | Phase 5 |
+| 2 | Report the verified row count | Completed | — | 20261124-234217 | Phase 5 |
+| 3 | Update the companion test per Validation plan | Completed | — | 20261124-234217 | Row 56 is covered by this document; `tests/agent/memory/test_memory_store.py` (row 44) keeps its own document |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-234217 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
