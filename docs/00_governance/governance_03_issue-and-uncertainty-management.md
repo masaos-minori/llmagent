@@ -203,7 +203,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner:** Repository owner
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`
-- **Related:** ADR-006 Approval Record (approved through task `memo-issue.md`; previously AAL-040)
+- **Related:** Approval Record in `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` (approved through task `memo-issue.md`; previously AAL-040)
 - **Summary:** ADR-006 states that the EventBus creates no events.jsonl (INV-18), but the publish route still appends it.
 - **Current Description:** ADR-006 Decision Detail 15 and INV-18 make eventbus.sqlite the sole source of truth and prohibit events.jsonl.
 - **Observed Implementation:** `scripts/eventbus/publish_route.py` appends to events.jsonl after the SQLite commit and increments eventbus_jsonl_append_failure_total.
@@ -223,7 +223,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner:** Repository owner
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`
-- **Related:** AAL-042, ADR-006 Approval Record (retention and replay principles approved through task `memo-issue.md`; previously part of AAL-041)
+- **Related:** AAL-042, Approval Record in `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` (retention and replay principles approved through task `memo-issue.md`; previously part of AAL-041)
 - **Summary:** ADR-006 defines state-aware retention, HTTP 410 replay expiration, and capacity and readiness rules (INV-19 to INV-22) that no code implements, and the retention-participant registry model is not approved.
 - **Current Description:** ADR-006 Decision Details 18 to 20 and the Replay Contract define the retention and replay-floor rules.
 - **Observed Implementation:** No retention task, purge, capacity signal, retention configuration, replay-floor check, or HTTP 410 response exists under `scripts/eventbus/`; events, consumer_delivery, and dlq_outbox rows are never deleted.
@@ -243,7 +243,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner:** Repository owner
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
-- **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
+- **Related:** Approval Record in `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` (approved 2026-11-24; previously AAL-039)
 - **Summary:** ADR-008 no longer permits Semantic Memory, memory JSONL, pin state, manual memory writes, or /memory data (INV-20 to INV-22), but the Agent code still implements them.
 - **Current Description:** ADR-008 Decision Detail 24 defines Repository Context and Episodic Memory as the only memory model.
 - **Observed Implementation:** `scripts/agent/memory/` and the session schema still contain the old memory model, the JSONL store, and the /memory command; `sqlite-vec` is still loaded into `session.sqlite` by default instead of only when Episodic Vector support is enabled (ADR-008 Decision Details 9 and 24).
@@ -263,7 +263,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner:** Repository owner
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
-- **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
+- **Related:** Approval Record in `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` (approved 2026-11-24; previously AAL-039)
 - **Summary:** State-aware Episodic Memory retention (ADR-008 Decision Details 23 and 24, INV-21) has no implementation.
 - **Current Description:** ADR-008 states that Episodic retention is state-aware and that age alone never authorizes deletion.
 - **Observed Implementation:** No Episodic retention or purge exists in code.
@@ -283,7 +283,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner:** Repository owner
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
-- **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
+- **Related:** Approval Record in `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` (approved 2026-11-24; previously AAL-039)
 - **Summary:** The retention periods per Episodic event type, their defaults, and the 90-day operational review (owned by the Agent Memory specification) are not defined.
 - **Current Description:** ADR-008 delegates retention periods and defaults to the Agent Memory specification.
 - **Observed Implementation:** No configuration key or default value exists.
@@ -303,7 +303,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner:** Repository owner
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
-- **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
+- **Related:** Approval Record in `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` (approved 2026-11-24; previously AAL-039)
 - **Summary:** ADR-008 Decision Detail 26 and INV-23 require a capacity policy and monitoring for the five non-EventBus SQLite stores, which no code provides.
 - **Current Description:** ADR-008 requires configuration-managed thresholds and, per store, warning, critical, write-admission, readiness, and operator-recovery behavior; metric names, values, intervals, dashboards, alerts, and runbooks belong to the Operations or Monitoring specification.
 - **Observed Implementation:** Only WAL checkpoint counts exist; no size or free-disk signal, threshold, or capacity-critical behavior exists.
@@ -323,7 +323,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner:** Repository owner
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
-- **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
+- **Related:** Approval Record in `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` (approved 2026-11-24; previously AAL-039)
 - **Summary:** The Agent Memory and context-budget specifications leave the failure behavior undefined when mandatory Repository Context and other mandatory input exceed the context limit.
 - **Current Description:** The documents state that mandatory canonical Repository Context is never silently removed.
 - **Observed Implementation:** No overflow failure behavior is defined or implemented.
