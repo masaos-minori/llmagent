@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import threading
 from collections.abc import Generator
 from contextlib import contextmanager
 from unittest.mock import patch
@@ -91,6 +92,10 @@ class _FakeSQLiteHelper:
 
     def commit(self) -> None:
         self._conn.commit()
+
+    def interrupt_when(self, stop: threading.Event, *, check_every: int = 1000) -> None:
+        """Mirror `helper.interrupt_when`; the fake records the event it was given."""
+        self._stop = stop
 
     @contextmanager
     def begin_immediate(self) -> Generator[None]:
@@ -219,7 +224,13 @@ class TestMemoryOperationsKeepSession:
     def test_memory_delete_removes_target_only(
         self, wired: AgentSession, conn: sqlite3.Connection
     ) -> None:
-        assert delete("m1", db_config=MIN_DB_CONFIG) is True
+        # delete() reports the rows it actually removed and the measured postcondition,
+        # so the boundary is asserted on the result the run returns.
+        result = delete("m1", db_config=MIN_DB_CONFIG)
+        assert result.operation == "delete"
+        assert result.count == 1
+        assert result.verified
+        assert not result.interrupted
         assert _memory_ids(conn) == ["m2"]
         assert conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 2
         assert conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0] == 3
