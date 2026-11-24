@@ -1301,19 +1301,60 @@ class TestCmdSessionRagConsistency:
 
 class TestCmdSessionRagRebuildFts:
     @pytest.mark.asyncio
-    async def test_rag_rebuild_fts_calls_service_and_prints_success(
+    async def test_rag_rebuild_fts_records_a_job_and_reports_the_postcondition(
         self, capsys: pytest.CaptureFixture
     ) -> None:
+        """Row 42: the message is the job record, so the run is reported as measured.
+
+        The handler no longer prints its own success line: a fixed string would read as
+        success for a run that did not measure its postcondition (REQ-004).
+        """
         from unittest.mock import patch
 
+        from agent.services.models import RagFtsRebuildResult
+
         cmd = _make_cmd()
+        registry = cmd._ctx.services.job_registry
         with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
             mock_svc = MagicMock()
+            mock_svc.rebuild_fts.return_value = RagFtsRebuildResult(
+                rows_inserted=2, chunks=2, fts_rows=2, verified=True
+            )
             MockSvc.return_value = mock_svc
             await cmd._cmd_session("rag-rebuild-fts")
             out = capsys.readouterr().out
-            mock_svc.rebuild_fts.assert_called_once()
-            assert "rebuilt" in out.lower()
+
+        job = _reported_job(out, registry)
+        assert job.operation == "rebuild"
+        assert job.store is StoreTarget.RAG
+        assert job.state is JobState.COMPLETED
+        assert job.verified is True
+        mock_svc.rebuild_fts.assert_called_once_with(stop=job.stop_event)
+        assert "2" in out
+        assert "rebuilt" not in out.lower()
+
+    @pytest.mark.asyncio
+    async def test_run_that_did_not_measure_its_postcondition_is_not_reported_success(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """A run stopped at a progress callback reports `cancelled`, not success (AC-4)."""
+        from unittest.mock import patch
+
+        from agent.services.models import RagFtsRebuildResult
+
+        cmd = _make_cmd()
+        registry = cmd._ctx.services.job_registry
+        with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.rebuild_fts.return_value = RagFtsRebuildResult(interrupted=True)
+            MockSvc.return_value = mock_svc
+            await cmd._cmd_session("rag-rebuild-fts")
+            out = capsys.readouterr().out
+
+        job = _reported_job(out, registry)
+        assert job.state is JobState.CANCELLED
+        assert job.verified is False
+        assert "success" not in out.lower()
 
     @pytest.mark.asyncio
     async def test_rag_rebuild_fts_ignores_extra_args(
@@ -1321,48 +1362,118 @@ class TestCmdSessionRagRebuildFts:
     ) -> None:
         from unittest.mock import patch
 
+        from agent.services.models import RagFtsRebuildResult
+
         cmd = _make_cmd()
         with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
             mock_svc = MagicMock()
+            mock_svc.rebuild_fts.return_value = RagFtsRebuildResult(verified=True)
             MockSvc.return_value = mock_svc
             await cmd._cmd_session("rag-rebuild-fts extra_arg")
             out = capsys.readouterr().out
-            mock_svc.rebuild_fts.assert_called_once()
-            assert "rebuilt" in out.lower()
+
+        mock_svc.rebuild_fts.assert_called_once()
+        assert "job" in out
+
+
+# ── /session rag-prune-vec ──────────────────────────────────────────────────────
+
+
+class TestCmdSessionRagPruneVec:
+    """Row 42, step 2: the renamed subcommand is the only name the dispatch accepts."""
 
     @pytest.mark.asyncio
-    async def test_rag_rebuild_vec_calls_service_and_prints_success(
+    async def test_rag_prune_vec_records_a_job_and_reports_the_measured_counts(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         from unittest.mock import patch
 
+        from agent.services.models import RagVecPruneResult
+
         cmd = _make_cmd()
+        registry = cmd._ctx.services.job_registry
         with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
             mock_svc = MagicMock()
-            mock_svc.rebuild_vec.return_value = 42
+            mock_svc.prune_orphan_vectors.return_value = RagVecPruneResult(
+                pruned=1, remaining=42, verified=True
+            )
+            MockSvc.return_value = mock_svc
+            await cmd._cmd_session("rag-prune-vec")
+            out = capsys.readouterr().out
+
+        job = _reported_job(out, registry)
+        assert job.operation == "prune"
+        assert job.store is StoreTarget.RAG
+        assert job.state is JobState.COMPLETED
+        assert job.verified is True
+        mock_svc.prune_orphan_vectors.assert_called_once_with(stop=job.stop_event)
+        assert "42" in out
+        assert "1" in out
+        assert "rebuilt" not in out.lower()
+
+    @pytest.mark.asyncio
+    async def test_stopped_prune_reports_cancelled_not_success(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        from unittest.mock import patch
+
+        from agent.services.models import RagVecPruneResult
+
+        cmd = _make_cmd()
+        registry = cmd._ctx.services.job_registry
+        with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            mock_svc.prune_orphan_vectors.return_value = RagVecPruneResult(
+                interrupted=True
+            )
+            MockSvc.return_value = mock_svc
+            await cmd._cmd_session("rag-prune-vec")
+            out = capsys.readouterr().out
+
+        job = _reported_job(out, registry)
+        assert job.state is JobState.CANCELLED
+        assert job.verified is False
+        assert "success" not in out.lower()
+
+    @pytest.mark.asyncio
+    async def test_retired_name_is_not_accepted(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """The retired name is not an alias, so it records no job (AC-8, row 50)."""
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        registry = cmd._ctx.services.job_registry
+        with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
             MockSvc.return_value = mock_svc
             await cmd._cmd_session("rag-rebuild-vec")
             out = capsys.readouterr().out
-            mock_svc.rebuild_vec.assert_called_once()
-            assert "rebuilt" in out.lower()
-            assert "42" in out
+
+        assert not any(line.startswith("  job ") for line in out.splitlines())
+        assert registry.running_jobs() == []
+        mock_svc.prune_orphan_vectors.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_rag_rebuild_vec_ignores_extra_args(
+    async def test_rag_prune_vec_ignores_extra_args(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         from unittest.mock import patch
 
+        from agent.services.models import RagVecPruneResult
+
         cmd = _make_cmd()
         with patch("agent.commands.cmd_session.RagMaintenanceService") as MockSvc:
             mock_svc = MagicMock()
-            mock_svc.rebuild_vec.return_value = 10
+            mock_svc.prune_orphan_vectors.return_value = RagVecPruneResult(
+                pruned=10, verified=True
+            )
             MockSvc.return_value = mock_svc
-            await cmd._cmd_session("rag-rebuild-vec extra_arg")
+            await cmd._cmd_session("rag-prune-vec extra_arg")
             out = capsys.readouterr().out
-            mock_svc.rebuild_vec.assert_called_once()
-            assert "rebuilt" in out.lower()
-            assert "10" in out
+
+        mock_svc.prune_orphan_vectors.assert_called_once()
+        assert "10" in out
 
 
 # ── /session export ─────────────────────────────────────────────────────────────

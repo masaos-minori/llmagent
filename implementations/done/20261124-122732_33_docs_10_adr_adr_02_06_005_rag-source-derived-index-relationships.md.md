@@ -74,8 +74,8 @@ Describe the vector operation in the ADR as orphan-row removal through the renam
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the startup-classification item at `:80` to name the renamed method | Pending | — | — | Phase 6 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the startup-classification item at `:80` to name the renamed method | Completed | 20261125-002740 | 20261125-002740 | Phase 6 Phase 6 (R6) done: the startup-classification item describes orphan-row removal through RagMaintenanceService.prune_orphan_vectors(); the FTS items at :72 and :156 keep their names. Sentence-level mapping for check_adr_preservation: 'orphan_vec_count > 0: rebuild vec (rebuild_vec)' became 'orphan_vec_count > 0: remove the orphan chunks_vec rows through RagMaintenanceService.prune_orphan_vectors()' - the same operational decision, named by the method that performs it. |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-002740 | 20261125-002740 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_adr_structure, check_adr_authority and check_docs_consistency --domain rag report no finding; check_adr_preservation reports the Decision-section change as a warning with the mapping above. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -66,8 +66,8 @@ Assert that the retired RAG vector subcommand stays unregistered after the renam
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the retired subcommand to the removed-name expectations | Pending | — | — | Phase 6 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the retired subcommand to the removed-name expectations | Completed | 20261125-002740 | 20261125-002740 | Phase 6 Phase 6 (R6) done: TestRemovedRagVectorSubcommand asserts the retired name is not registered as a subcommand and does not appear in the /session help text, while the renamed name is. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-002740 | 20261125-002740 | Phase 6 part: ruff and ruff format clean; the file's tests pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

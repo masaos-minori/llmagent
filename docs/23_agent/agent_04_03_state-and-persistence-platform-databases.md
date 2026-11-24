@@ -61,7 +61,7 @@ Boundaries:
 
 - `AgentSession` accesses only `session.sqlite` and imports nothing from the RAG layer. Diagnostic logs (`session_diagnostics`) are written by `DiagnosticStore`.
 - `db/maintenance.py` has no imports from `rag/`; DB rotation is in `db/rotation.py`.
-- `/session stats|health|checkpoint|vacuum|purge|recover` target `DbMaintenanceService`; `/session rag-consistency|rag-rebuild-fts|rag-rebuild-vec` target `RagMaintenanceService`.
+- `/session stats|health|checkpoint|vacuum|purge|recover` target `DbMaintenanceService`; `/session rag-consistency|rag-rebuild-fts|rag-prune-vec` target `RagMaintenanceService`.
 - `prune_old_memories()` belongs to neither service; it is retired with the `/memory` commands and removal-pending (SHARED-003).
 - `agent/repository_gateway.py` is a tool-call execution gate and is not part of DB responsibility boundaries.
 

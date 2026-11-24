@@ -145,7 +145,7 @@ Keeping `content` as a separate, never-replaced field guarantees that every stor
 
 ### Operational Consequences
 
-- `/session rag-rebuild-fts` regenerates `chunks_fts` from the stored `content` and `normalized_content`; it does not recompute normalization
+- `/session rag-rebuild-fts` regenerates `chunks_fts` from the stored `content` and `normalized_content` through `RagMaintenanceService.rebuild_fts()`; it does not recompute normalization. The run is recorded as a job and reports success only after the FTS row count is re-measured against `chunks`.
 - Changing the normalization method requires re-chunking the sources so that `normalized_content` is regenerated
 
 ### Security Consequences

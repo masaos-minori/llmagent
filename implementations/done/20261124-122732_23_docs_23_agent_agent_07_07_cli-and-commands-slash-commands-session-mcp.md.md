@@ -68,8 +68,8 @@ Document the job commands, cancellation behavior, and the renamed RAG vector com
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the command row and the cancellation paragraph | Pending | — | — | Phase 6, Phase 7 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the command row and the cancellation paragraph | Completed | 20261125-002740 | 20261125-002740 | Phase 6, Phase 7 Phase 6 (R6) done: the command table row names /session rag-prune-vec and what it does; the offload paragraph states the job-framework cancellation behavior (cooperative job interrupted at a progress callback, not_cancelable refused with a stated reason). The /jobs section was added in Phase 2. |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-002740 | 20261125-002740 | check_docs_quality, check_docs_structure, check_docs_content_policy and check_docs_consistency --domain agent report no new finding. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

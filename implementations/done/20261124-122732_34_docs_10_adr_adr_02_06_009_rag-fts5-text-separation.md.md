@@ -71,8 +71,8 @@ Describe the FTS rebuild as the implementation now performs it: a run recorded a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the FTS rebuild description at `:148` to state the recorded run and the verified result | Pending | — | — | Phase 6 (text follows the Phase 4 change) |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the FTS rebuild description at `:148` to state the recorded run and the verified result | Completed | 20261125-002740 | 20261125-002740 | Phase 6 (text follows the Phase 4 change) Phase 6 (R6) done: the FTS rebuild description names RagMaintenanceService.rebuild_fts() and states that the run is recorded as a job and reports success only after the FTS row count is re-measured against chunks, which is what row 22 implemented in Phase 4. |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-002740 | 20261125-002740 | Docs checkers report no finding for this file; check_adr_preservation reports the Operational Consequences wording as a warning, no Decision or invariant changed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

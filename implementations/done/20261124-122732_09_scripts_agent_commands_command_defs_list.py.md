@@ -75,9 +75,9 @@ Register the job commands as the single source of registered commands and comple
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Register `/jobs` and its subcommands with contract entries | Completed | — | 20261124-165333 | Phase 2 Phase 2 part landed: /jobs CommandDef with status/cancel SubcommandSpec, required id argument, help naming both subcommands. The RAG vector rename is Phase 6. |
-| 2 | Rename the RAG vector subcommand | Pending | — | — | Phase 6 |
-| 3 | Update the companion test per Validation plan | In Progress | — | — | Row 40 is covered by this document Job-contract assertions landed in Phase 2 (test_command_defs.py); the renamed RAG vector subcommand assertion follows with step 2 in Phase 6. |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 2 | Rename the RAG vector subcommand | Completed | 20261125-002740 | 20261125-002740 | Phase 6 Phase 6 (R6) done: SubcommandSpec renamed to rag-prune-vec with help 'Remove orphan chunks_vec rows'; the /session help string names the renamed form. The retired name is not registered as an alias. |
+| 3 | Update the companion test per Validation plan | Completed | 20261125-002740 | 20261125-002740 | Row 40 is covered by this document Job-contract assertions landed in Phase 2 (test_command_defs.py); the renamed RAG vector subcommand assertion follows with step 2 in Phase 6. Phase 6 part: test_command_defs.py asserts the registered subcommand set holds rag-prune-vec and not the retired name, and that the usage line renders as /session rag-prune-vec. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-002740 | 20261125-002740 | Phase 6 part: ruff, ruff format, mypy pass; check_docs_quality and check_docs_consistency --domain agent clean; tests/agent/commands passes. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

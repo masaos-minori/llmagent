@@ -74,9 +74,9 @@ Make the doc-quality rule's description name the command it sanctions after the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the rule description | Pending | — | — | Phase 6 |
-| 2 | Update the companion test per Validation plan | Pending | — | — | Covered by this document |
-| 3 | Run the validation sequence (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the rule description | Completed | 20261125-002740 | 20261125-002740 | Phase 6 Phase 6 (R6) done: the rule description names /session rag-prune-vec; pattern, severity and key unchanged. |
+| 2 | Update the companion test per Validation plan | N/A | — | — | Covered by this document Deviation: no test reads the rule description - tests/tools/test_check_docs_quality.py:640,649 exercise only the pattern - so the procedure's companion-test expectation is a stale assumption. Validation is the live corpus check, which reports no finding. |
+| 3 | Run the validation sequence (`rules/tool-gates.md`) | Completed | 20261125-002740 | 20261125-002740 | Phase 6 part: check_docs_quality reports no finding over 176 files; tests/tools/test_check_docs_quality.py and test_check_docs_consistency_checks.py pass (101). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

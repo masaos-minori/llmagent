@@ -73,9 +73,9 @@ Make the consistency report's repair guidance name the renamed RAG vector comman
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the repair guidance string | Pending | — | — | Phase 6 |
-| 2 | Update the companion test per Validation plan | Pending | — | — | Covered by this document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the repair guidance string | Completed | 20261125-002740 | 20261125-002740 | Phase 6 Phase 6 (R6) done: the guidance names /session rag-prune-vec and adds the job-record reference (/jobs status <id>); repair_action is prune_orphan_vectors. The check itself is unchanged. |
+| 2 | Update the companion test per Validation plan | Completed | 20261125-002740 | 20261125-002740 | Covered by this document Companion test: the guidance assertion, the three exact-message assertions, the _REPAIR_PHRASE mapping, and a new assertion that the vector finding names the service method and the job record. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-002740 | 20261125-002740 | Phase 6 part: ruff, ruff format, mypy pass; docs checkers clean; tests/db/test_rag_consistency.py 79 passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

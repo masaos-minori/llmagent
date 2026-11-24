@@ -90,6 +90,22 @@ class TestCommandsList:
         # The usage lines the contract checker requires in a chapter document.
         assert jobs.usages() == ["/jobs status <id>", "/jobs cancel <id>"]
 
+    def test_session_vector_subcommand_names_the_prune_operation(self) -> None:
+        """Row 9, Phase 6: the vector subcommand is registered only under the prune name.
+
+        The definition is the source of the registered set and of the completion
+        candidates, so the retired rebuild name must not resolve here (REQ-007, AC-8).
+        """
+        session = next(cmd for cmd in _COMMANDS if cmd.name == "/session")
+        specs = {spec.name: spec for spec in session.subcommands}
+
+        assert "rag-prune-vec" in specs
+        assert "rag-rebuild-vec" not in specs
+        assert "orphan" in specs["rag-prune-vec"].help
+        # The FTS subcommand performs a rebuild, so its name is unchanged.
+        assert specs["rag-rebuild-fts"].help == "Rebuild chunks_fts"
+        assert "/session rag-prune-vec" in session.usages()
+
     def test_async_commands_have_async_flag(self) -> None:
         async_names = {cmd.name for cmd in _COMMANDS if cmd.is_async}
         assert "/compact" in async_names

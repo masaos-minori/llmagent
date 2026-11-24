@@ -30,7 +30,7 @@
     "stale_db_rag_slash_commands": {
       "pattern": "`/db\\b|`/rag search\\b|/db (?:health|vacuum|consistency|rag)\\b|/rag search\\b",
       "severity": "ERROR",
-      "description": "removed slash command (there is no /db or /rag command; use /session health, /session vacuum, /session rag-consistency, /session rag-rebuild-fts or /session rag-rebuild-vec)"
+      "description": "removed slash command (there is no /db or /rag command; use /session health, /session vacuum, /session rag-consistency, /session rag-rebuild-fts or /session rag-prune-vec)"
     },
     "history_phrasing_in_active_doc": {
       "pattern": "Amendment\\s*\\([^)]*\\d{4}-\\d{2}-\\d{2}|superseded\\s+\\d{4}-\\d{2}-\\d{2}|replaces the previous|\\b(?:was|were)\\s+removed\\s+(?:at|in|by)\\b|\\bformerly\\b",

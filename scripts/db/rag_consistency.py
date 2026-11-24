@@ -244,9 +244,10 @@ def _orphan_vec_issue(report: RagConsistencyReport) -> ConsistencyFinding:
         severity=FindingSeverity.DEGRADED,
         message=(
             f"[WARNING] Orphan vec rows detected (count={report.orphan_vec_count}).{detail}"
-            f" Run '/session rag-rebuild-vec' to remove the orphan rows."
+            f" Run '/session rag-prune-vec' to remove the orphan rows;"
+            f" check the outcome with '/jobs status <id>'."
         ),
-        repair_action="rebuild_vec",
+        repair_action="prune_orphan_vectors",
     )
 
 

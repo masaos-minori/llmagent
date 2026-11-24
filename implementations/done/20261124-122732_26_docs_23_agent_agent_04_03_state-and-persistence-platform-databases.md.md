@@ -66,8 +66,8 @@ Update the maintenance routing table and the RAG vector command name in the plat
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the routing table line | Pending | — | — | Phase 6 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the routing table line | Completed | 20261125-002740 | 20261125-002740 | Phase 6 Phase 6 (R6) done: the routing line names rag-prune-vec; the service split at :58 is unchanged. |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-002740 | 20261125-002740 | Docs checkers report no finding for this file. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

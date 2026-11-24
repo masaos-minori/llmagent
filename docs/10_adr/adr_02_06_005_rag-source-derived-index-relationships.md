@@ -77,7 +77,7 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
 10. The following operational decisions are reflected in Operations:
     - `fts_gap > 0`: rebuild FTS5
     - `fts_orphan_count > 0`: rebuild FTS5
-    - `orphan_vec_count > 0`: rebuild vec (`rebuild_vec`)
+    - `orphan_vec_count > 0`: remove the orphan `chunks_vec` rows through `RagMaintenanceService.prune_orphan_vectors()`
     - `vec != chunks`: investigate as an embedding or synchronization failure
 11. The ingestion path (`delete_document_chain()`) and the MCP deletion path (`DocumentManager.delete_document()` of the rag_pipeline MCP server) apply the same deletion order (`chunks_vec` before `documents`) through the shared helper.
 

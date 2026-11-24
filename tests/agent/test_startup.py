@@ -584,8 +584,8 @@ class TestRagConsistencySeverityStartup:
                 ),
                 ConsistencyFinding(
                     severity=FindingSeverity.DEGRADED,
-                    message="[WARNING] Vector count mismatch.",
-                    repair_action="rebuild_vec",
+                    message="[WARNING] Orphan vec rows detected.",
+                    repair_action="prune_orphan_vectors",
                 ),
             ],
         )
@@ -597,7 +597,7 @@ class TestRagConsistencySeverityStartup:
         assert len(outcomes) == 2
         assert all(o.status == StartupCheckStatus.WARNING for o in outcomes)
         repair_actions = {verb for o in outcomes for verb in o.message.split()}
-        assert {"rebuild_fts", "rebuild_vec"} <= repair_actions
+        assert {"rebuild_fts", "prune_orphan_vectors"} <= repair_actions
 
     @pytest.mark.asyncio
     async def test_timeout_marks_unverified_not_fatal(self) -> None:

@@ -3,8 +3,9 @@
 Persistence and result-mapping tests for RagMaintenanceService on a real database file.
 
 Contracts under test:
-- rebuild_vec() removes chunks_vec rows with no chunks row, keeps valid rows, returns the
-  rows left, and persists (a new connection sees the result).
+- prune_orphan_vectors() removes chunks_vec rows with no chunks row, keeps valid rows,
+  reports the pruned and remaining counts it measured, and persists (a new connection
+  sees the result).
 - reconcile_url() inserts only the missing chunks_fts entries of one URL, never deletes an
   entry that is not indexed, leaves chunks_vec alone, and persists.
 - A failing commit leaves the database unchanged for a new connection.
@@ -164,13 +165,17 @@ def _make_fts_gap(path: Path, chunk_id: int, indexed_text: str) -> None:
     conn.close()
 
 
-class TestRebuildVec:
+class TestPruneOrphanVectors:
+    """Row 22, Phase 6: the renamed operation reports the counts it measured."""
+
     def test_removes_orphan_rows_and_persists(
         self, rag_db_path: Path, use_file_db: Callable[..., None]
     ) -> None:
-        remaining = RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_vec()
+        result = RagMaintenanceService(db_config=MIN_DB_CONFIG).prune_orphan_vectors()
 
-        assert remaining == 3
+        assert result.pruned == 1
+        assert result.remaining == 3
+        assert result.verified is True
         rows = _query(rag_db_path, "SELECT chunk_id FROM chunks_vec ORDER BY chunk_id")
         assert rows == [(1,), (2,), (3,)]
 
@@ -182,7 +187,11 @@ class TestRebuildVec:
         conn.commit()
         conn.close()
 
-        assert RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_vec() == 3
+        result = RagMaintenanceService(db_config=MIN_DB_CONFIG).prune_orphan_vectors()
+
+        assert result.pruned == 0
+        assert result.remaining == 3
+        assert result.verified is True
 
         rows = _query(rag_db_path, "SELECT chunk_id FROM chunks_vec ORDER BY chunk_id")
         assert rows == [(1,), (2,), (3,)]
@@ -193,10 +202,31 @@ class TestRebuildVec:
         use_file_db(_FailingCommitHelper)
 
         with pytest.raises(RuntimeError, match="commit failed"):
-            RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_vec()
+            RagMaintenanceService(db_config=MIN_DB_CONFIG).prune_orphan_vectors()
 
         rows = _query(rag_db_path, "SELECT chunk_id FROM chunks_vec ORDER BY chunk_id")
         assert rows == [(1,), (2,), (3,), (99,)]
+
+    def test_stopped_run_reports_the_state_it_was_in(
+        self, rag_db_path: Path, use_file_db: Callable[..., None]
+    ) -> None:
+        """A run stopped by the job's event reports itself as stopped and verifies nothing."""
+        _RefusedAfterStopHelper.received.clear()
+        use_file_db(_RefusedAfterStopHelper)
+        stop = threading.Event()
+        stop.set()
+
+        result = RagMaintenanceService(db_config=MIN_DB_CONFIG).prune_orphan_vectors(
+            stop=stop
+        )
+
+        assert _RefusedAfterStopHelper.received == [stop]
+        assert result.interrupted is True
+        assert result.verified is False
+        assert result.pruned == 0
+        assert result.remaining == 0
+        # The run wrote nothing, so the orphan row is still there for a new connection.
+        assert _query(rag_db_path, "SELECT COUNT(*) FROM chunks_vec") == [(4,)]
 
 
 class TestReconcileUrl:
@@ -310,7 +340,7 @@ class TestRebuildFtsPostcondition:
         stop = threading.Event()
 
         RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_fts(stop=stop)
-        RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_vec(stop=stop)
+        RagMaintenanceService(db_config=MIN_DB_CONFIG).prune_orphan_vectors(stop=stop)
 
         assert _RefusedAfterStopHelper.received == [stop, stop]
 

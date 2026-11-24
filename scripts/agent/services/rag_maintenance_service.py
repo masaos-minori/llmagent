@@ -23,6 +23,7 @@ from agent.services.models import (
     DbRecoverResult,
     RagConsistencyResult,
     RagFtsRebuildResult,
+    RagVecPruneResult,
 )
 
 
@@ -126,29 +127,37 @@ class RagMaintenanceService:
             logical_ok=result.logical_ok,
         )
 
-    def rebuild_vec(self, *, stop: threading.Event | None = None) -> int:
+    def prune_orphan_vectors(
+        self, *, stop: threading.Event | None = None
+    ) -> RagVecPruneResult:
         """Remove chunks_vec rows that have no chunks row.
 
-        Returns the number of chunks_vec rows left. Vector rows cannot be regenerated
-        from chunks: the embeddings live only in chunks_vec.
+        Vector rows cannot be regenerated from chunks: the embeddings live only in
+        chunks_vec, so this operation removes rows and cannot rebuild the table.
 
         `stop` is the job's cancellation event, passed to the connection's progress
-        handler (REQ-002).
+        handler (REQ-002). The result carries the rows the run removed and the rows the
+        commit left, so the caller reports what was measured, not what was attempted
+        (REQ-004). A stopped run reports the state it was in, never a count it did not
+        measure.
         """
         with SQLiteHelper("rag", db_config=self._db_config).open(write_mode=True) as db:
             if stop is not None:
                 db.interrupt_when(stop)
-            orphans = db.execute(
-                "SELECT chunk_id FROM chunks_vec"
-                " WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks)"
-            ).fetchall()
-            db.executemany(
-                "DELETE FROM chunks_vec WHERE chunk_id = ?",
-                [(row[0],) for row in orphans],
-            )
+            try:
+                orphans = db.execute(
+                    "SELECT chunk_id FROM chunks_vec"
+                    " WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks)"
+                ).fetchall()
+                db.executemany("DELETE FROM chunks_vec WHERE chunk_id = ?", orphans)
+                pruned = len(orphans)
+                db.commit()
+            except sqlite3.OperationalError:
+                if stop is None or not stop.is_set():
+                    raise
+                return RagVecPruneResult(interrupted=True)
             remaining: int = db.execute("SELECT COUNT(*) FROM chunks_vec").fetchone()[0]
-            db.commit()
-            return remaining
+        return RagVecPruneResult(pruned=pruned, remaining=remaining, verified=True)
 
     def reconcile_url(self, url: str) -> dict[str, bool | int]:
         """Insert the missing chunks_fts entries of the chunks of one URL.

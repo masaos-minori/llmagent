@@ -104,7 +104,7 @@ _COMMANDS: list[CommandDef] = [
         is_async=True,
         handler="_cmd_session",
         help="list [n] | load <id> | rename <title> | delete <id>"
-        " | export markdown|md|json [file] | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-rebuild-vec",
+        " | export markdown|md|json [file] | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-prune-vec",
         subcommands=[
             SubcommandSpec("list", "List sessions", (ArgSpec("n", default="20"),)),
             SubcommandSpec("load", "Resume a session", (ArgSpec("id", required=True),)),
@@ -137,7 +137,7 @@ _COMMANDS: list[CommandDef] = [
             ),
             SubcommandSpec("rag-consistency", "RAG DB consistency check"),
             SubcommandSpec("rag-rebuild-fts", "Rebuild chunks_fts"),
-            SubcommandSpec("rag-rebuild-vec", "Rebuild chunks_vec"),
+            SubcommandSpec("rag-prune-vec", "Remove orphan chunks_vec rows"),
         ],
     ),
     CommandDef(

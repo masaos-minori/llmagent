@@ -1234,6 +1234,11 @@ entries:
   summary: Result of an FTS index rebuild, with the counts the postcondition measured.
 - file: scripts/agent/services/models.py
   kind: class
+  name: RagVecPruneResult
+  signature: class RagVecPruneResult
+  summary: Result of the orphan-vector prune, with the counts the run measured.
+- file: scripts/agent/services/models.py
+  kind: class
   name: ExportResult
   signature: class ExportResult
   summary: Result of exporting session data in a specific format.

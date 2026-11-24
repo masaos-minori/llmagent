@@ -226,7 +226,7 @@ Full failure-scenario table (missing definition, invalid JSON, checksum mismatch
 | Embedding dimension mismatch | At ingest time, chunk skipped, WARNING logged | Verify the embedding model's output matches `scripts/db/store_protocols.py::get_embedding_dims()` (a fixed code-level constant, not a config key) |
 | Vector store corruption | RAG unavailable | Restore from backup |
 | FTS index desync (`fts_gap != 0`) | Search results incomplete | Run `/session rag-consistency` to inspect (`scripts/db/rag_consistency.py` is a library module, not a CLI entry point) |
-| Orphan vector rows (`orphan_vec_count > 0`) | Search returns stale results | Run `/session rag-rebuild-vec` |
+| Orphan vector rows (`orphan_vec_count > 0`) | Search returns stale results | Run `/session rag-prune-vec` |
 | Crawler timeout | URL skipped, WARNING logged | Retry crawler execution |
 
 When embedding is unavailable: existing documents remain searchable via FTS, new documents cannot be indexed, `memory_embed_enabled` remains `true` but embeddings are not generated, and the system logs a WARNING on each failed embedding attempt.
@@ -243,6 +243,10 @@ When embedding is unavailable: existing documents remain searchable via FTS, new
 | hybrid | Normal operation | Full embedding + vector search |
 
 Degraded conditions: `circuit_open=True` after more than `failure_threshold` consecutive failures; `half_open_cooldown_sec` elapsed since last UNAVAILABLE state; one request allowed through HALF_OPEN state to test recovery.
+
+### Maintenance run approval and cancellation
+
+Maintenance runs are recorded as jobs, and approval is a property of the operation decided at registration, not a flag on the command line. A `none` operation starts without a grant; a `confirm` or `guard` operation is refused unless a grant is recorded for that run, and the recorded grant comes from the request-bound confirmation path (`agent_06_02_tool-execution-and-approval-approval.md`), so `--confirm` or `--allow-loss` alone does not authorize a run. A registered write job is interrupted at its next progress callback when a cancellation request is recorded for it; an operation declared `not_cancelable` is refused with the reason the registry recorded, rather than appearing to hang. Only one running writer is allowed per store, so a write job registered against a store that already has one is refused at registration.
 
 ### Capability readiness model
 

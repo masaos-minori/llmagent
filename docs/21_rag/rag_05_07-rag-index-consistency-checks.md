@@ -39,7 +39,7 @@ Classification is fixed in code, not configuration. Degraded findings are repair
 
 | Class | Findings | Startup consequence | Repair |
 |---|---|---|---|
-| Degraded | FTS gap, FTS orphan, vector count mismatch, orphan vec rows, chunks without vector rows, documents without chunks, URL-level inconsistency | Warn per finding; proceed | `rebuild_fts`, `rebuild_vec`, or `reingest` (see below) |
+| Degraded | FTS gap, FTS orphan, vector count mismatch, orphan vec rows, chunks without vector rows, documents without chunks, URL-level inconsistency | Warn per finding; proceed | `rebuild_fts`, `prune_orphan_vectors`, or `reingest` (see below) |
 | Fatal | Duplicate `chunk_index`, FK inconsistency, embedding-dimension mismatch, unknown schema | Abort, with repair action in the message | Restore from a verified backup or re-ingest; the rebuild commands do not repair these |
 
 
@@ -89,7 +89,7 @@ Use `/session rag-consistency` to detect issues. The report includes identifiers
 |---|---|---|---|
 | `fts_gap > 0` | Degraded | `rebuild_fts` | Run `/session rag-rebuild-fts` — rebuilds `chunks_fts` from `chunks` because FTS entries are missing. |
 | `fts_orphan_count > 0` | Degraded | `rebuild_fts` | Run `/session rag-rebuild-fts` — removes extra FTS entries (data-loss risk; urgent). |
-| `orphan_vec_count > 0` | Degraded | `rebuild_vec` | Run `/session rag-rebuild-vec` — removes the `chunks_vec` rows that have no matching `chunks` row. |
+| `orphan_vec_count > 0` | Degraded | `prune_orphan_vectors` | Run `/session rag-prune-vec` — removes the `chunks_vec` rows that have no matching `chunks` row. |
 | `vec != chunks` | Degraded | `reingest` | Run `ingester.py --force` for the affected URL. |
 | chunks without vector rows | Degraded | `reingest` | Run `ingester.py --force` for the affected chunks. |
 | documents without chunks | Degraded | `reingest` | Run `ingester.py --force` for the affected documents. |
@@ -102,7 +102,7 @@ Use `/session rag-consistency` to detect issues. The report includes identifiers
 | embedding-dimension mismatch | Fatal | `restore_from_backup` | Restore from a verified backup; stored vectors do not match the configured dimension. |
 | unknown schema | Fatal | `restore_from_backup` | Restore from a verified backup; a required table is missing. |
 
-The `repair_action` value is appended to the console message at startup (`... Repair action: <value>`). `rebuild_fts` and `rebuild_vec` repair only the findings that name them; `reingest` findings need ingestion to run again; `rerun_check` findings need the check to be run again once the cause is resolved; fatal findings require restore-from-backup or re-ingest.
+The `repair_action` value is appended to the console message at startup (`... Repair action: <value>`). `rebuild_fts` and `prune_orphan_vectors` repair only the findings that name them; `reingest` findings need ingestion to run again; `rerun_check` findings need the check to be run again once the cause is resolved; fatal findings require restore-from-backup or re-ingest.
 
 Run `/session rag-rebuild-fts` to re-sync `chunks_fts` from the `chunks` table.
 

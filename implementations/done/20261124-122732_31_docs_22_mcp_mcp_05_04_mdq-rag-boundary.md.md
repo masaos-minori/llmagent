@@ -1,19 +1,19 @@
 ## Goal
 
-Name the renamed RAG vector command in the enforcement table (REQ-007: name matches behavior).
+Name the renamed RAG vector command at the MDQ/RAG boundary (REQ-007: name matches behavior).
 
 ## Scope
 **Release unit**: R6-rag-vector-contract (Phase 6)
 
-- In scope: the Agent Layer row at `docs/22_mcp/mcp_05_05_mdq-enforcement-and-lockdown.md:26`.
+- In scope: the admin-bypass item at `docs/22_mcp/mcp_05_04_mdq-rag-boundary.md:78`.
 
 ## Assumptions
 
-- The enforcement mechanism (via `RagMaintenanceService` using `SQLiteHelper("rag")`) is unchanged; only the listed command name changes.
+- The boundary itself is unchanged: these commands access `rag.sqlite` directly through `RagMaintenanceService` and are not part of normal operation.
 
 ## Design decisions
 
-- N/A: single-name change.
+- N/A: single-name change; the boundary statement stays as written.
 
 ## Alternatives considered
 
@@ -21,15 +21,15 @@ Name the renamed RAG vector command in the enforcement table (REQ-007: name matc
 
 ## Implementation
 ### Target file
-`docs/22_mcp/mcp_05_05_mdq-enforcement-and-lockdown.md`
+`docs/22_mcp/mcp_05_04_mdq-rag-boundary.md`
 
 ### Procedure
-1. Replace `/session rag-rebuild-vec` at `:26` with the renamed form.
-2. Keep the service reference and the other command names unchanged.
+1. Replace `/session rag-rebuild-vec` at `:78` with the renamed form.
+2. Keep `/session rag-consistency` and `/session rag-rebuild-fts` unchanged.
 
 ### Method
 
-- N/A: single-cell change in the table.
+- N/A: single-line change.
 
 ### Details
 
@@ -45,7 +45,7 @@ Name the renamed RAG vector command in the enforcement table (REQ-007: name matc
 
 ## Security considerations
 
-- N/A: documentation.
+- N/A: documentation; the trust boundary text itself is in `docs/91_security/security_01_architecture-and-trust-boundaries.md` (row 28).
 
 ## Rollback considerations
 
@@ -55,23 +55,23 @@ Name the renamed RAG vector command in the enforcement table (REQ-007: name matc
 
 | Target | Strategy | Command | Expected outcome |
 |---|---|---|---|
-| This document | Checkers | `uv run python tools/check_docs_quality.py`, `uv run python tools/check_docs_structure.py docs/22_mcp/mcp_05_05_mdq-enforcement-and-lockdown.md` | No finding |
+| This document | Checkers | `uv run python tools/check_docs_quality.py`, `uv run python tools/check_docs_structure.py docs/22_mcp/mcp_05_04_mdq-rag-boundary.md` | No finding |
 
 ## Completion criteria
 
-- The enforcement table names only the registered command.
+- The boundary document names only the registered command.
 
 ## Out of Scope
 
-- The service implementation, the boundary document (row 31).
+- The service implementation, the enforcement text (row 32), the other documents that name the command.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the command name in the enforcement table | Pending | — | — | Phase 6 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the command name | Completed | 20261125-002740 | 20261125-002740 | Phase 6 Phase 6 (R6) done: the admin-bypass item names /session rag-prune-vec; the boundary statement and the other command names are unchanged. |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-002740 | 20261125-002740 | Docs checkers report no finding for this file. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -91,4 +91,4 @@ Name the renamed RAG vector command in the enforcement table (REQ-007: name matc
 - **Source plan**: plans/20261124-001800_cliplc003_maintenance-job-framework.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261124-122732
-- **Related target files**: `docs/22_mcp/mcp_05_05_mdq-enforcement-and-lockdown.md`
+- **Related target files**: `docs/22_mcp/mcp_05_04_mdq-rag-boundary.md`

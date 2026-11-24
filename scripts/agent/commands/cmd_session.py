@@ -44,7 +44,7 @@ from agent.services.maintenance_jobs import (
     StoreTarget,
     profile_for,
 )
-from agent.services.models import SessionRow
+from agent.services.models import RagFtsRebuildResult, RagVecPruneResult, SessionRow
 from agent.services.rag_maintenance_service import RagMaintenanceService
 
 logger = logging.getLogger(__name__)
@@ -174,15 +174,22 @@ class _SessionMixin(MixinBase):
         for issue in result.issues:
             self._out.write(issue)
 
-    def _rag_rebuild_fts(self) -> None:
-        """Rebuild the RAG FTS5 index (chunks_fts) from current chunk content."""
-        RagMaintenanceService(self._ctx.cfg.db).rebuild_fts()
-        self._out.write_success("RAG FTS index rebuilt. [RAG]")
+    def _rag_rebuild_fts(self, stop: threading.Event | None) -> RagFtsRebuildResult:
+        """Rebuild the RAG FTS5 index (chunks_fts) from current chunk content.
 
-    def _rag_rebuild_vec(self) -> None:
-        """Rebuild chunks_vec from chunks. Returns number of rows inserted."""
-        count = RagMaintenanceService(self._ctx.cfg.db).rebuild_vec()
-        self._out.write_success(f"chunks_vec rebuilt ({count} rows). [RAG]")
+        The result is returned, not printed: the message is the job record, so a run that
+        did not measure its postcondition cannot read as success (REQ-004).
+        """
+        return RagMaintenanceService(self._ctx.cfg.db).rebuild_fts(stop=stop)
+
+    def _rag_prune_vec(self, stop: threading.Event | None) -> RagVecPruneResult:
+        """Remove chunks_vec rows that have no chunks row.
+
+        The embeddings live only in chunks_vec, so the run removes rows and cannot rebuild
+        the table. The result is returned for the same reason as the FTS path: a stopped
+        run is reported as cancelled, not as success (REQ-004).
+        """
+        return RagMaintenanceService(self._ctx.cfg.db).prune_orphan_vectors(stop=stop)
 
     def _session_export(self, args: str) -> None:
         """Export the current conversation history to Markdown or JSON.
@@ -319,7 +326,7 @@ class _SessionMixin(MixinBase):
     async def _cmd_session(self, args: str) -> None:
         """Handle /session list [n] | load <id> | rename <title> | delete <id>
         | export markdown|md|json [file]
-        | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-rebuild-vec.
+        | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-prune-vec.
         """
         parsed = parse_command_args(args.strip().split())
         sub = parsed.subcommand or "list"
@@ -398,10 +405,10 @@ class _SessionMixin(MixinBase):
                 "consistency", StoreTarget.RAG, lambda stop: self._rag_consistency()
             ),
             "rag-rebuild-fts": lambda: self._run_maintenance_job(
-                "rebuild", StoreTarget.RAG, lambda stop: self._rag_rebuild_fts()
+                "rebuild", StoreTarget.RAG, self._rag_rebuild_fts
             ),
-            "rag-rebuild-vec": lambda: self._run_maintenance_job(
-                "rebuild", StoreTarget.RAG, lambda stop: self._rag_rebuild_vec()
+            "rag-prune-vec": lambda: self._run_maintenance_job(
+                "prune", StoreTarget.RAG, self._rag_prune_vec
             ),
         }
         handler = db_dispatch.get(sub)
@@ -413,7 +420,7 @@ class _SessionMixin(MixinBase):
             "/session list [n] | /session load <id>"
             " | /session rename <title> | /session delete <id>"
             " | /session export markdown|md|json [file]"
-            " | /session stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-rebuild-vec"
+            " | /session stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-prune-vec"
         )
 
     def _job_status_pairs(self, job: MaintenanceJob) -> list[tuple[str, str]]:

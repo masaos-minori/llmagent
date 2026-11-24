@@ -438,8 +438,10 @@ from unittest.mock import patch as mock_patch
 from tests.agent._config_test_defaults import MIN_DB_CONFIG
 
 
-def test_rebuild_vec_removes_orphaned_chunks_vec_rows(db: _FakeSQLiteHelper) -> None:
-    """rebuild_vec() must remove orphaned chunks_vec rows while preserving valid ones."""
+def test_prune_orphan_vectors_removes_orphaned_chunks_vec_rows(
+    db: _FakeSQLiteHelper,
+) -> None:
+    """prune_orphan_vectors() must remove orphaned chunks_vec rows while preserving valid ones."""
     conn = db._conn
     doc_id = _insert_doc(conn, url="http://valid.example.com")
     valid_chunk_id = _insert_chunk(conn, doc_id, "valid content")
@@ -455,7 +457,7 @@ def test_rebuild_vec_removes_orphaned_chunks_vec_rows(db: _FakeSQLiteHelper) -> 
         "agent.services.rag_maintenance_service.SQLiteHelper"
     ) as mock_helper_cls:
         mock_helper_cls.return_value.open.side_effect = db.open
-        count = RagMaintenanceService(db_config=MIN_DB_CONFIG).rebuild_vec()
+        result = RagMaintenanceService(db_config=MIN_DB_CONFIG).prune_orphan_vectors()
 
     orphan_after = db.fetchall(
         "SELECT * FROM chunks_vec WHERE chunk_id = ?", (orphan_chunk_id,)
@@ -467,8 +469,12 @@ def test_rebuild_vec_removes_orphaned_chunks_vec_rows(db: _FakeSQLiteHelper) -> 
     )
     assert len(valid_after) == 1
 
-    # The return value is the number of chunks_vec rows left.
-    assert count == len(db.fetchall("SELECT chunk_id FROM chunks_vec"))
+    # The result carries the counts the run measured, so the caller can report a
+    # verified outcome rather than an attempt (row 22, REQ-004).
+    assert result.pruned == 1
+    assert result.remaining == len(db.fetchall("SELECT chunk_id FROM chunks_vec"))
+    assert result.verified is True
+    assert result.interrupted is False
 
 
 # ── stop-event wiring: consistency forwards the event to interrupt_when ─────────

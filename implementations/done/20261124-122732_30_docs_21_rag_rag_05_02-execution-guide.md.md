@@ -69,8 +69,8 @@ Name the renamed RAG vector command in the execution guide (REQ-007: name matche
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the command name | Pending | — | — | Phase 6 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the command name | Completed | 20261125-002740 | 20261125-002740 | Phase 6 Phase 6 (R6) done: the fix sentence names /session rag-prune-vec. |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-002740 | 20261125-002740 | Docs checkers report no finding for this file. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

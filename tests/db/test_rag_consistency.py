@@ -323,13 +323,17 @@ class TestRagConsistencySeverity:
         issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
         assert any("/session rag-rebuild-fts" in i for i in issues)
 
-    def test_summarize_issues_orphan_vec_includes_rebuild_vec_guidance(self) -> None:
+    def test_summarize_issues_orphan_vec_includes_prune_vec_guidance(self) -> None:
+        """Row 20: the guidance names the renamed command and the job record (REQ-007)."""
         db = _make_rag_db()
         _insert_vec(db, 88888)
         db.commit()
 
         issues = summarize_issues(check_rag_consistency(db))  # type: ignore[arg-type]
-        assert any("/session rag-rebuild-vec" in i for i in issues)
+        guidance = [i for i in issues if "/session rag-prune-vec" in i]
+        assert guidance, issues
+        # The operator needs the job record to see whether the run was verified.
+        assert any("/jobs status <id>" in i for i in guidance)
 
     def test_fts_gap_includes_doc_ids(self) -> None:
         db = _make_rag_db()
@@ -797,7 +801,8 @@ class TestOrphanVecAndVectorMismatchDetail:
         assert _only_issue(report) == (
             "[WARNING] Orphan vec rows detected (count=2). "
             "Affected URLs: [https://a, https://b]. "
-            "Run '/session rag-rebuild-vec' to remove the orphan rows."
+            "Run '/session rag-prune-vec' to remove the orphan rows; "
+            "check the outcome with '/jobs status <id>'."
         )
 
     def test_orphan_vec_urls_cut_at_five_and_mark_at_ten(self) -> None:
@@ -807,7 +812,8 @@ class TestOrphanVecAndVectorMismatchDetail:
         assert _only_issue(report) == (
             "[WARNING] Orphan vec rows detected (count=10). "
             "Affected URLs: [https://u0, https://u1, https://u2, https://u3, https://u4 ...]. "
-            "Run '/session rag-rebuild-vec' to remove the orphan rows."
+            "Run '/session rag-prune-vec' to remove the orphan rows; "
+            "check the outcome with '/jobs status <id>'."
         )
 
     def test_orphan_vec_chunk_ids_never_mark_truncation(self) -> None:
@@ -818,7 +824,8 @@ class TestOrphanVecAndVectorMismatchDetail:
         assert _only_issue(report) == (
             "[WARNING] Orphan vec rows detected (count=10). "
             "Affected chunk_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]. "
-            "Run '/session rag-rebuild-vec' to remove the orphan rows."
+            "Run '/session rag-prune-vec' to remove the orphan rows; "
+            "check the outcome with '/jobs status <id>'."
         )
 
     def test_vector_mismatch_prefers_urls(self) -> None:
@@ -1150,7 +1157,7 @@ class TestVerificationStatusContract:
 # What a user can act on for each repair action; a finding's message must contain it.
 _REPAIR_PHRASE = {
     "rebuild_fts": "/session rag-rebuild-fts",
-    "rebuild_vec": "/session rag-rebuild-vec",
+    "prune_orphan_vectors": "/session rag-prune-vec",
     "reingest": "ingester.py --force",
     "restore_from_backup": "verified backup",
     "rerun_check": "Re-run the consistency check",
@@ -1225,6 +1232,17 @@ class TestFindingConsistency:
         for finding in self._findings():
             phrase = _REPAIR_PHRASE[finding.repair_action]
             assert phrase in finding.message, finding.message
+
+    def test_vector_finding_names_the_method_that_performs_the_repair(self) -> None:
+        """Row 20: the action names the service method, so the chapters can name it too.
+
+        The operation removes orphan rows, so the action cannot read as a rebuild, and the
+        message points at the job record that says whether the run was verified.
+        """
+        finding = _findings_of(_report(orphan_vec_count=1))[0]
+
+        assert finding.repair_action == "prune_orphan_vectors"
+        assert "/jobs status <id>" in finding.message
 
     @pytest.mark.parametrize("overrides", _SILENT_RULES.values(), ids=_SILENT_RULES)
     def test_each_silent_rule_yields_one_degraded_finding(

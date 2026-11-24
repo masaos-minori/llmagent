@@ -308,6 +308,22 @@ class RagFtsRebuildResult:
 
 
 @dataclass(frozen=True)
+class RagVecPruneResult:
+    """Result of the orphan-vector prune, with the counts the run measured.
+
+    `pruned` is the number of `chunks_vec` rows the run removed and `remaining` the rows
+    the commit left. `verified` means the counts were read after the commit, so a run
+    stopped by the job's cancellation event reports the state it was in, never a count it
+    did not measure (REQ-004).
+    """
+
+    pruned: int = 0
+    remaining: int = 0
+    verified: bool = False
+    interrupted: bool = False
+
+
+@dataclass(frozen=True)
 class ExportResult:
     """Result of exporting session data in a specific format."""
 

@@ -70,8 +70,8 @@ Name the renamed RAG vector command in the consistency-checks document and descr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the command name in the degraded-state row | Pending | — | — | Phase 6 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the command name in the degraded-state row | Completed | 20261125-002740 | 20261125-002740 | Phase 6 Phase 6 (R6) done: the degraded-state row names /session rag-prune-vec and the action column names prune_orphan_vectors; the orphan-row semantics and the condition are unchanged. The action column at :42 and the repair_action paragraph at :105 name the same action, so they were corrected in the same change. |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-002740 | 20261125-002740 | Docs checkers report no finding for this file. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

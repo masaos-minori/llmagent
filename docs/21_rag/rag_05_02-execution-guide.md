@@ -71,7 +71,7 @@ The check is implemented by `check_rag_consistency` in `scripts/db/rag_consisten
 
 **Notes:**
 - `fts` is read from `chunks_fts_docsize` (FTS5 shadow table), not `chunks_fts`. This provides an accurate count of FTS5 indexed documents without depending on joins with the backing table.
-- `orphan_vec_count > 0` indicates a failure in the vec trigger. This can be fixed by running `/session rag-rebuild-vec` for the affected URLs.
+- `orphan_vec_count > 0` indicates a failure in the vec trigger. This can be fixed by running `/session rag-prune-vec` for the affected URLs.
 - This function is read-only and does not repair inconsistencies.
 - Performance: The `NOT IN` subquery for orphan detection is O(vec × chunks). For large datasets, run this during maintenance windows.
 

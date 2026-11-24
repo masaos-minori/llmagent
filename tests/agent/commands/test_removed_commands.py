@@ -102,6 +102,27 @@ class TestRemovedRejectCommand:
         )
 
 
+class TestRemovedRagVectorSubcommand:
+    """Verify the retired RAG vector subcommand stays unregistered after the rename.
+
+    The operation is still registered, only under the name that matches what it does, so
+    the retired name must not resolve as an alias (REQ-007, AC-8).
+    """
+
+    def test_retired_vector_subcommand_is_not_registered(self) -> None:
+        from agent.commands.command_defs_list import _COMMANDS
+
+        session = next(cmd for cmd in _COMMANDS if cmd.name == "/session")
+        assert "rag-rebuild-vec" not in [spec.name for spec in session.subcommands]
+
+    def test_retired_vector_subcommand_is_not_in_the_help_text(self) -> None:
+        from agent.commands.command_defs_list import _COMMANDS
+
+        session = next(cmd for cmd in _COMMANDS if cmd.name == "/session")
+        assert "rag-rebuild-vec" not in session.help
+        assert "rag-prune-vec" in session.help
+
+
 # Locks in REQ-004: the registry-only removed commands route to nothing —
 # they fail like unknown commands on dispatch, are absent from completion and
 # /help, alongside the existing registry-membership assertions above.
