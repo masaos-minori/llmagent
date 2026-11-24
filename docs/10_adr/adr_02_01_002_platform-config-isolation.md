@@ -178,7 +178,7 @@ Because each process's configuration is managed independently, data corruption f
 - INV-01: Each process reads only its permitted configuration files, except as listed in Exceptions.
 - INV-02: Access to non-permitted configuration files is rejected.
 - INV-03: An MCP server can start standalone without agent.toml.
-- INV-04: The Agent can start without being given MCP-specific Secrets.
+- INV-04: The Agent configuration contains no MCP-server-owned settings. For each enabled server, the Agent receives only the connection token required by ADR-017 through the approved environment-variable mechanism. An enabled server resolving to an empty token aborts startup under ADR-017.
 
 ## Exceptions
 
@@ -229,7 +229,7 @@ Not applicable (this ADR defines no retry policy of its own)
 | Each MCP server validates its own security configuration at its own startup and publishes the resulting posture | INV-01 | Unit | Yes | `tests/mcp_servers/` |
 | Access to non-permitted configuration files is rejected | INV-02 | Regression | Yes | `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_denies_unauthorized`, `tests/agent/test_config_permission_cross_server.py::test_cross_server_config_load_raises_config_permission_error` |
 | An MCP server can start standalone without agent.toml | INV-03 | Integration | Yes | `tests/mcp_servers/test_config_isolation_import.py::test_a_server_starts_when_only_its_own_config_file_is_present` |
-| The Agent can start without being given MCP-specific Secrets | INV-04 | Integration | No | Not verified (no automated test exists) |
+| The Agent configuration contains no MCP-server-owned settings, and the Agent receives only each enabled server's connection token through the approved environment-variable mechanism | INV-04 | Integration | No | Not verified (no complete automated test proves the amended contract) |
 
 ### Startup Validation
 
@@ -294,8 +294,8 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-13; individual reviewer names are not recorded.
-- **Current Decision Approval (pending)**: proposed amendment of INV-04 to "The Agent's configuration files carry no MCP-server-owned settings. The only MCP-specific value the Agent is given is each enabled server's connection token, supplied through the environment-variable mechanism owned by ADR-017; an enabled server resolving to an empty token aborts startup per ADR-017." Approval: Not recorded; ledger entry: `AAL-030`.
-- **Current Decision Approval (pending)**: Setting the Blocking value of the INV-04 verification row (`Not verified (no automated test exists)`) to Non-Blocking is a verification-row change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-032. No approval is recorded here.
+- **Current Decision Approval**: Task-level approval decision by the repository owner acting as `@lead`, given in the task `memo-issue.md` (Part 1, AAL-030), covers the amended INV-04 contract: the Agent configuration contains no MCP-server-owned settings; for each enabled server the Agent receives only the connection token required by ADR-017 through the approved environment-variable mechanism; an enabled server resolving to an empty token aborts startup under ADR-017. No approval date is recorded because the task context gives none; individual reviewer names are not recorded.
+- **Current Decision Approval**: Task-level approval decision by the repository owner acting as `@lead`, given in the task `memo-issue.md` (Part 1, AAL-032), covers the INV-04 verification row as Non-Blocking and Not Verified until a complete automated test proves the amended contract. No approval date is recorded because the task context gives none; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

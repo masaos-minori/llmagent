@@ -285,12 +285,11 @@ Re-evaluate this ADR when any of the following conditions occurs.
 
 ### Withdrawal Approval Record
 
-- **Withdrawn By**: Pending maintainer statement (the maintainer's approval of the withdrawal has not been given; it is not written by the implementer)
-- **Withdrawal Date**: Pending maintainer statement
-- **Withdrawal Reference**: ADR-004 Decision Group 10 (Fallback prohibited without exception)
-- **Withdrawal Ledger**: AAL-013
+- **Withdrawn By**: Task-level approval decision by the repository owner acting as `@lead` (individual reviewer names are not recorded)
+- **Withdrawal Date**: Not recorded (the task context gives no date)
+- **Withdrawal Reference**: Task `memo-issue.md` (Part 1, AAL-013), following the approval of ADR-004 Decision Group 10 (Fallback prohibited without exception; AAL-002)
 
-The `Withdrawn` status takes effect for this repository's documents with this change, and the record above is completed when the maintainer states the decision.
+The `Withdrawn` status is approved by this record. This ADR is kept only as a withdrawn historical decision record; it owns no current decision target and no normative authority edge.
 
 This ADR's former `Accepted` status used the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

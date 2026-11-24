@@ -37,7 +37,7 @@ Accepted
 
 ## Summary
 
-This ADR canonicalizes the separation of data into six SQLite stores and their lifecycle policy: four platform-domain databases (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`) and two non-domain stores (`mcp_dedup.sqlite`, `mdq.sqlite`), with per-store responsibilities, no cross-store Transactions, a limited sqlite-vec scope, and a Backup, Recovery, and retention policy per store. It also canonicalizes the safety boundary for recovery from physical corruption (see Decision Details #14 to #21). Decision Details #22 to #24 record the schema-mismatch rule, the retention rule, and the Agent memory model (Repository Context and Episodic Memory); Decision Detail #25 records the store-separation prohibitions.
+This ADR canonicalizes the separation of data into six SQLite stores and their lifecycle policy: four platform-domain databases (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`) and two non-domain stores (`mcp_dedup.sqlite`, `mdq.sqlite`), with per-store responsibilities, no cross-store Transactions, a limited sqlite-vec scope, and a backup method, Recovery, and data-retention rule per store (backup-retention policy is owned by the operations specification). It also canonicalizes the safety boundary for recovery from physical corruption (see Decision Details #14 to #21). Decision Details #22 to #24 record the schema-mismatch rule, the retention rule, and the Agent memory model (Repository Context and Episodic Memory); Decision Detail #25 records the store-separation prohibitions, and Decision Detail #26 records the mandatory capacity policy: every store has a capacity policy with configuration-managed thresholds, and a capacity-critical store is never reported as normally available (INV-23).
 
 mdq.sqlite, owned by mdq-mcp, and mcp_dedup.sqlite, owned by the shared MCP dispatcher, are stores outside the four platform domains; see "Stores Outside the Four Platform Domains".
 
@@ -53,7 +53,7 @@ Without an explicit safety contract, recovery across several SQLite files is dan
 
 - Single host with multiple processes execution
 - Each DB file existence confirmed before startup in the deployment environment
-- sqlite-vec extension loaded only into the databases that own a vec0 table (`rag.sqlite`, `session.sqlite`)
+- sqlite-vec extension loaded only into the SQLite stores that own a vec0 table: `rag.sqlite`, and `session.sqlite` only when Episodic Vector support is enabled
 - Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed
 - A persistence failure in Workflow or EventBus is not treated as success with only a log entry
 - operator-restore is currently a manual, operator-initiated CLI operation, not an automatic process at startup
@@ -122,8 +122,8 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 6. Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
 7. Logical IDs such as Session ID, Workflow ID, and Event ID identify the same entity across databases and are used to join related rows at query time. This is a static logical reference, not a live EventBus publish/consume path (see Decision Detail #8).
 8. Cross-DB consistency is guaranteed by idempotent processing and state reconciliation. No runtime component publishes to or consumes from the EventBus, so Events are not a consistency mechanism.
-9. sqlite-vec is loaded by default only into the databases that own a vec0 table: `rag.sqlite` and `session.sqlite`. `session.sqlite` owns one only while Episodic Vector support is enabled (Decision Detail #24); the current unconditional default for `session.sqlite` stays until that switch is implemented (SHARED-003).
-10. Each SQLite store defines its own backup method, backup-retention policy, Recovery, WAL Checkpoint, Health Check, and data-retention period.
+9. sqlite-vec is loaded only into the SQLite stores that own a vec0 table: `rag.sqlite`, and `session.sqlite`. `session.sqlite` owns one only while Episodic Vector support is enabled (Decision Detail #24); the current unconditional default for `session.sqlite` stays until that switch is implemented (SHARED-003).
+10. Each SQLite store defines its own backup method, backup-retention policy, Recovery, WAL Checkpoint, Health Check, and data-retention period. The backup method (how a backup is taken) is distinct from the backup-retention policy (how long backups are kept and when they are deleted); the Recovery Policy Matrix records both separately.
 11. RAG: rebuildability; Session: history retention; Workflow: resumption and auditing; EventBus: unprocessed Events and Offsets.
 12. A persistence failure in Workflow or EventBus is not treated as success with only a log entry.
 13. Prioritize avoiding lock contention, failure isolation, and simpler recovery over cross-DB Transaction difficulty.
@@ -139,7 +139,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 23. Retention: the retention rule of `eventbus.sqlite` is defined by ADR-006 (state-aware, never by age alone, with the replay floor); this ADR accepts no unbounded growth for it. The other stores follow the retention behavior in the Recovery Policy Matrix. Episodic Memory retention is state-aware: age alone never authorizes deletion; the periods and their defaults are configuration owned by the Agent Memory specification (Decision Detail #24).
 24. Agent memory model: Repository Context is read from explicitly configured repository files, which are its source of truth; it is not stored in SQLite or JSONL and has no persistent FTS or Vector index. Episodic Memory is the Agent's only persistent long-term memory; it is generated internally, has no user-facing CRUD contract, is stored only in `session.sqlite` (events and relations authoritative, FTS and Vector indexes derived), and is recovered only from a verified SQLite backup. Semantic Memory, User Semantic, memory JSONL, pin state, manual memory writes, and `/memory` data are not part of this policy. The Agent Memory specification (`docs/23_agent/agent_11_01_memory-overview-and-modes.md`) owns the event taxonomy, retention defaults, BM25 parameters, tokenizer rules, ranking, Vector enablement, and injection formatting; this ADR keeps only the persistence boundaries, the source-of-truth rules, and this delegation. Episodic full-text search (FTS) is required and Episodic Vector search is optional derived functionality: `sqlite-vec` is loaded into `session.sqlite` only when Episodic Vector support is enabled, and a Vector or embedding failure never invalidates canonical Episodic events or FTS search. Repository Context is isolated reference data and never executable instructions, and a snapshot in which secret material is detected is rejected (fail-closed).
 25. Store separation: the six stores never share a physical path. Cross-store `ATTACH`, cross-store foreign keys, and schema-qualified cross-store access are prohibited.
-26. Capacity: all six SQLite stores must have a capacity policy, and capacity monitoring is mandatory for the five stores other than `eventbus.sqlite`; thresholds are configuration-managed, never fixed by this ADR. ADR-006 owns the EventBus-specific capacity and readiness behavior. Each store-specific policy must define warning behavior, critical behavior, write admission, readiness impact, and operator recovery, and a capacity-critical store is never reported as normally available. Metric names, values, intervals, dashboards, alerts, and runbooks belong to the owning Operations or Monitoring specification (`docs/23_agent/agent_10_05_operations-and-observability-monitoring.md`).
+26. Capacity: this ADR owns the mandatory capacity-policy principles and the rule that thresholds are configuration-managed. All six SQLite stores must have a capacity policy, and capacity monitoring is mandatory for the five stores other than `eventbus.sqlite`; thresholds are configuration-managed, never fixed by this ADR. ADR-006 owns the EventBus-specific capacity and readiness behavior. Each store-specific policy must define warning behavior, critical behavior, write admission, readiness impact, and operator recovery, and a capacity-critical store is never reported as normally available. Metric names, values, intervals, dashboards, alerts, and runbooks are not owned by this ADR; they belong to the owning Operations or Monitoring specification (`docs/23_agent/agent_10_05_operations-and-observability-monitoring.md`).
 27. Destructive implementation of these decisions (removing the old memory model, purging data) does not start until every required decision is recorded in its ADR Approval Record.
 
 ### Stores Outside the Four Platform Domains
@@ -150,8 +150,8 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 
 ### Scope
 
-- **Target components**: `DbConfig`, `SQLiteHelper`, `create_schema()`, `db/recovery.py`, `db/maintenance.py`, and the `rag-pipeline-mcp` service that opens `rag.sqlite`
-- **Target processes**: the Agent process, the ingester process, the EventBus process
+- **Target components**: `DbConfig`, `SQLiteHelper`, `create_schema()`, `db/recovery.py`, `db/maintenance.py`, the `rag-pipeline-mcp` service that opens `rag.sqlite`, the shared MCP dispatcher that owns `mcp_dedup.sqlite`, and the mdq-mcp server that owns `mdq.sqlite`
+- **Target processes**: the Agent process, the ingester process, the EventBus process, the shared MCP dispatcher process, the mdq-mcp server process
 - **Target data**: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`, `mcp_dedup.sqlite`, `mdq.sqlite`
 - **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `DbConfig.rag_db_path`, `DbConfig.session_db_path`, `DbConfig.workflow_db_path`, `recover_corruption()`
@@ -164,7 +164,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 - Automatic (unattended) triggering of operator-restore (currently operator-initiated only; automation requires a separate decision)
 - Migration mechanism design and schema-version mappings (the current-only schema policy is in scope)
 - Continuous backup verification and replication design
-- Monitoring and metrics design (handled by a separate ADR)
+- Monitoring and metrics design: metric names, values, intervals, dashboards, alerts, and runbooks (owned by the Operations or Monitoring specifications; this ADR owns only the capacity-policy principles and configuration-managed thresholds of Decision Detail #26)
 
 ## Rationale
 
@@ -193,12 +193,19 @@ Leaving the `workflow`/`eventbus` recovery policy undefined would give operators
 - **Reason for Rejection:** Operability and Performance require preventing lock contention and failure propagation.
 - **Reconsideration Conditions:** Concurrency is very low; JOINs across DBs become necessary
 
-### Alternative B: No sqlite-vec extension
+### Alternative B1: No sqlite-vec extension for the RAG corpus
 
-- **Advantages:** No dependency on sqlite-vec; can be managed with standard SQLite only
+- **Advantages:** No dependency on sqlite-vec for `rag.sqlite`; can be managed with standard SQLite only
 - **Disadvantages:** Inferior vector search performance; KNN search cannot be achieved; lower embedding search accuracy
-- **Reason for Rejection:** Performance requires high-accuracy KNN search via sqlite-vec.
-- **Reconsideration Conditions:** sqlite-vec becomes supported as a standard SQLite extension; vector search is no longer needed
+- **Reason for Rejection:** RAG Vector search is required, and Performance requires high-accuracy KNN search via sqlite-vec.
+- **Reconsideration Conditions:** sqlite-vec becomes supported as a standard SQLite extension; RAG vector search is no longer needed
+
+### Alternative B2: Make Episodic Vector search required (load sqlite-vec into `session.sqlite` unconditionally)
+
+- **Advantages:** One uniform extension-loading rule for both stores that can own a vec0 table; semantic Episodic recall is always available
+- **Disadvantages:** Episodic Memory then depends on sqlite-vec and an embedding path, so a Vector or embedding failure could affect `session.sqlite` startup and canonical Episodic events
+- **Reason for Rejection:** Episodic FTS is the required baseline and Episodic Vector search is optional derived functionality; sqlite-vec is loaded into `session.sqlite` only when Episodic Vector support is enabled, and a Vector failure never invalidates canonical events or FTS search (Decision Detail #24).
+- **Reconsideration Conditions:** Episodic Vector search becomes a required capability
 
 ### Alternative C: Cross-database Transactions
 
@@ -229,7 +236,7 @@ Leaving the `workflow`/`eventbus` recovery policy undefined would give operators
 - The failure scope is localized
 - Backups become easier
 - Retention periods can be managed individually
-- The scope of sqlite-vec is limited to the two databases that own a vec0 table
+- The scope of sqlite-vec is limited to the SQLite stores that own a vec0 table (`rag.sqlite`, and `session.sqlite` only while Episodic Vector support is enabled)
 - physical-recovery operations become auditable against an explicitly documented safety contract
 - Backup corruption or a partial restore is detected before it replaces a live DB
 
@@ -262,7 +269,7 @@ Leaving the `workflow`/`eventbus` recovery policy undefined would give operators
 - INV-05: Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
 - INV-06: Logical IDs such as Session ID, Workflow ID, and Event ID are used to relate data across DBs.
 - INV-07: Cross-DB consistency is guaranteed by idempotent processing and state reconciliation; Events are not relied on for it.
-- INV-08: sqlite-vec is loaded by default only into the databases that own a vec0 table: `rag.sqlite` and `session.sqlite`; it is not loaded into `workflow.sqlite` or `eventbus.sqlite`.
+- INV-08: sqlite-vec is loaded into `rag.sqlite`. It is loaded into `session.sqlite` only when Episodic Vector support is enabled. It is never loaded into `workflow.sqlite` or `eventbus.sqlite`.
 - INV-09: Each SQLite store defines its own backup method, backup-retention policy, Recovery, WAL Checkpoint, Health Check, data-retention period, and capacity policy (Decision Detail #26); the retention of `eventbus.sqlite` is the state-aware rule of ADR-006 (Decision Detail #23).
 - INV-10: A persistence failure in Workflow or EventBus is not treated as success with only a log entry.
 - INV-11: Corruption of one DB does not require initialization or recovery of the other DBs.
@@ -307,11 +314,11 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 
 - **System of Record**: the four platform-domain databases (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`); `mcp_dedup.sqlite` (disposable ledger) and `mdq.sqlite` (derived index) are not systems of record
 - **Derived Data**: regenerable derived data (FTS5, Vector Index, the Episodic FTS and Vector indexes, deadletter JSON files, and the contents of `mdq.sqlite`)
-- **Ownership**: RAG layer, Agent layer, workflow engine, EventBus service
+- **Ownership**: `rag.sqlite` by the RAG layer, `session.sqlite` by the Agent layer, `workflow.sqlite` by the workflow engine (Agent layer), `eventbus.sqlite` by the EventBus service, `mcp_dedup.sqlite` by the shared MCP dispatcher, and `mdq.sqlite` by the mdq-mcp server
 - **Persistence**: file system (the configured DB directory)
 - **Transaction Boundary**: per DB
-- **Recovery Source**: for `rag.sqlite`/`session.sqlite`, verified backup files supplied by the operator. `workflow.sqlite`/`eventbus.sqlite` are not subject to automatic restore and are handled manually by the operator.
-- **Deletion Rule**: each DB is deleted independently. Deletion of corrupted DB copies set aside for diagnosis (`*_corrupt_<timestamp>.sqlite`) is left to the operator's manual judgment; no automatic deletion is performed.
+- **Recovery Source**: for `rag.sqlite`/`session.sqlite`, verified backup files supplied by the operator. `workflow.sqlite`/`eventbus.sqlite` are not subject to automatic restore and are handled manually by the operator. `mcp_dedup.sqlite` is recreated empty and `mdq.sqlite` is rebuilt from the Markdown files; neither has a backup source.
+- **Deletion Rule**: deletion is store-specific and is defined by the Recovery Policy Matrix (schema-mismatch rule, retention rule, restore sidecar handling); the stores are never deleted together. Deletion of corrupted DB copies set aside for diagnosis (`*_corrupt_<timestamp>.sqlite`) is left to the operator's manual judgment; no automatic deletion is performed.
 
 ## Verification
 
@@ -321,7 +328,7 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 |---|---|---|---|---|
 | Each DB has its own schema creation and its own recovery target path (supporting the per-database ownership of INV-01 to INV-04; the static check below is the primary verification, and INV-01's derived-index clause is verified under ADR-005) | INV-01, INV-02, INV-03, INV-04 | Integration | Yes | `tests/db/test_create_schema.py::TestCreateSchemaWrapper::test_calls_all_three_in_order`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/db/test_db_recovery.py::test_recover_eventbus_target_is_unsupported` |
 | The platform-domain database boundary holds: each table is created only in its owning database, no DDL foreign key crosses databases, the four platform-domain database paths are distinct files, and no `ATTACH` or schema-qualified `FROM`/`JOIN` exists in `scripts/` SQL | INV-01, INV-02, INV-03, INV-04, INV-05, INV-19 (the four platform-domain databases only; the six-store scope is not verified) | Static check | Yes | `tools/check_db_separation.py` (CI `lint` job and the deploy pre-deploy check), `tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations`, `tests/tools/test_check_db_separation.py::test_detects_table_in_wrong_database`, `tests/tools/test_check_db_separation.py::test_detects_cross_db_foreign_key`, `tests/tools/test_check_db_separation.py::test_detects_shared_physical_path`, `tests/tools/test_check_db_separation.py::test_detects_attach_and_qualified_access` |
-| sqlite-vec is loaded by default only for `rag` and `session`, never for `workflow` or `eventbus` | INV-08 | Regression | Yes | `tests/db/test_sqlite_helper.py::TestSQLiteHelperVecDefault::test_default_load_vec_per_target`, `tests/tools/test_check_db_separation.py::test_default_load_vec_rule_rejects_extra_target`, `tests/agent/memory/test_memory_vec_session.py::test_session_default_connection_loads_vec` |
+| sqlite-vec is loaded by the current default only for `rag` and `session` (the Episodic Vector enablement condition for `session` is not implemented, SHARED-003) and never for `workflow` or `eventbus` | INV-08 (the never-load rule and the `rag` load; the `session` enablement condition is Not verified) | Regression | Yes | `tests/db/test_sqlite_helper.py::TestSQLiteHelperVecDefault::test_default_load_vec_per_target`, `tests/tools/test_check_db_separation.py::test_default_load_vec_rule_rejects_extra_target`, `tests/agent/memory/test_memory_vec_session.py::test_session_default_connection_loads_vec` |
 | Lock Contention and Permission Failure are not classified as physical corruption | INV-13 | Regression | Yes | `tests/db/test_db_recovery.py::test_recover_lock_contention`, `tests/db/test_db_recovery.py::test_recover_permission_failure`, `tests/db/test_db_recovery.py::test_classify_error_lock_contention_via_sqlite_errorcode`, `tests/db/test_db_recovery.py::test_recover_missing_live_db_reports_missing_database` |
 | Dry Run does not vacuum, restore, or otherwise act on the target DB for the covered classification results | INV-16 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_dry_run_healthy`, `tests/db/test_db_recovery.py::test_recover_dry_run_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_dry_run_corrupt_file_unchanged` (bytes and directory of a corrupt WAL-mode database unchanged), `tests/db/test_db_recovery.py::test_run_integrity_check_keeps_rollback_journal_mode` |
 | A `recover_corruption()` call specifying `workflow`/`eventbus` does not perform an automatic restore | INV-18 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_corrupt_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_eventbus_target_is_unsupported` |
@@ -351,7 +358,7 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 - DB Schema verification before deployment
 - Manual recovery of `workflow.sqlite`/`eventbus.sqlite` (INV-18): `agent_10_01` Manual Recovery
 - INV-06, INV-07, INV-09, INV-10, INV-11, INV-12 describe design rules without a dedicated automated test
-- INV-20 to INV-23 are Not verified: no automated test exists yet (see Known Deviations). Expected evidence: a test that Repository Context creates no database rows or files, a test that Episodic Memory tables exist only in `session.sqlite`, and a repository scan that no memory JSONL path remains. Cadence: CI once the implementation lands. INV-19 is Partial (the four platform-domain databases are verified; the six-store scope stays Not verified until `mcp_dedup.sqlite` and `mdq.sqlite` are covered by a real automated test): `tools/check_db_separation.py` covers the four platform-domain databases, not `mcp_dedup.sqlite` and `mdq.sqlite`
+- INV-20 to INV-23 are Not verified: no automated test exists yet (see Known Deviations). INV-22 covers two absences whose approval and implementation states differ and are tracked separately: the Agent Memory JSONL absence is approved by the ADR-008 memory-model decision and stays Not verified (open under SHARED-003), and the EventBus `events.jsonl` absence rests on ADR-006 INV-18, whose approval is recorded in the ADR-006 Approval Record, and stays Not verified (open under EVENTBUS-001). Expected evidence: a test that Repository Context creates no database rows or files, a test that Episodic Memory tables exist only in `session.sqlite`, and a repository scan that no memory JSONL path remains. Cadence: CI once the implementation lands. INV-19 is Partial (the four platform-domain databases are verified; the six-store scope stays Not verified until `mcp_dedup.sqlite` and `mdq.sqlite` are covered by a real automated test): `tools/check_db_separation.py` covers the four platform-domain databases, not `mcp_dedup.sqlite` and `mdq.sqlite`
 
 ## Implementation Notes
 
@@ -377,11 +384,11 @@ See Implementation References for the current file/symbol list.
 - An external protocol or adopted library is changed or discontinued
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
-- sqlite-vec is needed in a database other than `rag.sqlite` and `session.sqlite`
+- sqlite-vec is needed in a SQLite store other than `rag.sqlite` and `session.sqlite`, or Episodic Vector support becomes required
 - A store that is a system of record is added outside the four domains, mdq.sqlite starts holding data that cannot be rebuilt, or two domains are merged (a recovery policy must then be defined for it)
 - Persistent storage moves to something other than files
 - A schema migration mechanism is proposed for any SQLite store, or replicated storage is introduced
-- The backup strategy changes from periodic file copies to another method
+- The backup method changes from periodic file copies to another method, or the backup-retention policy changes
 - An operator-restore trigger is proposed
 - The recovery policy for `workflow.sqlite`/`eventbus.sqlite` changes from manual handling to an automated path
 

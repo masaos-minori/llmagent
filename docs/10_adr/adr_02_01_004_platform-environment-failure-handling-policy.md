@@ -111,7 +111,7 @@ A posture `FAILED` result is a safety/integrity failure under Group 2 item 5, no
 ### Group 10: Fallback Boundary
 
 25. Fallback prohibited without exception.
-26. A failed execution path is never replaced by another path (Destination substitution); the failure is surfaced as Fail-Fast, Fail-Closed, or the explicit partial-availability state.
+26. A failed execution path is never replaced by another path (Destination substitution); the failure is surfaced as Fail-Fast, Fail-Closed, or the explicit partial-availability state. The following are not Fallback: an in-component degraded mode that uses the same data and the same component (for example Vector retrieval degrading to FTS retrieval inside the RAG component), and operational cleanup, replay, idempotency, and default-value handling that do not replace the failed destination.
 27. Ordinary empty RAG result does not trigger any substitute path. Safety/integrity failure must not trigger availability handling that bypasses auth/authz/approval/Allowlist/Routing/data integrity controls.
 
 ### Scope
@@ -346,9 +346,9 @@ Re-evaluate when:
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names not recorded)
 - **Approval Date**: Not recorded (individual approval dates not recorded for task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-13, except Decision Group 10 (see AAL-002); individual reviewer names are not recorded.
+- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-13; individual reviewer names are not recorded.
+- **Current Decision Approval**: Task-level approval decision by the repository owner acting as `@lead`, given in the task `memo-issue.md` (Part 1, AAL-002), covers Decision Group 10: a failed execution path is not replaced by another destination; an in-component degraded mode that uses the same data and component (such as Vector-to-FTS retrieval) is not destination substitution; and operational cleanup, replay, idempotency, and default-value handling are not Fallback unless they replace the failed destination. No approval date is recorded because the task context gives none; individual reviewer names are not recorded.
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) of 2026-11-10 (option B) covers the Group 7/INV-09 applicability statement added here; individual reviewer names are not recorded.
-- **Current Decision Approval (pending)**: The Decision Group 10 ("Fallback prohibited without exception") amendment awaits maintainer approval; it is tracked by AAL-002.
 - **Current Decision Approval (pending)**: The INV-14 verification text that cites the startup-abort and registry tests is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-003. No approval is recorded here.
 - **Current Decision Approval (pending)**: The classification of the RAG derived-index results as availability failures in Decision Group 2 item 7 awaits maintainer approval; it is tracked by AAL-019.
 

@@ -128,7 +128,7 @@ The mandatoriness and uniqueness of the Workflow Engine defined by ADR-001 are a
 ## Invariants
 
 - INV-01: Components other than the Workflow Engine (`Orchestrator`, `LlmTurnExecutor`, `ToolExecutor`) do not themselves decide persistent Task/Attempt state, stage transitions, or retries. These are decided only under the management of the Workflow Engine.
-- INV-02: Creation of the `LlmTurnExecutor` instance is centralized in the `Orchestrator`, which constructs exactly one and passes it to the Workflow Engine side, the logical owner of the LLM/Tool Call round-trip loop. No other component holds unused or duplicate `LlmTurnExecutor` instances.
+- INV-02: Creation of the `LlmTurnExecutor` instance is centralized in the `Orchestrator`, which constructs exactly one and passes that same instance to the Workflow Engine side, the logical owner of the LLM/Tool Call round-trip loop. The executor is not recreated per turn or per workflow step. No other component holds unused or duplicate `LlmTurnExecutor` instances.
 - INV-03: The technical safety judgments of external operations that the MCP Server is responsible for (allowlist validation, path validation, sandboxed execution, resource limits, argument validation) are not taken over or duplicated in the Orchestrator layer or the ToolExecutor layer.
 
 ## Verification
@@ -196,7 +196,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-14; individual reviewer names are not recorded.
-- **Current Decision Approval (pending)**: The INV-02 wording that names the `Orchestrator` as the single creator of the `LlmTurnExecutor` instance is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-016. No approval is recorded here.
+- **Current Decision Approval**: Task-level approval decision by the repository owner acting as `@lead`, given in the task `memo-issue.md` (Part 1, AAL-016), covers the INV-02 wording: the `Orchestrator` creates exactly one `LlmTurnExecutor`, the same instance is passed to the Workflow Engine, and the executor is not recreated per turn or per workflow step. No approval date is recorded because the task context gives none; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -231,7 +231,7 @@ Acceptance conditions and their current state.
 - [x] Negative Consequences are recorded
 - [x] Verifiable Invariants are defined
 - [x] Each Invariant has a corresponding Verification
-- [x] Automatable verification does not rely only on Manual Review (INV-01 and INV-03 rely only on Manual Review; INV-02 has a unit test)
+- [x] Automatable verification does not rely only on Manual Review (INV-01 uses Manual Review; INV-02 uses an automated unit test; INV-03 uses an automated source-boundary test with secondary Manual Review)
 - [x] The ADR does not contradict related Specifications
 - [x] Discrepancies with the current implementation are registered as Known Issues
 - [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)

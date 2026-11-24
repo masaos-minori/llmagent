@@ -203,7 +203,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner:** Repository owner
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`
-- **Related:** AAL-040
+- **Related:** ADR-006 Approval Record (approved through task `memo-issue.md`; previously AAL-040)
 - **Summary:** ADR-006 states that the EventBus creates no events.jsonl (INV-18), but the publish route still appends it.
 - **Current Description:** ADR-006 Decision Detail 15 and INV-18 make eventbus.sqlite the sole source of truth and prohibit events.jsonl.
 - **Observed Implementation:** `scripts/eventbus/publish_route.py` appends to events.jsonl after the SQLite commit and increments eventbus_jsonl_append_failure_total.
@@ -223,7 +223,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner:** Repository owner
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`
-- **Related:** AAL-041
+- **Related:** AAL-042, ADR-006 Approval Record (retention and replay principles approved through task `memo-issue.md`; previously part of AAL-041)
 - **Summary:** ADR-006 defines state-aware retention, HTTP 410 replay expiration, and capacity and readiness rules (INV-19 to INV-22) that no code implements, and the retention-participant registry model is not approved.
 - **Current Description:** ADR-006 Decision Details 18 to 20 and the Replay Contract define the retention and replay-floor rules.
 - **Observed Implementation:** No retention task, purge, capacity signal, retention configuration, replay-floor check, or HTTP 410 response exists under `scripts/eventbus/`; events, consumer_delivery, and dlq_outbox rows are never deleted.
@@ -483,15 +483,6 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 
 ### Active Items
 
-#### AAL-002
-
-- **ID:** AAL-002
-- **ADR:** ADR-004
-- **Decision:** Decision Group 10 amendment (fallback prohibited without exception)
-- **Approver:** Not recorded
-- **Date:** Not recorded
-- **Scope:** Decision Group 10
-
 #### AAL-003
 
 - **ID:** AAL-003
@@ -582,15 +573,6 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Date:** Not recorded
 - **Scope:** INV-04, INV-09, Failure Conditions
 
-#### AAL-013
-
-- **ID:** AAL-013
-- **ADR:** ADR-010
-- **Decision:** Withdrawal of the fallback decision
-- **Approver:** Not recorded
-- **Date:** Not recorded
-- **Scope:** Status, Withdrawal Approval Record, historical marking of the corpus-identity passages (Decision Details 11 and 14, the two identity rows of the failure-outcome table, INV-09, one Negative Consequence, one Review Trigger)
-
 #### AAL-014
 
 - **ID:** AAL-014
@@ -608,15 +590,6 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Approver:** Not recorded
 - **Date:** Not recorded
 - **Scope:** Decision Detail 9
-
-#### AAL-016
-
-- **ID:** AAL-016
-- **ADR:** ADR-014
-- **Decision:** INV-02 names the Orchestrator as the single creator of the turn executor
-- **Approver:** Not recorded
-- **Date:** Not recorded
-- **Scope:** INV-02
 
 #### AAL-017
 
@@ -690,24 +663,6 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Date:** Not recorded
 - **Scope:** Decision Detail 9, INV-07
 
-#### AAL-030
-
-- **ID:** AAL-030
-- **ADR:** ADR-002
-- **Decision:** INV-04 amendment proposal: config files carry no MCP-server-owned settings; the only MCP-specific value given to the Agent is each enabled server's connection token supplied through ADR-017's environment-variable mechanism, and an enabled server resolving to an empty token aborts startup per ADR-017
-- **Approver:** Not recorded
-- **Date:** Not recorded
-- **Scope:** INV-04
-
-#### AAL-032
-
-- **ID:** AAL-032
-- **ADR:** ADR-002
-- **Decision:** INV-04 verification row set to Non-Blocking
-- **Approver:** Not recorded
-- **Date:** Not recorded
-- **Scope:** INV-04 verification row
-
 #### AAL-037
 
 - **ID:** AAL-037
@@ -726,23 +681,14 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Date:** Not recorded
 - **Scope:** ADR-015 Decision Scope attribution sentence, Related ADRs entry, and the Approval Record pending bullet
 
-#### AAL-040
+#### AAL-042
 
-- **ID:** AAL-040
+- **ID:** AAL-042
 - **ADR:** ADR-006
-- **Decision:** Removal of EventBus events.jsonl; eventbus.sqlite is the sole source of truth
+- **Decision:** Persistent retention-participant registry and the participant-dependent retention wording, split from AAL-041 (the retention and replay principles were approved separately); the registry schema, registration rules, decommission procedure, and ownership are not decided
 - **Approver:** Not recorded
 - **Date:** Not recorded
-- **Scope:** Decision Details 15 to 17, INV-17, INV-18, INV-21
-
-#### AAL-041
-
-- **ID:** AAL-041
-- **ADR:** ADR-006
-- **Decision:** EventBus state-aware retention, replay expiration (HTTP 410 replay_position_expired), and capacity and readiness rules
-- **Approver:** Not recorded
-- **Date:** Not recorded
-- **Scope:** Decision Details 18 to 20, Replay Contract, INV-19, INV-20, INV-22
+- **Scope:** Decision Detail 18, the participant acknowledgement and decommission clause of Decision Detail 19 and INV-19, and the dedicated-task and capacity-signal-list wording of Decision Detail 20 and INV-22
 
 ## Resolution Rules
 

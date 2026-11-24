@@ -101,7 +101,7 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 36267 (2026-11-20): adrchk013 renamed the Automated Tests `Status`
     # column to `Implementation`, added the row test citations and the INV-14 row; the
     # ceiling equals the accepted size.
-    "adr_02_01_004_platform-environment-failure-handling-policy.md": 36267,
+    "adr_02_01_004_platform-environment-failure-handling-policy.md": 36986,
     # Re-accepted 2026-11-12, closing a second pre-existing gap: the file had grown 32586
     # -> 33944 by 83879685e (adrrev008) without the ceiling being re-recorded. Recorded
     # only to keep check_docs_structure.py green.
@@ -122,14 +122,15 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 49132 (2026-11-24): Decision Details 26 and 27, the Episodic
     # taxonomy, retention, search, and Repository Context safety clauses, and the
     # capacity rows grew the ADR 47600 -> 49132; the ceiling equals the accepted size.
-    # Re-accepted at 51665 (2026-11-24, ADR-008 consistency pass); 49132 -> 51665.
-    "adr_02_05_008_db-sqlite-4db-separation.md": 51665,
+    # Re-accepted at 54865 (memo-issue.md); 51665 -> 54865.
+    "adr_02_05_008_db-sqlite-4db-separation.md": 54865,
     # Accepted at 39575 (2026-11-24, adrdoc001 procedure 20261124-094801_01): the
     # single-source-of-truth, state-aware retention, replay-floor, and capacity decisions
     # (Decision Details 15 to 20), INV-17 to INV-22, the Known Deviations, and the two
     # pending approval bullets grew the ADR past the default limit; the ceiling equals the
     # accepted size.
-    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 39575,
+    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 40944,
+    "adr_02_04_013_eventbus-authentication-authorization.md": 33889,
     # Re-accepted at 36609 (2026-11-20, adrchk013 procedure 20261120-111659_03): the
     # ADR-016/ADR-017 matrix rows, the split-out ADR-012 INV-04 row, the ADR-003 INV-03
     # Partial rewrite, the dropped migration-window wording and the Pipeline Mapping
