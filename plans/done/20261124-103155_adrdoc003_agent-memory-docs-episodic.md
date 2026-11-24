@@ -205,10 +205,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Memory architecture, Session DB, and module reference | Pending | — | — | |
-| 2 | CLI commands: Memory Category retirement, command index, chapter index | Pending | — | — | |
-| 3 | Reload, diagnostics, context budget, and recovery commands | Pending | — | — | |
-| 4 | Validation checks and unchanged generated-reference confirmation | Pending | — | — | |
+| 1 | Memory architecture, Session DB, and module reference | In Progress | — | — |  |
+| 2 | CLI commands: Memory Category retirement, command index, chapter index | In Progress | — | — |  |
+| 3 | Reload, diagnostics, context budget, and recovery commands | In Progress | — | — |  |
+| 4 | Validation checks and unchanged generated-reference confirmation | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -218,7 +218,17 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261124-103504_01_docs_23_agent_agent_07_01_cli-and-commands-cli-reference.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261124-103504_02_docs_23_agent_agent_07_03_cli-and-commands-command-registry.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261124-103504_03_docs_23_agent_agent_07_06_cli-and-commands-hot-reload.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261124-103504_04_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261124-103504_05_docs_23_agent_agent_07_08_cli-and-commands-slash-commands-context-plan.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261124-103504_06_docs_23_agent_agent_07_09_cli-and-commands-slash-commands-workflow-debug.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261124-103504_07_docs_23_agent_agent_07_10_cli-and-commands-slash-commands-memory-other.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261124-103504_08_docs_23_agent_agent_09_01_data-layer-session-db.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261124-103504_09_docs_23_agent_agent_11_01_memory-overview-and-modes.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261124-103504_10_docs_23_agent_agent_11_02_memory-gate-data-model-search.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261124-103504_11_docs_23_agent_agent_11_03_memory-module-reference.md.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -250,3 +260,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-006 | Required Changes D | `docs/23_agent/agent_07_08_cli-and-commands-slash-commands-context-plan.md` | Phase 3 | AC-06 | `check_docs_consistency.py --domain agent` | Needs confirmation (UNK-05) |
 | REQ-007 | Required Changes E; agent_11_03 lines 56 to 93 | `docs/23_agent/agent_11_03_memory-module-reference.md` | Phase 1 | AC-07 | `generate_reference_table.py --check` | Confirmed by repository evidence |
 | REQ-008 | Required validation; Acceptance Criteria | `docs/23_agent/agent_11_01_memory-overview-and-modes.md` | Phase 4 | AC-07 | Validation plan checkers | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261124-103504 -->
