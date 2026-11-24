@@ -50,6 +50,9 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 | Event Bus design intent & architecture | `eventbus_01` |
 | Publishing / subscribing, DLQ promotion | `eventbus_03` |
 | Publish durability | `eventbus_09` |
+| Retention, purge, DLQ artifact and archive lifecycle | `eventbus_05`, `eventbus_07` |
+| Replay floor and HTTP 410 for expired positions | `eventbus_11`, `eventbus_05` |
+| Capacity and readiness signals | `eventbus_10`, `eventbus_07` |
 | Replay endpoint | `eventbus_11` |
 | ACK / NACK endpoints and state transitions | `eventbus_12` |
 | DLQ list / requeue endpoints | `eventbus_04` |
@@ -63,11 +66,11 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 
 ## Canonical Sources
 
-See EventBus runtime-behavior and EventBus persistence-schema in the Canonical Source Registry.
+See EventBus runtime-behavior and EventBus persistence-schema in the Canonical Source Registry. `eventbus.sqlite` is the only EventBus system of record (ADR-006); structured security audit logs are separate operational logs, and dead-letter JSON files are derived artifacts reconstructable from SQLite.
 
 ## Known Issues / Deferred Items
 
-Known limitations, specification gaps, and pending items are centrally managed in `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus). Do not duplicate them in individual chapters.
+Known limitations, specification gaps, and pending items are centrally managed in `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus). Do not duplicate them in individual chapters; the chapters cite the Known Issue ID where current code differs from the documented contract (EVENTBUS-001: the code still appends `events.jsonl`; EVENTBUS-002: no retention, purge, capacity signal, replay floor, or HTTP 410 yet).
 
 ## Reference API
 

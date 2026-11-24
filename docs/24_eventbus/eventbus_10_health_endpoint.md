@@ -77,6 +77,15 @@ The response includes two boolean health-tier fields:
 
 The deployment readiness gate is `liveness and readiness` (`is_ready()` in `scripts/eventbus/health_route.py`); `deploy/setup_services.sh` reads exactly these two fields. The broker is not part of the gate. Schema integrity is checked at startup, not reported here.
 
+## Retention and Capacity Signals
+
+The signals below are defined by ADR-006 Decision Detail 20. None of them exists in `scripts/eventbus/health_route.py` yet, so no response field, degraded reason, or threshold is documented here; the implementation defines their names and values (EVENTBUS-002).
+
+- **Capacity measurements**: the size of `eventbus.sqlite`, the size of its WAL file, the size of the verified archives, the size of the dead-letter directory, the size of the structured audit logs, and the free disk space.
+- **Retention measurements**: the event count, the purge-eligible count, the retention-blocked count, the age of the oldest retained event, the purge lag, the last retention run, its last result, and the number of events it last deleted.
+- **Warning versus critical**: each measurement has a warning level and a critical level. A warning is reported without making readiness false and adds no degraded reason. A critical disk shortage and a retention-state inconsistency make readiness false.
+- **Retention health state**: the retention task has its own health state, separate from the DLQ sweep task and the authorization sweep task, so a stopped retention task is not reported as a DLQ or authorization failure.
+
 ## Metric Definitions
 
 ### Lock-wait vs Query Duration

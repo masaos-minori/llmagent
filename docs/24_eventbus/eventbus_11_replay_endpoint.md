@@ -29,7 +29,7 @@ Requires `Bearer ${OPERATOR_TOKEN}` in the Authorization header.
 
 | Parameter | Required | Default | Constraints | Description |
 |-----------|----------|---------|-------------|-------------|
-| `since_seq` | No | `0` | `>= 0` | Replay events with `seq` greater than this value (exclusive); `0` replays all events |
+| `since_seq` | No | `0` | `>= 0` | Replay events with `seq` greater than this value (exclusive); `0` replays from the earliest retained event |
 | `format` | No | `sse` | `sse`, `json` | Response format: SSE stream or JSON |
 | `limit` | No | route default | bounded (see route definition) | Maximum number of events to return |
 | `offset` | No | `0` | `>= 0` | Offset into the event set for pagination |
@@ -62,6 +62,10 @@ When no events exist after `since_seq`, the JSON response has `total: 0` and an 
 
 - Missing parameters use the defaults in the Parameters table.
 - `since_seq` below 0, `limit` below 1 or above the maximum bound, `offset` below 0, or an unknown `format` value: HTTP 422 (FastAPI validation).
+
+## Retained History and Expired Positions
+
+`earliest_available_seq` is the lowest `seq` still retained and `latest_available_seq` is the highest; the event store keeps only the retained history (ADR-006). A `since_seq` before `earliest_available_seq` fails with HTTP 410 and the error code `replay_position_expired`. It is a retention condition, not a parameter error, so it is not part of the HTTP 422 cases above. `/replay` advances no consumer offset, so nothing is advanced to the retention floor. The same rule applies to a `/subscribe` resume (see `eventbus_03_dlq_operations.md`). Where the bounds appear in a response is defined by the implementation, which does not enforce the floor yet (EVENTBUS-002).
 
 ## Ordering and Consistency
 

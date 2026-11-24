@@ -63,6 +63,7 @@ The schema and defaults are defined in `scripts/eventbus/config.py::EventBusConf
 - `slow_consumer_threshold` must be strictly less than `subscriber_queue_maxsize`, and `backlog_health_threshold` must be less than or equal to it. Invalid combinations fail startup with error messages naming both conflicting values.
 - `sse_idle_timeout` closes a `/subscribe` connection that received no events within that period; `sse_heartbeat_interval` controls keep-alive comments.
 - `publish_rate`, `subscriber_count` and `replay_batch_size` bound capacity and replay batch size.
+- No retention or capacity key exists in `EventBusConfig` or `config/eventbus.toml`, so none is documented here (EVENTBUS-002).
 
 ### Token Distribution
 
@@ -143,6 +144,8 @@ HTTP 200 = `ok`, otherwise = HTTP 503 + `status: "degraded"` + component details
 
 ---
 
+Retention and capacity signals, and the warning versus critical readiness behavior, are described in `eventbus_10_health_endpoint.md` (not yet implemented, EVENTBUS-002).
+
 ## Batched Replay Design
 
 Initial replay is performed in bounded, configurable batches rather than a single unbounded `.fetchall()` call. This prevents memory exhaustion during large replays and reduces database lock contention by releasing and reacquiring `_db_lock` between batches.
@@ -204,7 +207,27 @@ Promotion is DB-only: neither inline `/nack` processing nor the background sweep
 
 ### Monitoring
 
-Sweep results are recorded in the logs but are not exposed via the health endpoint.
+Sweep results are recorded in the logs but are not exposed via the health endpoint. The size of the dead-letter directory is one of the capacity measurements listed under Retention and Capacity Operations.
+
+## Retention and Capacity Operations
+
+This section is the operator view of ADR-006 Decision Detail 20. Retention itself is defined in `eventbus_05_dlq_offsets_and_delivery_semantics.md`. None of the behavior below is implemented yet (EVENTBUS-002).
+
+### Retention Task
+
+Retention runs as a dedicated maintenance task. It is separate from the DLQ repair loop and from the authorization TTL sweep, and it has its own health state. No manual deletion procedure is supported.
+
+### Capacity Measurements
+
+The measurements are the size of `eventbus.sqlite`, the size of its WAL file, the size of the verified archives, the size of the dead-letter directory, the size of the structured audit logs, and the free disk space. The audit logs are operational logs outside `eventbus.sqlite`; their destination is defined by the deployment, not by the EventBus configuration. Warning and critical levels, and the readiness behavior at each level, are described in `eventbus_10_health_endpoint.md`.
+
+### Backup and Archive Retention
+
+`python -m eventbus.db_tools rotate` writes a verified archive of `eventbus.sqlite` through the SQLite backup API, which is the supported way to take a consistent copy while the database is in use. Verified archives need a bounded-growth rule by generation, age, and total size, with a minimum number of verified recovery generations kept and the latest verified recovery candidate protected from cleanup. No such rule or values exist yet, and no retention logic exists in `scripts/eventbus/` or `scripts/db/rotation.py`.
+
+### WAL Checkpoint
+
+A WAL checkpoint runs around retention work and at shutdown so that the WAL file does not hold purged data and the database size reflects the retained history (ADR-008 WAL requirement).
 
 ## Shutdown
 
@@ -221,6 +244,8 @@ test suite, so production and tests run the same sequence:
 
 A worker that was admitted before shutdown but acquires the lock after the shutdown
 flag is set exits with the shutdown error and runs no SQL.
+
+The retention task, once implemented, stops between batches when shutdown begins, so a purge unit is never left half deleted (EVENTBUS-002).
 
 **Connection-ownership rule:** the shared SQLite connection is never closed while any
 worker — the DLQ sweep thread, a route-handler worker thread, or an SSE task — may

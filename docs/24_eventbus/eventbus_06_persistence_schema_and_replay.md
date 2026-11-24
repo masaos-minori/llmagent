@@ -6,7 +6,6 @@ tags:
   - sqlite
   - schema
   - wal
-  - jsonl-archive
   - replay
   - consumer-offset
 related:
@@ -49,9 +48,9 @@ Recreate procedure:
 
 `consumer_offsets` holds the last-committed sequence offset per consumer; the update only applies when the new offset is greater than the stored one (monotonic).
 
-## JSONL Archive
+## No Event Replica
 
-`{storage_dir}/events.jsonl` is a replica of the `events` table — one line per unique event, matching SQLite's deduplication semantics. It is appended after a successful DB insert; failures in appending do not prevent a 200 response. Duplicate events are not appended again. Do NOT read primary data from JSONL; use SQLite queries instead.
+`eventbus.sqlite` is the only EventBus system of record (ADR-006). The EventBus keeps no event replica: structured security audit records are separate operational logs and are not a backup, replay source, or recovery source, and the dead-letter JSON files are derived artifacts that can be reconstructed from SQLite. The current code still appends an `events.jsonl` file after the commit (EVENTBUS-001); it is never read as primary data and is not part of the contract.
 
 ### Idempotency Contract
 
@@ -60,8 +59,7 @@ Recreate procedure:
   - `status="duplicate"`: identical content retry, original seq returned
   - `status="conflict"`: conflicting content, rejected with HTTP 409
 - **Canonical equality**: Two events are considered identical when their canonical fields match: `topic`, `payload` (canonical JSON via `orjson.dumps()` with `OPT_SORT_KEYS`), and `producer`. `published_at` is excluded because it is supplied by the client and may differ between retries.
-- **published_at ownership**: `published_at` is publisher-supplied and stored unchanged; the column is `NOT NULL` with no database default. The publish route validates it with a `jsonschema` `FormatChecker` (`rfc3339-validator` registers the `date-time` checker), so a malformed value is rejected with HTTP 422. The check is format-only: no clock-skew or future-value limit.
-- **JSONL append guard**: JSONL append occurs inside `if inserted:` block only, so the file contains exactly one line per unique event.
+- **published_at ownership**: `published_at` is publisher-supplied and stored unchanged; the column is `NOT NULL` with no database default. The publish route validates it with a `jsonschema` `FormatChecker` (`rfc3339-validator` registers the `date-time` checker), so a malformed value is rejected with HTTP 422. The check is format-only: no clock-skew or future-value limit. Retention decisions never use `published_at`; any age condition uses an EventBus-generated timestamp, and the `events` table stores no such receive time yet (EVENTBUS-002).
 
 ## Consumer ID Stability
 
@@ -69,9 +67,9 @@ See [Consumer Identity](eventbus_05_dlq_offsets_and_delivery_semantics.md#consum
 
 ## Replay Behavior
 
-`GET /replay?since_seq=N` returns events where `seq > N` in ascending order of `seq`. SSE format provides sequential streaming; JSON format provides a `{total, limit, offset, items}` pagination object. `total` is available only in JSON format. The full endpoint contract is in `eventbus_11_replay_endpoint.md`.
+`GET /replay?since_seq=N` returns events where `seq > N` in ascending order of `seq`. SSE format provides sequential streaming; JSON format provides a `{total, limit, offset, items}` pagination object. `total` is available only in JSON format. A start position before `earliest_available_seq` fails with HTTP 410 `replay_position_expired` (not yet implemented, EVENTBUS-002). The full endpoint contract is in `eventbus_11_replay_endpoint.md`.
 
-## SQLite/JSONL Consistency Check and Recovery Procedure
+## SQLite Consistency Check and Recovery Procedure
 
 ### Step 1: Verify WAL file integrity
 
@@ -89,14 +87,7 @@ If the output is not `ok`, the database may be corrupted. Proceed to Step 5 (con
 
 `seq` is an `AUTOINCREMENT` key and is not guaranteed to be contiguous: a rolled-back insert or a removed row leaves a gap. A gap in `seq` MUST NOT be treated as event loss, and `MAX(seq) - MIN(seq) != COUNT(*) - 1` is not a valid check.
 
-Compare the row count with the JSONL archive instead, which holds one line per unique event:
-
-```bash
-sqlite3 /path/to/eventbus.sqlite "SELECT COUNT(*) FROM events;"
-wc -l < {storage_dir}/events.jsonl
-```
-
-A JSONL count lower than the row count is possible, because a failed archive append does not fail the publish. A JSONL count higher than the row count indicates an inconsistency.
+Once retention is implemented, `MIN(seq)` is also the retention floor (`earliest_available_seq`), so a floor above 1 is not event loss either (EVENTBUS-002).
 
 ### Step 3: Check consumer progress
 
@@ -159,7 +150,6 @@ If inconsistencies are detected, follow this controlled restart procedure:
 - sqlite
 - wal
 - schema
-- jsonl archive
 - idempotency
 - replay
 - consumer offsets

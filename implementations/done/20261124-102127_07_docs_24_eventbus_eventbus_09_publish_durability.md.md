@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document per Implementation | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | Release unit eventbus-docs |
+| 1 | Edit the document per Implementation | Completed | 20261124-102712 | 20261124-102712 | Changed: docs/24_eventbus/eventbus_09_publish_durability.md |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261124-102753 | 20261124-102753 | Release unit eventbus-docs eventbus consistency, docs structure/quality/content-policy, known-deviation sync, needs-confirmation inventory, reference drift checks and 77 tests pass; preservation findings are intended |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

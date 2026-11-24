@@ -56,7 +56,7 @@ Publishes an event. Idempotent: a duplicate `event_id` with identical content is
 
 **Response**: On success, returns `{event_id, seq}` (the existing `seq` for an identical duplicate). A 422 error indicates a JSON Schema validation error, and a 409 error indicates that the `event_id` already exists with conflicting content.
 
-**JSONL Append Failure**: If writing to the JSONL archive fails, the event is still committed to SQLite and a 200 status is returned. A WARNING will be recorded in the logs.
+**Post-commit side effects**: A successful SQLite commit is publish success. Broker notification is a best-effort side effect after the commit and cannot roll back a committed event. The EventBus creates no `events.jsonl` (ADR-006 INV-18); the current code still appends one (EVENTBUS-001).
 
 ---
 
@@ -74,6 +74,8 @@ A hybrid model combining replay and push, streaming events to the caller.
 3. `Last-Event-ID` header value + 1 (lowest — fallback for `EventSource` clients): a header value of `L` resumes with event `L+1`
 
 If `Last-Event-ID` exceeds the current max seq in SQLite, the server returns HTTP 412 Precondition Failed with the current max seq in the response body.
+
+If the resolved start position is before `earliest_available_seq`, the server returns HTTP 410 with the error code `replay_position_expired` and advances no consumer offset (ADR-006 INV-20). The retention floor and this check are not yet implemented (EVENTBUS-002); see `eventbus_05_dlq_offsets_and_delivery_semantics.md` and `eventbus_11_replay_endpoint.md`.
 
 **Phase 1 — Replay**: Upon connection, events matching the topic filter that follow the starting position are retrieved from SQLite in batches (`replay_batch_size`), each batch continuing after the last event sent until a batch shorter than `replay_batch_size` ends the phase, and output as `id:<seq>\ndata: {...}\n\n` SSE frames.
 
@@ -146,7 +148,7 @@ Normally self-healed by the sweep. Reconciliation counts DLQ files that have no 
 
 ### Missing Files (row has `dlq_at IS NOT NULL`, `{event_id}.json` absent)
 
-The background reconciliation rebuilds the lost file from the SQLite row, which is the authoritative DLQ source (see Authority model above). Rebuild reads the event row (`event_id`, `topic`, `payload`, `producer`, `published_at`) and writes the record as a derived artifact; it does not change the DLQ state, which is already committed. JSONL is best-effort and is not a rebuild source: an event whose JSONL append failed exists only in SQLite and is rebuilt from SQLite here; if the SQLite row is itself absent, quarantine the event per policy. Reconciliation runs on a schedule and retries a transient write failure on the next pass. {defer operator-command sentence until UNK-01}
+The background reconciliation rebuilds the lost file from the SQLite row, which is the authoritative DLQ source (see Authority model above). Rebuild reads the event row (`event_id`, `topic`, `payload`, `producer`, `published_at`) and writes the record as a derived artifact; it does not change the DLQ state, which is already committed. SQLite is the only rebuild source; if the SQLite row is itself absent, quarantine the event per policy. Reconciliation runs on a schedule and retries a transient write failure on the next pass. {defer operator-command sentence until UNK-01}
 
 ### Interrupted Temp Files (leftover `.dlq_tmp_*`)
 
@@ -160,6 +162,8 @@ Reconciliation compares each DLQ file's fields against its authoritative SQLite 
 
 Quarantine the file (rename to `*.corrupt`) and flag for manual review. Do not silently rewrite it.
 
+**Artifact lifecycle and recorded outcomes**: DLQ JSON files, including the files moved to `{deadletter_dir}/requeued/` by a requeue, are derived artifacts that can be reconstructed from SQLite; `events.dlq_at` and the `dlq_outbox` table are the authoritative DLQ state. A `dlq_outbox` row in `pending` or `failed` status is never deleted automatically. Reconciliation records its outcomes as the counts `orphans`, `mismatch`, and `interrupted_tmp` in its report and by quarantining a corrupt file as `*.corrupt`; it deletes no derived artifact automatically.
+
 **Scope boundary**: Reconciliation preserves the committed-first durability order (SQLite DLQ state plus its durable generation request) and does not alter the requeue transaction (H-01) or the readiness/integrity definition (H-03).
 
 ---
@@ -171,7 +175,8 @@ Failure behavior of the other endpoints is in their reference documents above.
 | Failure Cause | Action |
 |---|---|
 | JSON Schema validation failure during `publish` | 422, event is not saved |
-| JSONL append failure after SQLite commit | 200 returned, WARNING log output, event remains in SQLite |
+| Broker notification failure after SQLite commit | 200 returned, failure logged and counted, event remains in SQLite and is delivered by replay |
+| Resume position before the retention floor | 410 `replay_position_expired`, no offset advanced (not yet implemented, EVENTBUS-002) |
 | Duplicate `event_id` with conflicting content during `publish` | 409 Conflict, event is not saved |
 | Duplicate `event_id` during `publish` (Idempotency skip) | 200 returned (existing `seq`), broker notification skipped |
 | Subscriber queue full | Subscriber disconnected; client must reconnect using its last committed offset |

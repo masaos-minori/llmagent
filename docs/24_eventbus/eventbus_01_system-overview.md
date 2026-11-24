@@ -34,7 +34,9 @@ The Event Bus uses an in-memory pub/sub broker (`EventBroker`) for live event de
 
 - **Live Delivery**: `EventBroker` provides topic-based fan-out via `asyncio.Queue`.
 - **Replay**: Past events are replayed from SQLite through the `/replay` and `/subscribe` endpoints.
-- **Persistence**: All events are stored in SQLite, and each DLQ event is also written as a per-event JSON file (`{event_id}.json`) in the dead-letter directory.
+- **Persistence**: All events and DLQ state are stored in `eventbus.sqlite`, the only EventBus system of record (ADR-006); the EventBus keeps no event replica. Each DLQ event also has a per-event JSON file (`{event_id}.json`) in the dead-letter directory, which is derived from SQLite and can be reconstructed from it.
+- **Audit Logs**: Structured security audit records are operational logs. They are not event persistence, a backup, a replay source, or a recovery source.
+- **Retention**: Retention is state-aware and bounded (see `eventbus_05_dlq_offsets_and_delivery_semantics.md`); it is not yet implemented (EVENTBUS-002).
 - **Offset Management**: Offsets are persisted in SQLite (`consumer_offsets` table) to facilitate consumer recovery.
 
 ## Security Model
@@ -56,7 +58,7 @@ The Agent runtime does not use the Event Bus:
 
 ## Known Issues
 
-Known issues for this area are tracked in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus). Offset and resume semantics, including the ACK-order obligation, are described in `eventbus_05_dlq_offsets_and_delivery_semantics.md`.
+Known issues for this area are tracked in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus): EVENTBUS-001 (the code still appends `events.jsonl`, which ADR-006 no longer permits) and EVENTBUS-002 (retention, replay floor, and capacity signals are not implemented). Offset and resume semantics, including the ACK-order obligation, are described in `eventbus_05_dlq_offsets_and_delivery_semantics.md`.
 
 ## Keywords
 
