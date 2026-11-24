@@ -340,11 +340,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: shared definitions — `scripts/shared/repo_identity.py` (row 1) and the strict numeric accessor in `scripts/shared/config_utils.py` (row 2) | Completed | — | 20261124-142243 | Procedures generated 2026-11-24: 20261124-103302_01, _02. Companion test rows 11, 12 covered by those documents Rows 1, 2 and companion test rows 11, 12 implemented and archived 2026-11-24 |
-| 2 | Phase 2: failing boundary tests, characterization first — test rows 13, 14, 15, 16, 17, 19 | In Progress | — | — | Covered by the `### Companion test files` sections of the Phase 3 documents (_04, _05, _06, _07, _08, _09); companion rows get no document of their own |
-| 3 | Phase 3: boundary enforcement — rows 4-9 | In Progress | — | — | Procedures generated 2026-11-24: 20261124-103302_04, _05, _06, _07, _08, _09 |
-| 4 | Phase 4: configuration and posture — rows 3, 10, 20, 24, 25 | In Progress | — | — | Procedures generated 2026-11-24: 20261124-103302_03, _10, _18 (row 18), _20 (row 20), _24 (row 24, with row 25 as its companion). Rows 24, 25 added by the 2026-11-24 fallout amendment |
-| 5 | Phase 5: documentation — rows 21, 22, 23 | In Progress | — | — | Procedures generated 2026-11-24: 20261124-103302_21, _22, _23. The validation and deployment bullets of this step modify no file and are not mapped to a procedure; `code-implementation` carries them out |
+| 1 | Phase 1: shared definitions — `scripts/shared/repo_identity.py` (row 1) and the strict numeric accessor in `scripts/shared/config_utils.py` (row 2) | Completed | 20261124-152854 | 20261124-152854 | Procedures generated 2026-11-24: 20261124-103302_01, _02. Companion test rows 11, 12 covered by those documents Rows 1, 2 and companion test rows 11, 12 implemented and archived 2026-11-24 |
+| 2 | Phase 2: failing boundary tests, characterization first — test rows 13, 14, 15, 16, 17, 19 | Completed | 20261124-152854 | 20261124-152854 | Covered by the `### Companion test files` sections of the Phase 3 documents (_04, _05, _06, _07, _08, _09); companion rows get no document of their own |
+| 3 | Phase 3: boundary enforcement — rows 4-9 | Completed | 20261124-152854 | 20261124-152854 | Procedures generated 2026-11-24: 20261124-103302_04, _05, _06, _07, _08, _09 |
+| 4 | Phase 4: configuration and posture — rows 3, 10, 20, 24, 25 | Completed | 20261124-152854 | 20261124-152854 | Procedures generated 2026-11-24: 20261124-103302_03, _10, _18 (row 18), _20 (row 20), _24 (row 24, with row 25 as its companion). Rows 24, 25 added by the 2026-11-24 fallout amendment |
+| 5 | Phase 5: documentation — rows 21, 22, 23 | Completed | 20261124-152854 | 20261124-152854 | Procedures generated 2026-11-24: 20261124-103302_21, _22, _23. The validation and deployment bullets of this step modify no file and are not mapped to a procedure; `code-implementation` carries them out |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -354,22 +354,22 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261124-103302_01_scripts_shared_repo_identity.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261124-103302_02_scripts_shared_config_utils.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261124-103302_03_scripts_mcp_servers_github_github_models_config.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261124-103302_04_scripts_mcp_servers_github_github_service_security.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261124-103302_05_scripts_mcp_servers_github_github_service_file.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261124-103302_06_scripts_mcp_servers_github_github_service_repository.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261124-103302_07_scripts_mcp_servers_github_github_service_issues.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261124-103302_08_scripts_mcp_servers_github_github_service_pull_requests.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261124-103302_09_scripts_mcp_servers_github_github_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261124-103302_10_config_github_mcp_server.toml.md | 4 | Procedure | Pending | — | — |
-| implementations/20261124-103302_18_tests_mcp_servers_github_test_github_server_auth.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261124-103302_20_tests_mcp_servers_github_test_github_security_validation.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261124-103302_21_docs_22_mcp_mcp_05_01_access-control-and-allowlists.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261124-103302_22_docs_22_mcp_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261124-103302_23_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261124-103302_24_scripts_shared_security_posture_contract.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261124-103302_01_scripts_shared_repo_identity.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261124-103302_02_scripts_shared_config_utils.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261124-103302_03_scripts_mcp_servers_github_github_models_config.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261124-103302_04_scripts_mcp_servers_github_github_service_security.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261124-103302_05_scripts_mcp_servers_github_github_service_file.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261124-103302_06_scripts_mcp_servers_github_github_service_repository.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261124-103302_07_scripts_mcp_servers_github_github_service_issues.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261124-103302_08_scripts_mcp_servers_github_github_service_pull_requests.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261124-103302_09_scripts_mcp_servers_github_github_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261124-103302_10_config_github_mcp_server.toml.md | 4 | Procedure | Completed | — | — |
+| implementations/20261124-103302_18_tests_mcp_servers_github_test_github_server_auth.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261124-103302_20_tests_mcp_servers_github_test_github_security_validation.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261124-103302_21_docs_22_mcp_mcp_05_01_access-control-and-allowlists.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261124-103302_22_docs_22_mcp_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261124-103302_23_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261124-103302_24_scripts_shared_security_posture_contract.py.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

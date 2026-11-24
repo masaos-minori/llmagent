@@ -51,7 +51,9 @@ class RepositoryOps(GitHubSecurityGuards):
 
         def _sync() -> list[RepositoryInfo]:
             """Synchronously search repositories via GitHub API."""
-            results_iter = self._gh.search_repositories(query=req.query)
+            results_iter = self._gh.search_repositories(
+                query=self._resolve_search_query(req.query)
+            )
             return [
                 RepositoryInfo(
                     full_name=r.full_name,
@@ -161,7 +163,9 @@ class RepositoryOps(GitHubSecurityGuards):
 
         def _sync() -> list[CodeSearchResult]:
             """Execute the GitHub API call synchronously inside the thread pool."""
-            results_iter = self._gh.search_code(query=req.query)
+            results_iter = self._gh.search_code(
+                query=self._resolve_search_query(req.query)
+            )
             return [
                 CodeSearchResult(
                     repository=r.repository.full_name,

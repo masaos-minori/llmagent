@@ -52,6 +52,8 @@ SERVER_CHECK_IDS: dict[str, tuple[str, ...]] = {
         "server.max_file_size",
         "server.audit_log_writable",
         "server.per_page_bounds",
+        "server.global_search",
+        "server.max_file_read_size",
     ),
     "cicd": (
         "server.repo_allowlist",

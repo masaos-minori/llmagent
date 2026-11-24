@@ -128,6 +128,22 @@ class TestGitHubConfigFromDictTypeValidation:
         assert cfg.max_file_size_kb == 0
         assert cfg.default_per_page == DEFAULT_PER_PAGE
         assert cfg.max_per_page == 100
+        assert cfg.allow_global_search is False
+        assert cfg.max_file_read_size_kb == 0
+
+    def test_zero_max_file_read_size_is_accepted_as_unlimited(self) -> None:
+        """`0` is a value meaning unlimited, not a rejection (AC-4, AC-6)."""
+        cfg = GitHubConfig.from_dict({"max_file_read_size_kb": 0})
+        assert cfg.max_file_read_size_kb == 0
+
+    def test_non_boolean_allow_global_search_raises(self) -> None:
+        with pytest.raises(ValueError):
+            GitHubConfig.from_dict({"allow_global_search": "true"})
+
+    @pytest.mark.parametrize("value", [float("nan"), float("inf"), -1])
+    def test_invalid_max_file_read_size_kb_raises(self, value: float) -> None:
+        with pytest.raises(ValueError):
+            GitHubConfig.from_dict({"max_file_read_size_kb": value})
 
     def test_wrong_type_max_file_size_kb_raises(self) -> None:
         with pytest.raises(ValueError):

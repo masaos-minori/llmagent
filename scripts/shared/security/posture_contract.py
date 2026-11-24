@@ -57,6 +57,8 @@ REQUIRED_CHECK_IDS: Mapping[str, tuple[str, ...]] = {
         "server.max_file_size",
         "server.audit_log_writable",
         "server.per_page_bounds",
+        "server.global_search",
+        "server.max_file_read_size",
     ),
     "cicd": COMMON_CHECK_IDS
     + (

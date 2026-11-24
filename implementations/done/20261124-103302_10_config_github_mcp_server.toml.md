@@ -70,14 +70,14 @@ Add the two settings this Plan introduces to the shipped configuration with the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the two keys and correct the `allowed_repos` comment per Procedure | Pending | — | — | |
-| 2 | Run the config gate `uv run python tools/check_config_comment_length.py` | Pending | — | — | Test coverage is executed by row 18's document |
-| 3 | Deployment step: `deploy.sh` syncs this file; restart github-mcp and confirm `/health` reports the two new checks with the shipped values | Pending | — | — | Plan Phase 5, an unmapped step in the Plan's Execution Status |
+| 1 | Add the two keys and correct the `allowed_repos` comment per Procedure | Completed | — | 20261124-151438 |  |
+| 2 | Run the config gate `uv run python tools/check_config_comment_length.py` | Completed | — | 20261124-151438 | Test coverage is executed by row 18's document checker reports 0 errors; the 7 warnings are pre-existing grandfathered comment blocks |
+| 3 | Deployment step: `deploy.sh` syncs this file; restart github-mcp and confirm `/health` reports the two new checks with the shipped values | Superseded | — | — | Plan Phase 5, an unmapped step in the Plan's Execution Status Handed to the maintainer: run deploy/deploy.sh then restart github-mcp and confirm /health reports server.global_search and server.max_file_read_size with the shipped values |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 3 | Production deployment (config sync, github-mcp restart, `/health` confirmation) is a shared-infrastructure action the maintainer performs, not this session | Yes | 20261124-151438 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

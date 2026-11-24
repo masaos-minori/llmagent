@@ -79,9 +79,9 @@ Wire the read path of `github_get_file_contents` to the boundary added in row 4:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion `tests/mcp_servers/github/test_service_file.py`) | Pending | — | — | The replaced characterization case is updated in the same commit |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261124-152854 | 20261124-152854 |  |
+| 2 | Add or update tests per Validation plan (companion `tests/mcp_servers/github/test_service_file.py`) | Completed | 20261124-152854 | 20261124-152854 | The replaced characterization case is updated in the same commit test_decodes_with_replace_on_invalid_utf8 replaced by the strict-decode refusal case: intentional behavior change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261124-152854 | 20261124-152854 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -92,9 +92,9 @@ Make the guard module the single repository boundary (REQ-001: the allowlist che
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion `tests/mcp_servers/github/test_service_security.py`) | Pending | — | — | Write the read-boundary cases before this row lands (release unit boundary tests) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) plus `uv run radon cc` and `uv run lint-imports` | Pending | — | — | Record the before/after radon numbers |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261124-152854 | 20261124-152854 |  |
+| 2 | Add or update tests per Validation plan (companion `tests/mcp_servers/github/test_service_security.py`) | Completed | 20261124-152854 | 20261124-152854 | Write the read-boundary cases before this row lands (release unit boundary tests) TestGetRepoBoundary, TestAssertMaxReadFileSize, TestResolveSearchQuery, TestSingleRepoBoundary (repo_scan) added |
+| 3 | Run the validation sequence (`rules/toolchain.md`) plus `uv run radon cc` and `uv run lint-imports` | Completed | 20261124-152854 | 20261124-152854 | Record the before/after radon numbers radon: validate_github_security() C(11) before and after (new checks factored into module-level helpers); new _resolve_search_query() C(11), repo already holds 82 C-or-worse blocks and no radon gate exists |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

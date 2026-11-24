@@ -109,7 +109,8 @@ class PullRequestOps(GitHubSecurityGuards):
 
         def _sync() -> list[IssueInfo]:
             """Synchronously search for pull requests via GitHub search API."""
-            query = req.query if "is:pr" in req.query else f"{req.query} is:pr"
+            resolved = self._resolve_search_query(req.query)
+            query = resolved if "is:pr" in resolved else f"{resolved} is:pr"
             issues_slice = itertools.islice(
                 self._gh.search_issues(query=query),
                 per_page,

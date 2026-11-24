@@ -130,7 +130,7 @@ class TestSearchRepositories:
         assert resp.results[0].full_name == "org/repo"
         assert resp.results[0].updated_at == "2026-01-02T00:00:00"
         svc._gh.search_repositories.assert_called_once_with(
-            query="lang:python stars:>100"
+            query="(lang:python stars:>100) repo:org/repo"
         )
 
     @pytest.mark.asyncio
@@ -374,7 +374,7 @@ class TestSearchCode:
         assert resp.results[0].repository == "org/repo"
         assert resp.results[0].path == "scripts/foo.py"
         svc._gh.search_code.assert_called_once_with(
-            query="filename:agent.py repo:org/repo"
+            query="(filename:agent.py repo:org/repo) repo:org/repo"
         )
 
     @pytest.mark.asyncio
@@ -391,3 +391,68 @@ class TestSearchCode:
             "scripts/foo0.py",
             "scripts/foo1.py",
         ]
+
+
+# ── read and search boundary (mcpai002 REQ-001, REQ-004) ──────────────────────
+
+
+class TestRepositoryBoundary:
+    @pytest.mark.asyncio
+    async def test_list_branches_outside_the_allowlist_refuses_before_the_api_call(
+        self,
+    ) -> None:
+        svc = _make_service()
+        req = ListBranchesRequest(owner="other", repo="repo")
+        with pytest.raises(GitHubAuthorizationError, match="not in allowed_repos"):
+            await svc.list_branches(req)
+        svc._gh.get_repo.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_list_commits_outside_the_allowlist_refuses_before_the_api_call(
+        self,
+    ) -> None:
+        svc = _make_service()
+        req = ListCommitsRequest(owner="other", repo="repo")
+        with pytest.raises(GitHubAuthorizationError, match="not in allowed_repos"):
+            await svc.list_commits(req)
+        svc._gh.get_repo.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_get_commit_outside_the_allowlist_refuses_before_the_api_call(
+        self,
+    ) -> None:
+        svc = _make_service()
+        req = GetCommitRequest(owner="other", repo="repo", sha="abc")
+        with pytest.raises(GitHubAuthorizationError, match="not in allowed_repos"):
+            await svc.get_commit(req)
+        svc._gh.get_repo.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_search_repositories_rejects_a_qualifier_outside_the_allowlist(
+        self,
+    ) -> None:
+        svc = _make_service()
+        req = SearchRepositoriesRequest(query="repo:other/repo lang:python")
+        with pytest.raises(GitHubAuthorizationError, match="outside allowed_repos"):
+            await svc.search_repositories(req)
+        svc._gh.search_repositories.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_search_code_rejects_a_qualifier_outside_the_allowlist(self) -> None:
+        svc = _make_service()
+        req = SearchCodeRequest(query="repo:other/repo filename:a.py")
+        with pytest.raises(GitHubAuthorizationError, match="outside allowed_repos"):
+            await svc.search_code(req)
+        svc._gh.search_code.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_search_repositories_accepts_an_allowlisted_repo_qualifier(
+        self,
+    ) -> None:
+        svc = _make_service()
+        svc._gh.search_repositories.return_value = []
+        req = SearchRepositoriesRequest(query="repo:org/repo lang:python")
+        await svc.search_repositories(req)
+        svc._gh.search_repositories.assert_called_once_with(
+            query="(repo:org/repo lang:python) repo:org/repo"
+        )

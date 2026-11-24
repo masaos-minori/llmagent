@@ -233,7 +233,7 @@ class TestSearchPullRequests:
         await svc.search_pull_requests(req)
 
         svc._gh.search_issues.assert_called_once_with(
-            query="repo:org/repo author:octocat is:pr"
+            query="(repo:org/repo author:octocat) repo:org/repo is:pr"
         )
 
     @pytest.mark.asyncio
@@ -245,7 +245,7 @@ class TestSearchPullRequests:
         await svc.search_pull_requests(req)
 
         svc._gh.search_issues.assert_called_once_with(
-            query="repo:org/repo is:pr label:bug"
+            query="(repo:org/repo is:pr label:bug) repo:org/repo"
         )
 
     @pytest.mark.asyncio
@@ -568,3 +568,51 @@ class TestMergePullRequest:
         assert "method='squash'" in content
         assert "merged=True" in content
         assert "sha='abcdef12'" in content
+
+
+# ── read and search boundary (mcpai002 REQ-001, REQ-004) ──────────────────────
+
+
+class TestPullRequestsBoundary:
+    @pytest.mark.asyncio
+    async def test_list_pull_requests_outside_the_allowlist_refuses_before_the_call(
+        self,
+    ) -> None:
+        svc = _make_service()
+        req = ListPullRequestsRequest(owner="other", repo="repo")
+        with pytest.raises(GitHubAuthorizationError, match="not in allowed_repos"):
+            await svc.list_pull_requests(req)
+        svc._gh.get_repo.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_get_pull_request_outside_the_allowlist_refuses_before_the_call(
+        self,
+    ) -> None:
+        svc = _make_service()
+        req = GetPullRequestRequest(owner="other", repo="repo", pr_number=1)
+        with pytest.raises(GitHubAuthorizationError, match="not in allowed_repos"):
+            await svc.get_pull_request(req)
+        svc._gh.get_repo.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_search_pull_requests_rejects_a_qualifier_outside_the_allowlist(
+        self,
+    ) -> None:
+        svc = _make_service()
+        req = SearchPullRequestsRequest(query="repo:other/repo author:octocat")
+        with pytest.raises(GitHubAuthorizationError, match="outside allowed_repos"):
+            await svc.search_pull_requests(req)
+        svc._gh.search_issues.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_search_pull_requests_scopes_a_bare_query_and_keeps_is_pr(
+        self,
+    ) -> None:
+        """The scoped query is built first, then `is:pr` is appended as before."""
+        svc = _make_service()
+        svc._gh.search_issues.return_value = []
+        req = SearchPullRequestsRequest(query="label:bug")
+        await svc.search_pull_requests(req)
+        svc._gh.search_issues.assert_called_once_with(
+            query="(label:bug) repo:org/repo is:pr"
+        )

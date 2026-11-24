@@ -13,7 +13,7 @@ import logging
 from typing import Any
 
 from shared.config_loader import ConfigLoader
-from shared.config_utils import get_str, get_typed
+from shared.config_utils import get_non_negative_number, get_str, get_typed
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +32,11 @@ class GitHubConfig:
     path_denylist: list[str] = dataclasses.field(default_factory=list)
     protected_branches: list[str] = dataclasses.field(default_factory=list)
     max_file_size_kb: int = 0
+    max_file_read_size_kb: int = 0
     audit_log_path: str = ""
     allow_force_push: bool = False
     require_pr_review: bool = True
+    allow_global_search: bool = False
     default_per_page: int = DEFAULT_PER_PAGE
     max_per_page: int = 100
     llm_url: str = ""
@@ -57,9 +59,15 @@ class GitHubConfig:
             max_file_size_kb=get_typed(
                 d, "max_file_size_kb", int, "an integer", default=0
             ),
+            max_file_read_size_kb=get_non_negative_number(
+                d, "max_file_read_size_kb", int, "an integer", default=0
+            ),
             audit_log_path=get_str(d, "audit_log_path"),
             allow_force_push=bool(d.get("allow_force_push", False)),
             require_pr_review=bool(d.get("require_pr_review", True)),
+            allow_global_search=get_typed(
+                d, "allow_global_search", bool, "a boolean", default=False
+            ),
             default_per_page=get_typed(
                 d, "default_per_page", int, "an integer", default=DEFAULT_PER_PAGE
             ),

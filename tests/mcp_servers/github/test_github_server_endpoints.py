@@ -268,3 +268,49 @@ class TestGithubMCPServerDispatch:
         )
         assert result.output == "dispatched"
         assert result.is_error is False
+
+
+class TestCallToolBoundary:
+    """HTTP-level cases for the repository boundary (mcpai002 AC-1, AC-2)."""
+
+    def test_read_outside_the_allowlist_returns_403(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+    ) -> None:
+        """The service-layer guard reaches the endpoint as an authorization error."""
+        from mcp_servers.github.github_models import GitHubAuthorizationError
+
+        async def _deny(args: dict[str, Any]) -> str:
+            raise GitHubAuthorizationError(
+                "Repository not in allowed_repos: other/repo"
+            )
+
+        fake_service._dispatch_table["github_get_file_contents"] = _deny
+        resp = client.post(
+            "/v1/call_tool",
+            json={
+                "name": "github_get_file_contents",
+                "args": {"owner": "Other", "repo": "REPO", "path": "f.txt"},
+            },
+        )
+        assert resp.status_code == 403
+
+    def test_audit_target_names_the_canonical_repository_key(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The audit record shows the same lowercase key the guard compared (AC-2)."""
+        logger = MagicMock()
+        monkeypatch.setattr(github_server, "logger", logger)
+        handler = AsyncMock(return_value="ok")
+        fake_service._dispatch_table["github_get_issue"] = handler
+        resp = client.post(
+            "/v1/call_tool",
+            json={"name": "github_get_issue", "args": {"owner": "Org", "repo": "REPO"}},
+        )
+        assert resp.status_code == 200
+        records = [json.loads(call.args[0]) for call in logger.info.call_args_list]
+        assert records[0]["target"] == "repo=org/repo"

@@ -14,6 +14,7 @@ from mcp_servers.github.github_service_security import validate_github_security
 from shared.security.posture_contract import COMMON_CHECK_IDS, REQUIRED_CHECK_IDS
 from shared.security.result_dto import (
     REASON_ALLOWLIST_EMPTY,
+    REASON_ALLOWLIST_INVALID,
     REASON_CONFIG_INVALID,
     REASON_DEPENDENCY_UNREACHABLE,
     REASON_DESTRUCTIVE_GUARD_MISSING,
@@ -33,6 +34,8 @@ GITHUB_SERVER_CHECK_IDS = (
     "server.max_file_size",
     "server.audit_log_writable",
     "server.per_page_bounds",
+    "server.global_search",
+    "server.max_file_read_size",
 )
 _REPO = "octocat/hello-world"
 _DENY_PATTERN = ".github/workflows/*"
@@ -87,6 +90,12 @@ class TestWarningPolicySettings:
         assert result.status is SecurityCheckStatus.WARNING
         assert result.reason_code == REASON_DESTRUCTIVE_GUARD_MISSING
 
+    def test_global_search_opt_in_is_warning(self) -> None:
+        """`allow_global_search=true` switches the search boundary off (REQ-009)."""
+        result = _results(_safe_cfg(allow_global_search=True))["server.global_search"]
+        assert result.status is SecurityCheckStatus.WARNING
+        assert result.reason_code == REASON_ALLOWLIST_INVALID
+
     def test_warnings_alone_leave_no_failed_check(self) -> None:
         cfg = _safe_cfg(
             allow_force_push=True, require_pr_review=False, audit_log_path=""
@@ -113,6 +122,14 @@ class TestInapplicableChecks:
 
     def test_empty_path_denylist(self) -> None:
         result = _results(_safe_cfg(path_denylist=[]))["server.path_denylist"]
+        assert result.status is SecurityCheckStatus.NOT_APPLICABLE
+        assert result.reason_code == REASON_NOT_APPLICABLE
+
+    def test_zero_max_file_read_size_is_not_applicable(self) -> None:
+        """`max_file_read_size_kb=0` is the documented unlimited value, not a broken bound."""
+        result = _results(_safe_cfg(max_file_read_size_kb=0))[
+            "server.max_file_read_size"
+        ]
         assert result.status is SecurityCheckStatus.NOT_APPLICABLE
         assert result.reason_code == REASON_NOT_APPLICABLE
 
@@ -188,6 +205,22 @@ class TestPerPageBounds:
 
     def test_valid_bounds_are_ok(self) -> None:
         result = _results(_safe_cfg())["server.per_page_bounds"]
+        assert result.status is SecurityCheckStatus.OK
+        assert result.reason_code == REASON_OK
+
+
+class TestReadBoundaryChecks:
+    """The two settings mcpai002 adds are reported by the posture (REQ-009, AC-9)."""
+
+    def test_global_search_default_is_ok(self) -> None:
+        result = _results(_safe_cfg())["server.global_search"]
+        assert result.status is SecurityCheckStatus.OK
+        assert result.reason_code == REASON_OK
+
+    def test_positive_max_file_read_size_is_ok(self) -> None:
+        result = _results(_safe_cfg(max_file_read_size_kb=64))[
+            "server.max_file_read_size"
+        ]
         assert result.status is SecurityCheckStatus.OK
         assert result.reason_code == REASON_OK
 

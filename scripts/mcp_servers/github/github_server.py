@@ -42,6 +42,7 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.logger import Logger
+from shared.repo_identity import normalize_repo_key
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
@@ -236,12 +237,17 @@ async def call_tool(req: CallToolRequest, request: "Request") -> CallToolRespons
 
     session_id, request_id, idempotency_key = extract_request_context(request)
     r = await _dispatch_github_tool(req.name, req.args, idempotency_key=idempotency_key)
+    owner = str(req.args.get("owner", ""))
+    repo = str(req.args.get("repo", ""))
+    # The audit target names the same canonical identity the guard compared (REQ-002).
+    # A tool call with no repository argument keeps the existing empty-value form.
+    target = f"repo={normalize_repo_key(owner, repo)}" if owner and repo else "repo=/"
     _audit_log(
         logger,
         session_id=session_id,
         request_id=request_id,
         action=req.name,
-        target=f"repo={req.args.get('owner', '')}/{req.args.get('repo', '')}",
+        target=target,
         outcome=r.outcome,
         server_key="github",
     )

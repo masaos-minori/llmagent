@@ -67,9 +67,9 @@ Extend `TestGitHubConfigFromDictTypeValidation` with cases for the two new confi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the cases described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the tests for this file (`uv run pytest tests/mcp_servers/github/test_github_server_auth.py`) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the cases described in Implementation > Procedure/Method/Details | Completed | 20261124-152854 | 20261124-152854 |  |
+| 2 | Run the tests for this file (`uv run pytest tests/mcp_servers/github/test_github_server_auth.py`) | Completed | 20261124-152854 | 20261124-152854 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261124-152854 | 20261124-152854 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

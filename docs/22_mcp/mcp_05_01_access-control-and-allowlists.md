@@ -34,7 +34,7 @@ To document a common security model across servers. It covers access control, al
 | file-read-mcp | `allowed_dirs` | Path jail restricted to configured directories |
 | file-write-mcp | `allowed_dirs` (write) | Path jail restricted to configured directories |
 | file-delete-mcp | `allowed_dirs` | Path jail restricted to configured directories |
-| github-mcp | `allowed_repos` | Fail-closed (empty = all writes denied) |
+| github-mcp | `allowed_repos` | Fail-closed (empty = all repository access denied, reads and writes) |
 | shell-mcp | `command_allowlist` + `shell_cwd_allowed_dirs` | Deny-all (both are empty by default) |
 | cicd-mcp | `repo_allowlist` + `workflow_allowlist` | Both: fail-closed |
 | git-mcp | `allowed_repo_paths` + `read_only` | Fail-closed (empty paths = all denied); `read_only=true` |
@@ -80,8 +80,10 @@ To document a common security model across servers. It covers access control, al
 
 ### `allowed_repos` (github-mcp)
 
-- Empty denies all repository access (fail-closed); otherwise only listed repositories are allowed.
-- Applies to every write operation (branch, file, issue, comment, and pull request create/update/merge, plus delete and push). The tool list is owned by [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ownership_matrix.md).
+- Empty denies all repository access (fail-closed), reads and writes included; otherwise only listed repositories are allowed. The check runs inside `_get_repo()` (`github_service_security.py`) before the first API call, so a repository-scoped read (`get_file_contents`, `list_issues`, `get_issue`, `list_pull_requests`, `get_pull_request`, `list_branches`, `list_commits`, `get_commit`) is refused with `GitHubAuthorizationError` before GitHub is contacted.
+- Applies to every repository-scoped operation: reads, and every write (branch, file, issue, comment, and pull request create/update/merge, plus delete and push). The tool list is owned by [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ownership_matrix.md).
+- Repository identity is one canonical key: `Owner/Repo` and `owner/repo` are the same key, the lowercase form, and it is what the guard compares, what the API slug carries, what the authorization error names, and what the audit record writes. Input that is already canonical is unchanged. An allowlist entry that is not in canonical form is reported at the guard instead of silently matching nothing (`shared/repo_identity.py`).
+- Search tools are scoped at query-construction time. With `allow_global_search=false` (the default) `_resolve_search_query()` adds a `repo:` qualifier for every allowlisted repository, and a caller `repo:`/`org:`/`user:` qualifier naming something outside the boundary is rejected before the API call. `allow_global_search=true` is an explicit opt-in to global search and the posture reports it as `server.global_search=warning`.
 
 ### `repo_allowlist` (cicd-mcp)
 

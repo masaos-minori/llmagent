@@ -327,3 +327,140 @@ class TestGitHubConfigLoad:
         cfg = GitHubConfig.load()
         assert cfg.path_denylist == []
         assert cfg.protected_branches == ["main"]
+
+
+# ── _get_repo: the single repository boundary (mcpai002 REQ-001, REQ-002) ─────
+
+
+class TestGetRepoBoundary:
+    """The guard, the API slug, and the error text share one canonical key."""
+
+    def test_mixed_case_caller_reaches_the_canonical_slug(self) -> None:
+        gh = MagicMock()
+        svc = GitHubService(
+            gh=gh, cfg=GitHubConfig.from_dict({"allowed_repos": ["org/repo"]})
+        )
+        svc._get_repo("Org", "REPO")
+        gh.get_repo.assert_called_once_with("org/repo")
+
+    def test_repository_outside_the_allowlist_is_refused_before_the_client_call(
+        self,
+    ) -> None:
+        gh = MagicMock()
+        svc = GitHubService(
+            gh=gh, cfg=GitHubConfig.from_dict({"allowed_repos": ["org/repo"]})
+        )
+        with pytest.raises(GitHubAuthorizationError, match="not in allowed_repos"):
+            svc._get_repo("other", "repo")
+        gh.get_repo.assert_not_called()
+
+    def test_empty_allowlist_is_refused_before_the_client_call(self) -> None:
+        gh = MagicMock()
+        svc = GitHubService(gh=gh, cfg=GitHubConfig.from_dict({"allowed_repos": []}))
+        with pytest.raises(GitHubAuthorizationError, match="allowed_repos is empty"):
+            svc._get_repo("org", "repo")
+        gh.get_repo.assert_not_called()
+
+    def test_non_canonical_allowlist_entry_is_reported_instead_of_never_matching(
+        self,
+    ) -> None:
+        gh = MagicMock()
+        svc = GitHubService(
+            gh=gh, cfg=GitHubConfig.from_dict({"allowed_repos": ["Org/Repo"]})
+        )
+        with pytest.raises(GitHubAuthorizationError, match="cannot match a repository"):
+            svc._get_repo("org", "repo")
+        gh.get_repo.assert_not_called()
+
+
+# ── _assert_max_read_file_size: read-size limit, 0 = unlimited (REQ-006) ──────
+
+
+class TestAssertMaxReadFileSize:
+    def test_content_within_the_limit_passes(self) -> None:
+        svc = _make_service(
+            {"allowed_repos": ["org/repo"], "max_file_read_size_kb": 10}
+        )
+        svc._assert_max_read_file_size(10 * 1024, "docs/a.md")
+
+    def test_content_above_the_limit_is_refused(self) -> None:
+        svc = _make_service(
+            {"allowed_repos": ["org/repo"], "max_file_read_size_kb": 10}
+        )
+        with pytest.raises(GitHubValidationError, match="max_file_read_size_kb"):
+            svc._assert_max_read_file_size(11 * 1024, "docs/a.md")
+
+    def test_zero_is_unlimited(self) -> None:
+        svc = _make_service({"allowed_repos": ["org/repo"], "max_file_read_size_kb": 0})
+        svc._assert_max_read_file_size(100 * 1024 * 1024, "docs/a.md")
+
+
+# ── _resolve_search_query: boundary resolved before the call (REQ-004) ────────
+
+
+class TestResolveSearchQuery:
+    def test_bare_query_is_scoped_to_the_allowlisted_repository(self) -> None:
+        svc = _make_service()
+        assert svc._resolve_search_query("lang:python") == "(lang:python) repo:org/repo"
+
+    def test_allowed_repo_qualifier_is_kept_and_the_query_is_scoped(self) -> None:
+        svc = _make_service()
+        query = svc._resolve_search_query("filename:a.py repo:org/repo")
+        assert query == "(filename:a.py repo:org/repo) repo:org/repo"
+
+    def test_non_key_terms_are_preserved(self) -> None:
+        svc = _make_service()
+        assert svc._resolve_search_query("is:open") == "(is:open) repo:org/repo"
+
+    def test_repo_qualifier_outside_the_allowlist_is_refused(self) -> None:
+        svc = _make_service()
+        with pytest.raises(GitHubAuthorizationError, match="outside allowed_repos"):
+            svc._resolve_search_query("repo:other/repo term")
+
+    def test_owner_qualifier_outside_the_allowlist_is_refused(self) -> None:
+        svc = _make_service()
+        with pytest.raises(
+            GitHubAuthorizationError, match="owner outside allowed_repos"
+        ):
+            svc._resolve_search_query("org:other term")
+
+    def test_owner_qualifier_inside_the_allowlist_passes(self) -> None:
+        svc = _make_service()
+        assert (
+            svc._resolve_search_query("org:org term") == "(org:org term) repo:org/repo"
+        )
+
+    def test_global_search_opt_in_returns_the_query_unchanged(self) -> None:
+        svc = _make_service(
+            {"allowed_repos": ["org/repo"], "allow_global_search": True}
+        )
+        assert svc._resolve_search_query("lang:python") == "lang:python"
+
+    def test_empty_allowlist_refuses_a_scoped_search(self) -> None:
+        svc = _make_service({"allowed_repos": []})
+        with pytest.raises(GitHubAuthorizationError, match="no repository scope"):
+            svc._resolve_search_query("lang:python")
+
+
+# ── repo_scan: one boundary point per client repository call (AC-10) ─────────
+
+
+class TestSingleRepoBoundary:
+    @pytest.mark.repo_scan
+    def test_no_service_module_reaches_get_repo_outside_the_guard(self) -> None:
+        """Only `_get_repo()` in the guard module may call the client's get_repo."""
+        package = Path(__file__).resolve().parents[3] / "scripts/mcp_servers/github"
+        hits: dict[str, list[int]] = {}
+        for path in sorted(package.glob("*.py")):
+            lines = path.read_text(encoding="utf-8").splitlines()
+            found = [num for num, line in enumerate(lines, 1) if "_gh.get_repo" in line]
+            if found:
+                hits[path.name] = found
+        assert set(hits) == {"github_service_security.py"}
+        guard_lines = (
+            (package / "github_service_security.py")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
+        for num in hits["github_service_security.py"]:
+            assert "normalize_repo_key" in guard_lines[num - 1]

@@ -16,7 +16,7 @@ import math
 import os
 import re
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, overload
 
 _ENV_REF_RE = re.compile(r"^\$\{ENV:([A-Za-z_][A-Za-z0-9_]*)\}$")
 
@@ -82,13 +82,33 @@ def get_typed(
     return value
 
 
-def get_non_negative_number(
+@overload
+def get_non_negative_number[T: int | float](
     d: Mapping[str, Any],
     key: str,
-    expected_type: type[int] | type[float],
+    expected_type: type[T],
     type_label: str,
-    default: int | float | None = None,
-) -> int | float | None:
+    default: T,
+) -> T: ...
+
+
+@overload
+def get_non_negative_number[T: int | float](
+    d: Mapping[str, Any],
+    key: str,
+    expected_type: type[T],
+    type_label: str,
+    default: None = None,
+) -> T | None: ...
+
+
+def get_non_negative_number[T: int | float](
+    d: Mapping[str, Any],
+    key: str,
+    expected_type: type[T],
+    type_label: str,
+    default: T | None = None,
+) -> T | None:
     """Return ``d[key]`` for a numeric config value that must be finite and >= 0.
 
     Rejects, in order, a ``bool`` for an ``int``/``float`` expected type, a value

@@ -241,7 +241,7 @@ class TestSearchIssues:
         assert len(resp.results) == 1
         assert resp.results[0].number == 3
         svc._gh.search_issues.assert_called_once_with(
-            query="repo:org/repo is:issue label:bug"
+            query="(repo:org/repo is:issue label:bug) repo:org/repo"
         )
 
     @pytest.mark.asyncio
@@ -313,3 +313,57 @@ class TestAddIssueComment:
         assert "op=add_issue_comment" in content
         assert "repo='org/repo'" in content
         assert "issue=5" in content
+
+
+# ── read and search boundary (mcpai002 REQ-001, REQ-004) ──────────────────────
+
+
+class TestIssuesBoundary:
+    @pytest.mark.asyncio
+    async def test_list_issues_outside_the_allowlist_refuses_before_the_api_call(
+        self,
+    ) -> None:
+        svc = _make_service()
+        req = ListIssuesRequest(owner="other", repo="repo")
+        with pytest.raises(GitHubAuthorizationError, match="not in allowed_repos"):
+            await svc.list_issues(req)
+        svc._gh.get_repo.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_get_issue_outside_the_allowlist_refuses_before_the_api_call(
+        self,
+    ) -> None:
+        svc = _make_service()
+        req = GetIssueRequest(owner="other", repo="repo", issue_number=1)
+        with pytest.raises(GitHubAuthorizationError, match="not in allowed_repos"):
+            await svc.get_issue(req)
+        svc._gh.get_repo.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_search_issues_rejects_a_repo_qualifier_outside_the_allowlist(
+        self,
+    ) -> None:
+        svc = _make_service()
+        req = SearchIssuesRequest(query="repo:other/repo is:issue")
+        with pytest.raises(GitHubAuthorizationError, match="outside allowed_repos"):
+            await svc.search_issues(req)
+        svc._gh.search_issues.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_search_issues_scopes_a_bare_query_to_the_allowlist(self) -> None:
+        svc = _make_service()
+        svc._gh.search_issues.return_value = []
+        req = SearchIssuesRequest(query="label:bug")
+        await svc.search_issues(req)
+        svc._gh.search_issues.assert_called_once_with(query="(label:bug) repo:org/repo")
+
+    @pytest.mark.asyncio
+    async def test_search_issues_preserves_non_repository_qualifiers(self) -> None:
+        """`is:`/`author:` terms are not boundary qualifiers and stay in the query."""
+        svc = _make_service()
+        svc._gh.search_issues.return_value = []
+        req = SearchIssuesRequest(query="is:open author:octocat")
+        await svc.search_issues(req)
+        svc._gh.search_issues.assert_called_once_with(
+            query="(is:open author:octocat) repo:org/repo"
+        )

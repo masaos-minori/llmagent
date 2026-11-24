@@ -38,6 +38,7 @@ class FileOps(GitHubSecurityGuards):
         req: GetFileContentsRequest,
     ) -> GetFileContentsResponse:
         """Retrieve the contents of a single file in a repository."""
+        self._assert_allowed_path(req.path)
 
         def _sync() -> GetFileContentsResponse:
             """Execute the GitHub API call synchronously inside the thread pool."""
@@ -50,7 +51,14 @@ class FileOps(GitHubSecurityGuards):
                 raise GitHubValidationError(
                     f"Path is a directory, not a file: {req.path}"
                 )
-            decoded = file_content.decoded_content.decode("utf-8", errors="replace")
+            # Guard: the reported size must be within the read limit before decoding
+            self._assert_max_read_file_size(file_content.size, req.path)
+            try:
+                decoded = file_content.decoded_content.decode("utf-8")
+            except UnicodeDecodeError as e:
+                raise GitHubValidationError(
+                    f"File '{req.path}' does not decode as UTF-8: {e.reason}"
+                ) from e
             return GetFileContentsResponse(
                 path=file_content.path,
                 content=decoded,

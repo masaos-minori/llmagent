@@ -71,9 +71,9 @@ Extend the pinned check inventory at its source so the two checks row 4 adds can
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append the two ids to the github tuple per Procedure | Pending | — | — | Row added by amendment on 2026-11-24 (fallout, user-approved) |
-| 2 | Add the two ids to the mirror tuple (companion `tests/shared/test_security_posture_contract.py`) | Pending | — | — | Same commit as step 1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) plus `check_docs_consistency.py --domain mcp` | Pending | — | — | |
+| 1 | Append the two ids to the github tuple per Procedure | Completed | 20261124-152854 | 20261124-152854 | Row added by amendment on 2026-11-24 (fallout, user-approved) |
+| 2 | Add the two ids to the mirror tuple (companion `tests/shared/test_security_posture_contract.py`) | Completed | 20261124-152854 | 20261124-152854 | Same commit as step 1 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) plus `check_docs_consistency.py --domain mcp` | Completed | 20261124-152854 | 20261124-152854 | generated fallout: registry/manifests/health_contracts.yaml regenerated with generate_reference_table.py --manifests |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -38,8 +38,8 @@ State the boundary as the code implements it after Phase 3: `allowed_repos` cove
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the three text changes per Procedure | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` | Pending | — | — | Documentation-only row: no test step |
+| 1 | Apply the three text changes per Procedure | Completed | 20261124-152854 | 20261124-152854 |  |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` | Completed | 20261124-152854 | 20261124-152854 | Documentation-only row: no test step |
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|

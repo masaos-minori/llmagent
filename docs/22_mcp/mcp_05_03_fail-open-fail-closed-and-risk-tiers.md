@@ -23,7 +23,7 @@ related:
 |---|---|---|
 | `allowed_dirs` (file-read/write/delete-mcp) | Fail-closed | All access denied |
 | `allowed_dirs` (mdq-mcp) | Fail-closed | Denies all tools that accept paths (`MdqAuthorizationError`) |
-| `allowed_repos` (github-mcp) | Fail-closed | All writes denied (no mode switch exists; `_assert_allowed_repo`) |
+| `allowed_repos` (github-mcp) | Fail-closed | All repository access denied, reads and writes included (`_get_repo` and `_assert_allowed_repo` in `github_service_security.py`; no mode switch exists) |
 | `allowed_repo_paths` (git-mcp) | Fail-closed | All access denied |
 | `repo_allowlist` (cicd-mcp) | Fail-closed | All repositories denied |
 | `workflow_allowlist` (cicd-mcp) | **Fail-closed** | All workflows denied |
@@ -47,6 +47,14 @@ Each MCP server validates its own security settings when its process starts and 
 | `workflow_allowlist` | cicd-mcp | `server.workflow_pattern_valid` | `failed` when a configured pattern contains a path separator; `not_applicable` when the allowlist is empty |
 | `path_denylist` | github-mcp | `server.path_denylist` | `not_applicable` when empty (fail-open setting; never `failed`) |
 | `protected_branches` | github-mcp | `server.protected_branches` | `failed` with `REASON_CONFIG_INVALID` when empty (Explicit in code — scripts/mcp_servers/github/github_service_security.py); in practice an empty value is rejected earlier at config load and the server does not start (`github_models_config.py`) |
+| `allowed_repos` | github-mcp | `server.repo_allowlist` | `failed` when empty (Explicit in code — `_get_repo` and `_assert_allowed_repo` in scripts/mcp_servers/github/github_service_security.py) |
+| `allow_force_push` | github-mcp | `server.force_push_policy` | `warning` when `true` (Explicit in code — `merge_pull_request` in scripts/mcp_servers/github/github_service_pull_requests.py) |
+| `require_pr_review` | github-mcp | `server.pr_review_required` | `warning` when `false` (Explicit in code — `merge_pull_request` in scripts/mcp_servers/github/github_service_pull_requests.py) |
+| `max_file_size_kb` | github-mcp | `server.max_file_size` | `not_applicable` at `0` (Explicit in code — `_assert_max_file_size` in scripts/mcp_servers/github/github_service_security.py) |
+| `audit_log_path` | github-mcp | `server.audit_log_writable` | `failed` when the configured path has no writable parent directory; `not_applicable` when empty (Explicit in code — `_write_github_audit_log` in scripts/mcp_servers/github/github_service_security.py) |
+| `max_per_page` | github-mcp | `server.per_page_bounds` | `failed` when `max_per_page` is not positive or `default_per_page` exceeds it (Explicit in code — `_clamp_per_page` in scripts/mcp_servers/github/github_service_security.py) |
+| `allow_global_search` | github-mcp | `server.global_search` | `warning` when `true`, because search queries then reach outside `allowed_repos` (Explicit in code — `_resolve_search_query` in scripts/mcp_servers/github/github_service_security.py) |
+| `max_file_read_size_kb` | github-mcp | `server.max_file_read_size` | `not_applicable` at `0`, which means unlimited (Explicit in code — `_assert_max_read_file_size` in scripts/mcp_servers/github/github_service_security.py) |
 
 An empty capability-gating allowlist is a posture failure, not a warning: the server refuses to bind its HTTP port and the Agent refuses to start. `path_denylist` is the only fail-open setting; it is reported as `not_applicable` instead of being omitted, so a missing restriction is visible in the posture rather than silently absent.
 
@@ -90,7 +98,7 @@ Both checks are performed via `ProductionConfigValidator.validate()`, which inte
 
 ## Notes for AI Systems
 
-1. **Do not assume write access or execution rights.** Every capability-gating allowlist is fail-closed when empty: `allowed_repos` (GitHub writes), `command_allowlist` (`shell_run`), `allowed_repo_paths` (all git tools), `repo_allowlist` and `workflow_allowlist` (CI/CD). Verify the relevant allowlist is configured before calling the tool; the checked-in configuration lists values explicitly.
+1. **Do not assume write access or execution rights.** Every capability-gating allowlist is fail-closed when empty: `allowed_repos` (GitHub reads and writes), `command_allowlist` (`shell_run`), `allowed_repo_paths` (all git tools), `repo_allowlist` and `workflow_allowlist` (CI/CD). Verify the relevant allowlist is configured before calling the tool; the checked-in configuration lists values explicitly.
 
 2. **mdq-mcp is production-ready.** FTS5 indexing and searching is implemented. For production RAG workloads, use `rag-pipeline-mcp`. See [mcp_05 MDQ vs RAG Boundary](./mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) for guidelines.
 

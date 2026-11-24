@@ -75,9 +75,9 @@ Extend the pinned GitHub check inventory in this test with the two checks row 4 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the tuple and add the two cases per Procedure | Pending | — | — | |
-| 2 | Run this file's tests and the mirror contract test | Pending | — | — | The mirror test needs the Plan Gap resolved first |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend the tuple and add the two cases per Procedure | Completed | 20261124-152854 | 20261124-152854 |  |
+| 2 | Run this file's tests and the mirror contract test | Completed | 20261124-152854 | 20261124-152854 | The mirror test needs the Plan Gap resolved first pinned inventory is 10 ids and passes only with row 24's ids; global_search WARNING reuses REASON_ALLOWLIST_INVALID |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261124-152854 | 20261124-152854 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

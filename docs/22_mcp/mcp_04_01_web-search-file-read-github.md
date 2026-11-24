@@ -84,8 +84,10 @@ See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_
 
 **Security controls (`config/github_mcp_server.toml`):**
 
-- `allowed_repos`: fail-closed; an empty list denies every repository. Every write operation (branch, file, issue, comment, pull request create/update/merge, delete, push) is subject to it.
-- `protected_branches` and `path_denylist` (fnmatch patterns) reject matching branches and paths.
+- `allowed_repos`: fail-closed; an empty list denies every repository. Every operation naming a repository — reads included — is checked inside `_get_repo()` (`github_service_security.py`) before the first API call, and `Owner/Repo` and `owner/repo` are the same canonical lowercase key for the guard, the API slug, the error text, and the audit record.
+- `allow_global_search` (`false` by default): each search is scoped to `allowed_repos` at query-construction time, and a caller `repo:`/`org:`/`user:` qualifier naming something outside the boundary is rejected before the call. `true` opts in to global search and the posture reports it.
+- `max_file_read_size_kb` (`0` = unlimited): the content metadata size is checked before decoding, and content that does not decode as strict UTF-8 is rejected with `GitHubValidationError`; no U+FFFD substitution occurs.
+- `protected_branches` and `path_denylist` (fnmatch patterns) reject matching branches and paths. `path_denylist` applies to reads as well as writes.
 - `max_file_size_kb` (0 = unlimited) rejects larger content.
 - `allow_force_push` is disabled unless `true`; it only gates `merge_pull_request` by rejecting `merge_method="rebase"` and does not block other force-push equivalents.
 - `require_pr_review` is on unless `false`; `merge_pull_request` then requires at least one `APPROVED` review.
@@ -94,10 +96,10 @@ See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_
 **Guard coverage (layered protection):**
 
 - **Agent approval:** not applicable server-side; github enforces only its own technical constraints.
-- **Common guard:** `call_tool` rejects a disabled tool first; every operation naming a repository asserts it against `allowed_repos` (`_assert_allowed_repo`, `github_service_security.py`), raising `GitHubAuthorizationError` outside the allowlist.
-- **Command-specific guard:** per-operation asserts for path, branch, file size, and `per_page` clamping run before each mutating call (`github_service_security.py`).
+- **Common guard:** `call_tool` rejects a disabled tool first; every operation naming a repository — reads included — resolves through `_get_repo()`, which asserts the canonical key against `allowed_repos` (`_assert_allowed_repo`, `github_service_security.py`) and raises `GitHubAuthorizationError` outside the allowlist before the first API call.
+- **Command-specific guard:** per-operation asserts run before the call they guard: the path denylist and read-size check with strict UTF-8 decoding on the read path (`_assert_allowed_path`, `_assert_max_read_file_size`), and the path, branch, write file size, and `per_page` clamping asserts on the write path (`github_service_security.py`). Search tools scope their query at construction time (`_resolve_search_query`).
 - **Postcondition verification:** not applicable in the current plan, because the GitHub API response carries the resulting state and no local before/after comparison is performed. `push_files` returns the new commit SHA without inspecting the ref update result, so it does not confirm that the ref moved; confirming ref movement without an extra API call is a follow-up (Plan UNK-02).
-- **Audit:** `call_tool` writes one `mcp_tool_exec` record (to `github-mcp.log`) per dispatched call (`server_key="github"`, `target` = `repo={owner}/{repo}`); a disabled-tool rejection returns before the audit call and writes no record. The service also writes the dedicated `github_audit.log`, and a failure to write it raises `GitHubAuditError` (HTTP 500) instead of being ignored. Before/after state snapshots are not applicable.
+- **Audit:** `call_tool` writes one `mcp_tool_exec` record (to `github-mcp.log`) per dispatched call (`server_key="github"`, `target` = `repo={owner}/{repo}` with the canonical lowercase key); a disabled-tool rejection returns before the audit call and writes no record. The service also writes the dedicated `github_audit.log`, and a failure to write it raises `GitHubAuditError` (HTTP 500) instead of being ignored. Before/after state snapshots are not applicable.
 
 **Error mapping:** PyGithub `GithubException` is converted to domain exceptions by status (404 NotFound, 403 Authorization, 409 Conflict, 400/422 Validation, others Upstream 502); `GitHubAuditError` is 500. Mapping is registered in `exception_handlers.py`.
 

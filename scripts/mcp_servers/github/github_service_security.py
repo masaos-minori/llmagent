@@ -7,7 +7,8 @@ validate_github_security() is the startup-time entry point: it reports this serv
 as a Security Posture from its config object alone, so github-mcp validates itself before HTTP
 bind instead of being audited by the Agent.
 
-Methods: _clamp_per_page, _assert_allowed_*, _write_github_audit_log,
+Methods: _clamp_per_page, _assert_allowed_*, _assert_max_read_file_size,
+         _resolve_search_query, _write_github_audit_log,
          _resolve_and_check_branch, _get_repo, _handle_github_error, _run_github
 
 Dependency direction: service_security → models_config, models_base, mapper
@@ -19,14 +20,17 @@ import asyncio
 import fnmatch
 import logging
 import os
+import re
 from collections.abc import Callable
 from http import HTTPStatus
 from typing import Any, NoReturn, TypeVar
 
 from github import GithubException
 from shared.json_utils import now_iso_raw
+from shared.repo_identity import is_canonical_repo_key, normalize_repo_key
 from shared.security.result_dto import (
     REASON_ALLOWLIST_EMPTY,
+    REASON_ALLOWLIST_INVALID,
     REASON_CONFIG_INVALID,
     REASON_DEPENDENCY_UNREACHABLE,
     REASON_DESTRUCTIVE_GUARD_MISSING,
@@ -42,6 +46,11 @@ from mcp_servers.github.github_models_config import GitHubConfig
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+# Search-qualifier grammar. Only these three qualifiers can widen or name a
+# repository boundary; other terms are preserved as they are (REQ-004).
+_REPO_QUALIFIER_RE = re.compile(r"repo:(\S+)")
+_OWNER_QUALIFIER_RE = re.compile(r"(?:org|user):(\S+)")
 
 
 class GitHubSecurityGuards:
@@ -60,22 +69,32 @@ class GitHubSecurityGuards:
         return clamped
 
     def _assert_allowed_repo(self, owner: str, repo: str) -> None:
-        """Raise GitHubAuthorizationError if owner/repo is not permitted.
+        """Raise GitHubAuthorizationError if the canonical repository key is not permitted.
 
-        Empty allowed_repos denies all repositories (fail-closed).
+        The comparison uses the canonical key from `shared.repo_identity`, so the guard,
+        the API slug, and the error text name the same identity for mixed-case input
+        (REQ-002). Empty allowed_repos denies all repositories (fail-closed). An entry
+        that is not in canonical form can never equal a canonical key, so it is reported
+        instead of silently matching nothing.
         """
         from mcp_servers.github.github_models_config import (
             GitHubAuthorizationError,
         )
 
         allowed = self._cfg.allowed_repos
-        slug = f"{owner}/{repo}"
+        key = normalize_repo_key(owner, repo)
         if not allowed:
             raise GitHubAuthorizationError(
-                f"Repository '{slug}' is denied: allowed_repos is empty"
+                f"Repository '{key}' is denied: allowed_repos is empty"
             )
-        if slug not in allowed:
-            raise GitHubAuthorizationError(f"Repository not in allowed_repos: {slug}")
+        invalid = sum(1 for entry in allowed if not is_canonical_repo_key(entry))
+        if invalid:
+            raise GitHubAuthorizationError(
+                f"Repository '{key}' is denied: allowed_repos contains {invalid} of "
+                f"{len(allowed)} entries in a form that cannot match a repository"
+            )
+        if key not in allowed:
+            raise GitHubAuthorizationError(f"Repository not in allowed_repos: {key}")
 
     def _assert_allowed_path(self, path: str) -> None:
         """Raise GitHubAuthorizationError if path matches a denied glob pattern."""
@@ -102,6 +121,26 @@ class GitHubSecurityGuards:
         if size_kb > max_kb:
             raise GitHubValidationError(
                 f"File '{path}' exceeds max_file_size_kb: {size_kb:.1f} KB > {max_kb} KB"
+            )
+
+    def _assert_max_read_file_size(self, size: int, path: str) -> None:
+        """Raise GitHubValidationError if content metadata size exceeds max_file_read_size_kb.
+
+        Takes the size the API reports in the content metadata, not the decoded length:
+        the check must run before decoding (REQ-006). 0 means unlimited, matching the
+        `max_file_size_kb` convention.
+        """
+        from mcp_servers.github.github_models_config import (
+            GitHubValidationError,
+        )
+
+        max_kb = self._cfg.max_file_read_size_kb
+        if max_kb <= 0:
+            return  # 0 = unlimited
+        size_kb = size / 1024
+        if size_kb > max_kb:
+            raise GitHubValidationError(
+                f"File '{path}' exceeds max_file_read_size_kb: {size_kb:.1f} KB > {max_kb} KB"
             )
 
     def _write_github_audit_log(self, op: str, **kwargs: Any) -> None:
@@ -157,9 +196,52 @@ class GitHubSecurityGuards:
                     f"Branch '{branch}' is protected in {owner}/{repo} (matches pattern '{pattern}')"
                 )
 
+    def _resolve_search_query(self, query: str) -> str:
+        """Return the query string to send to the search API.
+
+        With allow_global_search=false (the default) the query is scoped with one `repo:`
+        qualifier per allowlisted entry, and a caller `repo:` qualifier naming a repository
+        outside allowed_repos, or an `org:`/`user:` value that is not the owner of an
+        allowlisted repository, is refused (REQ-004). With allow_global_search=true the
+        caller query is returned unchanged (AC-3). The method never calls the client, so a
+        refused query reaches the API in neither case.
+        """
+        from mcp_servers.github.github_models_config import (
+            GitHubAuthorizationError,
+        )
+
+        text = (query or "").strip()
+        if self._cfg.allow_global_search:
+            return text
+        allowed = self._cfg.allowed_repos
+        for raw in _REPO_QUALIFIER_RE.findall(text):
+            owner, _, name = raw.partition("/")
+            if normalize_repo_key(owner, name) not in allowed:
+                raise GitHubAuthorizationError(
+                    f"Search query names a repository outside allowed_repos: {raw}"
+                )
+        owners = {entry.partition("/")[0].lower() for entry in allowed}
+        for raw in _OWNER_QUALIFIER_RE.findall(text):
+            if raw.lower() not in owners:
+                raise GitHubAuthorizationError(
+                    f"Search query names an owner outside allowed_repos: {raw}"
+                )
+        if not allowed:
+            raise GitHubAuthorizationError(
+                "Search refused: allowed_repos is empty so no repository scope exists"
+            )
+        scope = " ".join(f"repo:{entry}" for entry in sorted(allowed))
+        return f"({text}) {scope}" if text else scope
+
     def _get_repo(self, owner: str, repo: str) -> Any:  # noqa: ANN401 — config type varies by server
-        """Return a PyGithub Repository object for the given owner/repo slug."""
-        return self._gh.get_repo(f"{owner}/{repo}")
+        """Return a PyGithub Repository object for the canonical repository key.
+
+        The allowlist boundary is applied here, so every read and write path that reaches
+        the client through this method is covered by one check (REQ-001), and the slug sent
+        to the API is the same key the guard compared and the error text names (REQ-002).
+        """
+        self._assert_allowed_repo(owner, repo)
+        return self._gh.get_repo(normalize_repo_key(owner, repo))
 
     async def _resolve_and_check_branch(
         self, owner: str, repo: str, branch: str
@@ -255,6 +337,45 @@ def _audit_log_reason(cfg: GitHubConfig) -> str:
     if os.path.isdir(path):
         return REASON_DEPENDENCY_UNREACHABLE
     return REASON_OK
+
+
+def _global_search_check(cfg: GitHubConfig) -> SecurityCheckResult:
+    """Report whether search queries are scoped to the repository allowlist.
+
+    `allow_global_search=true` is a valid opt-in, not a broken setting, so it is WARNING:
+    the search boundary is switched off while the allowlist still bounds every other
+    operation.
+    """
+    if cfg.allow_global_search:
+        return _check(
+            "server.global_search",
+            SecurityCheckStatus.WARNING,
+            REASON_ALLOWLIST_INVALID,
+            "allow_global_search=true so search queries are not scoped to allowed_repos",
+        )
+    return _check(
+        "server.global_search",
+        SecurityCheckStatus.OK,
+        REASON_OK,
+        "allow_global_search=false so every search query is scoped to allowed_repos",
+    )
+
+
+def _max_file_read_size_check(cfg: GitHubConfig) -> SecurityCheckResult:
+    """Report the read-size limit, where `0` means unlimited rather than a broken bound."""
+    if cfg.max_file_read_size_kb > 0:
+        return _check(
+            "server.max_file_read_size",
+            SecurityCheckStatus.OK,
+            REASON_OK,
+            "max_file_read_size_kb is positive so oversized reads are refused",
+        )
+    return _check(
+        "server.max_file_read_size",
+        SecurityCheckStatus.NOT_APPLICABLE,
+        REASON_NOT_APPLICABLE,
+        "max_file_read_size_kb is zero so read size is unlimited",
+    )
 
 
 def validate_github_security(cfg: GitHubConfig) -> list[SecurityCheckResult]:
@@ -402,4 +523,6 @@ def validate_github_security(cfg: GitHubConfig) -> list[SecurityCheckResult]:
         size_check,
         audit_check,
         per_page_check,
+        _global_search_check(cfg),
+        _max_file_read_size_check(cfg),
     ]

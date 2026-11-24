@@ -50,6 +50,8 @@ entries:
   - common.published_tools
   - server.audit_log_writable
   - server.force_push_policy
+  - server.global_search
+  - server.max_file_read_size
   - server.max_file_size
   - server.path_denylist
   - server.per_page_bounds

@@ -11,7 +11,7 @@
 # max_per_page: maximum item count for list endpoints
 max_per_page = 100
 
-# allowed_repos: whitelist of repos permitted for write operations (owner/repo format)
+# allowed_repos: whitelist of repos permitted for read and write operations (owner/repo format)
 # Empty list = deny all (fail-closed)
 allowed_repos = ["masaos-minori/llmagent"]
 
@@ -24,12 +24,20 @@ allow_force_push = false
 # require_pr_review: true requires at least one APPROVED review before PR merge
 require_pr_review = true
 
-# path_denylist: glob patterns for file paths denied in push_files / create_or_update_file / delete_repo_file
+# path_denylist: glob patterns for file paths denied in get_file_contents / push_files / create_or_update_file / delete_repo_file
 # Empty is the registered ADR-004 exception (rationale: see the ADR-004 exception record, pending maintainer statement).
 path_denylist = []
 
 # max_file_size_kb: maximum file size (KB) for push_files / create_or_update_file; 0 = unlimited
 max_file_size_kb = 1024
+
+# allow_global_search: false scopes the four search tools to allowed_repos when the query is
+# built; true opts in to global search and is reported by the server posture
+allow_global_search = false
+
+# max_file_read_size_kb: maximum file size (KB) a read returns, checked against the content
+# metadata size before decoding; 0 = unlimited
+max_file_read_size_kb = 0
 
 # audit_log_path: structured audit log for write operations; empty string disables logging
 audit_log_path = "/opt/llm/logs/github_audit.log"

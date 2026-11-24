@@ -73,9 +73,9 @@ Add the two configuration fields this Plan introduces: `allow_global_search` (ne
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the two fields and parse them through the shared helpers per Procedure/Method/Details | Pending | — | — | |
-| 2 | Config-builder test cases are executed by row 18's document (`tests/mcp_servers/github/test_github_server_auth.py`) | Pending | — | — | Not a companion of this document: named by two Plan rows |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the two fields and parse them through the shared helpers per Procedure/Method/Details | Completed | 20261124-152854 | 20261124-152854 | max_file_read_size_kb and allow_global_search parsed through get_non_negative_number()/get_typed(); ruff and mypy clean |
+| 2 | Config-builder test cases are executed by row 18's document (`tests/mcp_servers/github/test_github_server_auth.py`) | Completed | 20261124-152854 | 20261124-152854 | Not a companion of this document: named by two Plan rows |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261124-152854 | 20261124-152854 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -34,6 +34,7 @@ from mcp_servers.github.github_models import (
     CreateOrUpdateFileRequest,
     DeleteRepoFileRequest,
     GetFileContentsRequest,
+    GitHubAuthorizationError,
     GitHubConfig,
     GitHubValidationError,
     PushFile,
@@ -104,7 +105,7 @@ class TestGetFileContents:
         mock_repo.get_contents.assert_called_once_with("f.txt", ref="v1.0")
 
     @pytest.mark.asyncio
-    async def test_decodes_with_replace_on_invalid_utf8(self) -> None:
+    async def test_non_utf8_content_is_refused_instead_of_substituted(self) -> None:
         svc = _make_service()
         mock_content = MagicMock()
         mock_content.path = "bin.dat"
@@ -114,10 +115,58 @@ class TestGetFileContents:
         svc._gh.get_repo.return_value.get_contents.return_value = mock_content
 
         req = GetFileContentsRequest(owner="org", repo="repo", path="bin.dat")
-        resp = await svc.get_file_contents(req)
+        with pytest.raises(GitHubValidationError, match="does not decode as UTF-8"):
+            await svc.get_file_contents(req)
 
-        # errors="replace" must not raise on invalid utf-8 bytes
-        assert "�" in resp.content
+    @pytest.mark.asyncio
+    async def test_repository_outside_the_allowlist_is_refused_before_the_api_call(
+        self,
+    ) -> None:
+        """Reads reach the boundary too, not only writes (AC-1)."""
+        svc = _make_service()
+        req = GetFileContentsRequest(owner="other", repo="repo", path="f.txt")
+        with pytest.raises(GitHubAuthorizationError, match="not in allowed_repos"):
+            await svc.get_file_contents(req)
+        svc._gh.get_repo.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_denied_path_is_refused_before_the_api_call(self) -> None:
+        """path_denylist applies to reads, as the documentation states (AC-5)."""
+        svc = _make_service({"allowed_repos": ["org/repo"], "path_denylist": [".env"]})
+        req = GetFileContentsRequest(owner="org", repo="repo", path=".env")
+        with pytest.raises(GitHubAuthorizationError, match="path_denylist"):
+            await svc.get_file_contents(req)
+        svc._gh.get_repo.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_oversized_content_is_refused_before_decoding(self) -> None:
+        """The metadata size is checked before any decoding work (AC-6)."""
+        svc = _make_service({"allowed_repos": ["org/repo"], "max_file_read_size_kb": 1})
+        mock_content = MagicMock()
+        mock_content.path = "big.txt"
+        mock_content.sha = "s"
+        mock_content.size = 2048
+        svc._gh.get_repo.return_value.get_contents.return_value = mock_content
+
+        req = GetFileContentsRequest(owner="org", repo="repo", path="big.txt")
+        with pytest.raises(GitHubValidationError, match="max_file_read_size_kb"):
+            await svc.get_file_contents(req)
+        mock_content.decoded_content.decode.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_zero_read_limit_decodes_large_content(self) -> None:
+        """max_file_read_size_kb=0 is unlimited, so the shipped default reads normally."""
+        svc = _make_service({"allowed_repos": ["org/repo"], "max_file_read_size_kb": 0})
+        mock_content = MagicMock()
+        mock_content.path = "big.txt"
+        mock_content.decoded_content = b"x" * 4096
+        mock_content.sha = "s"
+        mock_content.size = 4096
+        svc._gh.get_repo.return_value.get_contents.return_value = mock_content
+
+        req = GetFileContentsRequest(owner="org", repo="repo", path="big.txt")
+        resp = await svc.get_file_contents(req)
+        assert resp.size == 4096
 
     @pytest.mark.asyncio
     async def test_raises_validation_error_when_path_is_directory(self) -> None:

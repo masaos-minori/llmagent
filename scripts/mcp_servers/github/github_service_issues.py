@@ -92,7 +92,7 @@ class IssuesOps(GitHubSecurityGuards):
         def _sync() -> list[IssueInfo]:
             """Synchronously search issues via GitHub API."""
             issues_slice = itertools.islice(
-                self._gh.search_issues(query=req.query),
+                self._gh.search_issues(query=self._resolve_search_query(req.query)),
                 per_page,
             )
             return [issue_to_info(i) for i in issues_slice]

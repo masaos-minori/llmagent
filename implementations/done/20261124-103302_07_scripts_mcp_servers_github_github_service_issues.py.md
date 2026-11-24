@@ -75,9 +75,9 @@ Bring `search_issues()` inside the query-construction boundary defined by row 4 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion `tests/mcp_servers/github/test_service_issues.py`) | Pending | — | — | Written in Phase 2, before this row lands |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261124-152854 | 20261124-152854 |  |
+| 2 | Add or update tests per Validation plan (companion `tests/mcp_servers/github/test_service_issues.py`) | Completed | 20261124-152854 | 20261124-152854 | Written in Phase 2, before this row lands |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261124-152854 | 20261124-152854 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
