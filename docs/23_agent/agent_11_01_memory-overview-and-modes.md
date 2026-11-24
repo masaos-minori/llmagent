@@ -29,7 +29,7 @@ The Episodic Memory layer is **optional**. Since RAG already provides search cap
 
 ### Independence from Conversation Sessions
 
-Episodic Memory has a lifecycle independent from conversation sessions. Deleting, purging, loading, exporting, undoing, or compressing a session does not modify it, and no command gives users a way to delete it. Its retention and consistency are managed internally (the retention policy is undecided, SHARED-004). The canonical statement of the session/memory boundary is in agent_04_01.
+Episodic Memory has a lifecycle independent from conversation sessions. Deleting, purging, loading, exporting, undoing, or compressing a session does not modify it, and no command gives users a way to delete it. Its retention and consistency are managed internally (retention is configurable per event type and state-aware, and age alone never authorizes deletion (ADR-008 Decision Details #23 and #24); the period values are undecided (SHARED-004)). The canonical statement of the session/memory boundary is in agent_04_01.
 
 ## Responsibility Boundary
 
@@ -54,7 +54,7 @@ Episodic Memory is the Agent's only persistent long-term memory.
 - It is stored in `session.sqlite`: events and relations are authoritative, and the FTS and Vector indexes are derived (see agent_09_01).
 - It has no user-facing add, list, search, pin, delete, prune, or rebuild operation.
 - Internal retention, consistency, backup, and recovery manage it; it is recovered only from a verified SQLite backup.
-- The supported event categories and the retention policy are undefined (SHARED-004).
+- The initial event types are `failure`, `resolution`, `review_finding`, `investigation_result`, `work_result`, and `decision_history`; this document owns the taxonomy (ADR-008 Decision Detail #24). Retention is configurable per event type and state-aware; the period values are undecided (SHARED-004). Episodic full-text search is required and Vector search is optional derived functionality.
 
 ## Context Budget
 
@@ -116,7 +116,7 @@ Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.
 ## Known Limitations / Unresolved Issues
 
 - Repository Context and its diagnostics are not implemented, and the code still implements the old memory model (SHARED-003).
-- Episodic event categories, retention, the Session DB schema-mismatch handling for Episodic Memory, and the context-overflow failure behavior are undecided (SHARED-004).
+- The retention period per Episodic event type and the context-overflow failure behavior are undecided (SHARED-004); the Session DB schema-mismatch handling is final (archive and recreate, Episodic Memory not carried over; ADR-008 Decision Detail #22).
 
 
 ## Keywords

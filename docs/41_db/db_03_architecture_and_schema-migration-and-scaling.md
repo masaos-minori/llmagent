@@ -37,7 +37,7 @@ Recreating `session.sqlite` physically removes both sessions and Episodic Memory
 
 1. Export any conversation worth keeping with `/session export` before recreating.
 2. Recreate `session.sqlite` (Archive → Delete → Recreate).
-3. To keep Episodic Memory, restore a verified backup of the whole Session DB instead of recreating; whether destructive recreation is the final policy for Episodic Memory is undecided (SHARED-004).
+3. To keep Episodic Memory, restore a verified backup of the whole Session DB instead of recreating; destructive recreation, without carrying Episodic Memory over, is the final policy (ADR-008 Decision Detail #22).
 4. Past session history is not restored into the database, and `/session export` output is for human reference only.
 
 ### 8a. Startup Validation for `workflow.sqlite`

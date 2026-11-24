@@ -49,7 +49,7 @@ None currently known.
 
 ### MemoryEntry (Stored in SQLite)
 
-A `MemoryEntry` carries the provenance session/turn, the `project` / `repo` / `branch` context filters, `content` and `summary`, `tags`, and UTC timestamps (schema: `MemoryEntry` in the memory module). The supported Episodic event categories are undefined (SHARED-004), and the code still carries fields of the retired dual model (SHARED-003).
+A `MemoryEntry` carries the provenance session/turn, the `project` / `repo` / `branch` context filters, `content` and `summary`, `tags`, and UTC timestamps (schema: `MemoryEntry` in the memory module). The initial Episodic event types are `failure`, `resolution`, `review_finding`, `investigation_result`, `work_result`, and `decision_history` (agent_11_01), and the code still carries fields of the retired dual model (SHARED-003).
 
 > **Branch filtering:** When a non-empty branch is specified, search includes ONLY the following via hard SQL filtering:
 > - Memories where `branch = ''` (Global memories, always included)

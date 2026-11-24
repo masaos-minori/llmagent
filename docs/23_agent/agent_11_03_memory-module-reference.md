@@ -69,7 +69,7 @@ Since the Episodic Memory Layer is optional, all public APIs are designed to be 
 
 ### Core and Store
 
-- There is no session-scoped memory deletion: Episodic Memory is independent of the source session and is retained internally (policy undecided, SHARED-004).
+- There is no session-scoped memory deletion: Episodic Memory is independent of the source session and is retained internally (state-aware per event type; period values undecided, SHARED-004).
 - Retrieval for injection excludes memories whose provenance `session_id` equals the current session, because that session's restored history is already in context.
 - Chunk splitting occurs for content exceeding `memory_max_content_chars`. This is a limit per chunk, not on total content volume.
 

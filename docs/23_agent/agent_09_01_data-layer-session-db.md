@@ -43,9 +43,9 @@ The message repository is (re)bound lazily to the `AgentSession` facade's curren
 
 ### Session Retention Policy
 
-`db/maintenance.py`'s `purge_old_sessions()` deletes old sessions based on `RetentionConfig`, following an age-based then count-based order. Deleting a session propagates to `messages` via `ON DELETE CASCADE`, but never to Episodic Memory; Episodic Memory retention is independent and managed internally (its policy is undecided, SHARED-004). The purge runs only on demand (`/session purge`); no scheduler invokes it automatically. (Explicit in code — `scripts/agent/commands/cmd_session.py`, `scripts/agent/services/db_maintenance_service.py`)
+`db/maintenance.py`'s `purge_old_sessions()` deletes old sessions based on `RetentionConfig`, following an age-based then count-based order. Deleting a session propagates to `messages` via `ON DELETE CASCADE`, but never to Episodic Memory; Episodic Memory retention is independent and managed internally (configurable per event type and state-aware; the period values are undecided, SHARED-004). The purge runs only on demand (`/session purge`); no scheduler invokes it automatically. (Explicit in code — `scripts/agent/commands/cmd_session.py`, `scripts/agent/services/db_maintenance_service.py`)
 
-Retention follows ADR-008 Decision Detail #23: sessions by `purge_old_sessions()`, diagnostics by the `retention_days` purge, Episodic Memory by internal retention (policy undecided, SHARED-004).
+Retention follows ADR-008 Decision Detail #23: sessions by `purge_old_sessions()`, diagnostics by the `retention_days` purge, Episodic Memory by configurable, state-aware retention per event type (period values undecided, SHARED-004).
 
 ### Episodic Memory Ownership
 
@@ -61,7 +61,7 @@ Episodic table names and the provenance of each Episodic event are not defined h
 
 Episodic Memory is part of the Session DB backup and of full Session DB recovery: `/session recover` restores the whole database, and Episodic Memory returns with it. Repository Context is not restored from a backup; it is reloaded from the configured repository files.
 
-A `session.sqlite` file that does not match the current schema is archived and recreated (ADR-008 Decision Detail #22): export conversations with `/session export` first; session history and Episodic Memory are not carried over. Whether a destructive recreation is the final policy for Episodic Memory is undecided (SHARED-004).
+A `session.sqlite` file that does not match the current schema is archived and recreated (ADR-008 Decision Detail #22): export conversations with `/session export` first; session history and Episodic Memory are not carried over. This destructive recreation is the final policy for Episodic Memory.
 
 `/clear`, `/undo`, session deletion, and session purge give no user-level Episodic deletion semantics.
 

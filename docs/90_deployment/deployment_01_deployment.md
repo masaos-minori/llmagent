@@ -316,7 +316,7 @@ Run `init_db.sh` before `setup_services.sh`. Any rag, session, workflow, or Even
 | 3. Archive | Archive every DB with `rotate_all_dbs()` (db_07, DB Recreation Procedure, Step 1) |
 | 4. Delete | Delete only `session.sqlite` (`session_db_path` in `agent.toml`) |
 | 5. Create | Run only `create_session_schema()`; do not touch other DBs |
-| 6. Episodic Memory | Not carried over by recreation. To keep it, restore a verified backup of the whole Session DB instead of recreating; the final policy is undecided (SHARED-004) |
+| 6. Episodic Memory | Not carried over by recreation. To keep it, restore a verified backup of the whole Session DB instead of recreating; this is the final policy (ADR-008 Decision Detail #22) |
 | 7. Verify | Confirm the new column with `PRAGMA table_info(sessions)` |
 
 Sessions, messages, diagnostics, and Episodic Memory are not recovered; past sessions can no longer be loaded.
