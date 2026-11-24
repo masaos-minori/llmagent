@@ -73,8 +73,8 @@ Regenerate the subpackage API table so the new service module and the new `Memor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate from the manifests | In Progress | — | — | Phase 7 Phase 4 part: the same generator run rendered the RagFtsRebuildResult row in the subpackage table; no hand editing. |
-| 2 | Run the generator drift check and the structure checker (`rules/tool-gates.md`) | Pending | — | — |  |
+| 1 | Regenerate from the manifests | Completed | 20261125-065134 | 20261125-065134 | Phase 7 Phase 4 part: the same generator run rendered the RagFtsRebuildResult row in the subpackage table; no hand editing. Phase 7 (R7) done: the generator run rendered the RagVecPruneResult row in the subpackage table; no hand editing. Deviation: the rendered RagVecPruneResult row landed in the Phase 6 commit with the manifest, for the same gate reason. |
+| 2 | Run the generator drift check and the structure checker (`rules/tool-gates.md`) | Completed | 20261125-003636 | 20261125-003636 | generate_reference_table.py --check reports no drift. Deviation: check_docs_structure reports the file at 33078 B against the 32768 B limit; it was already over the limit at HEAD (32952 B), so the finding is pre-existing and the generated output cannot be shortened by hand. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

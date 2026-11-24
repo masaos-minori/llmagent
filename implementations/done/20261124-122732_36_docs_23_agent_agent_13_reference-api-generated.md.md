@@ -73,8 +73,8 @@ Regenerate the agent API table so the new public symbols in the job registry app
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate from the manifest | Pending | — | — | Phase 7 |
-| 2 | Run the generator drift check and the structure checker (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Regenerate from the manifest | Completed | 20261125-003636 | 20261125-003636 | Phase 7 Phase 7 (R7): the generator run wrote no change for this file - the generated block already matched the manifest, so nothing to regenerate. |
+| 2 | Run the generator drift check and the structure checker (`rules/tool-gates.md`) | Completed | 20261125-003636 | 20261125-003636 | generate_reference_table.py --check reports no drift; check_docs_structure reports no finding for this file. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -411,9 +411,9 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | 2 | Phase 2: job commands, completion, contract checker | Completed | — | 20261124-165333 | OD-02 decided 2026-11-24: top-level `/jobs` Phase 2 landed. Rows 10, 11, 24, 41, 49, 63 complete and archived; row 09 keeps only its Phase 6 rename step. Handler placed in cmd_session.py _SessionMixin per the OD-02 decision; repl.py unchanged because the completion set derives from _COMMANDS; the /jobs chapter mention was added in this phase so the coverage gate passes with the index row. |
 | 3 | Phase 3: Memory approval levels and repair guidance | In Progress | — | — | OD-03 decided 2026-11-24: flags stay as recorded grants Phase 3 landed: Memory handlers are async, registered as jobs against StoreTarget.SESSION, and decided by the declared level. Behavior change to record: a run with no recorded grant is refused, so `/memory reindex --fts` without --confirm no longer runs (CONFIRM profile); the flags are recorded grants only, with no interactive prompt on the Memory path. Rows 05 and 43 keep their later-phase steps; row 51's async call sites were awaited here. Tests written first (rows 43, 56). |
 | 4 | Phase 4: verified results and postconditions | Completed | — | 20261124-192923 | Phase 4 landed. Deviation recorded per the 2026-11-24 decision: the Session postconditions are measured in the service layer (db_maintenance_service.py) on the same connection the run used, and db_session_ops.py only forwards, so verified is set in the service rather than the command layer. Rows 04, 05, 21, 51, 52 are complete and archived; rows 22, 42, 43 keep their Phase 5 and Phase 6 parts. No outcome string is synthesized for an unverified run: the job state stays completed with verified=False. Tests were written first in the order the plan names. The Phase 4 gates pass on the whole diff, including lint-imports 6 kept and the FTS invariant checker. |
-| 5 | Phase 5: Memory service layer, transactions, pin and prune atomicity | In Progress | — | — | UNK-02 must be resolved in this phase |
-| 6 | Phase 6: RAG vector operation contract and its documents | In Progress | — | — | OD-01 decided 2026-11-24: rename to `/session rag-prune-vec`; UNK-05 closed |
-| 7 | Phase 7: documentation and generated artifacts | In Progress | — | — |  |
+| 5 | Phase 5: Memory service layer, transactions, pin and prune atomicity | Completed | — | 20261124-234217 | UNK-02 must be resolved in this phase UNK-02 resolved in this phase. Phase 5 landed: the store is the only place the Memory package opens a maintenance connection, the accessors run inside one begin_immediate() and measure the postcondition after the commit, the pin limit is enforced inside the pin transaction, and the reported prune count is the rows actually deleted. Rows 06, 07, 08, 12, 13, 14, 15, 16, 44, 45, 48, 55, 57, 58 complete and archived. Deviations recorded in rows 12, 14, 15, 55, 58 and row 06's Execution Status. AC-5 grep gate passes: no SQLiteHelper construction remains under scripts/agent/commands/. |
+| 6 | Phase 6: RAG vector operation contract and its documents | Completed | — | 20261125-002419 | OD-01 decided 2026-11-24: rename to `/session rag-prune-vec`; UNK-05 closed Phase 6 (R6) landed as one release unit: the rename plus every document that names the command and config/doc_quality_rules.json. |
+| 7 | Phase 7: documentation and generated artifacts | Completed | — | 20261125-003632 | Phase 7 (R7) landed: the remaining approval and cancellation boundary text, the regenerated manifests and generated reference tables. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -427,13 +427,13 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | implementations/20261124-122732_01_scripts_agent_services_maintenance_jobs.py.md | 1 | Procedure | Completed | — | — |
-| implementations/20261124-122732_03_scripts_agent_commands_cmd_session.py.md | 1,6 | Procedure | Pending | — | — |
+| implementations/20261124-122732_03_scripts_agent_commands_cmd_session.py.md | 1,6 | Procedure | Completed | — | — |
 | implementations/20261124-122732_04_scripts_agent_commands_db_session_ops.py.md | 1,4 | Procedure | Completed | — | — |
 | implementations/20261124-122732_05_scripts_agent_commands_memory_rebuild_ops.py.md | 3,4 | Procedure | Completed | — | — |
 | implementations/20261124-122732_06_scripts_agent_commands_memory_data_ops.py.md | 5 | Procedure | Completed | — | — |
 | implementations/20261124-122732_07_scripts_agent_commands_cmd_memory.py.md | 5 | Procedure | Completed | — | — |
 | implementations/20261124-122732_08_scripts_agent_commands_memory_status.py.md | 5 | Procedure | Completed | — | — |
-| implementations/20261124-122732_09_scripts_agent_commands_command_defs_list.py.md | 2,6 | Procedure | Pending | — | — |
+| implementations/20261124-122732_09_scripts_agent_commands_command_defs_list.py.md | 2,6 | Procedure | Completed | — | — |
 | implementations/20261124-122732_10_scripts_agent_commands_registry.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261124-122732_11_scripts_agent_repl.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261124-122732_12_scripts_agent_memory_store.py.md | 5 | Procedure | Completed | — | — |
@@ -444,34 +444,34 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261124-122732_17_scripts_agent_factory.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261124-122732_18_scripts_agent_context.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261124-122732_19_scripts_db_maintenance.py.md | 1 | Procedure | Completed | — | — |
-| implementations/20261124-122732_20_scripts_db_rag_consistency.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261124-122732_20_scripts_db_rag_consistency.py.md | 6 | Procedure | Completed | — | — |
 | implementations/20261124-122732_21_scripts_agent_services_db_maintenance_service.py.md | 1,4 | Procedure | Completed | — | — |
-| implementations/20261124-122732_22_scripts_agent_services_rag_maintenance_service.py.md | 4,6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_23_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md | 6,7 | Procedure | Pending | — | — |
+| implementations/20261124-122732_22_scripts_agent_services_rag_maintenance_service.py.md | 4,6 | Procedure | Completed | — | — |
+| implementations/20261124-122732_23_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md | 6,7 | Procedure | Completed | — | — |
 | implementations/20261124-122732_24_docs_23_agent_agent_07_03_cli-and-commands-command-registry.md.md | 2 | Procedure | Completed | — | — |
-| implementations/20261124-122732_25_docs_23_agent_agent_07_10_cli-and-commands-slash-commands-memory-other.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261124-122732_26_docs_23_agent_agent_04_03_state-and-persistence-platform-databases.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_27_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 6,7 | Procedure | Pending | — | — |
-| implementations/20261124-122732_28_docs_91_security_security_01_architecture-and-trust-boundaries.md.md | 6,7 | Procedure | Pending | — | — |
-| implementations/20261124-122732_29_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_30_docs_21_rag_rag_05_02-execution-guide.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_31_docs_22_mcp_mcp_05_04_mdq-rag-boundary.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_32_docs_22_mcp_mcp_05_05_mdq-enforcement-and-lockdown.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_33_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_34_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_35_config_doc_quality_rules.json.md | 6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_36_docs_23_agent_agent_13_reference-api-generated.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261124-122732_37_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261124-122732_38_registry_manifests_agent_api.yaml.md | 7 | Procedure | Pending | — | — |
-| implementations/20261124-122732_39_registry_manifests_memory_api.yaml.md | 7 | Procedure | Pending | — | — |
+| implementations/20261124-122732_25_docs_23_agent_agent_07_10_cli-and-commands-slash-commands-memory-other.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261124-122732_26_docs_23_agent_agent_04_03_state-and-persistence-platform-databases.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261124-122732_27_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 6,7 | Procedure | Completed | — | — |
+| implementations/20261124-122732_28_docs_91_security_security_01_architecture-and-trust-boundaries.md.md | 6,7 | Procedure | Completed | — | — |
+| implementations/20261124-122732_29_docs_21_rag_rag_05_07-rag-index-consistency-checks.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261124-122732_30_docs_21_rag_rag_05_02-execution-guide.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261124-122732_31_docs_22_mcp_mcp_05_04_mdq-rag-boundary.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261124-122732_32_docs_22_mcp_mcp_05_05_mdq-enforcement-and-lockdown.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261124-122732_33_docs_10_adr_adr_02_06_005_rag-source-derived-index-relationships.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261124-122732_34_docs_10_adr_adr_02_06_009_rag-fts5-text-separation.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261124-122732_35_config_doc_quality_rules.json.md | 6 | Procedure | Completed | — | — |
+| implementations/20261124-122732_36_docs_23_agent_agent_13_reference-api-generated.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261124-122732_37_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261124-122732_38_registry_manifests_agent_api.yaml.md | 7 | Procedure | Completed | — | — |
+| implementations/20261124-122732_39_registry_manifests_memory_api.yaml.md | 7 | Procedure | Completed | — | — |
 | implementations/20261124-122732_41_tests_agent_commands_test_command_registry_consistency.py.md | 2 | Procedure | Completed | — | — |
-| implementations/20261124-122732_42_tests_agent_commands_test_agent_cmd_session.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_43_tests_agent_commands_test_cmd_memory.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261124-122732_42_tests_agent_commands_test_agent_cmd_session.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261124-122732_43_tests_agent_commands_test_cmd_memory.py.md | 3 | Procedure | Completed | — | — |
 | implementations/20261124-122732_44_tests_agent_memory_test_memory_store.py.md | 5 | Procedure | Completed | — | — |
 | implementations/20261124-122732_45_tests_agent_commands_test_memory_data_ops.py.md | 5 | Procedure | Completed | — | — |
 | implementations/20261124-122732_48_tests_agent_commands_test_memory_status.py.md | 5 | Procedure | Completed | — | — |
 | implementations/20261124-122732_49_tests_agent_commands_test_command_def_sync.py.md | 2 | Procedure | Completed | — | — |
-| implementations/20261124-122732_50_tests_agent_commands_test_removed_commands.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261124-122732_50_tests_agent_commands_test_removed_commands.py.md | 6 | Procedure | Completed | — | — |
 | implementations/20261124-122732_51_tests_agent_commands_test_memory_consistency.py.md | 4 | Procedure | Completed | — | — |
 | implementations/20261124-122732_52_tests_rag_test_fts_sync.py.md | 4 | Procedure | Completed | — | — |
 | implementations/20261124-122732_55_scripts_agent_memory_rebuild_ops.py.md | 5 | Procedure | Completed | — | — |

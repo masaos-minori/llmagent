@@ -67,8 +67,8 @@ Document the approval, cancellation, and verified-result behavior for the Memory
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the approval, cancellation, and verified-result text | Pending | — | — | Phase 7 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Add the approval, cancellation, and verified-result text | Completed | 20261125-003636 | 20261125-003636 | Phase 7 Phase 7 (R7) done: the chapter describes the job framework for the retired maintenance forms - approval level decided at registration, the flags as recorded grants, cancellation at the next progress callback, and the verified result before the success line. The retired-command rows are unchanged. |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-003636 | 20261125-003636 | check_docs_quality, check_docs_structure, check_docs_content_policy and check_docs_consistency --domain agent report no finding for this file. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

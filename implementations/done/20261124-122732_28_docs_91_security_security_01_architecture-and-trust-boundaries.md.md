@@ -71,9 +71,9 @@ Record the approval and cancellation boundaries for maintenance work in the trus
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the command name in the boundary table | Pending | — | — | Phase 6 |
-| 2 | Add the approval and cancellation boundary text | Pending | — | — | Phase 7 |
-| 3 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the command name in the boundary table | Completed | 20261125-002740 | 20261125-002740 | Phase 6 Phase 6 (R6) part: the boundary row names /session rag-prune-vec. |
+| 2 | Add the approval and cancellation boundary text | Completed | 20261125-003636 | 20261125-003636 | Phase 7 Phase 7 (R7) done: the new subsection states that approval levels none/confirm/guard decide whether a run may start, that a confirm or guard grant comes from the request-bound confirmation path, and that a registered job is interrupted at its next progress callback while a not_cancelable operation is refused with the recorded reason. |
+| 3 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-003636 | 20261125-003636 | check_docs_quality, check_docs_structure and check_docs_content_policy report no finding. Deviation: check_docs_consistency has no security domain, so this file is covered by the quality and structure gates only. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

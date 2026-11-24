@@ -71,8 +71,8 @@ Regenerate the Memory API manifest so it records the new `MemoryStore` accessors
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the manifest | Pending | — | — | Phase 7 |
-| 2 | Run the generator drift check (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Regenerate the manifest | Completed | 20261125-003636 | 20261125-003636 | Phase 7 Phase 7 (R7): the generator run wrote no change - the Memory manifest already carried the Phase 5 result dataclasses and the store signatures. |
+| 2 | Run the generator drift check (`rules/tool-gates.md`) | Completed | 20261125-003636 | 20261125-003636 | generate_reference_table.py --check reports no drift. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -48,6 +48,12 @@ The usage forms below are listed only because the command registry still registe
 | `/memory reindex [--fts\|--vec]` | Retired |
 | `/memory rebuild [--confirm] [--allow-loss]` | Retired |
 
+### Memory Maintenance Runs
+
+The retired maintenance forms run through `MaintenanceJobRegistry` (see [agent_04_03](agent_04_03_state-and-persistence-platform-databases.md)). Approval is a property of the operation decided at registration: `delete`, `prune`, `reindex`, and `rebuild` register with `ApprovalLevel.CONFIRM`, and `--confirm` and `--allow-loss` are recorded grants on the job rather than permissions, so a run with no recorded grant is refused before it starts. `pin` is not a job, and a dry-run `prune` registers none.
+
+A recorded run is cancellable at its next progress callback, and the command reports the job id and the terminal state from the job record rather than a fixed success line. The success line appears only after the postcondition is re-measured against the source rows on the same connection: an unverified run reports the check result with no success line, and a run stopped by a cancellation request reports `cancelled` with no measured count.
+
 ### Other Category
 
 `/help` displays this help output.

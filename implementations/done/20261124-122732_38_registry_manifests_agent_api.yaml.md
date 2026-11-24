@@ -72,8 +72,8 @@ Regenerate the agent API manifest so it records the new public symbols of the jo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the manifest | In Progress | — | — | Phase 7 Phase 4 part: the generator was run here to satisfy the pre-commit manifest gate, which refused the Phase 4 commit because the new RagFtsRebuildResult dataclass (row 22) makes the manifest stale. The manifest and agent_14 table entries for that class were generated in this pass and committed with it. |
-| 2 | Run the generator drift check (`rules/tool-gates.md`) | Pending | — | — |  |
+| 1 | Regenerate the manifest | Completed | 20261125-065134 | 20261125-065134 | Phase 7 Phase 4 part: the generator was run here to satisfy the pre-commit manifest gate, which refused the Phase 4 commit because the new RagFtsRebuildResult dataclass (row 22) makes the manifest stale. The manifest and agent_14 table entries for that class were generated in this pass and committed with it. Phase 7 (R7) done: the manifest regenerated with the RagVecPruneResult entry for the renamed result dataclass. Deviation: the regenerated manifest landed in the Phase 6 commit, not Phase 7, because the pre-commit manifest gate refused that commit - the renamed result dataclass makes the manifest stale. The RagVecPruneResult entry is the generator's output, no hand editing. |
+| 2 | Run the generator drift check (`rules/tool-gates.md`) | Completed | 20261125-003636 | 20261125-003636 | generate_reference_table.py --check reports no drift. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
