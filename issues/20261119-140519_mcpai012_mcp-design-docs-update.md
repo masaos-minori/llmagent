@@ -35,7 +35,7 @@ Produce one implementation-aligned description in which every security or reliab
 
 ## Constraints
 - Do not merge before the behavior it documents. ADR content changes need an approval record (governance_01, governance_05), never a simulated one.
-- The alignment of ADR-004 and ADR-008 must account for the open governance items on them (`docs/00_governance/governance_03_issue-and-uncertainty-management.md`): Known Issues MCP-001 and MCP-002 (ADR-004 exceptions without approval), Needs Confirmation NC-001 and NC-002 (ADR-004 Group 1 and Group 2 item 7 rationale), Known Issue SHARED-002 (`memories_vec` classified as both system of record and derived in the ADR-008 Recovery Policy Matrix), and the pending ledger entries AAL-002, AAL-003, AAL-019 (ADR-004) and AAL-024 to AAL-028 (ADR-008). Describe the implemented behavior without resolving them, and do not write an approval for any of them.
+- The alignment of ADR-004 and ADR-008 must account for the open governance items on them (`docs/00_governance/governance_03_issue-and-uncertainty-management.md`): Known Issues MCP-001 and MCP-002 (ADR-004 exceptions without approval), Needs Confirmation NC-001 and NC-002 (ADR-004 Group 1 and Group 2 item 7 rationale), and the pending ledger entries AAL-002, AAL-003, AAL-019 (ADR-004) and AAL-024, AAL-025, AAL-028, AAL-039 (ADR-008). The Known Issue SHARED-002 (`memories_vec` classified as both system of record and derived) no longer exists: the ADR-008 amendment of 2026-11-24 (adrdoc001) rewrote the Recovery Policy Matrix for Episodic Memory and removed it, withdrew AAL-026 and AAL-027, and added AAL-039; the remaining memory-model differences are tracked by SHARED-003 and SHARED-004. Describe the implemented behavior without resolving them, and do not write an approval for any of them.
 
 ## Acceptance Criteria
 - [ ] No section contradicts the implementation, and no comment claims that session, tool, and arguments identify a logical call.
@@ -58,7 +58,7 @@ This issue is the documentation change: intent, boundaries, failure behavior, an
 
 ## Unresolved Questions
 - `不明`: whether the document map above is complete; the combined `22_mcp_all.md` named in the backlogs is not a tracked file (`ls docs/22_mcp` shows the split files).
-- `不明`: the maintainer's classification of `memories_vec` (SHARED-002) and the outcomes of MCP-001, MCP-002, NC-001, and NC-002; the ADR text this issue writes depends on them.
+- `不明`: the outcomes of MCP-001, MCP-002, NC-001, and NC-002; the ADR text this issue writes depends on them. (The earlier question about the `memories_vec` classification, SHARED-002, is closed by the ADR-008 amendment of 2026-11-24.)
 
 ## AI Implementation Instruction
 Edit documentation and comments only; verify each claim against current source and the named test before writing it.
