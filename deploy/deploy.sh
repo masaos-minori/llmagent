@@ -150,6 +150,9 @@ echo "Binaries   : ${DEPLOY_BIN}/ (${#BINARY_NAMES[@]} 本)"
 echo "--- config/*.toml → ${DEPLOY_CONFIG}/ ---"
 # Agent
 cp "${REPO_ROOT}/config/agent.toml"                     "${DEPLOY_CONFIG}/"
+# Agent ツールマニフェスト (scripts/agent/services/mcp_tool_discovery.py が起動時に読み、
+# 無ければ fail-closed。rules/env.md の「新規 config toml を追加したら cp 行を追記」に従う)
+cp "${REPO_ROOT}/config/tool_catalog.toml"              "${DEPLOY_CONFIG}/"
 # MCP サーバー (各サーバー専用設定; agent.toml は読み込まない)
 cp "${REPO_ROOT}/config/web_search_mcp_server.toml"     "${DEPLOY_CONFIG}/"
 cp "${REPO_ROOT}/config/github_mcp_server.toml"         "${DEPLOY_CONFIG}/"
