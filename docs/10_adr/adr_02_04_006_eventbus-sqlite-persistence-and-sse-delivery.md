@@ -16,7 +16,7 @@ related:
   - governance_03_issue-and-uncertainty-management.md
   - adr_02_01_004_platform-environment-failure-handling-policy.md
   - adr_02_04_013_eventbus-authentication-authorization.md
-  - adr_02_05_008_db-sqlite-4db-separation.md
+  - adr_02_05_008_db-six-sqlite-store-separation.md
   - governance_01_documentation-policy.md
 ---
 

@@ -16,7 +16,7 @@ related:
   - db_02_architecture_and_schema-schema-reference.md
   - db_03_architecture_and_schema-migration-and-scaling.md
   - db_08_active_databases.md
-  - adr_02_05_008_db-sqlite-4db-separation.md
+  - adr_02_05_008_db-six-sqlite-store-separation.md
   - mcp_03_03_transport-and-health.md
   - agent_04_03_state-and-persistence-platform-databases.md
 ---
@@ -33,7 +33,7 @@ Agent-facing semantics: [agent_04_03](../23_agent/agent_04_03_state-and-persiste
 ## The Standalone `mcp_dedup.sqlite` Store
 
 `mcp_dedup.sqlite` is one of the six SQLite stores: a store outside the four platform domains.
-[ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) separates stores by owner:
+[ADR-008](../10_adr/adr_02_05_008_db-six-sqlite-store-separation.md) separates stores by owner:
 this file is owned by the shared MCP dispatcher layer (`scripts/shared/mcp_dedup.py`,
 `DedupStore`) and is never opened by the agent, the RAG pipeline, or the MDQ index.
 The agent's tool-call view lives in `workflow.sqlite` instead, and the dispatcher never

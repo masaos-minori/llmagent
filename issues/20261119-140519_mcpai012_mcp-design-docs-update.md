@@ -22,7 +22,7 @@ Produce one implementation-aligned description in which every security or reliab
 - MCP design documents under `docs/22_mcp/` (see the document map in Required Changes)
 - Agent workflow and audit comments
 - File write and delete, Git, and GitHub design sections
-- `docs/10_adr/adr_02_01_002_platform-config-isolation.md`, `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`, `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`, deployment manifests, and the migration and operator runbooks (runbook locations `Unknown`)
+- `docs/10_adr/adr_02_01_002_platform-config-isolation.md`, `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`, `docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md`, deployment manifests, and the migration and operator runbooks (runbook locations `Unknown`)
 
 ## Required Changes
 - Define workflow, task, turn, call, session, request ids and the idempotency key in one table; document Agent-managed replay and the final dedup ownership and lease state machine.

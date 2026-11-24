@@ -1,10 +1,10 @@
 ## Goal
-Replace the old ADR-008 file name with the new one in this document (front matter `related` entry and the Source and Target fields of two Known Issue entries) (REQ-002).
+Update the usage example in the module docstring to the new path (REQ-003).
 
 ## Scope
 **Release unit**: adr008-rename
 
-- Edits only `docs/00_governance/governance_03_issue-and-uncertainty-management.md`; part of the single rename commit, because a renamed file with an unupdated reference fails the reference, link, and ceiling checks.
+- Edits only `tools/check_adr_preservation.py`; part of the single rename commit, because a renamed file with an unupdated reference fails the reference, link, and ceiling checks.
 
 ## Assumptions
 - The rename and all reference updates land in one commit; the rename procedure (seq 01) runs first, so after it the old file name no longer exists.
@@ -19,18 +19,16 @@ N/A: mechanical rename; the Plan fixes the approach.
 
 ## Implementation
 ### Target file
-`docs/00_governance/governance_03_issue-and-uncertainty-management.md`
+`tools/check_adr_preservation.py`
 
 ### Procedure
-1. Replace every occurrence of adr_02_05_008_db-sqlite-4db-separation.md with adr_02_05_008_db-six-sqlite-store-separation.md (front matter `related` entry and the Source and Target fields of two Known Issue entries; lines 30, 242, 245, 262, 265).
-2. Change nothing else in the file.
-3. The file is at its size ceiling (36807); it grows by 30 bytes (5 references x 6 bytes), and the ceiling is re-recorded to 36837 by the `tools/check_docs_structure.py` procedure of this release unit; do not change the ceiling here.
+1. In the module docstring usage example, replace the path docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md with docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md.
 
 ### Method
-- Use the Edit tool with exact strings, or `sed -i` limited to this file; confirm with `rg -n "db-sqlite-4db-separation" docs/00_governance/governance_03_issue-and-uncertainty-management.md` that no match remains afterwards.
+- Use the Edit tool on the docstring line.
 
 ### Details
-- Front matter `related` entries are file names without a directory; Markdown links use the relative path `../10_adr/<name>`; keep each form's shape and replace only the name.
+- Docstring only; no code change.
 
 ## Compatibility considerations
 N/A: a path or name change only.
@@ -42,11 +40,11 @@ N/A: no security-relevant change.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run python tools/check_adr_reference.py` and `uv run python tools/check_docs_consistency.py --domain deployment`.
+- `uv run pytest tests/tools/test_check_adr_preservation.py -q`; `uv run ruff format tools/check_adr_preservation.py`, `uv run ruff check tools/check_adr_preservation.py`, `uv run mypy tools/check_adr_preservation.py`, `uv run bandit tools/check_adr_preservation.py`.
 - `uv run python tools/check_docs_quality.py` for document targets.
 
 ## Completion criteria
-- `rg -c "db-sqlite-4db-separation" docs/00_governance/governance_03_issue-and-uncertainty-management.md` reports no match; front matter `related` entries and links resolve.
+- The docstring example names the new path; the tool validations are clean.
 
 ## Out of Scope
 - Any other file, any content edit, archived issues, plans, and procedures, and the two status baseline files.
@@ -56,8 +54,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the change per Implementation | Pending | — | — | |
-| 2 | Run the checkers per Validation plan | Pending | — | — | Release unit adr008-rename |
+| 1 | Edit the tool file per Implementation | Completed | — | 20261124-123634 | 1: changed: tools/check_adr_preservation.py (docstring usage example line 39 -> new path) |
+| 2 | Run the tool tests per Validation plan | Completed | — | 20261124-123634 | 2: pytest tests/tools/test_check_adr_preservation.py Pass |
+| 3 | Run ruff, mypy, and bandit on the file | Completed | — | 20261124-123634 | Release unit adr008-rename 3: ruff format no changes; ruff check Pass; mypy Pass; bandit exit 0 no findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -71,10 +70,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-002
+- **Requirement ID**: REQ-003
 - **Source issue**: issues/20261124-112759_adrren001_rename-adr-008-file.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261124-113352_adrren001_rename-adr-008-file.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261124-113849
-- **Related target files**: `docs/00_governance/governance_03_issue-and-uncertainty-management.md`
+- **Related target files**: `tools/check_adr_preservation.py`

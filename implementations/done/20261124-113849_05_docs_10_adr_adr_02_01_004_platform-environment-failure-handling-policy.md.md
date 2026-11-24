@@ -1,10 +1,10 @@
 ## Goal
-Replace the old ADR-008 file name with the new one in this document (front matter `related` entry and three Markdown links) (REQ-002).
+Replace the old ADR-008 file name with the new one in this document (front matter `related` entry) (REQ-002).
 
 ## Scope
 **Release unit**: adr008-rename
 
-- Edits only `docs/41_db/db_08_active_databases.md`; part of the single rename commit, because a renamed file with an unupdated reference fails the reference, link, and ceiling checks.
+- Edits only `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`; part of the single rename commit, because a renamed file with an unupdated reference fails the reference, link, and ceiling checks.
 
 ## Assumptions
 - The rename and all reference updates land in one commit; the rename procedure (seq 01) runs first, so after it the old file name no longer exists.
@@ -19,14 +19,15 @@ N/A: mechanical rename; the Plan fixes the approach.
 
 ## Implementation
 ### Target file
-`docs/41_db/db_08_active_databases.md`
+`docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`
 
 ### Procedure
-1. Replace every occurrence of adr_02_05_008_db-sqlite-4db-separation.md with adr_02_05_008_db-six-sqlite-store-separation.md (front matter `related` entry and three Markdown links; lines 15, 63, 88, and 118).
+1. Replace every occurrence of adr_02_05_008_db-sqlite-4db-separation.md with adr_02_05_008_db-six-sqlite-store-separation.md (front matter `related` entry; lines 13).
 2. Change nothing else in the file.
+3. Measure `wc -c` before (36260) and after: the new name is 6 bytes longer, so the file must stay at or below 36267 bytes (the ceiling in `tools/check_docs_structure.py`); stop and report if it would exceed the ceiling.
 
 ### Method
-- Use the Edit tool with exact strings, or `sed -i` limited to this file; confirm with `rg -n "db-sqlite-4db-separation" docs/41_db/db_08_active_databases.md` that no match remains afterwards.
+- Use the Edit tool with exact strings, or `sed -i` limited to this file; confirm with `rg -n "db-sqlite-4db-separation" docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` that no match remains afterwards.
 
 ### Details
 - Front matter `related` entries are file names without a directory; Markdown links use the relative path `../10_adr/<name>`; keep each form's shape and replace only the name.
@@ -41,11 +42,11 @@ N/A: no security-relevant change.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run python tools/check_adr_reference.py` and `uv run python tools/check_docs_consistency.py --domain db`.
+- `uv run python tools/check_adr_reference.py` and `uv run python tools/check_docs_consistency.py --domain overview`.
 - `uv run python tools/check_docs_quality.py` for document targets.
 
 ## Completion criteria
-- `rg -c "db-sqlite-4db-separation" docs/41_db/db_08_active_databases.md` reports no match; front matter `related` entries and links resolve.
+- `rg -c "db-sqlite-4db-separation" docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` reports no match; front matter `related` entries and links resolve.
 
 ## Out of Scope
 - Any other file, any content edit, archived issues, plans, and procedures, and the two status baseline files.
@@ -55,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the change per Implementation | Pending | — | — | |
-| 2 | Run the checkers per Validation plan | Pending | — | — | Release unit adr008-rename |
+| 1 | Apply the change per Implementation | Completed | — | 20261124-122750 | 1: changed: docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md (1 replacement line 13; 36260->36266 B <= ceiling 36267, 1 byte headroom, UNK-03 holds) |
+| 2 | Run the checkers per Validation plan | Completed | 20261124-122750 | 20261124-130311 | end-of-unit run Pass: adr_structure/adr_authority/adr_reference/adr_invariant_matrix/known_deviation_sync/docs_structure/docs_quality/content_policy; docs_consistency domain Pass; full suite green after live-approved pin-test fix (76->75); run_cited_adr_tests 75/75 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -76,4 +77,4 @@ N/A: revert the commit.
 - **Source plan**: plans/20261124-113352_adrren001_rename-adr-008-file.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261124-113849
-- **Related target files**: `docs/41_db/db_08_active_databases.md`
+- **Related target files**: `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`

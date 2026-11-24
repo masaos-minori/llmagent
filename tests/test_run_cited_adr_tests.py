@@ -147,5 +147,9 @@ class TestRealMatrixRegression:
         # 76 after 2026-11-23: the rows restored to Blocking by gov006 cite the tests added
         # by its procedures 01 to 06 — ADR-001 INV-02, ADR-002 INV-03, ADR-003 INV-04 and
         # INV-07, and ADR-012 INV-04 (six new node ids).
+        # 75 after 2026-11-24: the ADR-006 INV-02 row lost its JSONL converse citation
+        # tests/eventbus/test_eventbus_publish_contract.py::TestPublishContract::
+        # test_publish_succeeds_if_jsonl_append_fails when the SQLite-only amendment rewrote
+        # the row (adrdoc001, commit 5aea6013e; the pin update was missed in that commit).
         lines = helper.ADR_INDEX.read_text(encoding="utf-8").splitlines()
-        assert len(helper.extract_cited_node_ids(lines)) == 76
+        assert len(helper.extract_cited_node_ids(lines)) == 75

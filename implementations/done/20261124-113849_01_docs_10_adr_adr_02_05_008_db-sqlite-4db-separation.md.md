@@ -1,10 +1,10 @@
 ## Goal
-Update the usage example in the module docstring to the new path (REQ-003).
+Rename the ADR-008 file to match its six-store title, with no content change (REQ-001).
 
 ## Scope
 **Release unit**: adr008-rename
 
-- Edits only `tools/check_adr_preservation.py`; part of the single rename commit, because a renamed file with an unupdated reference fails the reference, link, and ceiling checks.
+- Edits only `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`; part of the single rename commit, because a renamed file with an unupdated reference fails the reference, link, and ceiling checks.
 
 ## Assumptions
 - The rename and all reference updates land in one commit; the rename procedure (seq 01) runs first, so after it the old file name no longer exists.
@@ -19,16 +19,19 @@ N/A: mechanical rename; the Plan fixes the approach.
 
 ## Implementation
 ### Target file
-`tools/check_adr_preservation.py`
+`docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
 
 ### Procedure
-1. In the module docstring usage example, replace the path docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md with docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md.
+1. Run `git mv docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md` and record the new path as `docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md` (new).
+2. Do not edit the ADR text, front matter, or approval bullets.
+3. Verify the content is identical: `git diff --cached -M --stat` shows a rename with no content change.
 
 ### Method
-- Use the Edit tool on the docstring line.
+- Use `git mv` only; do not copy and delete.
 
 ### Details
-- Docstring only; no code change.
+- The ADR id stays 008 because `ADR_FILE_RE` reads the number from the name.
+- This is the only procedure that names the new path in backticks, so the later procedures resolve it from this sibling.
 
 ## Compatibility considerations
 N/A: a path or name change only.
@@ -40,11 +43,11 @@ N/A: no security-relevant change.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run pytest tests/tools/test_check_adr_preservation.py -q`; `uv run ruff format tools/check_adr_preservation.py`, `uv run ruff check tools/check_adr_preservation.py`, `uv run mypy tools/check_adr_preservation.py`, `uv run bandit tools/check_adr_preservation.py`.
+- `uv run python tools/check_adr_reference.py` and `uv run python tools/check_adr_authority.py` (they pass only once all procedures of the release unit are applied); `uv run python tools/check_adr_preservation.py --base HEAD docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md` for the pre-rename base (findings are read as rename effects).
 - `uv run python tools/check_docs_quality.py` for document targets.
 
 ## Completion criteria
-- The docstring example names the new path; the tool validations are clean.
+- The new file exists, the old file does not, `git log --follow` shows the history, and the text is unchanged.
 
 ## Out of Scope
 - Any other file, any content edit, archived issues, plans, and procedures, and the two status baseline files.
@@ -54,9 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the tool file per Implementation | Pending | — | — | |
-| 2 | Run the tool tests per Validation plan | Pending | — | — | |
-| 3 | Run ruff, mypy, and bandit on the file | Pending | — | — | Release unit adr008-rename |
+| 1 | Apply the change per Implementation | Completed | — | 20261124-122205 | 1: changed: docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md -> docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md (git mv, rename, 0 content changes) |
+| 2 | Run the checkers per Validation plan | Completed | 20261124-122205 | 20261124-130311 | end-of-unit run Pass: adr_structure/adr_authority/adr_reference/adr_invariant_matrix/known_deviation_sync/docs_structure/docs_quality/content_policy; docs_consistency domain Pass; full suite green after live-approved pin-test fix (76->75); run_cited_adr_tests 75/75 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -70,10 +72,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-003
+- **Requirement ID**: REQ-001
 - **Source issue**: issues/20261124-112759_adrren001_rename-adr-008-file.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261124-113352_adrren001_rename-adr-008-file.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261124-113849
-- **Related target files**: `tools/check_adr_preservation.py`
+- **Related target files**: `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`

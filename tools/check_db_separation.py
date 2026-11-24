@@ -23,7 +23,7 @@ separated:
   5. Cross-DB access in code: no `ATTACH` statement and no schema-qualified
      `FROM`/`JOIN` (`rag.`, `session.`, `workflow.`, `eventbus.`) in `scripts/`.
 
-Rule: ADR-008 INV-01 to INV-05 and INV-08 (docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md).
+Rule: ADR-008 INV-01 to INV-05 and INV-08 (docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md).
 mcp_dedup is ADR-008's disposable store: registered here for ownership and path
 coverage without changing the four-DB contract.
 

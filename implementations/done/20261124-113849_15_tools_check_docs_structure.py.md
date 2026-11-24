@@ -58,9 +58,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the tool file per Implementation | Pending | — | — | |
-| 2 | Run the tool tests per Validation plan | Pending | — | — | |
-| 3 | Run ruff, mypy, and bandit on the file | Pending | — | — | Release unit adr008-rename |
+| 1 | Edit the tool file per Implementation | Completed | — | 20261124-123551 | 1: changed: tools/check_docs_structure.py (key adr_02_05_008_db-six-sqlite-store-separation.md value 46907; ceilings re-recorded ADR-006 39575->39581, adr_01_index 41389->41401, governance_03 36807->36837 with convention comments; short form adr_02_05_008 in comments unchanged) |
+| 2 | Run the tool tests per Validation plan | Completed | — | 20261124-123551 | 2: check_docs_structure All checks passed; pytest tests/tools/test_check_docs_structure.py Pass |
+| 3 | Run ruff, mypy, and bandit on the file | Completed | — | 20261124-123551 | Release unit adr008-rename 3: ruff format no changes; ruff check Pass; mypy Pass; bandit no findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

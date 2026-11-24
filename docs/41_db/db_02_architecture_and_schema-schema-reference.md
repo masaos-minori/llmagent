@@ -9,7 +9,7 @@ related:
   - db_01_architecture_and_schema-overview-and-config.md
   - shared_00_document-guide.md
   - db_04_api_and_operations-module-boundaries-and-helper.md
-  - adr_02_05_008_db-sqlite-4db-separation.md
+  - adr_02_05_008_db-six-sqlite-store-separation.md
   - eventbus_06_persistence_schema_and_replay.md
 ---
 # DB Architecture and Schema
@@ -55,7 +55,7 @@ Each `tasks` row carries a `task_nonce`: a globally unique opaque identifier (UU
 
 ## 7a. eventbus.sqlite Schema
 
-Independent persistence domain per [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) INV-04: `eventbus.sqlite` is the system of record for Event, Offset, Delivery, and DLQ state. Schema source: `scripts/eventbus/schema.sql` is the only DDL definition; the EventBus service, and the EventBus-owned tool `python -m eventbus.db_tools ensure` that `deploy/init_db.sh` runs, create the schema from that file when the `events` table is missing (Decision Target `eventbus.persistence-schema.bootstrap-ddl`). Table/column detail: [eventbus_06_persistence_schema_and_replay.md](../24_eventbus/eventbus_06_persistence_schema_and_replay.md).
+Independent persistence domain per [ADR-008](../10_adr/adr_02_05_008_db-six-sqlite-store-separation.md) INV-04: `eventbus.sqlite` is the system of record for Event, Offset, Delivery, and DLQ state. Schema source: `scripts/eventbus/schema.sql` is the only DDL definition; the EventBus service, and the EventBus-owned tool `python -m eventbus.db_tools ensure` that `deploy/init_db.sh` runs, create the schema from that file when the `events` table is missing (Decision Target `eventbus.persistence-schema.bootstrap-ddl`). Table/column detail: [eventbus_06_persistence_schema_and_replay.md](../24_eventbus/eventbus_06_persistence_schema_and_replay.md).
 
 ---
 

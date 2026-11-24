@@ -1,10 +1,10 @@
 ## Goal
-Replace the old ADR-008 path in this open issue (Target Files or Areas path reference) (REQ-004).
+Replace the old ADR-008 file name with the new one in this document (Markdown link target in the dedup row) (REQ-002).
 
 ## Scope
 **Release unit**: adr008-rename
 
-- Edits only `issues/20261119-140519_mcpai012_mcp-design-docs-update.md`; part of the single rename commit, because a renamed file with an unupdated reference fails the reference, link, and ceiling checks.
+- Edits only `docs/23_agent/agent_10_05_operations-and-observability-monitoring.md`; part of the single rename commit, because a renamed file with an unupdated reference fails the reference, link, and ceiling checks.
 
 ## Assumptions
 - The rename and all reference updates land in one commit; the rename procedure (seq 01) runs first, so after it the old file name no longer exists.
@@ -19,17 +19,17 @@ N/A: mechanical rename; the Plan fixes the approach.
 
 ## Implementation
 ### Target file
-`issues/20261119-140519_mcpai012_mcp-design-docs-update.md`
+`docs/23_agent/agent_10_05_operations-and-observability-monitoring.md`
 
 ### Procedure
-1. Replace every occurrence of docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md with docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md (Target Files or Areas path reference; lines 25).
-2. Change nothing else in the issue.
+1. Replace every occurrence of adr_02_05_008_db-sqlite-4db-separation.md with adr_02_05_008_db-six-sqlite-store-separation.md (Markdown link target in the dedup row; lines 30).
+2. Change nothing else in the file.
 
 ### Method
-- Use the Edit tool or a single exact-string replacement.
+- Use the Edit tool with exact strings, or `sed -i` limited to this file; confirm with `rg -n "db-sqlite-4db-separation" docs/23_agent/agent_10_05_operations-and-observability-monitoring.md` that no match remains afterwards.
 
 ### Details
-- Only the path string changes; the issue's content and Traceability stay as written.
+- Front matter `related` entries are file names without a directory; Markdown links use the relative path `../10_adr/<name>`; keep each form's shape and replace only the name.
 
 ## Compatibility considerations
 N/A: a path or name change only.
@@ -41,11 +41,11 @@ N/A: no security-relevant change.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run python tools/check_workitem_structure.py --file issues/20261119-140519_mcpai012_mcp-design-docs-update.md`.
+- `uv run python tools/check_adr_reference.py` and `uv run python tools/check_docs_consistency.py --domain agent`.
 - `uv run python tools/check_docs_quality.py` for document targets.
 
 ## Completion criteria
-- The issue names the new path only; the structure check reports no finding.
+- `rg -c "db-sqlite-4db-separation" docs/23_agent/agent_10_05_operations-and-observability-monitoring.md` reports no match; front matter `related` entries and links resolve.
 
 ## Out of Scope
 - Any other file, any content edit, archived issues, plans, and procedures, and the two status baseline files.
@@ -55,8 +55,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the change per Implementation | Pending | — | — | |
-| 2 | Run the checkers per Validation plan | Pending | — | — | Release unit adr008-rename |
+| 1 | Apply the change per Implementation | Completed | — | 20261124-122922 | 1: changed: docs/23_agent/agent_10_05_operations-and-observability-monitoring.md (1 replacement line 30, markdown link) |
+| 2 | Run the checkers per Validation plan | Completed | 20261124-122922 | 20261124-130311 | end-of-unit run Pass: adr_structure/adr_authority/adr_reference/adr_invariant_matrix/known_deviation_sync/docs_structure/docs_quality/content_policy; docs_consistency domain Pass; full suite green after live-approved pin-test fix (76->75); run_cited_adr_tests 75/75 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -70,10 +70,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-004
+- **Requirement ID**: REQ-002
 - **Source issue**: issues/20261124-112759_adrren001_rename-adr-008-file.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261124-113352_adrren001_rename-adr-008-file.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261124-113849
-- **Related target files**: `issues/20261119-140519_mcpai012_mcp-design-docs-update.md`
+- **Related target files**: `docs/23_agent/agent_10_05_operations-and-observability-monitoring.md`

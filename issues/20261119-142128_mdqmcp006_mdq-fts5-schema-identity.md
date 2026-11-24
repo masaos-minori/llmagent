@@ -9,7 +9,7 @@ Validate the real FTS5 virtual-table and trigger definitions, publish a canonica
 ## Background
 Source: consolidated MDQ MCP backlog (`memo-issue.md`, Issue 6).
 
-Evidence (`Explicit in code`): `scripts/mcp_servers/mdq/db_schema.py:59-87` defines `chunks_fts` as an FTS5 virtual table and the sync triggers `chunks_ai`, `chunks_ad`, `chunks_au`. The claims that readiness passes with a normal table or no-op triggers, that the shared fingerprint checks virtual tables by name, and that ADR-008 gives conflicting recovery instructions are `Needs confirmation`. The ADR is at `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` (the backlog's `docs/adr/` path does not exist); `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` and `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` exist. Related archived work: `issues/done/20261020-123146_compat006_make-the-mdq-legacy-schema-rebuild-observable-and-document-its-recovery-procedure.md`, `issues/done/20261109-112715_adrrev005_schema-fingerprint-unify.md`.
+Evidence (`Explicit in code`): `scripts/mcp_servers/mdq/db_schema.py:59-87` defines `chunks_fts` as an FTS5 virtual table and the sync triggers `chunks_ai`, `chunks_ad`, `chunks_au`. The claims that readiness passes with a normal table or no-op triggers, that the shared fingerprint checks virtual tables by name, and that ADR-008 gives conflicting recovery instructions are `Needs confirmation`. The ADR is at `docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md` (the backlog's `docs/adr/` path does not exist); `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` and `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` exist. Related archived work: `issues/done/20261020-123146_compat006_make-the-mdq-legacy-schema-rebuild-observable-and-document-its-recovery-procedure.md`, `issues/done/20261109-112715_adrrev005_schema-fingerprint-unify.md`.
 
 ## Problem
 Readiness may not prove canonical columns, tokenizer, options, or trigger synchronization; schema identity is missing from execution snapshots; recovery wording for a mismatched database is inconsistent.
@@ -23,7 +23,7 @@ Ready only when the expected FTS5 definition exists and insert, update, and dele
 ## Target Files or Areas
 - `scripts/mcp_servers/mdq/db_schema.py`, `health_check.py`, `mdq_security_validation.py`
 - `scripts/shared/schema_fingerprint.py`, `scripts/shared/execution_snapshot.py`
-- `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`
+- `docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`
 - New tests `test_mdq_fts_schema.py`, `test_mdq_fts_trigger_sync.py`, `test_mdq_schema_identity.py` (absent)
 
 ## Required Changes
@@ -71,4 +71,4 @@ Write the normal-table and no-op-trigger readiness tests first. Do not modify AD
 - **Source plan**: N/A: not filed from a Plan
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261119-142128
-- **Related target files**: `scripts/mcp_servers/mdq/db_schema.py`, `scripts/mcp_servers/mdq/health_check.py`, `scripts/mcp_servers/mdq/mdq_security_validation.py`, `scripts/shared/schema_fingerprint.py`, `scripts/shared/execution_snapshot.py`, `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+- **Related target files**: `scripts/mcp_servers/mdq/db_schema.py`, `scripts/mcp_servers/mdq/health_check.py`, `scripts/mcp_servers/mdq/mdq_security_validation.py`, `scripts/shared/schema_fingerprint.py`, `scripts/shared/execution_snapshot.py`, `docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md`

@@ -18,7 +18,7 @@ related:
   - governance_03_issue-and-uncertainty-management.md
   - governance_04_documentation-checks.md
   - adr_02_06_005_rag-source-derived-index-relationships.md
-  - adr_02_05_008_db-sqlite-4db-separation.md
+  - adr_02_05_008_db-six-sqlite-store-separation.md
   - adr_02_06_009_rag-fts5-text-separation.md
   - adr_02_06_010_rag-fallback.md
   - db_02_architecture_and_schema-schema-reference.md

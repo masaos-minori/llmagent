@@ -23,7 +23,7 @@ The database records what source content was indexed, what truncated content was
 ## Target Files or Areas
 - `scripts/mcp_servers/mdq/db_schema.py`, `index_write.py`, `mdq_models.py`, `mdq_service.py`, `health_check.py`
 - `tests/mcp_servers/mdq/test_db_schema.py`, `test_mdq_stale_detection.py`, `test_mdq_health_stale.py`, `test_mdq_outline_stale_helper.py`, `test_mdq_schema_migration.py`
-- `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` (runbook alignment)
+- `docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` (runbook alignment)
 
 ## Required Changes
 - Add `source_content_hash` from source bytes; separate the path/mtime fingerprint; store section hash and stored chunk hash separately; store truncation flag, original and stored character counts, and indexed mtime and size.

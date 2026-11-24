@@ -14,7 +14,7 @@ related:
   - db_05_api_and_operations-protocol-and-backend.md
   - db_06_api_and_operations-maintenance-and-rotation.md
   - db_01_architecture_and_schema-overview-and-config.md
-  - adr_02_05_008_db-sqlite-4db-separation.md
+  - adr_02_05_008_db-six-sqlite-store-separation.md
 ---
 
 # DB API and Operations
@@ -80,7 +80,7 @@ Target sequence: detect and classify → preserve the damaged database → locat
 
 ### 9.7 Persistence-domain policy
 
-Recovery policy differs by data ownership; `recover_corruption()` supports multiple targets via the `target` parameter. See [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) Decision Details #20 for the canonical physical-recovery policy across all four DB domains. See ADR-008's Recovery Policy Matrix for the full per-domain policy comparison.
+Recovery policy differs by data ownership; `recover_corruption()` supports multiple targets via the `target` parameter. See [ADR-008](../10_adr/adr_02_05_008_db-six-sqlite-store-separation.md) Decision Details #20 for the canonical physical-recovery policy across all four DB domains. See ADR-008's Recovery Policy Matrix for the full per-domain policy comparison.
 
 - **Reconstructable derived data** (RAG full-text/vector indexes): authoritative source is the `chunks` table. `RagMaintenanceService`'s consistency check and rebuild operations reconstruct these indexes independently of `recover_corruption()`. Post-restoration logical verification (`check_rag_consistency()`) runs automatically after recovery and reports FTS/index inconsistencies as operator-only recommendations (see §9.5).
 - **Session data**: covered by `recover_corruption(target='session')`. Backup restoration is performed for this domain only inside an operator-initiated `recover_corruption()` call (ADR-008); it is never triggered automatically. Post-restoration logical verification (`check_session_consistency()`) runs automatically after recovery and reports orphaned records as operator-only recommendations (see §9.5).
@@ -122,7 +122,7 @@ Schema changes require DB recreation — a migration feature does not exist. Aut
 - `create_schema()` is a wrapper calling `create_rag_schema()` → `create_session_schema()` → `create_workflow_schema()` unconditionally and sequentially; each schema DDL is protected by `IF NOT EXISTS` so it is idempotent even against existing files.
 - If you only need to recreate one DB, use the individual functions: `create_rag_schema()`, `create_session_schema()`, `create_workflow_schema()`; `eventbus.sqlite` is created or validated by `python -m eventbus.db_tools ensure`.
 - **Archived files are verified recovery points.** `rotate_all_dbs()` archives each database through `_archive_db_file()`, which runs the integrity check on every domain and the domain-identity check where a required table is defined before returning the copy; a failing archive raises and is left in place, named in the error, for re-rotation or investigation. Recovery drills (section 12) restore from these verified archives.
-- **Workflow verification.** After recreating `workflow.sqlite`, confirm the startup fingerprint gate accepts it: `agent` startup runs `check_workflow_schema()` and refuses a shape mismatch, so the recreated database is validated before use. A mismatch immediately after recreation means the schema DDL changed without recreation — see [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md).
+- **Workflow verification.** After recreating `workflow.sqlite`, confirm the startup fingerprint gate accepts it: `agent` startup runs `check_workflow_schema()` and refuses a shape mismatch, so the recreated database is validated before use. A mismatch immediately after recreation means the schema DDL changed without recreation — see [ADR-008](../10_adr/adr_02_05_008_db-six-sqlite-store-separation.md).
 - **Optional lease-constraint check.** For direct confirmation beyond the fingerprint gate, an operator can verify that `attempts.owner_id` and `attempts.lease_expires_at` are `NOT NULL` and that `owner_id` carries `CHECK(length(owner_id) > 0)`: the canonical workflow DDL enforces all three, so a recreated database that lacks any of them is not the current canonical shape.
 - **No workflow history is migrated.** Recreating `workflow.sqlite` leaves `tasks`, `attempts`, `processed_events`, `artifacts`, and `tool_call_state` empty: that history is not carried across a recreation. The per-domain loss/rollback table is in [db_03](db_03_architecture_and_schema-migration-and-scaling.md).
 - **Workflow rollback.** Restoring an old `workflow.sqlite` archive is a release rollback (returning to a prior release's data state), not a schema migration; never use it to upgrade across a schema change — recreate against the current schema instead.

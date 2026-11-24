@@ -101,7 +101,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 36267 (2026-11-20): adrchk013 renamed the Automated Tests `Status`
     # column to `Implementation`, added the row test citations and the INV-14 row; the
     # ceiling equals the accepted size.
-    "adr_02_01_004_platform-environment-failure-handling-policy.md": 36986,
+    # Re-accepted at 36992 (2026-11-24, adrren001 procedure 20261124-113849_15): the longer
+    # ADR-008 file name in the Known Deviations citation grew the ADR 36986 -> 36992; the
+    # ceiling equals the accepted size.
+    "adr_02_01_004_platform-environment-failure-handling-policy.md": 36992,
     # Re-accepted 2026-11-12, closing a second pre-existing gap: the file had grown 32586
     # -> 33944 by 83879685e (adrrev008) without the ceiling being re-recorded. Recorded
     # only to keep check_docs_structure.py green.
@@ -123,13 +126,16 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # taxonomy, retention, search, and Repository Context safety clauses, and the
     # capacity rows grew the ADR 47600 -> 49132; the ceiling equals the accepted size.
     # Re-accepted at 54865 (memo-issue.md); 51665 -> 54865.
-    "adr_02_05_008_db-sqlite-4db-separation.md": 54865,
+    "adr_02_05_008_db-six-sqlite-store-separation.md": 54865,
     # Accepted at 39575 (2026-11-24, adrdoc001 procedure 20261124-094801_01): the
     # single-source-of-truth, state-aware retention, replay-floor, and capacity decisions
     # (Decision Details 15 to 20), INV-17 to INV-22, the Known Deviations, and the two
     # pending approval bullets grew the ADR past the default limit; the ceiling equals the
     # accepted size.
-    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 40944,
+    # Re-accepted at 40950 (2026-11-24, adrren001 procedure 20261124-113849_15): the longer
+    # ADR-008 file name in the related entry grew the ADR 40944 -> 40950; the ceiling equals
+    # the accepted size.
+    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 40950,
     "adr_02_04_013_eventbus-authentication-authorization.md": 33889,
     # Re-accepted at 36609 (2026-11-20, adrchk013 procedure 20261120-111659_03): the
     # ADR-016/ADR-017 matrix rows, the split-out ADR-012 INV-04 row, the ADR-003 INV-03
@@ -144,7 +150,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 41640 (2026-11-24): the ADR-008 INV-20 and INV-21 matrix rows gained
     # the secret-rejection, state-aware retention, and required-FTS evidence; 41389 -> 41640.
     # Re-accepted at 42344 (2026-11-24): INV-19 Partial and INV-23 rows.
-    "adr_01_index.md": 42344,
+    # Re-accepted at 42356 (2026-11-24, adrren001 procedure 20261124-113849_15): the longer
+    # ADR-008 file name in two references grew the index 42344 -> 42356; the ceiling equals
+    # the accepted size.
+    "adr_01_index.md": 42356,
     # Re-accepted at 33915 (2026-11-20, adrchk021 procedure 20261120-174933_01): the
     # MCP-005 Known Issue entry (git_add/git_commit protected-branch gap registration)
     # grew the ledger 31908 -> 33915; the ceiling equals the accepted size.

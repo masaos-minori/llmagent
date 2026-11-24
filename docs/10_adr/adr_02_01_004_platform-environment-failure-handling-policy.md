@@ -10,7 +10,7 @@ related:
   - adr_02_01_002_platform-config-isolation.md
   - adr_02_02_003_agent-runtime-tool-registry-routing-authority.md
   - adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md
-  - adr_02_05_008_db-sqlite-4db-separation.md
+  - adr_02_05_008_db-six-sqlite-store-separation.md
   - deployment_01_deployment.md
   - agent_08_04_configuration-mcp-approval-obs.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
