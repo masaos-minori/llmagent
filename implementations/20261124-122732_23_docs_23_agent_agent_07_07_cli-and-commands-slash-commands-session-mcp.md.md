@@ -10,6 +10,7 @@ Document the job commands, cancellation behavior, and the renamed RAG vector com
 ## Assumptions
 
 - The command is registered only under the renamed name; the retired name is not described as an alias.
+- A minimal `/jobs` section with the two usage lines was added in Phase 2 (owner decision 2026-11-24) so `check_command_coverage` passes together with the Built-in Command Index row; this row keeps the command row, the cancellation paragraph, and the renamed RAG vector command for Phase 6 and Phase 7.
 
 ## Design decisions
 

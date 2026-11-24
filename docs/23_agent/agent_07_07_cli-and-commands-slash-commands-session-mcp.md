@@ -72,6 +72,18 @@ A group of commands for session management and history operations.
 
 The maintenance, export, and RAG subcommands — `/session stats`, `/session health`, `/session checkpoint`, `/session vacuum`, `/session purge`, `/session recover`, `/session rag-consistency`, `/session rag-rebuild-fts`, `/session rag-rebuild-vec`, and `/session export` — open their own SQLite connection and run **outside the event loop** through the offloaded `db_dispatch` table, so they may take seconds while the REPL stays responsive. A shutdown request does not interrupt an in-progress storage call: the call runs to completion, and process shutdown joins the worker thread until it finishes. This is the behavior the offload produces (REQ-006); these subcommands are not cancellable at shutdown. The `is_async` contract that makes this dispatch safe is documented in [agent_07_03](agent_07_03_cli-and-commands-command-registry.md), and `tests/agent/commands/test_command_blocking_offload.py` guards both the loop responsiveness and the completion semantics.
 
+#### Job records
+
+Maintenance runs are recorded as jobs by `MaintenanceJobRegistry` (see [agent_04_03](agent_04_03_state-and-persistence-platform-databases.md)). `/jobs` reports the records; it changes nothing itself.
+
+| Command | Form | Effect |
+|---|---|---|
+| `/jobs` | `/jobs` | Lists the runs currently recorded as running, one line per job with its id, operation, target store and state; reports that there are none when nothing is running |
+| `/jobs status <id>` | `/jobs status <id>` | Shows one recorded job: its operation, target store, recorded approval level and cancelability, state, progress, and outcome |
+| `/jobs cancel <id>` | `/jobs cancel <id>` | Requests the interruption of a declared-cancellable job; the run reaches `cancelled` at its next progress callback, so the request is reported as pending until then |
+
+The values come from the job record, not from the command: the approval level is a property of the operation decided at registration, and a `not_cancelable` job states the reason the registry recorded for the refusal instead of appearing to hang. A job id that is not in the registry is reported as unknown, and a `cancel` request for a job already in a terminal state is refused. Cancellation semantics and the verified results are covered with the job framework itself in the maintenance sections.
+
 ### Session and Memory Separation
 
 `/session load`, `/session delete`, `/session export`, and `/session purge` operate on conversation sessions and messages only. They never delete or restore Episodic Memory, and neither do `/clear` and `/undo`: none of them gives user-level Episodic deletion semantics. Episodic Memory has no user-facing delete, prune, or rebuild; it is restored only with a full Session DB restore from a verified backup (see [agent_09_01](agent_09_01_data-layer-session-db.md)). Repository Context is not part of the Session DB and is reloaded from the configured files.

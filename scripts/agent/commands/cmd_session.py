@@ -9,6 +9,7 @@ Provides _SessionMixin with:
   _session_load_safe       — safe session restore by ID
   _session_delete          — session deletion with self-guard
   _load_session            — switch sessions atomically (delegates to SessionTransitionService)
+  _cmd_jobs                — /jobs dispatcher (running jobs/status/cancel), reads the job record
 """
 
 import asyncio
@@ -21,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from agent.commands.db_session_ops import DbSessionOps
-from agent.commands.exceptions import CommandValidationError
+from agent.commands.exceptions import CommandValidationError, UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
 from agent.commands.output_port import OutputPort
 from agent.commands.session_title import SessionTitleGen
@@ -414,6 +415,71 @@ class _SessionMixin(MixinBase):
             " | /session export markdown|md|json [file]"
             " | /session stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-rebuild-vec"
         )
+
+    def _job_status_pairs(self, job: MaintenanceJob) -> list[tuple[str, str]]:
+        """Render one job record as key-value lines, in the order the record holds it."""
+        pairs = [
+            ("job", job.job_id),
+            ("operation", job.operation),
+            ("store", str(job.store)),
+            ("approval", str(job.approval_level)),
+            ("cancelability", str(job.cancelability)),
+            ("state", str(job.state)),
+            ("progress", str(job.progress)),
+        ]
+        if job.started_at is not None:
+            pairs.append(("started", str(job.started_at)))
+        if job.outcome:
+            pairs.append(("outcome", job.outcome))
+        return pairs
+
+    def _cmd_jobs(self, args: str) -> None:
+        """Handle /jobs (running jobs) | status <id> | cancel <id>.
+
+        Every line is read from the job record; the handler decides nothing itself,
+        because approval is a property of the operation decided at registration
+        (REQ-003). `cancel` only requests the interruption: the run reaches `cancelled`
+        at its next progress callback, and a job declared `not_cancelable` states the
+        reason the registry recorded for the refusal (REQ-002).
+        """
+        parsed = parse_command_args(args.strip().split())
+        registry = self._ctx.services_required.job_registry
+        sub = parsed.subcommand
+        if sub is None:
+            running = registry.running_jobs()
+            if not running:
+                self._out.write_success("no running jobs")
+                return
+            self._out.write_table(
+                ["Job", "Operation", "Store", "State"],
+                [
+                    [job.job_id, job.operation, str(job.store), str(job.state)]
+                    for job in running
+                ],
+            )
+            return
+
+        if sub not in ("status", "cancel"):
+            raise UnknownSubcommandError(sub, ("status", "cancel"))
+
+        job_id = parsed.positional[0] if parsed.positional else ""
+        if not job_id:
+            self._out.write_validation_error(f"/jobs {sub} <id>")
+            return
+
+        if sub == "status":
+            job = registry.lookup(job_id)
+            if job is None:
+                self._out.write_error(f"unknown job id: {job_id}")
+                return
+            self._out.write_kv(self._job_status_pairs(job))
+            return
+
+        result = registry.cancel(job_id)
+        if result.interrupted:
+            self._out.write(f"  job {result.job_id} {result.reason}")
+        else:
+            self._out.write_error(f"job {result.job_id}: {result.reason}")
 
     async def _load_session(self, session_id: int) -> None:
         """Switch to a stored session through the atomic transition service."""

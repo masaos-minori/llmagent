@@ -10,6 +10,7 @@ Add the `/jobs` row to the Built-in Command Index so the coverage checker does n
 ## Assumptions
 
 - The chapter description of the job behavior lives in `agent_07_07` (row 23); this file only carries the index row, as `check_command_coverage` requires both (`tools/check_docs_consistency.py:220-232,275-296`).
+- Owner decision 2026-11-24: because the coverage checker requires both the index row and a chapter mention, a short `/jobs` section with the two usage lines is added to `agent_07_07` in this phase so the Phase 2 gate passes; row 23 keeps the cancellation and verified-result detail for phases 6 and 7.
 
 ## Design decisions
 
@@ -67,8 +68,8 @@ Add the `/jobs` row to the Built-in Command Index so the coverage checker does n
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `/jobs` index row | Pending | — | — | Phase 2 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Add the `/jobs` index row | Completed | — | 20261124-165333 | Phase 2 Index row added. A minimal /jobs section with the two usage lines was added to agent_07_07 in the same commit per the owner decision 2026-11-24, because coverage requires both. |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | — | 20261124-165333 | check_docs_quality, check_docs_structure, check_docs_content_policy, generate_reference_table --check pass; check_docs_consistency --domain agent reports no coverage or contract finding (only the pre-existing /db warning in agent_14). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

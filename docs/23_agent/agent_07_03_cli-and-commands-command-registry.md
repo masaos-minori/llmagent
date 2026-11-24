@@ -56,6 +56,7 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 | `/clear` | Reset conversation history, optionally starting a new session |
 | `/history` | Show the content of recent user/assistant messages |
 | `/memory` | Retired by ADR-008: not a supported command and not a compatibility alias; still registered until it is removed from code (SHARED-003) |
+| `/jobs` | Show the maintenance job records and request cancellation of one |
 | `/debug` | Toggle debug mode / log level; `/debug verbose` also reports source and section selection diagnostics |
 
 ### Adding New Commands

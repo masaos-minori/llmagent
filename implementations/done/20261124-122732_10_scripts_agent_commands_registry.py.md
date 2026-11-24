@@ -11,6 +11,8 @@ Add the job command handler path to the dispatcher without changing the registry
 ## Assumptions
 
 - The handler is placed in an existing mixin rather than a new `*Mixin` class, per the plan decision recorded 2026-11-24.
+- The existing mixin is `_SessionMixin` in `scripts/agent/commands/cmd_session.py`, confirmed by the owner 2026-11-24: the row's Target file (`registry.py`) and its step 1 read as a contradiction, and the test row (41) requires the handler to be inside an existing mixin, so `registry.py` itself does not change and the handler is recorded against `cmd_session.py`.
+- `/jobs` with no subcommand lists the jobs recorded as running; the subcommand-only form was undefined in the plan, and the owner chose the listing behavior over a required subcommand (2026-11-24).
 - `test_command_def_sync.py` (row 49) requires the handler name to exist on the registry, so the handler name must match the `CommandDef.handler` value exactly.
 
 ## Design decisions
@@ -35,6 +37,8 @@ Add the job command handler path to the dispatcher without changing the registry
 
 ### Details
 - All `_cmd_*` methods operate only on `AgentContext` per the module contract (`registry.py:7,64`); the job handler must not reach `AgentREPL`.
+- The handler is a sync handler, so `is_async` is `False`; the unknown-subcommand path raises `UnknownSubcommandError` with the registered subcommand names, the same shape the Memory and MCP handlers use.
+- Recorded deviation: the handler body sits in `scripts/agent/commands/cmd_session.py` (`_SessionMixin`), not in `registry.py`; the frozen target row names `registry.py` because the responsibility is the handler path reachable through `dispatch`, and `registry.py` needs no change to provide it.
 
 ### Companion test files
 - None. tests/agent/commands/test_command_registry_consistency.py keeps its own document (row 41).
@@ -71,8 +75,8 @@ Add the job command handler path to the dispatcher without changing the registry
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_cmd_jobs` inside an existing mixin | Pending | — | — | Phase 2 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Tests updated by row 41 |
+| 1 | Add `_cmd_jobs` inside an existing mixin | Completed | — | 20261124-165333 | Phase 2 Handler defined in cmd_session.py _SessionMixin, per the plan decision and the owner confirmation 2026-11-24; registry.py unchanged. Bare /jobs lists the recorded running jobs, and the refusal reason comes from CancelResult. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-165333 | Tests updated by row 41 ruff, mypy (the CI invocation), check_module_size, check_docstrings, check_suppression_justification clean; the Phase 2 test set and test_agent_cmd_session.py pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

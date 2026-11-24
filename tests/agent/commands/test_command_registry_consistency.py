@@ -125,6 +125,26 @@ class TestCommandRegistryConsistency:
                     errors.append(cmd.handler)
         assert errors == [], f"Prefix handlers missing positional param: {errors}"
 
+    def test_job_handler_is_defined_in_an_existing_mixin(
+        self, registry: CommandRegistry
+    ) -> None:
+        """Row 41, step 2: the job handler lives inside an existing mixin.
+
+        A new `*Mixin` class would move the counts asserted by
+        TestCommandRegistryMixinCount, so the handler is expected on one of the bases
+        the registry already composes (REQ-010).
+        """
+        from agent.commands.cmd_session import _SessionMixin
+
+        jobs = next((cmd for cmd in _COMMANDS if cmd.name == "/jobs"), None)
+        assert jobs is not None, "/jobs must be registered in _COMMANDS"
+        handler = jobs.handler
+        owner = next(
+            (cls for cls in inspect.getmro(type(registry)) if handler in cls.__dict__),
+            None,
+        )
+        assert owner is _SessionMixin, f"{handler} is not defined in an existing mixin"
+
 
 class TestCompletionDriftGuard:
     """Regression coverage for requires/20260716_16_require.md: SLASH_COMMANDS
@@ -139,6 +159,12 @@ class TestCompletionDriftGuard:
         expected = registered_names | reserved_repl_command_names()
 
         assert completion_command_names() == expected
+
+    def test_job_command_is_a_completion_candidate(self) -> None:
+        """Row 41, step 1: `/jobs` is completable through the registered set (REQ-001, AC-7)."""
+        from agent.repl import completion_command_names
+
+        assert "/jobs" in completion_command_names()
 
 
 class TestCommandRegistryMixinCount:

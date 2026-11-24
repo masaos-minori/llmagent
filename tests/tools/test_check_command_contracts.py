@@ -36,6 +36,24 @@ _REGISTRY = [
         help="x",
         args=(ArgSpec("a"),),
     ),
+    # The job commands, taken verbatim from the registered definition.
+    CommandDef(
+        name="/jobs",
+        prefix=True,
+        is_async=False,
+        handler="_cmd_jobs",
+        help="status <id> | cancel <id>",
+        subcommands=[
+            SubcommandSpec(
+                "status", "Show one maintenance job", (ArgSpec("id", required=True),)
+            ),
+            SubcommandSpec(
+                "cancel",
+                "Request cancellation of a job",
+                (ArgSpec("id", required=True),),
+            ),
+        ],
+    ),
 ]
 
 
@@ -52,6 +70,8 @@ _GOOD = (
     "| Form | Effect |\n|---|---|\n"
     "| `/thing list [n]` | Lists (default 20) |\n"
     "| `/thing get <id>` | Gets |\n"
+    "| `/jobs status <id>` | Shows one job |\n"
+    "| `/jobs cancel <id>` | Requests cancellation |\n"
 )
 
 
@@ -106,6 +126,29 @@ def test_exempt_command_is_not_checked(
 def test_live_agent_docs_match_the_registry() -> None:
     issues = mod.check_command_contracts(REPO_ROOT / "docs", REPO_ROOT)
     assert [i.message for i in issues] == []
+
+
+def test_job_command_fixture_matches_the_registered_definition() -> None:
+    """The fixture entry must match the registered job command exactly."""
+    from agent.commands.command_defs_list import _COMMANDS
+
+    fixture = next(c for c in _REGISTRY if c.name == "/jobs")
+    registered = next(c for c in _COMMANDS if c.name == "/jobs")
+    assert fixture == registered
+
+
+def test_job_usage_lines_are_documented_in_the_chapter() -> None:
+    """The job usage lines must appear as code spans in a per-command chapter."""
+    chapter = (
+        REPO_ROOT
+        / "docs"
+        / mod.DOMAIN_SUBFOLDERS["agent"]
+        / "agent_07_07_cli-and-commands-slash-commands-session-mcp.md"
+    )
+    text = chapter.read_text(encoding="utf-8")
+    jobs = next(c for c in _REGISTRY if c.name == "/jobs")
+    missing = [usage for usage in jobs.usages() if f"`{usage}`" not in text]
+    assert not missing, f"job usage lines missing from {chapter.name}: {missing}"
 
 
 def test_memory_command_is_not_exempt() -> None:

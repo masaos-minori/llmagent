@@ -236,6 +236,19 @@ async def test_memory_registered_subcommands_equal_the_handler_valid_set() -> No
     assert set(exc_info.value.valid) == registered
 
 
+def test_job_registered_subcommands_equal_the_handler_valid_set() -> None:
+    """The /jobs handler is a sync handler, so the unknown-subcommand path is called directly."""
+    import pytest
+    from agent.commands.exceptions import UnknownSubcommandError
+
+    registry = _make_registry()
+    with pytest.raises(UnknownSubcommandError) as exc_info:
+        registry._cmd_jobs("no-such-subcommand")
+    jobs = next(c for c in _COMMANDS if c.name == "/jobs")
+    assert jobs.is_async is False
+    assert set(exc_info.value.valid) == {s.name for s in jobs.subcommands}
+
+
 def test_prefix_help_names_every_registered_subcommand() -> None:
     """The one-line /help text of a command lists each of its subcommand names."""
     stale: list[str] = []

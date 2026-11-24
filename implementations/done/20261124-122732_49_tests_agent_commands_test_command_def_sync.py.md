@@ -34,7 +34,7 @@ Assert that the `/jobs` `CommandDef` handler resolves on the registry and that t
 
 ### Details
 
-- N/A: no other expectation changes.
+- N/A: no other expectation changes. The `/help` coverage expectation is derived from `_COMMANDS`, so registering the command satisfies it without editing the test; the added expectation is that the `/jobs` handler's unknown-subcommand set equals the registered subcommands, and that the handler is a sync handler (`is_async=False`) so the test calls it without awaiting.
 
 ## Compatibility considerations
 
@@ -67,8 +67,8 @@ Assert that the `/jobs` `CommandDef` handler resolves on the registry and that t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the handler-mapping and `/help` expectations | Pending | — | — | Phase 2 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend the handler-mapping and `/help` expectations | Completed | — | 20261124-165333 | Phase 2 Handler mapping and subcommand-literal expectations pass unchanged; added the /jobs unknown-subcommand valid-set test and the sync-handler check. The /help coverage test derives from _COMMANDS, so it needed no change. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-165333 | 21 tests pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

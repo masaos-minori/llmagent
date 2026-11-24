@@ -68,8 +68,27 @@ class TestCommandsList:
 
     def test_known_commands_present(self) -> None:
         names = {cmd.name for cmd in _COMMANDS}
-        for expected in ("/help", "/config", "/mcp", "/memory"):
+        for expected in ("/help", "/config", "/mcp", "/memory", "/jobs"):
             assert expected in names, f"Expected {expected} in _COMMANDS"
+
+    def test_job_command_subcommand_contract(self) -> None:
+        """Row 9: `/jobs` is registered as a top-level command with status and cancel.
+
+        The definition is the source of truth for the registered set and for the
+        completion candidates, so the subcommands and their required id argument are
+        asserted here rather than in the handler (REQ-001, REQ-010).
+        """
+        jobs = next((cmd for cmd in _COMMANDS if cmd.name == "/jobs"), None)
+        assert jobs is not None, "/jobs must be registered in _COMMANDS"
+        assert jobs.prefix is True
+        assert jobs.handler == "_cmd_jobs"
+        assert [spec.name for spec in jobs.subcommands] == ["status", "cancel"]
+        for spec in jobs.subcommands:
+            assert [arg.token for arg in spec.args] == ["id"]
+            assert spec.args[0].required is True
+            assert spec.args[0].render() == "<id>"
+        # The usage lines the contract checker requires in a chapter document.
+        assert jobs.usages() == ["/jobs status <id>", "/jobs cancel <id>"]
 
     def test_async_commands_have_async_flag(self) -> None:
         async_names = {cmd.name for cmd in _COMMANDS if cmd.is_async}

@@ -408,7 +408,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Phase 1: registry core, wiring, and registry tests | Completed | — | 20261124-160831 | Not gated: no owner decision is open Phase 1 landed. Rows 1, 17, 18, 19 complete and archived. Rows 3, 4, 21, 42 have their Phase 1 part done; their remaining steps are Phase 4 and Phase 6 rows. Deviations recorded in the procedure documents: profiles supply the approval level, approval comes through the request-bound confirmation API, result dataclasses extend the existing names, _install_stop installs the handler only when stop is not None. |
-| 2 | Phase 2: job commands, completion, contract checker | In Progress | — | — | OD-02 decided 2026-11-24: top-level `/jobs` |
+| 2 | Phase 2: job commands, completion, contract checker | Completed | — | 20261124-165333 | OD-02 decided 2026-11-24: top-level `/jobs` Phase 2 landed. Rows 10, 11, 24, 41, 49, 63 complete and archived; row 09 keeps only its Phase 6 rename step. Handler placed in cmd_session.py _SessionMixin per the OD-02 decision; repl.py unchanged because the completion set derives from _COMMANDS; the /jobs chapter mention was added in this phase so the coverage gate passes with the index row. |
 | 3 | Phase 3: Memory approval levels and repair guidance | In Progress | — | — | OD-03 decided 2026-11-24: flags stay as recorded grants |
 | 4 | Phase 4: verified results and postconditions | In Progress | — | — |  |
 | 5 | Phase 5: Memory service layer, transactions, pin and prune atomicity | In Progress | — | — | UNK-02 must be resolved in this phase |
@@ -434,8 +434,8 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261124-122732_07_scripts_agent_commands_cmd_memory.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_08_scripts_agent_commands_memory_status.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_09_scripts_agent_commands_command_defs_list.py.md | 2,6 | Procedure | Pending | — | — |
-| implementations/20261124-122732_10_scripts_agent_commands_registry.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261124-122732_11_scripts_agent_repl.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261124-122732_10_scripts_agent_commands_registry.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261124-122732_11_scripts_agent_repl.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261124-122732_12_scripts_agent_memory_store.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_13_scripts_agent_memory_services.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_14_scripts_agent_memory_write_ops.py.md | 5 | Procedure | Pending | — | — |
@@ -448,7 +448,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261124-122732_21_scripts_agent_services_db_maintenance_service.py.md | 1,4 | Procedure | Pending | — | — |
 | implementations/20261124-122732_22_scripts_agent_services_rag_maintenance_service.py.md | 4,6 | Procedure | Pending | — | — |
 | implementations/20261124-122732_23_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md | 6,7 | Procedure | Pending | — | — |
-| implementations/20261124-122732_24_docs_23_agent_agent_07_03_cli-and-commands-command-registry.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261124-122732_24_docs_23_agent_agent_07_03_cli-and-commands-command-registry.md.md | 2 | Procedure | Completed | — | — |
 | implementations/20261124-122732_25_docs_23_agent_agent_07_10_cli-and-commands-slash-commands-memory-other.md.md | 7 | Procedure | Pending | — | — |
 | implementations/20261124-122732_26_docs_23_agent_agent_04_03_state-and-persistence-platform-databases.md.md | 6 | Procedure | Pending | — | — |
 | implementations/20261124-122732_27_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md | 6,7 | Procedure | Pending | — | — |
@@ -464,20 +464,20 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261124-122732_37_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 7 | Procedure | Pending | — | — |
 | implementations/20261124-122732_38_registry_manifests_agent_api.yaml.md | 7 | Procedure | Pending | — | — |
 | implementations/20261124-122732_39_registry_manifests_memory_api.yaml.md | 7 | Procedure | Pending | — | — |
-| implementations/20261124-122732_41_tests_agent_commands_test_command_registry_consistency.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261124-122732_41_tests_agent_commands_test_command_registry_consistency.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261124-122732_42_tests_agent_commands_test_agent_cmd_session.py.md | 6 | Procedure | Pending | — | — |
 | implementations/20261124-122732_43_tests_agent_commands_test_cmd_memory.py.md | 3 | Procedure | Pending | — | — |
 | implementations/20261124-122732_44_tests_agent_memory_test_memory_store.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_45_tests_agent_commands_test_memory_data_ops.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_48_tests_agent_commands_test_memory_status.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261124-122732_49_tests_agent_commands_test_command_def_sync.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261124-122732_49_tests_agent_commands_test_command_def_sync.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261124-122732_50_tests_agent_commands_test_removed_commands.py.md | 6 | Procedure | Pending | — | — |
 | implementations/20261124-122732_51_tests_agent_commands_test_memory_consistency.py.md | 4 | Procedure | Pending | — | — |
 | implementations/20261124-122732_52_tests_rag_test_fts_sync.py.md | 4 | Procedure | Pending | — | — |
 | implementations/20261124-122732_55_scripts_agent_memory_rebuild_ops.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_57_tests_agent_memory_test_memory_vec_session.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261124-122732_58_tests_agent_memory_test_jsonl_store.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261124-122732_63_tests_tools_test_check_command_contracts.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261124-122732_63_tests_tools_test_check_command_contracts.py.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

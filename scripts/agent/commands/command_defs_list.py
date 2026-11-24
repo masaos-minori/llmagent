@@ -201,6 +201,23 @@ _COMMANDS: list[CommandDef] = [
         ],
     ),
     CommandDef(
+        name="/jobs",
+        prefix=True,
+        is_async=False,
+        handler="_cmd_jobs",
+        help="status <id> | cancel <id>",
+        subcommands=[
+            SubcommandSpec(
+                "status", "Show one maintenance job", (ArgSpec("id", required=True),)
+            ),
+            SubcommandSpec(
+                "cancel",
+                "Request cancellation of a job",
+                (ArgSpec("id", required=True),),
+            ),
+        ],
+    ),
+    CommandDef(
         name="/debug",
         prefix=True,
         is_async=False,

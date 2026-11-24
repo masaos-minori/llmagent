@@ -34,6 +34,8 @@ Extend the command-contract expectations to the job commands, so the contract ch
 ### Details
 
 - The coverage expectations for the Built-in Command Index row are in `tests/tools/test_check_docs_consistency_checks.py` (row 64, covered by row 35); this row does not duplicate them.
+- The fixture entry is written identically to the registered definition and a test compares the two, so a drift between the fixture and `_COMMANDS` is reported rather than hidden; the positive fixture chapter is extended with the two usage lines.
+- A test asserts that the two usage lines appear as code spans in `agent_07_07`, which is the part the Phase 2 gate needs; the chapter text itself is row 23's work.
 
 ## Compatibility considerations
 
@@ -67,8 +69,8 @@ Extend the command-contract expectations to the job commands, so the contract ch
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the contract fixture to the job commands | Pending | — | — | Phase 2 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend the contract fixture to the job commands | Completed | — | 20261124-165333 | Phase 2 Fixture extended with the /jobs CommandDef written identically to the registered entry, plus a fixture-vs-registry comparison test and an assertion that both usage lines appear as code spans in the chapter. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-165333 | 11 tests pass, including the live-docs test; the checker reports no command-contract finding. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

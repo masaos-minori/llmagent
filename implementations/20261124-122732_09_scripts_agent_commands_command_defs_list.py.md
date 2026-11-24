@@ -74,10 +74,10 @@ Register the job commands as the single source of registered commands and comple
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Register `/jobs` and its subcommands with contract entries | Pending | — | — | Phase 2 |
+| 1 | Register `/jobs` and its subcommands with contract entries | Completed | — | 20261124-165333 | Phase 2 Phase 2 part landed: /jobs CommandDef with status/cancel SubcommandSpec, required id argument, help naming both subcommands. The RAG vector rename is Phase 6. |
 | 2 | Rename the RAG vector subcommand | Pending | — | — | Phase 6 |
-| 3 | Update the companion test per Validation plan | Pending | — | — | Row 40 is covered by this document |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Update the companion test per Validation plan | In Progress | — | — | Row 40 is covered by this document Job-contract assertions landed in Phase 2 (test_command_defs.py); the renamed RAG vector subcommand assertion follows with step 2 in Phase 6. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

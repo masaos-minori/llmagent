@@ -36,6 +36,8 @@ Extend the registry consistency test so it asserts the job commands are completi
 ### Details
 
 - The counts are asserted at `:155-164` (MRO `*Mixin` classes) and `:166-173` (direct `*Mixin` bases); both must still pass with the handler added.
+- The handler-owner check reads each class's own `__dict__`: `hasattr()` on a class reports inherited members, so it reports `CommandRegistry` for a handler defined in a mixin and cannot tell which mixin holds it.
+- The completion assertion is added to `TestCompletionDriftGuard`, which already derives its expectation from `_COMMANDS` plus the reserved names; registering the command is what makes it pass.
 
 ### Companion test files
 
@@ -72,8 +74,8 @@ Extend the registry consistency test so it asserts the job commands are completi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the completion and handler-shape assertions | Pending | — | — | Phase 2 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend the completion and handler-shape assertions | Completed | — | 20261124-165333 | Phase 2 Completion candidate assertion added; handler-owner assertion added using each class's own __dict__ so an inherited lookup cannot hide the owning mixin. Counts left at 10 and 8. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-165333 | 11 tests pass; both count assertions still pass with the handler in _SessionMixin. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
