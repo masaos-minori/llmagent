@@ -80,9 +80,9 @@ Provide the single definition of repository identity required by REQ-002 (one ca
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion `tests/shared/test_repo_identity.py`) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) plus `uv run lint-imports` | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261124-141751 | 20261124-141920 | Added scripts/shared/repo_identity.py (normalize_repo_key, is_canonical_repo_key) |
+| 2 | Add or update tests per Validation plan (companion `tests/shared/test_repo_identity.py`) | Completed | — | 20261124-141920 | Added tests/shared/test_repo_identity.py: 20 cases pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) plus `uv run lint-imports` | Completed | — | 20261124-141920 | ruff format/check, mypy, bandit -ll, check_module_size, lint-imports 6 kept; targeted pytest pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

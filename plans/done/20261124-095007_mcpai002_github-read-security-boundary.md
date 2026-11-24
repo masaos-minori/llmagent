@@ -340,7 +340,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: shared definitions — `scripts/shared/repo_identity.py` (row 1) and the strict numeric accessor in `scripts/shared/config_utils.py` (row 2) | In Progress | — | — | Procedures generated 2026-11-24: 20261124-103302_01, _02. Companion test rows 11, 12 covered by those documents |
+| 1 | Phase 1: shared definitions — `scripts/shared/repo_identity.py` (row 1) and the strict numeric accessor in `scripts/shared/config_utils.py` (row 2) | Completed | — | 20261124-142243 | Procedures generated 2026-11-24: 20261124-103302_01, _02. Companion test rows 11, 12 covered by those documents Rows 1, 2 and companion test rows 11, 12 implemented and archived 2026-11-24 |
 | 2 | Phase 2: failing boundary tests, characterization first — test rows 13, 14, 15, 16, 17, 19 | In Progress | — | — | Covered by the `### Companion test files` sections of the Phase 3 documents (_04, _05, _06, _07, _08, _09); companion rows get no document of their own |
 | 3 | Phase 3: boundary enforcement — rows 4-9 | In Progress | — | — | Procedures generated 2026-11-24: 20261124-103302_04, _05, _06, _07, _08, _09 |
 | 4 | Phase 4: configuration and posture — rows 3, 10, 20, 24, 25 | In Progress | — | — | Procedures generated 2026-11-24: 20261124-103302_03, _10, _18 (row 18), _20 (row 20), _24 (row 24, with row 25 as its companion). Rows 24, 25 added by the 2026-11-24 fallout amendment |

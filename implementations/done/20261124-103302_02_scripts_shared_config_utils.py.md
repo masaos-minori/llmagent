@@ -77,9 +77,9 @@ Add one strict numeric accessor to the shared config helpers (REQ-008: reject Na
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion `tests/shared/test_config_utils.py`) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261124-142145 | 20261124-142145 | Added get_non_negative_number to scripts/shared/config_utils.py; get_str/get_typed unchanged |
+| 2 | Add or update tests per Validation plan (companion `tests/shared/test_config_utils.py`) | Completed | — | 20261124-142145 | tests/shared/test_config_utils.py: 29 cases pass (15 new) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261124-142145 | ruff, mypy, bandit -ll, check_module_size pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

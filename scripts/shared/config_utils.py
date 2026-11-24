@@ -12,6 +12,7 @@ Usage:
 
 from __future__ import annotations
 
+import math
 import os
 import re
 from collections.abc import Mapping
@@ -78,4 +79,40 @@ def get_typed(
         raise ValueError(
             f"'{key}' must be {type_label}, got {type(value).__name__}: {value!r}"
         )
+    return value
+
+
+def get_non_negative_number(
+    d: Mapping[str, Any],
+    key: str,
+    expected_type: type[int] | type[float],
+    type_label: str,
+    default: int | float | None = None,
+) -> int | float | None:
+    """Return ``d[key]`` for a numeric config value that must be finite and >= 0.
+
+    Rejects, in order, a ``bool`` for an ``int``/``float`` expected type, a value
+    that is not an instance of ``expected_type``, a NaN or infinity value, and a
+    negative value; each raises ``ValueError`` naming the key and the received
+    value. ``0`` is accepted, so a caller can use ``0`` to mean "no limit".
+
+    ``type_label`` must already include its article, e.g. ``"an integer"``.
+
+    Returns ``default`` when the key is absent or its value is ``None``.
+    """
+    value = d.get(key)
+    if value is None:
+        return default
+    if expected_type in (int, float) and isinstance(value, bool):
+        raise ValueError(f"'{key}' must be {type_label}, got bool: {value!r}")
+    if not isinstance(value, expected_type):
+        raise ValueError(
+            f"'{key}' must be {type_label}, got {type(value).__name__}: {value!r}"
+        )
+    if not math.isfinite(value):
+        raise ValueError(
+            f"'{key}' must be {type_label}, got non-finite value: {value!r}"
+        )
+    if value < 0:
+        raise ValueError(f"'{key}' must be {type_label}, got negative value: {value!r}")
     return value
