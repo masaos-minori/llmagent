@@ -27,7 +27,7 @@ N/A: the ledger Rules define the only allowed ways to close or add an entry.
 1. Update AAL-024 (line 555): Decision "Scope widened to six SQLite stores (title, Summary, Scope, Recovery Policy Matrix)"; Scope field unchanged apart from the wording "six SQLite stores".
 2. Append AAL-039, AAL-040, AAL-041 after AAL-038, each with the six fields (ID, ADR, Decision, Approver, Date, Scope): AAL-039 ADR-008 "Repository Context (non-persistent) and Episodic Memory (the only persistent Agent memory, `session.sqlite` only); removal of memory JSONL, pin, manual writes, and `/memory`"; AAL-040 ADR-006 "Removal of EventBus `events.jsonl`; `eventbus.sqlite` is the sole source of truth"; AAL-041 ADR-006 "EventBus state-aware retention and replay expiration (`replay_position_expired`)".
 3. Remove AAL-026 and AAL-027 (their pending bullets are removed from ADR-008 by document 02); narrow AAL-029 (Decision: no-loss statements hold under the ADR-008 schema-mismatch rule; Scope: Decision Detail 9, INV-07).
-4. Part 1 SHARED-002 (line 194): the `memories_vec` classification no longer exists in the amended design; update the entry per its Status Values (close it as obsolete, citing AAL-039), after reading the entry's current fields.
+4. Part 1: remove SHARED-002 (the `memories_vec` classification disappears with the amended matrix, and Part 1 keeps no resolved entries) and add four Known Issue entries with all 17 fields, `Status: open`: EVENTBUS-001 (`events.jsonl` still written by `scripts/eventbus/publish_route.py`), EVENTBUS-002 (no retention, purge, capacity signals, replay floor, or HTTP 410; retention-participant registry undecided), SHARED-003 (agent memory code still implements the old Semantic/Episodic model and memory JSONL), SHARED-004 (lifecycle policies left undecided, for example the Session DB schema-mismatch policy for Episodic Memory). Place EVENTBUS entries after MCP-005 and SHARED entries in the SHARED group in ascending order (ordering convention stated under Part 1 Active Items). Each `Target` is the owning ADR, which must cite the ID in its Known Deviations (documents 01 and 02). Found in Step 3a of this cycle: the checker requires a Known Issue ID for every deviation bullet.
 
 ### Method
 - Edit entries with the Edit tool in the existing `#### AAL-NNN` heading and bold-field format; confirm no ADR still cites AAL-026 or AAL-027 with `rg -n "AAL-026|AAL-027" docs/10_adr`.
@@ -46,12 +46,12 @@ N/A: no security-relevant change.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run python tools/check_adr_structure.py` (each cited ID has an entry; each entry has a heading and six fields).
+- `uv run python tools/check_adr_structure.py` (each cited ID has an entry; each entry has a heading and six fields) and `uv run python tools/check_known_deviation_sync.py`.
 - `uv run python tools/check_docs_structure.py` and `uv run python tools/check_metadata_field_policy.py`.
 
 ## Completion criteria
 - AAL-039 to AAL-041 exist with `Not recorded` approver and date; AAL-024 reads six SQLite stores; AAL-026 and AAL-027 are removed; AAL-029 is narrowed; no ADR cites a missing entry.
-- SHARED-002 is closed or updated consistently with the amended ADR-008.
+- SHARED-002 is removed; EVENTBUS-001, EVENTBUS-002, SHARED-003, SHARED-004 exist with all 17 fields and are cited by the ADR Known Deviations; `uv run python tools/check_known_deviation_sync.py` passes.
 
 ## Out of Scope
 - Other ledger entries (issue gov005); ADR Approval Records; recording approvals.
@@ -61,8 +61,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update AAL-024, add AAL-039 to AAL-041, withdraw AAL-026 and AAL-027, narrow AAL-029, settle SHARED-002 per Implementation | Pending | — | — | Apply after documents 01 and 02 so no ADR cites a withdrawn entry |
-| 2 | Run the structure and metadata checks per Validation plan | Pending | — | — | Release unit adr-amendment |
+| 1 | Update AAL-024, add AAL-039 to AAL-041, withdraw AAL-026 and AAL-027, narrow AAL-029, remove SHARED-002, add four Known Issues per Implementation | Completed | 20261124-095631 | 20261124-095942 | Apply after documents 01 and 02 so no ADR cites a withdrawn entry Changed: docs/00_governance/governance_03_issue-and-uncertainty-management.md |
+| 2 | Run the structure and metadata checks per Validation plan | Completed | 20261124-095942 | 20261124-100816 | Release unit adr-amendment Blocked: file outside procedure scope - tools/check_docs_structure.py (size ceilings) and registry/manifests/invariant_coverage.yaml (stale generated manifest) ADR checkers, generator, DB-separation, cited ADR tests (75) pass. Fallout approved by user: tools/check_docs_structure.py size ceilings, registry/manifests/invariant_coverage.yaml regenerated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

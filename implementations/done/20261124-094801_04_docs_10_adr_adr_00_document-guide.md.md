@@ -51,8 +51,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the ADR-008 display name per Implementation | Pending | — | — | |
-| 2 | Run the reference and docs-structure checks per Validation plan | Pending | — | — | Release unit adr-amendment |
+| 1 | Edit the ADR-008 display name per Implementation | Completed | 20261124-095609 | 20261124-095942 | Changed: docs/10_adr/adr_00_document-guide.md |
+| 2 | Run the reference and docs-structure checks per Validation plan | Completed | 20261124-095942 | 20261124-100816 | Release unit adr-amendment Blocked: file outside procedure scope - tools/check_docs_structure.py (size ceilings) and registry/manifests/invariant_coverage.yaml (stale generated manifest) ADR checkers, generator, DB-separation, cited ADR tests (75) pass. Fallout approved by user: tools/check_docs_structure.py size ceilings, registry/manifests/invariant_coverage.yaml regenerated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

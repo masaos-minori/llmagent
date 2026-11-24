@@ -55,8 +55,8 @@ N/A: revert the commit and regenerate the index blocks.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the two supplemental entries per Implementation | Pending | — | — | |
-| 2 | Run the authority, reference, and generator checks per Validation plan | Pending | — | — | Release unit adr-amendment |
+| 1 | Add the two supplemental entries per Implementation | Completed | 20261124-095609 | 20261124-095942 | Changed: config/adr_authority.toml |
+| 2 | Run the authority, reference, and generator checks per Validation plan | Completed | 20261124-095942 | 20261124-100816 | Release unit adr-amendment Blocked: file outside procedure scope - tools/check_docs_structure.py (size ceilings) and registry/manifests/invariant_coverage.yaml (stale generated manifest) ADR checkers, generator, DB-separation, cited ADR tests (75) pass. Fallout approved by user: tools/check_docs_structure.py size ceilings, registry/manifests/invariant_coverage.yaml regenerated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

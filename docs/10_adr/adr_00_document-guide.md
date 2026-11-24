@@ -34,7 +34,7 @@ Confirmed deviations are tracked in `docs/00_governance/governance_03_issue-and-
 | RAG Source-Derived Index | `adr_02_06_005_rag-source-derived-index-relationships.md` |
 | EventBus Persistence & SSE | `adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` |
 | HTTP MCP Adoption | `adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md` |
-| SQLite 4DB Separation | `adr_02_05_008_db-sqlite-4db-separation.md` |
+| Six SQLite Stores: Separation and Lifecycle | `adr_02_05_008_db-sqlite-4db-separation.md` |
 | RAG FTS5 Text Separation | `adr_02_06_009_rag-fts5-text-separation.md` |
 | RAG Fallback (Withdrawn) | `adr_02_06_010_rag-fallback.md` |
 | Git MCP Server-Side Write | `adr_02_03_012_mcp-git-server-side-write-enforcement.md` |

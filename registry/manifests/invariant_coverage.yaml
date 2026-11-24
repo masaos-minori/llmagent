@@ -193,7 +193,6 @@ entries:
   check_type: Integration Test
   cited:
   - tests/eventbus/test_eventbus_publish.py::test_publish_sqlite_write_failure_reports_failure_without_side_effects
-  - tests/eventbus/test_eventbus_publish_contract.py::TestPublishContract::test_publish_succeeds_if_jsonl_append_fails
   gate: Blocking
   invariant: INV-02
   status: Confirmed
@@ -222,6 +221,44 @@ entries:
   gate: Blocking
   invariant: INV-16
   status: Confirmed
+  timing: CI
+- adr: ADR-006
+  check_type: Integration Test
+  cited:
+  - tests/eventbus/test_eventbus_publish.py::test_publish_sqlite_write_failure_reports_failure_without_side_effects
+  gate: Non-Blocking
+  invariant: INV-17
+  status: Not verified
+  timing: CI
+- adr: ADR-006
+  check_type: Integration Test
+  gate: Non-Blocking
+  invariant: INV-18
+  status: Not verified
+  timing: CI
+- adr: ADR-006
+  check_type: Integration Test
+  gate: Non-Blocking
+  invariant: INV-19
+  status: Not verified
+  timing: CI
+- adr: ADR-006
+  check_type: Integration Test
+  gate: Non-Blocking
+  invariant: INV-20
+  status: Not verified
+  timing: CI
+- adr: ADR-006
+  check_type: Integration Test
+  gate: Non-Blocking
+  invariant: INV-21
+  status: Not verified
+  timing: CI
+- adr: ADR-006
+  check_type: Integration Test
+  gate: Non-Blocking
+  invariant: INV-22
+  status: Not verified
   timing: CI
 - adr: ADR-007
   check_type: Unit Test
@@ -281,6 +318,30 @@ entries:
   invariant: INV-01 to INV-05
   status: Confirmed
   timing: CI, Pre-deploy
+- adr: ADR-008
+  check_type: Static Check
+  gate: Non-Blocking
+  invariant: INV-19
+  status: Not verified
+  timing: CI
+- adr: ADR-008
+  check_type: Integration Test
+  gate: Non-Blocking
+  invariant: INV-20
+  status: Not verified
+  timing: CI
+- adr: ADR-008
+  check_type: Integration Test
+  gate: Non-Blocking
+  invariant: INV-21
+  status: Not verified
+  timing: CI
+- adr: ADR-008
+  check_type: Static Check
+  gate: Non-Blocking
+  invariant: INV-22
+  status: Not verified
+  timing: CI
 - adr: ADR-009
   check_type: Integration Test
   cited:

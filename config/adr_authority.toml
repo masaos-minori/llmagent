@@ -71,7 +71,7 @@ supplemental_adrs = []
 decision_target = "eventbus.persistence"
 primary_adr = "ADR-006"
 supplemental_adrs = [
-  { adr = "ADR-013", limit = "authentication and authorization semantics only" },
+  { adr = "ADR-013", limit = "authentication and authorization semantics only" }, { adr = "ADR-008", limit = "separation and lifecycle policy of eventbus.sqlite as one of six stores" },
 ]
 
 [[authority]]
@@ -84,7 +84,7 @@ supplemental_adrs = [
 [[authority]]
 decision_target = "db.recovery-separation"
 primary_adr = "ADR-008"
-supplemental_adrs = []
+supplemental_adrs = [{ adr = "ADR-006", limit = "EventBus retention, replay-floor, and DLQ state semantics within eventbus.sqlite" }]
 
 [[authority]]
 decision_target = "rag.canonical-data"

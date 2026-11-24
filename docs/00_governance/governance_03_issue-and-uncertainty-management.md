@@ -191,25 +191,85 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action:** the owner decides whether to add an Invariant for the HEAD-destination check (pending amendment via the ADR Approval Ledger, with its index row and citation count handled in a separate Plan) or record it as out of scope. No approval is written here.
 - **Resolution Target:** maintainer decision recorded in ADR-012 (Invariant plus pending amendment, or explicit out-of-scope statement)
 
-#### SHARED-002
+#### EVENTBUS-001
 
-- **ID:** SHARED-002
-- **Title:** `memories_vec` is classified as both system of record and derived/rebuildable in ADR-008
+- **ID:** EVENTBUS-001
+- **Title:** EventBus still appends events.jsonl although ADR-006 no longer permits it
+- **Status**: open
+- **Severity:** Medium
+- **Area:** EventBus
+- **Type:** document-code-mismatch
+- **Source:** `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`
+- **Owner:** Repository owner
+- **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
+- **Target:** `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`
+- **Related:** AAL-040
+- **Summary:** ADR-006 states that the EventBus creates no events.jsonl (INV-18), but the publish route still appends it.
+- **Current Description:** ADR-006 Decision Detail 15 and INV-18 make eventbus.sqlite the sole source of truth and prohibit events.jsonl.
+- **Observed Implementation:** `scripts/eventbus/publish_route.py` appends to events.jsonl after the SQLite commit and increments eventbus_jsonl_append_failure_total.
+- **Impact:** The file is an incomplete replica that can be mistaken for a backup or recovery source.
+- **Recommended Action:** Remove the JSONL append and its metric through an implementation issue, then remove this entry.
+- **Resolution Target:** implementation removes the JSONL append and the ADR-006 INV-18 test exists
+
+#### EVENTBUS-002
+
+- **ID:** EVENTBUS-002
+- **Title:** EventBus retention, replay floor, capacity signals, and the retention-participant registry are not implemented
+- **Status**: open
+- **Severity:** High
+- **Area:** EventBus
+- **Type:** document-code-mismatch
+- **Source:** `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`
+- **Owner:** Repository owner
+- **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
+- **Target:** `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`
+- **Related:** AAL-041
+- **Summary:** ADR-006 defines state-aware retention, HTTP 410 replay expiration, and capacity and readiness rules (INV-19 to INV-22) that no code implements, and the retention-participant registry model is not approved.
+- **Current Description:** ADR-006 Decision Details 18 to 20 and the Replay Contract define the retention and replay-floor rules.
+- **Observed Implementation:** No retention task, purge, capacity signal, retention configuration, replay-floor check, or HTTP 410 response exists under `scripts/eventbus/`; events, consumer_delivery, and dlq_outbox rows are never deleted.
+- **Impact:** Storage grows without bound and a purged position cannot be detected until the rules are implemented.
+- **Recommended Action:** Maintainer approves the registry model, then implementation issues add the retention task, replay floor, capacity signals, and tests.
+- **Resolution Target:** retention, replay floor, and readiness behavior are implemented and INV-19 to INV-22 are verified
+
+#### SHARED-003
+
+- **ID:** SHARED-003
+- **Title:** Agent memory code still implements the old Semantic/Episodic model and memory JSONL
 - **Status**: open
 - **Severity:** Medium
 - **Area:** Shared/DB
-- **Type:** document-document-mismatch
-- **Source:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md` Recovery Policy Matrix rows "System of record" and "Derived or rebuildable data"
+- **Type:** document-code-mismatch
+- **Source:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
 - **Owner:** Repository owner
-- **First Found:** adrrev009 ADR-008 recovery alignment review
+- **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
-- **Related:** `plans/20261110-233648_adrrev009_adr008-recovery-align.md`
-- **Summary:** The session.sqlite column of ADR-008's Recovery Policy Matrix lists `memories_vec` under "System of record" and again under "Derived or rebuildable data (from memories)", classifying one store two mutually exclusive ways.
-- **Current Description:** The System of record row listed `sessions, messages, memories, memories_vec` as the system of record and the Derived or rebuildable data row listed `memories_vec (from memories)` as derived/rebuildable data for the same store in the same table.
-- **Observed Implementation:** No component treats `memories_vec` as a canonical store independent of `memories`; it is rebuilt from `memories`, which supports the derived classification, but the matrix still lists it as a system of record.
-- **Impact:** An operator cannot determine the recovery policy for `memories_vec`; a store cannot be both canonical and derived, so the matrix is internally contradictory.
-- **Recommended Action:** Maintainer decides the correct classification (system of record versus derived/rebuildable) and edits the matrix accordingly. Recorded here pending that decision; the classification is not resolved by this Plan.
-- **Resolution Target:** maintainer decision reflected in the ADR-008 Recovery Policy Matrix
+- **Related:** AAL-039
+- **Summary:** ADR-008 no longer permits Semantic Memory, memory JSONL, pin state, manual memory writes, or /memory data (INV-20 to INV-22), but the Agent code still implements them.
+- **Current Description:** ADR-008 Decision Detail 24 defines Repository Context and Episodic Memory as the only memory model.
+- **Observed Implementation:** `scripts/agent/memory/` and the session schema still contain the old memory model, the JSONL store, and the /memory command.
+- **Impact:** Operators can rely on memory JSONL as a recovery source that the ADR no longer recognizes.
+- **Recommended Action:** Implementation issues replace the memory model and remove the JSONL and /memory paths, then this entry is removed.
+- **Resolution Target:** code matches Decision Detail 24 and INV-20 to INV-22 are verified
+
+#### SHARED-004
+
+- **ID:** SHARED-004
+- **Title:** ADR-008 lifecycle policies left undecided for Episodic Memory and for capacity monitoring
+- **Status**: open
+- **Severity:** Medium
+- **Area:** Shared/DB
+- **Type:** document-code-mismatch
+- **Source:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+- **Owner:** Repository owner
+- **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
+- **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+- **Related:** AAL-039
+- **Summary:** The Episodic Memory retention policy, its Session DB schema-mismatch handling, and capacity monitoring for stores other than eventbus.sqlite are not decided.
+- **Current Description:** ADR-008 Decision Details 22 and 23 and the Recovery Policy Matrix record these cells as undecided.
+- **Observed Implementation:** No policy or signal exists for the affected cells.
+- **Impact:** An operator cannot tell how Episodic Memory is retained or how its schema mismatch is handled.
+- **Recommended Action:** Maintainer decides each policy and the ADR-008 matrix is updated; then this entry is removed.
+- **Resolution Target:** each undecided matrix cell has an approved policy
 
 ## Part 2: Needs Confirmation Inventory
 
@@ -556,7 +616,7 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 
 - **ID:** AAL-024
 - **ADR:** ADR-008
-- **Decision:** Scope widened to six databases (title, Summary, Scope, Recovery Policy Matrix)
+- **Decision:** Scope widened to six SQLite stores (title, Summary, Scope, Recovery Policy Matrix)
 - **Approver:** Not recorded
 - **Date:** Not recorded
 - **Scope:** Title, Summary, Scope, Recovery Policy Matrix
@@ -569,24 +629,6 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Approver:** Not recorded
 - **Date:** Not recorded
 - **Scope:** Decision Detail 22
-
-#### AAL-026
-
-- **ID:** AAL-026
-- **ADR:** ADR-008
-- **Decision:** Retention rule per database; EventBus events, consumer_delivery, and dlq_outbox growth is an accepted risk
-- **Approver:** Not recorded
-- **Date:** Not recorded
-- **Scope:** Decision Detail 23, INV-09
-
-#### AAL-027
-
-- **ID:** AAL-027
-- **ADR:** ADR-008
-- **Decision:** Memory canonical store: memories and memory_links canonical, memories_fts and memories_vec derived, JSONL append-only archive
-- **Approver:** Not recorded
-- **Date:** Not recorded
-- **Scope:** Decision Detail 24, Recovery Policy Matrix
 
 #### AAL-028
 
@@ -601,10 +643,10 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 
 - **ID:** AAL-029
 - **ADR:** ADR-006
-- **Decision:** No-loss statements hold under the ADR-008 schema-mismatch rule; EventBus retention is an accepted risk
+- **Decision:** No-loss statements hold under the ADR-008 schema-mismatch rule
 - **Approver:** Not recorded
 - **Date:** Not recorded
-- **Scope:** Decision Detail 9, INV-07, Data Ownership
+- **Scope:** Decision Detail 9, INV-07
 
 #### AAL-030
 
@@ -641,6 +683,33 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Approver:** Not recorded
 - **Date:** Not recorded
 - **Scope:** ADR-015 Decision Scope attribution sentence, Related ADRs entry, and the Approval Record pending bullet
+
+#### AAL-039
+
+- **ID:** AAL-039
+- **ADR:** ADR-008
+- **Decision:** Repository Context (non-persistent) and Episodic Memory (the only persistent Agent memory, in session.sqlite only); removal of Semantic Memory, memory JSONL, pin state, manual memory writes, and /memory data
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Details 23 and 24, INV-02, INV-09, INV-19 to INV-22, Recovery Policy Matrix
+
+#### AAL-040
+
+- **ID:** AAL-040
+- **ADR:** ADR-006
+- **Decision:** Removal of EventBus events.jsonl; eventbus.sqlite is the sole source of truth
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Details 15 to 17, INV-17, INV-18, INV-21
+
+#### AAL-041
+
+- **ID:** AAL-041
+- **ADR:** ADR-006
+- **Decision:** EventBus state-aware retention, replay expiration (HTTP 410 replay_position_expired), and capacity and readiness rules
+- **Approver:** Not recorded
+- **Date:** Not recorded
+- **Scope:** Decision Details 18 to 20, Replay Contract, INV-19, INV-20, INV-22
 
 ## Resolution Rules
 

@@ -11,7 +11,7 @@ Amend ADR-006 so `eventbus.sqlite` is the sole EventBus source of truth with no 
 - New pending entries exist after the ledger document is applied: AAL-040 (removal of `events.jsonl`) and AAL-041 (state-aware retention and replay expiration). Entry text is written by the ledger document (06).
 - AAL-029 is narrowed, not removed: its no-loss-under-schema-mismatch statements (Summary, Decision Detail 9, INV-07, Rationale 1, Positive Consequences) stay; only the accepted retention risk (Data Ownership Deletion Rule) is withdrawn.
 - New invariant numbers start at INV-17 (current maximum is INV-16). Existing numbers are not renumbered; new Decision Details are appended after the last existing one.
-- Needs confirmation (UNK-01): the retention-participant registry model is unapproved, so the ADR records an open owner decision instead of a registry design. Needs confirmation (UNK-02): `since_seq=0` is redefined for `/replay`; the `/subscribe` open decision stays.
+- Needs confirmation: the retention-participant registry model is unapproved, so the ADR records an open owner decision instead of a registry design (tracked by EVENTBUS-002). Needs confirmation: `since_seq=0` is redefined for `/replay`; the `/subscribe` open decision stays. Plan-local `UNK-` identifiers are not written into the ADR.
 
 ## Design decisions
 - State the target decision and record each code divergence under Known Deviations; unimplemented invariants are Not verified, never cited to a passing test.
@@ -37,7 +37,7 @@ N/A: the alternatives (keep JSONL as audit replica, age-only retention) are reje
 - Add Manual Review lines for INV-17 to INV-22 marked Not verified, each with the expected evidence and cadence (CI once the implementation issue lands).
 
 ### Details
-- Known Deviations (replace `Not applicable`): `scripts/eventbus/publish_route.py` still appends `events.jsonl` and exposes `eventbus_jsonl_append_failure_total`; no retention task, retention configuration, purge, replay-floor check, or HTTP 410 exists; the retention-participant registry is undecided (UNK-01). Each entry names the INV it affects.
+- Known Deviations (replace `Not applicable`): every top-level bullet cites a Known Issue ID defined in the governance document Part 1 (`tools/check_known_deviation_sync.py` rules 5 and 6), and no plan-local `UNK-` identifier appears in the ADR. Add two bullets in the style `- **Known Issue:** {ID} — {text}`: EVENTBUS-001 (`scripts/eventbus/publish_route.py` still appends `events.jsonl` and exposes `eventbus_jsonl_append_failure_total`; affects INV-18) and EVENTBUS-002 (no retention task, retention configuration, purge, capacity signals, replay-floor check, or HTTP 410 exists, and the retention-participant registry model is undecided; affects INV-19 to INV-22). The entries themselves are created by document 06 (found in Step 3a of this cycle and corrected here).
 - Approval Record: narrow the AAL-029 pending bullet to the no-loss claims; add one pending bullet citing AAL-040 and one citing AAL-041 in the existing wording style (decision-text change awaiting maintainer approval; approver, date, and scope not recorded; no approval recorded here). Do not write an approver, a date, or an approval sentence.
 - Related ADRs and front matter `related` keep ADR-008 and ADR-013; the ADR-008 file name is unchanged.
 
@@ -69,8 +69,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit ADR-006 text, Replay Contract, invariants, Known Deviations, and Approval Record per Implementation | Pending | — | — | |
-| 2 | Run the ADR checkers and the cited EventBus tests per Validation plan | Pending | — | — | Checkers pass only after documents 01 to 06 are applied (release unit) |
+| 1 | Edit ADR-006 text, Replay Contract, invariants, Known Deviations, and Approval Record per Implementation | Completed | 20261124-095427 | 20261124-095942 | Changed: docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md |
+| 2 | Run the ADR checkers and the cited EventBus tests per Validation plan | Completed | 20261124-095942 | 20261124-100816 | Checkers pass only after documents 01 to 06 are applied (release unit) Blocked: file outside procedure scope - tools/check_docs_structure.py (size ceilings) and registry/manifests/invariant_coverage.yaml (stale generated manifest) ADR checkers, generator, DB-separation, cited ADR tests (75) pass. Fallout approved by user: tools/check_docs_structure.py size ceilings, registry/manifests/invariant_coverage.yaml regenerated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

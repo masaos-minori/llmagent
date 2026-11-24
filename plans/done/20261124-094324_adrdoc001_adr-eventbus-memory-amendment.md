@@ -213,11 +213,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Approval Ledger: add AAL-039 to AAL-041, update AAL-024, draft review packages | In Progress | — | — |  |
-| 2 | ADR-006 amendment: SQLite-only persistence, retention, replay contract, invariants, Known Deviations | In Progress | — | — |  |
-| 3 | ADR-008 amendment: six stores, Repository Context, Episodic Memory, lifecycle matrix, invariants | In Progress | — | — |  |
-| 4 | Withdraw AAL-026 and AAL-027, narrow AAL-029, and settle SHARED-002 | In Progress | — | — |  |
-| 5 | Authority configuration, ADR index, document guide, regenerate guarded sections | In Progress | — | — |  |
+| 1 | Approval Ledger: add AAL-039 to AAL-041, update AAL-024, draft review packages | Completed | — | 20261124-100821 |  |
+| 2 | ADR-006 amendment: SQLite-only persistence, retention, replay contract, invariants, Known Deviations | Completed | — | 20261124-100821 |  |
+| 3 | ADR-008 amendment: six stores, Repository Context, Episodic Memory, lifecycle matrix, invariants | Completed | — | 20261124-100821 |  |
+| 4 | Withdraw AAL-026 and AAL-027, narrow AAL-029, and settle SHARED-002 | Completed | — | 20261124-100821 |  |
+| 5 | Authority configuration, ADR index, document guide, regenerate guarded sections | Completed | — | 20261124-100821 |  |
 | 6 | Validation, intended-change report, deployment check | Pending | — | — |  |
 
 ### Blocker Log
@@ -228,12 +228,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261124-094801_01_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261124-094801_02_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261124-094801_03_docs_10_adr_adr_01_index.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261124-094801_04_docs_10_adr_adr_00_document-guide.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261124-094801_05_config_adr_authority.toml.md | 5 | Procedure | Pending | — | — |
-| implementations/20261124-094801_06_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1, 4 | Procedure | Pending | — | — |
+| implementations/20261124-094801_01_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261124-094801_02_docs_10_adr_adr_02_05_008_db-sqlite-4db-separation.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261124-094801_03_docs_10_adr_adr_01_index.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261124-094801_04_docs_10_adr_adr_00_document-guide.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261124-094801_05_config_adr_authority.toml.md | 5 | Procedure | Completed | — | — |
+| implementations/20261124-094801_06_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 1, 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

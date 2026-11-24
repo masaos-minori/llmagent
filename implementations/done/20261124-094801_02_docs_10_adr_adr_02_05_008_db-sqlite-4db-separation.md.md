@@ -11,7 +11,7 @@ Amend ADR-008 into "Separation and Lifecycle Policy for Six SQLite Stores": cons
 - New entry AAL-039 (Repository Context and Episodic Memory) exists after the ledger document (06) is applied; AAL-024 is updated there to "six SQLite stores"; AAL-026 and AAL-027 are removed there.
 - Episodic Memory table names are not fixed by the Plan, so the ADR uses the generic names "Episodic Memory events" and "Episodic relations" and does not name tables.
 - New invariants start at INV-19 (current maximum INV-18); existing invariants INV-02, INV-04, INV-09 are reworded in place.
-- Needs confirmation (UNK-03): AAL-025 stays pending; only its `/memory rebuild` and JSONL wording in Decision Detail 22 and the matrix schema-mismatch row is removed.
+- Needs confirmation: AAL-025 stays pending; only its `/memory rebuild` and JSONL wording in Decision Detail 22 and the matrix schema-mismatch row is removed.
 
 ## Design decisions
 - Retention for `eventbus.sqlite` is stated once, in ADR-006; the matrix cell and INV-09 refer to it, so ADR-008 and ADR-006 do not define it twice.
@@ -38,7 +38,7 @@ N/A: the old memory model and the accepted-growth risk are being withdrawn, not 
 - Data Ownership and Persistence and Implementation References: remove the memory table list and add Episodic Memory by generic name.
 
 ### Details
-- Known Deviations: replace the SHARED-002 `memories_vec` entry, which no longer applies once Semantic Memory is removed (its governance entry is settled by document 06); add deviations for current code (`scripts/agent/memory/` still has the old design and JSONL; the session schema still creates `memories` and `memory_links`) and for lifecycle policies left undecided (for example the Session DB schema-mismatch policy for Episodic Memory).
+- Known Deviations: remove the SHARED-002 bullet (the contradictory `memories_vec` classification disappears with the rewritten matrix; its governance entry is removed by document 06). Every top-level bullet cites a Known Issue ID from the governance document Part 1 (`tools/check_known_deviation_sync.py` rules 5 and 6), and no plan-local `UNK-` identifier appears in the ADR. Add `- **Known Issue:** SHARED-003 — ...` (current code still implements the old Semantic/Episodic model and memory JSONL; affects INV-20 to INV-22) and `- **Known Issue:** SHARED-004 — ...` (lifecycle policies left undecided, for example the Session DB schema-mismatch policy for Episodic Memory). The entries are created by document 06 (found in Step 3a of this cycle and corrected here).
 - Approval Record: keep the AAL-010, AAL-011, AAL-024, AAL-025, and AAL-028 bullets (reword the AAL-024 bullet to "six SQLite stores" to match the updated entry); remove the AAL-026 and AAL-027 bullets; add one pending bullet citing AAL-039. Do not write an approver, a date, or an approval sentence.
 - `related` front matter and Related ADRs keep ADR-006 and the existing items; no file name changes.
 
@@ -69,8 +69,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit ADR-008 title, matrix, Decision Details, invariants, Known Deviations, and Approval Record per Implementation | Pending | — | — | |
-| 2 | Run the ADR and DB-separation checks per Validation plan | Pending | — | — | Checkers pass only after documents 01 to 06 are applied (release unit) |
+| 1 | Edit ADR-008 title, matrix, Decision Details, invariants, Known Deviations, and Approval Record per Implementation | Completed | 20261124-095525 | 20261124-095942 | Changed: docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md |
+| 2 | Run the ADR and DB-separation checks per Validation plan | Completed | 20261124-095942 | 20261124-100816 | Checkers pass only after documents 01 to 06 are applied (release unit) Blocked: file outside procedure scope - tools/check_docs_structure.py (size ceilings) and registry/manifests/invariant_coverage.yaml (stale generated manifest) ADR checkers, generator, DB-separation, cited ADR tests (75) pass. Fallout approved by user: tools/check_docs_structure.py size ceilings, registry/manifests/invariant_coverage.yaml regenerated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

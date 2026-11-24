@@ -1,5 +1,5 @@
 ---
-title: "ADR-008: Separating SQLite into Six Databases"
+title: "ADR-008: Separation and Lifecycle Policy for Six SQLite Stores"
 area: governance
 tags:
   - system
@@ -22,7 +22,7 @@ related:
   - governance_01_documentation-policy.md
 ---
 
-# ADR-008: Separating SQLite into Six Databases
+# ADR-008: Separation and Lifecycle Policy for Six SQLite Stores
 
 ## Keywords
 
@@ -37,7 +37,7 @@ Accepted
 
 ## Summary
 
-This ADR canonicalizes the separation of data into six SQLite DBs: four platform-domain DBs (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`) and two non-domain stores (`mcp_dedup.sqlite`, `mdq.sqlite`), with per-DB responsibilities, no cross-DB Transactions, a limited sqlite-vec scope, and a Backup, Recovery, and retention policy per DB. It also canonicalizes the safety boundary for recovery from physical corruption (see Decision Details #14 to #21). Decision Details #22 to #24 record the schema-mismatch rule, the retention rule, and the memory canonical store.
+This ADR canonicalizes the separation of data into six SQLite stores and their lifecycle policy: four platform-domain databases (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`) and two non-domain stores (`mcp_dedup.sqlite`, `mdq.sqlite`), with per-store responsibilities, no cross-store Transactions, a limited sqlite-vec scope, and a Backup, Recovery, and retention policy per store. It also canonicalizes the safety boundary for recovery from physical corruption (see Decision Details #14 to #21). Decision Details #22 to #24 record the schema-mismatch rule, the retention rule, and the Agent memory model (Repository Context and Episodic Memory); Decision Detail #25 records the store-separation prohibitions.
 
 mdq.sqlite, owned by mdq-mcp, and mcp_dedup.sqlite, owned by the shared MCP dispatcher, are stores outside the four platform domains; see "Stores Outside the Four Platform Domains".
 
@@ -85,8 +85,8 @@ Without an explicit safety contract, recovery across several SQLite files is dan
 |---|---|---|---|---|---|---|
 | Persistence-domain identifier | rag | session | workflow | eventbus | outside the four domains (dispatcher-owned dedup store) | outside the four domains (mdq-mcp-owned derived index) |
 | Database file | rag.sqlite | session.sqlite | workflow.sqlite | eventbus.sqlite | mcp_dedup.sqlite | mdq.sqlite |
-| System of record | documents, chunks (canonical); FTS5, Vector Index (derived from chunks) | sessions, messages, memories, memory_links, session_diagnostics (the JSONL archive `memories.jsonl` is an append-only archive outside the database, not a store of record) | tasks, attempts, artifacts, processed events | events, offsets, deliveries, DLQ state | none (disposable tool_call_state ledger) | none (derived from the Markdown files under `allowed_dirs`) |
-| Derived or rebuildable data | FTS5, Vector Index (from chunks) | memories_fts, memories_vec (from memories) | none | none | none (recreated empty) | documents, chunks, chunks_fts, index_state (rebuilt from the Markdown files) |
+| System of record | documents, chunks (canonical); FTS5, Vector Index (derived from chunks) | sessions, messages, conversation state, session diagnostics, Episodic Memory events, Episodic relations (Episodic FTS and Vector indexes are derived; Repository Context is not stored here, and no JSONL file exists for Agent memory) | tasks, attempts, artifacts, processed events | all EventBus state defined by ADR-006: events, consumer delivery state, offsets, DLQ state and the `dlq_outbox` record, requeue lineage, retention state (no `events.jsonl`) | none (disposable tool_call_state ledger) | none (derived from the Markdown files under `allowed_dirs`) |
+| Derived or rebuildable data | FTS5, Vector Index (from chunks) | Episodic FTS and Vector indexes (from Episodic Memory events) | none | deadletter JSON files (reconstructable from SQLite) | none (recreated empty) | documents, chunks, chunks_fts, index_state (rebuilt from the Markdown files) |
 | Owning component | RAG layer | Agent layer | Workflow engine (Agent layer) | EventBus service | Shared MCP dispatcher layer | mdq-mcp server |
 | Required service stop scope | Agent process, rag-pipeline-mcp, and any running ingester | Agent process | Agent process (Workflow Engine runs in-process) | EventBus process | shared MCP dispatcher process | mdq-mcp server process |
 | Supported diagnosis path | `_run_integrity_check()` + `check_rag_consistency()` | `_run_integrity_check()` | no automated diagnosis through `recover_corruption()` (returns `no_recovery_allowed` before any check) | no automated diagnosis through `recover_corruption()` (returns `no_recovery_allowed` before any check) | none automated | none automated (shape checked by the shared fingerprint at service start) |
@@ -103,17 +103,20 @@ Without an explicit safety contract, recovery across several SQLite files is dan
 | Restore sidecar handling | quarantine-before-swap; candidate sidecars activated only with the swap; quarantine retained after a successful restore for operator manual judgment (Decision Detail #21) | same | not applicable (no automated restore) | not applicable (no automated restore) | not applicable | not applicable |
 | Audit requirement | Error/Audit records exclude row-level DB content (Security Consequences) | same | same | same | same | same |
 | Data-loss disclosure requirement | loss between backup point and failure time must be reported | same | same | same | not applicable (disposable; completed non-retryable replay is blocked, not restored) | not applicable (derived, rebuilt) |
-| Schema-mismatch rule | refused and archived, then recreated; the corpus is re-ingested (Decision Detail #22) | refused and archived, then recreated; export conversations with `/session export` first, recover memory from the JSONL archive with `/memory rebuild`; session history is not restored (Decision Detail #22) | refused (shared fingerprint) and archived with `rotate_all_dbs()`, then recreated; task history is not carried over (Decision Detail #22) | refused (shared fingerprint) and archived with `python -m eventbus.db_tools rotate`, then recreated; events and delivery state are not carried over (Decision Detail #22) | recreated empty (Decision Detail #22) | refused (shared fingerprint); the file is deleted and re-indexed (Decision Detail #22) |
-| Retention rule | no automatic purge of `documents` or `chunks`; derived indexes are rebuilt (Decision Detail #23) | `purge_old_sessions()` on demand, `retention_days` purge of diagnostics, memory pruned only by `/memory prune` (Decision Detail #23) | `purge_finished_workflow_events()` at startup removes `processed_events` of terminal tasks past the horizon; `tasks` and `attempts` are never purged (Decision Detail #23) | none: `events`, `consumer_delivery`, and `dlq_outbox` rows are never deleted; unbounded growth is an accepted risk (Decision Detail #23) | `purge_expired()` removes terminal rows past the retention (Decision Detail #23) | none needed: rebuilt from the Markdown files (Decision Detail #23) |
+| Schema-mismatch rule | refused and archived, then recreated; the corpus is re-ingested (Decision Detail #22) | refused and archived, then recreated; export conversations with `/session export` first; session history and Episodic Memory are not carried over (Decision Detail #22) | refused (shared fingerprint) and archived with `rotate_all_dbs()`, then recreated; task history is not carried over (Decision Detail #22) | refused (shared fingerprint) and archived with `python -m eventbus.db_tools rotate`, then recreated; events and delivery state are not carried over (Decision Detail #22) | recreated empty (Decision Detail #22) | refused (shared fingerprint); the file is deleted and re-indexed (Decision Detail #22) |
+| Retention rule | no automatic purge of `documents` or `chunks`; derived indexes are rebuilt (Decision Detail #23) | `purge_old_sessions()` on demand and `retention_days` purge of diagnostics; Episodic Memory retention is managed internally and its lifecycle policy is undecided (Decision Detail #23) | `purge_finished_workflow_events()` at startup removes `processed_events` of terminal tasks past the horizon; `tasks` and `attempts` are never purged (Decision Detail #23) | state-aware retention defined by ADR-006 (never by age alone, purge as one unit, replay floor); no unbounded growth is accepted (Decision Detail #23) | `purge_expired()` removes terminal rows past the retention (Decision Detail #23) | none needed: rebuilt from the Markdown files (Decision Detail #23) |
+| Capacity monitoring | WAL checkpoint counts (`WalCheckpointCounts`); no size or free-disk signal is defined | same | same | capacity signals defined by ADR-006 Decision Detail 20 (not yet implemented) | none defined | none defined |
+| Failure mode | connection failure stops RAG functionality (Fail-Fast) | connection failure stops session functionality (Fail-Fast) | connection failure stops workflow functionality (Fail-Fast) | connection failure stops event delivery (Fail-Fast) | recreated empty; non-retryable tools are rejected until an operator resolves the state (Fail-Closed) | rebuilt from the Markdown files |
+| Verification | `tests/db/test_db_recovery.py`, `tools/check_db_separation.py` | `tests/db/test_db_recovery.py`, `tools/check_db_separation.py` | `tests/db/test_db_recovery.py::test_recover_corrupt_workflow_prohibited` | `tests/db/test_db_recovery.py::test_recover_eventbus_target_is_unsupported`; retention and capacity are Not verified | `tools/check_db_separation.py` | `tools/check_db_separation.py` |
 
 Future persistence domains: default policy is fail-closed—no automatic restore until an approved architectural decision defines its recovery policy.
 
 ### Decision Details
 
 1. `rag.sqlite`: the authoritative database file of the RAG corpus. It holds the canonical `documents` and `chunks` tables and the derived FTS5 and Vector Index, which are rebuilt from `chunks`. Owned by the RAG layer.
-2. `session.sqlite`: canonical store for Agent Sessions, Messages, conversation state, and the memory tables `memories` and `memory_links`. `memories_fts` and `memories_vec` are derived from `memories`. Owned by the Agent layer.
+2. `session.sqlite`: canonical store for Agent Sessions, Messages, conversation state, session diagnostics, Episodic Memory events, and Episodic relations. The Episodic FTS and Vector indexes are derived. Owned by the Agent layer.
 3. `workflow.sqlite`: canonical store for Tasks, Attempts, Artifacts, and processed Events. Owned by the workflow engine in the Agent layer.
-4. `eventbus.sqlite`: canonical store for Events, Offsets, Delivery, the `dlq_outbox` durable promotion record, and the DLQ. Owned by the EventBus service.
+4. `eventbus.sqlite`: canonical store for Events, Offsets, Delivery, the `dlq_outbox` durable promotion record, the DLQ, requeue lineage, and retention state, as defined by ADR-006. Owned by the EventBus service.
 5. Reasons for DB separation: differences in write characteristics, lock contention, failure isolation, retention periods, recovery methods, and extension-loading scope.
 6. Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
 7. Logical IDs such as Session ID, Workflow ID, and Event ID identify the same entity across databases and are used to join related rows at query time. This is a static logical reference, not a live EventBus publish/consume path (see Decision Detail #8).
@@ -131,9 +134,10 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 19. Corrupted DB is set aside as diagnostic copy before replacement. Retention/deletion left to operator manual judgment; no automatic deletion.
 20. Recovery policy defined per persistence domain: `rag.sqlite` derived indexes (FTS5, Vector Index) rebuilt from canonical data (`chunks` table), with canonical tables restored from a verified backup; `session.sqlite` restored from backup; `workflow.sqlite` and `eventbus.sqlite` prohibit automatic restore—manual operator handling only (no silent re-initialization).
 21. Restore-flow sidecar files (`-wal`/`-shm`) are handled as one unit with their main database file: at swap preparation the corrupt database's sidecars move into a quarantine directory, and staged candidate sidecars are activated only with the swap; a failure after the swap removes the swapped-in candidate and its sidecars and moves the quarantined original sidecars back to their database directory (whole-unit rollback); the quarantine directory and its contents are retained after a successful restore and never automatically deleted—removal is operator manual judgment, consistent with Decision Detail #19.
-22. Schema-mismatch rule: every database is accepted only when its shape matches the canonical shape (the shared fingerprint for `workflow.sqlite`, `eventbus.sqlite`, and `mdq.sqlite`; the create-only shape for `rag.sqlite` and `session.sqlite`). A refused file is archived and recreated by the operator; no migration exists and data is not carried over. Preconditions: `session.sqlite` needs `/session export` first and memory is recovered from the JSONL archive with `/memory rebuild`, while session history is not restored; `workflow.sqlite` is archived with `rotate_all_dbs()`; `eventbus.sqlite` with `python -m eventbus.db_tools rotate`; `rag.sqlite` is archived and its corpus re-ingested; `mcp_dedup.sqlite` is recreated empty; `mdq.sqlite` is deleted and re-indexed (`db_03_architecture_and_schema-migration-and-scaling.md` section 8e). The `tool_call_state` table of `workflow.sqlite` and the ledger of the same name in `mcp_dedup.sqlite` are separate tables.
-23. Retention: `events`, `consumer_delivery`, and `dlq_outbox` rows of `eventbus.sqlite` are never deleted and grow without bound; this is recorded as an accepted risk against INV-09. The other databases follow the retention behavior in the Recovery Policy Matrix.
-24. Memory canonical store: `memories` and `memory_links` in `session.sqlite` are canonical; `memories_fts` and `memories_vec` are derived and rebuilt from `memories`. The JSONL file `memories.jsonl` is an append-only archive of memory lines and `delete`, `pin`, and `unpin` change events, written after the SQLite commit; it is not a store of record.
+22. Schema-mismatch rule: every database is accepted only when its shape matches the canonical shape (the shared fingerprint for `workflow.sqlite`, `eventbus.sqlite`, and `mdq.sqlite`; the create-only shape for `rag.sqlite` and `session.sqlite`). A refused file is archived and recreated by the operator; no migration exists and data is not carried over. Preconditions: `session.sqlite` needs `/session export` first, and neither session history nor Episodic Memory is carried over; `workflow.sqlite` is archived with `rotate_all_dbs()`; `eventbus.sqlite` with `python -m eventbus.db_tools rotate`; `rag.sqlite` is archived and its corpus re-ingested; `mcp_dedup.sqlite` is recreated empty; `mdq.sqlite` is deleted and re-indexed (`db_03_architecture_and_schema-migration-and-scaling.md` section 8e). The `tool_call_state` table of `workflow.sqlite` and the ledger of the same name in `mcp_dedup.sqlite` are separate tables.
+23. Retention: the retention rule of `eventbus.sqlite` is defined by ADR-006 (state-aware, never by age alone, with the replay floor); this ADR accepts no unbounded growth for it. The other stores follow the retention behavior in the Recovery Policy Matrix. Retention of Episodic Memory is managed internally; its lifecycle policy is undecided and recorded under Known Deviations.
+24. Agent memory model: Repository Context is read from explicitly configured repository files, which are its source of truth; it is not stored in SQLite or JSONL and has no persistent FTS or Vector index. Episodic Memory is the Agent's only persistent long-term memory; it is generated internally, has no user-facing CRUD contract, is stored only in `session.sqlite` (events and relations authoritative, FTS and Vector indexes derived), and is recovered only from a verified SQLite backup. Semantic Memory, User Semantic, memory JSONL, pin state, manual memory writes, and `/memory` data are not part of this policy.
+25. Store separation: the six stores never share a physical path. Cross-store `ATTACH`, cross-store foreign keys, and schema-qualified cross-store access are prohibited.
 
 ### Stores Outside the Four Platform Domains
 
@@ -249,14 +253,14 @@ Leaving the `workflow`/`eventbus` recovery policy undefined would give operators
 ## Invariants
 
 - INV-01: `rag.sqlite` is the authoritative database file of the RAG corpus: canonical `documents` and `chunks` tables plus the FTS5 and Vector Index derived from `chunks`.
-- INV-02: `session.sqlite` is the canonical store for Agent Sessions, Messages, conversation state, and the memory tables `memories` and `memory_links`.
+- INV-02: `session.sqlite` is the canonical store for Agent Sessions, Messages, conversation state, session diagnostics, Episodic Memory events, and Episodic relations; the Episodic FTS and Vector indexes are derived.
 - INV-03: `workflow.sqlite` is the canonical store for Tasks, Attempts, Artifacts, and processed Events.
-- INV-04: `eventbus.sqlite` is the canonical store for Events, Offsets, Delivery, the `dlq_outbox` durable promotion record, and the DLQ.
+- INV-04: `eventbus.sqlite` is the canonical store for Events, Offsets, Delivery, the `dlq_outbox` durable promotion record, the DLQ, requeue lineage, and retention state (ADR-006 owns the contents).
 - INV-05: Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
 - INV-06: Logical IDs such as Session ID, Workflow ID, and Event ID are used to relate data across DBs.
 - INV-07: Cross-DB consistency is guaranteed by idempotent processing and state reconciliation; Events are not relied on for it.
 - INV-08: sqlite-vec is loaded by default only into the databases that own a vec0 table: `rag.sqlite` and `session.sqlite`; it is not loaded into `workflow.sqlite` or `eventbus.sqlite`.
-- INV-09: Each DB defines its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period; the unbounded growth of the `eventbus.sqlite` tables `events`, `consumer_delivery`, and `dlq_outbox` is an accepted risk (Decision Detail #23).
+- INV-09: Each store defines its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period; the retention of `eventbus.sqlite` is the state-aware rule of ADR-006 (Decision Detail #23).
 - INV-10: A persistence failure in Workflow or EventBus is not treated as success with only a log entry.
 - INV-11: Corruption of one DB does not require initialization or recovery of the other DBs.
 - INV-12: Cross-DB processing can be re-executed idempotently.
@@ -266,6 +270,10 @@ Leaving the `workflow`/`eventbus` recovery policy undefined would give operators
 - INV-16: Dry Run must not move, replace, Truncate, delete, or rewrite the target DB for any classification result.
 - INV-17: An Unknown or unclassifiable failure preserves the target DB and requires operator intervention instead of an automatic restore; `recover_corruption()` returns `action="preserved_operator_intervention_required"` for `DbCondition.UNKNOWN` and does not call `_restore_from_backup()`.
 - INV-18: Automatic restore of `workflow.sqlite` and `eventbus.sqlite` is prohibited. Recovery is manual operator handling only, explicitly applying a policy different from `rag.sqlite` (rebuild) and `session.sqlite` (restore from backup).
+- INV-19: The six stores never share a physical path; cross-store `ATTACH`, cross-store foreign keys, and schema-qualified cross-store access are prohibited.
+- INV-20: Repository Context is loaded from configured repository files and is not stored in SQLite or JSONL; it has no persistent FTS or Vector index.
+- INV-21: Episodic Memory is the only persistent Agent long-term memory, is stored only in `session.sqlite`, has no user-facing CRUD contract, and is recovered only from a verified SQLite backup.
+- INV-22: No JSONL path exists for Agent memory or for EventBus events: neither is a system of record, a backup, or a recovery source.
 
 ## Failure Policy
 
@@ -294,7 +302,7 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 ## Data Ownership and Persistence
 
 - **System of Record**: the four platform SQLite DBs (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`); `mcp_dedup.sqlite` (disposable ledger) and `mdq.sqlite` (derived index) are not systems of record
-- **Derived Data**: regenerable derived data (FTS5, Vector Index, `memories_fts`, `memories_vec`, and the contents of `mdq.sqlite`)
+- **Derived Data**: regenerable derived data (FTS5, Vector Index, the Episodic FTS and Vector indexes, deadletter JSON files, and the contents of `mdq.sqlite`)
 - **Ownership**: RAG layer, Agent layer, workflow engine, EventBus service
 - **Persistence**: file system (the configured DB directory)
 - **Transaction Boundary**: per DB
@@ -308,7 +316,7 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 | Test | Verifies | Type | Blocking | Implementation |
 |---|---|---|---|---|
 | Each DB has its own schema creation and its own recovery target path (supporting the per-database ownership of INV-01 to INV-04; the static check below is the primary verification, and INV-01's derived-index clause is verified under ADR-005) | INV-01, INV-02, INV-03, INV-04 | Integration | Yes | `tests/db/test_create_schema.py::TestCreateSchemaWrapper::test_calls_all_three_in_order`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/db/test_db_recovery.py::test_recover_eventbus_target_is_unsupported` |
-| The four-database boundary holds: each table is created only in its owning database, no DDL foreign key crosses databases, the four database paths are distinct files, and no `ATTACH` or schema-qualified `FROM`/`JOIN` exists in `scripts/` SQL | INV-01, INV-02, INV-03, INV-04, INV-05 | Static check | Yes | `tools/check_db_separation.py` (CI `lint` job and the deploy pre-deploy check), `tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations`, `tests/tools/test_check_db_separation.py::test_detects_table_in_wrong_database`, `tests/tools/test_check_db_separation.py::test_detects_cross_db_foreign_key`, `tests/tools/test_check_db_separation.py::test_detects_shared_physical_path`, `tests/tools/test_check_db_separation.py::test_detects_attach_and_qualified_access` |
+| The platform-domain database boundary holds: each table is created only in its owning database, no DDL foreign key crosses databases, the four platform-domain database paths are distinct files, and no `ATTACH` or schema-qualified `FROM`/`JOIN` exists in `scripts/` SQL | INV-01, INV-02, INV-03, INV-04, INV-05, INV-19 | Static check | Yes | `tools/check_db_separation.py` (CI `lint` job and the deploy pre-deploy check), `tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations`, `tests/tools/test_check_db_separation.py::test_detects_table_in_wrong_database`, `tests/tools/test_check_db_separation.py::test_detects_cross_db_foreign_key`, `tests/tools/test_check_db_separation.py::test_detects_shared_physical_path`, `tests/tools/test_check_db_separation.py::test_detects_attach_and_qualified_access` |
 | sqlite-vec is loaded by default only for `rag` and `session`, never for `workflow` or `eventbus` | INV-08 | Regression | Yes | `tests/db/test_sqlite_helper.py::TestSQLiteHelperVecDefault::test_default_load_vec_per_target`, `tests/tools/test_check_db_separation.py::test_default_load_vec_rule_rejects_extra_target`, `tests/agent/memory/test_memory_vec_session.py::test_session_default_connection_loads_vec` |
 | Lock Contention and Permission Failure are not classified as physical corruption | INV-13 | Regression | Yes | `tests/db/test_db_recovery.py::test_recover_lock_contention`, `tests/db/test_db_recovery.py::test_recover_permission_failure`, `tests/db/test_db_recovery.py::test_classify_error_lock_contention_via_sqlite_errorcode`, `tests/db/test_db_recovery.py::test_recover_missing_live_db_reports_missing_database` |
 | Dry Run does not vacuum, restore, or otherwise act on the target DB for the covered classification results | INV-16 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_dry_run_healthy`, `tests/db/test_db_recovery.py::test_recover_dry_run_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_dry_run_corrupt_file_unchanged` (bytes and directory of a corrupt WAL-mode database unchanged), `tests/db/test_db_recovery.py::test_run_integrity_check_keeps_rollback_journal_mode` |
@@ -339,6 +347,7 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 - DB Schema verification before deployment
 - Manual recovery of `workflow.sqlite`/`eventbus.sqlite` (INV-18): `agent_10_01` Manual Recovery
 - INV-06, INV-07, INV-09, INV-10, INV-11, INV-12 describe design rules without a dedicated automated test
+- INV-20 to INV-22 are Not verified: no automated test exists yet (see Known Deviations). Expected evidence: a test that Repository Context creates no database rows or files, a test that Episodic Memory tables exist only in `session.sqlite`, and a repository scan that no memory JSONL path remains. Cadence: CI once the implementation lands. INV-19 is Partial: `tools/check_db_separation.py` covers the four platform-domain databases, not `mcp_dedup.sqlite` and `mdq.sqlite`
 
 ## Implementation Notes
 
@@ -349,7 +358,8 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- **Known Issue:** SHARED-002 — `memories_vec` is classified as both system of record and derived/rebuildable in the ADR-008 Recovery Policy Matrix (Recovery Policy Matrix, system of record and derived rows). Recorded pending a maintainer decision on the correct classification; not resolved. See `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1. The Matrix now classifies `memories_vec` as derived only, pending AAL-027; the Known Issue stays open until that approval is recorded.
+- **Known Issue:** SHARED-003 — current code still implements the old Semantic/Episodic dual memory model and the memory JSONL archive, which this ADR no longer permits (INV-20 to INV-22).
+- **Known Issue:** SHARED-004 — lifecycle policies left undecided: Episodic Memory retention and its Session DB schema-mismatch handling, and capacity monitoring for the stores other than `eventbus.sqlite` (Recovery Policy Matrix, Decision Details #22 and #23).
 
 ## Review Triggers
 
@@ -387,11 +397,10 @@ See Implementation References for the current file/symbol list.
 - **Current Decision Approval (pending)**: Naming the `dlq_outbox` durable promotion record among the `eventbus.sqlite` contents in Decision Detail 4 is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-010. No approval is recorded here.
 - **Amendment Approval Mapping**: no per-amendment approval record exists for this ADR beyond the ADR index entry and the task-level decision above; amendment history stays in version control.
 - **Current Decision Approval (pending)**: Appending `rag-pipeline-mcp` to the Target components is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-011. No approval is recorded here.
-- **Current Decision Approval (pending)**: Widening the scope to six databases (title, Summary, Scope, and the `mdq.sqlite` column of the Recovery Policy Matrix) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-024. No approval is recorded here.
+- **Current Decision Approval (pending)**: Widening the scope to six SQLite stores (title, Summary, Scope, and the `mdq.sqlite` column of the Recovery Policy Matrix) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-024. No approval is recorded here.
 - **Current Decision Approval (pending)**: The schema-mismatch rule of Decision Detail 22 (archive and recreate for every database, with per-database preconditions) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-025. No approval is recorded here.
-- **Current Decision Approval (pending)**: The retention rule of Decision Detail 23 and the INV-09 accepted-risk wording for the `eventbus.sqlite` tables is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-026. No approval is recorded here.
-- **Current Decision Approval (pending)**: The memory canonical-store classification of Decision Detail 24 and the Matrix and INV-02 wording that follow from it is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-027. No approval is recorded here.
 - **Current Decision Approval (pending)**: Naming the `dlq_outbox` durable promotion record in INV-04 is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-028. No approval is recorded here.
+- **Current Decision Approval (pending)**: Introducing Repository Context (non-persistent) and Episodic Memory (the only persistent Agent memory, in `session.sqlite`) and removing Semantic Memory, memory JSONL, pin state, manual memory writes, and `/memory` data (Decision Details #23 and #24, INV-02, INV-09, INV-19 to INV-22, and the Recovery Policy Matrix) is a decision-text change awaiting maintainer approval; the approver, date, and scope are not recorded, and it is tracked by AAL-039. No approval is recorded here.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -416,9 +425,9 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/eventbus/db_tools.py` (EventBus-owned create, rotate, verify)
 - `scripts/db/session_consistency.py` (`check_session_consistency()`)
 - `rag.sqlite` (`documents`, `chunks`, `chunks_fts`, `chunks_vec`)
-- `session.sqlite` (`sessions`, `messages`, `memories`, `memory_links`, `session_diagnostics`, `memories_fts`, `memories_vec`)
+- `session.sqlite` (`sessions`, `messages`, `session_diagnostics`, and the Episodic Memory events, relations, and derived indexes)
 - `workflow.sqlite` (`tasks`, `attempts`, `processed_events`, `artifacts`, `tool_call_state`)
-- `eventbus.sqlite` (`events`, `consumer_delivery`, `consumer_offsets`, `dlq_outbox`)
+- `eventbus.sqlite` (`events`, `consumer_delivery`, `consumer_offsets`, `dlq_outbox`; see ADR-006)
 - `mcp_dedup.sqlite` (`tool_call_state`; `scripts/shared/mcp_dedup.py`)
 - `mdq.sqlite` (`documents`, `chunks`, `chunks_fts`, `index_state`; `scripts/mcp_servers/mdq/db_schema.py`)
 - Tests — `tests/db/test_db_maintenance.py`, `tests/db/test_db_recovery.py`, `tests/db/test_sqlite_helper.py`, `tests/db/test_create_schema.py`, `tests/integration/test_session_recovery.py`

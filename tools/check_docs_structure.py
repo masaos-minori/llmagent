@@ -112,7 +112,17 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # re-recorded to the accepted size.
     # Re-accepted at 44006: the six-database scope, the per-database schema-mismatch and
     # retention rules, the memory canonical store, and the table inventory.
-    "adr_02_05_008_db-sqlite-4db-separation.md": 44006,
+    # Re-accepted at 46907 (2026-11-24, adrdoc001 procedure 20261124-094801_02): the
+    # six-store title, the lifecycle matrix rows, Repository Context and Episodic Memory
+    # (Decision Details 23 to 25), INV-19 to INV-22, and the two Known Issue citations
+    # grew the ADR 44006 -> 46907; the ceiling equals the accepted size.
+    "adr_02_05_008_db-sqlite-4db-separation.md": 46907,
+    # Accepted at 39575 (2026-11-24, adrdoc001 procedure 20261124-094801_01): the
+    # single-source-of-truth, state-aware retention, replay-floor, and capacity decisions
+    # (Decision Details 15 to 20), INV-17 to INV-22, the Known Deviations, and the two
+    # pending approval bullets grew the ADR past the default limit; the ceiling equals the
+    # accepted size.
+    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 39575,
     # Re-accepted at 36609 (2026-11-20, adrchk013 procedure 20261120-111659_03): the
     # ADR-016/ADR-017 matrix rows, the split-out ADR-012 INV-04 row, the ADR-003 INV-03
     # Partial rewrite, the dropped migration-window wording and the Pipeline Mapping
@@ -120,7 +130,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 37826 (2026-11-23, gov006 procedure 20261123-165833_11): the matrix
     # rows added for ADR-001 INV-02, ADR-002 INV-03, ADR-003 INV-04 and INV-07 grew the
     # index 36609 -> 37826; the ceiling equals the accepted size.
-    "adr_01_index.md": 37826,
+    # Re-accepted at 41389 (2026-11-24, adrdoc001 procedure 20261124-094801_03): the
+    # ADR-006 INV-17 to INV-22 and ADR-008 INV-19 to INV-22 matrix rows and the regenerated
+    # guarded blocks grew the index 37826 -> 41389; the ceiling equals the accepted size.
+    "adr_01_index.md": 41389,
     # Re-accepted at 33915 (2026-11-20, adrchk021 procedure 20261120-174933_01): the
     # MCP-005 Known Issue entry (git_add/git_commit protected-branch gap registration)
     # grew the ledger 31908 -> 33915; the ceiling equals the accepted size.
@@ -130,7 +143,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 36248 (2026-11-20, adrchk023 procedure 20261120-213832_01): the
     # AGENT-001 Known Issue entry (unused agent-side EventBus client modules) grew the
     # ledger 34313 -> 36248; the ceiling equals the accepted size.
-    "governance_03_issue-and-uncertainty-management.md": 36248,
+    # Re-accepted at 36807 (2026-11-24, adrdoc001 procedure 20261124-094801_06): the
+    # AAL-039 to AAL-041 entries and the EVENTBUS-001, EVENTBUS-002, SHARED-003, and
+    # SHARED-004 Known Issues, net of the removed AAL-026, AAL-027, and SHARED-002,
+    # grew the ledger 36248 -> 36807; the ceiling equals the accepted size.
+    "governance_03_issue-and-uncertainty-management.md": 36807,
 }
 
 
