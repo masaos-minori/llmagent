@@ -72,12 +72,13 @@ Add the two settings this Plan introduces to the shipped configuration with the 
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Add the two keys and correct the `allowed_repos` comment per Procedure | Completed | — | 20261124-151438 |  |
 | 2 | Run the config gate `uv run python tools/check_config_comment_length.py` | Completed | — | 20261124-151438 | Test coverage is executed by row 18's document checker reports 0 errors; the 7 warnings are pre-existing grandfathered comment blocks |
-| 3 | Deployment step: `deploy.sh` syncs this file; restart github-mcp and confirm `/health` reports the two new checks with the shipped values | Superseded | — | — | Plan Phase 5, an unmapped step in the Plan's Execution Status Handed to the maintainer: run deploy/deploy.sh then restart github-mcp and confirm /health reports server.global_search and server.max_file_read_size with the shipped values |
+| 3 | Deployment step: `deploy.sh` syncs this file; restart github-mcp and confirm `/health` reports the two new checks with the shipped values | Completed | 20261124-163126 | 20261124-163126 | Plan Phase 5 step, unmapped in the Plan's Execution Status. Executed by this session on maintainer instruction 2026-11-24: built all 11 binaries at 6e1e5b4946e2; ran deploy/deploy.sh (DEPLOYED_REV commit 6e1e5b4946e209095e9d232536635e757b855a96, dirty=false); started /opt/llm/bin/mcp_github on 127.0.0.1:8006 with the tokens parsed from /opt/llm/.env; /health reports validated=true with 13 checks including server.global_search ok (allow_global_search=false so every search query is scoped to allowed_repos) and server.max_file_read_size not_applicable (max_file_read_size_kb is zero so read size is unlimited) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | 3 | Production deployment (config sync, github-mcp restart, `/health` confirmation) is a shared-infrastructure action the maintainer performs, not this session | Yes | 20261124-151438 |
+| 3 | The Superseded record above was reversed by a live maintainer instruction on 2026-11-24: this session performs the deployment, so Step 3 is Completed | Yes | 20261124-163126 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
