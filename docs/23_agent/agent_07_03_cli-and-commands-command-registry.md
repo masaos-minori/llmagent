@@ -45,18 +45,18 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 |---|---|
 | `/help` | Show the command help |
 | `/config` | Show the current configuration and config file paths |
-| `/stats` | Show session statistics |
-| `/context` | Show history amount, budget, mode and pending-approval state |
+| `/stats` | Show session statistics, including Repository Context and Episodic Memory aggregate state (not yet implemented, SHARED-003) |
+| `/context` | Show history amount, budget, mode and pending-approval state, and the token usage of Repository Context and Episodic Memory |
 | `/plan` | Toggle plan mode |
 | `/undo` | Roll back the last user+assistant turn added after the last history compression |
-| `/reload` | Reload config files and apply runtime-configurable parameters |
+| `/reload` | Reload config files, apply runtime-configurable parameters, and reload Repository Context as an atomic snapshot |
 | `/compact` | Force immediate compression of conversation history |
 | `/mcp` | Show MCP server status, tool list and connectivity |
 | `/session` | Manage sessions and session database maintenance |
 | `/clear` | Reset conversation history, optionally starting a new session |
 | `/history` | Show the content of recent user/assistant messages |
-| `/memory` | Manage long-term memory (status, list, delete, pin, prune, reindex, rebuild) |
-| `/debug` | Toggle debug mode / log level |
+| `/memory` | Retired by ADR-008: not a supported command and not a compatibility alias; still registered until it is removed from code (SHARED-003) |
+| `/debug` | Toggle debug mode / log level; `/debug verbose` also reports source and section selection diagnostics |
 
 ### Adding New Commands
 

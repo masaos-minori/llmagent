@@ -38,8 +38,10 @@ A group of commands related to debug mode and debug log verbosity.
 | Command | Form | Effect |
 |---|---|---|
 | `/debug` | `/debug` | Toggles debug mode, which controls RAG pipeline step output, and reports ON or OFF |
-| `/debug` | `/debug verbose` | Sets the debug loggers to the DEBUG log level |
+| `/debug` | `/debug verbose` | Sets the debug loggers to the DEBUG log level, and also reports Repository Context source and section selection, exclusion, fallback, and budget diagnostics (not yet implemented, SHARED-003) |
 | `/debug` | `/debug normal` | Restores the debug loggers to the INFO log level |
+
+Diagnostics expose aggregate state only. They never expose individual Episodic Memory contents, IDs, secrets, or personal information.
 
 ### Compact Category
 

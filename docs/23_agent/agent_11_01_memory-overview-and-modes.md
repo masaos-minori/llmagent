@@ -1,5 +1,5 @@
 ---
-title: "Memory Layer — Overview and Modes"
+title: "Memory Layer — Repository Context and Episodic Memory"
 area: agent
 tags:
   - agent
@@ -12,7 +12,7 @@ related:
   - agent_10_01_operations-and-observability-startup-and-health.md
   - agent_08_03_configuration-tools-memory.md
 ---
-# Memory Layer — Overview and Modes
+# Memory Layer — Repository Context and Episodic Memory
 
 - Operations and Observability → [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
 - Configuration → [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
@@ -23,33 +23,51 @@ To allow understanding of the responsibilities and public API scope of modules u
 
 ## Design Intent
 
-The memory layer is **optional**. Since RAG already provides search capabilities, the memory layer is limited to a complementary role. It falls back to FTS5 even if the embedding endpoint is unavailable, ensuring sessions are not interrupted.
+The Agent has two separate context mechanisms (ADR-008 Decision Detail #24). Repository Context is read-only context loaded from explicitly configured repository files. Episodic Memory is the Agent's only persistent long-term memory. They are separate because their sources, lifecycles, and recovery differ: Repository Context follows its source files, while Episodic Memory follows the Session DB.
 
-It separates semantic memory (long-term rules/decisions) from episodic memory (session-specific failures/Q&A). This is due to differences in injection timing and search strategies. Semantic memory is filtered by an importance threshold and injected into the initial system prompt at session start; on every user prompt, both semantic and episodic memory are retrieved via hybrid search and injected as an ephemeral system message for that turn.
+The Episodic Memory layer is **optional**. Since RAG already provides search capabilities, it is limited to a complementary role. It falls back to FTS5 even if the embedding endpoint is unavailable, ensuring sessions are not interrupted.
 
 ### Independence from Conversation Sessions
 
-Long-term memory has a lifecycle independent from conversation sessions.
-Deleting, purging, loading, exporting, undoing, or compressing a session does
-not modify memory. Memory deletion and retention are controlled only through
-`/memory delete`, `/memory prune`, and the memory ingestion/recovery process.
-The canonical statement of the session/memory boundary is in agent_04_01.
+Episodic Memory has a lifecycle independent from conversation sessions. Deleting, purging, loading, exporting, undoing, or compressing a session does not modify it, and no command gives users a way to delete it. Its retention and consistency are managed internally (the retention policy is undecided, SHARED-004). The canonical statement of the session/memory boundary is in agent_04_01.
 
 ## Responsibility Boundary
 
-- **Memory Layer owns:** Cross-session context restoration (rules, decisions, failure patterns, conversation Q&A).
-- **Memory Layer does NOT own:** RAG document search, LLM context generation, or tool execution.
+- **Episodic Memory Layer owns:** Cross-session restoration of reusable work context.
+- **Repository Context owns:** Read-only context taken from configured repository files for the active turn.
+- **Neither owns:** RAG document search, LLM context generation, or tool execution.
+
+## Repository Context
+
+Repository Context is read-only context taken from explicitly configured repository files. The source files stay authoritative.
+
+- It is not persisted: it is not stored in SQLite or JSONL, it is not part of the Session DB backup, and it has no persistent FTS or Vector index.
+- It is loaded at startup and reloaded atomically through `/reload` (all sources load into a candidate snapshot; a validation failure rejects the complete reload and keeps the active snapshot; the new snapshot applies only to subsequent turns).
+- Selected sections are injected only for the active turn.
+- Authority values such as `canonical` and `observed`, the source list, and the configuration keys are undefined, and the loader is not implemented yet (SHARED-003).
+
+## Episodic Memory
+
+Episodic Memory is the Agent's only persistent long-term memory.
+
+- It is generated internally from reusable work events, not from generic Q&A. Assistant-generated proposals are not persisted as durable rules.
+- It is stored in `session.sqlite`: events and relations are authoritative, and the FTS and Vector indexes are derived (see agent_09_01).
+- It has no user-facing add, list, search, pin, delete, prune, or rebuild operation.
+- Internal retention, consistency, backup, and recovery manage it; it is recovered only from a verified SQLite backup.
+- The supported event categories and the retention policy are undefined (SHARED-004).
+
+## Context Budget
+
+The final payload is budgeted across the system prompt, Repository Context, Episodic Memory, conversation history, tool schemas, the current input, and the response reserve. Reduction order: low-ranked Episodic Memory first, then low-ranked Repository Context sections, then older conversation history. Mandatory canonical Repository Context is never silently removed. The failure behavior when mandatory input alone exceeds the context limit is undefined (SHARED-004). `/context` reports the usage (see agent_07_08).
 
 ## Key Constraints
 
 - If `memory_local_only = true` is set, it forces the embedding endpoint to be a loopback address. Startup fails if `embed_url` is not local.
-- Semantic memory injection at session start requires `importance >= memory_min_importance`. Low-importance entries are not automatically injected.
-- Pinned entries are always injected at every session start (regardless of the importance threshold).
 - Injected memory snippets enter the system role as data, never as instructions: on both the session-start and per-turn paths they are neutralized to single-line text and presented under a fixed framing statement that marks them as recalled notes. The residual risk is stated in the trust-boundary document (security_01).
 
 ### Memory Modes
 
-The memory layer operates in four different modes, which can be checked via `/memory status`.
+The Episodic Memory layer operates in four different retrieval modes. The diagnostics owner is `/stats` (not yet implemented, SHARED-003).
 
 | Mode | Description | Retrieval Behavior |
 |---|---|---|
@@ -74,35 +92,37 @@ The memory layer operates in four different modes, which can be checked via `/me
 
 ### Memory Injection Failure (Per-Turn Degraded State)
 
-This degraded state is distinct from Degraded mode above: it reports a failed per-turn memory-injection call, whereas Degraded mode reports an embedding circuit-breaker trip during retrieval. It is not one of the four modes and is not reported by `/memory status`.
+This degraded state is distinct from Degraded mode above: it reports a failed per-turn memory-injection call, whereas Degraded mode reports an embedding circuit-breaker trip during retrieval. It is not one of the four modes.
 
 - **When it appears:** any user prompt whose memory-injection call raises (network error, timeout, or backend failure). The state is tracked per turn, not held for the whole session.
 - **Automatic recovery:** memory context is retrieved and injected on every user prompt with no manual intervention; a successful attempt, including one that returns no snippets, clears the state on that same turn. The startup-time failure path is recovered the same way by the first successful per-turn injection.
 - **User-visible signal:** one warning per degradation period — a single warning when the state is entered and one when it clears. Persistent failures stay quiet on the following turns rather than warning on every turn, so a long outage does not flood the log.
 
-### Implementation Note: Persistence Order and Failure Handling for `on_session_stop`
+### Implementation Note: Persistence for `on_session_stop`
 
-When persisting embedded entries at session end, an `upsert` to SQLite is performed first, followed by writing to JSONL. Even if writing to JSONL fails with an `OSError`, no exception is re-raised; a warning is logged and processing continues (the entry remains saved only in SQLite).
+When persisting entries at session end, the entry is written to SQLite only; there is no JSONL write.
 
 If embedding retrieval fails, processing continues and the entry is saved without embeddings (incrementing `stat_embed_skip` and logging `memory.embed_skip` at INFO level).
 
 Only when embedding retrieval succeeds does the duplicate link discovery perform a KNN nearest neighbor search and record related links in the `memory_links` table for entries within a distance less than `DedupPolicy.threshold`. Insertion failures (`OperationalError` / `IntegrityError`) are ignored with only a warning log.
 
-Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.SKIP_NEW`, but semantic writes / episodic writes (manual writes) intentionally bypass this deduplication.
+Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.SKIP_NEW`.
 
 ## Operational Notes
 
 - Set `memory_local_only = true` if data must not leave the machine.
-- Current mode can be checked with `/memory status` (Hybrid / FTS-only / Degraded / Disabled).
-- JSONL records memory entries and change events (delete, pin, unpin) and `/memory rebuild` replays them. Rebuild safety rules (dry run by default, `--confirm`, `--allow-loss`, pre-rebuild backup) are defined in [agent_07_10](agent_07_10_cli-and-commands-slash-commands-memory-other.md).
+- The current retrieval mode (Hybrid / FTS-only / Degraded / Disabled) is reported by `/stats` once the diagnostics are implemented (SHARED-003).
 
 ## Known Limitations / Unresolved Issues
 
-None
+- Repository Context and its diagnostics are not implemented, and the code still implements the old memory model (SHARED-003).
+- Episodic event categories, retention, the Session DB schema-mismatch handling for Episodic Memory, and the context-overflow failure behavior are undecided (SHARED-004).
 
 
 ## Keywords
 
+- repository context
+- episodic memory
 - memory layer
 - memory modes
 - optional memory layer

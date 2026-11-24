@@ -38,7 +38,7 @@ The memory layer is controlled by three independent gates: complete bypass via a
 
 ## Operational Notes
 
-- Current mode can be checked with `/memory status`.
+- The current retrieval mode is reported by `/stats` once the diagnostics are implemented (SHARED-003).
 - If embeddings are unavailable, the system falls back to FTS only (no manual intervention required).
 
 ## Known Limitations
@@ -47,9 +47,9 @@ None currently known.
 
 ## Data Model
 
-### MemoryEntry (Stored in JSONL + SQLite)
+### MemoryEntry (Stored in SQLite)
 
-A `MemoryEntry` is typed `semantic` / `episodic` and sourced `rule` / `conversation` / `decision` / `failure`. It carries the provenance session/turn, the `project` / `repo` / `branch` context filters, `content` and `summary`, `tags`, an `importance` score (0.0-1.0; higher means higher search priority), a `pinned` flag (pinned entries are injected at every session start) and UTC timestamps (schema: `MemoryEntry` in the memory module).
+A `MemoryEntry` carries the provenance session/turn, the `project` / `repo` / `branch` context filters, `content` and `summary`, `tags`, and UTC timestamps (schema: `MemoryEntry` in the memory module). The supported Episodic event categories are undefined (SHARED-004), and the code still carries fields of the retired dual model (SHARED-003).
 
 > **Branch filtering:** When a non-empty branch is specified, search includes ONLY the following via hard SQL filtering:
 > - Memories where `branch = ''` (Global memories, always included)
@@ -57,21 +57,11 @@ A `MemoryEntry` is typed `semantic` / `episodic` and sourced `rule` / `conversat
 >
 > Memories from other branches are completely excluded (not just deprioritized).
 
-Storage ownership (SQLite as source of truth, FTS/vector as derived indexes, JSONL as archive) is defined in [agent_09_01](agent_09_01_data-layer-session-db.md).
+Storage ownership (SQLite as source of truth, FTS/vector as derived indexes, no JSONL) is defined in [agent_09_01](agent_09_01_data-layer-session-db.md).
 
 ### MemorySnippet (Injected into LLM Context)
 
-A `MemorySnippet` is the formatted text with a memory-type prefix, its `semantic` / `episodic` source, and the relevance score (RRF merge rank or FTS5 rank).
-
-## JSONL Format
-
-Each line of the JSONL store is one JSON object: either a full serialized `MemoryEntry` or a change event (`delete`, `pin`, `unpin`) carrying an `event` field, `memory_id` and a UTC timestamp.
-
-**Characteristics:**
-- Append-only: existing lines are never modified or deleted. SQLite remains the authoritative source of truth; JSONL is a non-authoritative archive.
-- One entry per line, UTF-8, each line valid JSON. The path is controlled by `memory_jsonl_dir` (filename `memories.jsonl`).
-
-> **Implementation Note (Explicit in code — `scripts/agent/memory/jsonl_store.py`):** `read_all()` is limited to auditing, exporting, and initial import; do NOT use it to rebuild authoritative state. Use `MemoryStore` directly or restore from a SQLite backup. Rebuilding with `import_ops.import_from_jsonl()` is a destructive operation: it deletes all rows in `memories` / `memories_fts` / `memories_vec` / `memory_links` before re-inserting the final state computed by replaying the JSONL lines in order (a `delete` event removes the entry unless a later memory line re-adds it; `pin` / `unpin` update `pinned` when the entry exists; unparsable lines are skipped with a warning). A delete or pin change with no change event in the archive is not reproduced. To fix inconsistencies between FTS/vec and SQLite, use `rebuild_ops.rebuild_fts()` / `rebuild_vec()`.
+A `MemorySnippet` is the formatted text and the relevance score (RRF merge rank or FTS5 rank).
 
 ## Search Strategies
 
@@ -112,7 +102,6 @@ Each line of the JSONL store is one JSON object: either a full serialized `Memor
 - disabled behavior by module
 - MemoryEntry
 - MemorySnippet
-- JSONL format
 - FTS5
 - KNN
 - hybrid RRF

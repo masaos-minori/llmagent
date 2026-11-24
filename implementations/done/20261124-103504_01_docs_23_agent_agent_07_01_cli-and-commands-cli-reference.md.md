@@ -1,10 +1,10 @@
 ## Goal
-Document the `/debug verbose` source, section selection, exclusion, fallback, and budget diagnostics (REQ-004).
+Update the CLI chapter index so the memory-and-other chapter is no longer described as a memory command chapter (REQ-003).
 
 ## Scope
 **Release unit**: agent-memory-docs
 
-- Edits only `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md`; applied with the other documents of the release unit because the Agent documents cross-link and are validated together.
+- Edits only `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md`; applied with the other documents of the release unit because the Agent documents cross-link and are validated together.
 
 ## Assumptions
 - The amended ADR-008 (Decision Details 22 to 25, INV-20 to INV-22) is the contract; the document links to it instead of restating it.
@@ -13,24 +13,23 @@ Document the `/debug verbose` source, section selection, exclusion, fallback, an
 - Names of keys, fields, categories, and authority values that no approved design or code defines are not written.
 
 ## Design decisions
-- Extend the `/debug verbose` row; keep the other `/debug` rows unchanged.
+- Change the description cell only; keep the file link and the table order.
 
 ## Alternatives considered
 N/A: documentation only; the Plan fixes the approach.
 
 ## Implementation
 ### Target file
-`docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md`
+`docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md`
 
 ### Procedure
-1. `/debug verbose` row: add that it also reports Repository Context source and section selection, exclusion, fallback, and budget diagnostics (not yet implemented, SHARED-003).
-2. Add one sentence that diagnostics expose aggregate state only and never individual Episodic contents, IDs, secrets, or personal information.
+1. In the chapter table, replace the description "Slash commands: Memory and Other" with "Slash commands: Other (`/help`) and the retired `/memory` notice".
 
 ### Method
-- Use the Edit tool on the table row and add the sentence below the table.
+- Use the Edit tool on that one table cell.
 
 ### Details
-- Do not invent diagnostic field names or output formats.
+- Do not rename the linked file (renames belong to the open issue cliplc014).
 
 ## Compatibility considerations
 N/A: documentation only.
@@ -46,7 +45,7 @@ N/A: revert the commit.
 - `uv run python tools/check_docs_quality.py` and `uv run python tools/check_docs_content_policy.py`.
 
 ## Completion criteria
-- The `/debug verbose` row states the diagnostics and the privacy rule with the SHARED-003 citation.
+- The index no longer describes a Memory category; the link still resolves.
 
 ## Out of Scope
 - Any other file, code, configuration, the generated memory reference, and the API manifests.
@@ -56,8 +55,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document per Implementation | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | Release unit agent-memory-docs |
+| 1 | Edit the document per Implementation | Completed | 20261124-104109 | 20261124-104109 | Changed: docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261124-104109 | 20261124-104109 | Release unit agent-memory-docs agent docs consistency (command and usage coverage), structure, quality, content policy, known-deviation sync, needs-confirmation inventory, reference drift checks and 30 tests pass; preservation findings are intended title changes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -71,10 +70,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-004 (`/debug verbose`)
+- **Requirement ID**: REQ-003 (CLI index)
 - **Source issue**: issues/20261124-093929_adrdoc003_agent-memory-docs-episodic.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261124-103155_adrdoc003_agent-memory-docs-episodic.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261124-103504
-- **Related target files**: `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md`
+- **Related target files**: `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md`

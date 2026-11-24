@@ -26,7 +26,7 @@ Documents the responsibility scope of the Session DB, data ownership boundaries,
 
 | Database | Owner | Responsibility |
 |---|---|---|
-| `session.sqlite` | Agent layer | Sessions, messages, memory, diagnostics |
+| `session.sqlite` | Agent layer | Sessions, messages, conversation state, session diagnostics, Episodic Memory |
 | `rag.sqlite` | RAG layer | Documents, chunks, vectors |
 | `mdq.sqlite` | MCP (mdq-mcp) | Indexing Markdown documents and context compression |
 | `workflow.sqlite` | Workflow engine | Tasks, attempts, processed events, artifacts |
@@ -43,22 +43,27 @@ The message repository is (re)bound lazily to the `AgentSession` facade's curren
 
 ### Session Retention Policy
 
-`db/maintenance.py`'s `purge_old_sessions()` deletes old sessions based on `RetentionConfig`, following an age-based then count-based order. Deleting a session propagates to `messages` via `ON DELETE CASCADE`, but never to memory tables; memory retention is independent and is applied only by `/memory prune`. The purge runs only on demand (`/session purge`); no scheduler invokes it automatically. (Explicit in code — `scripts/agent/commands/cmd_session.py`, `scripts/agent/services/db_maintenance_service.py`)
+`db/maintenance.py`'s `purge_old_sessions()` deletes old sessions based on `RetentionConfig`, following an age-based then count-based order. Deleting a session propagates to `messages` via `ON DELETE CASCADE`, but never to Episodic Memory; Episodic Memory retention is independent and managed internally (its policy is undecided, SHARED-004). The purge runs only on demand (`/session purge`); no scheduler invokes it automatically. (Explicit in code — `scripts/agent/commands/cmd_session.py`, `scripts/agent/services/db_maintenance_service.py`)
 
-Retention follows ADR-008 Decision Detail #23: sessions by `purge_old_sessions()`, diagnostics by the `retention_days` purge, memory by `/memory prune`. A `session.sqlite` file that does not match the current schema is archived and recreated (ADR-008 Decision Detail #22): export conversations with `/session export` first and recover memory from the JSONL archive with `/memory rebuild`; session history is not restored.
+Retention follows ADR-008 Decision Detail #23: sessions by `purge_old_sessions()`, diagnostics by the `retention_days` purge, Episodic Memory by internal retention (policy undecided, SHARED-004).
 
-### Memory Table Ownership
+### Episodic Memory Ownership
 
-When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
+Episodic Memory is the Agent's only persistent long-term memory (ADR-008 Decision Detail #24):
 
-- SQLite `memories` and `memory_links` (in `session.sqlite`) are the source of truth for current memory state (ADR-008 Decision Detail #24); `memories_fts`, `memories_vec` and `memory_links` live in the same DB, and the FTS and vector tables are derived indexes.
-- The JSONL file (`{memory_jsonl_dir}/memories.jsonl`) is an append-only archive for import/export and disaster recovery.
+- Episodic Memory events and relations are authoritative data in `session.sqlite`; the Episodic FTS and Vector indexes are derived data.
+- No JSONL file exists for Agent memory, and Repository Context is not stored in the Session DB.
+- Episodic Memory is recovered only from a verified SQLite backup.
 
-`memories.session_id` records the source session of a memory for provenance.
-It does not establish ownership and intentionally has no foreign-key constraint
-to `sessions`. The value is retained after the source session is deleted.
+Episodic table names and the provenance of each Episodic event are not defined here (SHARED-004).
 
-**Design judgment:** The SQLite memory tables are the source of truth for the current memory state. JSONL is maintained as an append-only archive for import/export and disaster recovery. Deletes and pin changes are recorded as change events in the JSONL archive and replayed by `/memory rebuild`; a delete or pin change with no change event in the archive is not reproduced.
+### Backup and Recovery Scope
+
+Episodic Memory is part of the Session DB backup and of full Session DB recovery: `/session recover` restores the whole database, and Episodic Memory returns with it. Repository Context is not restored from a backup; it is reloaded from the configured repository files.
+
+A `session.sqlite` file that does not match the current schema is archived and recreated (ADR-008 Decision Detail #22): export conversations with `/session export` first; session history and Episodic Memory are not carried over. Whether a destructive recreation is the final policy for Episodic Memory is undecided (SHARED-004).
+
+`/clear`, `/undo`, session deletion, and session purge give no user-level Episodic deletion semantics.
 
 ### Role of `session_diagnostics`
 
@@ -86,7 +91,6 @@ Residual risk: pattern detection is best-effort. If Option A (encryption enabled
 ## Key Constraints
 
 - Valid roles for the `messages` table: `user` / `assistant` / `tool` / `system`; `diagnostic` is **NOT** a valid role, so diagnostic events are persisted ONLY in `session_diagnostics`.
-- JSONL is an append-only archive of memory lines and change events (delete, pin, unpin); existing lines are never rewritten.
 
 ## Known Limitations
 

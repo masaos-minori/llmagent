@@ -35,8 +35,12 @@ A group of commands for managing context information and history.
 
 | Command | Side Effect | Related State |
 |---|---|---|
-| `/context` | None | Displays history size, budget, system prompt, and workflow mode |
+| `/context` | None | Displays history size, budget, system prompt, and workflow mode, and the token usage of Repository Context and Episodic Memory beside the system prompt, conversation, tool schemas, and response reserve (not yet implemented, SHARED-003) |
 | `/compact` | LLM call (compression) | Immediately compresses history |
+
+### Context Budget
+
+The final payload is budgeted across the system prompt, Repository Context, Episodic Memory, conversation history, tool schemas, the current input, and the response reserve. When the payload exceeds the budget, content is reduced in this order: low-ranked Episodic Memory first, then low-ranked Repository Context sections, then older conversation history. Mandatory canonical Repository Context is never silently removed. The failure behavior when mandatory input alone exceeds the context limit is undefined (SHARED-004). The full definition is in [agent_11_01](agent_11_01_memory-overview-and-modes.md).
 
 ### Plan Category
 

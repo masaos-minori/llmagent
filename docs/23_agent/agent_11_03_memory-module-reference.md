@@ -28,16 +28,16 @@ related:
 
 ## Purpose
 
-Defines the responsibility boundaries of the memory layer's modules: core types and persistence stores; search (FTS5 + KNN + hybrid) and lifecycle injection; rule-based extraction, append-only archiving, the HTTP embedding client and the facade; write operations, scoring, RRF merging and the FTS5 query builder.
+Defines the responsibility boundaries of the Episodic Memory Layer's modules: core types and the SQLite store; search (FTS5 + KNN + hybrid) and lifecycle injection; rule-based extraction, the HTTP embedding client and the facade; scoring, RRF merging and the FTS5 query builder. The JSONL, import, rebuild, pin, and manual-write modules are retired by ADR-008 (see Retired by ADR-008).
 
 ## Design Intent
 
-Since the memory layer is optional, all public APIs are designed to be safely guarded when `ctx.services.memory is None`. Core types are defined as immutable DTOs and are compatible with both JSONL and SQLite storage layers.
+Since the Episodic Memory Layer is optional, all public APIs are designed to be safely guarded when `ctx.services.memory is None`. Core types are defined as immutable DTOs stored in SQLite.
 
 ## Responsibility Boundary
 
-- **Memory Layer owns:** Persistence, search, and injection of memory entries.
-- **Memory Layer does NOT own:** LLM context generation, tool execution, or RAG document search.
+- **Episodic Memory Layer owns:** Persistence, search, and injection of Episodic Memory entries.
+- **Episodic Memory Layer does NOT own:** LLM context generation, tool execution, or RAG document search.
 
 ## Key Constraints
 
@@ -53,15 +53,13 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 ### Retrieval and Injection
 
 - `HybridRetriever.search()` performs FTS only if embeddings are unavailable; otherwise, it performs RRF merging.
-- Default `InjectionPolicy`: `max_semantic` (semantic memories per turn), `max_episodic` (episodic memories per turn), `min_importance` (importance threshold), `max_snippet_length` (characters per snippet); values: see `InjectionPolicy` in `scripts/agent/memory/injection.py`.
+- Default `InjectionPolicy`: `max_episodic` (episodic memories per turn) and `max_snippet_length` (characters per snippet); values: see `InjectionPolicy` in `scripts/agent/memory/injection.py`. The semantic count and the importance threshold belong to the retired dual model (SHARED-003).
 - `knn_search` uses L2/Euclidean distance metric (explicit `distance_metric=L2` in vec0 DDL).
 
 ### Extraction and Facade
 
 - When `EmbeddingClient.enabled=False`, `fetch()` returns `EmbeddingResult(success=False, error_kind=DISABLED)` immediately without making an HTTP call.
-- `JsonlMemoryStore` is an append-only archive of memory lines and change events (`delete`, `pin`, `unpin`); lines without an `event` field are memory lines, and existing lines are never rewritten.
-- Automatic extraction (`on_session_stop`) discards a new entry (`DedupAction.SKIP_NEW`) when an existing entry is closer than the threshold for its `source_type`; manual writes intentionally bypass this deduplication.
-- If writing to JSONL fails with `OSError`, a warning is logged and processing continues (not treated as a fatal error since SQLite is the source of truth).
+- Automatic extraction (`on_session_stop`) discards a new entry (`DedupAction.SKIP_NEW`) when an existing entry is closer than the threshold for its `source_type`.
 
 ### Ops and Scoring
 
@@ -71,7 +69,7 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 
 ### Core and Store
 
-- There is no session-scoped memory deletion: memory is independent of the source session, so rows are removed only per memory (`delete`) or by retention (`/memory prune`).
+- There is no session-scoped memory deletion: Episodic Memory is independent of the source session and is retained internally (policy undecided, SHARED-004).
 - Retrieval for injection excludes memories whose provenance `session_id` equals the current session, because that session's restored history is already in context.
 - Chunk splitting occurs for content exceeding `memory_max_content_chars`. This is a limit per chunk, not on total content volume.
 
@@ -85,12 +83,21 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 
 ### Extraction and Facade
 
-- Current mode and counters (including embed-skip) are shown by `/memory status`; the embed-skip count is also logged in the `on_session_stop()` summary.
+- Mode and counters (including embed-skip) are reported by `/stats` once the diagnostics are implemented (SHARED-003); the embed-skip count is also logged in the `on_session_stop()` summary.
 
 ### Ops and Scoring
 
-- `import_from_jsonl()` replays the JSONL archive to compute and import the final state (replay rules: [agent_11_02](agent_11_02_memory-gate-data-model-search.md)).
 - Use `rebuild_fts()` to rebuild the FTS5 index and `rebuild_vec()` to rebuild the vector index.
+
+## Retired by ADR-008
+
+These modules belong to the retired dual memory model and the JSONL archive. They exist in code only until SHARED-003 is resolved and are not supported API:
+
+- the JSONL store (`jsonl_store.py`)
+- the JSONL import (`import_ops.py`)
+- the rebuild operations (`rebuild_ops.py`)
+- the pin operations (`pin_ops.py`)
+- the manual-write operations (`write_ops.py`)
 
 ## Known Limitations
 

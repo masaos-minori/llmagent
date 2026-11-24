@@ -205,9 +205,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Memory architecture, Session DB, and module reference | In Progress | — | — |  |
-| 2 | CLI commands: Memory Category retirement, command index, chapter index | In Progress | — | — |  |
-| 3 | Reload, diagnostics, context budget, and recovery commands | In Progress | — | — |  |
+| 1 | Memory architecture, Session DB, and module reference | Completed | — | 20261124-104112 |  |
+| 2 | CLI commands: Memory Category retirement, command index, chapter index | Completed | — | 20261124-104112 |  |
+| 3 | Reload, diagnostics, context budget, and recovery commands | Completed | — | 20261124-104112 |  |
 | 4 | Validation checks and unchanged generated-reference confirmation | Pending | — | — |  |
 
 ### Blocker Log
@@ -218,17 +218,17 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261124-103504_01_docs_23_agent_agent_07_01_cli-and-commands-cli-reference.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261124-103504_02_docs_23_agent_agent_07_03_cli-and-commands-command-registry.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261124-103504_03_docs_23_agent_agent_07_06_cli-and-commands-hot-reload.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261124-103504_04_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261124-103504_05_docs_23_agent_agent_07_08_cli-and-commands-slash-commands-context-plan.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261124-103504_06_docs_23_agent_agent_07_09_cli-and-commands-slash-commands-workflow-debug.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261124-103504_07_docs_23_agent_agent_07_10_cli-and-commands-slash-commands-memory-other.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261124-103504_08_docs_23_agent_agent_09_01_data-layer-session-db.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261124-103504_09_docs_23_agent_agent_11_01_memory-overview-and-modes.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261124-103504_10_docs_23_agent_agent_11_02_memory-gate-data-model-search.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261124-103504_11_docs_23_agent_agent_11_03_memory-module-reference.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261124-103504_01_docs_23_agent_agent_07_01_cli-and-commands-cli-reference.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261124-103504_02_docs_23_agent_agent_07_03_cli-and-commands-command-registry.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261124-103504_03_docs_23_agent_agent_07_06_cli-and-commands-hot-reload.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261124-103504_04_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261124-103504_05_docs_23_agent_agent_07_08_cli-and-commands-slash-commands-context-plan.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261124-103504_06_docs_23_agent_agent_07_09_cli-and-commands-slash-commands-workflow-debug.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261124-103504_07_docs_23_agent_agent_07_10_cli-and-commands-slash-commands-memory-other.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261124-103504_08_docs_23_agent_agent_09_01_data-layer-session-db.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261124-103504_09_docs_23_agent_agent_11_01_memory-overview-and-modes.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261124-103504_10_docs_23_agent_agent_11_02_memory-gate-data-model-search.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261124-103504_11_docs_23_agent_agent_11_03_memory-module-reference.md.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

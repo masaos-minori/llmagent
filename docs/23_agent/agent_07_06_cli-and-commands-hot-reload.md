@@ -57,6 +57,17 @@ every reloadable change together; there is no partial application.
 - Restart remains required for the "Requires restart" category; atomicity governs
   only the reloadable fields applied within a single reload.
 
+### Repository Context Reload
+
+`/reload` also reloads Repository Context from the explicitly configured repository files. Reload is atomic:
+
+- All sources are loaded into a candidate snapshot first.
+- A validation failure rejects the complete reload and preserves the active snapshot.
+- The new snapshot applies only to subsequent turns; a turn already running keeps the snapshot it started with.
+- Repository Context is never persisted: it is not stored in SQLite or JSONL and not in the Session DB backup.
+
+The Repository Context loader and this reload behavior are not implemented yet (SHARED-003). Its source list and configuration keys are undefined.
+
 ## Responsibility Boundary
 
 - **Hot-reloadable**: LLM settings, history management, tool settings, etc.

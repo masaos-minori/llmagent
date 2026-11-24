@@ -34,7 +34,7 @@ N/A: documentation only; the Plan fixes the approach.
 - Use the Edit tool, or rewrite the section between the Design Intent heading and the Other Category heading.
 
 ### Details
-- Do not list the subcommand forms or flags again.
+- Corrected in Step 3b of the implementation cycle: `check_docs_consistency.py --domain agent` also requires every registered usage form (`/memory status`, `list`, `delete`, `pin`, `unpin`, `prune`, `reindex`, `rebuild`, with the default of `n` stated next to the `list` form) to appear in a chapter, so a "Retired usage form" table lists them with status Retired and no effect text.
 - `tests/docs/test_command_docs_sync.py` checks documented command references against the registry; `/memory` stays registered, so the mention is valid.
 
 ## Compatibility considerations
@@ -61,8 +61,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document per Implementation | Pending | — | — | |
-| 2 | Run the documentation checkers per Validation plan | Pending | — | — | Release unit agent-memory-docs |
+| 1 | Edit the document per Implementation | Completed | 20261124-104109 | 20261124-104109 | Changed: docs/23_agent/agent_07_10_cli-and-commands-slash-commands-memory-other.md |
+| 2 | Run the documentation checkers per Validation plan | Completed | 20261124-104109 | 20261124-104109 | Release unit agent-memory-docs agent docs consistency (command and usage coverage), structure, quality, content policy, known-deviation sync, needs-confirmation inventory, reference drift checks and 30 tests pass; preservation findings are intended title changes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

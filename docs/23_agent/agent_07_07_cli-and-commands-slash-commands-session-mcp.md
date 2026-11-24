@@ -33,9 +33,9 @@ Documents the purpose and side effects of slash commands in the Session, MCP, an
 
 A group of commands for session management and history operations.
 
-`/clear [new]` resets the in-memory conversation history to the system prompt and zeroes the session statistics. It does not delete persisted messages: the saved session rows and long-term Memory stay unchanged, so the cleared messages return when that session is loaded again with `/session load`. `/clear new` does the same and also starts a new DB session through the same atomic transition as `/session load`: it is refused while a turn is running, finalizes the previous session (Memory extraction and diagnostics) before switching, and leaves the previous session intact when the switch fails. The previous session keeps its saved messages.
+`/clear [new]` resets the in-memory conversation history to the system prompt and zeroes the session statistics. It does not delete persisted messages: the saved session rows and Episodic Memory stay unchanged (`/clear` gives no user-level Episodic deletion semantics), so the cleared messages return when that session is loaded again with `/session load`. `/clear new` does the same and also starts a new DB session through the same atomic transition as `/session load`: it is refused while a turn is running, finalizes the previous session (Episodic Memory generation and diagnostics) before switching, and leaves the previous session intact when the switch fails. The previous session keeps its saved messages.
 
-`/session load <id>` is an atomic session transition. It requires that no turn is running (a request made while one is running is refused with an explicit reason), builds the restored history off to the side, finalizes the previous session (Memory extraction and diagnostics) before switching, and then commits the session id, history, undo boundary, correlation id, and statistics together. If any step fails, the previous session is left exactly as it was. A failed finalization of the previous session only logs a warning, because that session's messages are already saved. The result reports four separate counts: messages fetched from the DB, tool rows synthesized for interrupted tool calls, rows dropped by validation, and messages restored into the in-memory conversation history.
+`/session load <id>` is an atomic session transition. It requires that no turn is running (a request made while one is running is refused with an explicit reason), builds the restored history off to the side, finalizes the previous session (Episodic Memory generation and diagnostics) before switching, and then commits the session id, history, undo boundary, correlation id, and statistics together. If any step fails, the previous session is left exactly as it was. A failed finalization of the previous session only logs a warning, because that session's messages are already saved. The result reports four separate counts: messages fetched from the DB, tool rows synthesized for interrupted tool calls, rows dropped by validation, and messages restored into the in-memory conversation history.
 
 `/undo` pops the most recent user+assistant turn from both the history and the DB. Memory and the DB are trimmed from the exact same set of deleted rows; when they had already diverged, `/undo` still converges them — it trims memory to exactly the rows it deletes, and if those rows cannot be matched it reloads memory from the DB and logs the decision. If the DB rows are already deleted and that reload fails, `/undo` reports how many messages were removed and tells the operator to run `/session load <id>` to reload the in-memory conversation history from the saved rows, so the two never diverge silently. Messages that existed when the history was last compressed (automatic, `/compact`, or fallback truncation) cannot be undone; `/undo` then reports that nothing can be undone and changes nothing. The boundary is stored in `sessions.undo_floor_message_id` and survives `/session load`.
 
@@ -63,7 +63,7 @@ A group of commands for session management and history operations.
 | `/session checkpoint [PASSIVE\|FULL\|RESTART\|TRUNCATE]` | Runs a WAL checkpoint; without a mode the configured mode is used |
 | `/session vacuum` | Rebuilds the session database file |
 | `/session purge [--max-sessions <n>] [--max-age-days <n>]` | Purges old sessions; `--max-sessions` accepts an integer `>= 1` (a bare flag, `0`, a negative, or a non-integer is an error), `--max-age-days` accepts an integer `>= 0` (`0` keeps its documented "disabled" meaning; a negative or non-integer is an error), and an absent flag uses the retention default; the session currently active in the agent is never removed — when a purge would have deleted it, the success line reports `(kept active session <id>)` and the kept session count may exceed `--max-sessions` by one |
-| `/session recover [backup_path]` | Checks integrity and restores from the backup when corruption is found |
+| `/session recover [backup_path]` | Checks integrity and restores the whole Session DB from a verified backup when corruption is found; Episodic Memory returns with it, while Repository Context is reloaded from the configured files and is not restored from the backup |
 | `/session rag-consistency` | Checks the consistency of the RAG database |
 | `/session rag-rebuild-fts` | Rebuilds `chunks_fts` from `chunks` |
 | `/session rag-rebuild-vec` | Rebuilds `chunks_vec` from `chunks` |
@@ -74,10 +74,7 @@ The maintenance, export, and RAG subcommands — `/session stats`, `/session hea
 
 ### Session and Memory Separation
 
-`/session load`, `/session delete`, `/session export`, and `/session purge`
-operate on conversation sessions and messages only. They never delete or
-restore long-term memory. Memories extracted from a deleted session remain
-available for reuse across later sessions. `/undo` likewise rolls back conversation history only and never deletes or modifies long-term memory.
+`/session load`, `/session delete`, `/session export`, and `/session purge` operate on conversation sessions and messages only. They never delete or restore Episodic Memory, and neither do `/clear` and `/undo`: none of them gives user-level Episodic deletion semantics. Episodic Memory has no user-facing delete, prune, or rebuild; it is restored only with a full Session DB restore from a verified backup (see [agent_09_01](agent_09_01_data-layer-session-db.md)). Repository Context is not part of the Session DB and is reloaded from the configured files.
 
 ### MCP Category
 
@@ -94,8 +91,8 @@ A group of commands for displaying and monitoring configuration files.
 | Command | Form | Effect |
 |---|---|---|
 | `/config` | `/config` | Shows the current configuration and the configuration file paths; changes nothing |
-| `/stats` | `/stats` | Shows session statistics (turns, tool calls, RAG hits, error counts) and the current debug mode; changes nothing |
-| `/reload` | `/reload` | Reloads all configuration files, applies the runtime-configurable parameters, and updates `ctx.cfg` to synchronize with services |
+| `/stats` | `/stats` | Shows session statistics (turns, tool calls, RAG hits, error counts) and the current debug mode; changes nothing. It also reports Repository Context and Episodic Memory aggregate state, never individual Episodic contents, IDs, secrets, or personal information (not yet implemented, SHARED-003) |
+| `/reload` | `/reload` | Reloads all configuration files, applies the runtime-configurable parameters, and updates `ctx.cfg` to synchronize with services; it also reloads Repository Context as an atomic snapshot (see [agent_07_06](agent_07_06_cli-and-commands-hot-reload.md)) |
 
 None of these commands takes a subcommand or argument.
 
