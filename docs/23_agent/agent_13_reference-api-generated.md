@@ -138,11 +138,11 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `SessionStatsSnapshot` | `class SessionStatsSnapshot` | Immutable copy of the session statistics the persisted summary reads. |
 |  | `SessionPersistenceSnapshot` | `class SessionPersistenceSnapshot` | Immutable view of the session state taken once for persistence. |
 |  | `SessionPersister` | `class SessionPersister` | Handles persistence of session-level data at shutdown. |
-| `scripts/agent/shutdown_budget.py` | `ShutdownPhase` | `class ShutdownPhase` | Whether the shutdown machine still accepts new work (REQ-003). |
-|  | `ShutdownOutcome` | `class ShutdownOutcome` | What one shutdown step proved about itself (REQ-012). |
-|  | `ShutdownStepRecord` | `class ShutdownStepRecord` | One step's outcome line (REQ-012). |
+| `scripts/agent/shutdown_budget.py` | `ShutdownPhase` | `class ShutdownPhase` | Whether the shutdown machine still accepts new work. |
+|  | `ShutdownOutcome` | `class ShutdownOutcome` | What one shutdown step proved about itself. |
+|  | `ShutdownStepRecord` | `class ShutdownStepRecord` | One step's outcome line. |
 |  | `ShutdownReport` | `class ShutdownReport` | The whole sequence: one record per step plus the counts the report step |
-|  | `ShutdownBudget` | `class ShutdownBudget` | One global shutdown deadline, armed by the first shutdown request (REQ-002). |
+|  | `ShutdownBudget` | `class ShutdownBudget` | One global shutdown deadline, armed by the first shutdown request. |
 | `scripts/agent/signal_handler.py` | `SignalHandler` | `class SignalHandler` | Encapsulates platform-specific signal handling for the REPL. |
 | `scripts/agent/startup.py` | `StartupInterrupted` | `class StartupInterrupted` | Raised when a SIGINT/SIGTERM shutdown request interrupts the startup sequence. |
 |  | `StartupOrchestrator` | `class StartupOrchestrator` | Runs the full agent startup sequence before the REPL input loop begins. |

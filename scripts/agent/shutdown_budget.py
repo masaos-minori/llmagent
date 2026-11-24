@@ -49,7 +49,7 @@ SHUTDOWN_STEPS: Final[tuple[str, ...]] = (
 
 
 class ShutdownPhase(StrEnum):
-    """Whether the shutdown machine still accepts new work (REQ-003)."""
+    """Whether the shutdown machine still accepts new work."""
 
     ACCEPTING = "accepting"
     """New turns, commands, and writes are accepted."""
@@ -60,7 +60,7 @@ class ShutdownPhase(StrEnum):
 
 
 class ShutdownOutcome(StrEnum):
-    """What one shutdown step proved about itself (REQ-012)."""
+    """What one shutdown step proved about itself."""
 
     COMPLETED = "completed"
     """The step ran to its normal end within its bound."""
@@ -76,9 +76,9 @@ class ShutdownOutcome(StrEnum):
 
 @dataclass(frozen=True)
 class ShutdownStepRecord:
-    """One step's outcome line (REQ-012).
+    """One step's outcome line.
 
-    detail is a reason category plus a bounded, path-free summary (REQ-013);
+    detail is a reason category plus a bounded, path-free summary;
     paths and exception text stay in the logger.
     """
 
@@ -91,7 +91,7 @@ class ShutdownStepRecord:
 @dataclass(frozen=True)
 class ShutdownReport:
     """The whole sequence: one record per step plus the counts the report step
-    prints (REQ-012). Assembled by appending records; not mutated afterwards."""
+    prints. Assembled by appending records; not mutated afterwards."""
 
     records: tuple[ShutdownStepRecord, ...] = ()
     refused_write_count: int = 0
@@ -99,7 +99,7 @@ class ShutdownReport:
 
 
 class ShutdownBudget:
-    """One global shutdown deadline, armed by the first shutdown request (REQ-002).
+    """One global shutdown deadline, armed by the first shutdown request.
 
     Arming is idempotent: arm() records only the first request, which is what
     makes the first signal win and keeps remaining() from being extended by a
