@@ -43,9 +43,9 @@ The message repository is (re)bound lazily to the `AgentSession` facade's curren
 
 ### Session Retention Policy
 
-`db/maintenance.py`'s `purge_old_sessions()` deletes old sessions based on `RetentionConfig`, following an age-based then count-based order. Deleting a session propagates to `messages` via `ON DELETE CASCADE`, but never to Episodic Memory; Episodic Memory retention is independent and managed internally (configurable per event type and state-aware; the period values are undecided, SHARED-004). The purge runs only on demand (`/session purge`); no scheduler invokes it automatically. (Explicit in code — `scripts/agent/commands/cmd_session.py`, `scripts/agent/services/db_maintenance_service.py`)
+`db/maintenance.py`'s `purge_old_sessions()` deletes old sessions based on `RetentionConfig`, following an age-based then count-based order. Deleting a session propagates to `messages` via `ON DELETE CASCADE`, but never to Episodic Memory; Episodic Memory retention is independent and managed internally (configurable per event type and state-aware; the period values are undecided, SHARED-005). The purge runs only on demand (`/session purge`); no scheduler invokes it automatically. (Explicit in code — `scripts/agent/commands/cmd_session.py`, `scripts/agent/services/db_maintenance_service.py`)
 
-Retention follows ADR-008 Decision Detail #23: sessions by `purge_old_sessions()`, diagnostics by the `retention_days` purge, Episodic Memory by configurable, state-aware retention per event type (period values undecided, SHARED-004).
+Retention follows ADR-008 Decision Detail #23: sessions by `purge_old_sessions()`, diagnostics by the `retention_days` purge, Episodic Memory by configurable, state-aware retention per event type (period values undecided, SHARED-005).
 
 ### Episodic Memory Ownership
 
@@ -55,7 +55,7 @@ Episodic Memory is the Agent's only persistent long-term memory (ADR-008 Decisio
 - No JSONL file exists for Agent memory, and Repository Context is not stored in the Session DB.
 - Episodic Memory is recovered only from a verified SQLite backup.
 
-Episodic table names and the provenance of each Episodic event are not defined here (SHARED-004).
+Episodic table names and the provenance of each Episodic event are not defined here (SHARED-005).
 
 ### Backup and Recovery Scope
 

@@ -122,7 +122,8 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 49132 (2026-11-24): Decision Details 26 and 27, the Episodic
     # taxonomy, retention, search, and Repository Context safety clauses, and the
     # capacity rows grew the ADR 47600 -> 49132; the ceiling equals the accepted size.
-    "adr_02_05_008_db-sqlite-4db-separation.md": 49132,
+    # Re-accepted at 51665 (2026-11-24, ADR-008 consistency pass); 49132 -> 51665.
+    "adr_02_05_008_db-sqlite-4db-separation.md": 51665,
     # Accepted at 39575 (2026-11-24, adrdoc001 procedure 20261124-094801_01): the
     # single-source-of-truth, state-aware retention, replay-floor, and capacity decisions
     # (Decision Details 15 to 20), INV-17 to INV-22, the Known Deviations, and the two
@@ -141,7 +142,8 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # guarded blocks grew the index 37826 -> 41389; the ceiling equals the accepted size.
     # Re-accepted at 41640 (2026-11-24): the ADR-008 INV-20 and INV-21 matrix rows gained
     # the secret-rejection, state-aware retention, and required-FTS evidence; 41389 -> 41640.
-    "adr_01_index.md": 41640,
+    # Re-accepted at 42344 (2026-11-24): INV-19 Partial and INV-23 rows.
+    "adr_01_index.md": 42344,
     # Re-accepted at 33915 (2026-11-20, adrchk021 procedure 20261120-174933_01): the
     # MCP-005 Known Issue entry (git_add/git_commit protected-branch gap registration)
     # grew the ledger 31908 -> 33915; the ceiling equals the accepted size.
@@ -155,7 +157,8 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # AAL-039 to AAL-041 entries and the EVENTBUS-001, EVENTBUS-002, SHARED-003, and
     # SHARED-004 Known Issues, net of the removed AAL-026, AAL-027, and SHARED-002,
     # grew the ledger 36248 -> 36807; the ceiling equals the accepted size.
-    "governance_03_issue-and-uncertainty-management.md": 36807,
+    # Re-accepted at 39898 (2026-11-24): SHARED-004 split into SHARED-004 to SHARED-007.
+    "governance_03_issue-and-uncertainty-management.md": 39898,
 }
 
 

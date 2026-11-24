@@ -319,10 +319,15 @@ entries:
   status: Confirmed
   timing: CI, Pre-deploy
 - adr: ADR-008
+  cadence: CI once the check covers them.
   check_type: Static Check
+  cited:
+  - tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations
+  expected_evidence: extend the check to `mcp_dedup.sqlite` and `mdq.sqlite` with
+    a real automated test.
   gate: Non-Blocking
   invariant: INV-19
-  status: Not verified
+  status: Partial
   timing: CI
 - adr: ADR-008
   check_type: Integration Test
@@ -340,6 +345,12 @@ entries:
   check_type: Static Check
   gate: Non-Blocking
   invariant: INV-22
+  status: Not verified
+  timing: CI
+- adr: ADR-008
+  check_type: Integration Test
+  gate: Non-Blocking
+  invariant: INV-23
   status: Not verified
   timing: CI
 - adr: ADR-009

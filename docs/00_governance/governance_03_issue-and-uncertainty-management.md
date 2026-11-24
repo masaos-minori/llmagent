@@ -246,7 +246,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
 - **Summary:** ADR-008 no longer permits Semantic Memory, memory JSONL, pin state, manual memory writes, or /memory data (INV-20 to INV-22), but the Agent code still implements them.
 - **Current Description:** ADR-008 Decision Detail 24 defines Repository Context and Episodic Memory as the only memory model.
-- **Observed Implementation:** `scripts/agent/memory/` and the session schema still contain the old memory model, the JSONL store, and the /memory command.
+- **Observed Implementation:** `scripts/agent/memory/` and the session schema still contain the old memory model, the JSONL store, and the /memory command; `sqlite-vec` is still loaded into `session.sqlite` by default instead of only when Episodic Vector support is enabled (ADR-008 Decision Details 9 and 24).
 - **Impact:** Operators can rely on memory JSONL as a recovery source that the ADR no longer recognizes.
 - **Recommended Action:** Implementation issues replace the memory model and remove the JSONL and /memory paths, then this entry is removed.
 - **Resolution Target:** code matches Decision Detail 24 and INV-20 to INV-22 are verified
@@ -254,7 +254,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 #### SHARED-004
 
 - **ID:** SHARED-004
-- **Title:** ADR-008 Episodic retention and capacity monitoring decisions are not implemented and lack numeric values
+- **Title:** Episodic retention is not implemented
 - **Status**: open
 - **Severity:** Medium
 - **Area:** Shared/DB
@@ -264,12 +264,72 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
 - **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
-- **Summary:** ADR-008 Decision Details 23, 24, and 26 (state-aware Episodic retention, mandatory capacity monitoring for the five non-EventBus stores) are not implemented, and the retention period per event type, the capacity thresholds and signal names, and the failure behavior when mandatory input exceeds the context limit are undecided.
-- **Current Description:** ADR-008 states the retention and capacity rules; numeric values are left to configuration and are not yet decided.
-- **Observed Implementation:** No Episodic retention, capacity signal, or threshold exists in code or configuration.
-- **Impact:** An operator cannot tell when Episodic Memory is purged or when a store is near capacity.
-- **Recommended Action:** Maintainer decides each policy and the ADR-008 matrix is updated; then this entry is removed.
-- **Resolution Target:** the numeric values are approved and the retention and capacity behavior is implemented and verified
+- **Summary:** State-aware Episodic Memory retention (ADR-008 Decision Details 23 and 24, INV-21) has no implementation.
+- **Current Description:** ADR-008 states that Episodic retention is state-aware and that age alone never authorizes deletion.
+- **Observed Implementation:** No Episodic retention or purge exists in code.
+- **Impact:** Episodic Memory can only grow, and the state-aware rule is unverified.
+- **Recommended Action:** Implementation issue adds the state-aware retention and its test; then this entry is removed.
+- **Resolution Target:** the retention behavior is implemented and INV-21 is verified
+
+#### SHARED-005
+
+- **ID:** SHARED-005
+- **Title:** Episodic retention configuration is not defined
+- **Status**: open
+- **Severity:** Medium
+- **Area:** Shared/DB
+- **Type:** document-code-mismatch
+- **Source:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+- **Owner:** Repository owner
+- **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
+- **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+- **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
+- **Summary:** The retention periods per Episodic event type, their defaults, and the 90-day operational review (owned by the Agent Memory specification) are not defined.
+- **Current Description:** ADR-008 delegates retention periods and defaults to the Agent Memory specification.
+- **Observed Implementation:** No configuration key or default value exists.
+- **Impact:** An operator cannot set or read an Episodic retention period.
+- **Recommended Action:** Maintainer decides the values in the Agent Memory specification and the configuration keys are added; then this entry is removed.
+- **Resolution Target:** the values are approved in the Agent Memory specification and the keys exist
+
+#### SHARED-006
+
+- **ID:** SHARED-006
+- **Title:** Capacity policy and monitoring for the five non-EventBus stores are not implemented
+- **Status**: open
+- **Severity:** Medium
+- **Area:** Shared/DB
+- **Type:** document-code-mismatch
+- **Source:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+- **Owner:** Repository owner
+- **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
+- **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+- **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
+- **Summary:** ADR-008 Decision Detail 26 and INV-23 require a capacity policy and monitoring for the five non-EventBus SQLite stores, which no code provides.
+- **Current Description:** ADR-008 requires configuration-managed thresholds and, per store, warning, critical, write-admission, readiness, and operator-recovery behavior; metric names, values, intervals, dashboards, alerts, and runbooks belong to the Operations or Monitoring specification.
+- **Observed Implementation:** Only WAL checkpoint counts exist; no size or free-disk signal, threshold, or capacity-critical behavior exists.
+- **Impact:** A capacity-critical store can be reported as normally available.
+- **Recommended Action:** Operations specification defines the policy, implementation issues add it, then this entry is removed.
+- **Resolution Target:** each store has a documented, implemented, and verified capacity policy
+
+#### SHARED-007
+
+- **ID:** SHARED-007
+- **Title:** The failure contract when mandatory input exceeds the context budget is not defined
+- **Status**: open
+- **Severity:** Medium
+- **Area:** Shared/DB
+- **Type:** document-code-mismatch
+- **Source:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+- **Owner:** Repository owner
+- **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
+- **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
+- **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
+- **Summary:** The Agent Memory and context-budget specifications leave the failure behavior undefined when mandatory Repository Context and other mandatory input exceed the context limit.
+- **Current Description:** The documents state that mandatory canonical Repository Context is never silently removed.
+- **Observed Implementation:** No overflow failure behavior is defined or implemented.
+- **Impact:** A turn whose mandatory input exceeds the limit has no specified outcome.
+- **Recommended Action:** Maintainer decides the failure contract and the specifications are updated; then this entry is removed.
+- **Resolution Target:** the failure contract is approved, documented, and tested
 
 ## Part 2: Needs Confirmation Inventory
 

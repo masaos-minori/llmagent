@@ -40,7 +40,7 @@ A group of commands for managing context information and history.
 
 ### Context Budget
 
-The final payload is budgeted across the system prompt, Repository Context, Episodic Memory, conversation history, tool schemas, the current input, and the response reserve. When the payload exceeds the budget, content is reduced in this order: low-ranked Episodic Memory first, then low-ranked Repository Context sections, then older conversation history. Mandatory canonical Repository Context is never silently removed. The failure behavior when mandatory input alone exceeds the context limit is undefined (SHARED-004). The full definition is in [agent_11_01](agent_11_01_memory-overview-and-modes.md).
+The final payload is budgeted across the system prompt, Repository Context, Episodic Memory, conversation history, tool schemas, the current input, and the response reserve. When the payload exceeds the budget, content is reduced in this order: low-ranked Episodic Memory first, then low-ranked Repository Context sections, then older conversation history. Mandatory canonical Repository Context is never silently removed. The failure behavior when mandatory input alone exceeds the context limit is undefined (SHARED-007). The full definition is in [agent_11_01](agent_11_01_memory-overview-and-modes.md).
 
 ### Plan Category
 
