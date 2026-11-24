@@ -197,10 +197,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Persistence and publish durability: remove JSONL, state commit as success | Pending | — | — | |
-| 2 | Retention, DLQ lifecycle, and archive guidance in the delivery and operations documents | Pending | — | — | |
-| 3 | Replay floor, health signals, guide routing, and overview | Pending | — | — | |
-| 4 | Validation checks and unchanged-manifest confirmation | Pending | — | — | |
+| 1 | Persistence and publish durability: remove JSONL, state commit as success | In Progress | — | — |  |
+| 2 | Retention, DLQ lifecycle, and archive guidance in the delivery and operations documents | In Progress | — | — |  |
+| 3 | Replay floor, health signals, guide routing, and overview | In Progress | — | — |  |
+| 4 | Validation checks and unchanged-manifest confirmation | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -210,7 +210,15 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261124-102127_01_docs_24_eventbus_eventbus_00_document-guide.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261124-102127_02_docs_24_eventbus_eventbus_01_system-overview.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261124-102127_03_docs_24_eventbus_eventbus_03_dlq_operations.md.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261124-102127_04_docs_24_eventbus_eventbus_05_dlq_offsets_and_delivery_semantics.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261124-102127_05_docs_24_eventbus_eventbus_06_persistence_schema_and_replay.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261124-102127_06_docs_24_eventbus_eventbus_07_configuration-and-operations.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261124-102127_07_docs_24_eventbus_eventbus_09_publish_durability.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261124-102127_08_docs_24_eventbus_eventbus_10_health_endpoint.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261124-102127_09_docs_24_eventbus_eventbus_11_replay_endpoint.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -245,3 +253,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-008 | Required Changes H | `docs/24_eventbus/eventbus_10_health_endpoint.md` | Phase 3 | AC-06 | `generate_reference_table.py --check` | Needs confirmation (UNK-01) |
 | REQ-008 | Required Changes H | `docs/24_eventbus/eventbus_11_replay_endpoint.md` | Phase 3 | AC-04 | `generate_reference_table.py --check` | Confirmed by repository evidence |
 | REQ-009 | Required validation; Acceptance Criteria | `docs/24_eventbus/eventbus_00_document-guide.md` | Phase 4 | AC-08 | Validation plan checkers | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261124-102127 -->
