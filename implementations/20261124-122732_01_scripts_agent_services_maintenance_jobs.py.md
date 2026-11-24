@@ -11,7 +11,7 @@ Create the single owner of maintenance job records so every Session, RAG, and Me
 ## Assumptions
 
 - The registry is constructed once and reached through `AppServices`, so the one-writer-per-store guard is process-global; this document assumes rows 17 and 18 land in the same phase.
-- `session.sqlite` already has a single-writer contract (`docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`); the registry enforces that rule in-process, it does not acquire a database lock.
+- `session.sqlite` already has a single-writer contract (`docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md`); the registry enforces that rule in-process, it does not acquire a database lock.
 - Cancellation is cooperative through the existing progress-handler mechanism (`scripts/db/helper.py:158-162`), so the registry only owns the `threading.Event` and the state transition; the worker performs the interrupt.
 - The new module stays under the 24576 B gate (`tools/check_module_size.py`).
 

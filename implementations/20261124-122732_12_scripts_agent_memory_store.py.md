@@ -47,7 +47,7 @@ Give `MemoryStore` the maintenance accessors the command mixins currently bypass
 
 ## Security considerations
 
-- The store is where the single-writer contract for `session.sqlite` is enforced in-process (`docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`); moving writes here is what makes the guard effective.
+- The store is where the single-writer contract for `session.sqlite` is enforced in-process (`docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md`); moving writes here is what makes the guard effective.
 
 ## Rollback considerations
 
