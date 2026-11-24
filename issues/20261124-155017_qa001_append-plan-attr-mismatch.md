@@ -34,8 +34,15 @@ Affected tests:
 - `test_dry_run_prints_the_diff_and_writes_nothing`
 - `test_missing_plan_exits_two_and_an_absent_marker_exits_one`
 
-A whole-suite run (`uv run pytest tests/ -n logical -q -m "not integration and not
-production_paths_allowed and not repo_scan"`) reports `13744 passed, 5 skipped, 6 errors`. CI runs
+Additional finding (verified 20261124 during the mcpai003 batch, after renaming the constant to
+`IMPLEMENTATIONS_DIR` locally and reverting it): the attribute name is only the first mismatch. With
+the name restored the 6 tests fail at the call site instead — `TypeError: main() takes 0 positional
+arguments but 1 was given` — and the tests also use `tool.table_data_rows(...)` and
+`tool.WORK_ITEMS_HEADING`, which the shipped tool does not define (it has `WORK_ITEMS_HEADER` and
+parses the section another way). So the fix is not name-only: the tool and the test must agree on the
+`main(argv)` entry point and the row-reading helper as well, or the test file must be rewritten
+against the shipped contract. The whole-suite count on the current `master` is
+`13959 passed, 5 skipped, 6 errors`. CI runs
 `uv run pytest -v -n logical --cov=scripts --cov-report= tests/` (`.github/workflows/ci.yml:87`)
 with no deselection, so the test job fails for every commit since `94eab21c1`. The GitHub Actions
 run status itself is not observed from this environment (no `gh` authentication); the failure is
@@ -77,7 +84,11 @@ in the work-item tooling rather than two.
 
 ## Constraints
 - Behavior of `append_plan_work_items.py` (row coverage validation, companion eligibility, exit
-  codes `0`/`1`/`2`) MUST NOT change; this is a name mismatch fix.
+  codes `0`/`1`/`2`) MUST NOT change; the tool's contract is the shipped one unless the plan for this
+  issue decides otherwise. The Additional finding above shows the mismatch is a contract mismatch, so
+  the plan must first decide which side is canonical: the shipped CLI contract (`main()` reading
+  `sys.argv`, `{pass timestamp} {plan.md}`) or the test's (`main(argv)`, `table_data_rows`,
+  `WORK_ITEMS_HEADING`).
 - Suppressing the error with `monkeypatch.setattr(..., raising=False)` or `object.__setattr__` is
   not acceptable: the attribute would exist while nothing reads it, so the tests would silently
   read the real `implementations/` and become vacuous.
