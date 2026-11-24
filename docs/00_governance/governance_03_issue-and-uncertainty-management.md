@@ -243,7 +243,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner:** Repository owner
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
-- **Related:** AAL-039
+- **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
 - **Summary:** ADR-008 no longer permits Semantic Memory, memory JSONL, pin state, manual memory writes, or /memory data (INV-20 to INV-22), but the Agent code still implements them.
 - **Current Description:** ADR-008 Decision Detail 24 defines Repository Context and Episodic Memory as the only memory model.
 - **Observed Implementation:** `scripts/agent/memory/` and the session schema still contain the old memory model, the JSONL store, and the /memory command.
@@ -263,7 +263,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner:** Repository owner
 - **First Found:** adrdoc001 ADR-006 and ADR-008 amendment
 - **Target:** `docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md`
-- **Related:** AAL-039
+- **Related:** ADR-008 Approval Record (approved 2026-11-24; previously AAL-039)
 - **Summary:** The Episodic Memory retention policy, its Session DB schema-mismatch handling, and capacity monitoring for stores other than eventbus.sqlite are not decided.
 - **Current Description:** ADR-008 Decision Details 22 and 23 and the Recovery Policy Matrix record these cells as undecided.
 - **Observed Implementation:** No policy or signal exists for the affected cells.
@@ -612,24 +612,6 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Date:** Not recorded
 - **Scope:** Decision Detail #17
 
-#### AAL-024
-
-- **ID:** AAL-024
-- **ADR:** ADR-008
-- **Decision:** Scope widened to six SQLite stores (title, Summary, Scope, Recovery Policy Matrix)
-- **Approver:** Not recorded
-- **Date:** Not recorded
-- **Scope:** Title, Summary, Scope, Recovery Policy Matrix
-
-#### AAL-025
-
-- **ID:** AAL-025
-- **ADR:** ADR-008
-- **Decision:** Schema-mismatch rule: every database is archived and recreated, with per-database preconditions
-- **Approver:** Not recorded
-- **Date:** Not recorded
-- **Scope:** Decision Detail 22
-
 #### AAL-028
 
 - **ID:** AAL-028
@@ -683,15 +665,6 @@ Each entry MUST contain these six fields: ID, ADR, Decision, Approver, Date, Sco
 - **Approver:** Not recorded
 - **Date:** Not recorded
 - **Scope:** ADR-015 Decision Scope attribution sentence, Related ADRs entry, and the Approval Record pending bullet
-
-#### AAL-039
-
-- **ID:** AAL-039
-- **ADR:** ADR-008
-- **Decision:** Repository Context (non-persistent) and Episodic Memory (the only persistent Agent memory, in session.sqlite only); removal of Semantic Memory, memory JSONL, pin state, manual memory writes, and /memory data
-- **Approver:** Not recorded
-- **Date:** Not recorded
-- **Scope:** Decision Details 23 and 24, INV-02, INV-09, INV-19 to INV-22, Recovery Policy Matrix
 
 #### AAL-040
 

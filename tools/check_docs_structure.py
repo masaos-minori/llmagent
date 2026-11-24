@@ -116,7 +116,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # six-store title, the lifecycle matrix rows, Repository Context and Episodic Memory
     # (Decision Details 23 to 25), INV-19 to INV-22, and the two Known Issue citations
     # grew the ADR 44006 -> 46907; the ceiling equals the accepted size.
-    "adr_02_05_008_db-sqlite-4db-separation.md": 46907,
+    # Re-accepted at 47600 (2026-11-24): the maintainer's approval of the six-store scope,
+    # the schema-mismatch rule, the memory model, and the memory lifecycle decisions was
+    # recorded in the Approval Record (replacing three pending bullets); 46907 -> 47600.
+    "adr_02_05_008_db-sqlite-4db-separation.md": 47600,
     # Accepted at 39575 (2026-11-24, adrdoc001 procedure 20261124-094801_01): the
     # single-source-of-truth, state-aware retention, replay-floor, and capacity decisions
     # (Decision Details 15 to 20), INV-17 to INV-22, the Known Deviations, and the two
