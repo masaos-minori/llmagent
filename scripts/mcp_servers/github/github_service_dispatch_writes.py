@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Protocol
 
+from pydantic import BaseModel, ValidationError
 from shared.json_utils import dumps as _json_dumps
 
 from mcp_servers.github.github_models import (
@@ -28,6 +29,7 @@ from mcp_servers.github.github_models import (
     PushFilesRequest,
     UpdatePullRequestRequest,
 )
+from mcp_servers.github.github_models_config import GitHubValidationError
 from mcp_servers.github.github_service_business import (
     GitHubService as _GitHubServiceCore,
 )
@@ -62,6 +64,34 @@ def _fmt_body_field(body: str) -> str:
     return f"body='{first_line}' ({len(body)} chars)"
 
 
+def _validate_request[ModelT: BaseModel](
+    model_cls: type[ModelT], args: ToolArgs
+) -> ModelT:
+    """Build one request model from the raw argument dict, or raise the domain error.
+
+    The dict is passed unchanged: no copying, no key injection, no per-key fallback.
+    `extra="forbid"` on the strict request base therefore sees exactly what the caller
+    sent, so the runtime rejects the same inputs the published `inputSchema` advertises,
+    and every default comes from the model rather than from a dispatch-side `args.get`.
+
+    `pydantic.ValidationError` is converted to `GitHubValidationError` here and nowhere
+    else in the GitHub dispatch, so `exception_handlers.py` and `dispatch_tool` keep
+    classifying the failure through the domain exception type. The message names the
+    model and the offending field paths, never the values: argument text can contain
+    file content, and the audit layer owns request recording.
+    """
+    try:
+        return model_cls.model_validate(args)
+    except ValidationError as exc:
+        fields = ", ".join(
+            ".".join(str(part) for part in err["loc"]) or "<root>"
+            for err in exc.errors()
+        )
+        raise GitHubValidationError(
+            f"{model_cls.__name__}: {exc.error_count()} invalid field(s): {fields}"
+        ) from exc
+
+
 class WriteDispatchOps(_GitHubServiceCore):
     """Write-tool dispatch formatters (extends service_business.GitHubService)."""
 
@@ -88,13 +118,7 @@ class WriteDispatchOps(_GitHubServiceCore):
 
     async def fmt_create_branch(self, args: ToolArgs) -> str:
         """Format create branch operation result with optional dry-run support."""
-        req = CreateBranchRequest(
-            owner=args["owner"],
-            repo=args["repo"],
-            branch_name=args["branch_name"],
-            from_branch=args.get("from_branch", ""),
-            dry_run=args.get("dry_run", False),
-        )
+        req = _validate_request(CreateBranchRequest, args)
         from_b = req.from_branch or "(default branch)"
 
         async def _execute() -> str:
@@ -112,16 +136,7 @@ class WriteDispatchOps(_GitHubServiceCore):
 
     async def fmt_create_or_update_file(self, args: ToolArgs) -> str:
         """Format create or update file operation result with optional dry-run support."""
-        req = CreateOrUpdateFileRequest(
-            owner=args["owner"],
-            repo=args["repo"],
-            path=args["path"],
-            content=args["content"],
-            message=args["message"],
-            branch=args.get("branch", ""),
-            sha=args.get("sha", ""),
-            dry_run=args.get("dry_run", False),
-        )
+        req = _validate_request(CreateOrUpdateFileRequest, args)
         op = "update" if req.sha else "create"
         branch = req.branch or "(default branch)"
 
@@ -142,14 +157,7 @@ class WriteDispatchOps(_GitHubServiceCore):
 
     async def fmt_push_files(self, args: ToolArgs) -> str:
         """Format push files operation result with optional dry-run support."""
-        req = PushFilesRequest(
-            owner=args["owner"],
-            repo=args["repo"],
-            branch=args["branch"],
-            files=args["files"],
-            message=args["message"],
-            dry_run=args.get("dry_run", False),
-        )
+        req = _validate_request(PushFilesRequest, args)
         paths = [f.path for f in req.files]
 
         async def _execute() -> str:
@@ -168,15 +176,7 @@ class WriteDispatchOps(_GitHubServiceCore):
 
     async def fmt_delete_file(self, args: ToolArgs) -> str:
         """Format delete file operation result with optional dry-run support."""
-        req = DeleteRepoFileRequest(
-            owner=args["owner"],
-            repo=args["repo"],
-            path=args["path"],
-            message=args["message"],
-            sha=args["sha"],
-            branch=args.get("branch", ""),
-            dry_run=args.get("dry_run", False),
-        )
+        req = _validate_request(DeleteRepoFileRequest, args)
         branch = req.branch or "(default branch)"
 
         async def _execute() -> str:
@@ -194,15 +194,7 @@ class WriteDispatchOps(_GitHubServiceCore):
 
     async def fmt_create_issue(self, args: ToolArgs) -> str:
         """Format create issue operation result with optional dry-run support."""
-        req = CreateIssueRequest(
-            owner=args["owner"],
-            repo=args["repo"],
-            title=args["title"],
-            body=args.get("body", ""),
-            labels=args.get("labels", []),
-            assignees=args.get("assignees", []),
-            dry_run=args.get("dry_run", False),
-        )
+        req = _validate_request(CreateIssueRequest, args)
         labels = f" labels={req.labels}" if req.labels else ""
 
         async def _execute() -> str:
@@ -221,13 +213,7 @@ class WriteDispatchOps(_GitHubServiceCore):
 
     async def fmt_add_issue_comment(self, args: ToolArgs) -> str:
         """Format add issue comment operation result with optional dry-run support."""
-        req = AddIssueCommentRequest(
-            owner=args["owner"],
-            repo=args["repo"],
-            issue_number=args["issue_number"],
-            body=args["body"],
-            dry_run=args.get("dry_run", False),
-        )
+        req = _validate_request(AddIssueCommentRequest, args)
 
         async def _execute() -> str:
             """Post a comment on an existing GitHub issue."""
@@ -244,15 +230,7 @@ class WriteDispatchOps(_GitHubServiceCore):
 
     async def fmt_create_pull_request(self, args: ToolArgs) -> str:
         """Format create pull request operation result with optional dry-run support."""
-        req = CreatePullRequestRequest(
-            owner=args["owner"],
-            repo=args["repo"],
-            title=args["title"],
-            body=args.get("body", ""),
-            head=args["head"],
-            base=args["base"],
-            dry_run=args.get("dry_run", False),
-        )
+        req = _validate_request(CreatePullRequestRequest, args)
 
         async def _execute() -> str:
             """Create a new pull request on GitHub."""
@@ -274,15 +252,7 @@ class WriteDispatchOps(_GitHubServiceCore):
         The preview lists every field the real run would change, `body` included: a
         dry run that omitted it would report "(no changes)" for a body-only update.
         """
-        req = UpdatePullRequestRequest(
-            owner=args["owner"],
-            repo=args["repo"],
-            pr_number=args["pr_number"],
-            title=args.get("title"),
-            body=args.get("body"),
-            state=args.get("state"),
-            dry_run=args.get("dry_run", False),
-        )
+        req = _validate_request(UpdatePullRequestRequest, args)
         fields: list[str] = []
         if req.title is not None:
             fields.append(f"title='{req.title}'")
@@ -290,7 +260,9 @@ class WriteDispatchOps(_GitHubServiceCore):
             fields.append(_fmt_body_field(req.body))
         if req.state is not None:
             fields.append(f"state={req.state}")
-        changes = ", ".join(fields) or "(no changes)"
+        # The model validator (UpdatePullRequestRequest._require_a_change) guarantees at
+        # least one non-None change, so `fields` is never empty here.
+        changes = ", ".join(fields)
 
         async def _execute() -> str:
             """Update a pull request's title or state on GitHub."""
@@ -308,15 +280,7 @@ class WriteDispatchOps(_GitHubServiceCore):
 
     async def fmt_merge_pull_request(self, args: ToolArgs) -> str:
         """Format merge pull request operation result with optional dry-run support."""
-        req = MergePullRequestRequest(
-            owner=args["owner"],
-            repo=args["repo"],
-            pr_number=args["pr_number"],
-            commit_title=args.get("commit_title", ""),
-            commit_message=args.get("commit_message", ""),
-            merge_method=args.get("merge_method", "merge"),
-            dry_run=args.get("dry_run", False),
-        )
+        req = _validate_request(MergePullRequestRequest, args)
 
         async def _execute() -> str:
             """Merge a pull request on GitHub."""

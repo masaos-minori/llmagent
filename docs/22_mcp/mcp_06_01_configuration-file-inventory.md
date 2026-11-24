@@ -40,6 +40,15 @@ Only the agent process reads `config/agent.toml` via `ConfigLoader().load_all()`
 
 **Non-empty required keys:** `allowed_root` in `config/agent.toml` and `protected_branches` in the git and github server files must be non-empty or config load fails (Explicit in code — scripts/agent/config_section_builders.py; scripts/mcp_servers/git/git_models.py; scripts/mcp_servers/github/github_models_config.py). An empty `path_denylist` remains permitted as a registered ADR-004 exception.
 
+github-mcp additionally refuses to start when its configuration violates any of these rules:
+
+- Each boolean setting must be a boolean value, not a string or number.
+- `max_file_size_kb` and `max_file_read_size_kb` must not be negative; `0` still means unlimited.
+- `default_per_page` and `max_per_page` must be positive, and `default_per_page` must not exceed `max_per_page`.
+- Every `allowed_repos` entry must be a canonical lower-case `owner/repo` key; entries that normalize to the same key are collapsed into one.
+
+The shipped `config/github_mcp_server.toml` satisfies all of them, so no config change accompanies these rules. → Canonical source: `scripts/mcp_servers/github/github_models_config.py` (`GitHubConfig.load()`).
+
 **Reload vs. restart:** `/reload` never modifies `[mcp_servers.*]` at
 runtime — MCP server definition changes (URL, startup mode,
 transport, command, environment) are always reported as restart-required

@@ -127,7 +127,7 @@ class TestListIssues:
             _make_mock_issue(number=n) for n in range(10)
         ]
 
-        req = ListIssuesRequest(owner="org", repo="repo", per_page=999)
+        req = ListIssuesRequest(owner="org", repo="repo", per_page=50)
         resp = await svc.list_issues(req)
 
         assert len(resp.issues) == 3

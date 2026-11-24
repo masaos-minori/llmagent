@@ -7,7 +7,11 @@ require non-empty identifiers and positive numbers, add the owner-confirmed uppe
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- Modifies only `scripts/mcp_servers/github/github_models_issues.py` (Plan Phase 2).
+- Modifies `scripts/mcp_servers/github/github_models_issues.py` (Plan Phase 2), plus one existing test
+  assertion the new `per_page` bound invalidates (Step 3a finding, see Compatibility):
+  `tests/mcp_servers/github/test_service_issues.py::test_per_page_clamped_to_config_max` constructs
+  `ListIssuesRequest(per_page=999)`, which `le=100` rejects, so the case must pass a value inside the
+  contract bound to keep exercising the config cap.
 - Response models (`ListIssuesResponse`, `GetIssueResponse`, `CreateIssueResponse`,
   `AddIssueCommentResponse`, `SearchIssuesResponse`) and `IssueInfo` stay plain `BaseModel`:
   response models are explicitly untouched by the Plan (Reference file `github_models_base.py`).
@@ -75,6 +79,14 @@ require non-empty identifiers and positive numbers, add the owner-confirmed uppe
   are still dropped until then (Plan Problem statement).
 - `_clamp_per_page` (`github_service_security.py:66-69`) stays as defense-in-depth for configs with
   a lower `max_per_page` (Plan Design decision).
+- Step 3a finding: the clamp test above is the only existing call site that feeds a value the new
+  bound rejects (`grep` over `scripts` and `tests` for the five request models found no other). Change
+  its `per_page=999` to `per_page=50` and keep the assertion that the service caps the result at the
+  configured `max_per_page=3`; the rejection of `per_page=101` is covered by the seq 15 T-03 cases.
+- A client that sends `per_page` above 100 now gets a `validation_error` result instead of a clamped
+  call: `pydantic.ValidationError` is a `ValueError`, and `mcp_servers/dispatch.py:457` maps
+  `ValueError` from a handler to `error_type="validation_error"`, so no unhandled-exception path opens
+  between this row and seq 12-13.
 
 ## Security considerations
 - Rejecting empty `owner`/`repo` and `per_page > 100` before any GitHub call narrows oversized
@@ -108,10 +120,10 @@ require non-empty identifiers and positive numbers, add the owner-confirmed uppe
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply strict base + bounds to the five issues request models | Pending | — | — | REQ-004, REQ-005 |
-| 2 | Confirm coverage through the seq 15 issues cases and seq 14 drift gate | Pending | — | — | T-02, T-03 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | |
-| 4 | Update documentation | Pending | — | — | N/A: newly rejected inputs are recorded by seq 18 |
+| 1 | Apply strict base + bounds to the five issues request models | Completed | 20261124-211156 | 20261124-211156 | REQ-004, REQ-005 Changed: scripts/mcp_servers/github/github_models_issues.py, tests/mcp_servers/github/test_service_issues.py. Step 3a finding: test_per_page_clamped_to_config_max passed per_page=999, rejected by the new le=100; changed to per_page=50 so the config cap is still exercised. |
+| 2 | Confirm coverage through the seq 15 issues cases and seq 14 drift gate | Completed | 20261124-211156 | 20261124-211156 | T-02, T-03 Targeted run: test_service_issues.py, test_github_mcp_service.py, test_service_dispatch.py = 133 passed. T-03/T-02 cases themselves land in seq 15/14. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | ruff format/check, mypy pass; bandit/lint-imports/module-size and the full-suite run are the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
+| 4 | Update documentation | Completed | 20261124-211156 | 20261124-211156 | N/A: newly rejected inputs are recorded by seq 18 N/A: newly rejected inputs are recorded by seq 18. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -78,6 +78,31 @@ request reaches the business layer with unknown or malformed fields (REQ-008).
 - Missing required keys now produce a `validation_error` result instead of a `KeyError`.
 - The 9 `dry_run` preview paths behave as before (`_execute_with_dry_run` short-circuit) now that
   `dry_run` is a published property (seq 08-11).
+- Step 3a correction: `GitHubValidationError` is defined at `github_models_config.py:161`, not line 110
+  as stated in the Assumptions.
+- Implementation note (procedure step 2): the helper is typed with PEP 695 type parameters
+  (`def _validate_request[ModelT: BaseModel](model_cls: type[ModelT], args: ToolArgs) -> ModelT`)
+  instead of the procedure's `type[BaseModel] -> Any`, matching repo precedent
+  (`scripts/shared/runtime_tool.py:38`, `scripts/mcp_servers/shell/shell_models.py:34`) and keeping every
+  service call site type-checked. Ruff `UP047` requires this form on Python 3.13.
+- Step 3a finding (dead code removed): the `or "(no changes)"` fallback in `fmt_update_pull_request`
+  (line 299 before this row) is unreachable — `UpdatePullRequestRequest._require_a_change` requires at
+  least one supplied **non-`None`** change field, so `fields` is never empty after validation. An explicit
+  `{"title": null, "body": null, "state": null}` is rejected by that validator, not previewed as
+  "(no changes)".
+- Step 3a finding (one existing test invalidated):
+  `tests/mcp_servers/github/test_service_dispatch.py::TestFmtUpdatePullRequest::test_update_with_no_field_to_change_is_rejected`
+  asserted `pytest.raises(ValidationError)` (pydantic), which held only because dispatch constructed the
+  model inline. It now asserts `pytest.raises(GitHubValidationError, match="UpdatePullRequestRequest")`,
+  which is the contract this row defines; the file's now-unused `from pydantic import ValidationError`
+  import was removed.
+- Step 3a verification: the interim `**({k: args[k] ...})` call sites introduced while seq 05/06 models
+  gained their sentinel validators are gone from this file; no `args[...]` or `args.get(...)` remains
+  except the helper's own docstring text.
+- Step 3a note (out of scope, pre-existing): `tests/mcp_servers/github/test_service_dispatch.py` reports
+  88 mypy errors (`Invalid "type: ignore" comment`, `method-assign`) on the pre-change HEAD version too;
+  the file is outside the CI mypy scope (`mypy --no-namespace-packages scripts/ tests/eventbus tools`), so
+  they were left untouched.
 
 ## Security considerations
 - Write payloads are validated before the allowlist check and before any GitHub write; nested batch
@@ -112,10 +137,10 @@ request reaches the business layer with unknown or malformed fields (REQ-008).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Define `_validate_request()` with the `ValidationError` -> `GitHubValidationError` conversion | Pending | — | — | REQ-008; consumed by seq 12 |
-| 2 | Replace the 9 write-domain model constructions with the helper | Pending | — | — | REQ-008 |
-| 3 | Confirm dry-run behaviour is unchanged | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | T-05, T-06 |
+| 1 | Define `_validate_request()` with the `ValidationError` -> `GitHubValidationError` conversion | Completed | 20261124-215156 | 20261124-215156 | REQ-008; consumed by seq 12 _validate_request[ModelT: BaseModel](model_cls, args) -> ModelT defined after _fmt_body_field: model_validate(args) on the unchanged dict, ValidationError -> GitHubValidationError naming model + error count + field paths, never values. |
+| 2 | Replace the 9 write-domain model constructions with the helper | Completed | 20261124-215156 | 20261124-215156 | REQ-008 All 9 write builders use the helper; no args[...] or args.get(...) remains. Unreachable 'or "(no changes)"' fallback deleted. test_service_dispatch.py no-op test re-asserted against GitHubValidationError. |
+| 3 | Confirm dry-run behaviour is unchanged | Completed | 20261124-215156 | 20261124-215156 | Dry-run behaviour unchanged: tests/mcp_servers/github/ = 396 passed, including the dry-run preview and skip-the-call assertions. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | T-05, T-06 ruff format/check, mypy pass on this file. bandit/lint-imports/module-size/diff-cover and the full-suite run are the end-of-batch run; the seq 17 HTTP assertions land in that row. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -11,7 +11,16 @@ from typing import TypedDict
 
 from shared.tool_metadata import TOOL_FIELD_SET_VERSION, ResourceKeyKind
 
+from mcp_servers.github.github_models_pull_requests import (
+    CreatePullRequestRequest,
+    GetPullRequestRequest,
+    ListPullRequestsRequest,
+    MergePullRequestRequest,
+    SearchPullRequestsRequest,
+    UpdatePullRequestRequest,
+)
 from mcp_servers.models import McpTool
+from mcp_servers.request_contract import build_input_schema
 
 
 # Shared metadata fields: "status" and "config_dependent" are byte-for-byte
@@ -71,18 +80,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "Retrieve the list of pull requests for a GitHub repository. Use to check pending reviews or past PRs"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-                "state": {
-                    "type": "string",
-                    "description": "PR state: open / closed / all (default: open)",
-                },
-            },
-            "required": ["owner", "repo"],
-        },
+        "inputSchema": build_input_schema(ListPullRequestsRequest),
         **_GITHUB_PR_TOOL_METADATA_HEAD,
         "is_write": False,
         "agent_safety_tier": "READ_ONLY",
@@ -98,18 +96,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "Retrieve a specific pull request from a GitHub repository. Use to check PR details, branch info, and body"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-                "pr_number": {
-                    "type": "integer",
-                    "description": "Pull request number",
-                },
-            },
-            "required": ["owner", "repo", "pr_number"],
-        },
+        "inputSchema": build_input_schema(GetPullRequestRequest),
         **_GITHUB_PR_TOOL_METADATA_HEAD,
         "is_write": False,
         "agent_safety_tier": "READ_ONLY",
@@ -125,27 +112,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "Create a pull request in a GitHub repository. Use to request a review of branch changes"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-                "title": {"type": "string", "description": "Pull request title"},
-                "body": {
-                    "type": "string",
-                    "description": "Pull request body (Markdown, optional)",
-                },
-                "head": {
-                    "type": "string",
-                    "description": "Source branch name for the PR",
-                },
-                "base": {
-                    "type": "string",
-                    "description": "Target branch name to merge into",
-                },
-            },
-            "required": ["owner", "repo", "title", "head", "base"],
-        },
+        "inputSchema": build_input_schema(CreatePullRequestRequest),
         **_GITHUB_PR_TOOL_METADATA_HEAD,
         "is_write": True,
         "agent_safety_tier": "WRITE_DANGEROUS",
@@ -162,20 +129,7 @@ TOOL_LIST: list[McpTool] = [
             "Keyword search for pull requests across all of GitHub. "
             "Use to cross-search PRs related to a specific feature"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Search query (is:pr is appended automatically)",
-                },
-                "per_page": {
-                    "type": "integer",
-                    "description": "Maximum number of results (default: configured)",
-                },
-            },
-            "required": ["query"],
-        },
+        "inputSchema": build_input_schema(SearchPullRequestsRequest),
         **_GITHUB_PR_TOOL_METADATA_HEAD,
         "is_write": False,
         "agent_safety_tier": "READ_ONLY",
@@ -191,30 +145,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "Update the title, body, or state of a GitHub pull request. Use to reopen or close a PR"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-                "pr_number": {
-                    "type": "integer",
-                    "description": "Pull request number to update",
-                },
-                "title": {
-                    "type": "string",
-                    "description": "New title (omit to keep unchanged)",
-                },
-                "body": {
-                    "type": "string",
-                    "description": "New body (omit to keep unchanged)",
-                },
-                "state": {
-                    "type": "string",
-                    "description": "New state: open / closed (omit to keep unchanged)",
-                },
-            },
-            "required": ["owner", "repo", "pr_number"],
-        },
+        "inputSchema": build_input_schema(UpdatePullRequestRequest),
         **_GITHUB_PR_TOOL_METADATA_HEAD,
         "is_write": True,
         "agent_safety_tier": "WRITE_DANGEROUS",
@@ -230,30 +161,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "Merge a GitHub pull request. Use to merge a PR after review is complete"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-                "pr_number": {
-                    "type": "integer",
-                    "description": "Pull request number to merge",
-                },
-                "commit_title": {
-                    "type": "string",
-                    "description": "Merge commit title (default: GitHub default)",
-                },
-                "commit_message": {
-                    "type": "string",
-                    "description": "Merge commit body (default: GitHub default)",
-                },
-                "merge_method": {
-                    "type": "string",
-                    "description": "Merge method: merge / squash / rebase",
-                },
-            },
-            "required": ["owner", "repo", "pr_number"],
-        },
+        "inputSchema": build_input_schema(MergePullRequestRequest),
         **_GITHUB_PR_TOOL_METADATA_HEAD,
         "is_write": True,
         "agent_safety_tier": "WRITE_DANGEROUS",

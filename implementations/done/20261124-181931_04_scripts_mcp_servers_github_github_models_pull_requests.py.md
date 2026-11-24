@@ -6,7 +6,8 @@ upper bounds; REQ-008 strict base for runtime rejection).
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- Modifies only `scripts/mcp_servers/github/github_models_pull_requests.py` (Plan Phase 3).
+- Modifies `scripts/mcp_servers/github/github_models_pull_requests.py` (Plan Phase 3), plus three
+  existing tests the new contract invalidates (Step 3a findings, see Compatibility).
 - Response models (`ListPullRequestsResponse`, `GetPullRequestResponse`, `CreatePullRequestResponse`,
   `UpdatePullRequestResponse`, `MergePullRequestResponse`, `SearchPullRequestsResponse`) stay plain
   `BaseModel`.
@@ -76,6 +77,19 @@ upper bounds; REQ-008 strict base for runtime rejection).
   `base`; `pr_number < 1`; `per_page > 100`; empty `query`; `commit_message` over 65536.
 - `github_service_dispatch_writes.py` still key-picks `args.get(...)` until seq 13 lands, so extra
   keys keep being dropped in this phase.
+- Step 3a findings (three existing tests invalidated by the new contract, all adjusted in this row):
+  - `tests/mcp_servers/github/test_service_dispatch.py::test_dry_run_preview_no_changes_placeholder`
+    asserted the `"(no changes)"` dry-run preview for an update with no field to change. The model
+    validator rejects that request, so the case is now
+    `test_update_with_no_field_to_change_is_rejected`, asserting `pydantic.ValidationError` and no
+    service call. The `or "(no changes)"` fallback it covered (`github_service_dispatch_writes.py:298`)
+    is unreachable from this row on and is removed by seq 13.
+  - `tests/mcp_servers/github/test_service_pull_requests.py::test_skips_edit_call_when_no_fields_set`
+    built a no-op request through the constructor. It now builds it with `model_construct` so the
+    service-side `if kwargs:` guard (`github_service_pull_requests.py:141`) keeps its coverage as
+    defense-in-depth behind the contract.
+  - `tests/mcp_servers/github/test_service_pull_requests.py:137` passed `per_page=999` to the config-cap
+    clamp test; changed to `per_page=50`, inside the new `le=100` bound.
 
 ## Security considerations
 - Rejecting empty branch names (`head`, `base`) prevents a write path from receiving an ambiguous
@@ -106,10 +120,10 @@ upper bounds; REQ-008 strict base for runtime rejection).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply strict base + bounds to the six PR request models | Pending | — | — | REQ-004, REQ-005 |
-| 2 | Add the no-op `UpdatePullRequestRequest` model validator | Pending | — | — | REQ-004 |
-| 3 | Confirm coverage through the seq 15 PR cases and seq 14 drift gate | Pending | — | — | T-02, T-03 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | |
+| 1 | Apply strict base + bounds to the six PR request models | Completed | 20261124-211658 | 20261124-211658 | REQ-004, REQ-005 Changed: scripts/mcp_servers/github/github_models_pull_requests.py, tests/mcp_servers/github/test_service_dispatch.py, tests/mcp_servers/github/test_service_pull_requests.py. |
+| 2 | Add the no-op `UpdatePullRequestRequest` model validator | Completed | 20261124-211658 | 20261124-211658 | REQ-004 _require_a_change model_validator added; message names title/body/state. |
+| 3 | Confirm coverage through the seq 15 PR cases and seq 14 drift gate | Completed | 20261124-211658 | 20261124-211658 | T-02, T-03 Targeted run: tests/mcp_servers/github/ = 358 passed. Two existing tests invalidated by the contract were adjusted (see Compatibility); T-03/T-02 cases land in seq 15/14. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | ruff format/check, mypy pass; bandit/lint-imports/module-size and the full-suite run are the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -40,8 +40,8 @@ Record the strict github-mcp config parsing rules in the configuration inventory
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the github startup-rules paragraph, add the canonical-source sentence | Pending | — | — | REQ-006, REQ-007 |
-| 2 | Run the docs gates | Pending | — | — | |
+| 1 | Rewrite the github startup-rules paragraph, add the canonical-source sentence | Completed | 20261124-222851 | 20261124-222851 | REQ-006, REQ-007 REQ-006, REQ-007 github-mcp startup-rules list (booleans, non-negative size limits with 0 = unlimited, positive per_page pair with default <= max, canonical allowed_repos with duplicates collapsed) + fail-fast consequence + canonical-source pointer. The server.per_page_bounds posture check is untouched. |
+| 2 | Run the docs gates | Completed | 20261124-222851 | 20261124-222851 | check_docs_quality, check_docs_structure (this file), check_docs_content_policy --strict, check_docs_consistency --domain mcp, check_docs_japanese: all clean. |
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|

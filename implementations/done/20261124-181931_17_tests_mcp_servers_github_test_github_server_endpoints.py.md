@@ -15,10 +15,18 @@ error result and no GitHub service call — instead of silently dropping unknown
 - The strict dispatch (`_validate_request`, seq 12-13) is what the endpoint reaches through
   `github_server.py:198` (`_service.get_dispatch_table()` -> `dispatch_tool`).
 - Verified today: `CallToolResponse` (`scripts/mcp_servers/models.py:56-64`) publishes only `result`,
-  `is_error`, `dedup_state`; `error_type="validation_error"` (`scripts/mcp_servers/dispatch.py:470`)
-  is visible in the audit record (`scripts/mcp_servers/audit.py` `mcp_tool_exec` entry), not in the
-  HTTP body. HTTP status stays 200 for a validation failure; there is no 422 contract in this
-  repository (Plan REQ-008 correction, Step 3a).
+  `is_error`, `dedup_state`; the HTTP body carries no `error_type`. HTTP status stays 200 for a
+  validation failure; there is no 422 contract for a validation failure in this repository (Plan
+  REQ-008 correction, Step 3a).
+- **Corrected during implementation**: the earlier claim that `error_type="validation_error"`
+  (`scripts/mcp_servers/dispatch.py:470`) reaches the audit record is false for this server.
+  `github_server.call_tool` passes `outcome` but no `error_type` to `_audit_log`, so the record's
+  `error_type` is empty; `dispatch_tool`'s `ValueError` branch still logs the failure at WARNING level.
+  The audit test locks the observed empty value and the gap is recorded as the
+  `github-audit-error-type-gap` work item (closing it changes `github_server.py`, outside this row).
+- Write tools also need `X-Idempotency-Key`: the REQ-004 boundary middleware
+  (`scripts/mcp_servers/server.py`) answers 422 for a keyless side-effecting `/v1/call_tool` before
+  the dispatcher runs, so reject/accept rows for write tools carry a key.
 - The file's existing `_FakeService` replaces the whole dispatch table with `AsyncMock` handlers, so it
   bypasses model validation; the new class needs the **real** dispatch table with the GitHub client and
   the domain service methods mocked below the validation point.
@@ -107,10 +115,10 @@ error result and no GitHub service call — instead of silently dropping unknown
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the real-service fixture and `TestCallToolValidation` (new) | Pending | — | — | T-05; needs seq 12-13 |
-| 2 | Add `/v1/tools` generated-schema assertions | Pending | — | — | REQ-002, REQ-003 |
-| 3 | Update existing assertions that encoded silent-drop behavior | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | T-06 |
+| 1 | Add the real-service fixture and `TestCallToolValidation` (new) | Completed | 20261124-222825 | 20261124-222825 | T-05; needs seq 12-13 T-05 real_service fixture (real GitHubService, business-layer methods stubbed) + TestCallToolValidation: 11-row reject table, 7-row accept table, audit test. Write-tool rows carry X-Idempotency-Key: the REQ-004 boundary in mcp_servers/server.py answers 422 before validation otherwise. |
+| 2 | Add `/v1/tools` generated-schema assertions | Completed | 20261124-222825 | 20261124-222825 | REQ-002, REQ-003 REQ-002, REQ-003 test_generated_input_schemas_are_published_on_the_wire: dry_run on every write tool, per_page minimum/maximum/default on the wire, PushFile $defs/$ref, no title keys. |
+| 3 | Update existing assertions that encoded silent-drop behavior | Completed | 20261124-222825 | 20261124-222825 | No existing assertion encoded the silent-drop behavior: grep for unknown-key fixtures in this file found none, and the pre-existing classes passed unchanged. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | T-06 T-06 34 passed for this file; tests/mcp_servers/github/ + test_request_contract.py + test_tool_schema_contract.py = 588 passed. Assumption correction: the audit record from github_server.call_tool carries error_type="" (call_tool passes no error_type), not validation_error; the test locks the observed value and a follow-up work item records the gap. targeted pytest runs pass; mypy/bandit/lint-imports/module-size and diff-cover are the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -120,7 +128,7 @@ error result and no GitHub service call — instead of silently dropping unknown
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| github-audit-error-type-gap | 4 | Follow-up (out of this row's scope: production change) | Open | Repo owner | Next github-mcp change |
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

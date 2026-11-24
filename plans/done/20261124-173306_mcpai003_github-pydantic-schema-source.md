@@ -284,14 +284,14 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create shared request contract module + its unit tests (`scripts/mcp_servers/request_contract.py`, `tests/mcp_servers/test_request_contract.py`) | Pending | — | — | REQ-001, REQ-002 |
-| 2 | Migrate issues domain (`scripts/mcp_servers/github/github_models_issues.py`, `scripts/mcp_servers/github/tools_issues.py`, `tests/mcp_servers/github/test_github_tool_registry.py`, `tests/mcp_servers/github/test_github_request_validation.py`) | Pending | — | — | REQ-002..REQ-005, REQ-009 |
-| 3 | Migrate pull requests domain (`scripts/mcp_servers/github/github_models_pull_requests.py`, `scripts/mcp_servers/github/tools_pull_requests.py`, `tests/mcp_servers/github/test_github_tool_registry.py`, `tests/mcp_servers/github/test_github_request_validation.py`) | Pending | — | — | REQ-002..REQ-005, REQ-009 |
-| 4 | Migrate file domain (`scripts/mcp_servers/github/github_models_file.py`, `scripts/mcp_servers/github/tools_file.py`, `tests/mcp_servers/github/test_github_tool_registry.py`, `tests/mcp_servers/github/test_github_request_validation.py`) | Pending | — | — | REQ-002..REQ-005, REQ-009 |
-| 5 | Migrate repository domain (`scripts/mcp_servers/github/github_models_repository.py`, `scripts/mcp_servers/github/tools_repository.py`, `tests/mcp_servers/github/test_github_tool_registry.py`, `tests/mcp_servers/github/test_github_request_validation.py`) | Pending | — | — | REQ-002..REQ-005, REQ-009 |
-| 6 | Runtime dispatch alignment + HTTP rejection tests (`scripts/mcp_servers/github/github_service_dispatch.py`, `scripts/mcp_servers/github/github_service_dispatch_writes.py`, `tests/mcp_servers/github/test_github_server_endpoints.py`) | Pending | — | — | REQ-008 |
-| 7 | Configuration strictness + config tests (`scripts/mcp_servers/github/github_models_config.py`, `tests/mcp_servers/github/test_github_config_strict_parsing.py`) | Pending | — | — | REQ-006, REQ-007 |
-| 8 | Documentation updates + full validation + deploy hand-off (`docs/22_mcp/mcp_04_01_web-search-file-read-github.md`, `docs/22_mcp/mcp_06_01_configuration-file-inventory.md`) | Pending | — | — | Deploy is the user's decision (approval gate) |
+| 1 | Create shared request contract module + its unit tests (`scripts/mcp_servers/request_contract.py`, `tests/mcp_servers/test_request_contract.py`) | Completed | 20261124-203000 | 20261124-225623 | REQ-001, REQ-002 Procedures 01 archived (implementations/done/). scripts/mcp_servers/request_contract.py + tests/mcp_servers/test_request_contract.py. |
+| 2 | Migrate issues domain (`scripts/mcp_servers/github/github_models_issues.py`, `scripts/mcp_servers/github/tools_issues.py`, `tests/mcp_servers/github/test_github_tool_registry.py`, `tests/mcp_servers/github/test_github_request_validation.py`) | Completed | 20261124-204500 | 20261124-225623 | REQ-002..REQ-005, REQ-009 Procedures 03, 08, 14, 15 archived. Issues domain models, generated tools_issues.py schema, drift gate and validation tests. |
+| 3 | Migrate pull requests domain (`scripts/mcp_servers/github/github_models_pull_requests.py`, `scripts/mcp_servers/github/tools_pull_requests.py`, `tests/mcp_servers/github/test_github_tool_registry.py`, `tests/mcp_servers/github/test_github_request_validation.py`) | Completed | 20261124-210000 | 20261124-225623 | REQ-002..REQ-005, REQ-009 Procedures 04, 09 archived with 14/15 extended. PR domain models incl. no-op update rejection. |
+| 4 | Migrate file domain (`scripts/mcp_servers/github/github_models_file.py`, `scripts/mcp_servers/github/tools_file.py`, `tests/mcp_servers/github/test_github_tool_registry.py`, `tests/mcp_servers/github/test_github_request_validation.py`) | Completed | 20261124-212000 | 20261124-225623 | REQ-002..REQ-005, REQ-009 Procedures 05, 11 archived with 14/15 extended. File domain models incl. nested PushFile and push_files minItems. |
+| 5 | Migrate repository domain (`scripts/mcp_servers/github/github_models_repository.py`, `scripts/mcp_servers/github/tools_repository.py`, `tests/mcp_servers/github/test_github_tool_registry.py`, `tests/mcp_servers/github/test_github_request_validation.py`) | Completed | 20261124-214000 | 20261124-225623 | REQ-002..REQ-005, REQ-009 Procedures 06, 10 archived with 14/15 extended. Repository domain models, per_page 1..100, default 30. |
+| 6 | Runtime dispatch alignment + HTTP rejection tests (`scripts/mcp_servers/github/github_service_dispatch.py`, `scripts/mcp_servers/github/github_service_dispatch_writes.py`, `tests/mcp_servers/github/test_github_server_endpoints.py`) | Completed | 20261124-215500 | 20261124-225623 | REQ-008 Procedures 12, 13, 17 archived. model_validate dispatch, ValidationError to GitHubValidationError, HTTP-level reject/accept tests. |
+| 7 | Configuration strictness + config tests (`scripts/mcp_servers/github/github_models_config.py`, `tests/mcp_servers/github/test_github_config_strict_parsing.py`) | Completed | 20261124-203500 | 20261124-225623 | REQ-006, REQ-007 Procedure 07 archived. github_models_config.py strict parsing + tests/mcp_servers/github/test_github_config_strict_parsing.py. |
+| 8 | Documentation updates + full validation + deploy hand-off (`docs/22_mcp/mcp_04_01_web-search-file-read-github.md`, `docs/22_mcp/mcp_06_01_configuration-file-inventory.md`) | Pending | — | — | Deploy is the user's decision (approval gate) Docs rows landed (procedures 18, 19 archived) and the end-of-batch validation run passed for this batch's files. Remaining: deploy hand-off, which is the user's decision (approval gate), plus the deferred UNK-01 live push_files provider check. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -301,23 +301,23 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261124-181931_01_scripts_mcp_servers_request_contract.py.md | 1 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_03_scripts_mcp_servers_github_github_models_issues.py.md | 2 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_04_scripts_mcp_servers_github_github_models_pull_requests.py.md | 3 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_05_scripts_mcp_servers_github_github_models_file.py.md | 4 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_06_scripts_mcp_servers_github_github_models_repository.py.md | 5 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_07_scripts_mcp_servers_github_github_models_config.py.md | 7 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_08_scripts_mcp_servers_github_tools_issues.py.md | 2 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_09_scripts_mcp_servers_github_tools_pull_requests.py.md | 3 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_10_scripts_mcp_servers_github_tools_repository.py.md | 5 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_11_scripts_mcp_servers_github_tools_file.py.md | 4 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_12_scripts_mcp_servers_github_github_service_dispatch.py.md | 6 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_13_scripts_mcp_servers_github_github_service_dispatch_writes.py.md | 6 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_14_tests_mcp_servers_github_test_github_tool_registry.py.md | 2-5 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_15_tests_mcp_servers_github_test_github_request_validation.py.md | 2-5 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_17_tests_mcp_servers_github_test_github_server_endpoints.py.md | 6 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_18_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 8 | Procedure | Pending | agent | — |
-| implementations/20261124-181931_19_docs_22_mcp_mcp_06_01_configuration-file-inventory.md.md | 8 | Procedure | Pending | agent | — |
+| implementations/20261124-181931_01_scripts_mcp_servers_request_contract.py.md | 1 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_03_scripts_mcp_servers_github_github_models_issues.py.md | 2 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_04_scripts_mcp_servers_github_github_models_pull_requests.py.md | 3 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_05_scripts_mcp_servers_github_github_models_file.py.md | 4 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_06_scripts_mcp_servers_github_github_models_repository.py.md | 5 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_07_scripts_mcp_servers_github_github_models_config.py.md | 7 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_08_scripts_mcp_servers_github_tools_issues.py.md | 2 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_09_scripts_mcp_servers_github_tools_pull_requests.py.md | 3 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_10_scripts_mcp_servers_github_tools_repository.py.md | 5 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_11_scripts_mcp_servers_github_tools_file.py.md | 4 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_12_scripts_mcp_servers_github_github_service_dispatch.py.md | 6 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_13_scripts_mcp_servers_github_github_service_dispatch_writes.py.md | 6 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_14_tests_mcp_servers_github_test_github_tool_registry.py.md | 2-5 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_15_tests_mcp_servers_github_test_github_request_validation.py.md | 2-5 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_17_tests_mcp_servers_github_test_github_server_endpoints.py.md | 6 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_18_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 8 | Procedure | Completed | agent | — |
+| implementations/20261124-181931_19_docs_22_mcp_mcp_06_01_configuration-file-inventory.md.md | 8 | Procedure | Completed | agent | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

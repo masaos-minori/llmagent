@@ -11,7 +11,16 @@ from typing import TypedDict
 
 from shared.tool_metadata import TOOL_FIELD_SET_VERSION, ResourceKeyKind
 
+from mcp_servers.github.github_models_repository import (
+    CreateBranchRequest,
+    GetCommitRequest,
+    ListBranchesRequest,
+    ListCommitsRequest,
+    SearchCodeRequest,
+    SearchRepositoriesRequest,
+)
 from mcp_servers.models import McpTool
+from mcp_servers.request_contract import build_input_schema
 
 
 # Shared metadata fields: "status" and "config_dependent" are byte-for-byte
@@ -72,20 +81,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "Search GitHub repositories. Use to find OSS projects, libraries, and reference implementations"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Repository search query (GitHub Search syntax)",
-                },
-                "per_page": {
-                    "type": "integer",
-                    "description": "Maximum number of results (default: configured)",
-                },
-            },
-            "required": ["query"],
-        },
+        "inputSchema": build_input_schema(SearchRepositoriesRequest),
         **_GITHUB_REPOSITORY_TOOL_METADATA_HEAD,
         "is_write": False,
         "agent_safety_tier": "READ_ONLY",
@@ -102,14 +98,7 @@ TOOL_LIST: list[McpTool] = [
             "Retrieve the list of branches for a GitHub repository. "
             "Use to check working branches and protected branches"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-            },
-            "required": ["owner", "repo"],
-        },
+        "inputSchema": build_input_schema(ListBranchesRequest),
         **_GITHUB_REPOSITORY_TOOL_METADATA_HEAD,
         "is_write": False,
         "agent_safety_tier": "READ_ONLY",
@@ -126,22 +115,7 @@ TOOL_LIST: list[McpTool] = [
             "Create a branch in a GitHub repository. "
             "Use to set up a working branch for new feature development or bug fixes"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-                "branch_name": {
-                    "type": "string",
-                    "description": "Name of the new branch to create",
-                },
-                "from_branch": {
-                    "type": "string",
-                    "description": "Base branch to derive from (default: repo default)",
-                },
-            },
-            "required": ["owner", "repo", "branch_name"],
-        },
+        "inputSchema": build_input_schema(CreateBranchRequest),
         **_GITHUB_REPOSITORY_TOOL_METADATA_HEAD,
         "is_write": True,
         "agent_safety_tier": "WRITE_SAFE",
@@ -157,18 +131,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "Retrieve the commit history for a GitHub repository. Use to review change history and work progress"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-                "branch": {
-                    "type": "string",
-                    "description": "Branch name (default: default branch)",
-                },
-            },
-            "required": ["owner", "repo"],
-        },
+        "inputSchema": build_input_schema(ListCommitsRequest),
         **_GITHUB_REPOSITORY_TOOL_METADATA_HEAD,
         "is_write": False,
         "agent_safety_tier": "READ_ONLY",
@@ -185,18 +148,7 @@ TOOL_LIST: list[McpTool] = [
             "Retrieve details of a specific commit in a GitHub repository. "
             "Use to check changed file count, commit message, and author"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-                "sha": {
-                    "type": "string",
-                    "description": "Commit SHA (full or abbreviated)",
-                },
-            },
-            "required": ["owner", "repo", "sha"],
-        },
+        "inputSchema": build_input_schema(GetCommitRequest),
         **_GITHUB_REPOSITORY_TOOL_METADATA_HEAD,
         "is_write": False,
         "agent_safety_tier": "READ_ONLY",
@@ -212,16 +164,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "Full-text search for code on GitHub. Use to find implementation examples of specific functions or patterns"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Code search query (e.g. 'vec0 language:C')",
-                },
-            },
-            "required": ["query"],
-        },
+        "inputSchema": build_input_schema(SearchCodeRequest),
         **_GITHUB_REPOSITORY_TOOL_METADATA_HEAD,
         "is_write": False,
         "agent_safety_tier": "READ_ONLY",

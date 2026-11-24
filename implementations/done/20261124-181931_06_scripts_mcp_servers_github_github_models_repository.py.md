@@ -6,7 +6,9 @@ REQ-008 strict base).
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- Modifies only `scripts/mcp_servers/github/github_models_repository.py` (Plan Phase 5).
+- Modifies `scripts/mcp_servers/github/github_models_repository.py` (Plan Phase 5), plus the two
+  repository-domain request constructions in `github_service_dispatch.py` / `github_service_dispatch_writes.py`
+  that the branch sentinels invalidate, and one clamp test (Step 3a findings, see Compatibility).
 - Response models (`SearchRepositoriesResponse`, `ListCommitsResponse`, `SearchCodeResponse`,
   `ListBranchesResponse`, `GetCommitResponse`, `CreateBranchResponse`) and the info models
   (`RepositoryInfo`, `CommitInfo`, `CodeSearchResult`, `BranchInfo`, `CommitDetail`) stay plain
@@ -81,6 +83,18 @@ REQ-008 strict base).
 - Effective default page size for `github_search_repositories`, `github_list_commits`,
   `github_search_code`, `github_list_branches` stays 30 (previously hard-coded in
   `github_service_dispatch.py`); the published schema now declares `default: 30` for them.
+- Step 3a findings:
+  - `DEFAULT_PER_PAGE` has no remaining use in this file after the four defaults move to 30, so its
+    import is removed. Nothing imports it from here (`github_models.py` re-exports it from
+    `github_models_config.py`, and `tests/mcp_servers/github/test_github_server_auth.py` imports it
+    from `github_models_config`), so the removal breaks no caller.
+  - The same interim dispatch problem seq 05 recorded applies to this domain:
+    `github_service_dispatch.py` passed `branch=args.get("branch", "")` and
+    `github_service_dispatch_writes.py` passed `from_branch=args.get("from_branch", "")`, so an absent
+    key arrived as an explicitly empty value and was rejected by the new sentinels. Both call sites now
+    pass an absent key as absent; seq 12-13 replace them with `model_validate(args)`.
+  - `tests/mcp_servers/github/test_service_repository.py::test_per_page_clamped_to_config_max` passed
+    `per_page=999`, which `le=100` rejects; changed to `per_page=50` so the config cap is still exercised.
 
 ## Security considerations
 - The hard `le=100` caps page size before any GitHub API call, independent of config drift.
@@ -111,10 +125,10 @@ REQ-008 strict base).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply strict base + bounds to the six repository request models | Pending | — | — | REQ-004, REQ-005 |
-| 2 | Add the branch sentinel validators | Pending | — | — | REQ-004 |
-| 3 | Confirm coverage through the seq 15 repository cases and seq 14 drift gate | Pending | — | — | T-02, T-03 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | |
+| 1 | Apply strict base + bounds to the six repository request models | Completed | 20261124-212453 | 20261124-212453 | REQ-004, REQ-005 Changed: scripts/mcp_servers/github/github_models_repository.py, scripts/mcp_servers/github/github_service_dispatch.py, scripts/mcp_servers/github/github_service_dispatch_writes.py, tests/mcp_servers/github/test_service_repository.py. |
+| 2 | Add the branch sentinel validators | Completed | 20261124-212453 | 20261124-212453 | REQ-004 _reject_empty_branch and _reject_empty_from_branch after-validators; DEFAULT_PER_PAGE import removed (no remaining use in this file). |
+| 3 | Confirm coverage through the seq 15 repository cases and seq 14 drift gate | Completed | 20261124-212453 | 20261124-212453 | T-02, T-03 Targeted run: tests/mcp_servers/github/ = 358 passed. T-02/T-03 cases land in seq 14/15. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | ruff format/check, mypy pass; bandit/lint-imports/module-size and the full-suite run are the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

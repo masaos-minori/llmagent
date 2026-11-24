@@ -364,10 +364,14 @@ class TestGetRepoBoundary:
     def test_non_canonical_allowlist_entry_is_reported_instead_of_never_matching(
         self,
     ) -> None:
+        """Defense-in-depth behind the REQ-007 startup gate.
+
+        `GitHubConfig.from_dict` canonicalizes `owner/repo` entries from mcpai003 on, so a
+        non-canonical entry only reaches this guard through a directly constructed config;
+        the guard must still report it instead of silently matching nothing.
+        """
         gh = MagicMock()
-        svc = GitHubService(
-            gh=gh, cfg=GitHubConfig.from_dict({"allowed_repos": ["Org/Repo"]})
-        )
+        svc = GitHubService(gh=gh, cfg=GitHubConfig(allowed_repos=["Org/Repo"]))
         with pytest.raises(GitHubAuthorizationError, match="cannot match a repository"):
             svc._get_repo("org", "repo")
         gh.get_repo.assert_not_called()

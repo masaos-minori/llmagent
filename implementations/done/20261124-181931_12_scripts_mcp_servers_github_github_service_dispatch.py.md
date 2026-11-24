@@ -77,6 +77,15 @@ and report failures as `GitHubValidationError` (REQ-008, discovery-time and runt
   `max_per_page` is below 100.
 - `tests/mcp_servers/github/test_service_dispatch.py` pins the tool count (`== 21` at line 698) and
   must keep passing; its model-construction expectations are updated with the seq 17 document.
+- Step 3a verification: the pinned count and every read-path test in `test_service_dispatch.py` pass
+  unchanged; no read-domain test needed editing in this row (the seq 13 row edited one write-path test).
+- Step 3a finding: the `state=args.get("state", "open")` overrides in `fmt_list_issues` and
+  `fmt_list_pull_requests` were dropped along with the `per_page` overrides — `ListIssuesRequest.state`
+  and `ListPullRequestsRequest.state` declare `default="open"`, so the effective default is unchanged and
+  the published `default: "open"` now matches runtime behaviour.
+- Step 3a verification: dropping `per_page=args.get("per_page", 30)` / `(…, 10)` keeps the effective
+  defaults identical because seq 06 and seq 03/04 declare `default=30` (four repository-domain models) and
+  `default=10` (issues/PR-domain models).
 
 ## Security considerations
 - Unknown-field rejection closes the silent-drop path before any GitHub read call, and page size is
@@ -112,10 +121,10 @@ and report failures as `GitHubValidationError` (REQ-008, discovery-time and runt
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the 12 read-domain model constructions with `_validate_request(...)` | Pending | — | — | REQ-008; needs seq 13 first |
-| 2 | Drop the local `per_page` overrides and confirm defaults match the models | Pending | — | — | seq 06 defaults |
-| 3 | Confirm the seq 17 HTTP tests prove no service call on invalid input | Pending | — | — | T-05 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | T-06 |
+| 1 | Replace the 12 read-domain model constructions with `_validate_request(...)` | Completed | 20261124-215221 | 20261124-215221 | REQ-008; needs seq 13 first Changed: scripts/mcp_servers/github/github_service_dispatch.py. All 12 read-domain fmt_* build req = _validate_request(Model, args); no args[...] construction remains. seq 13 landed first as this row's Assumptions require. |
+| 2 | Drop the local `per_page` overrides and confirm defaults match the models | Completed | 20261124-215221 | 20261124-215221 | seq 06 defaults per_page and state overrides dropped; effective defaults unchanged (30 repo-domain, 10 issues/PR-domain, open) and now equal the published defaults. |
+| 3 | Confirm the seq 17 HTTP tests prove no service call on invalid input | Completed | 20261124-225226 | 20261124-225226 | T-05 Read-path tests in test_service_dispatch.py pass unchanged (396 in tests/mcp_servers/github/). The HTTP-level no-service-call assertions are seq 17's row. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | T-06 ruff format/check, mypy pass on this file. bandit/lint-imports/module-size/diff-cover and the full-suite run are the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

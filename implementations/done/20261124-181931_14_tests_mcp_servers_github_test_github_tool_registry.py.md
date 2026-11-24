@@ -93,10 +93,10 @@ publication).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_TOOL_MODEL_MAP` (new) and the coverage test | Pending | — | — | REQ-009 |
-| 2 | Add the schema-equality, `dry_run`, and determinism tests | Pending | — | — | REQ-009, REQ-003 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | T-02, T-06 |
-| 4 | Update documentation | Pending | — | — | N/A: docs rows are seq 18-19 |
+| 1 | Add `_TOOL_MODEL_MAP` (new) and the coverage test | Completed | 20261124-222813 | 20261124-222813 | REQ-009 REQ-009 _TOOL_MODEL_MAP covers all 21 tools; test_tool_model_map_covers_tool_list green. |
+| 2 | Add the schema-equality, `dry_run`, and determinism tests | Completed | 20261124-222813 | 20261124-222813 | REQ-009, REQ-003 REQ-009, REQ-003 equality, dry_run (9 write tools, default false), and determinism tests green. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | T-02, T-06 T-02, T-06 pytest test_github_tool_registry.py + test_tool_schema_contract.py = 45 passed; ruff clean. Deliberate drift check: a hand-written maximum:99 on github_search_repositories made the gate fail, then reverted (not committed). Note: changing only a model bound does NOT fail this gate because both sides regenerate from the same model. ruff and the targeted pytest run pass; mypy/bandit/lint-imports/module-size and diff-cover are the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
+| 4 | Update documentation | Completed | 20261124-222813 | 20261124-222813 | N/A: docs rows are seq 18-19 N/A: docs rows are seq 18-19. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -6,7 +6,8 @@ malformed (REQ-006 shared strict config helpers; REQ-007 shared `owner/repo` ide
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- Modifies only `scripts/mcp_servers/github/github_models_config.py` (Plan Phase 7).
+- Modifies only `scripts/mcp_servers/github/github_models_config.py` (Plan Phase 7), plus two existing
+  tests the new parsing invalidates (Step 3a findings, see Compatibility).
 - `scripts/mcp_servers/github/github_service_security.py` is a reference, not a target: its
   `_clamp_per_page`, non-canonical-allowlist branch, and `server.per_page_bounds` posture check stay
   in place as defense-in-depth.
@@ -100,6 +101,20 @@ malformed (REQ-006 shared strict config helpers; REQ-007 shared `owner/repo` ide
   `test_github_health_posture.py`) bypass `from_dict`/`load` and are unaffected.
 - Deployment restart is required for the new startup rules to take effect (Plan Phase 8 hand-off;
   user approval gate).
+- Step 3a findings (two existing tests invalidated by the new parsing, both adjusted in this row):
+  - `tests/mcp_servers/github/test_github_mcp_service.py::test_negative_max_disables_check` asserted a
+    negative `max_file_size_kb` was accepted and disabled the size guard. `get_non_negative_number`
+    rejects negatives at parse time, so the case is now `test_negative_max_is_rejected_at_parse_time`;
+    `0` remains the documented "no limit" value and its test is unchanged.
+  - `tests/mcp_servers/github/test_service_security.py::TestGetRepoBoundary::test_non_canonical_allowlist_entry_is_reported_instead_of_never_matching`
+    built the non-canonical entry through `from_dict`, which now canonicalizes it, so the runtime guard
+    never saw it. The test now constructs `GitHubConfig(allowed_repos=["Org/Repo"])` directly, which
+    keeps the runtime non-canonical branch covered as the defense-in-depth gate this row keeps.
+- Implementation note (procedure step 5): the dedup is implemented as a module-level
+  `_normalize_allowed_repos()` helper rather than a literal `sorted(set(...))`, because a plain
+  `sorted(set(...))` raises `TypeError` when a config mixes strings with non-strings (`123`), which the
+  same step requires `from_dict` to survive. Canonicalizable entries are lower-cased, deduplicated and
+  sorted; malformed entries are kept unchanged in input order so `load` can name them.
 
 ## Security considerations
 - Startup rejection turns silently weak postures (reversed pagination bounds, unmatchable allowlist
@@ -133,11 +148,11 @@ malformed (REQ-006 shared strict config helpers; REQ-007 shared `owner/repo` ide
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Switch booleans, size keys, and pagination keys to the strict shared helpers | Pending | — | — | REQ-006 |
-| 2 | Canonicalize/deduplicate `allowed_repos` in `from_dict` | Pending | — | — | REQ-007 |
-| 3 | Add the three `load` fail-fast rules and update its docstring | Pending | — | — | REQ-006, REQ-007 |
-| 4 | Add companion tests `tests/mcp_servers/github/test_github_config_strict_parsing.py` (T-04) | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | |
+| 1 | Switch booleans, size keys, and pagination keys to the strict shared helpers | Completed | 20261124-213502 | 20261124-213502 | REQ-006 Changed: scripts/mcp_servers/github/github_models_config.py, tests/mcp_servers/github/test_github_mcp_service.py, tests/mcp_servers/github/test_service_security.py. |
+| 2 | Canonicalize/deduplicate `allowed_repos` in `from_dict` | Completed | 20261124-213502 | 20261124-213502 | REQ-007 _normalize_allowed_repos(): normalize_repo_key + dedup, sorted canonical + malformed in input order. |
+| 3 | Add the three `load` fail-fast rules and update its docstring | Completed | 20261124-213502 | 20261124-213502 | REQ-006, REQ-007 Three load rules added after the protected_branches rule; load docstring states them. |
+| 4 | Add companion tests `tests/mcp_servers/github/test_github_config_strict_parsing.py` (T-04) | Completed | 20261124-213502 | 20261124-213502 | tests/mcp_servers/github/test_github_config_strict_parsing.py: 38 T-04 cases, incl. the shipped-config load regression. |
+| 5 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | ruff format/check, mypy pass; tests/mcp_servers/github/ = 396 passed. bandit/lint-imports/module-size and the full-suite run are the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

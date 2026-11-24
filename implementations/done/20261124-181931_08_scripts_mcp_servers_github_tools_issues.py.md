@@ -73,6 +73,14 @@ discovered contract equals the runtime contract and `dry_run` becomes visible on
   `body` over 65536, more than 100 `labels`/`assignees`, and a `state` value outside the model pattern.
 - `tests/mcp_servers/test_tool_schema_contract.py` imports these `TOOL_LIST` exports and validates
   metadata fields only; it must keep passing without edits.
+- Step 3a verification: the published `inputSchema` now carries the request model's docstring as the
+  schema-root `description` (seq 01 keeps `description` because it is authored, not generated). The tool
+  entry's own `description` field is unchanged, so the two texts differ and seq 18 must not treat the
+  schema-root one as the tool description.
+- Step 3a verification: agent-side callers are unaffected — `tests/agent/test_tool_approval_repos.py`,
+  `test_tool_result_formatter.py`, `test_tool_approval_risk.py`, `test_tool_approval_preflight.py`,
+  `test_agent_repl_tool_exec.py` (the only tests outside `tests/mcp_servers/` that call these tools) all
+  pass with the enforced schema.
 - `/v1/tools` payload changes for these five tools; tool names, count (5), ports, and the
   `mcp_01_tool_ownership_matrix.md` generated block are unchanged (`generate_reference_table.py --check`).
 
@@ -107,10 +115,10 @@ discovered contract equals the runtime contract and `dry_run` becomes visible on
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the five `inputSchema` literals with `build_input_schema()` calls | Pending | — | — | REQ-002 |
-| 2 | Confirm `dry_run` publication for the two write tools | Pending | — | — | REQ-003 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | T-02, T-06 |
-| 4 | Update documentation | Pending | — | — | N/A: recorded by seq 18 |
+| 1 | Replace the five `inputSchema` literals with `build_input_schema()` calls | Completed | 20261124-213707 | 20261124-213707 | REQ-002 Changed: scripts/mcp_servers/github/tools_issues.py. Five inputSchema literals replaced; no hand-written schema text remains. |
+| 2 | Confirm `dry_run` publication for the two write tools | Completed | 20261124-213707 | 20261124-213707 | REQ-003 Dumped TOOL_LIST: dry_run (default false) published on github_create_issue and github_add_issue_comment; per_page now published on github_list_issues. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | T-02, T-06 ruff format/check, mypy, check_module_size, generate_reference_table --check pass; tests/mcp_servers/github/ + test_tool_schema_contract.py = 411 passed; 5 agent-side tool tests = 234 passed. bandit/lint-imports and the full-suite run are the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
+| 4 | Update documentation | Completed | 20261124-213707 | 20261124-213707 | N/A: recorded by seq 18 N/A: recorded by seq 18. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

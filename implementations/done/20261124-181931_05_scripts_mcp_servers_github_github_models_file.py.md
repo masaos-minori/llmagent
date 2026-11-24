@@ -7,7 +7,9 @@ bounds; REQ-008 strict base). This row also produces the Plan's only nested mode
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- Modifies only `scripts/mcp_servers/github/github_models_file.py` (Plan Phase 4).
+- Modifies `scripts/mcp_servers/github/github_models_file.py` (Plan Phase 4), plus the four file-domain
+  request constructions in `github_service_dispatch.py` / `github_service_dispatch_writes.py` that the
+  sentinel validators invalidate (Step 3a finding, see Compatibility).
 - Response models (`GetFileContentsResponse`, `CreateOrUpdateFileResponse`, `PushFilesResponse`,
   `DeleteRepoFileResponse`) stay plain `BaseModel`.
 
@@ -75,6 +77,15 @@ bounds; REQ-008 strict base). This row also produces the Plan's only nested mode
   `dry_run` happens at seq 11.
 - The 1 MiB bound is a second, independent guard to `max_file_size_kb = 1024`: the model rejects
   before any HTTP request, the guard still protects against a lower configured cap.
+- Step 3a finding: the dispatch builders materialized the sentinels themselves
+  (`ref=args.get("ref", "")`, `branch=args.get("branch", "")`, `sha=args.get("sha", "")`), so a client
+  that omitted the key arrived at the model as an explicitly empty value and 9 existing tests failed.
+  The four file-domain call sites now pass an absent key as absent
+  (`**({"ref": args["ref"]} if "ref" in args else {})`), which keeps every intermediate state green;
+  seq 13 step 4 replaces these constructions with `_validate_request(Model, args)` and deletes the
+  per-key `args.get(...)` arguments, so the interim form does not persist.
+- Step 3a finding: the module docstring claimed `Dependency direction: ... → mcp_servers.github.github_models_config`,
+  which the file never imported; corrected to `→ mcp_servers.request_contract`.
 
 ## Security considerations
 - Rejecting an empty `sha` on delete removes the "delete without a confirmed blob" path; the
@@ -106,10 +117,10 @@ bounds; REQ-008 strict base). This row also produces the Plan's only nested mode
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply strict base + bounds to the five file request models and `PushFile` | Pending | — | — | REQ-004, REQ-005 |
-| 2 | Add the empty-sentinel validators for `ref`/`branch`/`sha` | Pending | — | — | REQ-004 |
-| 3 | Confirm coverage through the seq 15 file cases and seq 14 drift gate | Pending | — | — | T-02, T-03 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | |
+| 1 | Apply strict base + bounds to the five file request models and `PushFile` | Completed | 20261124-212049 | 20261124-212049 | REQ-004, REQ-005 Changed: scripts/mcp_servers/github/github_models_file.py, scripts/mcp_servers/github/github_service_dispatch.py, scripts/mcp_servers/github/github_service_dispatch_writes.py. |
+| 2 | Add the empty-sentinel validators for `ref`/`branch`/`sha` | Completed | 20261124-212049 | 20261124-212049 | REQ-004 Three after-validators (_reject_empty_ref, _reject_empty_sentinels, _reject_empty_branch). Step 3a finding: dispatch passed args.get(...,"") for absent keys, so 9 tests failed until the four file-domain call sites were changed to pass an absent key as absent. |
+| 3 | Confirm coverage through the seq 15 file cases and seq 14 drift gate | Completed | 20261124-212049 | 20261124-212049 | T-02, T-03 Targeted run: tests/mcp_servers/github/ = 358 passed. T-02/T-03 cases land in seq 14/15. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | ruff format/check, mypy pass; bandit/lint-imports/module-size and the full-suite run are the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

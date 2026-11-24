@@ -32,8 +32,13 @@ inherits the base; every GitHub tools row (seq 08-11) calls the generator.
   module imports MCP server config models" stay KEPT. GitHub code reaches it as
   `from mcp_servers.request_contract import ...`.
 - Stripping rule is a single recursive pass that deletes the `title` key at the schema root, in
-  every `$defs` entry, and in every nested property/items/sub-schema dict. No renaming,
+  every `$defs` entry, and in every nested sub-schema dict. No renaming,
   no sorting, no flattening, no injection of keywords the model did not declare.
+- `properties`, `$defs`, and `patternProperties` are name-to-sub-schema maps, not schema nodes: the
+  pass recurses into their values and never deletes one of their keys. A request model field named
+  `title` (`CreateIssueRequest.title`, `CreatePullRequestRequest.title`) is a key of `properties`, so a
+  pass that deleted `title` from every dict it descended into would remove that field from the
+  published schema (Step 3a finding, verified against pydantic 2.13.4 output).
 - The generator is a pure function: no module-level cache, no config access, no I/O, so two calls
   on the same model class return an equal dict (AC-02).
 
@@ -57,14 +62,17 @@ inherits the base; every GitHub tools row (seq 08-11) calls the generator.
    that points to `scripts/mcp_servers/models.py` lines 107 and 169 as the existing
    `extra="forbid"` precedent.
 3. Define `build_input_schema` (new) as a function calling `model.model_json_schema()` once, then a private
-   `_strip_presentation_fields(node)` helper that recurses through dict values and list items and
-   removes `title` keys.
+   `_strip_presentation_fields(node)` helper that removes the `title` key from each schema node and
+   recurses into its sub-schemas: dict values, the values of name-to-sub-schema maps, and dict items
+   of lists.
 4. Export both names in `__all__`.
 
 ### Method
-- Recursion handles the three container shapes pydantic emits: `properties` maps, `$defs` maps, and
-  `items`/anyOf/allOf lists of sub-schemas; deleting `title` wherever it appears keeps the rule
-  version-independent instead of enumerating pydantic internals.
+- Recursion handles the container shapes pydantic emits: `properties`, `$defs`, and
+  `patternProperties` maps, `items`/`additionalProperties` sub-schemas, and `anyOf`/`allOf`/`oneOf`
+  lists of sub-schemas. Deleting `title` from every schema node, while treating the name-to-sub-schema
+  maps as containers whose keys are field and definition names, keeps the rule version-independent
+  instead of enumerating pydantic internals.
 - Nothing else in the returned dict is touched, so a future pydantic that adds a validation keyword
   passes through without a code change (REQ-002 "preserving ... everything else").
 
@@ -77,7 +85,7 @@ inherits the base; every GitHub tools row (seq 08-11) calls the generator.
 
 ### Companion test files
 - `tests/mcp_servers/test_request_contract.py` (new)
-  - Procedure: unit tests per Plan T-01 — determinism across repeated calls and dict ordering, preservation of default, enum, pattern, minimum, maximum, minLength, maxLength, minItems, maxItems, `$defs`, `$ref`, additionalProperties, required, items, and stripping of every generated title key.
+  - Procedure: unit tests per Plan T-01 — determinism across repeated calls and dict ordering, preservation of default, enum, pattern, minimum, maximum, minLength, maxLength, minItems, maxItems, `$defs`, `$ref`, additionalProperties, required, items, and stripping of every generated title key. Include a model whose field is named `title` and assert the field remains in `properties` with its bounds after stripping.
   - Validation: `uv run pytest tests/mcp_servers/test_request_contract.py` (T-01).
 
 ## Compatibility considerations
@@ -116,10 +124,10 @@ inherits the base; every GitHub tools row (seq 08-11) calls the generator.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `scripts/mcp_servers/request_contract.py` per Procedure/Method/Details | Pending | — | — | REQ-001, REQ-002 |
-| 2 | Add companion tests `tests/mcp_servers/test_request_contract.py` (T-01) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | ruff, mypy, lint-imports, module size |
-| 4 | Update documentation | Pending | — | — | N/A: documentation rows are seq 18-19 |
+| 1 | Implement `scripts/mcp_servers/request_contract.py` per Procedure/Method/Details | Completed | 20261124-210654 | 20261124-210654 | REQ-001, REQ-002 Changed: scripts/mcp_servers/request_contract.py, tests/mcp_servers/test_request_contract.py. Step 3b correction: title-stripping pass must treat properties/$defs as name-to-sub-schema maps (a model field named title is a properties key). |
+| 2 | Add companion tests `tests/mcp_servers/test_request_contract.py` (T-01) | Completed | 20261124-210654 | 20261124-210654 | 11 tests in tests/mcp_servers/test_request_contract.py pass (T-01). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | ruff, mypy, lint-imports, module size ruff format/check, mypy, lint-imports (6 KEPT), check_module_size, bandit pass; full-suite run is the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
+| 4 | Update documentation | Completed | 20261124-210654 | 20261124-210654 | N/A: documentation rows are seq 18-19 N/A: no docs/00_index.md task-scope row for this file; documentation is owned by seq 18-19. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

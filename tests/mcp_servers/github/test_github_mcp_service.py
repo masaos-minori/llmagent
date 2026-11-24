@@ -157,9 +157,10 @@ class TestAssertMaxFileSize:
             with pytest.raises(GitHubValidationError):
                 svc._assert_max_file_size("a" * 1025, "big.txt")
 
-    def test_negative_max_disables_check(self) -> None:
-        svc = _make_service({"max_file_size_kb": -1})
-        svc._assert_max_file_size("x" * 10_000_000, "big.bin")  # no raise
+    def test_negative_max_is_rejected_at_parse_time(self) -> None:
+        """A negative limit is a config error, not a 'disable the check' value (mcpai003 REQ-006)."""
+        with pytest.raises(ValueError, match="max_file_size_kb"):
+            GitHubConfig.from_dict({"max_file_size_kb": -1})
 
     def test_missing_max_key_disables_check(self) -> None:
         with _patch_cfg({}) as svc:

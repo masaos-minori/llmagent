@@ -134,7 +134,7 @@ class TestListPullRequests:
         mock_repo = svc._gh.get_repo.return_value
         mock_repo.get_pulls.return_value = [_make_mock_pr(number=n) for n in range(10)]
 
-        req = ListPullRequestsRequest(owner="org", repo="repo", per_page=999)
+        req = ListPullRequestsRequest(owner="org", repo="repo", per_page=50)
         resp = await svc.list_pull_requests(req)
 
         assert len(resp.pull_requests) == 3
@@ -315,12 +315,20 @@ class TestUpdatePullRequest:
 
     @pytest.mark.asyncio
     async def test_skips_edit_call_when_no_fields_set(self) -> None:
+        """Defense-in-depth behind the REQ-004 contract.
+
+        `UpdatePullRequestRequest` now rejects a no-op update at the model level, so
+        the only way to reach the service with no field to change is to bypass model
+        validation; the `if kwargs:` guard must still avoid a pointless API call.
+        """
         svc = _make_service()
         mock_repo = svc._gh.get_repo.return_value
         mock_pr = _make_mock_pr(number=5)
         mock_repo.get_pull.return_value = mock_pr
 
-        req = UpdatePullRequestRequest(owner="org", repo="repo", pr_number=5)
+        req = UpdatePullRequestRequest.model_construct(
+            owner="org", repo="repo", pr_number=5
+        )
         resp = await svc.update_pull_request(req)
 
         mock_pr.edit.assert_not_called()

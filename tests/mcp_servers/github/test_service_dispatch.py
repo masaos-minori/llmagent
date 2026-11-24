@@ -34,6 +34,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from mcp_servers.github.github_models import GitHubConfig
 from mcp_servers.github.github_models_base import IssueInfo, PullRequestInfo
+from mcp_servers.github.github_models_config import GitHubValidationError
 from mcp_servers.github.github_models_file import (
     CreateOrUpdateFileResponse,
     DeleteRepoFileResponse,
@@ -550,15 +551,20 @@ class TestFmtUpdatePullRequest:
         )
         svc.update_pull_request.assert_not_awaited()
 
-    async def test_dry_run_preview_no_changes_placeholder(self) -> None:
+    async def test_update_with_no_field_to_change_is_rejected(self) -> None:
+        """REQ-004: the request model rejects an update that changes nothing.
+
+        The dispatch layer converts the model's error into the domain exception type, so
+        the caller never sees `pydantic.ValidationError`.
+        """
         svc = _make_service()
         svc.update_pull_request = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
 
-        result = await svc.fmt_update_pull_request(
-            {"owner": "org", "repo": "repo", "pr_number": 4, "dry_run": True}
-        )
-
-        assert '"Would update PR #4 in org/repo: (no changes)"' in result
+        with pytest.raises(GitHubValidationError, match="UpdatePullRequestRequest"):
+            await svc.fmt_update_pull_request(
+                {"owner": "org", "repo": "repo", "pr_number": 4, "dry_run": True}
+            )
+        svc.update_pull_request.assert_not_awaited()
 
     async def test_dry_run_preview_lists_a_body_only_change(self) -> None:
         """A body-only update is a change the preview has to report."""

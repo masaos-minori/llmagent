@@ -57,6 +57,15 @@ Publish the pull-requests-domain schemas from their request models (REQ-002, gen
   pattern; `github_update_pull_request` with no update field (runtime model rule, not a schema keyword).
 - `tests/mcp_servers/test_tool_schema_contract.py` and `tests/mcp_servers/github/test_github_tool_registry.py`
   pin tool names/counts (21 overall): unchanged by this row.
+- Step 3a verification: the three optional `str | None` fields of `github_update_pull_request`
+  (`title`, `body`, `state`) publish as `anyOf: [{...string bounds}, {"type": "null"}]` with
+  `default: null`. The agent-side gate calls `jsonschema.validate(args, inputSchema)`
+  (`scripts/agent/tool_arg_validator.py:204`), which supports `anyOf`, so the published contract stays
+  enforceable for those fields.
+- Step 3a verification: the no-op update rule (this row's model validator) has no JSON Schema keyword, so
+  the published schema advertises the field-level contract only. A client that sends
+  `github_update_pull_request` with none of `title`/`body`/`state` passes the agent-side gate and is
+  rejected by the model at dispatch; seq 18 must state this and seq 15/17 test it.
 
 ## Security considerations
 - Rejecting empty `head`/`base` and `pr_number < 1` in the published contract prevents ambiguous write
@@ -85,10 +94,10 @@ Publish the pull-requests-domain schemas from their request models (REQ-002, gen
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the six `inputSchema` literals with `build_input_schema()` calls | Pending | — | — | REQ-002 |
-| 2 | Confirm `dry_run` publication for the three write tools | Pending | — | — | REQ-003 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | T-02, T-06 |
-| 4 | Update documentation | Pending | — | — | N/A: recorded by seq 18 |
+| 1 | Replace the six `inputSchema` literals with `build_input_schema()` calls | Completed | 20261124-213918 | 20261124-213918 | REQ-002 Changed: scripts/mcp_servers/github/tools_pull_requests.py (-107/+15 lines). Six literals replaced via a line-based swap script (explicit tool->model table, ast.parse validated) because seq 08-11 repeat the same replacement. |
+| 2 | Confirm `dry_run` publication for the three write tools | Completed | 20261124-213918 | 20261124-213918 | REQ-003 Dumped TOOL_LIST: dry_run published on create/update/merge pull_request; per_page published on list_pull_requests with minimum 1 / maximum 100. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | T-02, T-06 ruff format/check, mypy, check_module_size, generate_reference_table --check, lint-imports (6 KEPT) pass; tests/mcp_servers/github/ + test_tool_schema_contract.py = 411 passed. Full-suite run is the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
+| 4 | Update documentation | Completed | 20261124-213918 | 20261124-213918 | N/A: recorded by seq 18 N/A: recorded by seq 18. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

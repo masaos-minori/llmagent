@@ -56,6 +56,14 @@ Publish the repository-domain schemas from their request models (REQ-002) and ex
   `from_branch` supplied explicitly.
 - The comment at the top of this file about unscoped search tools keeps its meaning: scope metadata is
   untouched by this row.
+- Step 3a verification: the six pre-existing published property sets were dumped before the swap
+  (`github_search_repositories`: `per_page`/`query`; `github_list_branches`: `owner`/`repo`;
+  `github_create_branch`: `branch_name`/`from_branch`/`owner`/`repo`; `github_list_commits`:
+  `branch`/`owner`/`repo`; `github_get_commit`: `owner`/`repo`/`sha`; `github_search_code`: `query`).
+  Every one is a subset of the generated `properties`, so no field a client can call today stops being
+  accepted; only unknown keys and out-of-bound values become errors.
+- Step 3a verification: the four paginated schemas now carry `default: 30`, `minimum: 1`, `maximum: 100`,
+  and `github_create_branch` publishes `dry_run` with `default: false`.
 
 ## Security considerations
 - Advertising `maximum: 100` lets the agent-side gate refuse oversized pages before the request
@@ -83,10 +91,10 @@ Publish the repository-domain schemas from their request models (REQ-002) and ex
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the six `inputSchema` literals with `build_input_schema()` calls | Pending | — | — | REQ-002 |
-| 2 | Confirm `dry_run` publication for `github_create_branch` | Pending | — | — | REQ-003 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | T-02, T-06 |
-| 4 | Update documentation | Pending | — | — | N/A: recorded by seq 18 |
+| 1 | Replace the six `inputSchema` literals with `build_input_schema()` calls | Completed | 20261124-214015 | 20261124-214015 | REQ-002 Changed: scripts/mcp_servers/github/tools_repository.py. Six literals replaced by build_input_schema() via the seq 09 swap script. |
+| 2 | Confirm `dry_run` publication for `github_create_branch` | Completed | 20261124-214015 | 20261124-214015 | REQ-003 TOOL_LIST dump: dry_run (default false) published on github_create_branch only; per_page now published on list_branches/list_commits/search_code with default 30. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | T-02, T-06 ruff format/check, mypy pass; tests/mcp_servers/github/ + test_tool_schema_contract.py = 411 passed. check_module_size/lint-imports/reference-table were run green after seq 09; full-suite run is the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
+| 4 | Update documentation | Completed | 20261124-214015 | 20261124-214015 | N/A: recorded by seq 18 N/A: recorded by seq 18. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

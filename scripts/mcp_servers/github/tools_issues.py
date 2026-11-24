@@ -11,7 +11,15 @@ from typing import TypedDict
 
 from shared.tool_metadata import TOOL_FIELD_SET_VERSION, ResourceKeyKind
 
+from mcp_servers.github.github_models_issues import (
+    AddIssueCommentRequest,
+    CreateIssueRequest,
+    GetIssueRequest,
+    ListIssuesRequest,
+    SearchIssuesRequest,
+)
 from mcp_servers.models import McpTool
+from mcp_servers.request_contract import build_input_schema
 
 
 # Shared metadata fields: "status" and "config_dependent" are byte-for-byte
@@ -70,18 +78,7 @@ TOOL_LIST: list[McpTool] = [
             "Retrieve the list of issues for a GitHub repository. "
             "Use to check bug reports, feature requests, and known issues"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-                "state": {
-                    "type": "string",
-                    "description": "Issue state: open / closed / all (default: open)",
-                },
-            },
-            "required": ["owner", "repo"],
-        },
+        "inputSchema": build_input_schema(ListIssuesRequest),
         **_GITHUB_ISSUE_TOOL_METADATA_HEAD,
         "is_write": False,
         "agent_safety_tier": "READ_ONLY",
@@ -97,15 +94,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "Retrieve a specific issue from a GitHub repository. Use to check issue details, body, and state"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-                "issue_number": {"type": "integer", "description": "Issue number"},
-            },
-            "required": ["owner", "repo", "issue_number"],
-        },
+        "inputSchema": build_input_schema(GetIssueRequest),
         **_GITHUB_ISSUE_TOOL_METADATA_HEAD,
         "is_write": False,
         "agent_safety_tier": "READ_ONLY",
@@ -121,29 +110,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "Create an issue in a GitHub repository. Use to report bugs or request features"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-                "title": {"type": "string", "description": "Issue title"},
-                "body": {
-                    "type": "string",
-                    "description": "Issue body (Markdown, optional)",
-                },
-                "labels": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of label names (optional)",
-                },
-                "assignees": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of assignee GitHub usernames (optional)",
-                },
-            },
-            "required": ["owner", "repo", "title"],
-        },
+        "inputSchema": build_input_schema(CreateIssueRequest),
         **_GITHUB_ISSUE_TOOL_METADATA_HEAD,
         "is_write": True,
         "agent_safety_tier": "WRITE_SAFE",
@@ -160,20 +127,7 @@ TOOL_LIST: list[McpTool] = [
             "Keyword search for issues/PRs across all of GitHub. "
             "Use to cross-search known bugs and discussions for specific projects"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Search query (e.g. 'repo:owner/repo is:issue')",
-                },
-                "per_page": {
-                    "type": "integer",
-                    "description": "Maximum number of results (default: configured)",
-                },
-            },
-            "required": ["query"],
-        },
+        "inputSchema": build_input_schema(SearchIssuesRequest),
         **_GITHUB_ISSUE_TOOL_METADATA_HEAD,
         "is_write": False,
         "agent_safety_tier": "READ_ONLY",
@@ -190,19 +144,7 @@ TOOL_LIST: list[McpTool] = [
             "Post a comment to an issue in a GitHub repository. "
             "Use to report progress, ask questions, or add information"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "owner": {"type": "string", "description": "Repository owner name"},
-                "repo": {"type": "string", "description": "Repository name"},
-                "issue_number": {
-                    "type": "integer",
-                    "description": "Issue number to add the comment to",
-                },
-                "body": {"type": "string", "description": "Comment body (Markdown)"},
-            },
-            "required": ["owner", "repo", "issue_number", "body"],
-        },
+        "inputSchema": build_input_schema(AddIssueCommentRequest),
         **_GITHUB_ISSUE_TOOL_METADATA_HEAD,
         "is_write": True,
         "agent_safety_tier": "WRITE_SAFE",

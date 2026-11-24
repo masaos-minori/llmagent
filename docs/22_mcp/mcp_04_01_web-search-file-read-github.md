@@ -80,6 +80,12 @@ See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_
 **Purpose:** GitHub API via PyGithub. Performs reads and writes to GitHub repositories.
 **Startup Mode:** `subprocess` (HTTP) in the default configuration. `startup_mode = "none"` in `config/agent.toml` disables the server: the Agent performs no subprocess startup or lifecycle operations for it.
 **Configuration:** `config/github_mcp_server.toml`
+
+**Input contract:** every tool's `inputSchema` is generated from its request model, so the schema a client discovers on `/v1/tools` and the validation `/v1/call_tool` performs are one source rather than two descriptions that can drift. Request models are strict: unknown fields are rejected instead of ignored, declared bounds and patterns are published in the schema, write tools expose `dry_run`, and `github_push_files` declares its file entries as a nested definition. A call whose arguments fail validation returns an error result naming the request model and the offending fields; arguments are never silently dropped.
+
+- Newly rejected argument shapes: unknown fields, empty text where an identifier or query is required, numbers outside the published range, oversized file content, empty or oversized file lists, and a `github_update_pull_request` call that changes nothing.
+- Newly accepted arguments: `dry_run` on the write tools, and `per_page` on the repository listing and code-search tools, which the models accept but the previous published schemas did not advertise.
+
 **Authentication:** `GITHUB_TOKEN` environment variable (PAT). If unset, every tool is reported disabled (`GITHUB_TOKEN is not set`) and `/v1/call_tool` rejects every call with `Tool disabled: GITHUB_TOKEN is not set`; there is no usable anonymous mode through the MCP tools. The process still starts with an unauthenticated client (startup warning about the API rate limit) and reports `degraded` health, but the disabled-tool gate prevents any tool from using that client. All tools are `config_dependent: true`.
 
 **Security controls (`config/github_mcp_server.toml`):**
@@ -91,7 +97,7 @@ See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_
 - `max_file_size_kb` (0 = unlimited) rejects larger content.
 - `allow_force_push` is disabled unless `true`; it only gates `merge_pull_request` by rejecting `merge_method="rebase"` and does not block other force-push equivalents.
 - `require_pr_review` is on unless `false`; `merge_pull_request` then requires at least one `APPROVED` review.
-- `max_per_page` clamps requested `per_page`; the default listing size is a module constant, not a configuration key.
+- `max_per_page` clamps requested `per_page` below the bound the request models declare. The models validate `per_page` against their own published range, so a value above that range is rejected as an argument error rather than silently clamped; the config value only lowers the effective cap further, and the model default decides the listing size when `per_page` is omitted.
 
 **Guard coverage (layered protection):**
 
@@ -101,7 +107,7 @@ See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_
 - **Postcondition verification:** not applicable in the current plan, because the GitHub API response carries the resulting state and no local before/after comparison is performed. `push_files` returns the new commit SHA without inspecting the ref update result, so it does not confirm that the ref moved; confirming ref movement without an extra API call is a follow-up (Plan UNK-02).
 - **Audit:** `call_tool` writes one `mcp_tool_exec` record (to `github-mcp.log`) per dispatched call (`server_key="github"`, `target` = `repo={owner}/{repo}` with the canonical lowercase key); a disabled-tool rejection returns before the audit call and writes no record. The service also writes the dedicated `github_audit.log`, and a failure to write it raises `GitHubAuditError` (HTTP 500) instead of being ignored. Before/after state snapshots are not applicable.
 
-**Error mapping:** PyGithub `GithubException` is converted to domain exceptions by status (404 NotFound, 403 Authorization, 409 Conflict, 400/422 Validation, others Upstream 502); `GitHubAuditError` is 500. Mapping is registered in `exception_handlers.py`.
+**Error mapping:** PyGithub `GithubException` is converted to domain exceptions by status (404 NotFound, 403 Authorization, 409 Conflict, 400/422 Validation, others Upstream 502); `GitHubAuditError` is 500. Mapping is registered in `exception_handlers.py`. Local argument rejection is a separate outcome from that upstream mapping: `/v1/call_tool` answers it with an error result (`is_error: true`, HTTP 200) whose text names the request model and the offending fields without echoing the values, and the domain routers answer the same domain error type with HTTP 400.
 
 **Health:** `dependencies.github_token="not_set"` when the token is missing (`degraded`, HTTP 503); otherwise `ok`.
 **Logs:** `<log_dir>/github-mcp.log`

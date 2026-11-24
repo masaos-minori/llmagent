@@ -152,7 +152,7 @@ class TestSearchRepositories:
             _make_mock_repo_result(full_name=f"org/repo{n}") for n in range(10)
         ]
 
-        req = SearchRepositoriesRequest(query="q", per_page=999)
+        req = SearchRepositoriesRequest(query="q", per_page=50)
         resp = await svc.search_repositories(req)
 
         assert len(resp.results) == 3

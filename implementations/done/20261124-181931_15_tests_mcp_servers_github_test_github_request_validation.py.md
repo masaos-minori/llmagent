@@ -106,11 +106,11 @@ and accepts everything else (T-03, REQ-004/REQ-005 model coverage).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the file and `TestIssuesModel` (new) with seq 03 | Pending | — | — | T-03 |
-| 2 | Add `TestPullRequestsModel` (new) with seq 04 (incl. no-op update case) | Pending | — | — | T-03 |
-| 3 | Add `TestFileModel` (new) with seq 05 (incl. nested `PushFile` and sentinel cases) | Pending | — | — | T-03 |
-| 4 | Add `TestRepositoryModel` (new) with seq 06 (incl. default 30 pin) | Pending | — | — | T-03 |
-| 5 | Run the validation sequence (`rules/toolchain.md`) for this file | Pending | — | — | T-06 |
+| 1 | Create the file and `TestIssuesModel` (new) with seq 03 | Completed | 20261124-222825 | 20261124-222825 | T-03 T-03 TestIssuesModel: reject/accept tables plus title/body length pins. |
+| 2 | Add `TestPullRequestsModel` (new) with seq 04 (incl. no-op update case) | Completed | 20261124-222825 | 20261124-222825 | T-03 T-03 TestPullRequestsModel: incl. test_update_pull_request_requires_a_field. |
+| 3 | Add `TestFileModel` (new) with seq 05 (incl. nested `PushFile` and sentinel cases) | Completed | 20261124-222825 | 20261124-222825 | T-03 T-03 TestFileModel: incl. nested PushFile unknown-key case and the file-domain ref/branch/sha sentinels. |
+| 4 | Add `TestRepositoryModel` (new) with seq 06 (incl. default 30 pin) | Completed | 20261124-222825 | 20261124-222825 | T-03 T-03 TestRepositoryModel: per_page 1..100 tables, default 30 pin, and the branch/from_branch sentinel test. |
+| 5 | Run the validation sequence (`rules/toolchain.md`) for this file | Completed | 20261124-225226 | 20261124-225226 | T-06 T-06 122 passed (uv run pytest tests/mcp_servers/github/test_github_request_validation.py -p no:randomly); ruff format/check clean. ruff and the targeted pytest run pass; mypy/bandit/lint-imports/module-size and diff-cover are the end-of-batch run. End-of-batch run (rules/toolchain.md, Batch mode): full pytest 13959 passed / 5 skipped / 6 errors; all 6 errors are the pre-existing tests/tools/test_append_plan_work_items.py contract mismatch (issues/20261124-155017_qa001_append-plan-attr-mismatch.md), none in this batch's files. ruff format+check, mypy, lint-imports, check_module_size, bandit, check_docstrings (after adding the em-dash separator to scripts/mcp_servers/request_contract.py), and diff-cover --fail-under 90 Pass. pre-commit run --all-files fails only on 14 pre-existing procedure-length findings in implementations/20261124-122732_* (issues/20261124-155017_qa002_workitem-structure-unknowns-kind.md); check_workitem_structure --file on this batch's documents reports no findings. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

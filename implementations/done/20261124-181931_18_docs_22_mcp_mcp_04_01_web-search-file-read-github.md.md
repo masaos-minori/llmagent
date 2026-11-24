@@ -40,8 +40,8 @@ Record the new github-mcp input contract in the server catalog doc (docs row 18)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Input contract paragraph, changed-input lists, `max_per_page` rewrite | Pending | — | — | REQ-001, REQ-003, REQ-005, REQ-008 |
-| 2 | Run the docs gates | Pending | — | — | |
+| 1 | Input contract paragraph, changed-input lists, `max_per_page` rewrite | Completed | 20261124-222851 | 20261124-222851 | REQ-001, REQ-003, REQ-005, REQ-008 REQ-001, REQ-003, REQ-005, REQ-008 Input contract paragraph + newly rejected/accepted bullets added after Configuration; max_per_page bullet rewritten to model-bound-then-config-clamp; Error mapping extended with the local-rejection outcome (is_error true / HTTP 200 on /v1/call_tool, HTTP 400 on the domain routers). |
+| 2 | Run the docs gates | Completed | 20261124-222851 | 20261124-222851 | check_docs_quality, check_docs_structure (this file), check_docs_content_policy --strict, check_docs_consistency --domain mcp, check_docs_japanese: all clean. |
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
