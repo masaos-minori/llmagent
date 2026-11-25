@@ -8,7 +8,8 @@ files):
     including the audit record's session_id/request_id field order and the
     request_id `request.state` vs. header fallback)
   - GET  /health (healthy and degraded-by-missing-token paths)
-  - _dispatch_github_tool()
+  - _dispatch_github_tool(), including the applied-audit-failure conversion and
+    the call-identity binding around the handler
   - GithubMCPServer.dispatch()
 
 These tests lock the current, observed behavior of the thin FastAPI wiring
@@ -41,6 +42,7 @@ from mcp_servers.execution_context import (
 from mcp_servers.github import github_server
 from mcp_servers.github.github_models import GitHubConfig
 from mcp_servers.github.github_models_base import IssueInfo, PullRequestInfo
+from mcp_servers.github.github_models_config import GitHubAppliedAuditError
 from mcp_servers.github.github_models_file import (
     CreateOrUpdateFileResponse,
     DeleteRepoFileResponse,
@@ -71,6 +73,7 @@ from mcp_servers.github.github_models_repository import (
     SearchRepositoriesResponse,
 )
 from mcp_servers.github.github_service_dispatch import GitHubService
+from mcp_servers.github.github_service_security import _CALL_IDENTITY
 
 from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
 
@@ -95,6 +98,7 @@ class _FakeService:
 
     def __init__(self) -> None:
         self._dispatch_table: dict[str, Any] = {}
+        self.audit_failure_count = 0
 
     def get_dispatch_table(self) -> dict[str, Any]:
         return self._dispatch_table
@@ -472,7 +476,10 @@ class TestHealthEndpoint:
         assert body["status"] == "degraded"
         assert body["ready"] is False
         assert body["dependencies"] == {"github_token": "not_set"}
-        assert body["details"] == {"service": "github-mcp"}
+        assert body["details"] == {
+            "service": "github-mcp",
+            "audit_failure_count": 0,
+        }
 
     def test_healthy_when_github_token_set(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
@@ -486,7 +493,10 @@ class TestHealthEndpoint:
         assert body["status"] == "ok"
         assert body["ready"] is True
         assert body["dependencies"] == {}
-        assert body["details"] == {"service": "github-mcp"}
+        assert body["details"] == {
+            "service": "github-mcp",
+            "audit_failure_count": 0,
+        }
 
     def test_health_details_publish_the_dedup_block_when_a_store_is_wired(
         self,
@@ -499,9 +509,10 @@ class TestHealthEndpoint:
         assert resp.status_code == 200
         body = resp.json()
 
-        # The `service` key stays as it is; `dedup` is the single new key (REQ-004).
+        # The `service` key stays as it is; `dedup` is the single new key (REQ-004),
+        # and `audit_failure_count` reports the service's applied-audit failures (REQ-008).
         assert body["details"]["service"] == "github-mcp"
-        assert set(body["details"]) == {"service", "dedup"}
+        assert set(body["details"]) == {"service", "dedup", "audit_failure_count"}
         block = body["details"]["dedup"]
         assert set(block) == DEDUP_FIELDS
         assert block["db_path"] == str(isolated_dedup)
@@ -528,6 +539,118 @@ class TestDispatchGithubTool:
         assert result.output == "dispatched"
         assert result.is_error is False
         handler.assert_awaited_once_with({"owner": "acme", "repo": "widgets"})
+
+
+class TestDispatchGithubToolAppliedAuditAndIdentity:
+    """The wrapper binds the call identity around the handler and converts an
+    applied write whose completion audit failed into an explicit
+    applied_audit_failed result that says the write must not be retried."""
+
+    @pytest.mark.asyncio
+    async def test_applied_audit_failure_returns_applied_audit_failed(
+        self, fake_service: _FakeService
+    ) -> None:
+        handler = AsyncMock(
+            side_effect=GitHubAppliedAuditError(
+                "applied_audit_failed (create_issue): audit log write failed"
+            )
+        )
+        fake_service._dispatch_table["github_create_issue"] = handler
+        result = await github_server._dispatch_github_tool(
+            "github_create_issue",
+            {"owner": "acme", "repo": "widgets"},
+            context=ExecutionContext.for_programmatic_call(
+                "github_create_issue",
+                {"owner": "acme", "repo": "widgets"},
+                idempotency_key="key-applied-audit",
+            ),
+        )
+        assert result.is_error is True
+        assert result.error_type == "applied_audit_failed"
+        assert "applied_audit_failed" in result.output
+        assert "create_issue" in result.output
+        assert "do not retry" in result.output
+        # Arguments are never echoed into the result text.
+        assert "widgets" not in result.output
+
+    @pytest.mark.asyncio
+    async def test_call_identity_is_bound_during_the_handler(
+        self, fake_service: _FakeService
+    ) -> None:
+        seen: list[tuple[str, str, str]] = []
+
+        def record(args: dict) -> str:
+            seen.append(_CALL_IDENTITY.get())
+            return "ok"
+
+        handler = AsyncMock(side_effect=record)
+        fake_service._dispatch_table["github_create_branch"] = handler
+        result = await github_server._dispatch_github_tool(
+            "github_create_branch",
+            {"owner": "acme", "repo": "widgets"},
+            context=ExecutionContext(
+                request_id="req-identity",
+                session_id="sess-identity",
+                idempotency_key="key-identity",
+            ),
+        )
+        assert result.is_error is False
+        assert seen == [("sess-identity", "req-identity", "key-identity")]
+        # The binding is reset on exit so a later call cannot inherit it.
+        assert _CALL_IDENTITY.get() == ("", "", "")
+
+    def test_call_tool_passes_the_request_identity_to_the_wrapper(
+        self, client: TestClient, fake_service: _FakeService
+    ) -> None:
+        seen: list[tuple[str, str, str]] = []
+
+        def record(args: dict) -> str:
+            seen.append(_CALL_IDENTITY.get())
+            return "ok"
+
+        fake_service._dispatch_table["github_create_branch"] = AsyncMock(
+            side_effect=record
+        )
+        resp = client.post(
+            "/v1/call_tool",
+            json={
+                "name": "github_create_branch",
+                "args": {"owner": "acme", "repo": "widgets"},
+            },
+            headers={
+                "x-session-id": "sess-call",
+                "x-idempotency-key": "key-call",
+            },
+        )
+        assert resp.status_code == 200
+        assert seen == [("sess-call", resp.headers["x-request-id"], "key-call")]
+
+    @pytest.mark.asyncio
+    async def test_programmatic_call_records_show_empty_identity(
+        self, fake_service: _FakeService
+    ) -> None:
+        """The programmatic override passes no request ids, so its records show `-`."""
+        seen: list[tuple[str, str, str]] = []
+
+        def record(args: dict) -> str:
+            seen.append(_CALL_IDENTITY.get())
+            return "ok"
+
+        fake_service._dispatch_table["github_create_branch"] = AsyncMock(
+            side_effect=record
+        )
+        server = github_server.GithubMCPServer()
+        result = await server.dispatch(
+            "github_create_branch",
+            {"owner": "acme", "repo": "widgets"},
+            context=ExecutionContext.for_programmatic_call(
+                "github_create_branch",
+                {"owner": "acme", "repo": "widgets"},
+                idempotency_key="key-prog",
+            ),
+        )
+        assert result.is_error is False
+        assert seen == [("", "", "key-prog")]
 
 
 class TestGithubMCPServerDispatch:

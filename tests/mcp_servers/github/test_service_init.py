@@ -1,16 +1,13 @@
 """tests/mcp_servers/github/test_service_init.py
 
-Characterization tests for scripts/mcp_servers/github/github_service_init.py.
+Tests for scripts/mcp_servers/github/github_service_init.py (mcpai006 REQ-002).
 
-The module builds its `_gh` / `_GITHUB_TOKEN` singletons at import time from the
-`GITHUB_TOKEN` environment variable, so the "token is set" branch (line 24: an
-authenticated `Github(auth=Auth.Token(...))` client, and the warning log at
-line 26-29 being skipped) is never exercised by the existing test suite —
-every other test imports this module with `GITHUB_TOKEN` unset (verified via
-`rg GITHUB_TOKEN tests/` during the 04_refactor.md sweep of this subsystem;
-baseline branch coverage was 82%, missing line 24 and branch 26->32). These
-tests reload the module under both environment states to lock its current,
-verbatim import-time behavior before any refactor.
+The module no longer builds a client at import time: `build_client` constructs
+the client from the token and the configured timeouts with library retry
+disabled, and `build_service` wires it into `GitHubService`. These tests pin the
+no-retry construction, the `(connect, read)` timeout tuple passed to `requests`
+(accepted at runtime although the annotation says `int`), the warning for an
+empty token, the environment read at import, and the factory wiring.
 """
 
 from __future__ import annotations
@@ -22,59 +19,62 @@ import mcp_servers.github.github_service_init as service_init
 from github import Auth, Github
 
 
-class TestModuleLevelClientInitialization:
-    """Lock the singleton client construction behavior at import time."""
+class TestBuildClient:
+    def test_retry_is_disabled(self) -> None:
+        gh = service_init.build_client("test-token-value", 5.0, 30.0)
+        assert isinstance(gh, Github)
+        assert gh.requester.kwargs["retry"] is None
+
+    def test_configured_timeouts_are_kept_as_a_tuple(self) -> None:
+        gh = service_init.build_client("test-token-value", 2.5, 12.0)
+        assert gh.requester.kwargs["timeout"] == (2.5, 12.0)
+
+    def test_token_builds_authenticated_client_without_warning(
+        self, monkeypatch, caplog
+    ) -> None:
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+        with caplog.at_level(
+            logging.WARNING, logger="mcp_servers.github.github_service_init"
+        ):
+            gh = service_init.build_client("test-token-value", 5.0, 30.0)
+        assert isinstance(gh.requester.auth, Auth.Token)
+        assert gh.requester.kwargs["retry"] is None
+        assert gh.requester.kwargs["timeout"] == (5.0, 30.0)
+        assert not any(
+            "GITHUB_TOKEN is not set" in record.message for record in caplog.records
+        )
 
     def test_no_token_builds_unauthenticated_client_and_warns(
         self, monkeypatch, caplog
     ) -> None:
-        """With GITHUB_TOKEN unset, _gh is an unauthenticated Github() and a warning is logged."""
         monkeypatch.delenv("GITHUB_TOKEN", raising=False)
-
         with caplog.at_level(
             logging.WARNING, logger="mcp_servers.github.github_service_init"
         ):
-            reloaded = importlib.reload(service_init)
+            gh = service_init.build_client("", 5.0, 30.0)
+        assert gh.requester.auth is None
+        assert gh.requester.kwargs["retry"] is None
+        assert gh.requester.kwargs["timeout"] == (5.0, 30.0)
+        assert any(
+            "GITHUB_TOKEN is not set" in record.message for record in caplog.records
+        )
 
-        try:
-            assert reloaded._GITHUB_TOKEN == ""
-            assert isinstance(reloaded._gh, Github)
-            assert reloaded._gh.requester.auth is None
-            assert any(
-                "GITHUB_TOKEN is not set" in record.message for record in caplog.records
-            )
-        finally:
-            monkeypatch.delenv("GITHUB_TOKEN", raising=False)
-            importlib.reload(service_init)
-
-    def test_token_set_builds_authenticated_client_without_warning(
-        self, monkeypatch, caplog
+    def test_github_token_is_read_from_the_environment_at_import(
+        self, monkeypatch
     ) -> None:
-        """With GITHUB_TOKEN set, _gh is authenticated via Auth.Token and no warning is logged."""
-        monkeypatch.setenv("GITHUB_TOKEN", "test-token-value")
-
-        with caplog.at_level(
-            logging.WARNING, logger="mcp_servers.github.github_service_init"
-        ):
-            reloaded = importlib.reload(service_init)
-
+        monkeypatch.setenv("GITHUB_TOKEN", "env-token-at-import")
+        importlib.reload(service_init)
         try:
-            assert reloaded._GITHUB_TOKEN == "test-token-value"
-            assert isinstance(reloaded._gh, Github)
-            assert isinstance(reloaded._gh.requester.auth, Auth.Token)
-            assert not any(
-                "GITHUB_TOKEN is not set" in record.message for record in caplog.records
-            )
+            assert service_init._GITHUB_TOKEN == "env-token-at-import"
         finally:
-            monkeypatch.delenv("GITHUB_TOKEN", raising=False)
             importlib.reload(service_init)
+
+    def test_no_module_level_client_is_constructed_at_import(self) -> None:
+        assert not hasattr(service_init, "_gh")
 
 
 class TestBuildService:
-    """Lock the build_service factory's construction call."""
-
-    def test_returns_github_service_wired_to_module_client_and_cfg(self) -> None:
-        """build_service passes the module-level _gh singleton and cfg through verbatim."""
+    def test_returns_github_service_wired_to_a_built_client_and_cfg(self) -> None:
         from mcp_servers.github.github_models_config import GitHubConfig
         from mcp_servers.github.github_service_dispatch import GitHubService
 
@@ -82,5 +82,8 @@ class TestBuildService:
         result = service_init.build_service(cfg)
 
         assert isinstance(result, GitHubService)
-        assert result._gh is service_init._gh
+        assert isinstance(result._gh, Github)
+        assert result._gh is not service_init  # built, not a module singleton
+        assert result._gh.requester.kwargs["retry"] is None
+        assert result._gh.requester.kwargs["timeout"] == (5.0, 30.0)
         assert result._cfg is cfg

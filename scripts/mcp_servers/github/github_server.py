@@ -46,6 +46,7 @@ from shared.repo_identity import normalize_repo_key
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
+from shared.write_outcome import APPLIED_AUDIT_FAILED
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
@@ -54,9 +55,13 @@ from mcp_servers.github.exception_handlers import setup_exception_handlers
 from mcp_servers.github.github_models import (
     GitHubConfig,
 )
+from mcp_servers.github.github_models_config import GitHubAppliedAuditError
 from mcp_servers.github.github_service_dispatch import GitHubService
 from mcp_servers.github.github_service_init import _GITHUB_TOKEN, build_service
-from mcp_servers.github.github_service_security import validate_github_security
+from mcp_servers.github.github_service_security import (
+    bind_call_identity,
+    validate_github_security,
+)
 from mcp_servers.github.github_tools import TOOL_LIST
 from mcp_servers.health_response import dedup_health_details, make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
@@ -179,7 +184,10 @@ async def health() -> JSONResponse:
     deps: dict[str, str] = {}
     if not _GITHUB_TOKEN:
         deps["github_token"] = "not_set"
-    details: dict[str, object] = {"service": "github-mcp"}
+    details: dict[str, object] = {
+        "service": "github-mcp",
+        "audit_failure_count": _service.audit_failure_count,
+    }
     details.update(dedup_health_details())
     result: JSONResponse = make_health_response(
         deps, details, security=_security_posture
@@ -193,12 +201,37 @@ async def health() -> JSONResponse:
 
 
 async def _dispatch_github_tool(
-    name: str, args: ToolArgs, context: ExecutionContext | None = None
+    name: str,
+    args: ToolArgs,
+    context: ExecutionContext | None = None,
+    *,
+    session_id: str = "",
+    request_id: str = "",
 ) -> DispatchResult:
-    """Route a tool call to GitHubService via its dispatch table."""
-    return await dispatch_tool(
-        _service.get_dispatch_table(), name, args, context=context
-    )
+    """Route a tool call to GitHubService via its dispatch table.
+
+    The call identity (session, request, idempotency key) is bound around the
+    dispatch so the intent and completion audit records of one call name the same
+    identifiers. A programmatic call passes no ids and its records show `-`.
+
+    An applied write whose completion audit failed is reported as
+    applied_audit_failed: the write already landed remotely, so the result text
+    says it must not be retried. Arguments are never echoed.
+    """
+    sid = session_id or (context.session_id if context else "")
+    rid = request_id or (context.request_id if context else "")
+    key = context.idempotency_key if context else ""
+    try:
+        with bind_call_identity(sid, rid, key):
+            return await dispatch_tool(
+                _service.get_dispatch_table(), name, args, context=context
+            )
+    except GitHubAppliedAuditError as e:
+        return DispatchResult(
+            output=f"{APPLIED_AUDIT_FAILED}: {e} The write was applied; do not retry.",
+            is_error=True,
+            error_type=APPLIED_AUDIT_FAILED,
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -243,7 +276,13 @@ async def call_tool(req: CallToolRequest, request: "Request") -> CallToolRespons
         return CallToolResponse(result=f"Validation error: {exc}", is_error=True)
     session_id, request_id = extract_request_context(request)[:2]
 
-    r = await _dispatch_github_tool(req.name, req.args, context=exec_ctx)
+    r = await _dispatch_github_tool(
+        req.name,
+        req.args,
+        context=exec_ctx,
+        session_id=session_id,
+        request_id=request_id,
+    )
     owner = str(req.args.get("owner", ""))
     repo = str(req.args.get("repo", ""))
     # The audit target names the same canonical identity the guard compared (REQ-002).

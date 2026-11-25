@@ -107,8 +107,8 @@ class FileOps(GitHubSecurityGuards):
                 operation=operation,
             )
 
-        result = await self._run_github(_sync)
-        self._write_github_audit_log(
+        result = await self._run_github(_sync, write=True)
+        self._complete_write_audit(
             "create_or_update_file",
             repo=f"{req.owner}/{req.repo}",
             branch=req.branch or "(default)",
@@ -152,8 +152,8 @@ class FileOps(GitHubSecurityGuards):
                 files_pushed=len(req.files),
             )
 
-        result = await self._run_github(_sync)
-        self._write_github_audit_log(
+        result = await self._run_github(_sync, write=True)
+        self._complete_write_audit(
             "push_files",
             repo=f"{req.owner}/{req.repo}",
             branch=req.branch,
@@ -181,8 +181,8 @@ class FileOps(GitHubSecurityGuards):
             raw = repo.delete_file(req.path, req.message, req.sha, **kwargs)
             return DeleteRepoFileResponse(path=req.path, commit_sha=raw["commit"].sha)
 
-        result = await self._run_github(_sync)
-        self._write_github_audit_log(
+        result = await self._run_github(_sync, write=True)
+        self._complete_write_audit(
             "delete_repo_file",
             repo=f"{req.owner}/{req.repo}",
             branch=req.branch or "(default)",

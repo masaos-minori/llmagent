@@ -21,6 +21,7 @@ from mcp_servers.github.github_models import (
     GitHubUpstreamError,
     GitHubValidationError,
 )
+from mcp_servers.github.github_models_config import GitHubOutcomeUnknownError
 
 
 def _build_test_app() -> FastAPI:
@@ -51,6 +52,10 @@ def _build_test_app() -> FastAPI:
     @app.get("/raise-audit")
     async def _raise_audit() -> None:
         raise GitHubAuditError("audit log write failed")
+
+    @app.get("/raise-outcome-unknown")
+    async def _raise_outcome_unknown() -> None:
+        raise GitHubOutcomeUnknownError("ambiguous transport failure")
 
     return app
 
@@ -88,8 +93,24 @@ class TestSetupExceptionHandlers:
         assert response.status_code == 502
         assert response.json() == {"detail": "upstream failed"}
 
-    def test_audit_error_returns_500(self) -> None:
+    def test_audit_error_returns_500_and_names_the_outcome(self) -> None:
         client = TestClient(_build_test_app())
         response = client.get("/raise-audit")
         assert response.status_code == 500
-        assert response.json() == {"detail": "audit log write failed"}
+        # A pre-write audit failure: nothing was applied, so the body says
+        # audit_failed rather than an ambiguous outcome.
+        assert response.json() == {
+            "detail": "audit log write failed",
+            "outcome": "audit_failed",
+        }
+
+    def test_outcome_unknown_error_returns_504_and_names_the_outcome(self) -> None:
+        """An ambiguous write outcome is 504, the status the Agent transport reads
+        as never-retried for a write tool."""
+        client = TestClient(_build_test_app())
+        response = client.get("/raise-outcome-unknown")
+        assert response.status_code == 504
+        assert response.json() == {
+            "detail": "ambiguous transport failure",
+            "outcome": "outcome_unknown",
+        }

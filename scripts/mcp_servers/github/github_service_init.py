@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""scripts/mcp_servers/github/github_service_init.py
-
-GitHub client initialization and lazy singleton proxy.
+"""scripts/mcp_servers/github/github_service_init.py — GitHub client construction
+from typed configuration.
 
 Produces:
-  _gh          — PyGithub Github instance (singleton)
+  build_client(token, connect_timeout_sec, read_timeout_sec) → Github
   build_service(cfg) → GitHubService
+
+The client is built per service, not at import time: there is no module-level
+`_gh` singleton. Library retry is disabled so a write is sent at most once per
+call (mcpai006 REQ-002); reads rely on the Agent transport's safe read retry.
 
 Import from here:  from mcp_servers.github.github_service_init import build_service
 """
@@ -16,21 +19,38 @@ import os
 from github import Auth, Github
 
 # GITHUB_TOKEN is set via environment variable or config file
-_github_token = os.environ.get("GITHUB_TOKEN", "")
-_GITHUB_TOKEN = _github_token
-if not _github_token:
-    _gh = Github()
-else:
-    _gh = Github(auth=Auth.Token(_github_token))
+_GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
-if not _github_token:
-    logging.getLogger(__name__).warning(
-        "GITHUB_TOKEN is not set; API rate limit will be 60 req/hr"
+
+def build_client(
+    token: str, connect_timeout_sec: float, read_timeout_sec: float
+) -> Github:
+    """Build a no-retry Github client with the configured timeouts.
+
+    `retry=None` disables PyGithub's built-in retry, which re-sends every 5xx
+    and 403 including writes. `Github.__init__` asserts `isinstance(timeout, int)`,
+    so the `(connect, read)` tuple is applied afterwards on the requester's
+    private timeout, which `requests` accepts verbatim.
+    """
+    logger = logging.getLogger(__name__)
+    if not token:
+        logger.warning("GITHUB_TOKEN is not set; API rate limit will be 60 req/hr")
+    gh = Github(
+        auth=Auth.Token(token) if token else None,
+        timeout=0,
+        retry=None,
     )
+    object.__setattr__(
+        gh.requester, "_Requester__timeout", (connect_timeout_sec, read_timeout_sec)
+    )
+    return gh
 
 
 def build_service(cfg):
     """Construct a GitHubService from a typed config object."""
     from mcp_servers.github.github_service_dispatch import GitHubService
 
-    return GitHubService(gh=_gh, cfg=cfg)
+    return GitHubService(
+        gh=build_client(_GITHUB_TOKEN, cfg.connect_timeout_sec, cfg.read_timeout_sec),
+        cfg=cfg,
+    )

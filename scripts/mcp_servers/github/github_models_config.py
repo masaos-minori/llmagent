@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import math
 from typing import Any
 
 from shared.config_loader import ConfigLoader
@@ -23,6 +24,32 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 
 DEFAULT_PER_PAGE: int = 10
+DEFAULT_CONNECT_TIMEOUT_SEC: float = 5.0
+DEFAULT_READ_TIMEOUT_SEC: float = 30.0
+
+
+def _get_positive_number(d: dict[str, Any], key: str, default: float) -> float:
+    """Return ``d[key]`` as a strictly positive finite number.
+
+    Uses the same strict style as the shared non-negative helper (rejects a
+    ``bool``, a non-number, a non-finite value), but rejects ``0`` as well: a
+    timeout must never be able to disable itself. A TOML integer is accepted as
+    a number and returned as ``float``. Raises ``ValueError`` naming the key and
+    the received value. Returns ``default`` when the key is absent or its value
+    is ``None``.
+    """
+    value = d.get(key)
+    if value is None:
+        return default
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(
+            f"'{key}' must be a number, got {type(value).__name__}: {value!r}"
+        )
+    if not math.isfinite(value):
+        raise ValueError(f"'{key}' must be a number, got non-finite value: {value!r}")
+    if value <= 0:
+        raise ValueError(f"'{key}' must be a number greater than 0, got {value!r}")
+    return float(value)
 
 
 def _normalize_allowed_repos(entries: list[Any]) -> list[Any]:
@@ -62,6 +89,8 @@ class GitHubConfig:
     allow_global_search: bool = False
     default_per_page: int = DEFAULT_PER_PAGE
     max_per_page: int = 100
+    connect_timeout_sec: float = DEFAULT_CONNECT_TIMEOUT_SEC
+    read_timeout_sec: float = DEFAULT_READ_TIMEOUT_SEC
     llm_url: str = ""
 
     auth_token: str = ""
@@ -100,6 +129,12 @@ class GitHubConfig:
             ),
             max_per_page=get_non_negative_number(
                 d, "max_per_page", int, "an integer", default=100
+            ),
+            connect_timeout_sec=_get_positive_number(
+                d, "connect_timeout_sec", DEFAULT_CONNECT_TIMEOUT_SEC
+            ),
+            read_timeout_sec=_get_positive_number(
+                d, "read_timeout_sec", DEFAULT_READ_TIMEOUT_SEC
             ),
             llm_url=get_str(d, "llm_url"),
             auth_token=get_str(d, "auth_token"),
@@ -172,3 +207,21 @@ class GitHubUpstreamError(RuntimeError):
 
 class GitHubAuditError(RuntimeError):
     """Raised when audit log writing fails and audit_log_path is configured."""
+
+
+class GitHubOutcomeUnknownError(RuntimeError):
+    """Raised when a write's transport failed ambiguously (timeout, connection loss after send).
+
+    A timeout never implies non-application: the write may already have landed
+    remotely, so the outcome is unknown and the call is never retried
+    automatically (mcpai006 REQ-003).
+    """
+
+
+class GitHubAppliedAuditError(GitHubAuditError):
+    """Raised when the completion audit fails after the write was applied.
+
+    The write landed; only the audit record is missing, so this is reported as
+    `applied_audit_failed` rather than a generic audit failure and is never
+    retried (mcpai006 REQ-005).
+    """

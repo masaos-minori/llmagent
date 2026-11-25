@@ -46,6 +46,7 @@ github-mcp additionally refuses to start when its configuration violates any of 
 - `max_file_size_kb` and `max_file_read_size_kb` must not be negative; `0` still means unlimited.
 - `default_per_page` and `max_per_page` must be positive, and `default_per_page` must not exceed `max_per_page`.
 - Every `allowed_repos` entry must be a canonical lower-case `owner/repo` key; entries that normalize to the same key are collapsed into one.
+- `connect_timeout_sec` and `read_timeout_sec` must be strictly positive numbers, so a timeout can never disable itself; the shipped config sets them to 5 and 30.
 
 The shipped `config/github_mcp_server.toml` satisfies all of them, so no config change accompanies these rules. → Canonical source: `scripts/mcp_servers/github/github_models_config.py` (`GitHubConfig.load()`).
 
@@ -117,8 +118,9 @@ not read by the server code (see `deployment_01_deployment.md`).
 Default values live in the config models and config files, not in this document
 (`McpServerConfig` in `shared/mcp_config.py` for transport timeouts; `McpServerHealthRegistry`
 in `shared/mcp_health.py` for the consecutive-failure threshold, which is a code constant and
-not a configuration key). Per-server limits (GitHub `max_per_page`, shell `max_timeout_sec`,
-git `max_log_entries`) are set in the owning `config/*_mcp_server.toml`.
+not a configuration key). Per-server limits (GitHub `max_per_page`, `connect_timeout_sec`, and
+`read_timeout_sec`, shell `max_timeout_sec`, git `max_log_entries`) are set in the owning
+`config/*_mcp_server.toml`.
 
 **Sandbox note:** `shell_sandbox_backend` in `config/shell_mcp_server.toml` is a plain config
 parameter; no profile switches it automatically. The only accepted backend is

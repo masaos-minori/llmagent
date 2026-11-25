@@ -89,6 +89,9 @@ class TestGithubToolClassification:
         assert GITHUB_READ_TOOLS.isdisjoint(GITHUB_DANGEROUS_TOOLS)
         assert GITHUB_WRITE_TOOLS.isdisjoint(GITHUB_DANGEROUS_TOOLS)
 
+    def test_no_github_tool_is_retryable(self) -> None:
+        assert GITHUB_TOOLS.isdisjoint(RETRYABLE_TOOLS)
+
 
 class TestRagToolClassification:
     def test_rag_tools_is_union_of_read_and_write(self) -> None:

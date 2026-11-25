@@ -3,7 +3,8 @@
 
 The nine github write tools build their request model, render the preview text a dry
 run would report, and hand both to _execute_with_dry_run(), which checks repository
-authorization before either mode runs. Read-only display formatters and
+authorization and writes the intent audit before a real run executes; a dry run audits
+nothing and calls no API. Read-only display formatters and
 get_dispatch_table() stay in service_dispatch, which composes this class.
 
 Dependency direction: service_dispatch_writes -> service_business, models
@@ -105,15 +106,21 @@ class WriteDispatchOps(_GitHubServiceCore):
         req: _DryRunRequest,
         preview_callback: Callable[[], str],
         execute_callback: Callable[[], Awaitable[str]],
+        *,
+        op: str,
     ) -> str:
         """Execute a GitHub operation with optional dry-run mode.
 
         Authorization is checked first for both modes, so a denied repository fails
-        identically whether or not the call is a dry run.
+        identically whether or not the call is a dry run. For a real run, the intent
+        audit is written after authorization and before the callback: a denied
+        repository audits nothing, and an unwritable audit path fails the call before
+        anything is applied. A dry run writes no audit and calls no API.
         """
         self._assert_allowed_repo(req.owner, req.repo)
         if req.dry_run:
             return self._dry_run_preview(preview_callback())
+        self._write_intent_audit(op, repo=f"{req.owner}/{req.repo}")
         return await execute_callback()
 
     async def fmt_create_branch(self, args: ToolArgs) -> str:
@@ -132,6 +139,7 @@ class WriteDispatchOps(_GitHubServiceCore):
                 f"Would create branch '{req.branch_name}' from '{from_b}' in {req.owner}/{req.repo}"
             ),
             _execute,
+            op="create_branch",
         )
 
     async def fmt_create_or_update_file(self, args: ToolArgs) -> str:
@@ -153,6 +161,7 @@ class WriteDispatchOps(_GitHubServiceCore):
                 f"Would {op} file '{req.path}' on branch '{branch}' in {req.owner}/{req.repo}"
             ),
             _execute,
+            op="create_or_update_file",
         )
 
     async def fmt_push_files(self, args: ToolArgs) -> str:
@@ -172,6 +181,7 @@ class WriteDispatchOps(_GitHubServiceCore):
                 f"Would push {len(paths)} file(s) to branch '{req.branch}' in {req.owner}/{req.repo}: {paths}"
             ),
             _execute,
+            op="push_files",
         )
 
     async def fmt_delete_file(self, args: ToolArgs) -> str:
@@ -190,6 +200,7 @@ class WriteDispatchOps(_GitHubServiceCore):
                 f"Would delete '{req.path}' from branch '{branch}' in {req.owner}/{req.repo}"
             ),
             _execute,
+            op="delete_repo_file",
         )
 
     async def fmt_create_issue(self, args: ToolArgs) -> str:
@@ -209,6 +220,7 @@ class WriteDispatchOps(_GitHubServiceCore):
                 f"Would create issue '{req.title}'{labels} in {req.owner}/{req.repo}"
             ),
             _execute,
+            op="create_issue",
         )
 
     async def fmt_add_issue_comment(self, args: ToolArgs) -> str:
@@ -226,6 +238,7 @@ class WriteDispatchOps(_GitHubServiceCore):
                 f"Would post comment on issue #{req.issue_number} in {req.owner}/{req.repo}"
             ),
             _execute,
+            op="add_issue_comment",
         )
 
     async def fmt_create_pull_request(self, args: ToolArgs) -> str:
@@ -244,6 +257,7 @@ class WriteDispatchOps(_GitHubServiceCore):
                 f"Would create PR '{req.title}' ({req.head} → {req.base}) in {req.owner}/{req.repo}"
             ),
             _execute,
+            op="create_pull_request",
         )
 
     async def fmt_update_pull_request(self, args: ToolArgs) -> str:
@@ -276,6 +290,7 @@ class WriteDispatchOps(_GitHubServiceCore):
                 f"Would update PR #{req.pr_number} in {req.owner}/{req.repo}: {changes}"
             ),
             _execute,
+            op="update_pull_request",
         )
 
     async def fmt_merge_pull_request(self, args: ToolArgs) -> str:
@@ -294,4 +309,5 @@ class WriteDispatchOps(_GitHubServiceCore):
                 f"Would merge PR #{req.pr_number} in {req.owner}/{req.repo} using method='{req.merge_method}'"
             ),
             _execute,
+            op="merge_pull_request",
         )

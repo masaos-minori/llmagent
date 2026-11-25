@@ -38,6 +38,8 @@ from mcp_servers.github.github_models_repository import (
 from mcp_servers.models import McpTool
 from mcp_servers.request_contract import build_input_schema
 from pydantic import BaseModel
+from shared.tool_constants import GITHUB_DANGEROUS_TOOLS, GITHUB_WRITE_TOOLS
+from shared.tool_metadata import retry_policy_is_retryable
 
 # Every published GitHub tool mapped to the request model its inputSchema must come
 # from. The coverage test below fails if a tool is added, removed, or renamed without
@@ -209,3 +211,20 @@ class TestGitHubModelSchemaConsistency:
         for tool_name in _TOOL_MODEL_MAP:
             published = _tool_by_name(tool_name)["inputSchema"]
             assert published == build_input_schema(_TOOL_MODEL_MAP[tool_name])
+
+
+class TestGitHubWriteRetryPolicy:
+    """REQ-001/REQ-009: every GitHub write declares retry_policy='never', so the
+    dedup retry class stays non_retryable for all nine."""
+
+    @pytest.mark.parametrize(
+        "tool_name", sorted(GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS)
+    )
+    def test_write_tools_declare_never(self, tool_name: str) -> None:
+        declared = _tool_by_name(tool_name)["retry_policy"]
+        assert declared == "never", (
+            f"{tool_name}: retry_policy is {declared!r}, expected 'never'"
+        )
+        assert not retry_policy_is_retryable(declared), (
+            f"{tool_name}: {declared!r} is classified retryable"
+        )

@@ -964,3 +964,95 @@ class TestDryRunPreviewContractCharacterization:
                 }
             )
         svc.create_branch.assert_not_awaited()
+
+
+# ── Intent audit in the dry-run funnel ────────────────────────────────────────
+
+
+class TestIntentAuditInFunnel:
+    """The funnel writes the intent audit after authorization and before the
+    callback for a real call; a dry run and a denied repository audit nothing,
+    and an intent failure prevents the callback."""
+
+    async def test_intent_audit_runs_before_the_callback_for_a_real_call(
+        self, tmp_path
+    ) -> None:
+        audit_path = tmp_path / "audit.log"
+        svc = GitHubService(
+            gh=MagicMock(),
+            cfg=GitHubConfig.from_dict(
+                {"allowed_repos": ["org/repo"], "audit_log_path": str(audit_path)}
+            ),
+        )
+        order: list[str] = []
+        real_write = svc._write_github_audit_log
+
+        def spy(op: str, **kwargs: object) -> None:
+            order.append(f"{op}:{kwargs.get('phase')}")
+            real_write(op, **kwargs)
+
+        svc._write_github_audit_log = spy  # type: ignore[method-assign]  — instance-level spy replaces the audit call to record ordering
+
+        def fake_create_issue(req: object) -> object:
+            order.append("callback")
+            return types.SimpleNamespace(
+                issue=types.SimpleNamespace(number=1, title="t", url="u")
+            )
+
+        svc.create_issue = AsyncMock(side_effect=fake_create_issue)  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call to record call order
+        result = await svc.fmt_create_issue(
+            {"owner": "org", "repo": "repo", "title": "t", "dry_run": False}
+        )
+        assert result == "Created: #1 t\nu"
+        assert order == ["create_issue:intent", "callback"]
+        record = audit_path.read_text(encoding="utf-8")
+        assert "op=create_issue phase=intent" in record
+        assert "repo='org/repo'" in record
+
+    async def test_dry_run_writes_no_intent_audit(self, tmp_path) -> None:
+        audit_path = tmp_path / "audit.log"
+        svc = GitHubService(
+            gh=MagicMock(),
+            cfg=GitHubConfig.from_dict(
+                {"allowed_repos": ["org/repo"], "audit_log_path": str(audit_path)}
+            ),
+        )
+        await svc.fmt_create_issue(
+            {"owner": "org", "repo": "repo", "title": "t", "dry_run": True}
+        )
+        assert not audit_path.exists()
+
+    async def test_denied_repository_writes_no_intent_audit(self, tmp_path) -> None:
+        from mcp_servers.github.github_models_config import GitHubAuthorizationError
+
+        audit_path = tmp_path / "audit.log"
+        svc = GitHubService(
+            gh=MagicMock(),
+            cfg=GitHubConfig.from_dict(
+                {"allowed_repos": ["org/repo"], "audit_log_path": str(audit_path)}
+            ),
+        )
+        with pytest.raises(GitHubAuthorizationError):
+            await svc.fmt_create_issue(
+                {"owner": "other", "repo": "repo", "title": "t", "dry_run": False}
+            )
+        assert not audit_path.exists()
+
+    async def test_intent_failure_prevents_the_callback(self) -> None:
+        from mcp_servers.github.github_models_config import GitHubAuditError
+
+        svc = GitHubService(
+            gh=MagicMock(),
+            cfg=GitHubConfig.from_dict(
+                {
+                    "allowed_repos": ["org/repo"],
+                    "audit_log_path": "/nonexistent/audit.log",
+                }
+            ),
+        )
+        svc.create_issue = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only the intent audit is under test here
+        with pytest.raises(GitHubAuditError):
+            await svc.fmt_create_issue(
+                {"owner": "org", "repo": "repo", "title": "t", "dry_run": False}
+            )
+        svc.create_issue.assert_not_awaited()

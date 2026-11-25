@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from shared.write_outcome import OUTCOME_UNKNOWN
 
 from mcp_servers.github.github_models import (
     GitHubAuditError,
@@ -20,6 +21,7 @@ from mcp_servers.github.github_models import (
     GitHubUpstreamError,
     GitHubValidationError,
 )
+from mcp_servers.github.github_models_config import GitHubOutcomeUnknownError
 
 
 def setup_exception_handlers(app: FastAPI) -> None:
@@ -60,7 +62,30 @@ def setup_exception_handlers(app: FastAPI) -> None:
         """Return 502 for upstream API failures."""
         return JSONResponse(status_code=502, content={"detail": str(exc)})
 
+    @app.exception_handler(GitHubOutcomeUnknownError)
+    async def _handle_outcome_unknown(
+        request: Request, exc: GitHubOutcomeUnknownError
+    ) -> JSONResponse:
+        """Return 504 for an ambiguous write outcome.
+
+        502 already carries definite upstream failures, so 504 is the status the
+        Agent transport reads as an outcome that cannot be retried.
+        """
+        return JSONResponse(
+            status_code=504,
+            content={"detail": str(exc), "outcome": OUTCOME_UNKNOWN},
+        )
+
     @app.exception_handler(GitHubAuditError)
     async def _handle_audit(request: Request, exc: GitHubAuditError) -> JSONResponse:
-        """Return 500 for audit logging failures."""
-        return JSONResponse(status_code=500, content={"detail": str(exc)})
+        """Return 500 for audit logging failures, naming the outcome.
+
+        A pre-write audit failure means nothing was applied, so the body reports
+        audit_failed rather than an ambiguous outcome. An applied write whose
+        completion audit failed is converted by the dispatcher before it reaches
+        here.
+        """
+        return JSONResponse(
+            status_code=500,
+            content={"detail": str(exc), "outcome": "audit_failed"},
+        )

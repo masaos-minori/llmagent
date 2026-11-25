@@ -76,8 +76,8 @@ class IssuesOps(GitHubSecurityGuards):
             )
             return issue_to_info(issue)
 
-        issue = await self._run_github(_sync)
-        self._write_github_audit_log(
+        issue = await self._run_github(_sync, write=True)
+        self._complete_write_audit(
             "create_issue",
             repo=f"{req.owner}/{req.repo}",
             number=issue.number,
@@ -116,8 +116,8 @@ class IssuesOps(GitHubSecurityGuards):
                 comment_url=comment.html_url,
             )
 
-        result = await self._run_github(_sync)
-        self._write_github_audit_log(
+        result = await self._run_github(_sync, write=True)
+        self._complete_write_audit(
             "add_issue_comment",
             repo=f"{req.owner}/{req.repo}",
             issue=req.issue_number,

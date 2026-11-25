@@ -60,6 +60,8 @@ An empty capability-gating allowlist is a posture failure, not a warning: the se
 
 Runtime denial is enforced independently by each server, so a running server keeps its fail-closed behavior for whatever its allowlists permit. An empty fail-closed setting is an intended safe default (access is denied); an empty `path_denylist` allows unrestricted path access and is surfaced as `not_applicable` in the posture. On the Agent side both fail closed: an empty `allowed_tools` denies every tool (also after `/reload`) and an empty `allowed_root` is a config load error (Explicit in code — scripts/agent/config_section_builders.py).
 
+Retry classification follows the same fail-closed rule. Every GitHub write declares `retry_policy = never`, so a dedup-store failure refuses the call instead of dispatching it, and a write is never retried. A timeout or an ambiguous transport failure on a write never implies that the write did not apply, so the `outcome_unknown` result is not retried either.
+
 ---
 
 ## Dry-Run Support

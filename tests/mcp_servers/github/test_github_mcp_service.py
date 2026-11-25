@@ -25,7 +25,9 @@ from mcp_servers.github.github_models import (
     PushFile,
     PushFilesRequest,
 )
+from mcp_servers.github.github_models_config import GitHubAppliedAuditError
 from mcp_servers.github.github_service_dispatch import GitHubService
+from mcp_servers.github.github_service_security import bind_call_identity
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -208,6 +210,29 @@ class TestWriteGithubAuditLog:
     def test_missing_audit_path_key_skips_write(self) -> None:
         with _patch_cfg({}) as svc:
             svc._write_github_audit_log("push_files", repo="a/b")  # no raise
+
+    def test_intent_and_completion_records_carry_phase_and_identifiers(
+        self, tmp_path: Path
+    ) -> None:
+        log_file = tmp_path / "audit.log"
+        svc = _make_service({"audit_log_path": str(log_file)})
+        with bind_call_identity("s1", "r1", "c1"):
+            svc._write_intent_audit("push_files", repo="a/b")
+            svc._complete_write_audit("push_files", repo="a/b")
+        lines = log_file.read_text().strip().splitlines()
+        assert len(lines) == 2
+        assert "phase=intent session=s1 request=r1 call=c1" in lines[0]
+        assert "phase=completion session=s1 request=r1 call=c1" in lines[1]
+
+    def test_completion_failure_reports_applied_and_counts(
+        self, tmp_path: Path
+    ) -> None:
+        """A post-call failure names applied_audit_failed and increments the counter."""
+        bad_path = str(tmp_path / "nonexistent" / "audit.log")
+        svc = _make_service({"audit_log_path": bad_path})
+        with pytest.raises(GitHubAppliedAuditError, match="applied_audit_failed"):
+            svc._complete_write_audit("push_files", repo="x/y")
+        assert svc.audit_failure_count == 1
 
 
 # ── Pre-flight checks in async write methods (no GitHub API required) ─────────
@@ -859,6 +884,19 @@ class TestGitHubDomainExceptions:
         svc = _make_service({"audit_log_path": bad_path})
         with pytest.raises(GitHubAuditError, match="Audit log write failed"):
             svc._write_github_audit_log("test_op", key="value")
+
+    @pytest.mark.asyncio
+    async def test_unwritable_audit_path_refuses_before_the_api_call(
+        self, tmp_path
+    ) -> None:
+        """The intent audit fails closed: the API stub is never called."""
+        bad_path = str(tmp_path / "nonexistent" / "audit.log")
+        svc = _make_service({"allowed_repos": ["org/repo"], "audit_log_path": bad_path})
+        with pytest.raises(GitHubAuditError, match="Audit log write failed"):
+            await svc.fmt_create_issue(
+                {"owner": "org", "repo": "repo", "title": "t", "body": "b"}
+            )
+        svc._gh.get_repo.assert_not_called()
 
     def test_github_config_from_dict(self) -> None:
         from mcp_servers.github.github_models import GitHubConfig

@@ -104,8 +104,8 @@ class RepositoryOps(GitHubSecurityGuards):
                 sha=source.commit.sha,
             )
 
-        result = await self._run_github(_sync)
-        self._write_github_audit_log(
+        result = await self._run_github(_sync, write=True)
+        self._complete_write_audit(
             "create_branch",
             repo=f"{req.owner}/{req.repo}",
             branch=req.branch_name,

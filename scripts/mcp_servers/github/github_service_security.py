@@ -8,8 +8,9 @@ as a Security Posture from its config object alone, so github-mcp validates itse
 bind instead of being audited by the Agent.
 
 Methods: _clamp_per_page, _assert_allowed_*, _assert_max_read_file_size,
-         _resolve_search_query, _write_github_audit_log,
-         _resolve_and_check_branch, _get_repo, _handle_github_error, _run_github
+         _resolve_search_query, _write_github_audit_log, _write_intent_audit,
+         _complete_write_audit, bind_call_identity, _resolve_and_check_branch,
+         _get_repo, _handle_github_error, _run_github
 
 Dependency direction: service_security → models_config, models_base, mapper
 """
@@ -21,7 +22,9 @@ import fnmatch
 import logging
 import os
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from http import HTTPStatus
 from typing import Any, NoReturn, TypeVar
 
@@ -40,6 +43,11 @@ from shared.security.result_dto import (
     SecurityCheckResult,
     SecurityCheckStatus,
 )
+from shared.write_outcome import (
+    APPLIED_AUDIT_FAILED,
+    OUTCOME_UNKNOWN,
+    build_write_audit_fields,
+)
 
 from mcp_servers.github.github_models_config import GitHubConfig
 
@@ -52,6 +60,25 @@ T = TypeVar("T")
 _REPO_QUALIFIER_RE = re.compile(r"repo:(\S+)")
 _OWNER_QUALIFIER_RE = re.compile(r"(?:org|user):(\S+)")
 
+# Call identity for write-audit records: (session_id, request_id, call_id), bound
+# by the dispatcher so a call's intent and completion records name the same ids.
+# Empty when no identity is bound.
+_CALL_IDENTITY: ContextVar[tuple[str, str, str]] = ContextVar(
+    "github_call_identity", default=("", "", "")
+)
+
+
+@contextmanager
+def bind_call_identity(
+    session_id: str, request_id: str, call_id: str
+) -> Iterator[None]:
+    """Bind the call identity for the current context and reset it on exit."""
+    token = _CALL_IDENTITY.set((session_id, request_id, call_id))
+    try:
+        yield
+    finally:
+        _CALL_IDENTITY.reset(token)
+
 
 class GitHubSecurityGuards:
     """Mixin providing security policy enforcement for GitHubService."""
@@ -62,6 +89,9 @@ class GitHubSecurityGuards:
         self._cfg = cfg
         self._default_per_page = cfg.default_per_page
         self._max_per_page = cfg.max_per_page
+        # Completion-audit failures after an applied write; one service object per
+        # process, so a plain instance counter is sufficient.
+        self.audit_failure_count = 0
 
     def _clamp_per_page(self, per_page: int) -> int:
         """Clamp per_page to the configured maximum to prevent oversized API calls."""
@@ -146,7 +176,9 @@ class GitHubSecurityGuards:
     def _write_github_audit_log(self, op: str, **kwargs: Any) -> None:
         """Append one structured audit record to the GitHub audit log file.
 
-        Raises GitHubAuditError when audit_log_path is configured and write fails.
+        The shared write-audit fields (phase, the bound call identifiers) are
+        prepended so records from different servers are comparable. Raises
+        GitHubAuditError when audit_log_path is configured and write fails.
         Skips silently when audit_log_path is empty.
         """
         from mcp_servers.github.github_models_config import (
@@ -156,6 +188,12 @@ class GitHubSecurityGuards:
         if not self._cfg.audit_log_path:
             return
         ts = now_iso_raw()
+        session_id, request_id, call_id = _CALL_IDENTITY.get()
+        # A direct call without a phase is the pre-write (intent) record.
+        phase = str(kwargs.pop("phase", "intent"))
+        audit_fields = build_write_audit_fields(
+            op, phase, session_id, request_id, call_id
+        )
         fields = " ".join(f"{k}={v!r}" for k, v in kwargs.items())
         # before/after + approval correlation. GitHub operations are API
         # calls, so the target identity (repo plus any operation-specific
@@ -171,7 +209,11 @@ class GitHubSecurityGuards:
             if val:
                 ident_parts.append(f"{key}:{val}")
         target = "|".join(ident_parts) if ident_parts else "-"
-        record = f"{ts} op={op} {fields} before={target} after={target} approved=true\n"
+        head = " ".join(f"{k}={v}" for k, v in audit_fields.items())
+        record = f"{ts} {head}"
+        if fields:
+            record += f" {fields}"
+        record += f" before={target} after={target} approved=true\n"
         try:
             with open(self._cfg.audit_log_path, "a", encoding="utf-8") as fh:
                 fh.write(record)
@@ -179,6 +221,32 @@ class GitHubSecurityGuards:
             raise GitHubAuditError(
                 f"Audit log write failed ({self._cfg.audit_log_path}): {e}"
             ) from e
+
+    def _write_intent_audit(self, op: str, **fields: Any) -> None:
+        """Write the intent audit record before the API call (fail closed).
+
+        A failure raises GitHubAuditError before anything is applied, so an
+        unaudited write never reaches the API.
+        """
+        self._write_github_audit_log(op, phase="intent", **fields)
+
+    def _complete_write_audit(self, op: str, **fields: Any) -> None:
+        """Write the completion audit record after an applied write.
+
+        A failure does not undo the applied write: it is reported as
+        applied_audit_failed through GitHubAppliedAuditError, the audit failure
+        counter is incremented, and the cause is chained.
+        """
+        from mcp_servers.github.github_models_config import (
+            GitHubAppliedAuditError,
+            GitHubAuditError,
+        )
+
+        try:
+            self._write_github_audit_log(op, phase="completion", **fields)
+        except GitHubAuditError as e:
+            self.audit_failure_count += 1
+            raise GitHubAppliedAuditError(f"{APPLIED_AUDIT_FAILED} ({op}): {e}") from e
 
     def _assert_allowed_branch(self, owner: str, repo: str, branch: str) -> None:
         """Raise GitHubAuthorizationError if branch matches a protected_branches pattern.
@@ -294,16 +362,33 @@ class GitHubSecurityGuards:
             raise error_cls(msg)
         raise GitHubUpstreamError(f"GitHub API error (status={e.status})")
 
-    async def _run_github(self, func: Callable[[], T]) -> T:
+    async def _run_github(self, func: Callable[[], T], *, write: bool = False) -> T:
         """Run a synchronous PyGithub call in the thread pool.
 
         Converts GithubException to domain exceptions so endpoints stay free of
-        try/except boilerplate.
+        try/except boilerplate. For a write, an ambiguous transport failure —
+        timeout or connection error after the request was sent — becomes
+        GitHubOutcomeUnknownError because the write may already have landed
+        remotely and must never be retried automatically. requests exceptions are
+        OSError subclasses, so OSError plus TimeoutError covers them without
+        importing requests. Reads keep the existing behavior.
         """
+        from mcp_servers.github.github_models_config import GitHubOutcomeUnknownError
+
         try:
             return await asyncio.to_thread(func)
         except GithubException as e:
+            if write and e.status >= HTTPStatus.INTERNAL_SERVER_ERROR:
+                raise GitHubOutcomeUnknownError(
+                    f"{OUTCOME_UNKNOWN} ({e.status}): ambiguous upstream failure"
+                ) from e
             GitHubSecurityGuards._handle_github_error(e)
+        except (OSError, TimeoutError) as e:
+            if not write:
+                raise
+            raise GitHubOutcomeUnknownError(
+                f"{OUTCOME_UNKNOWN}: ambiguous transport failure"
+            ) from e
 
 
 def _check(

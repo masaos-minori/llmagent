@@ -180,7 +180,8 @@ GITHUB_TOOLS: frozenset[str] = (
 # (mcpdl003 REQ-005 retired the shared config `[retry_class]` mirror).
 # A tool in this set is 'retryable' (dispatch-capable: a failed call can be
 # safely re-dispatched and deduplicated); every other tool — including unknown
-# ones — is 'non_retryable' (fail-safe).
+# ones — is 'non_retryable' (fail-safe). No GitHub write is in this set: none is
+# retryable until a tested reconciler exists for it.
 RETRYABLE_TOOLS: frozenset[str] = frozenset(
     {
         # file_write server (file_write)
@@ -197,15 +198,6 @@ RETRYABLE_TOOLS: frozenset[str] = frozenset(
         "git_checkout",
         "git_pull",
         "git_push",
-        # github server (github)
-        "github_add_issue_comment",
-        "github_create_branch",
-        "github_create_issue",
-        "github_create_or_update_file",
-        "github_delete_file",
-        "github_merge_pull_request",
-        "github_push_files",
-        "github_update_pull_request",
         # mdq server (mdq)
         "index_paths",
         "refresh_index",

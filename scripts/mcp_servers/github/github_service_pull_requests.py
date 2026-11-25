@@ -89,8 +89,8 @@ class PullRequestOps(GitHubSecurityGuards):
             )
             return pr_to_info(pr)
 
-        pr = await self._run_github(_sync)
-        self._write_github_audit_log(
+        pr = await self._run_github(_sync, write=True)
+        self._complete_write_audit(
             "create_pull_request",
             repo=f"{req.owner}/{req.repo}",
             pr=pr.number,
@@ -142,8 +142,8 @@ class PullRequestOps(GitHubSecurityGuards):
                 pr.edit(**kwargs)
             return pr_to_info(pr)
 
-        pr = await self._run_github(_sync)
-        self._write_github_audit_log(
+        pr = await self._run_github(_sync, write=True)
+        self._complete_write_audit(
             "update_pull_request",
             repo=f"{req.owner}/{req.repo}",
             pr=req.pr_number,
@@ -185,8 +185,8 @@ class PullRequestOps(GitHubSecurityGuards):
                 message=status.message or "",
             )
 
-        result = await self._run_github(_sync)
-        self._write_github_audit_log(
+        result = await self._run_github(_sync, write=True)
+        self._complete_write_audit(
             "merge_pull_request",
             repo=f"{req.owner}/{req.repo}",
             pr=req.pr_number,

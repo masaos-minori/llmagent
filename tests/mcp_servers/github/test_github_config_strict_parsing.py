@@ -173,6 +173,69 @@ class TestAllowedRepoIdentity:
         assert GitHubConfig.load().allowed_repos == []
 
 
+# ── write timeouts and typed write outcomes (mcpai006 REQ-002, REQ-003, REQ-005) ─
+
+
+class TestWriteTimeouts:
+    def test_absent_keys_keep_the_documented_defaults(self) -> None:
+        cfg = GitHubConfig.from_dict({})
+        assert cfg.connect_timeout_sec == 5.0
+        assert cfg.read_timeout_sec == 30.0
+
+    def test_positive_values_are_kept(self) -> None:
+        cfg = GitHubConfig.from_dict(
+            {"connect_timeout_sec": 2.5, "read_timeout_sec": 12}
+        )
+        assert cfg.connect_timeout_sec == 2.5
+        assert cfg.read_timeout_sec == 12.0
+
+    @pytest.mark.parametrize("key", ["connect_timeout_sec", "read_timeout_sec"])
+    def test_from_dict_rejects_invalid_timeouts(self, key: str) -> None:
+        for bad in ("30", True, -1, 0, float("inf")):
+            with pytest.raises(ValueError, match=key):
+                GitHubConfig.from_dict({key: bad})
+
+
+class TestWriteOutcomeErrors:
+    def test_outcome_unknown_error_is_a_runtime_error(self) -> None:
+        from mcp_servers.github.github_models_config import GitHubOutcomeUnknownError
+
+        assert issubclass(GitHubOutcomeUnknownError, RuntimeError)
+        assert not issubclass(GitHubOutcomeUnknownError, ValueError)
+
+    def test_applied_audit_error_subclasses_audit_error(self) -> None:
+        from mcp_servers.github.github_models_config import (
+            GitHubAppliedAuditError,
+            GitHubAuditError,
+        )
+
+        assert issubclass(GitHubAppliedAuditError, GitHubAuditError)
+
+
+# ── timeout keys: strictly positive (mcpai006 REQ-002) ───────────────────────
+
+
+class TestTimeoutKeys:
+    @pytest.mark.parametrize("key", ["connect_timeout_sec", "read_timeout_sec"])
+    def test_absent_keys_keep_the_documented_defaults(self, key: str) -> None:
+        cfg = GitHubConfig.from_dict({})
+        expected = 5.0 if key == "connect_timeout_sec" else 30.0
+        assert getattr(cfg, key) == expected
+
+    @pytest.mark.parametrize("key", ["connect_timeout_sec", "read_timeout_sec"])
+    @pytest.mark.parametrize("value", [0, -1, True, "30", float("nan"), float("inf")])
+    def test_rejects_invalid_values(self, key: str, value: object) -> None:
+        """A timeout must never be able to disable itself; the error names the key."""
+        with pytest.raises(ValueError, match=key):
+            GitHubConfig.from_dict({key: value})
+
+    @pytest.mark.parametrize("key", ["connect_timeout_sec", "read_timeout_sec"])
+    @pytest.mark.parametrize("value", [1, 2.5])
+    def test_accepts_positive_numbers(self, key: str, value: int | float) -> None:
+        cfg = GitHubConfig.from_dict({key: value})
+        assert getattr(cfg, key) == float(value)
+
+
 # ── shipped config regression ────────────────────────────────────────────────
 
 
