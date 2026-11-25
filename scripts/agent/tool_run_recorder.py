@@ -118,9 +118,24 @@ async def _record_round_serialization_events(
             )
 
 
+def _plan_runs_concurrently(batches: tuple[ScheduledBatch, ...]) -> bool:
+    """Tell whether the executor runs any calls of this plan concurrently.
+
+    The runner gathers the groups of one batch and gathers the calls of a
+    non-sequential group, so either shape with more than one participant is
+    concurrent. A single call, or only sequential groups one batch at a time,
+    is not.
+    """
+    return any(
+        len(batch.groups) > 1
+        or any(not group.sequential and len(group.calls) > 1 for group in batch.groups)
+        for batch in batches
+    )
+
+
 def _scheduling_mode(batches: tuple[ScheduledBatch, ...]) -> str:
-    """Return the round's mode label: concurrent when any batch holds several groups."""
-    if any(len(batch.groups) > 1 for batch in batches):
+    """Return the round's mode label: concurrent when the plan runs calls concurrently."""
+    if _plan_runs_concurrently(batches):
         return "dag_concurrent"
     return "dag_sequential"
 
@@ -139,8 +154,8 @@ def _record_round_exec(
         ctx,
         round_id=round_id,
         tool_count=len(approved_calls),
-        mode="parallel",
-        has_side_effect=first_event is not None,
+        mode="parallel" if _plan_runs_concurrently(batches) else "serial",
+        has_side_effect=any(pc.spec.is_write for pc in approved_calls),
         trigger_tool=first_event.trigger_tool if first_event else None,
         elapsed_ms=elapsed_ms,
         affected_tools=[pc.name for pc in approved_calls],

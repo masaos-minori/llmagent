@@ -135,8 +135,8 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Plan-shape tests first | In Progress | — | — |  |
-| 2 | Phase 2: Derive mode and side effect | In Progress | — | — |  |
+| 1 | Phase 1: Plan-shape tests first | Completed | — | 20261125-152456 |  |
+| 2 | Phase 2: Derive mode and side effect | Completed | — | 20261125-152456 |  |
 | 3 | Phase 3: Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -147,7 +147,7 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261125-142934_01_scripts_agent_tool_run_recorder.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261125-142934_01_scripts_agent_tool_run_recorder.py.md | 1, 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

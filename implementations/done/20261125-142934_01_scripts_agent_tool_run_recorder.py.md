@@ -83,9 +83,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the plan-shape tests first and confirm cases 1 to 3 fail on the current code | Pending | — | — | |
-| 2 | Implement the helper, `_scheduling_mode`, and `_record_round_exec` changes | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the plan-shape tests first and confirm cases 1 to 3 fail on the current code | Completed | 20261125-150740 | 20261125-152409 | Added tests/agent/test_tool_run_recorder.py (new, 21 tests; companion). Written first: 20 failed on the old code (the constant mode made every plan shape fail, a wider failure set than cases 1 to 3), the counter test passed; all pass after the change. Targeted run: 217 passed. |
+| 2 | Implement the helper, `_scheduling_mode`, and `_record_round_exec` changes | Completed | 20261125-150740 | 20261125-152409 | Changed: scripts/agent/tool_run_recorder.py (helper `_plan_runs_concurrently`, `_scheduling_mode`, `_record_round_exec`). Stale check clean at Step 2; claims re-verified, no correction. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-152409 | 20261125-152409 | ruff format/check, mypy, lint-imports, bandit, module size, fast gates Pass. Full suite: 14289 passed, 1 failed (tests/mcp_servers/git/test_mcp_git.py::test_check_repo_path_equivalence, hypothesis property test on PurePosixPath, unrelated to changed files; passes alone). diff-cover 100% (3 lines). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
