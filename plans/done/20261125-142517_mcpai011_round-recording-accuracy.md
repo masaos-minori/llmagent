@@ -135,9 +135,9 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Plan-shape tests first | Pending | — | — | |
-| 2 | Phase 2: Derive mode and side effect | Pending | — | — | |
-| 3 | Phase 3: Deployment & Verification | Pending | — | — | |
+| 1 | Phase 1: Plan-shape tests first | In Progress | — | — |  |
+| 2 | Phase 2: Derive mode and side effect | In Progress | — | — |  |
+| 3 | Phase 3: Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -147,7 +147,7 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261125-142934_01_scripts_agent_tool_run_recorder.py.md | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -169,3 +169,5 @@ N/A: no release unit
 | REQ-003 | Acceptance Criteria (single write; forced-serial read-only) | `tests/agent/test_tool_run_recorder.py` | Phase 1 | AC-3, AC-4 | `uv run pytest tests/agent/test_tool_run_recorder.py` | Explicit in issue |
 | REQ-004 | Constraints (counters keep their meaning); Required Changes (serialization events stay diagnostics) | `scripts/agent/tool_run_recorder.py` | Phase 2 | AC-5 | `tests/agent/commands/test_cmd_mcp.py` | Explicit in issue |
 | REQ-004 | Constraints | `tests/agent/test_tool_run_recorder.py` | Phase 1 | AC-5 | `uv run pytest tests/agent/test_tool_run_recorder.py` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261125-142934 -->
