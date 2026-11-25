@@ -14,6 +14,13 @@ Replace the two expectations this Plan deliberately changes in the REPL test fil
 - The name expectations are the session-id assertion at `tests/agent/test_repl.py:1465` and the tag-shape assertions at `tests/agent/test_repl.py:1526-1530`, inside the path-rejection and writability block at `tests/agent/test_repl.py:1400-1530`.
 - The containment and symlink expectations in the same block are not part of the change and must keep passing against the new publication flow.
 
+Step 3b verification against the current file (20261125-103500):
+
+- Line references are stale: the ordering test is at `tests/agent/test_repl.py:1331-1372` only in the pre-change file; the name assertions sit at `:1465` and `:1526-1530` in the same block the procedure names. Verified as locations, not as exact current lines.
+- The procedure's four steps are not enough on their own. `TestRunResourceCleanup` spies `repl._persist_session_state` and replaces `repl._shutdown` wholesale, so it asserts a `finally`-level call order that row 7 removes; it must be rewritten against the coordinator's step records. `_make_real_wired_repl` also hands `AgentREPL.__init__` a plain `MagicMock` context, which now fails because `__init__` builds a `ShutdownBudget` from `cfg.shutdown_deadline_seconds`. Both are consequences of row 7 landing in this file and are recorded here rather than in row 7's document.
+- `test_persist_step_timeout_records_timed_out` is named by the Plan's Validation section for this file and is added here.
+- The interrupted-publication case is added to the path-containment block of this file; the same property is also covered at the manager level in `tests/agent/test_wal_checkpoint_manager.py` (row 28).
+
 ## Design decisions
 
 - Rewrite the ordering test rather than delete it: the sequence still has an order worth pinning, and the new name states it — settle writers, then snapshot, then checkpoint, then cancel-driven steps.
@@ -75,9 +82,9 @@ Replace the two expectations this Plan deliberately changes in the REPL test fil
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-103500 | 20261125-104400 | Step 3b corrections applied first (see Assumptions). `test_pending_task_is_cancelled_before_the_checkpoint_starts` replaces the superseded order test; the name assertions now match `{db basename}-wal-backup-{unix seconds}-{process token}` as a shape; `TestRunResourceCleanup` reads step records; `_make_real_wired_repl` supplies numeric shutdown windows |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-103500 | 20261125-104400 | this row is the test row. Added `test_interrupted_backup_leaves_no_file_at_the_final_name`, `test_persist_step_timeout_records_timed_out`, `test_the_window_becomes_one_deadline_shared_by_both_persist_calls`, and the budget/step-registration wiring guards. 98 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-104000 | 20261125-105200 | full R4+R5 batch gate: 14215 passed / 5 skipped, diff-cover Pass, mypy Pass, lint-imports 6 kept, bandit Pass, check_docs_quality Pass, check_module_size Pass. `pre-commit run --all-files` still fails only on the two pre-existing hooks (workitem-structure on rows 45-54 and `issues/20261123-120131_02_unknowns.md`) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

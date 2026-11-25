@@ -240,6 +240,16 @@ class Orchestrator:
             return {"tracking": "running"}
         return {"tracking": "enabled"}
 
+    @property
+    def state_store(self) -> StateStore:
+        """Return the workflow StateStore this orchestrator owns.
+
+        The shutdown coordinator must interrupt the store's open write connection
+        while settling writers, and the store is otherwise private to the
+        orchestrator. Read-only access: the store is never replaced after __init__.
+        """
+        return self._state_store
+
     def close(self) -> None:
         """Close the workflow StateStore. Called once by the shutdown coordinator hook."""
         self._state_store.close()

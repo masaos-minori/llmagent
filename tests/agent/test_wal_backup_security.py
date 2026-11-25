@@ -1,7 +1,16 @@
 """Characterization tests for WAL backup path traversal prevention."""
 
 import os
+import re
+import sqlite3
+from collections.abc import Callable, Iterator
+from pathlib import Path
+from typing import BinaryIO
 from unittest.mock import MagicMock, patch
+
+import pytest
+from agent.wal_checkpoint_manager import WalCheckpointManager
+from db.helper import SQLiteHelper
 
 
 class TestSymlinkTargetValidation:
@@ -90,36 +99,110 @@ class TestBackupDirectoryExistence:
             assert True
 
 
-class TestRaceConditionPrevention:
-    """Verify unique backup filename generation."""
+class TestBackupNameShape:
+    """REQ-009: the name belongs to the database file, not to the closing session.
 
-    def test_timestamp_provides_uniqueness(self) -> None:
-        """Timestamp-based filenames provide uniqueness within same second."""
-        import time
+    The name is produced by a real backup against a real WAL database, so the shape is
+    asserted against the code that writes it rather than against a copy of the format.
+    """
 
-        base_name = "db-wal-backup-session1"
-        ts1 = int(time.time())
-        ts2 = ts1 + 1  # Different second
-        name1 = f"{base_name}-{ts1}"
-        name2 = f"{base_name}-{ts2}"
-        assert name1 != name2
+    @pytest.fixture
+    def wal_db(self, tmp_path: Path) -> Iterator[sqlite3.Connection]:
+        conn = sqlite3.connect(tmp_path / "session.db", isolation_level=None)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA wal_autocheckpoint=0")
+        conn.execute("CREATE TABLE t (v INTEGER)")
+        for i in range(20):
+            conn.execute("INSERT INTO t VALUES (?)", (i,))
+        try:
+            yield conn
+        finally:
+            conn.close()
 
-    def test_same_second_different_sessions(self) -> None:
-        """Different sessions produce different filenames even at same timestamp."""
-        import time
+    def _manager(self, tmp_path: Path) -> WalCheckpointManager:
+        ctx = MagicMock()
+        ctx.cfg.approval.allowed_root = str(tmp_path)
+        ctx.session.session_id = 7
+        return WalCheckpointManager(ctx)
 
-        session_tag1 = "session-abc-123"
-        session_tag2 = "session-def-456"
-        ts = int(time.time())
-        name1 = f"db-wal-backup-{session_tag1}-{ts}"
-        name2 = f"db-wal-backup-{session_tag2}-{ts}"
-        assert name1 != name2
+    def _helper(self, tmp_path: Path) -> Callable[..., object]:
+        def _factory(*_a: object, **_k: object) -> object:
+            return SQLiteHelper(db_path=str(tmp_path / "session.db"))
 
-    def test_filename_contains_session_id(self) -> None:
-        """Backup filename should include session identifier for traceability."""
-        import time
+        return _factory
 
-        session_id = "test-session-id"
-        ts = int(time.time())
-        filename = f"db-wal-backup-{session_id}-{ts}"
-        assert session_id in filename
+    @pytest.mark.asyncio
+    async def test_backup_name_is_database_scoped_with_a_process_token(
+        self, wal_db: sqlite3.Connection, tmp_path: Path
+    ) -> None:
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper", self._helper(tmp_path)):
+            path, errors = await self._manager(tmp_path).backup_sync()
+
+        assert errors == []
+        assert path is not None
+        name = Path(path).name
+        # {db basename}-wal-backup-{unix seconds}-{8 hex process token}
+        assert re.fullmatch(r"session\.db-wal-backup-\d{10}-[0-9a-f]{8}", name), name
+
+    @pytest.mark.asyncio
+    async def test_backup_name_carries_no_session_identifier(
+        self, wal_db: sqlite3.Connection, tmp_path: Path
+    ) -> None:
+        """The artifact outlives the session that wrote it, so the name must not name it."""
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper", self._helper(tmp_path)):
+            path, _ = await self._manager(tmp_path).backup_sync()
+
+        assert path is not None
+        # The old shape put the session tag first ("...-wal-backup-7-<ts>"); the new one
+        # puts the unix timestamp there, so the field widths carry the contract.
+        timestamp, token = Path(path).name.split("-wal-backup-")[1].split("-")
+        assert timestamp.isdigit() and len(timestamp) == 10
+        assert re.fullmatch(r"[0-9a-f]{8}", token)
+
+    @pytest.mark.asyncio
+    async def test_two_processes_in_the_same_second_do_not_collide(
+        self, wal_db: sqlite3.Connection, tmp_path: Path
+    ) -> None:
+        """Uniqueness comes from the process token, not from a session id."""
+        names: list[str] = []
+        for token in ("aaaaaaaa", "bbbbbbbb"):
+            with (
+                patch("agent.wal_checkpoint_manager._PROCESS_TOKEN", token),
+                patch(
+                    "agent.wal_checkpoint_manager.SQLiteHelper", self._helper(tmp_path)
+                ),
+            ):
+                path, errors = await self._manager(tmp_path).backup_sync()
+            assert errors == []
+            assert path is not None
+            names.append(Path(path).name)
+
+        assert names[0] != names[1]
+        assert all(
+            name.endswith(f"-{token}")
+            for name, token in zip(names, ("aaaaaaaa", "bbbbbbbb"))
+        )
+
+    @pytest.mark.asyncio
+    async def test_only_the_partial_file_exists_before_publication(
+        self, wal_db: sqlite3.Connection, tmp_path: Path
+    ) -> None:
+        """An interrupted publication leaves the partial file, never the final name."""
+        seen: list[Path] = []
+
+        def _interrupted_copy(src: BinaryIO, dst: BinaryIO, length: int = 0) -> None:
+            dst.flush()
+            seen.append(Path(dst.name))
+            raise OSError("copy interrupted")
+
+        with (
+            patch("agent.wal_checkpoint_manager.SQLiteHelper", self._helper(tmp_path)),
+            patch("agent.wal_checkpoint_manager.shutil.copyfileobj", _interrupted_copy),
+        ):
+            path, errors = await self._manager(tmp_path).backup_sync()
+
+        assert path is None
+        assert [name for name, _ in errors] == ["wal_backup"]
+        assert seen and seen[0].name.endswith(".partial")
+        leftovers = [p.name for p in tmp_path.iterdir() if "wal-backup" in p.name]
+        assert leftovers == [], leftovers

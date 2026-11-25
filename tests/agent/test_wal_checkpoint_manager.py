@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import shutil
 import sqlite3
 import threading
+import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import BinaryIO
 from unittest.mock import MagicMock, patch
 
 import pytest
-from agent.wal_checkpoint_manager import WalCheckpointManager
+from agent.wal_checkpoint_manager import _MAX_TRUNCATE_ATTEMPTS, WalCheckpointManager
 from db.helper import SQLiteHelper as RealHelper
 from db.models import WalCheckpointCounts
 
@@ -184,3 +188,213 @@ class TestBackupRunsOffTheEventLoop:
         assert errors == []
         assert path is not None
         assert Path(path).exists()
+
+
+class TestBoundedRetryAndInterrupt:
+    """REQ-008: the retry loop stops at the deadline and on an interrupt request."""
+
+    @pytest.mark.asyncio
+    async def test_spent_deadline_stops_the_retry_before_the_next_attempt(
+        self, db: _Db, tmp_path: Path
+    ) -> None:
+        """The loop reports the attempts it did not get to make instead of running them."""
+        db.insert(5)
+        factory = _helper_factory(
+            db, passive_raises=True, truncate_failures=_MAX_TRUNCATE_ATTEMPTS
+        )
+        deadline = time.monotonic() + 0.4
+        started = time.monotonic()
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper", factory):
+            ok, errors = await _manager(tmp_path).checkpoint_sync(deadline=deadline)
+        elapsed = time.monotonic() - started
+
+        assert ok is False
+        assert [name for name, _ in errors] == ["wal_checkpoint_deadline"]
+        assert "before attempt 2 of 3" in errors[0][1]
+        # The unclamped backoff alone would be 1 s; the deadline is 0.4 s.
+        assert elapsed < 1.0, elapsed
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_interrupt_stops_worker_thread(
+        self, db: _Db, tmp_path: Path
+    ) -> None:
+        """An interrupt set during the backoff ends the worker instead of abandoning it."""
+        db.insert(5)
+        factory = _helper_factory(db, passive_raises=True, truncate_failures=2)
+        stop = threading.Event()
+        timer = threading.Timer(0.2, stop.set)
+        timer.start()
+        started = time.monotonic()
+        try:
+            with patch("agent.wal_checkpoint_manager.SQLiteHelper", factory):
+                ok, errors = await _manager(tmp_path).checkpoint_sync(stop=stop)
+        finally:
+            timer.cancel()
+        elapsed = time.monotonic() - started
+
+        assert ok is False
+        assert [name for name, _ in errors] == ["wal_checkpoint_interrupted"]
+        # The first backoff is 1 s: returning early is the interrupt ending the sleep.
+        assert elapsed < 0.9, elapsed
+
+    @pytest.mark.asyncio
+    async def test_interrupt_set_before_the_step_ends_it_without_an_attempt(
+        self, db: _Db, tmp_path: Path
+    ) -> None:
+        db.insert(5)
+        factory = _helper_factory(db, passive_raises=True, truncate_failures=1)
+        stop = threading.Event()
+        stop.set()
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper", factory):
+            ok, errors = await _manager(tmp_path).checkpoint_sync(stop=stop)
+
+        assert ok is False
+        assert [name for name, _ in errors] == ["wal_checkpoint_interrupted"]
+
+    @pytest.mark.asyncio
+    async def test_progress_handler_is_installed_and_cleared(
+        self, db: _Db, tmp_path: Path
+    ) -> None:
+        """REQ-008: the stop is wired to the connection, so a running statement aborts."""
+        db.insert(5)
+        calls: list[object] = []
+
+        class _Recording(RealHelper):
+            def interrupt_when(self, stop, *, check_every: int = 1000) -> None:
+                calls.append(stop)
+                super().interrupt_when(stop, check_every=check_every)
+
+        stop = threading.Event()
+        with (
+            patch(
+                "agent.wal_checkpoint_manager.SQLiteHelper",
+                lambda *_a, **_k: _Recording(db_path=str(db.path)),
+            ),
+        ):
+            ok, errors = await _manager(tmp_path).checkpoint_sync(stop=stop)
+
+        assert (ok, errors) == (True, [])
+        assert calls == [stop, None]
+
+    @pytest.mark.asyncio
+    async def test_no_stop_means_no_progress_handler(
+        self, db: _Db, tmp_path: Path
+    ) -> None:
+        """A step with no interrupt channel leaves the connection's handler untouched."""
+        db.insert(5)
+        calls: list[object] = []
+
+        class _Recording(RealHelper):
+            def interrupt_when(self, stop, *, check_every: int = 1000) -> None:
+                calls.append(stop)
+                super().interrupt_when(stop, check_every=check_every)
+
+        with patch(
+            "agent.wal_checkpoint_manager.SQLiteHelper",
+            lambda *_a, **_k: _Recording(db_path=str(db.path)),
+        ):
+            ok, errors = await _manager(tmp_path).checkpoint_sync()
+
+        assert (ok, errors) == (True, [])
+        assert calls == []
+
+
+class TestAtomicBackupPublication:
+    """REQ-009, AC-3: publish through a .partial file, or not at all."""
+
+    @pytest.mark.asyncio
+    async def test_backup_copies_to_a_partial_file_and_publishes_it(
+        self, db: _Db, tmp_path: Path
+    ) -> None:
+        db.insert(20)
+        copied_to: list[str] = []
+        real_copy = shutil.copyfileobj
+
+        def _spy_copy(src: BinaryIO, dst: BinaryIO, length: int = 0) -> None:
+            copied_to.append(str(dst.name))
+            return real_copy(src, dst, length)
+
+        with (
+            patch("agent.wal_checkpoint_manager.SQLiteHelper", _helper_factory(db)),
+            patch("agent.wal_checkpoint_manager.shutil.copyfileobj", _spy_copy),
+        ):
+            path, errors = await _manager(tmp_path).backup_sync()
+
+        assert errors == []
+        assert path is not None
+        # The copy target is the temporary name; the final name only exists after replace.
+        assert copied_to == [f"{path}.partial"]
+        assert Path(path).exists()
+        assert not any(p.name.endswith(".partial") for p in tmp_path.iterdir())
+
+    @pytest.mark.asyncio
+    async def test_partial_backup_never_visible_under_final_name(
+        self, db: _Db, tmp_path: Path
+    ) -> None:
+        """An interrupted copy leaves no file at the name a later reader would trust."""
+        db.insert(20)
+
+        def _interrupted_copy(src: BinaryIO, dst: BinaryIO, length: int = 0) -> None:
+            dst.write(b"half a wal")
+            raise OSError("no space left on device")
+
+        with (
+            patch("agent.wal_checkpoint_manager.SQLiteHelper", _helper_factory(db)),
+            patch("agent.wal_checkpoint_manager.shutil.copyfileobj", _interrupted_copy),
+        ):
+            path, errors = await _manager(tmp_path).backup_sync()
+
+        assert path is None
+        assert [name for name, _ in errors] == ["wal_backup"]
+        assert "OSError" in errors[0][1]
+        assert not any("wal-backup" in p.name for p in tmp_path.iterdir())
+
+    @pytest.mark.asyncio
+    async def test_size_mismatch_is_recorded_and_not_published(
+        self, db: _Db, tmp_path: Path
+    ) -> None:
+        """A short copy is a distinct error, not a silently truncated backup."""
+        db.insert(20)
+        source_size = os.path.getsize(f"{db.path}-wal")
+        assert source_size > 5
+
+        def _short_copy(src: BinaryIO, dst: BinaryIO, length: int = 0) -> None:
+            dst.write(b"short")
+
+        with (
+            patch("agent.wal_checkpoint_manager.SQLiteHelper", _helper_factory(db)),
+            patch("agent.wal_checkpoint_manager.shutil.copyfileobj", _short_copy),
+        ):
+            path, errors = await _manager(tmp_path).backup_sync()
+
+        assert path is None
+        assert [name for name, _ in errors] == ["wal_backup_size_mismatch"]
+        assert errors[0][1] == f"copied 5 of {source_size} bytes"
+        assert not any("wal-backup" in p.name for p in tmp_path.iterdir())
+
+    @pytest.mark.asyncio
+    async def test_a_spent_deadline_stops_the_backup_before_it_writes(
+        self, db: _Db, tmp_path: Path
+    ) -> None:
+        db.insert(20)
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper", _helper_factory(db)):
+            path, errors = await _manager(tmp_path).backup_sync(
+                deadline=time.monotonic() - 0.1
+            )
+
+        assert path is None
+        assert [name for name, _ in errors] == ["wal_backup_deadline"]
+        assert not any("wal-backup" in p.name for p in tmp_path.iterdir())
+
+    @pytest.mark.asyncio
+    async def test_an_interrupt_request_stops_the_backup_before_it_writes(
+        self, db: _Db, tmp_path: Path
+    ) -> None:
+        db.insert(20)
+        stop = threading.Event()
+        stop.set()
+        with patch("agent.wal_checkpoint_manager.SQLiteHelper", _helper_factory(db)):
+            path, errors = await _manager(tmp_path).backup_sync(stop=stop)
+
+        assert path is None
+        assert [name for name, _ in errors] == ["wal_backup_interrupted"]

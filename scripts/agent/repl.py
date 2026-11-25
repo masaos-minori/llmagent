@@ -25,6 +25,7 @@ Turn-level orchestration (LLM loop, tool dispatch) lives in agent/orchestrator.p
 """
 
 import asyncio
+import time
 from functools import cached_property
 
 from agent.cli_view import CLIView
@@ -34,6 +35,7 @@ from agent.output_tags import OutputTag
 from agent.repl_input_loop import ReplInputLoop
 from agent.resource_shutdown_coordinator import ResourceShutdownCoordinator
 from agent.session_persister import SessionPersister
+from agent.shutdown_budget import ShutdownBudget
 from agent.signal_handler import SignalHandler
 from agent.startup import StartupInterrupted, StartupOrchestrator
 from agent.startup_banner import StartupBanner
@@ -81,25 +83,43 @@ class AgentREPL:
             diagnostics_cfg=self._ctx.cfg.diagnostics, db_config=self._ctx.cfg.db
         )
         self._shutdown_event = asyncio.Event()
+        # One budget for the whole process: the input loop stops accepting work when
+        # it is draining, and the coordinator bounds every shutdown step by it.
+        # SignalHandler is not given it yet: SIGINT arming is the signal-handler row.
+        self._shutdown_budget = ShutdownBudget(
+            total_seconds=self._ctx.cfg.shutdown_deadline_seconds
+        )
         # Wire extracted components via DI
-        self._input_loop = ReplInputLoop(self._ctx, self._view, self._shutdown_event)
+        self._input_loop = ReplInputLoop(
+            self._ctx, self._view, self._shutdown_event, budget=self._shutdown_budget
+        )
         self._persister = SessionPersister(
             self._ctx, self._diagnostic_store, self._view
         )
         self._wal = WalCheckpointManager(self._ctx)
-        self._shutdown = ResourceShutdownCoordinator(self._ctx, self._view, self._wal)
+        self._shutdown = ResourceShutdownCoordinator(
+            self._ctx, self._view, self._wal, budget=self._shutdown_budget
+        )
+        # Persistence is one bounded step of the shutdown sequence, not a call the
+        # REPL makes before it: only the coordinator can give it a deadline and a
+        # record (REQ-001, REQ-007).
+        self._shutdown.register_snapshot_step(self._persist_session_state)
         self._banner = StartupBanner(self._ctx, self._view)
         self._signal = SignalHandler(self._ctx, self._shutdown_event)
 
-    async def _persist_session_state(self) -> None:
-        """Persist session state on exit, before resource shutdown.
+    async def _persist_session_state(self, window: float | None = None) -> None:
+        """Persist session state as the shutdown sequence's persist_snapshot step.
 
         One snapshot feeds both steps, so Memory and diagnostics describe the same
-        session state even when a transition races the shutdown.
+        session state even when a transition races the shutdown. ``window`` is the
+        seconds the coordinator says this step may take; it becomes one monotonic
+        deadline shared by both persist calls, so a step that runs out of time stops
+        reading instead of being cut off mid-write.
         """
         snapshot = self._persister.capture_snapshot()
-        await self._persister.persist_session_memories(snapshot)
-        await self._persister.persist_session_diagnostics(snapshot)
+        deadline = None if window is None else time.monotonic() + window
+        await self._persister.persist_session_memories(snapshot, deadline=deadline)
+        await self._persister.persist_session_diagnostics(snapshot, deadline=deadline)
 
     async def run(self) -> None:
         """Start the interactive REPL."""
@@ -112,11 +132,11 @@ class AgentREPL:
         startup = StartupOrchestrator(
             self._ctx, self._view, shutdown_event=self._shutdown_event
         )
-        # One finally for the whole session: persist session state, then close
-        # resources. Both run on every exit path (startup failure or interrupt,
-        # normal exit); persist is first because it reads ctx.services clients that
-        # close_resources releases, and it is contained so a persist failure cannot
-        # replace the in-flight exception.
+        # One finally for the whole session: the shutdown sequence owns every exit
+        # path, including session persistence, which is its persist_snapshot step.
+        # It runs on every exit path (startup failure or interrupt, normal exit), is
+        # bounded by the shared budget, and a persist failure is contained by the
+        # coordinator so it cannot replace the in-flight exception.
         try:
             try:
                 (
@@ -141,6 +161,12 @@ class AgentREPL:
             self._shutdown.register_close_hook(
                 "workflow_store", self._orchestrator.close
             )
+            # The same store is the long-lived write connection the settle step
+            # interrupts (REQ-005): cancelling the task is not enough when the task
+            # is blocked inside a SQLite statement.
+            self._shutdown.register_tracked_writer(
+                "workflow_store", self._orchestrator.state_store.get_connection()
+            )
 
             self._input_loop.bind(self._cmds, self._orchestrator)
 
@@ -159,12 +185,6 @@ class AgentREPL:
                 lambda: self._banner.print_startup_banner(self._orchestrator),
             )
         finally:
-            try:
-                await self._persist_session_state()
-            except Exception as e:  # noqa: BLE001 — persist is non-fatal; never mask the in-flight exception
-                self._view.write_warning(
-                    f"{OutputTag.NON_FATAL} Session persistence failed: {type(e).__name__}: {e}"
-                )
             await self._shutdown.close_resources()
 
 

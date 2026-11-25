@@ -9,10 +9,18 @@ Responsibilities:
   - Path validation against allowed_root
 
 Both steps run on a worker thread (asyncio.to_thread) so the caller's wait_for bound can
-fire while SQLite and the retry backoff are still blocking. A step abandoned by that bound is
-not rolled back: its worker keeps running, a half-finished checkpoint leaves the WAL to be
-replayed or checkpointed on the next open, and a half-finished backup can leave a partial
-copy next to the database. The bound itself is owned by ResourceShutdownCoordinator.
+fire while SQLite and the retry backoff are still blocking. Each step is given the deadline
+the shutdown budget leaves and the interrupt event a second SIGINT sets, so the worker stops
+at the deadline instead of being abandoned by the bound: the retry loop checks the deadline
+before every attempt and sleeps on the interrupt event instead of sleeping blindly, and the
+installed progress handler aborts a statement that is already running. A worker that ignores
+both is still abandoned by the caller's bound, and a half-finished checkpoint leaves the WAL
+to be replayed or checkpointed on the next open. The bound itself is owned by
+ResourceShutdownCoordinator.
+
+The backup is published through a ``.partial`` file in the destination directory: copy,
+flush, fsync, size check, then os.replace. A copy that fails, stops early, or is interrupted
+leaves no file under the final name.
 """
 
 from __future__ import annotations
@@ -23,16 +31,107 @@ import os
 import shutil
 import sqlite3
 import tempfile
+import threading
 import time
 import uuid
-from typing import TYPE_CHECKING
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Final
 
 from db.helper import SQLiteHelper
+
+from agent.shutdown_budget import ShutdownOutcome
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
+
+# TRUNCATE attempts the checkpoint makes before it reports failure.
+_MAX_TRUNCATE_ATTEMPTS: Final = 3
+
+# Per-process uniqueness token in the backup name (REQ-009): the timestamp alone can
+# collide when two processes close in the same second.
+_PROCESS_TOKEN: Final = uuid.uuid4().hex[:8]
+
+
+def _deadline_spent(deadline: float | None) -> bool:
+    """Return True when a monotonic deadline has already passed (None is no deadline)."""
+    return deadline is not None and time.monotonic() >= deadline
+
+
+def _remaining_of(deadline: float | None) -> float:
+    """Return the seconds left until a monotonic deadline; infinity when there is none."""
+    if deadline is None:
+        return float("inf")
+    return max(0.0, deadline - time.monotonic())
+
+
+def _backoff_sleep(
+    attempt: int, deadline: float | None, stop: threading.Event | None
+) -> bool:
+    """Sleep the attempt backoff, clamped to the deadline. Return True if a stop was seen.
+
+    The sleep waits on the interrupt event when one is given, so a second SIGINT ends the
+    backoff immediately instead of after the full exponential delay.
+    """
+    seconds = min(float(2**attempt), _remaining_of(deadline))
+    if seconds <= 0.0:
+        return False
+    if stop is not None:
+        return stop.wait(timeout=seconds)
+    time.sleep(seconds)
+    return False
+
+
+def _interrupted_error(attempt: int) -> tuple[str, str]:
+    """Record that a checkpoint attempt was stopped by a shutdown interrupt request."""
+    return (
+        "wal_checkpoint_interrupted",
+        "TRUNCATE checkpoint stopped on a shutdown interrupt request "
+        f"during attempt {attempt + 1}",
+    )
+
+
+def _stop_seen(stop: threading.Event | None, exc: BaseException | None = None) -> bool:
+    """True when a stop was requested, or the SQLite error is the progress-handler abort.
+
+    The progress handler aborts a running statement with ``sqlite3.OperationalError:
+    interrupted``, which is a different failure from a lock and must not be retried.
+    """
+    if stop is not None and stop.is_set():
+        return True
+    return exc is not None and "interrupted" in str(exc).lower()
+
+
+def _stop_reason(
+    deadline: float | None, stop: threading.Event | None, attempt: int
+) -> tuple[str, str] | None:
+    """Return the record for a retry the deadline or an interrupt stopped, else None."""
+    if _deadline_spent(deadline):
+        return (
+            "wal_checkpoint_deadline",
+            "TRUNCATE retry stopped at the shutdown deadline before attempt "
+            f"{attempt + 1} of {_MAX_TRUNCATE_ATTEMPTS}",
+        )
+    if stop is not None and stop.is_set():
+        return _interrupted_error(attempt)
+    return None
+
+
+def wal_step_outcome(errors: Iterable[tuple[str, str]]) -> ShutdownOutcome:
+    """Map the error labels these steps record onto the shutdown outcome vocabulary.
+
+    This module owns the labels, so it owns what they mean to the shutdown report: a step
+    that stopped at its own deadline is ``timed_out``; a step whose SQLite work was aborted
+    mid-statement is ``outcome_unknown``, because it cannot describe the WAL state it left;
+    anything else is a plain failure.
+    """
+    labels = [label for label, _ in errors]
+    if any(label.endswith("_interrupted") for label in labels):
+        return ShutdownOutcome.OUTCOME_UNKNOWN
+    if any(label.endswith("_deadline") for label in labels):
+        return ShutdownOutcome.TIMED_OUT
+    return ShutdownOutcome.FAILED
 
 
 class WalCheckpointManager:
@@ -56,84 +155,137 @@ class WalCheckpointManager:
             resolved_root + os.sep
         )
 
-    async def checkpoint_sync(self) -> tuple[bool, list[tuple[str, str]]]:
+    async def checkpoint_sync(
+        self,
+        *,
+        deadline: float | None = None,
+        stop: threading.Event | None = None,
+    ) -> tuple[bool, list[tuple[str, str]]]:
         """Attempt a WAL checkpoint (PASSIVE, falling back to TRUNCATE) off the event loop.
+
+        ``deadline`` is a monotonic instant: the TRUNCATE retry loop checks it before every
+        attempt and clamps every backoff sleep to it, so the retries cannot run past the
+        shutdown budget (REQ-008). ``stop`` is the interrupt event a second SIGINT sets; it
+        both aborts the statement in flight through the connection progress handler and ends
+        a backoff early.
 
         Returns ``(True, [])`` on PASSIVE/TRUNCATE success or when journal mode
         is not WAL; returns ``(False, errors)`` when PASSIVE copied nothing over a
-        non-empty WAL or TRUNCATE exhausts retries.
+        non-empty WAL, TRUNCATE exhausts retries, or the step stopped at the deadline
+        or on an interrupt request.
         """
-        return await asyncio.to_thread(self._checkpoint_step)
+        return await asyncio.to_thread(self._checkpoint_step, deadline, stop)
 
-    def _checkpoint_step(self) -> tuple[bool, list[tuple[str, str]]]:
+    def _checkpoint_step(
+        self, deadline: float | None, stop: threading.Event | None
+    ) -> tuple[bool, list[tuple[str, str]]]:
         """Blocking checkpoint body; the connection never leaves this worker thread."""
         errors: list[tuple[str, str]] = []
         with SQLiteHelper("session", db_config=self._ctx.cfg.db).open(
             write_mode=True
         ) as db:
-            wal_mode = db.execute("PRAGMA journal_mode").fetchone()[0]
-            if wal_mode.lower() != "wal":
-                logger.debug("WAL checkpoint skipped: journal mode is %r", wal_mode)
-                return True, errors
+            if stop is not None:
+                db.interrupt_when(stop)
             try:
-                counts = db.checkpoint("PASSIVE")
-            except sqlite3.Error as passive_err:
-                logger.warning(
-                    "WAL PASSIVE checkpoint failed, falling back to TRUNCATE: %s",
-                    passive_err,
-                )
-            else:
-                if int(counts.log_size) > 0 and int(counts.pages_checkpointed) == 0:
-                    message = (
-                        f"PASSIVE copied 0 of {int(counts.log_size)} WAL frames "
-                        f"(busy={int(counts.busy)}): a reader is holding the WAL"
-                    )
-                    logger.warning("WAL checkpoint made no progress: %s", message)
-                    errors.append(("wal_checkpoint_no_progress", message))
-                    return False, errors
-                logger.info("WAL checkpoint completed (PASSIVE) on shutdown")
-                return True, errors
-            for attempt in range(3):
-                failure: str | None
-                try:
-                    counts = db.checkpoint("TRUNCATE")
-                    failure = (
-                        None
-                        if int(counts.busy) == 0
-                        else f"TRUNCATE blocked by a reader (busy={int(counts.busy)}, "
-                        f"log_size={int(counts.log_size)}, "
-                        f"pages_checkpointed={int(counts.pages_checkpointed)})"
-                    )
-                except sqlite3.Error as truncate_err:
-                    failure = f"{type(truncate_err).__name__}: {truncate_err}"
-                if failure is None:
-                    logger.info(
-                        "WAL checkpoint completed (TRUNCATE) on shutdown after %d retries",
-                        attempt + 1,
-                    )
+                wal_mode = db.execute("PRAGMA journal_mode").fetchone()[0]
+                if wal_mode.lower() != "wal":
+                    logger.debug("WAL checkpoint skipped: journal mode is %r", wal_mode)
                     return True, errors
-                if attempt < 2:
+                try:
+                    counts = db.checkpoint("PASSIVE")
+                except sqlite3.Error as passive_err:
+                    if _stop_seen(stop, passive_err):
+                        errors.append(_interrupted_error(0))
+                        return False, errors
                     logger.warning(
-                        "WAL TRUNCATE checkpoint attempt %d failed, retrying: %s",
-                        attempt + 1,
-                        failure,
+                        "WAL PASSIVE checkpoint failed, falling back to TRUNCATE: %s",
+                        passive_err,
                     )
-                    time.sleep(2**attempt)
                 else:
-                    logger.error(
-                        "WAL TRUNCATE checkpoint failed after 3 attempts: %s", failure
-                    )
-                    errors.append(("wal_checkpoint_truncate", failure))
-            return False, errors
+                    if int(counts.log_size) > 0 and int(counts.pages_checkpointed) == 0:
+                        message = (
+                            f"PASSIVE copied 0 of {int(counts.log_size)} WAL frames "
+                            f"(busy={int(counts.busy)}): a reader is holding the WAL"
+                        )
+                        logger.warning("WAL checkpoint made no progress: %s", message)
+                        errors.append(("wal_checkpoint_no_progress", message))
+                        return False, errors
+                    logger.info("WAL checkpoint completed (PASSIVE) on shutdown")
+                    return True, errors
+                for attempt in range(_MAX_TRUNCATE_ATTEMPTS):
+                    stop_reason = _stop_reason(deadline, stop, attempt)
+                    if stop_reason is not None:
+                        errors.append(stop_reason)
+                        return False, errors
+                    failure: str | None
+                    try:
+                        counts = db.checkpoint("TRUNCATE")
+                        failure = (
+                            None
+                            if int(counts.busy) == 0
+                            else f"TRUNCATE blocked by a reader (busy={int(counts.busy)}, "
+                            f"log_size={int(counts.log_size)}, "
+                            f"pages_checkpointed={int(counts.pages_checkpointed)})"
+                        )
+                    except sqlite3.Error as truncate_err:
+                        if _stop_seen(stop, truncate_err):
+                            errors.append(_interrupted_error(attempt))
+                            return False, errors
+                        failure = f"{type(truncate_err).__name__}: {truncate_err}"
+                    if failure is None:
+                        logger.info(
+                            "WAL checkpoint completed (TRUNCATE) on shutdown after %d retries",
+                            attempt + 1,
+                        )
+                        return True, errors
+                    if attempt < _MAX_TRUNCATE_ATTEMPTS - 1:
+                        logger.warning(
+                            "WAL TRUNCATE checkpoint attempt %d failed, retrying: %s",
+                            attempt + 1,
+                            failure,
+                        )
+                        if _backoff_sleep(attempt, deadline, stop):
+                            errors.append(_interrupted_error(attempt))
+                            return False, errors
+                    else:
+                        logger.error(
+                            "WAL TRUNCATE checkpoint failed after %d attempts: %s",
+                            _MAX_TRUNCATE_ATTEMPTS,
+                            failure,
+                        )
+                        errors.append(("wal_checkpoint_truncate", failure))
+                return False, errors
+            finally:
+                if stop is not None:
+                    try:
+                        db.interrupt_when(None)
+                    except Exception as clear_err:  # noqa: BLE001 — the handler is cleanup; the closing connection clears it anyway
+                        logger.debug(
+                            "could not clear the checkpoint progress handler: %s",
+                            clear_err,
+                        )
 
-    async def backup_sync(self) -> tuple[str | None, list[tuple[str, str]]]:
+    async def backup_sync(
+        self,
+        *,
+        deadline: float | None = None,
+        stop: threading.Event | None = None,
+    ) -> tuple[str | None, list[tuple[str, str]]]:
         """Copy the WAL file to a backup location off the event loop.
 
-        Returns ``(backup_path_or_None, errors)``.
-        """
-        return await asyncio.to_thread(self._backup_step)
+        ``deadline`` is a monotonic instant checked before the copy starts, and ``stop`` is
+        the interrupt event a second SIGINT sets; either one that has already passed or been
+        set stops the step before it writes anything (REQ-008).
 
-    def _backup_step(self) -> tuple[str | None, list[tuple[str, str]]]:
+        Returns ``(backup_path_or_None, errors)``. The path is returned only for a backup
+        that was published: a copy that failed, mismatched its size, or was interrupted
+        leaves no file under the final name (REQ-009).
+        """
+        return await asyncio.to_thread(self._backup_step, deadline, stop)
+
+    def _backup_step(
+        self, deadline: float | None, stop: threading.Event | None
+    ) -> tuple[str | None, list[tuple[str, str]]]:
         """Blocking backup body; the connection never leaves this worker thread."""
         errors: list[tuple[str, str]] = []
         wal_backup_path: str | None = None
@@ -174,19 +326,82 @@ class WalCheckpointManager:
                             )
                         )
                         return wal_backup_path, errors
-                    session_id = self._ctx.session.session_id
-                    session_tag = (
-                        str(session_id)
-                        if session_id is not None
-                        else uuid.uuid4().hex[:8]
-                    )
-                    wal_backup_path = os.path.join(
+                    if _deadline_spent(deadline):
+                        logger.warning(
+                            "WAL backup skipped: the shutdown deadline of %s was already spent",
+                            deadline,
+                        )
+                        errors.append(
+                            (
+                                "wal_backup_deadline",
+                                "backup not started: the shutdown deadline was spent",
+                            )
+                        )
+                        return wal_backup_path, errors
+                    if stop is not None and stop.is_set():
+                        logger.warning(
+                            "WAL backup skipped: a shutdown interrupt request was already set"
+                        )
+                        errors.append(
+                            (
+                                "wal_backup_interrupted",
+                                "backup not started: a shutdown interrupt request was set",
+                            )
+                        )
+                        return wal_backup_path, errors
+                    # The artifact belongs to the database file, not to the session that
+                    # happened to be closing (REQ-009): no session identifier in the name.
+                    final_path = os.path.join(
                         backup_dir,
-                        f"{os.path.basename(db_path)}-wal-backup-{session_tag}-{int(time.time())}",
+                        f"{os.path.basename(db_path)}-wal-backup-{int(time.time())}-{_PROCESS_TOKEN}",
                     )
-                    shutil.copy2(wal_file, wal_backup_path)
-                    logger.warning("WAL file backed up to %s", wal_backup_path)
+                    wal_backup_path = self._publish_backup(wal_file, final_path, errors)
+                    if wal_backup_path is not None:
+                        logger.warning("WAL file backed up to %s", wal_backup_path)
         except Exception as backup_err:  # noqa: BLE001 — backup is best-effort during shutdown; failure must be recorded, not propagated
             logger.error("Failed to backup WAL file: %s", backup_err)
             errors.append(("wal_backup", f"{type(backup_err).__name__}: {backup_err}"))
         return wal_backup_path, errors
+
+    def _publish_backup(
+        self, wal_file: str, final_path: str, errors: list[tuple[str, str]]
+    ) -> str | None:
+        """Copy to ``<final>.partial``, verify the size, then os.replace to the final name.
+
+        The temporary file lives in the same directory as the final name so os.replace is
+        atomic on the same filesystem, and it is removed on every failure: a partial backup
+        is never visible under the name a later reader would trust (REQ-009, AC-3).
+        """
+        partial_path = f"{final_path}.partial"
+        try:
+            with open(wal_file, "rb") as src, open(partial_path, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+                dst.flush()
+                os.fsync(dst.fileno())
+            source_size = os.path.getsize(wal_file)
+            copied_size = os.path.getsize(partial_path)
+            if copied_size != source_size:
+                logger.error(
+                    "WAL backup size mismatch: copied %d of %d bytes",
+                    copied_size,
+                    source_size,
+                )
+                errors.append(
+                    (
+                        "wal_backup_size_mismatch",
+                        f"copied {copied_size} of {source_size} bytes",
+                    )
+                )
+                return None
+            os.replace(partial_path, final_path)
+            return final_path
+        finally:
+            if os.path.exists(partial_path):
+                try:
+                    os.unlink(partial_path)
+                except OSError as unlink_err:
+                    logger.error(
+                        "could not remove the partial backup %s: %s",
+                        partial_path,
+                        unlink_err,
+                    )

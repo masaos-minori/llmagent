@@ -128,7 +128,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `reset_input_controller` | `def reset_input_controller() -> None` | Drop the shared instance so the next get_input_controller() builds a fresh one. |
 | `scripts/agent/repl_input_loop.py` | `ReplInputLoop` | `class ReplInputLoop` | Manages REPL input reading, dispatch, and exit conditions. |
 | `scripts/agent/repository_gateway.py` | `RepositoryGateway` | `class RepositoryGateway` | Agent-side enforcement boundary for all repository mutation operations. |
-| `scripts/agent/resource_shutdown_coordinator.py` | `ResourceShutdownCoordinator` | `class ResourceShutdownCoordinator` | Coordinates resource shutdown across all subsystems. |
+| `scripts/agent/resource_shutdown_coordinator.py` | `ResourceShutdownCoordinator` | `class ResourceShutdownCoordinator` | Coordinates resource shutdown as one bounded, reported step sequence. |
 | `scripts/agent/secrets_masker.py` | `detects_secrets` | `def detects_secrets(text) -> bool` | Return True when any SECRET_PATTERNS substitution would change the text. |
 | `scripts/agent/session.py` | `SchemaMissingError` | `class SchemaMissingError` | Raised when required SQLite schema tables are missing. |
 |  | `SessionTarget` | `class SessionTarget` | Immutable identity of a session at one point in time. |
@@ -222,7 +222,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/turn_persistence.py` | `ConversationPersistenceError` | `class ConversationPersistenceError` | Raised when a turn's session-DB persistence fails and is compensated. |
 |  | `TurnPersistence` | `class TurnPersistence` | Owns all session-DB writes of one agent turn (all-or-nothing). |
 | `scripts/agent/turn_result.py` | `TurnResult` | `class TurnResult` | Typed result of one LLM turn. |
-| `scripts/agent/wal_checkpoint_manager.py` | `WalCheckpointManager` | `class WalCheckpointManager` | WAL checkpoint and backup manager. |
+| `scripts/agent/wal_checkpoint_manager.py` | `wal_step_outcome` | `def wal_step_outcome(errors) -> ShutdownOutcome` | Map the error labels these steps record onto the shutdown outcome vocabulary. |
+|  | `WalCheckpointManager` | `class WalCheckpointManager` | WAL checkpoint and backup manager. |
 | `scripts/agent/workflow_engine_adapter.py` | `WorkflowEngineWiringError` | `class WorkflowEngineWiringError` | Constructor wiring bug: the adapter was built without a WorkflowEngine. |
 |  | `TurnBoundaryMissingError` | `class TurnBoundaryMissingError` | Turn-protocol violation: a persist-as-assistant turn has no persistence boundary. |
 |  | `WorkflowEngineAdapter` | `class WorkflowEngineAdapter` | Wires workflow engine lifecycle around an LLM turn. |

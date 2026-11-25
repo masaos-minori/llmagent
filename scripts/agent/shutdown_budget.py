@@ -121,7 +121,7 @@ class ShutdownBudget:
         self._lock = threading.Lock()
         self._deadline: float | None = None
         self._phase = ShutdownPhase.ACCEPTING
-        self._interrupt_requested = False
+        self._interrupt_event = threading.Event()
 
     @property
     def armed(self) -> bool:
@@ -138,8 +138,17 @@ class ShutdownBudget:
     @property
     def interrupt_requested(self) -> bool:
         """Return True once a second SIGINT has asked the running step to stop."""
-        with self._lock:
-            return self._interrupt_requested
+        return self._interrupt_event.is_set()
+
+    @property
+    def interrupt_event(self) -> threading.Event:
+        """Return the event a step hands to ``SQLiteHelper.interrupt_when`` (REQ-008).
+
+        The db layer's progress handler takes a ``threading.Event``, and this budget is the
+        single owner of the interrupt channel, so a bounded step can arm a real SQLite
+        interrupt without polling ``interrupt_requested`` from a second thread.
+        """
+        return self._interrupt_event
 
     def arm(self) -> bool:
         """Record the first shutdown request; return False for every later one."""
@@ -157,8 +166,7 @@ class ShutdownBudget:
 
     def request_interrupt(self) -> None:
         """Mark the running step interrupted (the second-SIGINT channel, REQ-011)."""
-        with self._lock:
-            self._interrupt_requested = True
+        self._interrupt_event.set()
 
     def remaining(self) -> float:
         """Time left until the deadline, clamped to >= 0; the full window unarmed."""

@@ -11,11 +11,12 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import sqlite3
 import threading
 import time
 from collections.abc import Iterator
-from typing import cast
+from typing import BinaryIO, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -24,6 +25,15 @@ from agent.context import RuntimeStats
 from agent.repl import AgentREPL, main
 from agent.repl_input_controller import reset_input_controller
 from agent.repl_input_loop import ReplInputLoop
+from agent.resource_shutdown_coordinator import ResourceShutdownCoordinator
+from agent.shutdown_budget import (
+    SHUTDOWN_STEPS,
+    STEP_PERSIST_SNAPSHOT,
+    STEP_REPORT,
+    ShutdownBudget,
+    ShutdownOutcome,
+    ShutdownStepRecord,
+)
 from agent.startup_banner import StartupBanner
 from agent.stdin_reader import reset_stdin_reader
 from db.models import WalCheckpointCounts
@@ -115,8 +125,31 @@ class TestPersistSessionStateSnapshot:
         await repl._persist_session_state()
 
         repl._persister.capture_snapshot.assert_called_once_with()
-        repl._persister.persist_session_memories.assert_awaited_once_with(snapshot)
-        repl._persister.persist_session_diagnostics.assert_awaited_once_with(snapshot)
+        repl._persister.persist_session_memories.assert_awaited_once_with(
+            snapshot, deadline=None
+        )
+        repl._persister.persist_session_diagnostics.assert_awaited_once_with(
+            snapshot, deadline=None
+        )
+
+    @pytest.mark.asyncio
+    async def test_the_window_becomes_one_deadline_shared_by_both_persist_calls(
+        self,
+    ) -> None:
+        """REQ-008: the coordinator's window is converted once, so both reads stop together."""
+        repl = _make_bare_repl()
+        repl._persister.persist_session_memories = AsyncMock()
+        repl._persister.persist_session_diagnostics = AsyncMock()
+
+        before = time.monotonic()
+        await repl._persist_session_state(window=5.0)
+
+        first = repl._persister.persist_session_memories.await_args.kwargs["deadline"]
+        second = repl._persister.persist_session_diagnostics.await_args.kwargs[
+            "deadline"
+        ]
+        assert first == second
+        assert before < first <= time.monotonic() + 5.0
 
     @pytest.mark.asyncio
     async def test_stale_generation_since_capture_writes_nothing(self) -> None:
@@ -835,14 +868,36 @@ class TestPromptInterruptAndEofUnchanged:
 # ── AgentREPL owns one shutdown event shared with its consumers ───────────────
 
 
-def _make_real_wired_repl() -> AgentREPL:
-    """Construct AgentREPL through __init__ so ReplInputLoop and SignalHandler are real."""
+def _make_real_wired_repl(deadline_seconds: float = 30.0) -> AgentREPL:
+    """Construct AgentREPL through __init__ so ReplInputLoop and SignalHandler are real.
+
+    The substituted context carries the shutdown windows as numbers: __init__ builds the
+    shared ShutdownBudget from them, and a plain MagicMock would make the budget
+    constructor raise before any assertion in these tests could run.
+    """
+    ctx = MagicMock()
+    ctx.cfg.shutdown_deadline_seconds = deadline_seconds
+    ctx.cfg.shutdown_settle_seconds = 1.0
+    ctx.conv.memory_disabled = False
+    ctx.services.lifecycle.shutdown_all = AsyncMock(return_value=[])
+    ctx.services.http.aclose = AsyncMock()
     with (
-        patch("agent.repl.AgentContext"),
+        patch("agent.repl.AgentContext", return_value=ctx),
         patch("agent.repl.CLIView"),
         patch("agent.repl.DiagnosticStore"),
     ):
         return AgentREPL()
+
+
+def _step_record(
+    coordinator: ResourceShutdownCoordinator, name: str
+) -> ShutdownStepRecord:
+    """Return one shutdown step record, or fail with the records that did run."""
+    records = coordinator.report.records
+    for record in records:
+        if record.name == name:
+            return record
+    raise AssertionError(f"no {name} record in {[r.name for r in records]}")
 
 
 class TestWiringGuard:
@@ -882,6 +937,25 @@ class TestWiringGuard:
         assert repl._input_loop._shutdown_event is event_before
         assert repl._signal._shutdown_event is event_before
         assert MockStartup.call_args.kwargs["shutdown_event"] is event_before
+
+    def test_input_loop_and_coordinator_share_the_one_budget(self) -> None:
+        """REQ-001: the deadline is process-wide, so every consumer holds the same object."""
+        repl = _make_real_wired_repl()
+
+        assert isinstance(repl._shutdown_budget, ShutdownBudget)
+        assert repl._input_loop._budget is repl._shutdown_budget
+        assert repl._shutdown._budget is repl._shutdown_budget
+
+    def test_persist_step_is_registered_at_construction(self) -> None:
+        """REQ-007: persistence is a step of the sequence, so it is registered before run().
+
+        The startup-failure path reaches the shutdown sequence without ever running the
+        post-startup registration, so a step registered only after startup would persist
+        on the normal exit path and silently skip the failing one.
+        """
+        repl = _make_real_wired_repl()
+
+        assert repl._shutdown._snapshot_step == repl._persist_session_state
 
 
 # ── A signal while the prompt waits, or during a turn, stops the loop ─────────
@@ -1283,7 +1357,7 @@ class TestCloseResourcesWALCheckpoint:
         mock_ctx_manager.__exit__ = MagicMock(return_value=None)
         with (
             patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper,
-            patch("shutil.copy2"),
+            patch("shutil.copyfileobj"),
             patch("agent.resource_shutdown_coordinator.logger") as mock_logger,
             patch.object(asyncio, "sleep", return_value=None),
         ):
@@ -1305,34 +1379,47 @@ class TestCloseResourcesWALCheckpoint:
         """db_path is read from index [2] (file path) of PRAGMA database_list, not [1]
         (the database name), when the backup stage runs."""
         repl = _make_bare_repl()
-        db_path = str(tmp_path / "session.db")
+        db_path = tmp_path / "session.db"
+        db_path.write_text("db")
+        wal_path = tmp_path / "session.db-wal"
+        wal_path.write_text("wal-frames")
         repl._ctx.cfg.approval.allowed_root = str(tmp_path)
         mock_db = MagicMock()
         mock_db.execute.return_value.fetchone.side_effect = [
             ("wal",),
-            (0, "main", db_path),
+            (0, "main", str(db_path)),
         ]
         mock_db.checkpoint.side_effect = sqlite3.Error("locked")
         mock_ctx_manager = MagicMock()
+        mock_db.interrupt_when = MagicMock()
         mock_ctx_manager.__enter__ = MagicMock(return_value=mock_db)
         mock_ctx_manager.__exit__ = MagicMock(return_value=None)
         with (
             patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper,
-            patch("shutil.copy2") as mock_copy2,
             patch("time.sleep"),
         ):
             MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
             await repl._shutdown.close_resources()
-        mock_copy2.assert_called_once()
-        args, _ = mock_copy2.call_args
-        assert args[0] == f"{db_path}-wal"
+        backups = [p for p in tmp_path.iterdir() if "-wal-backup-" in p.name]
+        assert len(backups) == 1, list(tmp_path.iterdir())
+        # Index 2 is the path: the name is built from the database file, not from "main".
+        assert backups[0].name.startswith("session.db-wal-backup-")
+        # The source is the WAL sidecar of that path.
+        assert backups[0].read_text() == "wal-frames"
+        assert not [p for p in tmp_path.iterdir() if p.name.endswith(".partial")]
 
     @pytest.mark.asyncio
-    async def test_checkpoint_completes_before_pending_task_cancelled(self) -> None:
-        """WAL checkpoint completes before any pending task is cancelled (REQ-RSC001B-1)."""
+    async def test_pending_task_is_cancelled_before_the_checkpoint_starts(
+        self,
+    ) -> None:
+        """REQ-001, REQ-006: settling cancels the writers, then the checkpoint runs.
+
+        OD-01 supersedes the old REQ-RSC001B-1 expectation that the checkpoint finished
+        first: an unbounded checkpoint ahead of cancellation is what this Plan removes.
+        """
         repl = _make_bare_repl()
 
-        execution_order = []
+        execution_order: list[str] = []
         task_cancelled = asyncio.Event()
 
         async def _pending_task():
@@ -1345,12 +1432,15 @@ class TestCloseResourcesWALCheckpoint:
 
         loop = asyncio.get_running_loop()
         pending_task = loop.create_task(_pending_task())
+        await asyncio.sleep(0)  # start the task before shutdown cancels it
         # close_resources() cancels only the tasks tracked in the turn context.
         repl._ctx.turn.background_tasks = {pending_task}
 
         checkpoint_completed = asyncio.Event()
 
-        async def _checkpoint_with_flag():
+        async def _checkpoint_with_flag(
+            *, deadline: float | None = None, stop: threading.Event | None = None
+        ) -> tuple[bool, list[tuple[str, str]]]:
             execution_order.append("checkpoint_start")
             await asyncio.sleep(0.1)
             execution_order.append("checkpoint_done")
@@ -1361,15 +1451,13 @@ class TestCloseResourcesWALCheckpoint:
 
         await repl._shutdown.close_resources()
 
-        assert checkpoint_completed.is_set(), "Checkpoint should have completed"
+        assert task_cancelled.is_set(), "the writer settles before the checkpoint runs"
         assert execution_order == [
+            "cancel",
             "checkpoint_start",
             "checkpoint_done",
-            "cancel",
-        ], f"Expected checkpoint before cancel, got {execution_order}"
-        assert task_cancelled.is_set(), (
-            "Pending task should have been cancelled after checkpoint"
-        )
+        ], execution_order
+        assert checkpoint_completed.is_set()
 
 
 # ── _wal_backup_sync() path-containment security ───────────────────────────────
@@ -1442,7 +1530,7 @@ class TestWalBackupPathSecurity:
         self, tmp_path
     ) -> None:
         """A symlinked db_path whose resolved target stays inside allowed_root
-        continues to back up normally, and the filename embeds the session id."""
+        continues to back up normally under the database-scoped filename."""
         repl = _make_bare_repl()
         repl._ctx.session.session_id = 42
         allowed_root = tmp_path / "allowed"
@@ -1462,7 +1550,11 @@ class TestWalBackupPathSecurity:
             backup_path, errors = await repl._wal.backup_sync()
         assert errors == []
         assert backup_path is not None
-        assert "-wal-backup-42-" in backup_path
+        # {db basename}-wal-backup-{unix seconds}-{process token}: the name is scoped to
+        # the database file, not to the session that happened to be closing (REQ-009).
+        assert re.fullmatch(
+            r"session\.db-wal-backup-\d{10}-[0-9a-f]{8}", os.path.basename(backup_path)
+        ), backup_path
         assert os.path.exists(backup_path)
 
     @pytest.mark.asyncio
@@ -1504,11 +1596,9 @@ class TestWalBackupPathSecurity:
         assert backup_path is not None
 
     @pytest.mark.asyncio
-    async def test_filename_falls_back_to_uuid_when_session_id_none(
-        self, tmp_path
-    ) -> None:
-        """When session_id is unset (e.g. init failed before a session was
-        created), the filename falls back to a short uuid instead of raising."""
+    async def test_filename_does_not_depend_on_the_session_id(self, tmp_path) -> None:
+        """A missing session id (init failed before a session existed) is not a failure:
+        the name never carried one, so the backup runs with the same shape."""
         repl = _make_bare_repl()
         repl._ctx.session.session_id = None
         allowed_root = tmp_path / "allowed"
@@ -1523,10 +1613,40 @@ class TestWalBackupPathSecurity:
             backup_path, errors = await repl._wal.backup_sync()
         assert errors == []
         assert backup_path is not None
-        # filename shape: {basename}-wal-backup-{tag}-{timestamp}; tag is an
-        # 8-char hex uuid fragment, not the (absent) session id.
-        tag = os.path.basename(backup_path).split("-wal-backup-")[1].rsplit("-", 1)[0]
-        assert len(tag) == 8
+        # filename shape: {basename}-wal-backup-{unix seconds}-{8 hex process token}
+        assert re.fullmatch(
+            r"session\.db-wal-backup-\d{10}-[0-9a-f]{8}",
+            os.path.basename(backup_path),
+        ), backup_path
+
+    @pytest.mark.asyncio
+    async def test_interrupted_backup_leaves_no_file_at_the_final_name(
+        self, tmp_path
+    ) -> None:
+        """REQ-009, AC-3: a copy that fails mid-way is never visible under the name a
+        later reader would trust."""
+        repl = _make_bare_repl()
+        repl._ctx.cfg.approval.allowed_root = str(tmp_path)
+        db_path = tmp_path / "session.db"
+        db_path.write_text("db")
+        (tmp_path / "session.db-wal").write_text("wal-frames")
+        mock_ctx_manager = self._mock_helper_for_db_path(str(db_path))
+
+        def _interrupted_copy(src: BinaryIO, dst: BinaryIO, length: int = 0) -> None:
+            dst.write(b"half a wal")
+            raise OSError("no space left on device")
+
+        with (
+            patch("agent.wal_checkpoint_manager.SQLiteHelper") as MockHelper,
+            patch("agent.wal_checkpoint_manager.shutil.copyfileobj", _interrupted_copy),
+        ):
+            MockHelper.return_value.open = MagicMock(return_value=mock_ctx_manager)
+            backup_path, errors = await repl._wal.backup_sync()
+
+        assert backup_path is None
+        assert any(name == "wal_backup" for name, _ in errors)
+        leftovers = [p.name for p in tmp_path.iterdir() if "wal-backup" in p.name]
+        assert leftovers == [], leftovers
 
 
 # ── _close_resources() independently-guarded service cleanup ──────────────────
@@ -1766,53 +1886,84 @@ class TestAgentREPLRunSubprocessTermination:
 class TestRunResourceCleanup:
     """AgentREPL.run() releases resources once, after the session, not at startup.
 
-    Plain recording coroutines are used instead of AsyncMock so the call order
-    and count are observable.
+    The order is read from the coordinator's step records and from the persist step's own
+    calls, not from spies on REPL methods: persistence is a step the coordinator runs, so
+    a REPL-level spy would prove nothing about the sequence that actually ran (REQ-001).
+    The REPL is built through __init__ because the persist step is registered there.
     """
 
     @staticmethod
     def _install_spies(
         repl: AgentREPL,
         calls: list[str],
+        *,
         loop_error: Exception | None = None,
         persist_error: Exception | None = None,
     ) -> None:
-        async def spy_close() -> None:
-            calls.append("close_resources")
-
-        async def spy_persist() -> None:
-            calls.append("persist_session_state")
-            if persist_error is not None:
-                raise persist_error
+        """Record the sequence's observable steps; the WAL work is stubbed."""
 
         async def spy_loop(banner) -> None:
             calls.append("input_loop.run")
             if loop_error is not None:
                 raise loop_error
 
-        repl._shutdown = MagicMock()
+        async def spy_memories(snapshot, *, deadline=None) -> None:
+            calls.append("persist_memories")
+            if persist_error is not None:
+                raise persist_error
+
+        async def spy_diagnostics(snapshot, *, deadline=None) -> None:
+            calls.append("persist_diagnostics")
+
+        real_close = repl._shutdown.close_resources
+
+        async def spy_close() -> None:
+            calls.append("close_resources_start")
+            await real_close()
+            calls.append("close_resources_done")
+
+        repl._persister.persist_session_memories = spy_memories
+        repl._persister.persist_session_diagnostics = spy_diagnostics
         repl._shutdown.close_resources = spy_close
-        repl._persist_session_state = spy_persist
+        # The WAL work has its own tests; here it is stubbed so the records show the
+        # sequence, not a real database that this REPL never opened.
+        repl._shutdown._wal = MagicMock()
+        repl._shutdown._wal.checkpoint_sync = AsyncMock(return_value=(True, []))
+        repl._shutdown._wal.backup_sync = AsyncMock(return_value=("", []))
         repl._input_loop = MagicMock()
         repl._input_loop.run = spy_loop
 
+    @staticmethod
+    def _startup_patch(MockStartup) -> None:  # type: ignore[no-untyped-def]
+        MockStartup.return_value.run = AsyncMock(
+            return_value=(MagicMock(), MagicMock())
+        )
+
     @pytest.mark.asyncio
     async def test_cleanup_runs_after_input_loop_on_success(self) -> None:
-        repl = _make_bare_repl()
+        repl = _make_real_wired_repl()
         calls: list[str] = []
         self._install_spies(repl, calls)
 
         with patch("agent.repl.StartupOrchestrator") as MockStartup:
-            MockStartup.return_value.run = AsyncMock(
-                return_value=(MagicMock(), MagicMock())
-            )
+            self._startup_patch(MockStartup)
             await repl.run()
 
-        assert calls == ["input_loop.run", "persist_session_state", "close_resources"]
+        assert calls == [
+            "input_loop.run",
+            "close_resources_start",
+            "persist_memories",
+            "persist_diagnostics",
+            "close_resources_done",
+        ], calls
+        # One record per step, in the sequence order, from one close_resources() call.
+        assert [r.name for r in repl._shutdown.report.records] == list(SHUTDOWN_STEPS)
+        persist = _step_record(repl._shutdown, STEP_PERSIST_SNAPSHOT)
+        assert persist.outcome is ShutdownOutcome.COMPLETED
 
     @pytest.mark.asyncio
     async def test_cleanup_runs_once_when_startup_fails(self) -> None:
-        repl = _make_bare_repl()
+        repl = _make_real_wired_repl()
         calls: list[str] = []
         self._install_spies(repl, calls)
 
@@ -1823,27 +1974,42 @@ class TestRunResourceCleanup:
             with pytest.raises(RuntimeError, match="startup failed"):
                 await repl.run()
 
-        assert calls == ["persist_session_state", "close_resources"]
+        # The persist step is registered before startup, so the path that never reached
+        # the post-startup registration still persists.
+        assert calls == [
+            "close_resources_start",
+            "persist_memories",
+            "persist_diagnostics",
+            "close_resources_done",
+        ], calls
+        assert _step_record(repl._shutdown, STEP_PERSIST_SNAPSHOT).outcome is (
+            ShutdownOutcome.COMPLETED
+        )
         repl._view.write_fatal.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_cleanup_runs_once_when_input_loop_raises(self) -> None:
-        repl = _make_bare_repl()
+        repl = _make_real_wired_repl()
         calls: list[str] = []
         self._install_spies(repl, calls, loop_error=RuntimeError("loop failed"))
 
         with patch("agent.repl.StartupOrchestrator") as MockStartup:
-            MockStartup.return_value.run = AsyncMock(
-                return_value=(MagicMock(), MagicMock())
-            )
+            self._startup_patch(MockStartup)
             with pytest.raises(RuntimeError, match="loop failed"):
                 await repl.run()
 
-        assert calls == ["input_loop.run", "persist_session_state", "close_resources"]
+        assert calls == [
+            "input_loop.run",
+            "close_resources_start",
+            "persist_memories",
+            "persist_diagnostics",
+            "close_resources_done",
+        ], calls
+        assert [r.name for r in repl._shutdown.report.records] == list(SHUTDOWN_STEPS)
 
     @pytest.mark.asyncio
     async def test_persist_failure_does_not_mask_loop_error(self) -> None:
-        repl = _make_bare_repl()
+        repl = _make_real_wired_repl()
         calls: list[str] = []
         self._install_spies(
             repl,
@@ -1853,14 +2019,54 @@ class TestRunResourceCleanup:
         )
 
         with patch("agent.repl.StartupOrchestrator") as MockStartup:
-            MockStartup.return_value.run = AsyncMock(
-                return_value=(MagicMock(), MagicMock())
-            )
+            self._startup_patch(MockStartup)
             with pytest.raises(RuntimeError, match="loop failed"):
                 await repl.run()
 
-        assert calls == ["input_loop.run", "persist_session_state", "close_resources"]
-        repl._view.write_warning.assert_called_once()
+        # The persist step stops at the failing call: the second read is not attempted.
+        assert calls == [
+            "input_loop.run",
+            "close_resources_start",
+            "persist_memories",
+            "close_resources_done",
+        ], calls
+        persist = _step_record(repl._shutdown, STEP_PERSIST_SNAPSHOT)
+        assert persist.outcome is ShutdownOutcome.FAILED
+        assert "persist_snapshot_error" in persist.detail
+        warnings = [str(c.args[0]) for c in repl._view.write_warning.call_args_list]
+        assert any("persist_snapshot" in w for w in warnings), warnings
+
+    @pytest.mark.asyncio
+    async def test_persist_step_timeout_records_timed_out(self) -> None:
+        """REQ-008: a persist step that outlives its window is bounded and recorded."""
+        repl = _make_real_wired_repl(deadline_seconds=0.3)
+        hang = asyncio.Event()
+
+        async def _hang(_window: float) -> None:
+            await hang.wait()
+
+        repl._shutdown.register_snapshot_step(_hang)
+        repl._wal = MagicMock()
+        repl._wal.checkpoint_sync = AsyncMock(return_value=(True, []))
+        repl._wal.backup_sync = AsyncMock(return_value=("", []))
+
+        try:
+            with (
+                patch("agent.repl.StartupOrchestrator") as MockStartup,
+                patch.object(repl._input_loop, "run", new=AsyncMock()),
+            ):
+                self._startup_patch(MockStartup)
+                await repl.run()
+        finally:
+            hang.set()
+
+        persist = _step_record(repl._shutdown, STEP_PERSIST_SNAPSHOT)
+        assert persist.outcome is ShutdownOutcome.TIMED_OUT
+        assert "persist_snapshot_timeout" in persist.detail
+        # REQ-012: a sequence that ran out of time still reports itself.
+        assert _step_record(repl._shutdown, STEP_REPORT).outcome is (
+            ShutdownOutcome.COMPLETED
+        )
 
 
 # ── Ctrl-C acts by state; cancelled input is discarded ────────────────────────

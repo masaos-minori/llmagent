@@ -677,7 +677,7 @@ entries:
   kind: class
   name: ResourceShutdownCoordinator
   signature: class ResourceShutdownCoordinator
-  summary: Coordinates resource shutdown across all subsystems.
+  summary: Coordinates resource shutdown as one bounded, reported step sequence.
 - file: scripts/agent/secrets_masker.py
   kind: function
   name: detects_secrets
@@ -1921,6 +1921,11 @@ entries:
   name: TurnResult
   signature: class TurnResult
   summary: Typed result of one LLM turn.
+- file: scripts/agent/wal_checkpoint_manager.py
+  kind: function
+  name: wal_step_outcome
+  signature: def wal_step_outcome(errors) -> ShutdownOutcome
+  summary: Map the error labels these steps record onto the shutdown outcome vocabulary.
 - file: scripts/agent/wal_checkpoint_manager.py
   kind: class
   name: WalCheckpointManager

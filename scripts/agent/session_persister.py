@@ -13,7 +13,12 @@ contained and reported as non-fatal.
 
 Both steps accept one ``SessionPersistenceSnapshot`` so shutdown and the
 pre-transition finalization evaluate the same state; a snapshot whose generation no
-longer matches the live session is rejected without any write.
+longer matches the live session is rejected without any write. When a snapshot is
+supplied it is never re-captured: the persist calls read only from it.
+
+The synchronous store reads take an optional monotonic deadline. A read group that
+cannot start before the deadline is skipped and named in the result, so a bounded
+shutdown step produces a labeled partial summary instead of an unbounded wait.
 """
 
 from __future__ import annotations
@@ -79,6 +84,11 @@ class SessionPersistenceSnapshot:
     history: tuple[LLMMessage, ...]
     turn_id: str | None
     stats: SessionStatsSnapshot
+
+
+def _deadline_spent(deadline: float | None) -> bool:
+    """Return True when a monotonic deadline has already passed (None is no deadline)."""
+    return deadline is not None and time.monotonic() >= deadline
 
 
 def _latency_summary(
@@ -150,8 +160,17 @@ class SessionPersister:
         )
         return False
 
-    def _workflow_counts(self, session_id: int) -> tuple[int, int, int, list[str]]:
-        """Return (workflow, task, retry counts, artifact URIs) from the state store."""
+    def _workflow_counts(
+        self, session_id: int, deadline: float | None = None
+    ) -> tuple[int, int, int, list[str], bool]:
+        """Return (workflow, task, retry counts, artifact URIs, skipped) from the state store.
+
+        ``skipped`` is True when the deadline had already passed: the counts are then
+        absent, not zero, and the summary says which sections it does not hold. The
+        deadline is checked before the read group starts, never inside a query.
+        """
+        if _deadline_spent(deadline):
+            return 0, 0, 0, [], True
         workflow_count = 0
         task_count = 0
         retry_count = 0
@@ -188,10 +207,18 @@ class SessionPersister:
                         session_id,
                         exc,
                     )
-        return workflow_count, task_count, retry_count, artifacts
+        return workflow_count, task_count, retry_count, artifacts, False
 
-    def _rag_summary(self, session_id: int) -> tuple[int, list[dict]]:
-        """Return (rag query count, stage outcomes) from the diagnostic store."""
+    def _rag_summary(
+        self, session_id: int, deadline: float | None = None
+    ) -> tuple[int, list[dict], bool]:
+        """Return (rag query count, stage outcomes, skipped) from the diagnostic store.
+
+        ``skipped`` is True when the deadline had already passed, exactly as in
+        ``_workflow_counts``: a bounded step reports what it did not read.
+        """
+        if _deadline_spent(deadline):
+            return 0, [], True
         rag_query_count = 0
         rag_stage_outcomes: list[dict] = []
         try:
@@ -206,17 +233,22 @@ class SessionPersister:
                     pass
         except (sqlite3.Error, RuntimeError):
             pass
-        return rag_query_count, rag_stage_outcomes
+        return rag_query_count, rag_stage_outcomes, False
 
     async def persist_session_diagnostics(
-        self, snapshot: SessionPersistenceSnapshot | None = None
+        self,
+        snapshot: SessionPersistenceSnapshot | None = None,
+        *,
+        deadline: float | None = None,
     ) -> None:
         """Persist a lightweight runtime diagnostics summary at session end.
 
-        Reads every session value from ``snapshot`` (captured now when omitted).
-        Skips (logging the reason) when no session was started or the snapshot
-        generation is stale; any failure while building or saving the summary is
-        reported as non-fatal.
+        Reads every session value from ``snapshot``, which is never re-captured when
+        one is supplied (REQ-007). Skips (logging the reason) when no session was
+        started or the snapshot generation is stale; any failure while building or
+        saving the summary is reported as non-fatal. ``deadline`` is a monotonic
+        instant: a read group that cannot start before it is skipped and named in
+        the persisted summary as a partial capture.
         """
         snap = snapshot if snapshot is not None else self.capture_snapshot()
         session_id = snap.session_id
@@ -230,10 +262,24 @@ class SessionPersister:
             llm = self._ctx.services.llm if self._ctx.services is not None else None
             services = self._ctx.services
             hist_mgr = services.hist_mgr if services is not None else None
-            workflow_count, task_count, retry_count, artifacts = self._workflow_counts(
-                session_id
+            (
+                workflow_count,
+                task_count,
+                retry_count,
+                artifacts,
+                workflow_skipped,
+            ) = self._workflow_counts(session_id, deadline)
+            rag_query_count, rag_stage_outcomes, rag_skipped = self._rag_summary(
+                session_id, deadline
             )
-            rag_query_count, rag_stage_outcomes = self._rag_summary(session_id)
+            partial_sections = [
+                name
+                for name, skipped in (
+                    ("workflow_counts", workflow_skipped),
+                    ("rag_summary", rag_skipped),
+                )
+                if skipped
+            ]
 
             summary = {
                 "session_id": session_id,
@@ -259,6 +305,15 @@ class SessionPersister:
                 "rag_query_count": rag_query_count,
                 "rag_stage_outcomes": rag_stage_outcomes,
             }
+
+            if partial_sections:
+                # REQ-012: a bounded step says what it did not read instead of
+                # presenting the shortened summary as a complete one.
+                summary["partial_sections"] = partial_sections
+                self._view.write_warning(
+                    f"{OutputTag.NON_FATAL} Session diagnostics captured partially: "
+                    f"{', '.join(partial_sections)}"
+                )
 
             if artifacts or rag_stage_outcomes:
                 logger.warning(
@@ -315,19 +370,34 @@ class SessionPersister:
         return False
 
     async def persist_session_memories(
-        self, snapshot: SessionPersistenceSnapshot | None = None
+        self,
+        snapshot: SessionPersistenceSnapshot | None = None,
+        *,
+        deadline: float | None = None,
     ) -> None:
         """Extract and persist session memories before compression or resource close.
 
-        Reads session id, history and turn id from ``snapshot`` (captured now when
-        omitted). Skips (logging the reason) when no session was started, the
-        snapshot generation is stale, or the same history was already finalized.
+        Reads session id, history and turn id from ``snapshot``, which is never
+        re-captured when one is supplied (REQ-007). Skips (logging the reason) when
+        no session was started, the snapshot generation is stale, the same history
+        was already finalized, or ``deadline`` — a monotonic instant — has already
+        passed, in which case the memory write is reported rather than started.
         """
         snap = snapshot if snapshot is not None else self.capture_snapshot()
         if snap.session_id is None:
             logger.info("Skipping session memories: no started session")
             return
         if not self._snapshot_is_live(snap, "session memories"):
+            return
+        if _deadline_spent(deadline):
+            logger.warning(
+                "Skipping session memories: the persist step deadline of %s is spent",
+                deadline,
+            )
+            self._view.write_warning(
+                f"{OutputTag.NON_FATAL} Session memories were not persisted: "
+                "the shutdown deadline was spent"
+            )
             return
         if self._already_finalized(snap):
             return

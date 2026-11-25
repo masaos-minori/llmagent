@@ -12,8 +12,11 @@ Make `close_resources()` the single ordered step machine: settle the writers, pe
 
 - The current docstring states the opposite order: `scripts/agent/resource_shutdown_coordinator.py:41-45` records "Checkpoint-before-cancellation ordering", and `tests/agent/test_repl.py:1331-1372` pins it with an event-sequence assertion. The Plan's Owner decision OD-01 supersedes that ordering (`REQ-RSC001B-1` in `plans/done/20260908-065641_plan.md:4,17,84`), so both the docstring and the test change in this Plan.
 - The 30 s window at `scripts/agent/resource_shutdown_coordinator.py:32` bounds only the checkpoint and cancel steps today; the budget replaces it as the authority once this row lands.
-- The interrupt and cancellation machinery already exists: `interrupt_when` (`scripts/db/helper.py:158-184`) aborts a running statement through the sqlite3 progress handler, and `_cancel_tracked_tasks` (`scripts/agent/resource_shutdown_coordinator.py:173-196`) cancels and joins the tracked tasks. The settle step composes them under one window instead of replacing them.
-- Steps that cannot start because `remaining()` is already zero are recorded as `not_started` (new) rather than skipped silently (REQ-012).
+- The interrupt machinery already exists: `interrupt_when` (`scripts/db/helper.py:184-210`) aborts a running statement through the sqlite3 progress handler, and requires an open connection. `_cancel_tracked_tasks` (`scripts/agent/resource_shutdown_coordinator.py:173-196` at verification time) was the cancel-and-join body; the settle step replaces it rather than reusing it, because `wait_for(gather(...))` cancels everything it waits on when it times out, which would make an unfinished writer look settled. `asyncio.wait` leaves the pending tasks running so they can be interrupted and reported.
+- There is no connection registry in the db layer, so the coordinator owns the writer registry itself: `register_tracked_writer(name, SQLiteHelper)` (new). Row 7 is the consumer that registers the long-lived stores (the orchestrator's workflow `StateStore`, `scripts/agent/workflow/state_store.py:61-76`); a store that is not registered is invisible to settling.
+- `persist_snapshot` is a registered step callable, not a coordinator-owned implementation: `register_snapshot_step(step)` (new). Row 7 registers `Repl._persist_session_state`; an unregistered step is recorded `not_started`. The coordinator supplies the deadline and the gate authorization, which only it can give the step.
+- `ReplInputController.shutdown()` is not called by the coordinator: row 8 already releases the pending input waits loop-side, so calling it here would be a second owner of the same release.
+- Steps that cannot start because `remaining()` is already zero are recorded as `not_started` (new) rather than skipped silently (REQ-012). The `report` step is exempt: a sequence that ran out of time must still say so.
 
 ## Design decisions
 
@@ -31,12 +34,14 @@ Make `close_resources()` the single ordered step machine: settle the writers, pe
 `scripts/agent/resource_shutdown_coordinator.py`
 
 ### Procedure
-1. Replace the fixed window at `scripts/agent/resource_shutdown_coordinator.py:32` with the budget's `remaining()` (row 1).
+1. Replace the fixed window at `scripts/agent/resource_shutdown_coordinator.py:32` with the budget's `remaining()` (row 1). The constant stays as the fallback window for a coordinator built without a budget, read at call time so `monkeypatch.setattr(coordinator_module, "_SHUTDOWN_TIMEOUT_S", ...)` keeps working.
 2. Rewrite the class docstring at `scripts/agent/resource_shutdown_coordinator.py:41-51` to state the settle-first order and the invariants: one owner, one deadline, one record per step.
 3. Restructure `close_resources()` (`scripts/agent/resource_shutdown_coordinator.py:76-171`) into the ordered steps: `enter_shutdown` (new), `settle_writers` (new), `persist_snapshot` (new), `checkpoint` (new), `backup` (new), `terminate_lifecycles` (new), `close_hooks` (new), `report` (new).
 4. Keep the checkpoint body (`scripts/agent/resource_shutdown_coordinator.py:81-101`) and the cancellation body (`scripts/agent/resource_shutdown_coordinator.py:124-128`) as the step callables, moved into the new order.
-5. Implement `settle_writers` (new): interrupt each tracked SQLite connection through `interrupt_when` (`scripts/db/helper.py:158-184`), then cancel and join the tracked tasks with the existing `_cancel_tracked_tasks` (`scripts/agent/resource_shutdown_coordinator.py:173-196`), waiting at most `shutdown_settle_seconds` (new) (row 17); a writer still running when the window ends is recorded `outcome_unknown` with its task name (REQ-005).
-6. Close the write gate at the start of `settle_writers` (new) and carry the refused-write count into the report assembled from the step records.
+5. Implement `settle_writers` (new): arm `interrupt_when` (`scripts/db/helper.py:184-210`) on every registered writer, cancel the tracked tasks, then join them with `asyncio.wait` for at most `shutdown_settle_seconds` (new) (row 17); if the window expires, set the interrupt event, give the interrupted writers the remaining share of the window to unwind, and record a writer still running as `outcome_unknown` with its task name (REQ-005). Clear the progress handlers afterwards so the hook cannot outlive the step.
+6. Close the write gate in two stages: `enter_shutdown` moves it to `closing` (REQ-004), `settle_writers` closes it once the writers are settled (REQ-005). Carry the refused-write count into the report assembled from the step records.
+7. Add `register_tracked_writer(name, db)` (new) so the settle step can reach the long-lived write connections, and `register_snapshot_step(step)` (new) so the persist step is bounded and recorded by the same owner that runs it.
+8. Record the checkpoint as `not_started` when a writer is still unsettled (OD-02), and keep the backup step running on that branch so checkpoint-before-backup (`docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md`) is preserved.
 
 ### Method
 - Each step is bounded by `remaining()` (new) at the moment it starts; a step that would start past the deadline is recorded `not_started` (new) and its side effects are skipped.
@@ -45,6 +50,8 @@ Make `close_resources()` the single ordered step machine: settle the writers, pe
 ### Details
 - The step names are the constants defined in row 1, so the report and the budget use one vocabulary.
 - The report line carries the step name, outcome, elapsed seconds, and the refused-write count (REQ-012), with no absolute paths (REQ-013).
+- A step `detail` carries a reason category plus the exception class name only (`persist_snapshot_error: TimeoutError`); exception text and absolute paths stay in the logger (REQ-013). Companion row 26 assertions that used to match raw exception text are amended to match the record detail and the log call separately.
+- Steps that write to SQLite run inside `get_write_gate().authorize(step_name)` so the closed gate still admits the shutdown sequence's own writes; `asyncio.to_thread` copies the contextvar context, so the authorization reaches a checkpoint worker thread.
 
 ### Companion test files
 - `tests/agent/test_resource_shutdown_coordinator.py`
@@ -86,9 +93,9 @@ Make `close_resources()` the single ordered step machine: settle the writers, pe
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | companion row 26, row 27 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-093000 | 20261125-094800 | Step 3b corrections applied before implementing: gate closes in two stages (enter_shutdown → closing, settle_writers → closed), `asyncio.wait` replaces `wait_for(gather(...))` so an unfinished writer stays pending and reportable, writer registry and snapshot-step registration added (no db-layer connection registry exists), `ReplInputController.shutdown()` not called here (row 8 owns it), `report` exempt from the `not_started` rule |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-093600 | 20261125-095000 | companion row 26 rewritten (30 cases): step-order contract, `not_started` rule, unsettled-writer OD-02 case, REQ-013 detail assertions amended to record-vs-logger. `tests/conftest.py` gained an autouse `db.write_gate` reset: the coordinator closes the process-wide gate, so without it a shutdown path leaks a closed gate into later tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-104000 | 20261125-105200 | full R4+R5 batch gate ran: 14215 passed / 5 skipped (`-n logical -m "not integration and not production_paths_allowed and not repo_scan"`), diff-cover Pass, mypy Pass, lint-imports 6 kept, bandit Pass, check_docs_quality Pass, check_module_size Pass, reference-table/manifest drift Pass. `pre-commit run --all-files` still fails only on the two pre-existing hooks (workitem-structure on rows 45-54 and `issues/20261123-120131_02_unknowns.md`), identical to the R2 baseline. The known-red `test_checkpoint_completes_before_pending_task_cancelled` was rewritten by row 27 into `test_pending_task_is_cancelled_before_the_checkpoint_starts`. Module size: 24267 B after `wal_step_outcome` moved to `scripts/agent/wal_checkpoint_manager.py`, which owns the labels it maps |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

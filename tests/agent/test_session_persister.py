@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -542,3 +543,144 @@ class TestMemoryFinalizationGuard:
         await persister.persist_session_memories()
 
         ctx.session.record_memory_finalized.assert_not_called()
+
+
+class TestSingleSnapshotAndBoundedReads:
+    """REQ-007, AC-3: one snapshot per step, and reads that stop at the deadline."""
+
+    @pytest.mark.asyncio
+    async def test_supplied_snapshot_is_never_recaptured(self, db) -> None:
+        """A persist call that receives a snapshot does not read the session again."""
+        persister = SessionPersister(
+            _ctx(7),
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            MagicMock(),
+        )
+        snap = persister.capture_snapshot()
+
+        with patch.object(persister, "capture_snapshot") as capture:
+            await persister.persist_session_memories(snap)
+            await persister.persist_session_diagnostics(snap)
+
+        capture.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_both_persist_calls_consume_the_same_snapshot_object(
+        self, db
+    ) -> None:
+        """The step's one snapshot is what both writes read, not a fresh read each."""
+        ctx = _ctx(7)
+        ctx.stats.stat_turns = 3
+        persister = SessionPersister(
+            ctx,
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            MagicMock(),
+        )
+        snap = persister.capture_snapshot()
+        ctx.stats.stat_turns = 99  # live state moves on after the step captured it
+
+        await persister.persist_session_diagnostics(snap)
+
+        row = db.conn.execute("SELECT content FROM session_diagnostics").fetchone()
+        assert orjson.loads(row[0])["turns"] == 3
+
+    @pytest.mark.asyncio
+    async def test_spent_deadline_skips_both_read_groups_and_labels_the_summary(
+        self, db
+    ) -> None:
+        """A bounded step reports the sections it did not read instead of hiding them."""
+        view = MagicMock()
+        persister = SessionPersister(
+            _ctx(7),
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            view,
+        )
+
+        await persister.persist_session_diagnostics(deadline=time.monotonic() - 0.1)
+
+        summary = orjson.loads(
+            db.conn.execute("SELECT content FROM session_diagnostics").fetchone()[0]
+        )
+        assert summary["partial_sections"] == ["workflow_counts", "rag_summary"]
+        # The values the snapshot already holds are still persisted.
+        assert summary["turns"] == 3
+        warning = view.write_warning.call_args.args[0]
+        assert "captured partially" in warning
+        assert "workflow_counts" in warning and "rag_summary" in warning
+
+    @pytest.mark.asyncio
+    async def test_live_deadline_reads_normally_and_labels_nothing(self, db) -> None:
+        """REQ-007: a deadline that has not passed changes nothing."""
+        view = MagicMock()
+        persister = SessionPersister(
+            _ctx(7),
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            view,
+        )
+
+        await persister.persist_session_diagnostics(deadline=time.monotonic() + 5.0)
+
+        summary = orjson.loads(
+            db.conn.execute("SELECT content FROM session_diagnostics").fetchone()[0]
+        )
+        assert "partial_sections" not in summary
+        view.write_warning.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_read_groups_are_checked_before_starting_not_inside_a_query(
+        self, db, caplog
+    ) -> None:
+        """The deadline is a gate before each read group, so a partial snapshot is defined."""
+        ctx = _ctx(7)
+        persister = SessionPersister(
+            ctx,
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            MagicMock(),
+        )
+        deadline = time.monotonic() - 0.1
+        with (
+            patch.object(
+                persister, "_workflow_counts", wraps=persister._workflow_counts
+            ) as wf,
+            patch.object(
+                persister, "_rag_summary", wraps=persister._rag_summary
+            ) as rag,
+            caplog.at_level(logging.WARNING, logger="agent.session_persister"),
+        ):
+            await persister.persist_session_diagnostics(deadline=deadline)
+
+        assert wf.call_args.args[1] == deadline
+        assert rag.call_args.args[1] == deadline
+        assert db.count() == 1  # the shortened summary is still written, labeled
+
+    @pytest.mark.asyncio
+    async def test_memories_are_skipped_and_reported_when_the_deadline_is_spent(
+        self, caplog
+    ) -> None:
+        """No memory write is started past the deadline; the skip is visible."""
+        ctx = _ctx(7)
+        ctx.services = MagicMock()
+        ctx.services.memory.on_session_stop = AsyncMock()
+        view = MagicMock()
+        persister = SessionPersister(ctx, MagicMock(), view)
+
+        with caplog.at_level(logging.WARNING, logger="agent.session_persister"):
+            await persister.persist_session_memories(deadline=time.monotonic() - 0.1)
+
+        ctx.services.memory.on_session_stop.assert_not_called()
+        assert "deadline" in caplog.text
+        assert "not persisted" in view.write_warning.call_args.args[0]
+
+    @pytest.mark.asyncio
+    async def test_memories_run_when_the_deadline_has_not_passed(self) -> None:
+        ctx = _ctx(7)
+        ctx.services = MagicMock()
+        ctx.services.memory.on_session_stop = AsyncMock()
+        ctx.conv.history = [{"role": "user", "content": "hello"}]
+        view = MagicMock()
+        persister = SessionPersister(ctx, MagicMock(), view)
+
+        await persister.persist_session_memories(deadline=time.monotonic() + 5.0)
+
+        ctx.services.memory.on_session_stop.assert_awaited_once()
+        view.write_warning.assert_not_called()

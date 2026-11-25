@@ -395,6 +395,23 @@ def _reset_tool_registry() -> Generator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _reset_db_write_gate() -> Generator[None]:
+    """Reset the process-wide db write gate before and after every test.
+
+    ResourceShutdownCoordinator closes the gate as its first shutdown step, and
+    db.write_gate is a module-level singleton on purpose (one gate per process).
+    Without a per-test reset, a shutdown path in one test file leaves the gate
+    closed and every later test that writes through SQLiteHelper is refused with
+    WriteGateClosed, depending on collection order (scripts/db/write_gate.py).
+    """
+    from db.write_gate import get_write_gate
+
+    get_write_gate().reset()
+    yield
+    get_write_gate().reset()
+
+
+@pytest.fixture(autouse=True)
 def _reset_web_search_health_and_metrics() -> Generator[None]:
     """Reset web-search-mcp's in-process health/metrics singletons per test.
 
