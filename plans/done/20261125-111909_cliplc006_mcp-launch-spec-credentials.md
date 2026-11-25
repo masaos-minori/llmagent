@@ -228,36 +228,45 @@ Validation quality baseline (Step 5): `radon cc` average complexity A or B for a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | In Progress | — | — | Expected to fail until Phases 2-3 land Procedures generated 20261125-223712 |
-| 2 | Phase 2: identifier rule and configuration | In Progress | — | — | Release unit R1-launch-spec Procedures generated 20261125-223712 |
-| 3 | Phase 3: launch spec and confinement | In Progress | — | — | Release unit R1-launch-spec Procedures generated 20261125-223712 |
-| 4 | Phase 4: documentation and generated artifacts | In Progress | — | — | Regenerate, do not hand-edit Procedures generated 20261125-223712 |
+| 1 | Phase 1: tests first | Completed | — | 20261126 | Expected to fail until Phases 2-3 land Procedures generated 20261125-223712 Rows 7-12 landed first (tests-first). Targeted tests failed before the code rows and pass after. |
+| 2 | Phase 2: identifier rule and configuration | Completed | — | 20261126 | Release unit R1-launch-spec Procedures generated 20261125-223712 Rows 1 and 6 landed (validate_server_key, credential_env, config/agent.toml). |
+| 3 | Phase 3: launch spec and confinement | Completed | — | 20261126 | Release unit R1-launch-spec Procedures generated 20261125-223712 Rows 2-5 landed (LaunchSpec, strict confinement, spec-driven launcher, stderr key check). |
+| 4 | Phase 4: documentation and generated artifacts | Completed | — | 20261126 | Regenerate, do not hand-edit Procedures generated 20261125-223712 Rows 13-16 landed; generated artifacts regenerated, not hand-edited. |
 | 5 | Phase 5: deployment and verification | Pending | — | — | Deploy is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 2 | REQ-005 key validation rejected the `_dummy` MCP server key used by 11 test fixtures outside the procedure scope (789 failures). `amend_plan.py` refuses an archived Plan, so no procedure covered these files. | Yes: applied as a fallout amendment with user approval (see Fallout Amendments) | 20261126 |
+| 3 | REQ-004 strict confinement broke spawn-behavior tests in `tests/agent/test_lifecycle.py` that launch `uvicorn` / `sys.executable` from the project virtualenv. | Yes: documented `LLMAGENT_COMMAND_MODE=permissive` autouse fixture added (see Fallout Amendments) | 20261126 |
+
+### Fallout Amendments
+Files edited outside the `Implementation Target Files` table, class `fallout` per `rules/workflow-lifecycle.md` (kept existing behavior testable; no scope or behavior change):
+
+| File | Reason |
+|------|--------|
+| `tests/agent/test_tool_policy.py`, `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/test_tool_runner.py`, `tests/agent/test_tool_approval_preflight.py`, `tests/agent/test_tool_audit.py`, `tests/agent/test_tool_loop_guard.py`, `tests/agent/test_tool_preparation.py`, `tests/agent/test_tool_approval_repos.py`, `tests/agent/test_tool_approval_risk.py`, `tests/agent/test_tool_approval_paths.py`, `tests/agent/test_repository_gateway.py` | Fixture MCP server key renamed `_dummy` -> `dummy`: `validate_server_key` (REQ-005) rejects the leading underscore, so `build_agent_config` raised before any assertion ran |
+| `tests/agent/test_lifecycle.py` | Autouse `_permissive_spawn_mode` fixture sets `LLMAGENT_COMMAND_MODE=permissive` (REQ-004 documented opt-in): these cases characterize lifecycle and subprocess-manager behavior through commands outside the trusted binary directory |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261125-223712_01_scripts_shared_mcp_config.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-223712_02_scripts_agent_http_lifecycle_launch_spec.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-223712_03_scripts_agent_http_lifecycle_command_validator.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-223712_04_scripts_agent_http_lifecycle_subprocess_launcher.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-223712_05_scripts_agent_http_lifecycle_stderr_log_manager.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-223712_06_config_agent.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-223712_07_tests_shared_test_mcp_config_validation.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-223712_08_tests_agent_test_http_lifecycle_launch_spec.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-223712_09_tests_agent_test_http_lifecycle_command_validator.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-223712_10_tests_agent_test_http_lifecycle.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-223712_11_tests_agent_test_http_lifecycle_env_allowlist_integration.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-223712_12_tests_agent_test_http_lifecycle_stderr_log_manager.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-223712_13_docs_22_mcp_mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-223712_14_docs_90_deployment_deployment_01_deployment.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-223712_15_docs_23_agent_agent_13_reference-api-generated.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-223712_16_registry_manifests_agent_api.yaml.md | 4 | Procedure | Pending | — | — |
+| implementations/20261125-223712_01_scripts_shared_mcp_config.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-223712_02_scripts_agent_http_lifecycle_launch_spec.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-223712_03_scripts_agent_http_lifecycle_command_validator.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-223712_04_scripts_agent_http_lifecycle_subprocess_launcher.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-223712_05_scripts_agent_http_lifecycle_stderr_log_manager.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-223712_06_config_agent.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-223712_07_tests_shared_test_mcp_config_validation.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-223712_08_tests_agent_test_http_lifecycle_launch_spec.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-223712_09_tests_agent_test_http_lifecycle_command_validator.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-223712_10_tests_agent_test_http_lifecycle.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-223712_11_tests_agent_test_http_lifecycle_env_allowlist_integration.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-223712_12_tests_agent_test_http_lifecycle_stderr_log_manager.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-223712_13_docs_22_mcp_mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-223712_14_docs_90_deployment_deployment_01_deployment.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-223712_15_docs_23_agent_agent_13_reference-api-generated.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-223712_16_registry_manifests_agent_api.yaml.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

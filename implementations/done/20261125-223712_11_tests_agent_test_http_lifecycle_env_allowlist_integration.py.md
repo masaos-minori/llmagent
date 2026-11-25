@@ -70,8 +70,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the test cases described in Implementation > Procedure/Method/Details | Pending | — | — | Plan Phase 1: expected to fail until rows 1-3 and 6 land |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the test cases described in Implementation > Procedure/Method/Details | Completed | 20261126 | 20261126 | Plan Phase 1: expected to fail until rows 1-3 and 6 land Changed: tests/agent/test_http_lifecycle_env_allowlist_integration.py; collection error expected (build_child_env lands in row 2) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261126 | ruff format+check pass; import error is an allowed batch red |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

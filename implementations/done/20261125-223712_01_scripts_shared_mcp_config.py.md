@@ -43,6 +43,8 @@ Add the identifier validator and enforce it at both config entry points, delete 
 
 `McpServerConfig(fields=...)` becomes a `TypeError`. The only construction that passes it is `tests/agent/test_http_lifecycle.py:299` (row 10), and the only reader of `.fields` is `scripts/agent/http_lifecycle_subprocess_launcher.py:102-103` (row 4); the consumer scan found no other reader (Plan Design). `credential_env` (new) is additive and defaulted, so the 19 importing modules are source-compatible.
 
+Verification finding (Step 3a, 20261126): the `render_config_payload` docstring at `scripts/agent/config_builders.py:249` names `McpServerConfig.fields` and becomes stale prose once the field is removed. That file is a Plan `Reference Files` row (MUST NOT be modified), so the fix is out of this batch's scope; report it as a follow-up item.
+
 ## Security considerations
 
 The identifier rule is what stops a TOML section name from becoming a path component or terminal text (REQ-005, AC-4). `credential_env` (new) values are variable names only; the launch audit records names, never values (REQ-007).
@@ -74,9 +76,9 @@ Revert the commit. The change is only safe as part of R1-launch-spec: rows 4 and
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after the row 7-12 Phase 1 tests are in place (REQ-009) |
-| 2 | Confirm the Phase 1 test additions from row 7 fail before this change and pass after it | Pending | — | — | Tests-first order per Plan Phase 1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261126 | Execute after the row 7-12 Phase 1 tests are in place (REQ-009) Implemented as specified, with the Step 3a verification findings applied. |
+| 2 | Confirm the Phase 1 test additions from row 7 fail before this change and pass after it | Completed | — | 20261126 | Tests-first order per Plan Phase 1 tests/shared/test_mcp_config_validation.py and tests/shared/test_mcp_config.py: 137 passed after this change (23 failed before it). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261126 | Batch-end validation (release unit R1-launch-spec): ruff format+check, mypy 473 files, bandit 0 issues, lint-imports 6 contracts kept, check_module_size, check_mock_patch_targets, check_suppression_justification, check_docstrings. Full suite: 15116 passed, 16 failed (identical to the HEAD baseline: tests/integration/test_call_state_* pre-existing ToolCallState.args_hash failures). diff-cover 100% on changed source lines. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

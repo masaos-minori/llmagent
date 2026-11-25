@@ -27,15 +27,17 @@ Regenerate the manifest from live source and confirm the drift check passes.
 
 ### Method
 - After rows 1-4 are in the source, run `uv run python tools/generate_reference_table.py --manifests --type agent`.
-- Review the diff: the `CommandValidator` entry loses `filter_env`, the new `scripts/agent/http_lifecycle_launch_spec.py` module and its public symbols are added, and `scripts/shared/mcp_config.py` gains `validate_server_key`.
+- Review the diff: the new `scripts/agent/http_lifecycle_launch_spec.py` module and its public symbols are added, and the `CommandValidator` entry's summary text changes.
+
+Verification finding (Step 3a, 20261126): the manifest records only top-level classes and functions per file, so it never recorded the `filter_env` method; `scripts/shared/mcp_config.py` is not in the agent manifest's source scope (`scripts/agent/**` only), so `validate_server_key` does not appear in this manifest.
 - Run `uv run python tools/generate_reference_table.py --check --type agent` to confirm the committed manifest matches the live sources and the rendered doc block matches the manifest.
 
 ### Details
-- The `agent` manifest covers top-level `scripts/agent/*.py` symbols; `scripts/shared/` symbols appear through the manifest's registered source list, which the generator owns. Do not change the registered source list.
+- The `agent` manifest covers only `scripts/agent/**` symbols (verified against the committed manifest's `- file:` entries); `scripts/shared/` symbols are outside its registered source list. Do not change the registered source list.
 
 ## Compatibility considerations
 
-`CommandValidator` appears twice in the current manifest; the entry count changes only through the generator's own rules.
+`CommandValidator` appears once in the current manifest (`registry/manifests/agent_api.yaml:429`); the entry count changes only through the generator's own rules.
 
 ## Security considerations
 
@@ -53,7 +55,7 @@ N/A: revert the commit.
 ## Completion criteria
 
 - `--check` exits 0 with the manifest committed.
-- The manifest no longer records `filter_env` and does record the launch-spec module's public symbols.
+- The manifest records the launch-spec module's public symbols and the updated `CommandValidator` summary.
 
 ## Out of Scope
 
@@ -65,8 +67,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the manifest with `tools/generate_reference_table.py --manifests --type agent` | Pending | — | — | Execute after rows 1-4 land |
-| 2 | Confirm `--check --type agent` exits 0 | Pending | — | — | |
+| 1 | Regenerate the manifest with `tools/generate_reference_table.py --manifests --type agent` | Completed | — | 20261126 | Execute after rows 1-4 land Regenerated with generate_reference_table.py --manifests --type agent; diff limited to the launch-spec module and the CommandValidator summary. |
+| 2 | Confirm `--check --type agent` exits 0 | Completed | — | 20261126 | generate_reference_table.py --check --type agent and --check (all domains) report no drift. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

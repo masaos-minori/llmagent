@@ -68,8 +68,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the test cases described in Implementation > Procedure/Method/Details | Pending | — | — | Plan Phase 1: expected to fail until rows 1 and 6 land |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the test cases described in Implementation > Procedure/Method/Details | Completed | 20261126 | 20261126 | Plan Phase 1: expected to fail until rows 1 and 6 land |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261126 | Changed: tests/shared/test_mcp_config_validation.py; 23 new cases fail as expected (Plan Phase 1) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

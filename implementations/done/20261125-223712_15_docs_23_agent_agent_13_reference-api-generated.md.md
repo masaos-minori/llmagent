@@ -26,7 +26,9 @@ Regenerate the guarded Agent block from the refreshed manifest.
 
 ### Method
 - Run `uv run python tools/generate_reference_table.py --manifests --type agent` after rows 1-4 are in the source.
-- Review the diff: `filter_env` disappears, `LaunchSpec`, `build_launch_spec`, and `build_child_env` appear, and `validate_server_key` appears under `scripts/shared/mcp_config.py`.
+- Review the diff: the new `scripts/agent/http_lifecycle_launch_spec.py` module and its public symbols (`LaunchSpec`, `build_launch_spec`, `build_child_env`) appear, and the `CommandValidator` entry's summary text changes (its docstring no longer mentions filtering environment variables).
+
+Verification finding (Step 3a, 20261126): the manifest records only top-level classes and functions per file, so the `filter_env` method never appears in it and cannot "disappear"; `validate_server_key` lives in `scripts/shared/mcp_config.py`, which is outside the agent manifest's source scope (`scripts/agent/**` only), so it does not appear in this document either.
 - Any unrelated diff means the manifest was already stale: report it, do not absorb it.
 
 ## Compatibility considerations
@@ -47,7 +49,7 @@ N/A: revert the commit.
 
 ## Completion criteria
 
-- `--check` exits 0, the document no longer lists `filter_env`, and it lists the new launch-spec and key-validation symbols.
+- `--check` exits 0, and the document lists the new launch-spec module and its public symbols, with the `CommandValidator` summary updated.
 
 ## Out of Scope
 
@@ -58,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Run `tools/generate_reference_table.py --manifests --type agent` | Pending | — | — | Execute after rows 1-4 land |
-| 2 | Confirm `--check --type agent` exits 0 and the diff holds only the expected symbols | Pending | — | — | |
+| 1 | Run `tools/generate_reference_table.py --manifests --type agent` | Completed | — | 20261126 | Execute after rows 1-4 land Regenerated with generate_reference_table.py --manifests --type agent; diff limited to the launch-spec module and the CommandValidator summary. |
+| 2 | Confirm `--check --type agent` exits 0 and the diff holds only the expected symbols | Completed | — | 20261126 | generate_reference_table.py --check --type agent and --check (all domains) report no drift. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

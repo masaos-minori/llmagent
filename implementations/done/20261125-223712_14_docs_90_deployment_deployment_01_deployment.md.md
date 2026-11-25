@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the document as described in Method | Pending | — | — | Execute after rows 1-3 and 6 land |
-| 2 | Run the documentation gates in `rules/tool-gates.md` | Pending | — | — | |
+| 1 | Update the document as described in Method | Completed | — | 20261126 | Execute after rows 1-3 and 6 land Document updated as specified. |
+| 2 | Run the documentation gates in `rules/tool-gates.md` | Completed | — | 20261126 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_japanese, check_docs_consistency pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

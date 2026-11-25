@@ -77,9 +77,9 @@ Revert the commit. This row is the consumer of rows 2 and 3; reverting it alone 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after the row 10 Phase 1 tests are in place (REQ-009) |
-| 2 | Confirm the Phase 1 test additions from row 10 fail before this change and pass after it | Pending | — | — | Tests-first order per Plan Phase 1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261126 | Execute after the row 10 Phase 1 tests are in place (REQ-009) Implemented as specified, with the Step 3a verification findings applied. |
+| 2 | Confirm the Phase 1 test additions from row 10 fail before this change and pass after it | Completed | — | 20261126 | Tests-first order per Plan Phase 1 Targeted tests plus ruff/mypy/module-size/mock-patch/suppression gates pass. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261126 | Batch-end validation (release unit R1-launch-spec): ruff format+check, mypy 473 files, bandit 0 issues, lint-imports 6 contracts kept, check_module_size, check_mock_patch_targets, check_suppression_justification, check_docstrings. Full suite: 15116 passed, 16 failed (identical to the HEAD baseline: tests/integration/test_call_state_* pre-existing ToolCallState.args_hash failures). diff-cover 100% on changed source lines. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

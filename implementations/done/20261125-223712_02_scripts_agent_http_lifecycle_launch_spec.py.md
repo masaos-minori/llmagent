@@ -35,6 +35,12 @@ Write the new module: the frozen spec, the single builder, the minimal-environme
 - Define `build_child_env` (new): start from the fixed runtime set (`PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`, `TMP`, `TEMP`, `LANG`, `LC_*`, `LLMAGENT_CONFIG_DIR`, `LLMAGENT_SUDACHI_DICT`) read from the parent, add the two derived tokens for `server_key`, then each name in `cfg.credential_env`, then merge `cfg.env` under the existing denylist and protected-variable rules.
 - Add the launch audit log line: `logger.info` naming the server key and the sorted environment key names only.
 
+Verification finding (Step 3a, 20261126): the fixed runtime set is defined once, as
+`scripts/agent/http_lifecycle_command_validator.py::_DEFAULT_ALLOWED_ENV_VARS`, which row 3 keeps as the
+env-policy constant next to `_DEFAULT_PROTECTED_ENV_VARS`. `build_child_env` reads it through
+`_FIXED_RUNTIME_PATTERNS`, an alias for that constant, instead of restating the 12 names: a second literal
+list would be kept in sync only by a test in another file.
+
 ### Details
 - Import `_ENV_KEY_DENYLIST` and `validate_server_key` from `shared.mcp_config`; import `StartupFailure` from `.http_lifecycle_errors` for the identity-mismatch reason.
 - `LC_*` admission keeps the current `fnmatch` semantics used by `CommandValidator.filter_env`, so locale variables behave unchanged.
@@ -77,9 +83,9 @@ N/A: revert the commit; the module has no consumer until rows 3 and 4 land.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after the row 8 Phase 1 tests are in place (REQ-009) |
-| 2 | Confirm the Phase 1 test additions from row 8 fail before this change and pass after it | Pending | — | — | Tests-first order per Plan Phase 1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261126 | Execute after the row 8 Phase 1 tests are in place (REQ-009) New module implemented; the fixed runtime set is read from the validator constant (Step 3a finding). |
+| 2 | Confirm the Phase 1 test additions from row 8 fail before this change and pass after it | Completed | — | 20261126 | Tests-first order per Plan Phase 1 tests/agent/test_http_lifecycle_launch_spec.py: 18 passed after this change (collection error before it). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261126 | Batch-end validation (release unit R1-launch-spec): ruff format+check, mypy 473 files, bandit 0 issues, lint-imports 6 contracts kept, check_module_size, check_mock_patch_targets, check_suppression_justification, check_docstrings. Full suite: 15116 passed, 16 failed (identical to the HEAD baseline: tests/integration/test_call_state_* pre-existing ToolCallState.args_hash failures). diff-cover 100% on changed source lines. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
