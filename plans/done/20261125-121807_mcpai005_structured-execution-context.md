@@ -278,11 +278,11 @@ Validation quality baseline (Step 5): `radon cc` average complexity is A for `di
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | In Progress | — | — | Expected to fail until Phases 2-4 land |
-| 2 | Phase 2: shared vocabulary and DTOs | In Progress | — | — | Release unit R1-mode-contract |
-| 3 | Phase 3: MCP dispatcher and entry points | In Progress | — | — | Release unit R1-mode-contract |
-| 4 | Phase 4: Agent adoption | In Progress | — | — | Release unit R1-mode-contract |
-| 5 | Phase 5: documentation and generated artifacts | In Progress | — | — | Regenerate, do not hand-edit |
+| 1 | Phase 1: tests first | Completed | — | 20261125-180751 | Expected to fail until Phases 2-4 land |
+| 2 | Phase 2: shared vocabulary and DTOs | Completed | — | 20261125-180906 | Release unit R1-mode-contract |
+| 3 | Phase 3: MCP dispatcher and entry points | Completed | — | 20261125-180906 | Release unit R1-mode-contract |
+| 4 | Phase 4: Agent adoption | Completed | — | 20261125-180906 | Release unit R1-mode-contract |
+| 5 | Phase 5: documentation and generated artifacts | Completed | — | 20261125-180906 | Regenerate, do not hand-edit |
 | 6 | Phase 6: deployment and verification | Pending | — | — | Deploy is the user's decision |
 
 ### Blocker Log
@@ -293,35 +293,35 @@ Validation quality baseline (Step 5): `radon cc` average complexity is A for `di
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261125-122426_01_scripts_shared_execution_mode.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261125-122426_02_scripts_shared_transport_dto.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261125-122426_03_scripts_shared_http_transport.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261125-122426_04_scripts_mcp_servers_execution_context.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_05_scripts_mcp_servers_dispatch.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_06_scripts_mcp_servers_dedup_gate.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_07_scripts_mcp_servers_models.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_08_scripts_mcp_servers_server.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_09_scripts_mcp_servers_git_git_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_10_scripts_mcp_servers_github_github_server.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_11_scripts_mcp_servers_file_write_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_12_scripts_mcp_servers_file_delete_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_13_scripts_mcp_servers_file_read_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_14_scripts_mcp_servers_shell_shell_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_15_scripts_mcp_servers_cicd_cicd_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_16_scripts_mcp_servers_web_search_formatters.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_17_scripts_mcp_servers_web_search_web_search_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_18_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_19_scripts_mcp_servers_mdq_mdq_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-122426_20_scripts_agent_tool_preparation.py.md | 1, 4 | Procedure | Pending | — | — |
-| implementations/20261125-122426_21_scripts_agent_tool_runner.py.md | 1, 4 | Procedure | Pending | — | — |
-| implementations/20261125-122426_22_scripts_agent_tool_approval.py.md | 1, 4 | Procedure | Pending | — | — |
-| implementations/20261125-122426_25_tests_mcp_servers_test_dry_run_contract.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-122426_26_tests_mcp_servers_test_mcp_dispatch.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-122426_27_tests_mcp_servers_test_mcp_dispatch_concurrency.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-122426_35_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261125-122426_36_docs_23_agent_agent_13_reference-api-generated.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261125-122426_37_registry_manifests_agent_api.yaml.md | 5 | Procedure | Pending | — | — |
-| implementations/20261125-122426_38_tests_mcp_servers_conftest.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-122426_01_scripts_shared_execution_mode.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261125-122426_02_scripts_shared_transport_dto.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261125-122426_03_scripts_shared_http_transport.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261125-122426_04_scripts_mcp_servers_execution_context.py.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_05_scripts_mcp_servers_dispatch.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_06_scripts_mcp_servers_dedup_gate.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_07_scripts_mcp_servers_models.py.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_08_scripts_mcp_servers_server.py.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_09_scripts_mcp_servers_git_git_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_10_scripts_mcp_servers_github_github_server.py.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_11_scripts_mcp_servers_file_write_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_12_scripts_mcp_servers_file_delete_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_13_scripts_mcp_servers_file_read_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_14_scripts_mcp_servers_shell_shell_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_15_scripts_mcp_servers_cicd_cicd_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_16_scripts_mcp_servers_web_search_formatters.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_17_scripts_mcp_servers_web_search_web_search_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_18_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_19_scripts_mcp_servers_mdq_mdq_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-122426_20_scripts_agent_tool_preparation.py.md | 1, 4 | Procedure | Completed | — | — |
+| implementations/20261125-122426_21_scripts_agent_tool_runner.py.md | 1, 4 | Procedure | Completed | — | — |
+| implementations/20261125-122426_22_scripts_agent_tool_approval.py.md | 1, 4 | Procedure | Completed | — | — |
+| implementations/20261125-122426_25_tests_mcp_servers_test_dry_run_contract.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-122426_26_tests_mcp_servers_test_mcp_dispatch.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-122426_27_tests_mcp_servers_test_mcp_dispatch_concurrency.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-122426_35_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-122426_36_docs_23_agent_agent_13_reference-api-generated.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-122426_37_registry_manifests_agent_api.yaml.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-122426_38_tests_mcp_servers_conftest.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

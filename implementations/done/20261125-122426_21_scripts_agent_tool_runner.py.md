@@ -73,9 +73,9 @@ Revert the release unit together.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-174157 | 20261125-174157 | changed; preview guard at the top of _record_pending_state, mode-scoped attempt_side_effect in _execute_prepared_call, both docstrings updated; stale check clean |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-174157 | 20261125-174157 | 3 cases added via _execute_with_dag plus a direct _record_pending_state call; _pc fixture gained execution_mode kwarg; 144 passed (141 existing + 3 new) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-180342 | 20261125-180342 | — release unit R1-mode-contract: end-of-unit full-suite run pending; generate_reference_table_check reports manifest drift for the new new_execution_context symbol, resolved by plan row procedure 37; Step 5 N/A: docs work is the plan row docs/23_agent/agent_13_reference-api-generated.md end-of-batch full-suite run: 14369 passed, 4 skipped; diff-cover 92% (>=90) on changed lines; run_validation_gates.py passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

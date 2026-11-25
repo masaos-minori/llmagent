@@ -72,9 +72,9 @@ Revert the release unit together.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-174325 | 20261125-174325 | changed; preview context built from preview_args before tools.execute; masking/truncation and the two error paths untouched; stale check clean |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-174325 | 20261125-174325 | 1 case added; existing test_dry_run_performs_no_downstream_mutation fake executor signature widened to accept context (its side_effect took positional-only args); 84 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-180342 | 20261125-180342 | — release unit R1-mode-contract: end-of-unit full-suite run pending; Step 5 N/A: docs work is the plan row docs/23_agent/agent_13_reference-api-generated.md end-of-batch full-suite run: 14369 passed, 4 skipped; diff-cover 92% (>=90) on changed lines; run_validation_gates.py passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

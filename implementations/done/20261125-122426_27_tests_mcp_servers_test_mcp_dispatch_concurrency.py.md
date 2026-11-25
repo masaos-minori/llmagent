@@ -61,8 +61,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the test file described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Update the test file described in Implementation > Procedure/Method/Details | Completed | 20261125-175307 | 20261125-175307 | changed; local _ctx helper, 3 call sites converted; fixtures untouched; stale check clean |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-180342 | 20261125-180342 | — plan batch: end-of-batch full-suite run pending; targeted run 3 passed, ruff clean. Pre-existing mypy findings remain in this file (5: fixture generator return types and dict[str, Any] arithmetic) and are out of this procedure scope per Details. This procedure has 2 rows (test-only), so the validation row is Step 2, not Step 3 end-of-batch full-suite run: 14369 passed, 4 skipped; diff-cover 92% (>=90) on changed lines; run_validation_gates.py passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -34,8 +34,8 @@ N/A: regenerate or revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the file per Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — |  |
+| 1 | Regenerate the file per Implementation > Procedure/Method/Details | Completed | 20261125-175617 | 20261125-175617 | regenerated with tools/generate_reference_table.py --manifests; diff adds the new_execution_context entry (the symbol procedure 20 added); no hand edit |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-175617 | 20261125-175617 | run_validation_gates.py passes; generate_reference_table.py --check reports no drift |
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|

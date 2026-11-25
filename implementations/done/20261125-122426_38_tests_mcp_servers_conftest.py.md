@@ -64,8 +64,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the test file described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Update the test file described in Implementation > Procedure/Method/Details | Completed | 20261125-180342 | 20261125-180342 | 1:changed; _declared_tool_entries() added and _declared_retry_policies() rebuilt on top of it; the autouse fixture now configures the preview map and resets it in teardown; logger-propagation and isolated_dedup fixtures unchanged |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-180342 | 20261125-180342 | 2:pytest tests/mcp_servers -q: 3041 passed, 3 skipped; ruff format/check, mypy, lint-imports clean. This procedure has 2 rows (test-only), so the validation row is Step 2, not Step 3 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

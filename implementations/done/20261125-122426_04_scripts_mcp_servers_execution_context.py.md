@@ -77,9 +77,9 @@ Delete the module and its test before the dependent procedures land; after that,
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add the companion test per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-170308 | 20261125-170308 | changed: scripts/mcp_servers/execution_context.py, tests/mcp_servers/test_execution_context.py; stale check clean |
+| 2 | Add the companion test per Validation plan | Completed | 20261125-170308 | 20261125-170308 | 13 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-180342 | 20261125-180342 | — release unit R1-mode-contract: end-of-unit full-suite run pending; Step 5 N/A: docs work is the plan row docs/22_mcp/mcp_03_01_dispatch-and-routing.md, not this procedure end-of-batch full-suite run: 14369 passed, 4 skipped; diff-cover 92% (>=90) on changed lines; run_validation_gates.py passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

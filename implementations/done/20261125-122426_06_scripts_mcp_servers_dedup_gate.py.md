@@ -67,9 +67,9 @@ N/A: revert the commit; the fields are additive.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-170854 | 20261125-170854 | changed: gate.py.md target file per Method; stale check clean |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-170854 | 20261125-170854 | no companion test required by the procedure; existing tests cover it (dispatch tests red until seq 26/27, release unit) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-180342 | 20261125-180342 | — release unit R1-mode-contract: end-of-unit full-suite run pending; Step 5 N/A: docs work is the plan row docs/22_mcp/mcp_03_01_dispatch-and-routing.md end-of-batch full-suite run: 14369 passed, 4 skipped; diff-cover 92% (>=90) on changed lines; run_validation_gates.py passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

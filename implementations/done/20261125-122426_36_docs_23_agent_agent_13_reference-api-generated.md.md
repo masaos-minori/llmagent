@@ -35,8 +35,8 @@ N/A: regenerate or revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the file per Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — |  |
+| 1 | Regenerate the file per Implementation > Procedure/Method/Details | Completed | 20261125-175617 | 20261125-175617 | regenerated with tools/generate_reference_table.py --manifests (the generator named in the file header); diff adds the new_execution_context entry in scripts/agent/tool_preparation.py; no hand edit |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-175617 | 20261125-175617 | check_docs_quality.py and check_docs_structure.py pass; generate_reference_table.py --check reports no drift |
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|

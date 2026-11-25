@@ -9,7 +9,7 @@ Route this server's HTTP and programmatic entry points through the shared execut
 
 - `dispatch_tool` takes a context in place of `idempotency_key` after the dispatcher procedure (earlier `seq`), and `extract_execution_context` exists after the `server.py` procedure; this document runs after both within the release unit.
 - The HTTP middleware already rejects a keyless side-effecting `POST /v1/call_tool`, so production HTTP behavior is unchanged; only the programmatic path gains the key rule.
-- Existing tests that pass `idempotency_key=` to `the inline `dispatch_tool` call in `call_tool`` are Fallout and are updated with this change (Plan UNK-03); the named validation target is `tests/mcp_servers/git/test_git_service_dispatch.py`.
+- Existing tests that pass `idempotency_key=` to ``_dispatch_write_tool`` are Fallout and are updated with this change (Plan UNK-03); the named validation target is `tests/mcp_servers/file/test_file_write_mcp_service.py`.
 
 ## Design decisions
 
@@ -22,19 +22,18 @@ Keeping the wrapper's `idempotency_key` parameter and building the context insid
 
 ## Implementation
 ### Target file
-`scripts/mcp_servers/git/git_server.py`
+`scripts/mcp_servers/file/write_server.py`
 
 ### Procedure
-Change the dispatch wrapper, the HTTP handler, and the programmatic override of `scripts/mcp_servers/git/git_server.py`.
+Change the dispatch wrapper, the HTTP handler, and the programmatic override of `scripts/mcp_servers/file/write_server.py`.
 
 ### Method
-- Pass `context=exec_ctx` to the inline `dispatch_tool` call in `call_tool` (Git has no separate wrapper function).
+- In ``_dispatch_write_tool`` replace the `idempotency_key: str | None = None` parameter with `context: ExecutionContext | None = None` and pass it to `dispatch_tool` as `context=context`.
 - In the HTTP `call_tool` handler build the context once with `extract_execution_context(request, req.name, req.args)` (imported from `mcp_servers.server`); an `ExecutionContextError` returns `CallToolResponse(result=f"Validation error: {exc}", is_error=True)` before any dispatch.
 - Keep `extract_request_context` for the audit ids; drop the now-unused `idempotency_key` local if nothing else reads it.
 - In the programmatic `dispatch(self, name, args, context=None)` override pass `context` to the wrapper.
 - Import `ExecutionContext` and `ExecutionContextError` from `mcp_servers.execution_context`.
-- Git's `call_tool` calls `dispatch_tool` directly (not through a wrapper): pass `context=exec_ctx` there, and in `GitMCPServer.dispatch` pass `context` to its `dispatch_tool` call, which today passes no key.
-- Build the final `CallToolResponse` from the dispatcher result with `_to_call_tool_response` (import it from `mcp_servers.dispatch`) instead of copying only `result` and `is_error`, so the metadata and `dedup_state` are returned.
+- The write formatters emit `Dry-run: ...` text that the old marker scan never matched; no formatter text changes, because the mode no longer depends on it.
 
 ### Details
 - Do not change authentication, posture gating, audit fields, or tool tables.
@@ -54,8 +53,8 @@ Revert the release unit together with the dispatcher.
 
 ## Validation plan
 
-- `uv run pytest tests/mcp_servers/git/test_git_service_dispatch.py`
-- `uv run mypy scripts/mcp_servers/git/git_server.py`
+- `uv run pytest tests/mcp_servers/file/test_file_write_mcp_service.py`
+- `uv run mypy scripts/mcp_servers/file/write_server.py`
 - `uv run ruff check` and `uv run ruff format`
 - The cross-server contract test in `tests/mcp_servers/test_dry_run_contract.py` exercises this server's entry points.
 
@@ -74,9 +73,9 @@ Revert the release unit together with the dispatcher.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Update the existing tests that call the changed wrapper (found with `rg`) per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-171922 | 20261125-171922 | changed: scripts/mcp_servers/file/write_server.py; stale check clean |
+| 2 | Update the existing tests that call the changed wrapper (found with `rg`) per Validation plan | Completed | 20261125-171922 | 20261125-171922 | no test call sites passed idempotency_key=; 54 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-180342 | 20261125-180342 | — release unit R1-mode-contract: end-of-unit full-suite run pending; Step 5 N/A: docs work is the plan row docs/22_mcp/mcp_03_01_dispatch-and-routing.md end-of-batch full-suite run: 14369 passed, 4 skipped; diff-cover 92% (>=90) on changed lines; run_validation_gates.py passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -96,4 +95,4 @@ Revert the release unit together with the dispatcher.
 - **Source plan**: plans/20261125-121807_mcpai005_structured-execution-context.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261125-122426
-- **Related target files**: `scripts/mcp_servers/git/git_server.py`
+- **Related target files**: `scripts/mcp_servers/file/write_server.py`

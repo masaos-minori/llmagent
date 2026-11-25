@@ -76,9 +76,9 @@ Revert the release unit together; the dispatcher alone cannot be reverted while 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-170748 | 20261125-170748 | changed: scripts/mcp_servers/dispatch.py; stale check clean |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-180342 | 20261125-180342 | — targeted run red: 34 failures are the idempotency_key= call sites rewritten by seq 26/27 (allowed red state, release unit) targeted run green after the end-of-batch full-suite run; end-of-batch full-suite run: 14369 passed, 4 skipped; diff-cover 92% (>=90) on changed lines; run_validation_gates.py passes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-180342 | 20261125-180342 | — mypy red until seq 06/07 fields landed (allowed red state); green after them; Step 5 N/A: docs work is the plan row docs/22_mcp/mcp_03_01_dispatch-and-routing.md end-of-batch full-suite run: 14369 passed, 4 skipped; diff-cover 92% (>=90) on changed lines; run_validation_gates.py passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

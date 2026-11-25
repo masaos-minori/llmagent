@@ -9,7 +9,7 @@ Route this server's HTTP and programmatic entry points through the shared execut
 
 - `dispatch_tool` takes a context in place of `idempotency_key` after the dispatcher procedure (earlier `seq`), and `extract_execution_context` exists after the `server.py` procedure; this document runs after both within the release unit.
 - The HTTP middleware already rejects a keyless side-effecting `POST /v1/call_tool`, so production HTTP behavior is unchanged; only the programmatic path gains the key rule.
-- Existing tests that pass `idempotency_key=` to ``_dispatch_shell_tool`` are Fallout and are updated with this change (Plan UNK-03); the named validation target is `tests/mcp_servers/test_mcp_dispatch.py`.
+- Existing tests that pass `idempotency_key=` to ``_dispatch_github_tool`` are Fallout and are updated with this change (Plan UNK-03); the named validation target is `tests/mcp_servers/github/test_github_server_endpoints.py`.
 
 ## Design decisions
 
@@ -22,22 +22,27 @@ Keeping the wrapper's `idempotency_key` parameter and building the context insid
 
 ## Implementation
 ### Target file
-`scripts/mcp_servers/shell/shell_server.py`
+`scripts/mcp_servers/github/github_server.py`
 
 ### Procedure
-Change the dispatch wrapper, the HTTP handler, and the programmatic override of `scripts/mcp_servers/shell/shell_server.py`.
+Change the dispatch wrapper, the HTTP handler, and the programmatic override of `scripts/mcp_servers/github/github_server.py`.
 
 ### Method
-- In ``_dispatch_shell_tool`` replace the `idempotency_key: str | None = None` parameter with `context: ExecutionContext | None = None` and pass it to `dispatch_tool` as `context=context`.
+- In ``_dispatch_github_tool`` replace the `idempotency_key: str | None = None` parameter with `context: ExecutionContext | None = None` and pass it to `dispatch_tool` as `context=context`.
 - In the HTTP `call_tool` handler build the context once with `extract_execution_context(request, req.name, req.args)` (imported from `mcp_servers.server`); an `ExecutionContextError` returns `CallToolResponse(result=f"Validation error: {exc}", is_error=True)` before any dispatch.
 - Keep `extract_request_context` for the audit ids; drop the now-unused `idempotency_key` local if nothing else reads it.
 - In the programmatic `dispatch(self, name, args, context=None)` override pass `context` to the wrapper.
 - Import `ExecutionContext` and `ExecutionContextError` from `mcp_servers.execution_context`.
-- `shell_run` declares `preview_capability = "dry_run"` and emits JSON `"dry_run": true`; only the resolved mode is used now.
+- The GitHub write tools return the JSON `"dry_run": true` preview text through `_execute_with_dry_run`; that text is not inspected any more, only the resolved mode decides.
 
 ### Details
 - Do not change authentication, posture gating, audit fields, or tool tables.
 - A server tool table is not edited: preview capability is already declared per tool and is read at bootstrap.
+
+### Companion test files
+- `tests/mcp_servers/github/test_github_server_endpoints.py`
+  - Procedure: Fallout of the key rule: supply a context with a key to the keyless `_dispatch_github_tool("github_create_branch", ...)` call (about line 459) via `ExecutionContext.for_programmatic_call(...)`; add an endpoint case where `call_tool` returns the new execution_mode and side_effect_applied keys.
+  - Validation: `uv run pytest tests/mcp_servers/github/test_github_server_endpoints.py`
 
 ## Compatibility considerations
 
@@ -53,8 +58,8 @@ Revert the release unit together with the dispatcher.
 
 ## Validation plan
 
-- `uv run pytest tests/mcp_servers/test_mcp_dispatch.py`
-- `uv run mypy scripts/mcp_servers/shell/shell_server.py`
+- `uv run pytest tests/mcp_servers/github/test_github_server_endpoints.py`
+- `uv run mypy scripts/mcp_servers/github/github_server.py`
 - `uv run ruff check` and `uv run ruff format`
 - The cross-server contract test in `tests/mcp_servers/test_dry_run_contract.py` exercises this server's entry points.
 
@@ -73,9 +78,9 @@ Revert the release unit together with the dispatcher.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Update the existing tests that call the changed wrapper (found with `rg`) per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-171820 | 20261125-173128 | changed; audit ids read from extract_request_context per Method; stale check clean |
+| 2 | Update the existing tests that call the changed wrapper (found with `rg`) per Validation plan | Completed | 20261125-171820 | 20261125-171820 | 35 passed; response-body assertions extended with the two keys, keyless side-effecting call given a keyed context, new metadata endpoint case; test key renamed key-1 -> key-validation-1 to avoid a shared-store collision with the new case |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-180342 | 20261125-180342 | — release unit R1-mode-contract: end-of-unit full-suite run pending; Step 5 N/A: docs work is the plan row docs/22_mcp/mcp_03_01_dispatch-and-routing.md end-of-batch full-suite run: 14369 passed, 4 skipped; diff-cover 92% (>=90) on changed lines; run_validation_gates.py passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -95,4 +100,4 @@ Revert the release unit together with the dispatcher.
 - **Source plan**: plans/20261125-121807_mcpai005_structured-execution-context.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261125-122426
-- **Related target files**: `scripts/mcp_servers/shell/shell_server.py`
+- **Related target files**: `scripts/mcp_servers/github/github_server.py`, `tests/mcp_servers/github/test_github_server_endpoints.py`

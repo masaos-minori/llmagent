@@ -67,8 +67,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the test file described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Update the test file described in Implementation > Procedure/Method/Details | Completed | 20261125-175203 | 20261125-175203 | changed; module-level _ctx helper, 47 call sites converted, 4 marker-era cases rewritten (keyless pair, preview-not-cached, error+preview, preview-leaves-no-row) plus the replay/applied-flag case; also fixed a pre-existing mypy no-any-return in _seed_interrupted (int(row.attempt_number)) so the changed-file gate passes; no idempotency_key= call site remains |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-180342 | 20261125-180342 | — plan batch: end-of-batch full-suite run pending; targeted run 45 passed, ruff/mypy/lint-imports clean. This procedure has 2 rows (test-only), so the validation row is Step 2, not Step 3 end-of-batch full-suite run: 14369 passed, 4 skipped; diff-cover 92% (>=90) on changed lines; run_validation_gates.py passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

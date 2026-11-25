@@ -67,8 +67,8 @@ N/A: delete the file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the test file described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Update the test file described in Implementation > Procedure/Method/Details | Completed | 20261125-174903 | 20261125-174903 | new file; parametrized over 3 families/wordings; deviation: the JSON wording is rendered by string replacement because .format() treats the literal braces as a field; ledger assertion includes the 'attempt' row the acquire writes before completion |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-180342 | 20261125-180342 | 12 cases (3 families x 3 contract tests + keyless side-effecting, keyless read-only, replay); 12 passed plan batch: end-of-batch full-suite run pending; targeted run 12 passed. This procedure has 2 rows (test-only), so the validation row is Step 2, not Step 3 end-of-batch full-suite run: 14369 passed, 4 skipped; diff-cover 92% (>=90) on changed lines; run_validation_gates.py passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

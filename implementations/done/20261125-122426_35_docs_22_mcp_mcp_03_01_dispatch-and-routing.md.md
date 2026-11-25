@@ -36,8 +36,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document per Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — |  |
+| 1 | Edit the document per Implementation > Procedure/Method/Details | Completed | 20261125-175430 | 20261125-175430 | changed; the marker-era cache sentence replaced, the empty-key bullet restated as the key requirement, and an Execution modes subsection added (vocabulary, resolution rule, header cross-check); stale check clean |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-175430 | 20261125-175430 | run_validation_gates.py plus check_docs_structure.py and check_docs_consistency.py --domain mcp all pass; the only failing gate is the known manifest drift resolved by procedure 37 |
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
