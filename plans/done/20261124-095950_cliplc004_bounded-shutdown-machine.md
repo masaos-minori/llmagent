@@ -335,10 +335,10 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
    - [ ] Export the gate symbols from the package and extend the public-API test (REQ-004; scripts/db/__init__.py, tests/db/test_db_public_api.py)
    - [ ] Add gate-aware coverage for the threaded write paths (REQ-004, REQ-005; tests/db/test_helper_thread_safety.py, tests/db/test_sqlite_helper.py)
 3. **Phase 3: Acceptance gate for turns, commands, and approvals**
-   - [ ] Write the acceptance tests first: a command and a turn submitted after shutdown begins are refused with a visible reason, `CommandRouter.execute_command` and `AgentOrchestrator.handle_turn` are not reached, and a pending approval resolves with `InputOutcome.SHUTDOWN` (REQ-003, AC-2; tests/agent/test_repl_shutdown_machine.py)
-   - [ ] Refuse dispatch when the phase is not `accepting` and set `closed` when the sequence finishes (REQ-003; scripts/agent/repl_input_loop.py)
-   - [ ] Call `ReplInputController.shutdown()` when entering `draining` so an approval or transition wait releases through the existing `_stop_active()` path (REQ-003; scripts/agent/repl_input_loop.py)
-   - [ ] Draw the graceful-turn window from the budget instead of the standalone `_GRACEFUL_TIMEOUT_S` constant, keeping the existing timeout log line (REQ-002; scripts/agent/repl_input_loop.py)
+   - [x] Write the acceptance tests first: a command and a turn submitted after shutdown begins are refused with a visible reason, `CommandRouter.execute_command` and `AgentOrchestrator.handle_turn` are not reached, and a pending approval resolves with `InputOutcome.SHUTDOWN` (REQ-003, AC-2; tests/agent/test_repl_shutdown_machine.py)
+   - [x] Refuse dispatch when the phase is not `accepting` and set `closed` when the sequence finishes (REQ-003; scripts/agent/repl_input_loop.py) — the refusal is in place; the `closed` transition is made by the coordinator's report step (Phase 4, row 5)
+   - [x] Call `ReplInputController.shutdown()` when entering `draining` so an approval or transition wait releases through the existing `_stop_active()` path (REQ-003; scripts/agent/repl_input_loop.py)
+   - [x] Draw the graceful-turn window from the budget instead of the standalone `_GRACEFUL_TIMEOUT_S` constant, keeping the existing timeout log line (REQ-002; scripts/agent/repl_input_loop.py) — the constant remains only as the documented no-budget fallback until row 7 supplies the budget
 4. **Phase 4: Coordinator sequence, writer settling, and the snapshot step**
    - [ ] Write the ordering test first: a writer that is still running when the settle window ends produces `outcome_unknown` for the writer and `not_started` for the checkpoint, and the backup branch still runs (REQ-005, REQ-006, AC-3; tests/agent/test_resource_shutdown_coordinator.py)
    - [ ] Replace `close_resources()` with the named-step loop, move each step body into its own method, and record one `ShutdownStepRecord` per step (REQ-001, REQ-012; scripts/agent/resource_shutdown_coordinator.py)
@@ -414,7 +414,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Phase 1: budget, outcome vocabulary, configuration surface | In Progress | 20261125-073338 | — | OD-03 decided 2026-11-24: 45 s default, configurable; R1-budget-and-config complete 2026-11-25 (rows 1, 17, 18, 19, 44); the repl.py budget wiring moved to row 7 in R4 by user decision 2026-11-25 |
 | 2 | Phase 2: db-owned write gate | Completed | 20261125-082622 | 20261125-082622 | UNK-01 interrupt coverage measured here: `interrupt_when` (`scripts/db/helper.py:158-184`) already exposes the handle the settle step needs and is verified ungated by `tests/db/test_sqlite_helper.py::TestWriteGateRefusal::test_interrupt_when_is_not_gated`; the coordinator consumes it in R4. R2-write-gate complete 2026-11-25 (rows 2, 3, 4, 21, 25): the guard is statement-aware (`execute`/`executemany` gated on `is_write_statement`, `commit` gated on `conn.in_transaction`, `executescript` always gated) so the read paths REQ-006 and REQ-008 need stay open |
-| 3 | Phase 3: acceptance gate for turns, commands, approvals | In Progress | — | — |  |
+| 3 | Phase 3: acceptance gate for turns, commands, approvals | Completed | 20261125-091128 | 20261125-092708 | R3-acceptance-gate complete 2026-11-25 (row 8): acceptance is decided by `budget.phase` at the top of each loop iteration and at the head of `_dispatch_line`; the refusal is reported once and releases a pending wait through `ReplInputController.shutdown()`. The budget argument is keyword-only and optional, so `_GRACEFUL_TIMEOUT_S` remains as the documented no-budget fallback until row 7 supplies the budget in R4, and the `closed` phase transition is made by the coordinator's report step in Phase 4 |
 | 4 | Phase 4: coordinator sequence, writer settling, snapshot step | In Progress | — | — | OD-01 and OD-02 decided 2026-11-24; UNK-02 measured here |
 | 5 | Phase 5: bounded checkpoint, atomic publication, backup naming | In Progress | — | — | UNK-01 and UNK-05 measured here |
 | 6 | Phase 6: termination with the remaining deadline, second-SIGINT routing | In Progress | — | — | OD-04 and OD-05 decided 2026-11-24; UNK-03 measured here |
@@ -440,7 +440,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261125-000005_05_scripts_agent_resource_shutdown_coordinator.py.md | 4 | Procedure | Pending | — | — |
 | implementations/20261125-000005_06_scripts_agent_wal_checkpoint_manager.py.md | 5 | Procedure | Pending | — | — |
 | implementations/20261125-000005_07_scripts_agent_repl.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-000005_08_scripts_agent_repl_input_loop.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-000005_08_scripts_agent_repl_input_loop.py.md | 3 | Procedure | Completed | — | — |
 | implementations/20261125-000005_09_scripts_agent_session_persister.py.md | 4 | Procedure | Pending | — | — |
 | implementations/20261125-000005_10_scripts_agent_signal_handler.py.md | 6 | Procedure | Pending | — | — |
 | implementations/20261125-000005_11_scripts_agent_http_lifecycle_shutdown_coordinator.py.md | 6 | Procedure | Pending | — | — |

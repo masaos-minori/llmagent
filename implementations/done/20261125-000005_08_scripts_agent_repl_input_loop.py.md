@@ -13,6 +13,8 @@ Make the input loop stop accepting work once shutdown begins: refuse new command
 - The loop has no shutdown-phase check today: `_GRACEFUL_TIMEOUT_S: float = 10.0` (`scripts/agent/repl_input_loop.py:63`) is an independent constant, and the read path (`scripts/agent/repl_input_loop.py:258-313`) keeps offering prompts while a shutdown is in progress.
 - The loop already treats `InputOutcome.EOF` and `InputOutcome.SHUTDOWN` as terminal (`scripts/agent/repl_input_loop.py:153`), so the shutdown outcome exists and only its production needs to change.
 - The loop is constructed with the shutdown event at `scripts/agent/repl.py:85`; the budget is passed the same way (row 7).
+- Verified against source 2026-11-25 (execution): the first two assumptions hold, and the third is deferred by the batch decision. `repl.py:85` still passes no budget, and row 7 lands in R4, so the budget argument is keyword-only and optional here and `_GRACEFUL_TIMEOUT_S` stays as the no-budget fallback; row 7 removes it when the loop is always given a budget. `tests/agent/test_repl.py:925` monkeypatches the constant and keeps passing until then.
+- Verified against source 2026-11-25 (execution): the pending-approval release point is `ReplInputController.shutdown()` (`scripts/agent/repl_input_controller.py:246-249`), which `SignalHandler._sigterm_handler` already calls (`scripts/agent/signal_handler.py:102`). The loop calls the same method when it observes the phase left accepting; the coordinator's `enter_shutdown` (row 5) is the production caller the Plan names.
 
 ## Design decisions
 
@@ -31,31 +33,31 @@ Make the input loop stop accepting work once shutdown begins: refuse new command
 `scripts/agent/repl_input_loop.py`
 
 ### Procedure
-1. Take the budget in `__init__` alongside the shutdown event (`scripts/agent/repl_input_loop.py:66-74`).
-2. Add the phase check to the loop precondition (`scripts/agent/repl_input_loop.py:117-124`) and to the dispatch path (`scripts/agent/repl_input_loop.py:229-246`) so a refused line never reaches a command or the orchestrator.
-3. Replace `_GRACEFUL_TIMEOUT_S` (`scripts/agent/repl_input_loop.py:63`) with the budget's remaining deadline, and update the timeout message (`scripts/agent/repl_input_loop.py:130-134`) to report the budget value.
-4. Release a pending approval with `InputOutcome.SHUTDOWN` when the phase leaves accepting (`scripts/agent/repl_input_loop.py:158-164`, `scripts/agent/repl_input_loop.py:211`).
-5. Route the second SIGINT to the running step through the budget's interrupt request (row 10) instead of cancelling only the current turn (`scripts/agent/repl_input_loop.py:258-313`).
+1. Take the budget as a keyword-only optional argument in `__init__` alongside the shutdown event (`scripts/agent/repl_input_loop.py:65-84`); `None` keeps the behavior the loop has today.
+2. Add `_accepts_work()` and apply it at the two points where work is accepted: the top of each `_repl_loop` iteration and the head of `_dispatch_line` (`scripts/agent/repl_input_loop.py:229-246`), so a line read before shutdown began is refused before it reaches a command or the orchestrator.
+3. `_graceful_window()` is the budget's remaining deadline when a budget is present and `_GRACEFUL_TIMEOUT_S` otherwise; the timeout message (`scripts/agent/repl_input_loop.py:130-134`) reports the window that was actually used, because `remaining()` read back after the window expired clamps to `0.0`. Row 7 removes the fallback constant once `repl.py` supplies the budget.
+4. When the loop observes the phase left accepting it reports the refusal once and calls `ReplInputController.shutdown()`, which resolves a pending approval or transition wait with `InputOutcome.SHUTDOWN`.
+5. Route an interrupt that arrives after shutdown began: the turn-cancel callback registered by `_begin_turn_state` records `budget.request_interrupt()` when the phase is not accepting, and `_flow_after_interrupt` ends the loop instead of prompting again. `SignalHandler` (row 10) is the side that calls `request_interrupt()` on the second SIGINT.
 
 ### Method
 - The check is a read of the shared phase at the two points where work is accepted, so refusal cannot be bypassed by a path that does not go through the prompt.
 - Refusal is reported once per shutdown, not per keystroke: the loop states that shutdown is in progress and stops offering prompts.
 
 ### Details
-- The refusal message names the phase and the step in progress, with no internal state dump (REQ-013).
+- The refusal message names the phase and the work that is refused, with no internal state dump (REQ-013). The budget carries no current-step name, so the step in progress is stated by the shutdown report (rows 5 and 43), not by the loop.
 
 ### Companion test files
 - `tests/agent/test_repl_shutdown_machine.py` (new)
-  - Procedure: a command and a turn submitted after the phase stops accepting are refused with a visible reason, `CommandRouter.execute_command` and `AgentOrchestrator.handle_turn` are not reached, and a pending approval resolves `InputOutcome.SHUTDOWN`.
+  - Procedure: a command and a turn submitted after the phase stops accepting are refused with a visible reason, `CommandRegistry.dispatch` and `Orchestrator.handle_turn` are not reached, the dispatch gate refuses a line that was already read, the refusal is reported once, a pending wait is released with `InputOutcome.SHUTDOWN`, the window is the budget's remaining deadline (and the legacy constant when no budget is supplied), an uncooperative turn is bounded by the budget, a turn that times out while shutdown was requested ends the loop with the window it was given, an interrupt after shutdown began ends the loop and reaches `budget.interrupt_requested`, with and without a shutdown event, while an interrupt before shutdown still cancels only the turn. 14 cases.
   - Validation: `uv run pytest tests/agent/test_repl_shutdown_machine.py -q` (REQ-003; AC-2).
 - `tests/agent/test_repl_error_handling.py`
-  - Procedure: update the `finally`-block expectations to the bounded sequence and to the refusal line shown after shutdown begins.
+  - Procedure: no change in this row. The budget argument is keyword-only and optional, so the constructions at `:97` and `:136` are untouched; the `finally`-block expectations belong to row 7 in R4 (companion row 32).
   - Validation: `uv run pytest tests/agent/test_repl_error_handling.py -q` (REQ-001, REQ-003).
 
 ## Compatibility considerations
 
-- Tests that construct `ReplInputLoop` gain the budget argument (`tests/agent/test_repl_error_handling.py:11`, `:97`, `:136`), which is companion row 32.
-- Ctrl-C semantics change for the second press: it interrupts the running step rather than only the current turn (documented in row 47).
+- Tests that construct `ReplInputLoop` need no change in this row: the budget argument is optional (`tests/agent/test_repl.py:97`, `:709`, `tests/agent/test_repl_error_handling.py:97`, `:136`). Companion row 32 and row 7 add the budget where the REPL owns one.
+- Ctrl-C semantics change for a press after shutdown began: it interrupts the running step and ends the input loop rather than cancelling only the current turn (documented in row 47). While the budget accepts work the behavior is unchanged.
 
 ## Security considerations
 
@@ -75,7 +77,7 @@ Make the input loop stop accepting work once shutdown begins: refuse new command
 ## Completion criteria
 
 - No command or turn is dispatched after the phase leaves accepting, and a pending approval resolves with `InputOutcome.SHUTDOWN`.
-- The graceful window equals the remaining budget, and no independent timeout constant remains in the loop.
+- The graceful window equals the remaining budget, and no independent timeout constant remains in the loop. Verified 2026-11-25: the second half completes in row 7, which is the row that supplies the budget; until then `_GRACEFUL_TIMEOUT_S` is the documented no-budget fallback.
 
 ## Out of Scope
 
@@ -86,9 +88,9 @@ Make the input loop stop accepting work once shutdown begins: refuse new command
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | companion rows 22, 32 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-091128 | 20261125-091128 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-091128 | 20261125-091128 | companion rows 22, 32 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-092708 | 20261125-092708 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

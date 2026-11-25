@@ -3,7 +3,8 @@
 ReplInputLoop — REPL input/dispatch responsibility extraction.
 
 Owns: _repl_loop, _read_input, _should_exit, _dispatch_line, _abort_input.
-Handles: readline, multiline continuation, shutdown event racing, command routing.
+Handles: readline, multiline continuation, shutdown event racing, command routing,
+acceptance refusal once the shutdown budget stops accepting work.
 """
 
 import asyncio
@@ -23,6 +24,7 @@ from agent.repl_input_controller import (
     get_input_controller,
 )
 from agent.session import SchemaMissingError
+from agent.shutdown_budget import ShutdownBudget, ShutdownPhase
 from agent.turn_persistence import ConversationPersistenceError
 
 if TYPE_CHECKING:
@@ -53,6 +55,9 @@ class ReplInputLoop:
         - _shutdown_watcher sets shutdown_done when shutdown_event fires
         - _read_input checks shutdown_done to decide whether to abort input
         - Signal handler delegates cancellation to shutdown_event.set() (see signal_handler.py)
+        - the shutdown budget decides acceptance: no command or turn is dispatched
+          once its phase is not accepting, and the graceful window is its remaining
+          deadline rather than a window owned here
 
     _cmds lifecycle:
         - Set once after startup via bind(), together with the orchestrator
@@ -67,14 +72,18 @@ class ReplInputLoop:
         ctx: "AgentContext",
         view: "CLIView",
         shutdown_event: asyncio.Event | None,
+        *,
+        budget: ShutdownBudget | None = None,
     ) -> None:
         self._ctx = ctx
         self._view = view
         self._shutdown_event = shutdown_event
+        self._budget = budget
         self._turn_active: bool = False
         self._input_coro: asyncio.Task[InputResult] | None = None
         self._input: ReplInputController = get_input_controller()
         self._turn_cancel_requested: bool = False
+        self._refusal_reported: bool = False
         self._cmds: CommandRegistry | None = None
         self._orchestrator: Orchestrator | None = None
 
@@ -127,11 +136,37 @@ class ReplInputLoop:
         self._view.write_turn_end()
         self._input_coro = None
 
-    def _log_graceful_shutdown_timeout(self) -> None:
-        """Log a warning when graceful shutdown times out."""
+    def _accepts_work(self) -> bool:
+        """True while the shutdown budget still accepts new commands and turns."""
+        return self._budget is None or self._budget.phase is ShutdownPhase.ACCEPTING
+
+    def _graceful_window(self) -> float:
+        """How long a running turn may finish for once shutdown began."""
+        if self._budget is not None:
+            return self._budget.remaining()
+        return self._GRACEFUL_TIMEOUT_S
+
+    def _report_shutdown_refusal(self) -> None:
+        """State once per shutdown that new commands and turns are refused."""
+        if self._budget is None or self._refusal_reported:
+            return
+        self._refusal_reported = True
         self._view.write_warning(
-            f"Graceful shutdown timed out after {self._GRACEFUL_TIMEOUT_S}s"
+            f"Shutdown in progress ({self._budget.phase.value}); "
+            "new commands and turns are refused."
         )
+
+    def _report_interrupted_loop(self) -> None:
+        """State that an interrupt after shutdown began ends the input loop."""
+        self._view.write_warning("Interrupted during shutdown; ending the input loop.")
+
+    def _stop_accepting_input(self) -> None:
+        """Release a pending approval or transition wait with the shutdown outcome."""
+        self._input.shutdown()
+
+    def _log_graceful_shutdown_timeout(self, window: float) -> None:
+        """Log a warning when graceful shutdown times out, naming the window used."""
+        self._view.write_warning(f"Graceful shutdown timed out after {window}s")
 
     def _surface_turn_error(self, exc: Exception) -> None:
         """Surface an unexpected per-turn error through the CLI view.
@@ -217,6 +252,18 @@ class ReplInputLoop:
         self._turn_cancel_requested = False
         self._view.write_warning("Turn cancelled (Ctrl-C).")
 
+    def _flow_after_interrupt(self) -> "_TurnFlow":
+        """Decide how the loop goes on after Ctrl-C cancelled the running turn.
+
+        While the budget accepts work the session keeps prompting. Once shutdown has
+        begun the interrupt means the running step was stopped, so the loop ends and
+        the coordinator's sequence advances instead of prompting again.
+        """
+        if self._accepts_work():
+            return _TurnFlow.CONTINUE
+        self._report_interrupted_loop()
+        return _TurnFlow.BREAK
+
     def _should_exit(self, line: str, ctx: "AgentContext") -> bool:
         """Return True when the REPL loop should terminate."""
         if ctx.conv.shutdown_requested:
@@ -230,6 +277,11 @@ class ReplInputLoop:
         """Dispatch a non-empty, non-exit line to commands or the orchestrator."""
         if self._orchestrator is None:
             raise RuntimeError("_dispatch_line called before _init_components()")
+        if not self._accepts_work():
+            # The last gate before the router and the orchestrator: a line read
+            # before shutdown began is refused here rather than started.
+            self._report_shutdown_refusal()
+            return
         if line.startswith("/"):
             cmds = cast("CommandRegistry", self._cmds)
             matched = await cmds.dispatch(line)
@@ -250,6 +302,13 @@ class ReplInputLoop:
 
         def _cancel_turn() -> None:
             self._turn_cancel_requested = True
+            if (
+                self._budget is not None
+                and self._budget.phase is not ShutdownPhase.ACCEPTING
+            ):
+                # An interrupt after shutdown began is routed to the shared budget so
+                # the step the coordinator is running stops too, not only this turn.
+                self._budget.request_interrupt()
             dispatch_task.cancel()
 
         self._turn_cancel_requested = False
@@ -273,7 +332,7 @@ class ReplInputLoop:
                 if dispatch_task.cancelled() and self._turn_cancel_pending():
                     shutdown_task.cancel()
                     self._turn_cancelled()
-                    return _TurnFlow.CONTINUE
+                    return self._flow_after_interrupt()
                 dispatch_task.result()  # propagate exception if any
                 if shutdown_task in pending:
                     shutdown_task.cancel()
@@ -286,28 +345,25 @@ class ReplInputLoop:
             if shutdown_task in pending:
                 shutdown_task.cancel()
             if dispatch_task in pending:
+                window = self._graceful_window()
                 dispatch_task.cancel()
                 try:
-                    await asyncio.wait_for(
-                        dispatch_task, timeout=self._GRACEFUL_TIMEOUT_S
-                    )
+                    await asyncio.wait_for(dispatch_task, timeout=window)
                 except asyncio.CancelledError:
                     pass
                 except TimeoutError:
-                    self._log_graceful_shutdown_timeout()
+                    self._log_graceful_shutdown_timeout(window)
             return _TurnFlow.BREAK
         # _shutdown_event is None or already set — await the already-created dispatch_task
         shutting_down = ctx.conv.shutdown_requested or (
             self._shutdown_event is not None and self._shutdown_event.is_set()
         )
+        bounded: float | None = self._graceful_window() if shutting_down else None
         try:
-            await asyncio.wait_for(
-                dispatch_task,
-                timeout=self._GRACEFUL_TIMEOUT_S if shutting_down else None,
-            )
+            await asyncio.wait_for(dispatch_task, timeout=bounded)
         except TimeoutError:
             if shutting_down:
-                self._log_graceful_shutdown_timeout()
+                self._log_graceful_shutdown_timeout(bounded or 0.0)
                 return _TurnFlow.BREAK
             raise
         return _TurnFlow.NEXT
@@ -322,13 +378,16 @@ class ReplInputLoop:
             return await self._await_turn(dispatch_task, ctx)
         except TimeoutError:
             if ctx.conv.shutdown_requested:
-                self._log_graceful_shutdown_timeout()
+                self._log_graceful_shutdown_timeout(self._graceful_window())
                 return _TurnFlow.BREAK
             raise
         except asyncio.CancelledError:
             if not self._turn_cancel_pending():
                 raise
             self._turn_cancelled()
+            if not self._accepts_work():
+                self._report_interrupted_loop()
+                return _TurnFlow.BREAK
         except (
             ConversationPersistenceError
         ):  # seq 10: compensated turn; surface distinctly before the generic handler
@@ -351,6 +410,12 @@ class ReplInputLoop:
             raise RuntimeError("_repl_loop called before _init_components()")
         loop = asyncio.get_running_loop()
         while True:
+            if not self._accepts_work():
+                # Shutdown began: stop offering prompts, release any pending approval
+                # with the shutdown outcome, and let the coordinator's sequence run.
+                self._report_shutdown_refusal()
+                self._stop_accepting_input()
+                break
             line = await self._read_input(loop)
             if line is None:
                 break
