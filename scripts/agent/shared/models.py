@@ -27,12 +27,14 @@ class ToolApprovalEvent:
     # Logical call id (uuid7) generated at preparation; the same value the
     # transport sends as X-Idempotency-Key and the state store keys on.
     idempotency_key: str = ""
+    task_linkage: str = ""  # WorkflowEngine task-level linkage (current_task_id)
     # Approval provenance: the input request that asked the operator, where the
     # preview came from (static or dry_run), and why a fallback happened (if any).
     # The operator's answer text is deliberately not recorded.
     request_id: str = ""
     preview_source: str = ""
     fallback_reason: str = ""
+    turn_id: str = ""  # turn id; task_id keeps the same value (ADR-001 INV-11)
 
 
 @dataclass(frozen=True)
@@ -58,6 +60,7 @@ class ToolExecEvent:
     idempotency_key: str = ""
     task_linkage: str = ""  # WorkflowEngine task-level linkage (current_task_id)
     artifact_uri: str | None = None
+    turn_id: str = ""  # turn id; task_id keeps the same value (ADR-001 INV-11)
 
 
 @dataclass(frozen=True)

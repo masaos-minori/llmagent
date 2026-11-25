@@ -62,8 +62,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | Execute after rows 5, 6, 7 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | — | 20261125 | Execute after rows 5, 6, 7 |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125 | 117 passed; ruff clean; mypy at baseline |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

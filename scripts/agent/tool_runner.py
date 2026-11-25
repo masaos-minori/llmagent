@@ -25,7 +25,6 @@ from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
 
-from agent.tool_audit import audit_tool_exec
 from agent.tool_call_identity import (
     _classify_retry_class,
     _logical_call_id,
@@ -43,6 +42,7 @@ from agent.tool_policy import (
     classify_operation_type,
 )
 from agent.tool_preparation import PreparedToolCall, prepare_tool_calls
+from agent.tool_result_audit import record_tool_exec, record_transport_failure
 from agent.tool_result_formatter import (
     build_execution_failure_text,
     mask_args,
@@ -295,22 +295,10 @@ async def _execute_prepared_call(
 
 
 async def _record_transport_failure(
-    ctx: AgentContext, name: str, result: ToolCallResult
+    ctx: AgentContext, name: str, result: ToolCallResult, call_id: str
 ) -> None:
-    """Persist a transport-level failure to diagnostics off the loop, when wired."""
-    if (
-        not result.is_error
-        or result.error_type != "transport"
-        or ctx.diagnostics is None
-    ):
-        return
-    await asyncio.to_thread(
-        ctx.diagnostics.save_transport_failure,
-        session_id=getattr(ctx.session, "session_id", None),
-        tool_name=name,
-        server_key=result.server_key or "",
-        error_msg=result.output[:500],
-    )
+    """Persist a transport-level failure through the audit bridge (mcpai007 REQ-007)."""
+    await record_transport_failure(ctx, name, result, call_id)
 
 
 def _truncate_for_llm(text: str, limit: int) -> str:
@@ -352,24 +340,15 @@ async def execute_one_tool_call(
     args = pc.args
 
     result = await _execute_prepared_call(ctx, tools, pc)
-    text, is_error, x_request_id = result.output, result.is_error, result.request_id
-    audit_tool_exec(
-        ctx,
-        name,
-        args,
-        is_error,
-        x_request_id,
-        result.error_type,
-        source=result.source,
-        idempotency_key=_logical_call_id(pc),
-    )
+    text, is_error = result.output, result.is_error
+    record_tool_exec(ctx, name, args, result, _logical_call_id(pc))
     if state_key is not None:
         if result.dispatch_stage == "response":
             _finalize_state(ctx, state_key, "response_received", name)
         if not (result.dispatch_stage == "sent" and is_error):
             _finalize_state(ctx, state_key, "failed" if is_error else "completed", name)
 
-    await _record_transport_failure(ctx, name, result)
+    await _record_transport_failure(ctx, name, result, _logical_call_id(pc))
     guard.observe_availability(result)
     if not is_error:
         guard.record_tool_result(name, text)

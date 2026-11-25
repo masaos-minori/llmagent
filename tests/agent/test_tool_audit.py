@@ -5,6 +5,7 @@ Unit tests for agent/tool_audit.py: audit logging functions.
 from __future__ import annotations
 
 import ast
+import dataclasses
 import json
 import logging
 from pathlib import Path
@@ -14,6 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
+from agent.shared.models import ToolExecEvent
 from agent.tool_audit import (
     AUDIT_ARGS_PREVIEW_MAX_CHARS,
     audit_approval,
@@ -76,6 +78,7 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.cfg = cfg or _make_cfg()
     ctx.turn.current_turn_id = "test-turn-id"
     ctx.workflow.workflow_id = "wf-test-id"
+    ctx.workflow.current_task_id = "test-task-id"
     ctx.session.session_id = None
     ctx.services_required.audit_logger = None
     # Registry None: classify_operation_type fails closed to UNKNOWN for
@@ -108,6 +111,9 @@ class TestAuditApprovalInv11:
         assert event["decision"] == "approved"
         assert event["workflow_id"] == "wf-test-id"
         assert event["task_id"] == "turn-xyz"
+        # mcpai007 REQ-004: the new fields are additive alongside task_id.
+        assert event["turn_id"] == "turn-xyz"
+        assert event["task_linkage"] == "test-task-id"
 
     def test_denied_decision_is_recorded_with_workflow_context(self) -> None:
         event = self._logged_event(ApprovalDecisionType.DENIED)
@@ -398,9 +404,44 @@ class TestAuditToolExecSnapshotDedup:
             "idempotency_key",
             "task_linkage",
             "artifact_uri",
+            "turn_id",
         }
         assert expected <= set(payload)
         assert set(payload) == expected | {"execution_snapshot_json"}
+
+    def test_turn_id_and_task_linkage_carry_the_context_ids(self) -> None:
+        """mcpai007 REQ-004: turn_id is the turn id, task_linkage the workflow task id."""
+        ctx = self._ctx()
+        audit_tool_exec(ctx, "read_text_file", {}, False, "req-123")
+        payload = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert payload["turn_id"] == "test-turn-id"
+        assert payload["task_linkage"] == "test-task-id"
+
+    def test_caller_supplied_task_linkage_wins_over_context(self) -> None:
+        ctx = self._ctx()
+        audit_tool_exec(
+            ctx, "read_text_file", {}, False, "req-123", task_linkage="caller-task"
+        )
+        payload = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+        assert payload["task_linkage"] == "caller-task"
+
+    def test_older_shape_record_without_the_new_fields_still_parses(self) -> None:
+        """REQ-006/AC-4: records written before the change (no turn_id, empty
+        task_linkage) remain parseable: the dataclass defaults fill them in."""
+        older = ToolExecEvent(
+            event="tool_exec",
+            task_id="turn-xyz",
+            tool="read_text_file",
+            operation_type="READ",
+            resource_scope={},
+            mcp_request_id="req-1",
+            is_error=False,
+            args_preview={},
+            ts=1.0,
+        )
+        payload = json.loads(json.dumps(dataclasses.asdict(older)))
+        assert payload["turn_id"] == ""
+        assert payload["task_linkage"] == ""
 
 
 def _logged_event_with_fields(

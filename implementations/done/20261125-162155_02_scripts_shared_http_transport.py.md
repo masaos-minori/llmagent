@@ -28,11 +28,11 @@ Pass the parsed `dedup_state` into `ToolCallResult.from_transport` in both build
 
 ### Method
 - In `_parse_http_response` (line 100), read `data.get("dedup_state")`; pass it to `from_transport` when it is a `str`, otherwise `""`.
-- In `_tool_error_result` (line 124), read `dedup_state` from the parsed body inside the existing try block; a parse failure or non-string value keeps the current fallback behavior and yields `""`.
+- In `_tool_error_result` (line 146; 124 at generation, drifted), read `dedup_state` from the parsed body inside the existing try block; a parse failure or non-string value keeps the current fallback behavior and yields `""`.
 
 ### Details
 - The existing `detail`/`result` fallback for malformed tool-level bodies is unchanged; only an additional optional key is read.
-- The transport-failure path (`_transport_error`, line 148) builds results without a body, so it keeps `""`; no change there.
+- The transport-failure path (`_transport_error`, line 166; 148 at generation, drifted) builds results without a body, so it keeps `""`; no change there.
 
 ### Companion test files
 - `tests/shared/test_http_transport.py`
@@ -72,9 +72,9 @@ N/A: revert the commit; the parse is additive.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add the companion test per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261125 | Step 3a verified: builders at 100/146; line drift noted |
+| 2 | Add the companion test per Validation plan | Completed | — | 20261125 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125 | 56 passed; mypy/ruff clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

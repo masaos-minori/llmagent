@@ -75,9 +75,9 @@ N/A: revert the commit; deleting the new file restores the inline path.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after rows 3, 4, 7 |
-| 2 | Add the companion test per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261125 | Execute after rows 3, 4, 7 |
+| 2 | Add the companion test per Validation plan | Completed | — | 20261125 | companion correlation test: tests/agent/test_dedup_audit_correlation.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125 | 1 passed via runner wiring (row 5); ruff/mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

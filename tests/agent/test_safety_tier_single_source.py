@@ -110,6 +110,7 @@ def _make_ctx(tier: str) -> MagicMock:
     ctx.cfg = _make_cfg(tier)
     ctx.turn.current_turn_id = "test-turn-id"
     ctx.workflow.workflow_id = "wf-test-id"
+    ctx.workflow.current_task_id = "test-task-id"
     ctx.session.session_id = None
     ctx.conv.plan_mode = False
     ctx.services_required.audit_logger = MagicMock()

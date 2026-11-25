@@ -7,7 +7,7 @@ Correct the stale `dedup_state` and `idempotency_key` statements and add the aud
 
 ## Assumptions
 
-- Step 3a (20261125): line 51 lists `snapshot_mismatch`, `result_truncated`, `unreplayable`, which do not exist as `dedup_state` values; the shipped set is `duplicate_hit`, `in_progress`, `outcome_unknown`, `replay_unavailable`, `replayed`, `store_error`, `lease_conflict`. Line 53 calls `idempotency_key` a derived `workflow:task:turn:call` string; it is the logical call id (`tool_runner._logical_call_id`).
+- Step 3a (20261125): line 51 lists `snapshot_mismatch`, `result_truncated`, `unreplayable`, which do not exist as `dedup_state` values; the shipped set is `duplicate_hit`, `in_progress`, `outcome_unknown`, `replay_unavailable`, `replayed`, `store_error`, `lease_conflict`, `reconciliation_required`, `interrupted` (Step 3a re-check: `reconciliation_required` and `interrupted` are emitted via `dedup_gate.py` line 164 `dedup_state=state`; the earlier 7-value list missed them). Line 53 calls `idempotency_key` a derived `workflow:task:turn:call` string; it is the logical call id (`tool_runner._logical_call_id`).
 
 ## Design decisions
 
@@ -56,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261125 | shipped 9-value set applied; idempotency_key rewritten as preparation-time logical call id; field definitions + compatibility note added |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | — | 20261125 | check_docs_quality + check_docs_structure passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

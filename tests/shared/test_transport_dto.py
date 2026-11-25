@@ -63,6 +63,19 @@ class TestFromTransport:
         assert result.execution_mode == "applied"
         assert result.side_effect_applied is True
 
+    def test_dedup_state_defaults_to_empty(self) -> None:
+        # mcpai007 REQ-001: no dedup branch taken means "".
+        result = ToolCallResult.from_transport(output="ok", is_error=False)
+        assert result.dedup_state == ""
+
+    def test_from_transport_carries_dedup_state(self) -> None:
+        result = ToolCallResult.from_transport(
+            output="ok",
+            is_error=False,
+            dedup_state="duplicate_hit",
+        )
+        assert result.dedup_state == "duplicate_hit"
+
 
 class TestExecutionContextExecutionMode:
     """ToolExecutionContext.execution_mode contract: default, explicit value, frozen."""

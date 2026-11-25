@@ -48,9 +48,26 @@ Every agent-side `tool_exec` record carries two additional fields (toolexec001):
 | Field | Presence | Content |
 |---|---|---|
 | `execution_snapshot_json` | always | Canonical JSON of the deployment fingerprint captured at call start: `deployed_rev`, `git_sha`, `config_hash`, per-DB `schema_versions`. Values are hashes only — never config contents or result bodies. |
-| `dedup_state` | only when non-empty | The dispatcher dedup branch taken: `duplicate_hit`, `snapshot_mismatch`, `result_truncated`, `replayed`, `unreplayable`, `store_error`. Empty for freshly executed or non-dispatch-originated calls. |
+| `dedup_state` | only when non-empty | The dispatcher dedup branch taken: `duplicate_hit`, `in_progress`, `outcome_unknown`, `replay_unavailable`, `replayed`, `store_error`, `lease_conflict`, `reconciliation_required`, `interrupted`. Empty for freshly executed or non-dispatch-originated calls. |
 
-The record also carries `idempotency_key`: the workflow-scoped logical-call identity (workflow, task, turn, and call id joined by colons) that the Agent derives for the audit log. It is not the `X-Idempotency-Key` the call was dispatched under, and it is neither the durable store row's key nor the workflow `tool_call_state` row's key, so it cannot be used to match an audit line against those rows. To follow one call, join on `mcp_request_id` as described at the top of this document.
+The record also carries `idempotency_key`: the uuid7 logical call id generated once at tool-call
+preparation (`tool_runner._logical_call_id`). It is the same value the call is dispatched under as
+`X-Idempotency-Key`, so the audit line, the durable store row, and the workflow `tool_call_state`
+row can all be matched on it. To follow one call, join on `mcp_request_id` as described at the top
+of this document, or on `idempotency_key`.
+
+## Identity Fields in the Audit Trace
+
+| Field | Content |
+|---|---|
+| `idempotency_key` | The uuid7 logical call id generated at preparation; the wire `X-Idempotency-Key`. |
+| `turn_id` | The turn id the call belongs to. |
+| `task_id` | On audit events, the turn id (INV-11, kept for compatibility). On the `transport_failure` diagnostic record, the workflow task id. |
+| `task_linkage` | The workflow task id the call belongs to. |
+
+Compatibility: these fields are additive. Records written before the change do not carry
+`turn_id` and carry an empty `task_linkage`; readers must treat absent keys as empty strings and
+remain able to parse older records.
 
 Dedup outcome tags arrive through `error_type` when the dispatcher refuses a call:
 `idempotency_key_reused` (key seen with different content), `dedup_unreplayable` (interrupted

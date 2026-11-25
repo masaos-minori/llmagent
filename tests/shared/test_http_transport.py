@@ -591,6 +591,127 @@ class TestResponseExecutionMetadata:
         assert excinfo.value.stage == "response"
 
 
+class TestResponseDedupStateParsing:
+    """Tolerant dedup_state parsing (mcpai007 REQ-002, row 02): the reported
+    value is carried, a missing or non-string value yields "", and parsing
+    never raises or changes error classification."""
+
+    @staticmethod
+    def _make_transport() -> tuple[HttpTransport, AsyncMock]:
+        transport = HttpTransport(
+            http=MagicMock(spec=httpx.AsyncClient),
+            base_url="http://127.0.0.1:8000",
+            server_key="srv",
+            cfg=_http_cfg(),
+        )
+        mock_post = AsyncMock()
+        transport._http.post = mock_post
+        return transport, mock_post
+
+    @staticmethod
+    def _json_resp(body: bytes, status_code: int = 200) -> MagicMock:
+        resp = MagicMock()
+        resp.status_code = status_code
+        resp.content = body
+        resp.text = body.decode("utf-8")
+        resp.headers = {"x-request-id": "req-1"}
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "state",
+        [
+            "duplicate_hit",
+            "in_progress",
+            "outcome_unknown",
+            "replay_unavailable",
+            "replayed",
+            "store_error",
+            "lease_conflict",
+            "reconciliation_required",
+            "interrupted",
+        ],
+    )
+    async def test_success_carries_each_shipped_state(self, state: str) -> None:
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [
+            self._json_resp(
+                b'{"result":"ok","is_error":false,"dedup_state":"'
+                + state.encode()
+                + b'"}'
+            )
+        ]
+        result = await transport.call("read_text_file", {}, _ctx("read_text_file"))
+        assert result.dedup_state == state
+        assert result.error_type == ""
+
+    @pytest.mark.asyncio
+    async def test_200_with_is_error_carries_the_state(self) -> None:
+        """Dedup refusals arrive as HTTP 200 with is_error: true (Plan Assumptions)."""
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [
+            self._json_resp(
+                b'{"result":"refused","is_error":true,"dedup_state":"outcome_unknown"}'
+            )
+        ]
+        result = await transport.call("write_file", {}, _ctx("write_file"))
+        assert result.is_error
+        assert result.error_type == "tool"
+        assert result.dedup_state == "outcome_unknown"
+
+    @pytest.mark.asyncio
+    async def test_missing_field_yields_empty(self) -> None:
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [self._json_resp(b'{"result":"ok","is_error":false}')]
+        result = await transport.call("read_text_file", {}, _ctx("read_text_file"))
+        assert result.dedup_state == ""
+
+    @pytest.mark.asyncio
+    async def test_non_string_value_yields_empty_without_raising(self) -> None:
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [
+            self._json_resp(b'{"result":"ok","is_error":false,"dedup_state":1}')
+        ]
+        result = await transport.call("read_text_file", {}, _ctx("read_text_file"))
+        assert result.dedup_state == ""
+
+    @pytest.mark.asyncio
+    async def test_tool_level_status_body_with_state(self) -> None:
+        """A tool-level status body carries the reported state (row 02)."""
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [
+            self._json_resp(
+                b'{"detail":"reused with different content",'
+                b'"dedup_state":"duplicate_hit"}',
+                status_code=409,
+            )
+        ]
+        result = await transport.call("write_file", {}, _ctx("write_file"))
+        assert result.is_error
+        assert result.dedup_state == "duplicate_hit"
+
+    @pytest.mark.asyncio
+    async def test_tool_level_status_body_without_state(self) -> None:
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [
+            self._json_resp(b'{"detail":"reused"}', status_code=409)
+        ]
+        result = await transport.call("write_file", {}, _ctx("write_file"))
+        assert result.is_error
+        assert result.dedup_state == ""
+
+    @pytest.mark.asyncio
+    async def test_malformed_body_at_tool_level_status_keeps_fallback(self) -> None:
+        """A parse failure keeps the raw-text fallback and "" (REQ-002)."""
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [self._json_resp(b"not json", status_code=409)]
+        result = await transport.call("write_file", {}, _ctx("write_file"))
+        assert result.is_error
+        assert result.output == "not json"
+        assert result.dedup_state == ""
+
+
 # ── ControlClient (mcpdl004 REQ-001, row 07) ─────────────────────────────────
 
 

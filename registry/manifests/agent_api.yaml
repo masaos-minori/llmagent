@@ -1962,6 +1962,16 @@ entries:
   signature: def prepare_tool_calls(ctx, tool_calls) -> tuple[list[PreparedToolCall],
     list[_PrepFailure]]
   summary: Prepare a batch of raw tool calls, in order.
+- file: scripts/agent/tool_result_audit.py
+  kind: function
+  name: record_tool_exec
+  signature: def record_tool_exec(ctx, name, args, result, call_id) -> None
+  summary: Write the tool_exec audit line for one executed call.
+- file: scripts/agent/tool_result_audit.py
+  kind: async function
+  name: record_transport_failure
+  signature: async def record_transport_failure(ctx, name, result, call_id) -> None
+  summary: Persist a transport-level failure to diagnostics off the loop, when wired.
 - file: scripts/agent/tool_result_formatter.py
   kind: function
   name: turn_limit_hint

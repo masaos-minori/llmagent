@@ -340,6 +340,7 @@ class TestAgentAuditLogFormat:
         ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-audit-fmt"
         ctx.workflow.workflow_id = "wf-test-id"
+        ctx.workflow.current_task_id = "task-fmt"
         ctx.session.session_id = ""
         return ctx
 
@@ -353,6 +354,7 @@ class TestAgentAuditLogFormat:
         ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-xyz"
         ctx.workflow.workflow_id = "wf-1"
+        ctx.workflow.current_task_id = "task-fmt"
         ctx.session.session_id = "sess-abc"
 
         audit_tool_exec(
@@ -383,6 +385,7 @@ class TestAgentAuditLogFormat:
         ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-abc"
         ctx.workflow.workflow_id = "wf-test-id"
+        ctx.workflow.current_task_id = "task-fmt"
         ctx.session.session_id = ""
 
         audit_tool_exec(
@@ -410,6 +413,7 @@ class TestAgentAuditLogFormat:
         ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-def"
         ctx.workflow.workflow_id = "wf-test-id"
+        ctx.workflow.current_task_id = "task-fmt"
         ctx.session.session_id = ""
 
         audit_tool_exec(
@@ -442,6 +446,7 @@ class TestAgentAuditLogFormat:
         ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-ghi"
         ctx.workflow.workflow_id = "wf-2"
+        ctx.workflow.current_task_id = "task-fmt"
         ctx.session.session_id = "sess-def"
 
         audit_tool_exec(
@@ -470,6 +475,7 @@ class TestAgentAuditLogFormat:
         ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-jkl"
         ctx.workflow.workflow_id = "wf-test-id"
+        ctx.workflow.current_task_id = "task-fmt"
         ctx.session.session_id = ""
 
         audit_tool_exec(
@@ -495,6 +501,7 @@ class TestAgentAuditLogFormat:
         ctx.cfg.approval.approval_resource_keys = {}
         ctx.turn.current_turn_id = "turn-mno"
         ctx.workflow.workflow_id = "wf-test-id"
+        ctx.workflow.current_task_id = "task-fmt"
         ctx.session.session_id = ""
 
         audit_tool_exec(
@@ -557,3 +564,68 @@ class TestAuditLogicalCallIdFieldContract:
         audit_approval(ctx, "write_file", "medium", {"path": "/tmp/x"}, "approved")
         parsed = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
         assert "idempotency_key" in parsed
+
+
+class TestMcpai007IdentityFieldContract:
+    """mcpai007 REQ-004/REQ-006: both writers serialize turn_id and task_linkage
+    with the documented values; dedup_state stays conditional; older-shape
+    payloads without the new fields still parse (AC-4)."""
+
+    @staticmethod
+    def _parsed(writer: str, **kwargs: Any) -> dict[str, Any]:
+        ctx = TestAgentAuditLogFormat._ctx_fixture()
+        if writer == "approval":
+            from agent.tool_audit import audit_approval
+
+            audit_approval(ctx, "write_file", "medium", {"path": "/tmp/x"}, "approved")
+        else:
+            from agent.tool_audit import audit_tool_exec
+
+            audit_tool_exec(
+                ctx,
+                "shell_run",
+                {"cmd": "ls"},
+                False,
+                "req-15",
+                idempotency_key=TestAgentAuditLogFormat._CALL_ID,
+                **kwargs,
+            )
+        parsed: dict[str, Any] = json.loads(
+            ctx.services_required.audit_logger.info.call_args[0][0]
+        )
+        return parsed
+
+    def test_approval_payload_carries_the_documented_values(self) -> None:
+        parsed = self._parsed("approval")
+        assert parsed["turn_id"] == "turn-audit-fmt"
+        assert parsed["task_linkage"] == "task-fmt"
+
+    def test_exec_payload_carries_the_documented_values(self) -> None:
+        parsed = self._parsed("exec")
+        assert parsed["turn_id"] == "turn-audit-fmt"
+        assert parsed["task_linkage"] == "task-fmt"
+
+    def test_exec_dedup_state_key_is_conditional(self) -> None:
+        assert "dedup_state" not in self._parsed("exec")
+        parsed = self._parsed("exec", dedup_state="replayed")
+        assert parsed["dedup_state"] == "replayed"
+
+    def test_older_shape_payload_without_the_new_fields_still_parses(self) -> None:
+        """AC-4: a record written before the change parses; readers fall back to
+        the empty-string defaults for the absent keys."""
+        older = json.dumps(
+            {
+                "event": "tool_exec",
+                "task_id": "turn-old",
+                "tool": "shell_run",
+                "operation_type": "READ",
+                "resource_scope": {},
+                "mcp_request_id": "req-old",
+                "is_error": False,
+                "args_preview": {},
+                "ts": 1.0,
+            }
+        )
+        parsed = json.loads(older)
+        assert parsed.get("turn_id", "") == ""
+        assert parsed.get("task_linkage", "") == ""

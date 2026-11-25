@@ -262,13 +262,27 @@ class DiagnosticStore:
         tool_name: str,
         server_key: str,
         error_msg: str,
+        *,
+        call_id: str = "",
+        request_id: str = "",
+        task_id: str = "",
+        turn_id: str = "",
     ) -> None:
-        """Persist a transport-level tool execution failure."""
+        """Persist a transport-level tool execution failure.
+
+        The four identity keys (mcpai007 REQ-005) join the record to the audit
+        line and the state row; they are written even when empty so the record
+        shape is stable for readers.
+        """
         content = dumps(
             {
                 "tool_name": tool_name,
                 "server_key": server_key,
                 "error": error_msg,
+                "call_id": call_id,
+                "request_id": request_id,
+                "task_id": task_id,
+                "turn_id": turn_id,
             }
         )
         self.save(session_id=session_id, kind="transport_failure", content=content)

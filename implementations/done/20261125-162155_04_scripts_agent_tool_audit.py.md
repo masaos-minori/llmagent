@@ -67,8 +67,8 @@ N/A: revert the commit; the change is additive.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after row 3 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Tests are covered by rows 10 and 11 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261125 | Execute after row 3 Step 3a verified: lines 111/211/141/277/295 confirmed; ctx.workflow.current_task_id exists (context.py:330) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125 | Tests are covered by rows 10 and 11 mypy/ruff clean; tests red pending rows 10/11 fixture updates (expected in batch mode) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import json
 import logging
 import threading
 import time
@@ -171,6 +172,8 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     # resolves it without a real session/DB.
     ctx.turn.persistence_boundary = _persistence_boundary_mock()
     ctx.workflow.workflow_id = "wf-test-id"
+    # mcpai007 REQ-004: the audit writers read the workflow task id from context.
+    ctx.workflow.current_task_id = "test-task-id"
     return ctx
 
 
@@ -2133,6 +2136,10 @@ class TestTransportFailureDiagnostics:
             tool_name="read_text_file",
             server_key="mcp-git",
             error_msg="x" * 500,
+            call_id="call_r",
+            request_id="req-1",
+            task_id="test-task-id",
+            turn_id="test-turn-id",
         )
 
     @pytest.mark.asyncio
@@ -2154,6 +2161,52 @@ class TestTransportFailureDiagnostics:
         await execute_one_tool_call(ctx, pc, guard=ToolLoopGuard(ctx))
 
         ctx.diagnostics.save_transport_failure.assert_not_called()
+
+
+class TestRunnerDedupStateAudit:
+    """mcpai007 REQ-003, AC-1: the runner writes the audit line through the
+    bridge, so the dispatcher dedup state reaches the payload only when the result carries one.
+    dedup state reaches the payload only when the result carries one."""
+
+    @staticmethod
+    async def _payload(result: ToolCallResult) -> dict:
+        ctx = _make_ctx()
+        ctx.services_required.gateway = None
+        ctx.services_required.tools.execute = AsyncMock(return_value=result)
+        pc = _pc("read_text_file", {}, call_id="call_d")
+        await execute_one_tool_call(ctx, pc, guard=ToolLoopGuard(ctx))
+        payload: dict[str, Any] = json.loads(
+            ctx.services_required.audit_logger.info.call_args[0][0]
+        )
+        return payload
+
+    @pytest.mark.asyncio
+    async def test_non_empty_dedup_state_reaches_the_audit_payload(self) -> None:
+        payload = await self._payload(
+            ToolCallResult(
+                output="replayed",
+                is_error=False,
+                request_id="req-2",
+                server_key="mcp-git",
+                source="mcp",
+                dedup_state="replayed",
+            )
+        )
+        assert payload["dedup_state"] == "replayed"
+        assert payload["idempotency_key"] == "call_d"
+
+    @pytest.mark.asyncio
+    async def test_empty_dedup_state_does_not_add_the_key(self) -> None:
+        payload = await self._payload(
+            ToolCallResult(
+                output="result",
+                is_error=False,
+                request_id="req-2",
+                server_key="mcp-git",
+                source="mcp",
+            )
+        )
+        assert "dedup_state" not in payload
 
 
 class TestFailedResultHashKey:
@@ -3201,6 +3254,10 @@ class TestDiagnosticWritesOffEventLoop:
             "tool_name": "read_text_file",
             "server_key": "mcp-git",
             "error_msg": "boom",
+            "call_id": "call_r",
+            "request_id": "req-1",
+            "task_id": "test-task-id",
+            "turn_id": "test-turn-id",
         }
         assert writes[0]["thread"] is not threading.main_thread()
 

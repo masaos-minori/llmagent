@@ -204,6 +204,53 @@ class TestDiagnosticStoreSaveFields:
         (row,) = fake_db.fetchall("SELECT kind FROM session_diagnostics")
         assert row[0] == "transport_failure"
 
+    def test_transport_failure_new_keys_written_even_when_empty(
+        self, fake_db: _FakeSQLiteHelper
+    ) -> None:
+        """REQ-006: the old positional call shape keeps working; the record is
+        the same as before plus the empty identity keys (stable shape)."""
+        store = _store()
+        with patch(
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
+        ):
+            store.save_transport_failure(1, "tool", "key", "boom")
+        content = json.loads(
+            fake_db.fetchall("SELECT content FROM session_diagnostics")[0][0]
+        )
+        assert content["call_id"] == ""
+        assert content["request_id"] == ""
+        assert content["task_id"] == ""
+        assert content["turn_id"] == ""
+
+    def test_transport_failure_carries_the_identity_keys(
+        self, fake_db: _FakeSQLiteHelper
+    ) -> None:
+        """REQ-005 AC-5: a call with the new parameters produces the identity keys."""
+        store = _store()
+        with patch(
+            "agent.diagnostic_store.SQLiteHelper",
+            side_effect=lambda _, db_config=None: fake_db,
+        ):
+            store.save_transport_failure(
+                1,
+                "tool",
+                "key",
+                "boom",
+                call_id="call-1",
+                request_id="req-1",
+                task_id="task-1",
+                turn_id="turn-1",
+            )
+        content = json.loads(
+            fake_db.fetchall("SELECT content FROM session_diagnostics")[0][0]
+        )
+        assert content["tool_name"] == "tool"
+        assert content["call_id"] == "call-1"
+        assert content["request_id"] == "req-1"
+        assert content["task_id"] == "task-1"
+        assert content["turn_id"] == "turn-1"
+
 
 class TestFilterSensitiveFields:
     def test_redacts_artifacts_and_rag_stage_outcomes(self) -> None:

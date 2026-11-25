@@ -212,11 +212,11 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Transport result and parser | In Progress | — | — |  |
-| 2 | Phase 2: Audit event fields | In Progress | — | — |  |
-| 3 | Phase 3: Runner wiring, extraction, and diagnostics | In Progress | — | — |  |
-| 4 | Phase 4: End-to-end correlation test | In Progress | — | — |  |
-| 5 | Phase 5: Documentation | In Progress | — | — |  |
+| 1 | Phase 1: Transport result and parser | Completed | — | 20261125 |  |
+| 2 | Phase 2: Audit event fields | Completed | — | 20261125 |  |
+| 3 | Phase 3: Runner wiring, extraction, and diagnostics | Completed | — | 20261125 |  |
+| 4 | Phase 4: End-to-end correlation test | Completed | — | 20261125 |  |
+| 5 | Phase 5: Documentation | Completed | — | 20261125 |  |
 | 6 | Phase 6: Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -228,19 +228,19 @@ N/A: no release unit
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | issues/20261125-142023_unknowns.md | 2 | Issue | Resolved (option B, 20261125) | — | — |
-| implementations/20261125-162155_01_scripts_shared_transport_dto.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-162155_02_scripts_shared_http_transport.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-162155_03_scripts_agent_shared_models.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-162155_04_scripts_agent_tool_audit.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-162155_05_scripts_agent_tool_runner.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-162155_06_scripts_agent_tool_result_audit.py.md | 3, 4 | Procedure | Pending | — | — |
-| implementations/20261125-162155_07_scripts_agent_diagnostic_store.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-162155_10_tests_agent_test_tool_audit.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-162155_11_tests_agent_test_audit_log_format.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-162155_12_tests_agent_test_tool_runner.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-162155_15_docs_22_mcp_mcp_06_06_end-to-end-tool-call-tracing.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261125-162155_16_docs_40_shared_shared_02_02_types_and_protocols-tool-and-execution-dto.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261125-162155_17_docs_23_agent_agent_13_reference-api-generated.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261125-162155_01_scripts_shared_transport_dto.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-162155_02_scripts_shared_http_transport.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-162155_03_scripts_agent_shared_models.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-162155_04_scripts_agent_tool_audit.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-162155_05_scripts_agent_tool_runner.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-162155_06_scripts_agent_tool_result_audit.py.md | 3, 4 | Procedure | Completed | — | — |
+| implementations/20261125-162155_07_scripts_agent_diagnostic_store.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-162155_10_tests_agent_test_tool_audit.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-162155_11_tests_agent_test_audit_log_format.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-162155_12_tests_agent_test_tool_runner.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-162155_15_docs_22_mcp_mcp_06_06_end-to-end-tool-call-tracing.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-162155_16_docs_40_shared_shared_02_02_types_and_protocols-tool-and-execution-dto.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-162155_17_docs_23_agent_agent_13_reference-api-generated.md.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

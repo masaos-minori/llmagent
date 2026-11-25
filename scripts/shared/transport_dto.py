@@ -50,7 +50,8 @@ class ToolCallResult:
     """Typed result from a single tool call execution.
 
     ``error_type`` may also be ``"routing"``: it marks a failure before any
-    transport call (see ``ToolExecutor.execute``).
+    transport call (see ``ToolExecutor.execute``). ``dedup_state`` carries the
+    dispatcher dedup branch as reported by the server, "" when no branch applies.
     """
 
     output: str  # tool result text, or error message when is_error=True
@@ -76,6 +77,7 @@ class ToolCallResult:
     side_effect_applied: bool = (
         False  # True when the server ran the handler and the tool is side-effecting
     )
+    dedup_state: str = ""  # dispatcher dedup branch as reported by the server; "" when no branch applies
 
     @classmethod
     def from_transport(
@@ -85,6 +87,7 @@ class ToolCallResult:
         request_id: str = "",
         execution_mode: str = "",
         side_effect_applied: bool = False,
+        dedup_state: str = "",
     ) -> "ToolCallResult":
         """Build a ToolCallResult from a successful transport response.
 
@@ -92,7 +95,8 @@ class ToolCallResult:
         (i.e., tool-level errors). Transport failures are produced by the
         invoker via _error_result(..., error_type="transport"), not here.
         The result metadata is carried through unchanged; absent means the
-        server reported nothing.
+        server reported nothing. ``dedup_state`` carries the dispatcher dedup
+        branch as reported by the server, "" when no branch applies.
         """
         return cls(
             output=output,
@@ -103,6 +107,7 @@ class ToolCallResult:
             error_type="tool" if is_error else "",
             execution_mode=execution_mode,
             side_effect_applied=side_effect_applied,
+            dedup_state=dedup_state,
         )
 
 

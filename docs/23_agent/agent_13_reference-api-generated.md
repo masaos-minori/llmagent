@@ -204,6 +204,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `PreparedToolCall` | `class PreparedToolCall` | A raw tool call that has passed preparation and is ready for approval/execution. |
 |  | `new_execution_context` | `def new_execution_context(tool, args, mode, call_id) -> ToolExecutionContext` | Build one prepared call's execution context: the single construction site. |
 |  | `prepare_tool_calls` | `def prepare_tool_calls(ctx, tool_calls) -> tuple[list[PreparedToolCall], list[_PrepFailure]]` | Prepare a batch of raw tool calls, in order. |
+| `scripts/agent/tool_result_audit.py` | `record_tool_exec` | `def record_tool_exec(ctx, name, args, result, call_id) -> None` | Write the tool_exec audit line for one executed call. |
+|  | `record_transport_failure` | `async def record_transport_failure(ctx, name, result, call_id) -> None` | Persist a transport-level failure to diagnostics off the loop, when wired. |
 | `scripts/agent/tool_result_formatter.py` | `turn_limit_hint` | `def turn_limit_hint(omitted_chars, omitted_lines, limit) -> str` | Build the hint shown to the LLM in place of a tool result dropped for |
 |  | `build_execution_failure_text` | `def build_execution_failure_text(exc) -> str` | Build the LLM-facing text for a tool call whose execution raised. |
 |  | `mask_args` | `def mask_args(args, masked_fields) -> dict[str, Any]` | Return a copy of args with masked_fields keys replaced by '***' at any depth. |

@@ -23,7 +23,7 @@ related:
 
 ## 6a. `ToolCallResult` / `TransportErrorInfo` (`shared/transport_dto.py`)
 
-`ToolCallResult` is the standard result contract for all tool executions (transport) — includes output/error metadata, transport information, and audit info. The `source` field is `"mcp"` for MCP calls and empty on error paths.
+`ToolCallResult` is the standard result contract for all tool executions (transport) — includes output/error metadata, transport information, and audit info. The `source` field is `"mcp"` for MCP calls and empty on error paths. The `dedup_state` field carries the dispatcher dedup branch reported by the server and is `""` when no branch applies; it stays an opaque `str` here because `shared` is an import-linter leaf and holds no dedup vocabulary.
 
 `TransportErrorInfo` is used as structured error information for audit logs.
 

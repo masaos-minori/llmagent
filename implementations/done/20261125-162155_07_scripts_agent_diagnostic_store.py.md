@@ -70,9 +70,9 @@ N/A: revert the commit; the keys are additive.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add the companion test per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261125 | Step 3a verified: save_transport_failure at 259, content dict at 267 |
+| 2 | Add the companion test per Validation plan | Completed | — | 20261125 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125 | 39 passed; mypy/ruff clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

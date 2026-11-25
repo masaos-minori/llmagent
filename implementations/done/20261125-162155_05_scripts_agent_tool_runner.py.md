@@ -68,8 +68,8 @@ N/A: revert the commit; the module import is the only structural change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after row 6; re-measure size before editing |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Tests are covered by row 12 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261125 | Execute after row 6; re-measure size before editing Step 3a: size 24415 B (headroom 161); audit call at 356, wrapper at 297, call site at 372 wired to bridge; size after extraction 23987 B (gate 24576) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125 | Tests are covered by row 12 mypy/ruff/lint-imports/bandit/module-size clean; tests via row 12 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

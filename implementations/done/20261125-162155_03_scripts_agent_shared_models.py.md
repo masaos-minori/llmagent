@@ -66,8 +66,8 @@ N/A: revert the commit; the fields are additive and defaulted.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Tests are covered by rows 10 and 11 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261125 | Step 3a verified: ToolExecEvent.task_linkage at 59 exists; ToolApprovalEvent lacks both |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125 | Tests are covered by rows 10 and 11 mypy/ruff clean; field-set test red until row 10 updates it (expected in batch mode) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

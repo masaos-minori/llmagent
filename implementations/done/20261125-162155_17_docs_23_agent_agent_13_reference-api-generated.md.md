@@ -57,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after rows 6 and 7 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261125 | Execute after rows 6 and 7 generator run; manifest gained tool_result_audit entries. Finding: the manifest tracks DiagnosticStore at class level, so the extended save_transport_failure signature cannot appear in the generated table; completion criterion is met for the new module only |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | — | 20261125 | generate_reference_table.py --check --type agent: no drift; check_docs_quality + check_docs_structure passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -56,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261125 | dedup_state sentence added to Section 6a |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | — | 20261125 | check_docs_quality + check_docs_structure passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

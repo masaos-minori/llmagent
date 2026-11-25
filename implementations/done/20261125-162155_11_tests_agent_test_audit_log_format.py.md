@@ -25,6 +25,7 @@ Extend the approval and exec format contract tests.
 
 ### Method
 - Add approval-format cases: `turn_id` equals the turn id and `task_linkage` equals the workflow task id.
+- Step 3a finding: `_ctx_fixture` (line 336) sets `turn.current_turn_id` but not `workflow.current_task_id`; the row 4 writer now reads it, so the fixture must set it (MagicMock attribute breaks JSON serialization until this lands).
 - Add exec-format cases: the same two fields, plus the conditional `dedup_state` key (present only when non-empty).
 
 ### Details
@@ -60,8 +61,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | Execute after rows 3 and 4 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | — | 20261125 | Execute after rows 3 and 4 fixture sets workflow.current_task_id; TestMcpai007IdentityFieldContract added |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125 | 32 passed; ruff clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

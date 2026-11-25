@@ -151,9 +151,11 @@ def audit_approval(
         workflow_id=workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
         idempotency_key=idempotency_key,
+        task_linkage=ctx.workflow.current_task_id or "",
         request_id=request_id,
         preview_source=preview_source,
         fallback_reason=fallback_reason,
+        turn_id=ctx.turn.current_turn_id or "",
     )
     ctx.services_required.audit_logger.info(_json_dumps(dataclasses.asdict(evt)))
 
@@ -227,6 +229,10 @@ def audit_tool_exec(
     deployment fingerprint captured at call time, toolexec001);
     ``dedup_state`` is serialized only when non-empty (dispatcher dedup outcome, empty for non-dispatch-originated or freshly executed calls).
 
+    ``task_linkage`` is populated from the workflow context
+    (``ctx.workflow.current_task_id``) when the caller supplies an empty value;
+    ``turn_id`` is always the turn id (mcpai007 REQ-004).
+
     ``idempotency_key`` carries the logical call id (mcpdl001 REQ-008). For
     side-effecting calls the audit record is mandatory (REQ-007, AC-5): a
     missing audit logger, call identity, logical call id, or workflow id
@@ -287,8 +293,9 @@ def audit_tool_exec(
         workflow_id=workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
         idempotency_key=idempotency_key,
-        task_linkage=task_linkage,
+        task_linkage=task_linkage or (ctx.workflow.current_task_id or ""),
         artifact_uri=artifact_uri,
+        turn_id=ctx.turn.current_turn_id or "",
     )
     payload = dataclasses.asdict(evt)
     payload["execution_snapshot_json"] = snapshot_json(build_execution_snapshot())

@@ -103,7 +103,9 @@ class HttpTransport:
 
         Raises ValueError if the response structure is invalid, including an
         execution_mode outside the closed vocabulary or a wrong metadata type.
-        Absent metadata fields default to "" and False.
+        Absent metadata fields default to "" and False. ``dedup_state`` is
+        extracted tolerantly: a missing or non-string value yields "" and
+        never raises or changes error classification (mcpai007 REQ-002).
         """
         data = parse_http_json(resp)
         result_val = data.get("result")
@@ -130,12 +132,18 @@ class HttpTransport:
                 f"MCP 'side_effect_applied' must be bool, got "
                 f"{type(side_effect_applied).__name__}"
             )
+        dedup_state = data.get("dedup_state", "")
+        if not isinstance(dedup_state, str):
+            # Tolerant extraction (mcpai007 REQ-002): a non-string value yields
+            # "" and never raises or changes error classification.
+            dedup_state = ""
         return ToolCallResult.from_transport(
             output=result_val,
             is_error=is_error_val,
             request_id=x_request_id,
             execution_mode=execution_mode,
             side_effect_applied=side_effect_applied,
+            dedup_state=dedup_state,
         )
 
     _RETRYABLE_STATUS: frozenset[int] = frozenset({429, 502, 503, 504})
@@ -148,19 +156,25 @@ class HttpTransport:
 
         Tolerant parsing: any body parse failure falls back to the first 512 chars
         of the raw text; a malformed body at a tool-level status must not re-enter
-        the transport path (healthcascade001).
+        the transport path (healthcascade001). A missing or non-string
+        ``dedup_state`` yields "" (mcpai007 REQ-002).
         """
+        dedup_state = ""
         try:
             data = parse_http_json(resp)
             reason = data.get("detail") or data.get("result") or ""
             if not isinstance(reason, str) or not reason:
                 reason = resp.text[:512]
+            raw_dedup = data.get("dedup_state", "")
+            if isinstance(raw_dedup, str):
+                dedup_state = raw_dedup
         except ValueError:
             reason = resp.text[:512]
         return ToolCallResult.from_transport(
             output=str(reason),
             is_error=True,
             request_id=resp.headers.get("x-request-id", ""),
+            dedup_state=dedup_state,
         )
 
     def _transport_error(

@@ -25,6 +25,7 @@ Extend the field-set pin and the serialization cases.
 
 ### Method
 - Add `turn_id` to the `expected` set in `test_existing_record_fields_byte_stable` (line 380).
+- Step 3a finding: `_make_ctx` (line 73) sets `turn.current_turn_id` and `workflow.workflow_id` but not `workflow.current_task_id`; the row 4 writer now reads it, so the fixture must set `ctx.workflow.current_task_id` (a MagicMock attribute breaks JSON serialization — 42 tests red until this lands).
 - Add cases: `turn_id` equals the turn id, `task_linkage` equals the workflow task id, `dedup_state` appears only when non-empty, and an older-shape record without the new fields still parses (REQ-006).
 
 ### Details
@@ -60,8 +61,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add or update tests per Validation plan | Pending | — | — | Execute after rows 3 and 4 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add or update tests per Validation plan | Completed | — | 20261125 | Execute after rows 3 and 4 fixture sets workflow.current_task_id; field-set pin gains turn_id; new cases added |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125 | 58 passed; ruff clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

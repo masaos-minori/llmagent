@@ -71,9 +71,9 @@ N/A: revert the commit; the field is additive and defaulted.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Execute after the mcpai005 procedure on the same file |
-| 2 | Add the companion test per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261125 | Execute after the mcpai005 procedure on the same file Step 3a verified: field absent, append last; mcpai005 row already landed |
+| 2 | Add the companion test per Validation plan | Completed | — | 20261125 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125 | 51 passed; mypy/ruff clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
