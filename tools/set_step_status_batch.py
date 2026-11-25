@@ -16,7 +16,7 @@ Record format (JSON array of objects):
 
 - `kind` defaults to `implementation-procedure`; `step` selects one row, or `description`
   selects the first row whose Description contains the text.
-- Timestamps are stamped the way `proc_step_status.py` stamps them: `In Progress` sets
+- Timestamps are stamped by status: `In Progress` sets
   Started, `Completed` sets Completed and Started when Started is unset. A record may name an
   explicit `started` or `completed` value instead, which overrides the stamp.
 - Rows are never completed implicitly: a record must name the status it wants.
