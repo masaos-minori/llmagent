@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import cast
 
 import httpx
+from shared.config_undo import ServiceSnapshot
 from shared.json_utils import (
     extract_llm_content,
     parse_http_json,
@@ -138,6 +139,40 @@ class HistoryManager:
             self._token_limit = token_limit
         if tokenize_url is not None:
             self._tokenize_url = tokenize_url
+
+    def snapshot_config(self) -> ServiceSnapshot:
+        """Capture the config-derived state `apply_config` changes.
+
+        The derived `_selection_policy` is captured with the four values: restoring
+        the limits alone would leave a policy built from the old `compress_turns`.
+        Conversation history and the compression counters are not part of the
+        snapshot — a restore must not touch them (REQ-006).
+        """
+        return ServiceSnapshot(
+            service="history",
+            values={
+                "char_limit": self._char_limit,
+                "compress_turns": self._compress_turns,
+                "token_limit": self._token_limit,
+                "tokenize_url": self._tokenize_url,
+                "selection_policy": self._selection_policy,
+            },
+        )
+
+    def restore_config(self, snapshot: ServiceSnapshot) -> None:
+        """Write the captured values back into the same instance and rebuild the policy.
+
+        The instance is not replaced: `ServiceSyncer` and the display commands hold
+        this object.  `_selection_policy` is rebuilt from the restored
+        `compress_turns`, the same way `apply_config` rebuilds it.
+        """
+        self._char_limit = snapshot.values["char_limit"]
+        self._compress_turns = snapshot.values["compress_turns"]
+        self._token_limit = snapshot.values["token_limit"]
+        self._tokenize_url = snapshot.values["tokenize_url"]
+        self._selection_policy = HistorySelectionPolicy(
+            self._compress_turns, self._protect_turns
+        )
 
     async def force_compress(
         self, history: list[LLMMessage]

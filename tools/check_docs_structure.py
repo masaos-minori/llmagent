@@ -169,11 +169,37 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # grew the ledger 36248 -> 36807; the ceiling equals the accepted size.
     # Re-accepted at 39898 (2026-11-24): SHARED-004 split into SHARED-004 to SHARED-007.
     "governance_03_issue-and-uncertainty-management.md": 39898,
+    # Re-accepted at 33078 (2026-11-25): closes a pre-existing gap — the generated
+    # subpackage index grew past MAX_SIZE through cliplc003's agent subpackage
+    # additions without the ceiling being recorded. The ceiling equals the accepted
+    # size, so further growth must be re-accepted.
     # Re-accepted at 33392 (2026-11-25, mcpai004 procedure 20261125-112546_25): the
     # subpackage index grew 33078 -> 33392 with TurnControl,
     # reconstruct_replay_directives, and the changed record_tool_call signature. The
     # ceiling equals the accepted size.
-    "agent_14_reference-api-subpackages-generated.md": 33392,
+    # Re-accepted at 35212 (2026-11-25, cliplc005 row 4): the 16 validators the field
+    # registry gained for entries that had none (REQ-010) are public functions in
+    # scripts/agent/services/config_validators.py, so the regenerated agent_subpackages
+    # index grew 33078 -> 35212. The ceiling equals the accepted size.
+    # Re-accepted at 35530 (2026-11-25, cliplc005 row 9): the typed candidate classifiers,
+    # PendingChange, and the agent_config_payload renderer added by the shared candidate
+    # build are public symbols, so the index grew 35212 -> 35530. The ceiling equals the
+    # accepted size.
+    # Re-accepted at 36384 (2026-11-25, cliplc005 rows 7/11/12/16/17/18): the staged
+    # transaction adds public symbols in scripts/shared/config_undo.py,
+    # scripts/agent/services/config_reload_transaction.py, and
+    # scripts/agent/services/exceptions.py, plus the snapshot and restore pairs on the
+    # live services, so the index grew 35530 -> 36384. The ceiling equals the accepted size.
+    # Re-accepted at 36973 (2026-11-25, cliplc005 rows 8/21/22/23/24): the pending-restart
+    # view adds public symbols in scripts/agent/services/config_pending_state.py
+    # (PendingConfigState, PendingMcpRecord, pending_state_for),
+    # scripts/agent/services/mcp_status.py (McpPendingRow, McpStatusService.pending_rows),
+    # and the AppServices.pending_config attribute, so the index grew 36384 -> 36973. The
+    # ceiling equals the accepted size.
+    # Re-accepted at 37198 (2026-11-25, cliplc005 rebased onto mcpai004): the merged
+    # index carries both plans' symbols, so the regenerated file is 37198. The ceiling
+    # equals the accepted size.
+    "agent_14_reference-api-subpackages-generated.md": 37198,
 }
 
 

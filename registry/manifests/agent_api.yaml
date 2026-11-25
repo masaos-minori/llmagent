@@ -258,6 +258,12 @@ entries:
   name: build_agent_config
   signature: def build_agent_config(cfg_override) -> AgentConfig
   summary: Construct AgentConfig from a config dict.
+- file: scripts/agent/config_builders.py
+  kind: function
+  name: agent_config_payload
+  signature: def agent_config_payload(cfg) -> dict[str, Any]
+  summary: Render a typed AgentConfig back into the flat payload shape the builders
+    read.
 - file: scripts/agent/config_dataclasses.py
   kind: class
   name: LLMConfig
@@ -697,24 +703,56 @@ entries:
   kind: function
   name: registry_for
   signature: def registry_for(section_path) -> list[ConfigFieldRegistry]
-  summary: Return all ConfigFieldRegistry entries matching the given section path.
+  summary: Return the hot-reloadable ConfigFieldRegistry entries for the given section
+    path.
+- file: scripts/agent/services/config_field_registry.py
+  kind: function
+  name: startup_only_for
+  signature: def startup_only_for(section_path) -> list[ConfigFieldRegistry]
+  summary: Return the ConfigFieldRegistry entries the given section reads only at
+    startup.
+- file: scripts/agent/services/config_field_registry.py
+  kind: function
+  name: validate_section_fields
+  signature: def validate_section_fields(section_path, section) -> None
+  summary: Run every registered validator for one section against a built section.
+- file: scripts/agent/services/config_outcome_classification.py
+  kind: class
+  name: PendingChange
+  signature: class PendingChange
+  summary: One startup-only configuration change `/reload` records instead of applying
+    live.
 - file: scripts/agent/services/config_outcome_classification.py
   kind: function
-  name: classify_mcp_server_changes
-  signature: def classify_mcp_server_changes(ctx, new_cfg) -> list[str]
-  summary: Classify MCP server definition changes as restart-required, field by field.
+  name: diff_mcp_definitions
+  signature: def diff_mcp_definitions(live_mcp, candidate_mcp) -> list[PendingMcpRecord]
+  summary: Return one record per MCP server the candidate redefines.
 - file: scripts/agent/services/config_outcome_classification.py
   kind: function
   name: classify_startup_only_fields
-  signature: def classify_startup_only_fields(ctx, new_cfg) -> list[str]
-  summary: Return names of startup-only fields that differ between new_cfg and running
-    cfg.
+  signature: def classify_startup_only_fields(ctx, candidate) -> list[PendingChange]
+  summary: Return pending records for startup-only fields the candidate changes.
 - file: scripts/agent/services/config_outcome_classification.py
   kind: function
   name: detect_diagnostics_live_fields
   signature: def detect_diagnostics_live_fields(ctx, new_cfg) -> list[str]
   summary: Return names of diagnostics.* fields that differ between new_cfg and running
     cfg.
+- file: scripts/agent/services/config_pending_state.py
+  kind: class
+  name: PendingMcpRecord
+  signature: class PendingMcpRecord
+  summary: One MCP server definition change `/reload` recorded instead of applying.
+- file: scripts/agent/services/config_pending_state.py
+  kind: class
+  name: PendingConfigState
+  signature: class PendingConfigState
+  summary: Restart-pending configuration records and the degraded-reload guard.
+- file: scripts/agent/services/config_pending_state.py
+  kind: function
+  name: pending_state_for
+  signature: def pending_state_for(ctx) -> PendingConfigState | None
+  summary: Return the pending state the context's container carries, or None.
 - file: scripts/agent/services/config_reload.py
   kind: class
   name: ConfigReloadOutcome
@@ -725,46 +763,43 @@ entries:
   name: ConfigReloadService
   signature: class ConfigReloadService
   summary: Propagate an updated config dict to live service instances.
+- file: scripts/agent/services/config_reload_transaction.py
+  kind: class
+  name: ReloadStage
+  signature: class ReloadStage
+  summary: Stage a `/reload` ended in.
+- file: scripts/agent/services/config_reload_transaction.py
+  kind: class
+  name: CommitPhase
+  signature: class CommitPhase
+  summary: Fixed commit order. Steps run in this order, not in registration order.
+- file: scripts/agent/services/config_reload_transaction.py
+  kind: class
+  name: PreparedStep
+  signature: class PreparedStep
+  summary: One reversible change prepared before commit.
+- file: scripts/agent/services/config_reload_transaction.py
+  kind: class
+  name: ReloadTransaction
+  signature: class ReloadTransaction
+  summary: Snapshot, commit, and rollback owner for one `/reload`.
+- file: scripts/agent/services/config_section_reload.py
+  kind: class
+  name: SectionCandidate
+  signature: class SectionCandidate
+  summary: A prepared, validated candidate for one configuration section.
 - file: scripts/agent/services/config_section_reload.py
   kind: function
   name: prepare_validated_section
-  signature: def prepare_validated_section(ctx, section_path, new_cfg, extra_changed_fields)
-    -> tuple[dict[str, Any], Any]
-  summary: Build the dataclasses.replace candidate for a validated section (llm/tool/memory/approval)
-    and run its validators.
+  signature: def prepare_validated_section(ctx, section_path, candidate_section, extra_changed_fields)
+    -> SectionCandidate | None
+  summary: Diff one hot-reloadable section of the typed candidate against the live
+    section and run its validators.
 - file: scripts/agent/services/config_section_reload.py
   kind: function
   name: apply_validated_section
-  signature: def apply_validated_section(ctx, section_path, candidate) -> None
+  signature: def apply_validated_section(ctx, candidate) -> UndoToken
   summary: Commit a prepared validated-section candidate onto ctx.cfg.
-- file: scripts/agent/services/config_section_reload.py
-  kind: function
-  name: reload_validated_section
-  signature: def reload_validated_section(ctx, section_path, new_cfg) -> list[str]
-  summary: Reload a validated section (llm/tool/memory/approval) as a prepare-then-apply
-    composition.
-- file: scripts/agent/services/config_section_reload.py
-  kind: function
-  name: prepare_direct_section
-  signature: def prepare_direct_section(ctx, new_cfg, section_path, field_filter)
-    -> dict[str, Any]
-  summary: Collect changed fields for a direct section (mcp).
-- file: scripts/agent/services/config_section_reload.py
-  kind: function
-  name: apply_direct_section
-  signature: def apply_direct_section(ctx, section_path, changed_fields) -> None
-  summary: Commit prepared direct-section changes onto the live section object.
-- file: scripts/agent/services/config_section_reload.py
-  kind: function
-  name: reload_direct_fields
-  signature: def reload_direct_fields(ctx, new_cfg, section_path, field_filter) ->
-    dict[str, Any]
-  summary: Reload a direct section (mcp) as a prepare-then-apply composition.
-- file: scripts/agent/services/config_service_sync.py
-  kind: class
-  name: SyncResult
-  signature: class SyncResult
-  summary: Result of ServiceSyncer.sync_all().
 - file: scripts/agent/services/config_service_sync.py
   kind: class
   name: ServiceSyncer
@@ -774,7 +809,7 @@ entries:
   kind: function
   name: validate_llm_context_char_limit
   signature: def validate_llm_context_char_limit(cfg) -> None
-  summary: Validate that context_char_limit is non-negative.
+  summary: Validate that context_char_limit is a non-negative int.
 - file: scripts/agent/services/config_validators.py
   kind: function
   name: validate_llm_budget_warn_ratio
@@ -804,12 +839,12 @@ entries:
   kind: function
   name: validate_llm_sse_malformed_retry
   signature: def validate_llm_sse_malformed_retry(cfg) -> None
-  summary: Validate that sse_malformed_retry is non-negative.
+  summary: Validate that sse_malformed_retry is a non-negative int.
 - file: scripts/agent/services/config_validators.py
   kind: function
   name: validate_llm_sse_reconnect_max
   signature: def validate_llm_sse_reconnect_max(cfg) -> None
-  summary: Validate that sse_reconnect_max is non-negative.
+  summary: Validate that sse_reconnect_max is a non-negative int.
 - file: scripts/agent/services/config_validators.py
   kind: function
   name: check_agent_refiner_keys
@@ -824,22 +859,22 @@ entries:
   kind: function
   name: validate_tool_cycle_detect_window
   signature: def validate_tool_cycle_detect_window(cfg) -> None
-  summary: Validate that tool_cycle_detect_window is non-negative.
+  summary: Validate that tool_cycle_detect_window is a non-negative int.
 - file: scripts/agent/services/config_validators.py
   kind: function
   name: validate_tool_error_max_consecutive
   signature: def validate_tool_error_max_consecutive(cfg) -> None
-  summary: Validate that tool_error_max_consecutive is non-negative.
+  summary: Validate that tool_error_max_consecutive is a non-negative int.
 - file: scripts/agent/services/config_validators.py
   kind: function
   name: validate_tool_error_retry_max
   signature: def validate_tool_error_retry_max(cfg) -> None
-  summary: Validate that tool_error_retry_max is non-negative.
+  summary: Validate that tool_error_retry_max is a non-negative int.
 - file: scripts/agent/services/config_validators.py
   kind: function
   name: validate_progress_stagnation_window
   signature: def validate_progress_stagnation_window(cfg) -> None
-  summary: Validate that progress_stagnation_window is non-negative.
+  summary: Validate that progress_stagnation_window is a non-negative int.
 - file: scripts/agent/services/config_validators.py
   kind: function
   name: validate_allowed_tools
@@ -874,12 +909,12 @@ entries:
   kind: function
   name: validate_memory_max_inject_semantic
   signature: def validate_memory_max_inject_semantic(cfg) -> None
-  summary: Validate that memory_max_inject_semantic is non-negative.
+  summary: Validate that memory_max_inject_semantic is a non-negative int.
 - file: scripts/agent/services/config_validators.py
   kind: function
   name: validate_memory_max_inject_episodic
   signature: def validate_memory_max_inject_episodic(cfg) -> None
-  summary: Validate that memory_max_inject_episodic is non-negative.
+  summary: Validate that memory_max_inject_episodic is a non-negative int.
 - file: scripts/agent/services/config_validators.py
   kind: function
   name: validate_memory_embed_timeout_sec
@@ -925,7 +960,7 @@ entries:
   kind: function
   name: validate_llm_context_token_limit
   signature: def validate_llm_context_token_limit(cfg) -> None
-  summary: Validate that context_token_limit is non-negative.
+  summary: Validate that context_token_limit is a non-negative int.
 - file: scripts/agent/services/config_validators.py
   kind: function
   name: validate_tool_max_tool_turns
@@ -936,6 +971,90 @@ entries:
   name: validate_tool_result_max_llm_chars
   signature: def validate_tool_result_max_llm_chars(cfg) -> None
   summary: Validate that tool_result_max_llm_chars is positive.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_url
+  signature: def validate_llm_url(cfg) -> None
+  summary: Validate that llm_url is a string (an empty value means no LLM endpoint).
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_context_compress_turns
+  signature: def validate_context_compress_turns(cfg) -> None
+  summary: Validate that context_compress_turns is an int.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_stream_retry_on_heartbeat_timeout
+  signature: def validate_llm_stream_retry_on_heartbeat_timeout(cfg) -> None
+  summary: Validate that llm_stream_retry_on_heartbeat_timeout is a bool.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_llm_stream_retry_on_malformed_chunk
+  signature: def validate_llm_stream_retry_on_malformed_chunk(cfg) -> None
+  summary: Validate that llm_stream_retry_on_malformed_chunk is a bool.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_serial_tool_calls
+  signature: def validate_serial_tool_calls(cfg) -> None
+  summary: Validate that serial_tool_calls is a bool.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_plan_blocked_tools
+  signature: def validate_plan_blocked_tools(cfg) -> None
+  summary: Validate that plan_blocked_tools is a list of strings (an empty list is
+    valid).
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_approval_protected_paths
+  signature: def validate_approval_protected_paths(cfg) -> None
+  summary: Validate that approval_protected_paths is a list of strings (an empty list
+    is valid).
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_approval_high_risk_branches
+  signature: def validate_approval_high_risk_branches(cfg) -> None
+  summary: Validate that approval_high_risk_branches is a list of strings (an empty
+    list is valid).
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_approval_shell_safe_prefixes
+  signature: def validate_approval_shell_safe_prefixes(cfg) -> None
+  summary: Validate that approval_shell_safe_prefixes is a list of strings.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_approval_github_allowed_repos
+  signature: def validate_approval_github_allowed_repos(cfg) -> None
+  summary: Validate that approval_github_allowed_repos is a list of strings (an empty
+    list is valid).
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_gitops_push_blocked
+  signature: def validate_gitops_push_blocked(cfg) -> None
+  summary: Validate that gitops_push_blocked is a bool.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_approval_medium_preview_fallback
+  signature: def validate_approval_medium_preview_fallback(cfg) -> None
+  summary: Validate that approval_medium_preview_fallback is a bool.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_memory_local_only
+  signature: def validate_memory_local_only(cfg) -> None
+  summary: Validate that memory_local_only is a bool.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_use_memory_layer
+  signature: def validate_use_memory_layer(cfg) -> None
+  summary: Validate that use_memory_layer is a bool.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_memory_embed_enabled
+  signature: def validate_memory_embed_enabled(cfg) -> None
+  summary: Validate that memory_embed_enabled is a bool.
+- file: scripts/agent/services/config_validators.py
+  kind: function
+  name: validate_memory_embed_url
+  signature: def validate_memory_embed_url(cfg) -> None
+  summary: Validate that memory_embed_url is a string.
 - file: scripts/agent/services/context_view.py
   kind: function
   name: budget_breakdown
@@ -988,9 +1107,26 @@ entries:
   summary: Raised when LLM-based session title generation fails.
 - file: scripts/agent/services/exceptions.py
   kind: class
+  name: ConfigReloadError
+  signature: class ConfigReloadError
+  summary: Base for configuration reload failures.
+- file: scripts/agent/services/exceptions.py
+  kind: class
   name: ConfigReloadValidationError
   signature: class ConfigReloadValidationError
-  summary: Raised when a config reload request contains invalid field types.
+  summary: Raised when a config reload request or candidate value fails a declared
+    rule.
+- file: scripts/agent/services/exceptions.py
+  kind: class
+  name: ConfigReloadCommitError
+  signature: class ConfigReloadCommitError
+  summary: Raised when a commit step failed after the transaction undid the applied
+    steps.
+- file: scripts/agent/services/exceptions.py
+  kind: class
+  name: ConfigReloadRollbackError
+  signature: class ConfigReloadRollbackError
+  summary: Raised when a rollback step failed, leaving live state inconsistent.
 - file: scripts/agent/services/exceptions.py
   kind: class
   name: ContextStateBuildError
@@ -1141,6 +1277,12 @@ entries:
   signature: async def check_readiness(ctx, *, gates) -> HealthCheckResult
   summary: Probe required services at startup; raise RuntimeError on required-service
     failure.
+- file: scripts/agent/services/mcp_status.py
+  kind: class
+  name: McpPendingRow
+  signature: class McpPendingRow
+  summary: One MCP definition change `/mcp status` shows as pending, not as a live
+    server.
 - file: scripts/agent/services/mcp_status.py
   kind: class
   name: McpStatusService

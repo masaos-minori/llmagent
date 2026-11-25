@@ -101,3 +101,58 @@ def test_apply_config_zero_value_is_applied() -> None:
     inst = MockInstance()
     LlmHotConfigHandler.apply_config(inst, sse_malformed_retry=0)
     assert inst._sse_malformed_retry == 0
+
+
+# ── snapshot / restore pair (REQ-006) ─────────────────────────────────────────
+
+
+def test_snapshot_captures_exactly_the_hot_config_fields() -> None:
+    """The snapshot covers what apply_one can change, and nothing else."""
+    inst = MockInstance()
+    snapshot = LlmHotConfigHandler.snapshot(inst)
+
+    assert snapshot.service == "llm"
+    assert set(snapshot.values) == {
+        attr for attr, _ in LlmHotConfigHandler.HOT_CONFIG_FIELDS
+    }
+    assert snapshot.values["_temperature"] == 0.7
+
+
+def test_restore_writes_the_captured_values_into_the_same_instance() -> None:
+    """Restore does not replace the instance: the live client keeps its identity."""
+    inst = MockInstance()
+    snapshot = LlmHotConfigHandler.snapshot(inst)
+
+    LlmHotConfigHandler.apply_config(inst, temperature=0.1, max_tokens=7)
+    LlmHotConfigHandler.restore(inst, snapshot)
+
+    assert inst._temperature == 0.7
+    assert inst._max_tokens == 100
+
+
+def test_restore_does_not_touch_attributes_outside_the_hot_config_fields() -> None:
+    """A restore only writes back what the snapshot captured (REQ-006)."""
+    inst = MockInstance()
+    inst.model_name = "fixture-model"
+    snapshot = LlmHotConfigHandler.snapshot(inst)
+    inst.model_name = "changed-model"
+
+    LlmHotConfigHandler.restore(inst, snapshot)
+
+    assert inst.model_name == "changed-model"
+
+
+def test_apply_one_returns_the_undo_token_for_the_field_it_changed() -> None:
+    """apply_one captures the previous value before the setattr (REQ-006)."""
+    inst = MockInstance()
+
+    token = LlmHotConfigHandler.apply_one(inst, "_temperature", 0.1)
+
+    assert inst._temperature == 0.1
+    assert token.service == "llm"
+    assert token.field_paths == ("_temperature",)
+
+    token.restore()
+
+    assert inst._temperature == 0.7
+    assert inst._max_tokens == 100

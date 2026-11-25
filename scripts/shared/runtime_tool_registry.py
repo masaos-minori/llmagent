@@ -28,6 +28,7 @@ import logging
 from collections.abc import Sequence
 from typing import Any
 
+from shared.config_undo import ServiceSnapshot
 from shared.resource_scope import resolve_resource_scopes
 from shared.runtime_tool import RuntimeTool, _or_default
 from shared.tool_spec import ToolSpec
@@ -245,6 +246,21 @@ class RuntimeToolRegistry:
                 enabled_for_llm=new_enabled,
             )
         self._tools = new_tools
+
+    def snapshot_policy(self) -> ServiceSnapshot:
+        """Capture the tool mapping `apply_policy` replaces.
+
+        The mapping object reference is captured, not a copy of each entry, so a
+        restore reattaches the original `RuntimeTool` objects that `apply_policy`
+        replaced with `dataclasses.replace` copies (REQ-006).  `self._tools` is the
+        only attribute `apply_policy` mutates: the policy inputs are call arguments,
+        not stored state.
+        """
+        return ServiceSnapshot(service="runtime_tools", values={"tools": self._tools})
+
+    def restore_policy(self, snapshot: ServiceSnapshot) -> None:
+        """Reattach the captured tool mapping; changes nothing else on the registry."""
+        self._tools = snapshot.values["tools"]
 
     def diagnostics(self) -> list[dict[str, Any]]:
         """Return per-tool diagnostics rows for display in /mcp status.

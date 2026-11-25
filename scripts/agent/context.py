@@ -36,6 +36,7 @@ from shared.types import LLMMessage
 
 from agent.config_builders import build_agent_config
 from agent.message_schema import ROLE_KEY_WHITELIST, TRUSTED_SOURCES, validate_message
+from agent.services.config_pending_state import PendingConfigState
 from agent.session import AgentSession
 
 if TYPE_CHECKING:
@@ -342,6 +343,9 @@ class AppServices:
     job_registry is the single MaintenanceJobRegistry instance the command
     mixins reach, so the one-writer-per-store guard is process-global.
     gateway is None until factory.py constructs and injects RepositoryGateway.
+    pending_config is never None: factory.py passes the process-wide instance, and
+    a container built without one gets its own, so a pending record is always
+    readable (REQ-009).
     """
 
     def __init__(
@@ -357,6 +361,7 @@ class AppServices:
         health_registry: McpServerHealthRegistry | None = None,
         gateway: RepositoryGateway | None = None,
         runtime_tools: RuntimeToolRegistry | None = None,
+        pending_config: PendingConfigState | None = None,
     ) -> None:
         """Initialize all required service references for the agent runtime."""
         # enforce invariant — all required services must be non-None
@@ -382,6 +387,7 @@ class AppServices:
         self.health_registry = health_registry
         self.gateway: RepositoryGateway | None = gateway
         self.runtime_tools: RuntimeToolRegistry | None = runtime_tools
+        self.pending_config: PendingConfigState = pending_config or PendingConfigState()
         # Plain-REPL session intent-store close hook (mcpdl001 REQ-007), set by
         # factory._wire_plain_repl_intent_store; closed by
         # ResourceShutdownCoordinator with the other AppServices resources.

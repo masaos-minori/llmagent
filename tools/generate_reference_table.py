@@ -796,7 +796,14 @@ def _config_ownership_entries() -> list[dict[str, Any]]:
         ):
             continue
         args = node.args
-        if node.keywords or not 3 <= len(args) <= 4:
+        # Shape: (name, section, hot_reloadable[, validator[, field_type]][, allow_empty=...]).
+        # field_type and allow_empty describe the entry but are not manifest columns, so
+        # they are parsed for validity and left out of the emitted entry.
+        if (
+            len(node.keywords) > 1
+            or any(kw.arg != "allow_empty" for kw in node.keywords)
+            or not 3 <= len(args) <= 5
+        ):
             raise ManifestError(
                 f"unexpected ConfigFieldRegistry call shape: "
                 f"{len(args)} positional args, {len(node.keywords)} keywords"
@@ -812,7 +819,7 @@ def _config_ownership_entries() -> list[dict[str, Any]]:
         ):
             raise ManifestError("non-literal ConfigFieldRegistry positional args")
         validator: str | None = None
-        if len(args) == 4:
+        if len(args) >= 4:
             if isinstance(args[3], ast.Name):
                 validator = args[3].id
             elif isinstance(args[3], ast.Attribute):
@@ -820,6 +827,17 @@ def _config_ownership_entries() -> list[dict[str, Any]]:
             else:
                 raise ManifestError(
                     f"unexpected validator expression for field {name.value}"
+                )
+        if len(args) == 5 and not isinstance(args[4], (ast.Name, ast.Attribute)):
+            raise ManifestError(
+                f"unexpected field_type expression for field {name.value}"
+            )
+        for kw in node.keywords:
+            if not isinstance(kw.value, ast.Constant) or not isinstance(
+                kw.value.value, bool
+            ):
+                raise ManifestError(
+                    f"non-literal {kw.arg} argument for field {name.value}"
                 )
         if name.value in seen:
             raise ManifestError(f"duplicate config field ownership: {name.value}")

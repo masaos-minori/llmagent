@@ -10,7 +10,12 @@ import httpx
 import pytest
 from agent.commands.cmd_mcp import _McpMixin
 from agent.commands.exceptions import UnknownSubcommandError
+from agent.config_dataclasses import MCPConfig
 from agent.lifecycle import LifecycleState
+from agent.services.config_pending_state import PendingConfigState, PendingMcpRecord
+from agent.services.enums import McpAvailability, McpTier
+from agent.services.mcp_status import McpStatusService
+from agent.services.models import McpProbeResult
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.mcp_health import McpServerHealthState
 from shared.runtime_tool import RuntimeTool, build_runtime_tool
@@ -151,7 +156,7 @@ class TestCmdMcpStatus:
         self, capsys: pytest.CaptureFixture
     ) -> None:
         """Reload classification must not change what /mcp status shows (M-5)."""
-        from agent.services.config_reload import ConfigReloadService
+        from agent.services.config_outcome_classification import diff_mcp_definitions
 
         old_srv = _http(url="http://localhost:8080")
         ctx = _Ctx({"svc": old_srv})
@@ -163,12 +168,11 @@ class TestCmdMcpStatus:
             cmd=[],
             auth_token="test-token",
         )
-        reload_svc = ConfigReloadService(ctx)  # type: ignore[arg-type]
-        with patch(
-            "agent.config_builders._build_mcp_servers",
-            return_value={"svc": new_srv, "new_one": new_srv},
-        ):
-            outcome = reload_svc._classify_mcp_server_changes(ctx, {})  # type: ignore[arg-type]
+        records = diff_mcp_definitions(
+            ctx.cfg.mcp,
+            MCPConfig(mcp_servers={"svc": new_srv, "new_one": new_srv}),
+        )
+        paths = [path for record in records for path in record.field_paths]
 
         resp = MagicMock()
         resp.status_code = 200
@@ -181,8 +185,10 @@ class TestCmdMcpStatus:
         assert "new_one" not in out  # pending server not shown until restart
         assert "http://localhost:8080" in out  # old URL still probed
         assert "9999" not in out  # new URL never probed
-        assert "mcp_servers/svc.url" in outcome.needs_restart
-        assert "mcp_servers/new_one (new server)" in outcome.needs_restart
+        assert "mcp_servers/svc.url" in paths
+        assert "mcp_servers/new_one" in paths
+        assert old_srv.url == "http://localhost:8080"  # live definition untouched
+        assert [r.change for r in records if r.server_key == "new_one"] == ["added"]
 
     @pytest.mark.asyncio
     async def test_stdio_running(self, capsys: pytest.CaptureFixture) -> None:
@@ -810,6 +816,233 @@ class TestCmdMcpStatusToolDiagnostics:
         )
         assert svc.memory is None
         assert svc.lifecycle is not None
+
+
+# ── /mcp status pending-restart rows (row 21, row 22) ──────────────────────────
+
+
+def _ctx_with_pending(*records: PendingMcpRecord) -> _Ctx:
+    """Ctx whose container carries the pending MCP records `/reload` classified.
+
+    `factory.py` puts the process-wide `PendingConfigState` on `AppServices`, so the
+    command reads the pending rows through the ctx rather than deriving them from the
+    live config (REQ-009).
+    """
+    ctx = _Ctx({"fixture_server": _http()})
+    state = PendingConfigState()
+    state.set_mcp_records(list(records))
+    ctx.services = MagicMock()
+    ctx.services.pending_config = state
+    return ctx
+
+
+class TestCmdMcpStatusPendingRows:
+    """REQ-008, AC-4: a pending definition is a pending row, never a live probe row."""
+
+    @pytest.mark.asyncio
+    async def test_an_added_definition_is_a_pending_row_not_a_probe_row(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _ctx_with_pending(
+            PendingMcpRecord(
+                server_key="added_server",
+                change="added",
+                field_paths=("mcp_servers/added_server",),
+            )
+        )
+        mcp = _Mcp(ctx)
+        mc = _mock_client()
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+        out = capsys.readouterr().out
+        assert "Pending restart (MCP definitions):" in out
+        assert "[added_server] added: mcp_servers/added_server" in out
+        # AC-4 separation: the live probe section, which ends at the pending heading,
+        # contains no row for a definition that has no live process.
+        live_section = out.split("Pending restart (MCP definitions):")[0]
+        assert "added_server" not in live_section
+
+    @pytest.mark.asyncio
+    async def test_a_changed_definition_names_the_field_path_not_the_value(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _ctx_with_pending(
+            PendingMcpRecord(
+                server_key="fixture_server",
+                change="changed",
+                field_paths=("mcp_servers/fixture_server.auth_token",),
+            )
+        )
+        mcp = _Mcp(ctx)
+        mc = _mock_client()
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+        out = capsys.readouterr().out
+        assert "[fixture_server] changed: mcp_servers/fixture_server.auth_token" in out
+        assert "test-token" not in out  # the row names the field, never the secret
+
+    @pytest.mark.asyncio
+    async def test_a_removed_definition_is_reported_as_pending(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _ctx_with_pending(
+            PendingMcpRecord(
+                server_key="fixture_server",
+                change="removed",
+                field_paths=("mcp_servers/fixture_server",),
+            )
+        )
+        mcp = _Mcp(ctx)
+        mc = _mock_client()
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+        out = capsys.readouterr().out
+        assert "[fixture_server] removed: mcp_servers/fixture_server" in out
+
+    @pytest.mark.asyncio
+    async def test_no_pending_section_when_nothing_is_pending(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """The live status output is unchanged when no restart is pending."""
+        ctx = _Ctx({"svc": _http()})
+        mcp = _Mcp(ctx)
+        mc = _mock_client()
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+        out = capsys.readouterr().out
+        assert "svc" in out
+        assert "Pending restart" not in out
+
+    @pytest.mark.asyncio
+    async def test_an_empty_pending_state_prints_no_pending_section(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """A container with the state but no records has nothing to show."""
+        ctx = _ctx_with_pending()
+        mcp = _Mcp(ctx)
+        mc = _mock_client()
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+        out = capsys.readouterr().out
+        assert "Pending restart" not in out
+
+
+class TestCmdMcpStatusHealthInterpretation:
+    """The health-interpretation section stays separate from the pending section."""
+
+    @pytest.mark.asyncio
+    async def test_interpretation_lines_are_printed_for_a_server_with_issues(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _Ctx({"svc": _http()})
+        mcp = _Mcp(ctx)
+        row = McpProbeResult(
+            key="svc",
+            transport="http",
+            startup_mode="persistent",
+            auth=True,
+            tier=McpTier.READ_ONLY,
+            role="read",
+            availability=McpAvailability.OK,
+            health="ok",
+            endpoint="http://127.0.0.1:8000",
+            reachable=True,
+            body={
+                "status": "degraded",
+                "ready": False,
+                "dependencies": [
+                    {"name": "db", "status": "fail", "reason": "unreachable"}
+                ],
+            },
+            dependency_summary=["db: unreachable"],
+        )
+        with patch.object(
+            McpStatusService, "probe_all", new=AsyncMock(return_value=[row])
+        ):
+            await mcp._cmd_mcp_status()
+        out = capsys.readouterr().out
+        assert "Health interpretation:" in out
+        assert "db: unreachable" in out
+        assert "Pending restart" not in out
+
+    @pytest.mark.asyncio
+    async def test_no_interpretation_section_when_no_server_has_issues(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _Ctx({"svc": _http()})
+        mcp = _Mcp(ctx)
+        row = McpProbeResult(
+            key="svc",
+            transport="http",
+            startup_mode="persistent",
+            auth=False,
+            tier=McpTier.READ_ONLY,
+            role="read",
+            availability=McpAvailability.OK,
+            health="ok",
+            endpoint="http://127.0.0.1:8000",
+        )
+        with patch.object(
+            McpStatusService, "probe_all", new=AsyncMock(return_value=[row])
+        ):
+            await mcp._cmd_mcp_status()
+        out = capsys.readouterr().out
+        assert "Health interpretation:" not in out
+
+
+class TestCmdMcpTools:
+    """`/mcp tools` renders the RuntimeToolRegistry diagnostics table."""
+
+    @pytest.mark.asyncio
+    async def test_the_diagnostics_table_is_printed(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _Ctx({"svc": _http()})
+        registry = MagicMock()
+        registry.diagnostics.return_value = [
+            {
+                "name": "read_file",
+                "server_key": "svc",
+                "config_dependent": False,
+                "enabled": True,
+                "disabled_reason": None,
+                "enabled_for_llm": True,
+            }
+        ]
+        ctx.services_required.runtime_tools = registry
+        mcp = _Mcp(ctx)
+
+        await mcp._cmd_mcp_tools()
+
+        out = capsys.readouterr().out
+        assert "LLM_VISIBLE" in out
+        assert "read_file" in out
+
+    @pytest.mark.asyncio
+    async def test_no_registry_prints_the_missing_registry_line(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _Ctx({"svc": _http()})
+        ctx.services_required.runtime_tools = None
+        mcp = _Mcp(ctx)
+
+        await mcp._cmd_mcp_tools()
+
+        assert "No RuntimeToolRegistry available." in capsys.readouterr().out
+
+    @pytest.mark.asyncio
+    async def test_no_registered_tools_prints_the_empty_line(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        ctx = _Ctx({"svc": _http()})
+        registry = MagicMock()
+        registry.diagnostics.return_value = []
+        ctx.services_required.runtime_tools = registry
+        mcp = _Mcp(ctx)
+
+        await mcp._cmd_mcp_tools()
+
+        assert "No tools registered." in capsys.readouterr().out
 
 
 # ── /mcp command definition verification ────────────────────────────────────────

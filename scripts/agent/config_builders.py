@@ -8,12 +8,13 @@ The per-section builder helpers this module delegates to live in
 agent.config_section_builders.py.
 
 Import from here:  from agent.config_builders import (
-    build_agent_config, load_config, ConfigLoadError,
+    agent_config_payload, build_agent_config, load_config, ConfigLoadError,
 )
 """
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from pathlib import Path
 from typing import Any
@@ -22,14 +23,19 @@ from db.config import build_db_config
 from db.maintenance import DbMaintenanceConfig
 from shared.config_errors import ConfigLoadError
 from shared.config_loader import ConfigLoader
-from shared.mcp_config import _build_mcp_servers
+from shared.mcp_config import _MCP_SERVER_KEYS, _build_mcp_servers
 from shared.runtime_paths import resolve_config_dir
 from shared.tool_registry import get_registry
 
 from agent.config_dataclasses import (
     AgentConfig,
+    ApprovalConfig,
+    DiagnosticsConfig,
+    LLMConfig,
     MCPConfig,
+    MemoryConfig,
     ObservabilityConfig,
+    ToolConfig,
 )
 from agent.config_section_builders import (
     _build_approval_config,
@@ -41,6 +47,7 @@ from agent.config_section_builders import (
     _get_str_or_default,
 )
 from agent.production_config_validator import ProductionConfigValidator
+from agent.services.config_field_registry import validate_section_fields
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.typed_validators import (
     _get_bool,
@@ -49,6 +56,39 @@ from agent.services.typed_validators import (
 )
 
 logger = logging.getLogger(__name__)
+
+# AgentConfig sections rendered as flat payload keys by agent_config_payload().
+_PAYLOAD_SECTIONS: tuple[str, ...] = ("llm", "tool", "memory", "approval", "obs")
+# Section objects _section_payload() renders: every dataclass the renderer passes it.
+_PayloadSection = (
+    LLMConfig
+    | ToolConfig
+    | MemoryConfig
+    | ApprovalConfig
+    | ObservabilityConfig
+    | DiagnosticsConfig
+)
+# AgentConfig fields that are not flat scalar keys: the section objects, the nested
+# diagnostics table, and the MCP container.
+_PAYLOAD_AGENT_FIELDS: frozenset[str] = frozenset(
+    (
+        "db",
+        "maintenance",
+        "llm",
+        "tool",
+        "memory",
+        "mcp",
+        "approval",
+        "obs",
+        "diagnostics",
+        "messages",
+    )
+)
+
+
+def _section_payload(section: _PayloadSection) -> dict[str, Any]:
+    """Return one section dataclass as its ``config key -> value`` mapping."""
+    return {f.name: getattr(section, f.name) for f in dataclasses.fields(section)}
 
 
 def resolved_config_dir() -> Path:
@@ -116,15 +156,31 @@ def _run_production_validation(
 
 
 def _assemble_agent_config(cfg: dict[str, Any]) -> AgentConfig:
-    """Assemble AgentConfig by delegating to builder functions."""
+    """Assemble AgentConfig by delegating to builder functions.
+
+    Every section the field registry covers is validated through the registry after
+    it is built, so the startup path applies exactly the rules the reload candidate
+    applies (REQ-001, REQ-010).
+    """
     otel_enabled = _get_or_default(cfg, "otel_enabled", _get_bool, False)
     structured_log = _get_or_default(cfg, "structured_log", _get_bool, False)
+    llm = _build_llm_config(cfg)
+    tool = _build_tool_config(cfg)
+    memory = _build_memory_config(cfg)
+    approval = _build_approval_config(cfg)
+    for section_path, section in (
+        ("llm", llm),
+        ("tool", tool),
+        ("memory", memory),
+        ("approval", approval),
+    ):
+        validate_section_fields(section_path, section)
     return AgentConfig(
-        llm=_build_llm_config(cfg),
-        tool=_build_tool_config(cfg),
-        memory=_build_memory_config(cfg),
+        llm=llm,
+        tool=tool,
+        memory=memory,
         mcp=MCPConfig(mcp_servers=_build_mcp_servers(cfg)),
-        approval=_build_approval_config(cfg),
+        approval=approval,
         obs=ObservabilityConfig(
             otel_enabled=otel_enabled,
             otel_endpoint=_get_str_or_default(cfg, "otel_endpoint"),
@@ -168,7 +224,52 @@ def build_agent_config(cfg_override: dict[str, Any] | None = None) -> AgentConfi
 
     If cfg_override is provided it is used directly (for /reload and tests).
     Otherwise configuration is loaded from files via load_config().
+
+    This is also the candidate-build entry the reload path calls with
+    ``cfg_override`` set (REQ-002): the candidate is a typed ``AgentConfig`` built by
+    the same production validation and section assembly startup uses, and building it
+    mutates no live state — the payload dict is read, never written.
     """
     cfg, known_tools = _resolve_config_source_and_registry(cfg_override)
     _run_production_validation(cfg, known_tools)
     return _assemble_agent_config(cfg)
+
+
+def agent_config_payload(cfg: AgentConfig) -> dict[str, Any]:
+    """Render a typed AgentConfig back into the flat payload shape the builders read.
+
+    This is the inverse of `build_agent_config` for the keys the builders read, and
+    the reload candidate phase uses it to apply a payload on top of the live
+    configuration (REQ-002): `build_agent_config` always sees a complete
+    configuration, so a payload that names one field changes only that field, and a
+    value the payload does not name keeps the value startup already validated.
+
+    `messages` is not rendered: no section builder reads its key, so the candidate
+    takes the same default the live configuration has. `McpServerConfig.key` and
+    `McpServerConfig.fields` are not rendered either: only the declared
+    `_MCP_SERVER_KEYS` are configuration input.
+    """
+    payload: dict[str, Any] = {
+        f.name: getattr(cfg.db, f.name) for f in dataclasses.fields(cfg.db)
+    }
+    payload.update(
+        {
+            f"sqlite_{f.name}": getattr(cfg.maintenance, f.name)
+            for f in dataclasses.fields(cfg.maintenance)
+        }
+    )
+    for section_path in _PAYLOAD_SECTIONS:
+        payload.update(_section_payload(getattr(cfg, section_path)))
+    payload["diagnostics"] = _section_payload(cfg.diagnostics)
+    payload["mcp_servers"] = {
+        server_key: {name: getattr(server, name) for name in _MCP_SERVER_KEYS}
+        for server_key, server in cfg.mcp.mcp_servers.items()
+    }
+    payload.update(
+        {
+            f.name: getattr(cfg, f.name)
+            for f in dataclasses.fields(cfg)
+            if f.name not in _PAYLOAD_AGENT_FIELDS
+        }
+    )
+    return payload

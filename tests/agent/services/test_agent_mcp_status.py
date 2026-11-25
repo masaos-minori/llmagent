@@ -10,9 +10,16 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+from agent.services.config_pending_state import PendingMcpRecord
 from agent.services.enums import McpAvailability, McpTier
 from agent.services.exceptions import McpProbeError
-from agent.services.mcp_status import TIER_LABELS, McpStatusService, _tier_for_server
+from agent.services.mcp_status import (
+    TIER_LABELS,
+    McpPendingRow,
+    McpStatusService,
+    _tier_for_server,
+)
+from agent.services.models import McpProbeResult
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
 
@@ -257,3 +264,57 @@ class TestProbeAllTierDerivation:
             results = await status.probe_all()
 
         assert results[0].tier == McpTier.WRITE_SAFE
+
+
+class TestPendingRows:
+    """REQ-008, AC-4: pending rows are a separate model, built from records only."""
+
+    @staticmethod
+    def _record(
+        server_key: str, change: str, field_paths: tuple[str, ...]
+    ) -> PendingMcpRecord:
+        return PendingMcpRecord(
+            server_key=server_key, change=change, field_paths=field_paths
+        )
+
+    def test_one_record_becomes_one_row(self) -> None:
+        rows = McpStatusService.pending_rows(
+            (self._record("svc", "added", ("mcp_servers/svc",)),)
+        )
+
+        assert rows == [
+            McpPendingRow(
+                server_key="svc", change="added", field_paths=("mcp_servers/svc",)
+            )
+        ]
+
+    def test_a_pending_row_is_not_a_probe_result(self) -> None:
+        """The two row types are distinct, so a pending definition cannot be rendered live."""
+        rows = McpStatusService.pending_rows(
+            (self._record("svc", "changed", ("mcp_servers/svc.url",)),)
+        )
+
+        assert not isinstance(rows[0], McpProbeResult)
+
+    def test_no_records_means_no_rows(self) -> None:
+        assert McpStatusService.pending_rows(()) == []
+
+    def test_the_row_names_field_paths_and_no_value(self) -> None:
+        rows = McpStatusService.pending_rows(
+            (self._record("svc", "changed", ("mcp_servers/svc.auth_token",)),)
+        )
+
+        assert rows[0].field_paths == ("mcp_servers/svc.auth_token",)
+        assert "secret-value" not in repr(rows[0])
+
+    def test_building_rows_reads_no_lifecycle_or_probe_state(self) -> None:
+        """`pending_rows` is a static mapping: it reaches no ctx, probe, or registry."""
+        ctx = MagicMock()
+        service = McpStatusService(ctx=ctx)
+
+        rows = service.pending_rows(
+            (self._record("svc", "removed", ("mcp_servers/svc",)),)
+        )
+
+        assert rows[0].change == "removed"
+        assert ctx.method_calls == []

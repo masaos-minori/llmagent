@@ -46,6 +46,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/config_builders.py` | `resolved_config_dir` | `def resolved_config_dir() -> Path` | Return the resolved agent config directory via the shared resolver. |
 |  | `load_config` | `def load_config() -> dict[str, Any]` | Load configuration from files.  No module-level cache — always fresh. |
 |  | `build_agent_config` | `def build_agent_config(cfg_override) -> AgentConfig` | Construct AgentConfig from a config dict. |
+|  | `agent_config_payload` | `def agent_config_payload(cfg) -> dict[str, Any]` | Render a typed AgentConfig back into the flat payload shape the builders read. |
 | `scripts/agent/config_dataclasses.py` | `LLMConfig` | `class LLMConfig` | LLM communication and context management settings. |
 |  | `ToolConfig` | `class ToolConfig` | Tool execution, approval policy, and prompt settings. |
 |  | `MemoryConfig` | `class MemoryConfig` | Persistent semantic memory layer settings. |

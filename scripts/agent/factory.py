@@ -37,6 +37,7 @@ from agent.http_lifecycle_process_terminator import ProcessTerminator
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.lifecycle_router import _ServerLifecycleRouter
 from agent.repository_gateway import RepositoryGateway
+from agent.services.config_pending_state import PendingConfigState
 from agent.services.maintenance_jobs import MaintenanceJobRegistry
 from agent.workflow.state_store import StateStore
 
@@ -357,6 +358,7 @@ def build_agent_context(
     hist_result = _build_history_manager(ctx, view, http)
     memory = _build_memory_services(ctx, http)
     job_registry = MaintenanceJobRegistry()
+    pending_config = PendingConfigState()
 
     ctx.services = AppServices(
         http=http,
@@ -371,6 +373,7 @@ def build_agent_context(
             executor=tools_result.tools, cfg=ctx.cfg, audit_logger=audit_logger
         ),
         health_registry=tools_result.health_registry,
+        pending_config=pending_config,
     )
 
     _wire_plain_repl_intent_store(ctx)

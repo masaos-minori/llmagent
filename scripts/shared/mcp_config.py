@@ -14,6 +14,15 @@ from enum import StrEnum
 from typing import Any
 from urllib.parse import urlparse
 
+from shared.config_field_types import (
+    reject_unknown_keys,
+    strict_bool,
+    strict_float,
+    strict_int,
+    strict_str,
+    strict_str_list,
+    strict_str_mapping,
+)
 from shared.config_utils import resolve_env_ref
 from shared.logger import register_secret
 from shared.mcp_call_state_contract import resolve_control_token
@@ -21,6 +30,27 @@ from shared.mcp_call_state_contract import resolve_control_token
 logger = logging.getLogger(__name__)
 
 _ENV_KEY_DENYLIST: tuple[str, ...] = ("LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH")
+
+# Declared key set of one [mcp_servers.<key>] table. A key outside this set is rejected by name
+# instead of being dropped in silence; `fields` is a McpServerConfig attribute the parser does not
+# read, so it is not a configurable key.
+_MCP_SERVER_KEYS: tuple[str, ...] = (
+    "transport",
+    "url",
+    "startup_mode",
+    "cmd",
+    "env",
+    "call_timeout_sec",
+    "health_timeout",
+    "startup_timeout_sec",
+    "startup_stagger_delay_sec",
+    "max_stderr_log_size_mb",
+    "max_stderr_log_files",
+    "auth_token",
+    "control_auth_token",
+    "role",
+    "required",
+)
 
 
 class TransportType(StrEnum):
@@ -251,58 +281,127 @@ def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
     return {key: _build_single_server(key, v) for key, v in raw.items()}
 
 
+_ABSENT = object()
+
+
+def _read_str(v: dict[str, Any], name: str, section: str, *, default: str = "") -> str:
+    """Read a str field; only an absent key takes the default."""
+    raw = v.get(name, _ABSENT)
+    if raw is _ABSENT:
+        return default
+    return strict_str(raw, f"{section}.{name}", allow_empty=True)
+
+
+def _read_bool(v: dict[str, Any], name: str, section: str, *, default: bool) -> bool:
+    """Read a bool field; a string or number is rejected, not coerced."""
+    raw = v.get(name, _ABSENT)
+    if raw is _ABSENT:
+        return default
+    return strict_bool(raw, f"{section}.{name}")
+
+
+def _read_int(v: dict[str, Any], name: str, section: str, *, default: int) -> int:
+    """Read an int field; a bool or a string is rejected, not coerced."""
+    raw = v.get(name, _ABSENT)
+    if raw is _ABSENT:
+        return default
+    return strict_int(raw, f"{section}.{name}")
+
+
+def _read_float(v: dict[str, Any], name: str, section: str, *, default: float) -> float:
+    """Read a float field; a bool or a string is rejected, not coerced."""
+    raw = v.get(name, _ABSENT)
+    if raw is _ABSENT:
+        return default
+    return strict_float(raw, f"{section}.{name}")
+
+
+def _read_optional_float(v: dict[str, Any], name: str, section: str) -> float | None:
+    """Read a float field that an explicit `null` clears."""
+    raw = v.get(name, _ABSENT)
+    if raw is _ABSENT or raw is None:
+        return None
+    return strict_float(raw, f"{section}.{name}")
+
+
+def _read_cmd(v: dict[str, Any], section: str) -> list[str]:
+    """Read the cmd sequence: a list of non-empty strings, never a split string.
+
+    An absent key means "no launch command" and is the default; a key present with an
+    empty sequence is rejected, because it says "launch something" and names nothing.
+    """
+    raw = v.get("cmd", _ABSENT)
+    if raw is _ABSENT:
+        return []
+    return strict_str_list(raw, f"{section}.cmd")
+
+
+def _read_enum[T: StrEnum](
+    value: str, enum_type: type[T], name: str, section: str
+) -> T:
+    """Convert a declared string value to its enum member, naming the field on failure.
+
+    The failure message lists the accepted values instead of echoing the configured one.
+    """
+    try:
+        return enum_type(value)
+    except ValueError as exc:
+        accepted = ", ".join(repr(member.value) for member in enum_type)
+        raise ValueError(f"{section}.{name} must be one of: {accepted}") from exc
+
+
 def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
     """Construct McpServerConfig from a raw dict, applying defaults.
+
+    Every value is read through the shared strict primitives (REQ-001), so this parser
+    and the reload path accept exactly the same inputs. A present-but-wrong-typed value
+    is rejected; only an absent key takes the default. A key outside `_MCP_SERVER_KEYS`
+    is rejected by name rather than dropped. Raised messages name the server key and the
+    field and never the value, because `auth_token` and `env` carry credentials.
 
     All TOML string values are converted to enum types here so that
     McpServerConfig runtime instances use normalized enum values.
     """
     if not isinstance(v, dict):
         raise ValueError(f"mcp_servers[{key!r}] must be a dict, got {type(v).__name__}")
-    transport = v.get("transport", "http")
-    if not isinstance(transport, str):
-        raise ValueError(
-            f"mcp_servers[{key!r}].transport must be str, got {type(transport).__name__}"
-        )
-    cmd = list(v.get("cmd", []))
-    env = dict(v.get("env", {}))
-    health_timeout_raw = v.get("health_timeout")
-    if health_timeout_raw is not None:
-        try:
-            health_timeout = float(health_timeout_raw)
-        except (TypeError, ValueError):
-            raise ValueError(
-                f"mcp_servers[{key!r}].health_timeout must be a non-negative number or null, "
-                f"got {type(health_timeout_raw).__name__}"
-            )
-    else:
-        health_timeout = None
+    section = f"mcp_servers.{key}"
+    reject_unknown_keys(v, list(_MCP_SERVER_KEYS), section=section)
 
-    resolved_auth_token = resolve_env_ref(v.get("auth_token", ""))
+    transport = _read_str(v, "transport", section, default="http")
+    startup_mode = _read_str(v, "startup_mode", section, default="none")
+    cmd = _read_cmd(v, section)
+    env = strict_str_mapping(v.get("env", {}), f"{section}.env", allow_empty=True)
+    health_timeout = _read_optional_float(v, "health_timeout", section)
+
+    resolved_auth_token = resolve_env_ref(_read_str(v, "auth_token", section))
     register_secret(resolved_auth_token)
     # The control token is optional: an unset variable closes the control paths
     # instead of stopping the Agent (mcpdl004 REQ-002).
-    resolved_control_token = resolve_control_token(v.get("control_auth_token", ""))
+    resolved_control_token = resolve_control_token(
+        _read_str(v, "control_auth_token", section)
+    )
     if resolved_control_token:
         register_secret(resolved_control_token)
 
     return McpServerConfig(
-        transport=TransportType(transport),
-        url=v.get("url", ""),
-        startup_mode=StartupMode(v.get("startup_mode", "none")),
-        startup_timeout_sec=int(v.get("startup_timeout_sec", 30)),
-        startup_stagger_delay_sec=float(v.get("startup_stagger_delay_sec", 0.0)),
-        max_stderr_log_size_mb=float(v.get("max_stderr_log_size_mb", 100.0)),
-        max_stderr_log_files=int(v.get("max_stderr_log_files", 3)),
+        transport=_read_enum(transport, TransportType, "transport", section),
+        url=_read_str(v, "url", section),
+        startup_mode=_read_enum(startup_mode, StartupMode, "startup_mode", section),
+        startup_timeout_sec=_read_int(v, "startup_timeout_sec", section, default=30),
+        startup_stagger_delay_sec=_read_float(
+            v, "startup_stagger_delay_sec", section, default=0.0
+        ),
+        max_stderr_log_size_mb=_read_float(
+            v, "max_stderr_log_size_mb", section, default=100.0
+        ),
+        max_stderr_log_files=_read_int(v, "max_stderr_log_files", section, default=3),
         auth_token=resolved_auth_token,
         control_auth_token=resolved_control_token,
-        call_timeout_sec=float(v.get("call_timeout_sec", 60.0)),
+        call_timeout_sec=_read_float(v, "call_timeout_sec", section, default=60.0),
         health_timeout=health_timeout,
-        role=v.get("role", ""),
+        role=_read_str(v, "role", section),
         cmd=cmd,
         env=env,
         key=key,
-        required=bool(
-            v.get("required", True)
-        ),  # checked against `registry/component_mandatoriness.yaml` in scripts/agent/startup_validation.py
+        required=_read_bool(v, "required", section, default=True),
     )

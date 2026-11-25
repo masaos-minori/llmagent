@@ -8,8 +8,9 @@ Provides:
   _print_sse_settings          — SSE stream settings
   _print_execution_settings    — Execution settings
   _print_approval_settings     — Approval settings
- _print_tool_safety_settings  — Tool safety settings
-   _print_config_values         — Combined config display
+  _print_tool_safety_settings  — Tool safety settings
+  _print_config_values         — Combined config display
+  _print_pending_config        — Pending-restart section, separated from live values
   _print_rag_config            — Retrieval/DB settings
   _cmd_config                  — /config dispatcher
 
@@ -18,9 +19,11 @@ Import from here:  from agent.commands.cmd_config_display import _ConfigDisplayM
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from agent.commands.mixin_base import MixinBase
+from agent.services.config_pending_state import pending_state_for
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -159,6 +162,36 @@ class _ConfigDisplayMixin(MixinBase):
         self._out.write("")
         self._print_memory_settings(ctx)
 
+    def _write_item_list(
+        self, items: Sequence[str], header: str, item_label: str
+    ) -> None:
+        """Write '<header>: [N items]' followed by one '  [item_label] - <item>' per item."""
+        self._out.write(f"{header}: [{len(items)} items]")
+        for item in items:
+            self._out.write(f"  [{item_label}] - {item}")
+
+    def _print_pending_config(self, ctx: AgentContext) -> None:
+        """Print the pending-restart section, separated from the live values.
+
+        Reads the pending startup-only field paths from the container's
+        `PendingConfigState`, so a change `/reload` could not apply is visible here as
+        pending rather than as a live value (REQ-009, AC-5).  Prints nothing when
+        nothing is pending, so the current output shape is unchanged.  Field paths
+        only: the pending record carries no configured value (REQ-011).
+        """
+        pending = pending_state_for(ctx)
+        if pending is None:
+            return
+        field_paths = pending.pending_startup_only()
+        if not field_paths:
+            return
+        self._out.write("")
+        self._write_item_list(
+            field_paths,
+            "Pending restart (not applied to the running process)",
+            "STARTUP-ONLY",
+        )
+
     def _print_rag_config(self) -> None:
         """Print retrieval settings including DB path and search parameters."""
         self._out.write("Search settings:")
@@ -198,3 +231,4 @@ class _ConfigDisplayMixin(MixinBase):
         self._print_config_values()
         self._out.write("")
         self._print_rag_config()
+        self._print_pending_config(self._ctx)

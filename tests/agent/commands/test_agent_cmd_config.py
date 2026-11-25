@@ -13,8 +13,16 @@ from unittest.mock import MagicMock, patch
 import pytest
 from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.command_defs_list import _COMMANDS
-from agent.config_dataclasses import ApprovalConfig, LLMConfig
-from agent.services.config_reload import ConfigReloadService
+from agent.prompt_source import load_prompt_source
+from agent.services.config_pending_state import PendingConfigState
+from agent.services.config_reload import ConfigReloadOutcome, ConfigReloadService
+from agent.services.config_reload_transaction import ReloadStage
+from agent.services.exceptions import (
+    ConfigReloadCommitError,
+    ConfigReloadRollbackError,
+)
+
+from tests.agent._config_test_defaults import reload_fixture_config, reload_fixture_ctx
 
 # ── Test harness ──────────────────────────────────────────────────────────────
 
@@ -24,13 +32,14 @@ class _FakeCmd(_ConfigMixin):
         self._ctx = ctx
 
 
-def _make_ctx() -> MagicMock:
+def _make_ctx(**overrides: Any) -> MagicMock:
+    """Reload-test ctx whose live config is what the startup entry point builds.
+
+    The reload candidate is built through `build_agent_config` (REQ-002), so the
+    config a reload test starts from must itself be a startup-built ``AgentConfig``.
+    """
     ctx = MagicMock()
-    # apply_config_dict() calls dataclasses.replace(ctx.cfg.llm, ...) and
-    # dataclasses.replace(ctx.cfg.approval, ...), which require real dataclass
-    # instances rather than auto-generated MagicMocks.
-    ctx.cfg.llm = LLMConfig()
-    ctx.cfg.approval = ApprovalConfig()
+    ctx.cfg = reload_fixture_config(**overrides)
     ctx.stats.stat_turns = 5
     ctx.stats.stat_tool_calls = 10
     ctx.stats.stat_tool_errors = 2
@@ -51,6 +60,26 @@ def _make_ctx() -> MagicMock:
     ctx.services_required.rag = None
     ctx.services_required.hist_mgr = None
     ctx.services_required.llm = None
+    return ctx
+
+
+def _make_pending_ctx(**overrides: Any) -> Any:
+    """Reload ctx that carries the container's real `PendingConfigState`.
+
+    `factory.py` puts one `PendingConfigState` on `AppServices` and the display
+    commands read it through the ctx, so a pending-display case must carry a real
+    state rather than a MagicMock (REQ-009).  No live service is wired and the
+    prompt already matches the source, so the reload commits nothing and the only
+    thing the command has to report is what stayed pending.
+    """
+    ctx = reload_fixture_ctx(**overrides)
+    ctx.conv.system_prompt_content = load_prompt_source().content(
+        ctx.conv.system_prompt_name
+    )
+    for name in ("runtime_tools", "tools", "rag", "hist_mgr"):
+        setattr(ctx.services_required, name, None)
+    ctx.services = MagicMock()
+    ctx.services.pending_config = PendingConfigState()
     return ctx
 
 
@@ -245,41 +274,24 @@ class TestPrintConfigValues:
 
 # ── _apply_config_params ──────────────────────────────────────────────────────
 
-# _build_mcp_servers requires valid transport; use http with dummy URL.
-_DUMMY_MCP = {
-    "mcp_servers": {
-        "dummy": {
-            "transport": "http",
-            "url": "http://localhost:3001/mcp",
-            "auth_token": "test-token",
-        }
-    }
-}
-
 
 class TestApplyConfigDict:
     def test_sse_heartbeat_timeout_reloaded(self) -> None:
         ctx = _make_ctx()
         ctx.conv.history = []
-        ConfigReloadService(ctx).apply_config_dict(
-            {**_DUMMY_MCP, "sse_heartbeat_timeout": 60.0}
-        )
+        ConfigReloadService(ctx).apply_config_dict({"sse_heartbeat_timeout": 60.0})
         assert ctx.cfg.llm.sse_heartbeat_timeout == 60.0
 
     def test_sse_malformed_retry_reloaded(self) -> None:
         ctx = _make_ctx()
         ctx.conv.history = []
-        ConfigReloadService(ctx).apply_config_dict(
-            {**_DUMMY_MCP, "sse_malformed_retry": 5}
-        )
+        ConfigReloadService(ctx).apply_config_dict({"sse_malformed_retry": 5})
         assert ctx.cfg.llm.sse_malformed_retry == 5
 
     def test_sse_reconnect_max_reloaded(self) -> None:
         ctx = _make_ctx()
         ctx.conv.history = []
-        ConfigReloadService(ctx).apply_config_dict(
-            {**_DUMMY_MCP, "sse_reconnect_max": 3}
-        )
+        ConfigReloadService(ctx).apply_config_dict({"sse_reconnect_max": 3})
         assert ctx.cfg.llm.sse_reconnect_max == 3
 
     def test_llm_stream_retry_flags_reloaded(self) -> None:
@@ -287,7 +299,6 @@ class TestApplyConfigDict:
         ctx.conv.history = []
         ConfigReloadService(ctx).apply_config_dict(
             {
-                **_DUMMY_MCP,
                 "llm_stream_retry_on_heartbeat_timeout": False,
                 "llm_stream_retry_on_malformed_chunk": True,
             }
@@ -307,7 +318,6 @@ class TestApplyConfigDict:
         ctx.cfg.llm.llm_stream_retry_on_malformed_chunk = True
         ConfigReloadService(ctx).apply_config_dict(
             {
-                **_DUMMY_MCP,
                 "sse_heartbeat_timeout": 45.0,
                 "sse_malformed_retry": 3,
                 "sse_reconnect_max": 2,
@@ -328,33 +338,31 @@ class TestApplyConfigDict:
         "removed_key",
         ["approval_resource_keys", "approval_dry_run_tools"],
     )
-    def test_removed_approval_maps_not_applied_on_reload(
-        self, removed_key: str
-    ) -> None:
-        """Agentcfg003 REQ-011: a reload payload naming a removed map is ignored
-        as an unrecognized key; the live config never gains the field."""
+    def test_removed_approval_maps_rejected_on_reload(self, removed_key: str) -> None:
+        """Agentcfg003 REQ-011: a reload payload naming a removed map is rejected by
+        the candidate build; the live config never gains the field."""
+        from agent.services.exceptions import ConfigReloadValidationError
+
         ctx = _make_ctx()
         ctx.conv.history = []
-        outcome = ConfigReloadService(ctx).apply_config_dict(
-            {**_DUMMY_MCP, removed_key: {"github_push": "high"}}
-        )
+        with pytest.raises(ConfigReloadValidationError) as excinfo:
+            ConfigReloadService(ctx).apply_config_dict(
+                {removed_key: {"github_push": "high"}}
+            )
+        assert removed_key in str(excinfo.value)
         assert not hasattr(ctx.cfg.approval, removed_key)
-        assert removed_key not in outcome.applied
 
-    def test_hist_mgr_token_limit_synced(self) -> None:
+    def test_startup_only_history_limits_are_not_synced(self) -> None:
+        """context_token_limit and tokenize_url are startup-only: reload never syncs them to hist_mgr."""
         ctx = _make_ctx()
         ctx.conv.history = []
         hist_mgr = MagicMock()
         ctx.services_required.hist_mgr = hist_mgr
-        # Pre-set cfg values; _apply_config_params reads them to sync to hist_mgr
         ctx.cfg.llm.context_token_limit = 4000
         ctx.cfg.llm.tokenize_url = "http://llm/tok"
-        ConfigReloadService(ctx).apply_config_dict({**_DUMMY_MCP})
-        # ConfigReloadService now uses apply_config() instead of direct attr writes
-        hist_mgr.apply_config.assert_called_once()
-        call_kwargs = hist_mgr.apply_config.call_args.kwargs
-        assert call_kwargs.get("token_limit") == 4000
-        assert call_kwargs.get("tokenize_url") == "http://llm/tok"
+        outcome = ConfigReloadService(ctx).apply_config_dict({})
+        hist_mgr.apply_config.assert_not_called()
+        assert "hist_mgr" not in outcome.applied
 
 
 # ── _print_rag_config error path ──────────────────────────────────────────────
@@ -406,6 +414,24 @@ class TestCmdReload:
         out = capsys.readouterr().out
         assert "Reload failed" in out
         assert "parse error" in out
+
+    def test_reload_wrong_typed_value_prints_field_error_without_raw_value(
+        self, capsys: Any
+    ) -> None:
+        """AC-5/REQ-011: a wrong-typed value prints a field-level error and does not raise."""
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "shared.config_loader.ConfigLoader.load_all",
+            return_value={"context_char_limit": "12000"},
+        ):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert "Reload failed" in out
+        assert "context_char_limit" in out
+        assert "must be" in out
+        assert "12000" not in out  # the rule names the type, never the value
 
     def test_reload_shows_source_files(self, capsys: Any) -> None:
         from unittest.mock import patch
@@ -476,17 +502,17 @@ class TestCmdReload:
     ) -> None:
         from unittest.mock import patch
 
-        from shared.mcp_config import McpServerConfig, TransportType
-
-        old_srv = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://localhost:8080",
-            cmd=[],
-            auth_token="old",
+        ctx = _make_ctx(
+            mcp_servers={
+                "svc": {
+                    "transport": "http",
+                    "url": "http://localhost:8080",
+                    "cmd": ["python", "s.py"],
+                    "auth_token": "old",
+                }
+            }
         )
-        ctx = _make_ctx()
         ctx.conv.history = []
-        ctx.cfg.mcp.mcp_servers = {"svc": old_srv}
         cmd = _FakeCmd(ctx)
 
         new_cfg = {
@@ -494,6 +520,7 @@ class TestCmdReload:
                 "svc": {
                     "transport": "http",
                     "url": "http://localhost:8080",
+                    "cmd": ["python", "s.py"],
                     "auth_token": "new",
                 }
             }
@@ -529,14 +556,19 @@ class TestCmdReload:
         assert "  [SKIP] - debug" in out
 
     def test_reload_shows_startup_only_items(self, capsys: Any) -> None:
-        """Characterization test for the startup_only item-listing branch."""
+        """The startup-only change is reported as pending, not as an ignored list.
+
+        Row 19 replaced the outcome's own `Startup-only (ignored)` list with the
+        container's pending list, so the same field is reported once and the report
+        says where it stands (REQ-009, AC-5).
+        """
         from unittest.mock import patch
 
         from agent.services.config_reload import ConfigReloadOutcome
 
-        ctx = _make_ctx()
-        ctx.conv.history = []
+        ctx = _make_pending_ctx()
         cmd = _FakeCmd(ctx)
+        ctx.services.pending_config.set_startup_only(["use_memory_layer"])
         outcome = ConfigReloadOutcome(
             applied=[], needs_restart=[], startup_only=["use_memory_layer"]
         )
@@ -553,8 +585,9 @@ class TestCmdReload:
             "Config reloaded — startup-only settings cannot apply without restart"
             in out
         )
-        assert "Startup-only (ignored): [1 items]" in out
+        assert "Pending restart (not applied to the running process):" in out
         assert "  [STARTUP-ONLY] - use_memory_layer" in out
+        assert "Startup-only (ignored)" not in out
 
     def test_reload_no_changes_shows_message(self, capsys: Any) -> None:
         from unittest.mock import patch
@@ -622,6 +655,201 @@ class TestCmdReload:
             cmd._cmd_reload()
         out = capsys.readouterr().out
         assert "No changes detected." in out
+
+
+# ── _cmd_reload stage reporting (row 38, R5 run) ──────────────────────────────
+
+
+class TestCmdReloadStageReporting:
+    """REQ-005, AC-5: the printed stage matches the state the reload left behind."""
+
+    @staticmethod
+    def _run(
+        cmd: Any, *, outcome: Any = None, error: BaseException | None = None
+    ) -> None:
+        from unittest.mock import patch
+
+        with (
+            patch("shared.config_loader.ConfigLoader.load_all", return_value={}),
+            patch(
+                "agent.services.config_reload.ConfigReloadService.apply_config_dict",
+                return_value=outcome,
+                side_effect=error,
+            ),
+        ):
+            cmd._cmd_reload()
+
+    def test_prepared_stage_is_printed(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        self._run(cmd, outcome=ConfigReloadOutcome(applied=[], needs_restart=[]))
+        out = capsys.readouterr().out
+        assert "Reload stage: prepared" in out
+
+    def test_committed_stage_is_printed_with_the_applied_list(
+        self, capsys: Any
+    ) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        self._run(
+            cmd,
+            outcome=ConfigReloadOutcome(
+                applied=["llm"],
+                needs_restart=[],
+                stage=ReloadStage.COMMITTED,
+            ),
+        )
+        out = capsys.readouterr().out
+        assert "Reload stage: committed" in out
+        assert "Applied (runtime): [1 items]" in out
+
+    def test_rolled_back_stage_is_printed_on_a_commit_failure(
+        self, capsys: Any
+    ) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        self._run(
+            cmd,
+            error=ConfigReloadCommitError(
+                "config reload commit failed at llm (RuntimeError); "
+                "applied steps were rolled back",
+                field_path="llm_max_tokens",
+                stage=ReloadStage.ROLLED_BACK.value,
+            ),
+        )
+        out = capsys.readouterr().out
+        assert "Reload stage: rolled_back" in out
+        assert "Reload failed: llm_max_tokens" in out
+        assert "Applied (runtime)" not in out
+
+    def test_degraded_stage_is_printed_on_a_rollback_failure(self, capsys: Any) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        self._run(
+            cmd,
+            error=ConfigReloadRollbackError(
+                "config reload rollback failed for llm; restart required",
+                service="llm",
+                stage=ReloadStage.DEGRADED.value,
+            ),
+        )
+        out = capsys.readouterr().out
+        assert "Reload stage: degraded" in out
+        assert "restart required" in out
+        assert "Applied (runtime)" not in out
+
+    def test_a_failed_reload_does_not_raise(self, capsys: Any) -> None:
+        """AC-5: the command reports the failure; it never propagates it."""
+        ctx = _make_ctx()
+        ctx.conv.history = []
+        cmd = _FakeCmd(ctx)
+        self._run(
+            cmd,
+            error=ConfigReloadRollbackError(
+                "config reload refused: a previous reload left llm inconsistent; "
+                "restart required",
+                service="llm",
+                stage=ReloadStage.DEGRADED.value,
+            ),
+        )
+        assert "Reload stage: degraded" in capsys.readouterr().out
+
+
+class TestCmdReloadPendingList:
+    """REQ-009, AC-5: a startup-only change is printed as pending, never as applied."""
+
+    def test_a_startup_only_change_prints_the_pending_list(self, capsys: Any) -> None:
+        ctx = _make_pending_ctx()
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "shared.config_loader.ConfigLoader.load_all",
+            return_value={"context_char_limit": 1234},
+        ):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert "Reload stage: prepared" in out
+        assert "Pending restart (not applied to the running process):" in out
+        assert "  [STARTUP-ONLY] - context_char_limit" in out
+        assert "Applied (runtime)" not in out
+        assert "1234" not in out  # the pending list names fields, not values
+
+    def test_nothing_pending_prints_no_pending_section(self, capsys: Any) -> None:
+        ctx = _make_pending_ctx()
+        cmd = _FakeCmd(ctx)
+        with patch("shared.config_loader.ConfigLoader.load_all", return_value={}):
+            cmd._cmd_reload()
+        out = capsys.readouterr().out
+        assert "No changes detected." in out
+        assert "Pending restart" not in out
+
+    def test_the_pending_list_survives_to_the_next_reload_command(
+        self, capsys: Any
+    ) -> None:
+        """The second `/reload` still shows what the first one left pending (REQ-009)."""
+        ctx = _make_pending_ctx()
+        payload = {"context_char_limit": 1234}
+        with patch(
+            "shared.config_loader.ConfigLoader.load_all",
+            return_value=payload,
+        ):
+            _FakeCmd(ctx)._cmd_reload()
+        capsys.readouterr()
+
+        with patch("shared.config_loader.ConfigLoader.load_all", return_value=payload):
+            _FakeCmd(ctx)._cmd_reload()
+        out = capsys.readouterr().out
+        assert "  [STARTUP-ONLY] - context_char_limit" in out
+
+
+# ── /config show pending-restart section (row 20) ─────────────────────────────
+
+
+class TestConfigShowPendingSection:
+    """REQ-009, AC-5: `/config show` separates pending values from live values."""
+
+    def test_a_pending_field_is_shown_as_pending(self, capsys: Any) -> None:
+        ctx = _make_pending_ctx()
+        ctx.services.pending_config.set_startup_only(["context_char_limit"])
+        cmd = _FakeCmd(ctx)
+        cmd._print_pending_config(ctx)
+        out = capsys.readouterr().out
+        assert "Pending restart (not applied to the running process): [1 items]" in out
+        assert "  [STARTUP-ONLY] - context_char_limit" in out
+
+    def test_no_pending_section_when_nothing_is_pending(self, capsys: Any) -> None:
+        """The live-value display is unchanged when no restart is pending."""
+        ctx = _make_pending_ctx()
+        cmd = _FakeCmd(ctx)
+        cmd._print_config_values()
+        cmd._print_pending_config(ctx)
+        out = capsys.readouterr().out
+        assert "Pending restart" not in out
+        assert "context_char_limit" in out  # the live value is still shown
+
+    def test_the_pending_section_is_printed_after_the_live_values(
+        self, capsys: Any
+    ) -> None:
+        ctx = _make_pending_ctx()
+        ctx.services.pending_config.set_startup_only(["use_memory_layer"])
+        cmd = _FakeCmd(ctx)
+        cmd._print_config_values()
+        cmd._print_pending_config(ctx)
+        out = capsys.readouterr().out
+        assert out.index("use_memory_layer") < out.index("Pending restart")
+
+    def test_cmd_config_prints_the_pending_section_last(self, capsys: Any) -> None:
+        """`/config` shows the pending field after the live values, not among them."""
+        ctx = _make_pending_ctx()
+        ctx.services.pending_config.set_startup_only(["context_char_limit"])
+        cmd = _FakeCmd(ctx)
+        cmd._cmd_config()
+        out = capsys.readouterr().out
+        assert "  [STARTUP-ONLY] - context_char_limit" in out
+        assert out.rstrip().endswith("  [STARTUP-ONLY] - context_char_limit")
 
 
 # ── _print_memory_settings ──────────────────────────────────────────────────────

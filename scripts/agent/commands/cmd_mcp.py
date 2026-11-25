@@ -10,8 +10,8 @@ Formatting (table, next-steps) is handled in this module — not in the services
 """
 
 import logging
-from collections.abc import Iterable
-from typing import Any
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from shared.mcp_health import (
     HEALTH_REASON_HALF_OPEN_TRIAL_IN_PROGRESS,
@@ -22,12 +22,51 @@ from shared.mcp_health import (
 
 from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
+from agent.services.config_pending_state import pending_state_for
 from agent.services.enums import McpAvailability
-from agent.services.mcp_status import TIER_LABELS, McpStatusService
+from agent.services.mcp_status import (
+    TIER_LABELS,
+    McpPendingRow,
+    McpStatusService,
+)
 from agent.services.models import McpProbeResult
 from agent.shared.health_models import interpret_health_body
 
+if TYPE_CHECKING:
+    from shared.runtime_tool_registry import RuntimeToolRegistry
+
 logger = logging.getLogger(__name__)
+
+# Column headers of the live MCP probe table.
+_MCP_STATUS_HEADERS = [
+    "SERVER",
+    "TRANS",
+    "MODE",
+    "AUTH",
+    "WRITE",
+    "ROLE",
+    "STATUS",
+    "LIFECYCLE",
+    "PID",
+    "ENDPOINT/CMD",
+]
+
+# Column headers of the RuntimeToolRegistry diagnostics table.
+_TOOL_DIAGNOSTIC_HEADERS = [
+    "NAME",
+    "SERVER",
+    "CONFIG_DEP",
+    "ENABLED",
+    "DISABLED_REASON",
+    "LLM_VISIBLE",
+]
+
+# Availability values the status line counts as unreachable.
+_UNREACHABLE_AVAILABILITY = {
+    McpAvailability.FAIL,
+    McpAvailability.HTTP_ERROR,
+    McpAvailability.DEAD,
+}
 
 
 def _format_health_interpretation(result: McpProbeResult) -> str:
@@ -93,6 +132,72 @@ def _format_availability_display(
     return static_line, " ".join(parts)
 
 
+def _format_mcp_status_rows(rows: Sequence[McpProbeResult]) -> list[list[str]]:
+    """Render the live probe rows of the `/mcp status` table.
+
+    One row per probed server: the probe state only, so a definition that is pending
+    a restart cannot appear here (REQ-008).
+    """
+    table_rows: list[list[str]] = []
+    for r in rows:
+        role_display = (
+            f"{r.role} [sb:{r.sandbox_backend}]".strip()
+            if r.sandbox_backend
+            else r.role
+        )
+        lifecycle_display = str(r.lifecycle_state) if r.lifecycle_state else "-"
+        pid_display = str(r.pid) if r.pid is not None else "-"
+        table_rows.append(
+            [
+                r.key,
+                r.transport,
+                r.startup_mode,
+                "yes" if r.auth else "no",
+                TIER_LABELS.get(r.tier, r.tier.value),
+                role_display,
+                f"{r.availability.value}/{r.health}",
+                lifecycle_display,
+                pid_display,
+                r.endpoint,
+            ]
+        )
+    return table_rows
+
+
+def _format_tool_diagnostic_rows(
+    diag_rows: Sequence[dict[str, Any]],
+) -> list[list[str]]:
+    """Render the RuntimeToolRegistry diagnostic rows."""
+    table_rows: list[list[str]] = []
+    for row in diag_rows:
+        name_display = row.get("name", "-")
+        marker = "[DISABLED] " if not row.get("enabled", True) else ""
+        table_rows.append(
+            [
+                f"{marker}{name_display}",
+                row.get("server_key", "-"),
+                str(row.get("config_dependent", "-")),
+                str(row.get("enabled", "-")),
+                row.get("disabled_reason", "-") or "-",
+                str(row.get("enabled_for_llm", "-")),
+            ]
+        )
+    return table_rows
+
+
+def _format_pending_mcp_rows(rows: Sequence[McpPendingRow]) -> list[str]:
+    """Render the pending MCP definition rows, one line per pending record.
+
+    The server key, the change kind, and the field paths that changed: a pending
+    `auth_token` change is named by its field path and its value is never printed
+    (REQ-011).
+    """
+    return [
+        f"    [{row.server_key}] {row.change}: {', '.join(row.field_paths)}"
+        for row in rows
+    ]
+
+
 class _McpMixin(MixinBase):
     """MCP server management slash-command handlers."""
 
@@ -121,165 +226,165 @@ class _McpMixin(MixinBase):
             self._out.write(f"    [{label.upper()}] {key}")
 
     async def _cmd_mcp_status(self) -> None:
-        """Print MCP server status table."""
+        """Print MCP server status table.
+
+        Live probe rows come from `McpStatusService.probe_all` and pending MCP
+        definition rows come from the container's `PendingConfigState`; the two are
+        printed under separate headings so a pending definition is never shown as a
+        running server (REQ-008, REQ-009).
+        """
         ctx = self._ctx
         tool_registry = ctx.services_required.runtime_tools
-        svc = McpStatusService(ctx)
-        if tool_registry is None:
-            self._out.write("  Tools       — (no RuntimeToolRegistry available)")
-        else:
-            diag_rows = tool_registry.diagnostics()
-            llm_visible = sum(1 for r in diag_rows if r.get("enabled_for_llm"))
-            disabled = sum(1 for r in diag_rows if r.get("disabled_reason"))
-            unavailable = sum(
-                1 for r in diag_rows if r.get("disabled_reason") == "unavailable"
-            )
-            self._out.write(
-                f"  Tools       {llm_visible} LLM-visible / "
-                f"{disabled} disabled / {unavailable} unavailable "
-                "(from RuntimeToolRegistry)"
-            )
+        self._write_tool_summary(tool_registry)
         self._out.write("")
-        rows = await svc.probe_all()
-        mcp_headers = [
-            "SERVER",
-            "TRANS",
-            "MODE",
-            "AUTH",
-            "WRITE",
-            "ROLE",
-            "STATUS",
-            "LIFECYCLE",
-            "PID",
-            "ENDPOINT/CMD",
-        ]
-        mcp_rows: list[list[str]] = []
-        for r in rows:
-            role_display = (
-                f"{r.role} [sb:{r.sandbox_backend}]".strip()
-                if r.sandbox_backend
-                else r.role
-            )
-            lifecycle_display = str(r.lifecycle_state) if r.lifecycle_state else "-"
-            pid_display = str(r.pid) if r.pid is not None else "-"
-            mcp_rows.append(
-                [
-                    r.key,
-                    r.transport,
-                    r.startup_mode,
-                    "yes" if r.auth else "no",
-                    TIER_LABELS.get(r.tier, r.tier.value),
-                    role_display,
-                    f"{r.availability.value}/{r.health}",
-                    lifecycle_display,
-                    pid_display,
-                    r.endpoint,
-                ]
-            )
-        self._out.write_table(mcp_headers, mcp_rows)
-        _UNREACHABLE = {
-            McpAvailability.FAIL,
-            McpAvailability.HTTP_ERROR,
-            McpAvailability.DEAD,
-        }
-        ok_count = sum(1 for r in rows if r.availability == McpAvailability.OK)
-        unreachable_count = sum(1 for r in rows if r.availability in _UNREACHABLE)
-        self._out.write(
-            f"\n  Servers     {len(rows)} configured ({ok_count} ok, {unreachable_count} unreachable)"
-        )
+        rows = await McpStatusService(ctx).probe_all()
+        self._out.write_table(_MCP_STATUS_HEADERS, _format_mcp_status_rows(rows))
+        self._write_server_counts(rows)
         # Static visibility (config-derived) and dynamic health (registry
         # circuit state) are shown as separate labeled values per server.
         display_registry = ctx.services_required.health_registry
-        self._out.write("")
-        self._out.write("  Availability:")
-        for r in sorted(rows, key=lambda x: x.key):
-            static_line, dynamic_line = _format_availability_display(
-                r, display_registry
-            )
-            self._out.write(f"  [{r.key}]")
-            self._out.write(f"    {static_line}")
-            self._out.write(f"    {dynamic_line}")
-        # Show health interpretation details for servers with issues
-        has_interpretation = False
-        for r in rows:
-            if r.dependency_summary or r.parse_failure_reason or r.details_summary:
-                has_interpretation = True
-                break
-        if has_interpretation:
-            self._out.write("")
-            self._out.write("  Health interpretation:")
-            for r in sorted(rows, key=lambda x: x.key):
-                interp_lines = _format_health_interpretation(r)
-                if interp_lines.strip():
-                    self._out.write(f"\n  [{r.key}]")
-                    self._out.write(interp_lines)
-        registry = ctx.services_required.health_registry
+        self._write_availability_section(rows, display_registry)
+        self._write_health_interpretation_section(rows)
         self._write_servers_in_state(
-            registry, ctx.cfg.mcp.mcp_servers, McpServerHealthState.DEGRADED, "Degraded"
+            display_registry,
+            ctx.cfg.mcp.mcp_servers,
+            McpServerHealthState.DEGRADED,
+            "Degraded",
         )
         self._write_servers_in_state(
-            registry,
+            display_registry,
             ctx.cfg.mcp.mcp_servers,
             McpServerHealthState.UNAVAILABLE,
             "Unavailable",
         )
+        self._write_serialization_stats()
+        self._write_tool_diagnostics(tool_registry)
+        self._write_pending_mcp_section()
+
+    def _write_tool_summary(self, tool_registry: RuntimeToolRegistry | None) -> None:
+        """Write the one-line RuntimeToolRegistry tool summary."""
+        if tool_registry is None:
+            self._out.write("  Tools       — (no RuntimeToolRegistry available)")
+            return
+        diag_rows = tool_registry.diagnostics()
+        llm_visible = sum(1 for r in diag_rows if r.get("enabled_for_llm"))
+        disabled = sum(1 for r in diag_rows if r.get("disabled_reason"))
+        unavailable = sum(
+            1 for r in diag_rows if r.get("disabled_reason") == "unavailable"
+        )
+        self._out.write(
+            f"  Tools       {llm_visible} LLM-visible / "
+            f"{disabled} disabled / {unavailable} unavailable "
+            "(from RuntimeToolRegistry)"
+        )
+
+    def _write_server_counts(self, rows: Sequence[McpProbeResult]) -> None:
+        """Write the configured-server count line under the status table."""
+        ok_count = sum(1 for r in rows if r.availability == McpAvailability.OK)
+        unreachable_count = sum(
+            1 for r in rows if r.availability in _UNREACHABLE_AVAILABILITY
+        )
+        self._out.write(
+            f"\n  Servers     {len(rows)} configured ({ok_count} ok, {unreachable_count} unreachable)"
+        )
+
+    def _write_availability_section(
+        self,
+        rows: Sequence[McpProbeResult],
+        registry: McpServerHealthRegistry | None,
+    ) -> None:
+        """Write the static-visibility and dynamic-health lines per server."""
+        self._out.write("")
+        self._out.write("  Availability:")
+        for r in sorted(rows, key=lambda x: x.key):
+            static_line, dynamic_line = _format_availability_display(r, registry)
+            self._out.write(f"  [{r.key}]")
+            self._out.write(f"    {static_line}")
+            self._out.write(f"    {dynamic_line}")
+
+    def _write_health_interpretation_section(
+        self, rows: Sequence[McpProbeResult]
+    ) -> None:
+        """Write health interpretation details for the servers that have any."""
+        has_interpretation = any(
+            r.dependency_summary or r.parse_failure_reason or r.details_summary
+            for r in rows
+        )
+        if not has_interpretation:
+            return
+        self._out.write("")
+        self._out.write("  Health interpretation:")
+        for r in sorted(rows, key=lambda x: x.key):
+            interp_lines = _format_health_interpretation(r)
+            if interp_lines.strip():
+                self._out.write(f"\n  [{r.key}]")
+                self._out.write(interp_lines)
+
+    def _write_serialization_stats(self) -> None:
+        """Write the tool-serialization event summary, when any event was recorded."""
         from agent.tool_run_recorder import get_serialization_stats
 
         stats = get_serialization_stats()
-        if stats["total_events"] > 0:
-            ctx = self._ctx
-            events = ctx.stats.stat_serialization_events
-            total_events = len(events) or stats["total_events"]
-            reason_counts: dict[str, int] = {}
-            trigger_counts: dict[str, int] = {}
-            total_affected = 0
-            for e in events:
-                reason = e.get("serial_reason") or e.get("reason", "unknown")
-                reason_counts[reason] = reason_counts.get(reason, 0) + 1
-                trigger = e.get("trigger_tool", "unknown")
-                trigger_counts[trigger] = trigger_counts.get(trigger, 0) + 1
-                total_affected += e.get("affected_count", 0)
-            avg_affected = total_affected / total_events if total_events > 0 else 0
-            self._out.write(
-                f"  Serialization {total_events} events (avg {avg_affected:.1f} tools/event)"
+        if stats["total_events"] <= 0:
+            return
+        events = self._ctx.stats.stat_serialization_events
+        total_events = len(events) or stats["total_events"]
+        reason_counts: dict[str, int] = {}
+        trigger_counts: dict[str, int] = {}
+        total_affected = 0
+        for e in events:
+            reason = e.get("serial_reason") or e.get("reason", "unknown")
+            reason_counts[reason] = reason_counts.get(reason, 0) + 1
+            trigger = e.get("trigger_tool", "unknown")
+            trigger_counts[trigger] = trigger_counts.get(trigger, 0) + 1
+            total_affected += e.get("affected_count", 0)
+        avg_affected = total_affected / total_events if total_events > 0 else 0
+        self._out.write(
+            f"  Serialization {total_events} events (avg {avg_affected:.1f} tools/event)"
+        )
+        if reason_counts:
+            reason_str = ", ".join(
+                f"{k}: {v}" for k, v in sorted(reason_counts.items())
             )
-            if reason_counts:
-                reason_str = ", ".join(
-                    f"{k}: {v}" for k, v in sorted(reason_counts.items())
-                )
-                self._out.write(f"    By reason: {reason_str}")
-            if trigger_counts:
-                top_triggers = sorted(trigger_counts.items(), key=lambda x: -x[1])[:5]
-                trigger_str = ", ".join(f"{k} ({v})" for k, v in top_triggers)
-                self._out.write(f"    Top triggers: {trigger_str}")
-        if tool_registry is not None:
-            diag_rows = tool_registry.diagnostics()
-            if diag_rows:
-                self._out.write("")
-                self._out.write("  Tools (RuntimeToolRegistry):")
-                diag_headers = [
-                    "NAME",
-                    "SERVER",
-                    "CONFIG_DEP",
-                    "ENABLED",
-                    "DISABLED_REASON",
-                    "LLM_VISIBLE",
-                ]
-                diag_list: list[list[str]] = []
-                for row in diag_rows:
-                    name_display = row.get("name", "-")
-                    marker = "[DISABLED] " if not row.get("enabled", True) else ""
-                    diag_list.append(
-                        [
-                            f"{marker}{name_display}",
-                            row.get("server_key", "-"),
-                            str(row.get("config_dependent", "-")),
-                            str(row.get("enabled", "-")),
-                            row.get("disabled_reason", "-") or "-",
-                            str(row.get("enabled_for_llm", "-")),
-                        ]
-                    )
-                self._out.write_table(diag_headers, diag_list)
+            self._out.write(f"    By reason: {reason_str}")
+        if trigger_counts:
+            top_triggers = sorted(trigger_counts.items(), key=lambda x: -x[1])[:5]
+            trigger_str = ", ".join(f"{k} ({v})" for k, v in top_triggers)
+            self._out.write(f"    Top triggers: {trigger_str}")
+
+    def _write_tool_diagnostics(
+        self, tool_registry: RuntimeToolRegistry | None
+    ) -> None:
+        """Write the RuntimeToolRegistry diagnostics table under the status table."""
+        if tool_registry is None:
+            return
+        diag_rows = tool_registry.diagnostics()
+        if not diag_rows:
+            return
+        self._out.write("")
+        self._out.write("  Tools (RuntimeToolRegistry):")
+        self._out.write_table(
+            _TOOL_DIAGNOSTIC_HEADERS, _format_tool_diagnostic_rows(diag_rows)
+        )
+
+    def _write_pending_mcp_section(self) -> None:
+        """Write the pending MCP definition rows, separate from the live probe rows.
+
+        The rows come from the container's `PendingConfigState`, so a definition an
+        earlier `/reload` recorded is shown here even though no probe was run for it
+        and no live process exists for it (REQ-008, AC-4, AC-5).  Prints nothing when
+        nothing is pending.
+        """
+        pending = pending_state_for(self._ctx)
+        if pending is None:
+            return
+        rows = McpStatusService.pending_rows(pending.pending_mcp_records())
+        if not rows:
+            return
+        self._out.write("")
+        self._out.write("  Pending restart (MCP definitions):")
+        for line in _format_pending_mcp_rows(rows):
+            self._out.write(line)
 
     async def _cmd_mcp(self, args: str = "") -> None:
         """MCP server status probe."""
@@ -297,8 +402,7 @@ class _McpMixin(MixinBase):
 
     async def _cmd_mcp_tools(self) -> None:
         """Print RuntimeToolRegistry diagnostics table."""
-        ctx = self._ctx
-        tool_registry = ctx.services_required.runtime_tools
+        tool_registry = self._ctx.services_required.runtime_tools
         if tool_registry is None:
             self._out.write("  No RuntimeToolRegistry available.")
             return
@@ -306,26 +410,6 @@ class _McpMixin(MixinBase):
         if not diag_rows:
             self._out.write("  No tools registered.")
             return
-        diag_headers = [
-            "NAME",
-            "SERVER",
-            "CONFIG_DEP",
-            "ENABLED",
-            "DISABLED_REASON",
-            "LLM_VISIBLE",
-        ]
-        diag_list: list[list[str]] = []
-        for row in diag_rows:
-            name_display = row.get("name", "-")
-            marker = "[DISABLED] " if not row.get("enabled", True) else ""
-            diag_list.append(
-                [
-                    f"{marker}{name_display}",
-                    row.get("server_key", "-"),
-                    str(row.get("config_dependent", "-")),
-                    str(row.get("enabled", "-")),
-                    row.get("disabled_reason", "-") or "-",
-                    str(row.get("enabled_for_llm", "-")),
-                ]
-            )
-        self._out.write_table(diag_headers, diag_list)
+        self._out.write_table(
+            _TOOL_DIAGNOSTIC_HEADERS, _format_tool_diagnostic_rows(diag_rows)
+        )

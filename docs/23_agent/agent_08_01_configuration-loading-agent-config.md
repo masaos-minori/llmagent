@@ -47,8 +47,29 @@ Documents the `AgentConfig` structure, configuration file ownership, the classif
 
 ### Hot-Reloadable Scope
 
-- LLMClient: temperature, max_tokens, max_retries, retry_base_delay, SSE parameters
-- HistoryManager: context_char_limit, context_compress_turns, context_token_limit, tokenize_url
+The hot-reloadable set is exactly the `CONFIG_FIELD_REGISTRY` entries with `hot_reloadable=True`, the set
+`registry_for` returns:
+
+- LLM: `llm_url`, `llm_temperature`, `llm_max_tokens`, `llm_retry_base_delay`, `http_timeout`,
+  `sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`,
+  `llm_stream_retry_on_heartbeat_timeout`, `llm_stream_retry_on_malformed_chunk`
+- Tool policy: `tool_policy_mode`, `allowed_tools`, `allowed_root`, `disabled_tools`,
+  `plan_blocked_tools`, `serial_tool_calls`, `max_tool_turns`, `tool_result_max_llm_chars`
+- Approval: `approval_github_allowed_repos`, `approval_high_risk_branches`,
+  `approval_protected_paths`, `approval_shell_safe_prefixes`
+- Memory: `memory_embed_url`, `memory_local_only`, `memory_retention_days`, `memory_max_pinned`
+
+`masked_fields` is the one applied field outside the registry: it reaches the tool section through
+`ConfigReloadRequest.masked_fields`.
+
+- Startup-only: the entries `startup_only_for` returns — `context_char_limit`,
+  `context_compress_turns`, `context_token_limit`, `use_memory_layer`, `memory_embed_enabled`,
+  `approval_medium_preview_fallback`, `gitops_push_blocked`. `/reload` records a changed one as pending
+  restart and applies nothing to the running process.
+- MCP server definitions are never applied by `/reload`. An added, changed, or removed definition is
+  recorded as pending and applied by the next restart of the owning process.
+- `tokenize_url` is not a registry entry: `HistoryManager` reads it when the process builds it, so it
+  stays restart-required and `/reload` reports nothing for it.
 - System Prompt: prompt content is read from the single source (`registry/manifests/prompt_source.toml`) through the typed model; `ctx.conv.system_prompt_content` is the live copy, updated only in the reload commit phase
 
 ### Operational Impact of Changes

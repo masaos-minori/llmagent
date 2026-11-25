@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
-"""scripts/shared/llm_hot_config.py — LLMClient hot-reloadable config fields."""
+"""scripts/shared/llm_hot_config.py — LLMClient hot-reloadable config fields.
+
+`apply_config` is the restart-time entry.  `snapshot` and `restore` are the pair the
+reload transaction uses to undo an applied LLM change, and `apply_one` returns the
+undo token captured at the point of mutation (REQ-006).
+"""
 
 from typing import Any
+
+from shared.config_undo import ServiceSnapshot, UndoToken
 
 
 class LlmHotConfigHandler:
@@ -19,9 +26,46 @@ class LlmHotConfigHandler:
     )
 
     @staticmethod
-    def apply_one(instance: object, field: str, value: Any) -> None:
-        """Set a single config field on an instance."""
+    def snapshot(instance: object) -> ServiceSnapshot:
+        """Capture the current values of the hot-reloadable LLM fields.
+
+        Only the fields `apply_one` can change are captured, so a restore cannot
+        overwrite unrelated instance state (REQ-006).
+        """
+        return ServiceSnapshot(
+            service="llm",
+            values={
+                attr: getattr(instance, attr)
+                for attr, _ in LlmHotConfigHandler.HOT_CONFIG_FIELDS
+            },
+        )
+
+    @staticmethod
+    def restore(instance: object, snapshot: ServiceSnapshot) -> None:
+        """Write the captured values back into the same instance.
+
+        The instance is not replaced: the live `LLMClient` and the reload service
+        hold references to the same object.
+        """
+        for attr, _ in LlmHotConfigHandler.HOT_CONFIG_FIELDS:
+            if attr in snapshot.values:
+                setattr(instance, attr, snapshot.values[attr])
+
+    @staticmethod
+    def apply_one(instance: object, field: str, value: Any) -> UndoToken:
+        """Set a single config field on an instance and return the token that undoes it.
+
+        The previous value is captured before the `setattr`, so the token restores
+        exactly what this call replaced.  Callers that ignore the return value are
+        unaffected.
+        """
+        previous = getattr(instance, field, None)
         setattr(instance, field, value)
+        return UndoToken(
+            service="llm",
+            field_paths=(field,),
+            restore=lambda: setattr(instance, field, previous),
+        )
 
     @staticmethod
     def apply_config(

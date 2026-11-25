@@ -1467,3 +1467,76 @@ class TestSummaryContract:
             for r in caplog.records
             if r.levelno == logging.WARNING
         )
+
+
+# ── config snapshot / restore pair (REQ-006) ──────────────────────────────────
+
+
+class TestConfigSnapshotAndRestore:
+    """apply_config is reversible through snapshot_config and restore_config."""
+
+    def test_snapshot_covers_every_value_apply_config_changes(self) -> None:
+        mgr = _make_manager(char_limit=1000, compress_turns=2, token_limit=0)
+
+        snapshot = mgr.snapshot_config()
+
+        assert snapshot.service == "history"
+        assert snapshot.values["char_limit"] == 1000
+        assert snapshot.values["compress_turns"] == 2
+        assert snapshot.values["token_limit"] == 0
+        assert isinstance(snapshot.values["selection_policy"], HistorySelectionPolicy)
+
+    def test_restore_puts_the_pre_apply_limits_into_the_same_manager(self) -> None:
+        mgr = _make_manager(char_limit=1000, compress_turns=2, token_limit=0)
+        snapshot = mgr.snapshot_config()
+
+        mgr.apply_config(char_limit=50, compress_turns=8, token_limit=100)
+        mgr.restore_config(snapshot)
+
+        assert mgr.compress_turns == 2
+        restored = mgr.snapshot_config()
+        assert restored.values["char_limit"] == 1000
+        assert restored.values["token_limit"] == 0
+
+    def test_restore_rebuilds_the_selection_policy_from_the_restored_turns(
+        self,
+    ) -> None:
+        """Restoring the limits alone would leave a policy built from the failed values."""
+        mgr = _make_manager(char_limit=1000, compress_turns=2, protect_turns=1)
+        snapshot = mgr.snapshot_config()
+
+        mgr.apply_config(compress_turns=8)
+        failed_policy = mgr.snapshot_config().values["selection_policy"]
+        mgr.restore_config(snapshot)
+
+        policy = mgr.snapshot_config().values["selection_policy"]
+        assert policy is not failed_policy
+        # The rebuilt policy carries the restored compress_turns and the untouched
+        # protect_turns, the same pair apply_config would have built it from.
+        assert policy._compress_turns == 2
+        assert policy._protect_turns == 1
+
+    def test_restore_leaves_the_compression_counters_alone(self) -> None:
+        """Counters are session state, not config-derived state (REQ-006)."""
+        mgr = _make_manager(char_limit=1000, compress_turns=2)
+        snapshot = mgr.snapshot_config()
+        mgr.stat_compress_count = 3
+        mgr.stat_fallback_truncate_count = 2
+
+        mgr.apply_config(char_limit=50, compress_turns=8)
+        mgr.restore_config(snapshot)
+
+        assert mgr.stat_compress_count == 3
+        assert mgr.stat_fallback_truncate_count == 2
+
+    def test_apply_config_with_no_arguments_is_undone_by_the_snapshot(self) -> None:
+        """A no-op apply still round-trips through the snapshot pair."""
+        mgr = _make_manager(char_limit=1000, compress_turns=2, token_limit=0)
+        snapshot = mgr.snapshot_config()
+
+        mgr.apply_config()
+        mgr.restore_config(snapshot)
+        restored = mgr.snapshot_config()
+
+        for key in ("char_limit", "compress_turns", "token_limit", "tokenize_url"):
+            assert restored.values[key] == snapshot.values[key]

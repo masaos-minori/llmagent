@@ -6,7 +6,11 @@ _build_tool_config, build_agent_config, and load_config error handling.
 
 from __future__ import annotations
 
+import copy
+import dataclasses
 import logging
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -47,6 +51,10 @@ _MIN_CFG: dict = {
     "memory_embed_url": "http://127.0.0.1:9999",
     "allowed_root": "/opt/llm",
 }
+
+# Floor a section builder needs on its own: the approval builder rejects an empty or
+# absent allowed_root, so the rejection cases below supply it and vary one field.
+_SECTION_FLOOR: dict = {"allowed_root": "/opt/llm"}
 
 _LLM_DEFAULTS = {
     "llm_url": "",
@@ -775,3 +783,154 @@ class TestBuilderExceptionTypeUniformity:
     def test_tool_builder_wraps_a_zero_dedup_limit(self) -> None:
         with pytest.raises(ConfigReloadValidationError, match="tool_dedup_max_repeats"):
             _build_tool_config({"tool_dedup_max_repeats": 0})
+
+
+# ── Startup-side rejection of the inputs the reload path used to accept ────────
+#
+# REQ-001 / AC-1: the startup builders and the reload path run one parser, so every
+# input listed in the Plan's "Newly rejected inputs" is rejected here too. The MCP
+# table half of that list is pinned by tests/shared/test_mcp_config.py.
+
+
+class TestStartupRejectsNewlyRejectedInputs:
+    """Each newly rejected reload payload value is rejected by the startup builder."""
+
+    @pytest.mark.parametrize(
+        ("builder", "key", "value", "expected"),
+        [
+            # Registry string fields given as a number or a boolean.
+            (_build_llm_config, "llm_url", 7, "must be str"),
+            (_build_llm_config, "llm_url", True, "must be str, got bool"),
+            (_build_memory_config, "memory_embed_url", 7, "must be str"),
+            (_build_tool_config, "tool_policy_mode", True, "must be str, got bool"),
+            (_build_approval_config, "allowed_root", 7, "must be str"),
+            # Registry integer fields given as a string or a boolean.
+            (_build_llm_config, "llm_max_tokens", "1024", "must be int"),
+            (_build_llm_config, "llm_max_tokens", True, "must be int, got bool"),
+            (_build_llm_config, "http_timeout", "30", "must be float"),
+            (_build_llm_config, "http_timeout", True, "must be float, got bool"),
+            (_build_llm_config, "context_compress_turns", "4", "must be int"),
+            (_build_llm_config, "context_compress_turns", False, "must be int"),
+            (_build_memory_config, "memory_max_pinned", "10", "must be int"),
+            (_build_memory_config, "memory_max_pinned", True, "must be int"),
+            (_build_tool_config, "max_tool_turns", "5", "must be int"),
+            (_build_tool_config, "max_tool_turns", True, "must be int"),
+            (_build_tool_config, "tool_result_max_llm_chars", "8000", "must be int"),
+            (_build_tool_config, "tool_result_max_llm_chars", False, "must be int"),
+            # Registry float fields given as a boolean.
+            (_build_llm_config, "llm_temperature", True, "must be float, got bool"),
+            (
+                _build_llm_config,
+                "llm_retry_base_delay",
+                False,
+                "must be float, got bool",
+            ),
+            # Registry bool fields given as a number or a string.
+            (_build_memory_config, "memory_local_only", 1, "must be bool"),
+            (_build_memory_config, "memory_local_only", "true", "must be bool"),
+            (_build_memory_config, "memory_embed_enabled", 0, "must be bool"),
+            (_build_tool_config, "serial_tool_calls", 1, "must be bool"),
+            (_build_tool_config, "serial_tool_calls", "false", "must be bool"),
+            # A list field given as a non-sequence.
+            (_build_tool_config, "plan_blocked_tools", "write_file", "must be list"),
+            (_build_tool_config, "plan_blocked_tools", 7, "must be list"),
+        ],
+    )
+    def test_value_is_rejected_naming_the_field(
+        self,
+        builder: Callable[[dict[str, Any]], Any],
+        key: str,
+        value: Any,
+        expected: str,
+    ) -> None:
+        with pytest.raises(ConfigReloadValidationError, match=expected) as excinfo:
+            builder({**_SECTION_FLOOR, key: value})
+        assert key in str(excinfo.value)
+
+    def test_the_rejected_value_is_not_in_the_message(self) -> None:
+        class SecretValue:
+            def __repr__(self) -> str:
+                return "<http://secret.internal>"
+
+        with pytest.raises(ConfigReloadValidationError) as excinfo:
+            _build_llm_config({**_SECTION_FLOOR, "llm_url": SecretValue()})
+        assert "secret.internal" not in str(excinfo.value)
+
+    def test_a_str_field_value_is_accepted_and_not_rewritten(self) -> None:
+        cfg = _build_llm_config({**_SECTION_FLOOR, "llm_url": "http://llm.local"})
+        assert cfg.llm_url == "http://llm.local"
+
+
+class TestCandidateBuildEntry:
+    """REQ-002: the reload path builds its candidate with the startup entry point."""
+
+    def test_candidate_is_typed_and_the_payload_is_not_mutated(self) -> None:
+        payload = {**_MIN_CFG, "llm_max_tokens": 512}
+        before = copy.deepcopy(payload)
+
+        candidate = build_agent_config(payload)
+
+        assert isinstance(candidate, AgentConfig)
+        assert candidate.llm.llm_max_tokens == 512
+        assert payload == before
+
+    def test_candidate_is_a_new_object_not_a_live_section(self) -> None:
+        payload = {**_MIN_CFG}
+        candidate = build_agent_config(payload)
+        rebuilt = build_agent_config(payload)
+
+        assert candidate is not rebuilt
+        assert candidate.llm is not rebuilt.llm
+
+    def test_a_wrong_typed_value_aborts_the_candidate_build(self) -> None:
+        # The candidate phase must fail before it returns a partial candidate.
+        with pytest.raises(ConfigReloadValidationError, match="llm_max_tokens"):
+            build_agent_config({**_MIN_CFG, "llm_max_tokens": True})
+
+    def test_renderer_roundtrip_rebuilds_the_same_config(self) -> None:
+        """The payload renderer must cover every key the builders read.
+
+        The reload candidate is `build_agent_config` over the live config rendered
+        back to payload shape, so a key the renderer omits silently resets to the
+        builder default. Round-tripping a fixture config pins the renderer against
+        drift.
+        """
+        from agent.config_builders import agent_config_payload
+
+        from tests.agent._config_test_defaults import reload_fixture_config
+
+        cfg = reload_fixture_config()
+        rebuilt = build_agent_config(agent_config_payload(cfg))
+
+        assert dataclasses.asdict(rebuilt) == dataclasses.asdict(cfg)
+
+    def test_production_validation_runs_on_the_candidate_path(self) -> None:
+        payload = {**_MIN_CFG}
+        with patch(
+            "agent.production_config_validator.ProductionConfigValidator.validate"
+        ) as mock_validate:
+            mock_validate.return_value = MagicMock(errors=[], warnings=[])
+            build_agent_config(payload)
+
+        assert mock_validate.call_args.kwargs["known_tools"] is not None
+        assert mock_validate.call_args.args[0] is payload
+
+
+class TestStartupRunsRegistryValidators:
+    """Startup applies the registry's semantic rules, not only the declared type rules.
+
+    The reload candidate is built through the same entry point, so a value the
+    registry rejects must fail on both paths (REQ-001, REQ-010).
+    """
+
+    def test_a_registry_rule_rejects_what_the_dataclass_accepts(self) -> None:
+        # max_tool_turns has no range check in ToolConfig.__post_init__: only the
+        # registry entry carries the positive rule, so the registry pass is what
+        # rejects it. The reload candidate path raises the same error for the same
+        # value because it builds through this entry point.
+        with pytest.raises(
+            ConfigReloadValidationError, match="max_tool_turns"
+        ) as excinfo:
+            build_agent_config({**_MIN_CFG, "max_tool_turns": 0})
+
+        assert "max_tool_turns" in str(excinfo.value)

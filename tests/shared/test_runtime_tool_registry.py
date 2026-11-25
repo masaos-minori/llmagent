@@ -667,3 +667,77 @@ class TestPostureGate:
         with caplog.at_level(logging.WARNING, logger="shared.runtime_tool_registry"):
             RuntimeToolRegistry({"mdq_query": tool}, allowed_servers=frozenset(["mdq"]))
         assert "posture-excluded" not in caplog.text
+
+
+# ── policy snapshot / restore pair (REQ-006) ──────────────────────────────────
+
+
+class TestPolicySnapshotAndRestore:
+    """apply_policy is reversible through snapshot_policy and restore_policy."""
+
+    def _registry(self) -> RuntimeToolRegistry:
+        return _registry_with(
+            build_fixture_runtime_tool(
+                name="read_file",
+                server_key="fs",
+                is_write=False,
+                agent_safety_tier="READ_ONLY",
+                enabled_for_llm=True,
+            ),
+            build_fixture_runtime_tool(
+                name="delete_file",
+                server_key="fs",
+                is_write=True,
+                agent_safety_tier="WRITE_DANGEROUS",
+                enabled_for_llm=True,
+            ),
+        )
+
+    def test_snapshot_captures_the_tool_objects_apply_policy_replaces(self) -> None:
+        registry = self._registry()
+
+        snapshot = registry.snapshot_policy()
+
+        assert snapshot.service == "runtime_tools"
+        assert snapshot.values["tools"]["read_file"] is registry.get("read_file")
+
+    def test_restore_reattaches_the_original_tool_objects(self) -> None:
+        """apply_policy replaces every entry with a dataclasses.replace copy."""
+        registry = self._registry()
+        snapshot = registry.snapshot_policy()
+        original = registry.get("read_file")
+
+        registry.apply_policy(allowed_tools=[], tool_policy_mode="explicit_allowlist")
+        assert registry.get("read_file") is not original
+        assert registry.get("read_file").enabled_for_llm is False
+
+        registry.restore_policy(snapshot)
+
+        assert registry.get("read_file") is original
+        assert registry.get("read_file").enabled_for_llm is True
+
+    def test_restore_changes_nothing_beyond_the_tool_mapping(self) -> None:
+        """The policy inputs are call arguments, not stored registry state."""
+        registry = self._registry()
+        snapshot = registry.snapshot_policy()
+        before = registry.diagnostics()
+
+        registry.apply_policy(
+            allowed_tools=["read_file"],
+            tool_policy_mode="explicit_allowlist",
+            disabled_tools=["delete_file"],
+        )
+        registry.restore_policy(snapshot)
+
+        assert registry.diagnostics() == before
+
+    def test_resolve_and_llm_definitions_see_the_restored_policy(self) -> None:
+        registry = self._registry()
+        snapshot = registry.snapshot_policy()
+        before_names = [row["name"] for row in registry.llm_tool_definitions()]
+
+        registry.apply_policy(allowed_tools=[], tool_policy_mode="explicit_allowlist")
+        registry.restore_policy(snapshot)
+
+        assert [row["name"] for row in registry.llm_tool_definitions()] == before_names
+        assert registry.resolve("delete_file") == "fs"

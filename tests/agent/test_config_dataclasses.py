@@ -20,11 +20,18 @@ from agent.config_dataclasses import (
     ToolConfig,
 )
 from agent.services.config_validators import (
+    validate_approval_medium_preview_fallback,
+    validate_context_compress_turns,
     validate_diagnostics_encryption_key,
     validate_diagnostics_retention_days,
     validate_diagnostics_sensitive_fields,
     validate_disabled_tools,
+    validate_gitops_push_blocked,
+    validate_llm_context_token_limit,
+    validate_memory_embed_enabled,
+    validate_memory_local_only,
     validate_tool_policy_mode,
+    validate_use_memory_layer,
 )
 from cryptography.fernet import Fernet
 from shared.tool_registry import ToolDefinition, get_registry
@@ -506,3 +513,112 @@ class TestMemoryConfigValidation:
         cfg = MemoryConfig(memory_embed_enabled=False)
         assert cfg.memory_max_pinned == 10
         MemoryConfig(memory_max_pinned=1, memory_embed_enabled=False)
+
+
+# ── Registry validators: type rule before range (cliplc005 row 3) ────────────
+
+
+class TestValidatorTypeRuleBeforeRange:
+    """REQ-001, REQ-010: every registry validator applies the declared type rule first."""
+
+    def _llm(self, field: str, value: Any) -> LLMConfig:
+        cfg = LLMConfig.__new__(LLMConfig)
+        setattr(cfg, field, value)
+        return cfg
+
+    def test_context_token_limit_str_rejected_by_type_rule(self) -> None:
+        with pytest.raises(
+            ValueError,
+            match=re.escape("config key 'context_token_limit' must be int, got str"),
+        ):
+            validate_llm_context_token_limit(self._llm("context_token_limit", "0"))
+
+    def test_context_token_limit_bool_rejected_by_type_rule(self) -> None:
+        with pytest.raises(
+            ValueError,
+            match=re.escape("config key 'context_token_limit' must be int, got bool"),
+        ):
+            validate_llm_context_token_limit(self._llm("context_token_limit", True))
+
+    def test_context_token_limit_negative_rejected_by_range_rule(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("context_token_limit must be >= 0, got -1")
+        ):
+            validate_llm_context_token_limit(self._llm("context_token_limit", -1))
+
+    def test_context_token_limit_zero_passes(self) -> None:
+        validate_llm_context_token_limit(self._llm("context_token_limit", 0))
+
+    def test_context_compress_turns_str_rejected(self) -> None:
+        with pytest.raises(
+            ValueError,
+            match=re.escape("config key 'context_compress_turns' must be int, got str"),
+        ):
+            validate_context_compress_turns(self._llm("context_compress_turns", "4"))
+
+    def test_context_compress_turns_bool_rejected(self) -> None:
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "config key 'context_compress_turns' must be int, got bool"
+            ),
+        ):
+            validate_context_compress_turns(self._llm("context_compress_turns", True))
+
+    def test_context_compress_turns_int_passes(self) -> None:
+        validate_context_compress_turns(self._llm("context_compress_turns", 4))
+
+    @pytest.mark.parametrize(
+        ("validator", "field", "value"),
+        [
+            (validate_gitops_push_blocked, "gitops_push_blocked", 1),
+            (
+                validate_approval_medium_preview_fallback,
+                "approval_medium_preview_fallback",
+                "true",
+            ),
+            (validate_memory_local_only, "memory_local_only", 1),
+            (validate_use_memory_layer, "use_memory_layer", "true"),
+            (validate_memory_embed_enabled, "memory_embed_enabled", 0),
+        ],
+    )
+    def test_bool_validators_reject_non_bool(
+        self, validator: Any, field: str, value: Any
+    ) -> None:
+        cfg = ApprovalConfig.__new__(ApprovalConfig)
+        if field.startswith("memory_") or field == "use_memory_layer":
+            target = MemoryConfig.__new__(MemoryConfig)
+        else:
+            target = cfg
+        setattr(target, field, value)
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                f"config key '{field}' must be bool, got {type(value).__name__}"
+            ),
+        ):
+            validator(target)
+
+    @pytest.mark.parametrize(
+        ("validator", "field", "value"),
+        [
+            (validate_gitops_push_blocked, "gitops_push_blocked", True),
+            (
+                validate_approval_medium_preview_fallback,
+                "approval_medium_preview_fallback",
+                False,
+            ),
+            (validate_memory_local_only, "memory_local_only", False),
+            (validate_use_memory_layer, "use_memory_layer", True),
+            (validate_memory_embed_enabled, "memory_embed_enabled", True),
+        ],
+    )
+    def test_bool_validators_accept_bool(
+        self, validator: Any, field: str, value: Any
+    ) -> None:
+        if field.startswith("memory_") or field == "use_memory_layer":
+            target = MemoryConfig.__new__(MemoryConfig)
+        else:
+            target = ApprovalConfig.__new__(ApprovalConfig)
+        setattr(target, field, value)
+        validator(target)

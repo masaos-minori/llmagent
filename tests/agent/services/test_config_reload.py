@@ -6,21 +6,24 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
-from agent.config_dataclasses import (
-    AgentConfig,
-    ApprovalConfig,
-    LLMConfig,
-    MemoryConfig,
-    ToolConfig,
+from agent.config_builders import agent_config_payload
+from agent.config_dataclasses import AgentConfig
+from agent.services.config_outcome_classification import (
+    classify_startup_only_fields,
+    diff_mcp_definitions,
 )
+from agent.services.config_reload_transaction import PreparedStep
 from shared.mcp_config import StartupMode
 from shared.runtime_tool_registry import RuntimeToolRegistry
 
-from tests.agent._config_test_defaults import MIN_DB_CONFIG, MIN_MAINTENANCE_CONFIG
+from tests.agent._config_test_defaults import (
+    reload_candidate,
+    reload_fixture_ctx,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -39,107 +42,29 @@ def prompt_source_env(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("LLMAGENT_REGISTRY_DIR", str(tmp_path))
 
 
+def _make_ctx(**overrides: Any) -> MagicMock:
+    """Build a reload ctx whose live config is what the startup entry point builds."""
+    return reload_fixture_ctx(**overrides)
+
+
 @pytest.fixture()
 def svc() -> object:
-    """Fixture providing ConfigReloadService after _sync_services() refactor.
+    """Provide the service for the `apply_config()` entry-point error-path tests.
 
-    Post-refactor, _sync_services() takes explicit parameters:
-    (new_cfg, llm_service, hist_mgr_service, runtime_tools_service).
-    This fixture does not exercise that path directly; it provides the service
-    instance for apply_config() error-path tests.
+    `apply_config_dict` is the path that builds and commits a candidate; these tests
+    only exercise the typed-request conversion in front of it.
     """
     from agent.services.config_reload import ConfigReloadService
 
-    llm_cfg = LLMConfig(
-        llm_url="",
-        http_timeout=30.0,
-        llm_retry_base_delay=1.0,
-        llm_temperature=0.7,
-        llm_max_tokens=1000,
-        title_llm_temperature=0.5,
-        title_llm_max_tokens=50,
-        sse_heartbeat_timeout=30.0,
-        sse_malformed_retry=1,
-        sse_reconnect_max=5,
-        llm_stream_retry_on_heartbeat_timeout=True,
-        llm_stream_retry_on_malformed_chunk=False,
-    )
-    tool_cfg = ToolConfig(
-        masked_fields=[],
-    )
-    ctx = MagicMock()
-    # The Memory section owns the embedding endpoint, so the Memory fixture carries it.
-    ctx.cfg = AgentConfig(
-        llm=llm_cfg,
-        memory=MemoryConfig(
-            memory_embed_enabled=True, memory_embed_url="http://localhost:8080/embed"
-        ),
-        tool=tool_cfg,
-        db=MIN_DB_CONFIG,
-        maintenance=MIN_MAINTENANCE_CONFIG,
-    )
-    ctx.cfg.approval = MagicMock()
-    ctx.cfg.approval.require_approval_for = []
-    ctx.cfg.approval.plan_mode_enabled = False
-    ctx.cfg.mcp = MagicMock()
-    ctx.cfg.mcp.mcp_servers = {}
-    ctx.services_required = MagicMock()
-    ctx.services_required.memory = None
-    ctx.services_required.embedding = None
-    ctx.services_required.retriever = None
-    ctx.services_required.llm = None
-    svc = ConfigReloadService(ctx)
-    svc._classify_mcp_server_changes = MagicMock(
-        return_value=MagicMock(needs_restart=[])
-    )
-    return svc
+    return ConfigReloadService(_make_ctx())
 
 
 @pytest.fixture()
 def svc_with_ctx() -> tuple[object, MagicMock]:
     from agent.services.config_reload import ConfigReloadService
 
-    llm_cfg = LLMConfig(
-        llm_url="",
-        http_timeout=30.0,
-        llm_retry_base_delay=1.0,
-        llm_temperature=0.7,
-        llm_max_tokens=1000,
-        title_llm_temperature=0.5,
-        title_llm_max_tokens=50,
-        sse_heartbeat_timeout=30.0,
-        sse_malformed_retry=1,
-        sse_reconnect_max=5,
-        llm_stream_retry_on_heartbeat_timeout=True,
-        llm_stream_retry_on_malformed_chunk=False,
-    )
-    tool_cfg = ToolConfig(
-        masked_fields=[],
-    )
-    ctx = MagicMock()
-    # The Memory section owns the embedding endpoint, so the Memory fixture carries it.
-    ctx.cfg = AgentConfig(
-        llm=llm_cfg,
-        memory=MemoryConfig(
-            memory_embed_enabled=True, memory_embed_url="http://localhost:8080/embed"
-        ),
-        tool=tool_cfg,
-        db=MIN_DB_CONFIG,
-        maintenance=MIN_MAINTENANCE_CONFIG,
-    )
-    ctx.cfg.approval = ApprovalConfig()
-    ctx.cfg.mcp = MagicMock()
-    ctx.cfg.mcp.mcp_servers = {}
-    ctx.services_required = MagicMock()
-    ctx.services_required.memory = None
-    ctx.services_required.embedding = None
-    ctx.services_required.retriever = None
-    ctx.services_required.llm = None
-    svc = ConfigReloadService(ctx)
-    svc._classify_mcp_server_changes = MagicMock(
-        return_value=MagicMock(needs_restart=[])
-    )
-    return svc, ctx
+    ctx = _make_ctx()
+    return ConfigReloadService(ctx), ctx
 
 
 class TestApplyConfig:
@@ -147,9 +72,10 @@ class TestApplyConfig:
         from agent.services.exceptions import ConfigReloadValidationError
         from agent.services.models import ConfigReloadRequest
 
-        req = ConfigReloadRequest(masked_fields="not-a-list")  # type: ignore[arg-type]
+        # A request rejects a payload of the wrong shape at construction, so a
+        # bare scalar never reaches apply_config (REQ-005).
         with pytest.raises(ConfigReloadValidationError):
-            svc.apply_config(req)  # type: ignore[attr-defined]
+            ConfigReloadRequest(masked_fields="not-a-list")  # type: ignore[arg-type]
 
     def test_valid_masked_fields_does_not_raise(self, svc: object) -> None:
         from unittest.mock import patch
@@ -224,8 +150,8 @@ class TestApplyConfig:
 
 class TestConfigReloadAtomicity:
     """Two-phase apply: an invalid section leaves every live section, direct
-    field, and ctx.conv unchanged, and _sync_services / lifecycle cleanup never
-    run (AC-001, AC-002, AC-003, AC-004)."""
+    field, and ctx.conv unchanged, and no service step runs (AC-001, AC-002,
+    AC-003, AC-004)."""
 
     def test_invalid_tool_leaves_live_config_unchanged(
         self, svc_with_ctx: tuple[object, MagicMock]
@@ -233,7 +159,6 @@ class TestConfigReloadAtomicity:
         from agent.services.exceptions import ConfigReloadValidationError
 
         svc, ctx = svc_with_ctx
-        svc._sync_services = MagicMock()  # type: ignore[method-assign]
         before_llm = copy.deepcopy(ctx.cfg.llm)
         before_memory = copy.deepcopy(ctx.cfg.memory)
         payload = {
@@ -245,7 +170,9 @@ class TestConfigReloadAtomicity:
             svc.apply_config_dict(payload)  # type: ignore[attr-defined]
         assert ctx.cfg.llm == before_llm
         assert ctx.cfg.memory == before_memory
-        svc._sync_services.assert_not_called()  # type: ignore[attr-defined]
+        # The tool policy is applied by the runtime_tools commit step, so a candidate
+        # failure that never reaches the commit phase must leave the registry untouched.
+        ctx.services_required.runtime_tools.apply_policy.assert_not_called()
 
     def test_invalid_memory_embed_url_leaves_live_memory_unchanged(
         self, svc_with_ctx: tuple[object, MagicMock]
@@ -255,19 +182,17 @@ class TestConfigReloadAtomicity:
         from agent.services.exceptions import ConfigReloadValidationError
 
         svc, ctx = svc_with_ctx
-        svc._sync_services = MagicMock()  # type: ignore[method-assign]
         before_memory = copy.deepcopy(ctx.cfg.memory)
         with pytest.raises(ConfigReloadValidationError):
             svc.apply_config_dict({"memory_embed_url": ""})  # type: ignore[attr-defined]
         assert ctx.cfg.memory == before_memory
-        svc._sync_services.assert_not_called()  # type: ignore[attr-defined]
+        ctx.services_required.runtime_tools.apply_policy.assert_not_called()
 
     def test_valid_memory_embed_url_is_applied_after_validation(
         self, svc_with_ctx: tuple[object, MagicMock]
     ) -> None:
         """A valid endpoint passes the candidate's validation and is committed (REQ-002)."""
         svc, ctx = svc_with_ctx
-        svc._sync_services = MagicMock()  # type: ignore[method-assign]
         outcome = svc.apply_config_dict(  # type: ignore[attr-defined]
             {"memory_embed_url": "http://localhost:8082/embed"}
         )
@@ -341,6 +266,10 @@ class TestConfigReloadAtomicity:
         assert ctx.cfg.memory.memory_embed_url == "http://localhost:8081/embed"
         assert ctx.cfg.tool.max_tool_turns == 7
         assert ctx.cfg.tool.allowed_tools == ["read_file"]
+        # gitops_push_blocked is startup-only: the live value keeps the old one and
+        # the field is reported instead of applied (REQ-003, AC-2).
+        assert ctx.cfg.approval.gitops_push_blocked is False
+        assert "gitops_push_blocked" in outcome.startup_only
         # The prompt update comes from the typed fixture source, not from a
         # config key: the fixture default differs from the runtime value, so the
         # commit-phase pending update is applied.
@@ -348,7 +277,7 @@ class TestConfigReloadAtomicity:
         assert "llm" in outcome.applied
         assert "memory" in outcome.applied
         assert "tool" in outcome.applied
-        assert "approval" in outcome.applied
+        assert "approval" not in outcome.applied
 
     def test_prompt_source_read_error_leaves_ctx_unchanged(
         self, svc_with_ctx: tuple[object, MagicMock], tmp_path: Path, monkeypatch
@@ -369,21 +298,24 @@ class TestConfigReloadAtomicity:
         assert list(ctx.cfg.tool.allowed_tools) == before_allowed
         assert ctx.conv.system_prompt_content == "original prompt"
 
-    def test_removed_map_reload_keys_are_ignored(
+    def test_removed_map_reload_keys_are_rejected(
         self, svc_with_ctx: tuple[object, MagicMock]
     ) -> None:
         """agentcfg003 REQ-005/REQ-011: a reload payload naming a removed map is
-        not a registry field — it changes nothing and is not applied (the reload
-        path has no reader for it; the config-load path rejects it upstream)."""
+        rejected by the candidate build, and the live config is untouched."""
+        from agent.services.exceptions import ConfigReloadValidationError
+
         svc, ctx = svc_with_ctx
         paths_before = list(ctx.cfg.approval.approval_protected_paths)
-        outcome = svc.apply_config_dict(  # type: ignore[attr-defined]
-            {
-                "tool_safety_tiers": {"read_file": "SUPERUSER"},
-                "approval_risk_rules": {"write_file": "extreme"},
-            }
-        )
-        assert "approval" not in outcome.applied
+        with pytest.raises(ConfigReloadValidationError) as excinfo:
+            svc.apply_config_dict(  # type: ignore[attr-defined]
+                {
+                    "tool_safety_tiers": {"read_file": "SUPERUSER"},
+                    "approval_risk_rules": {"write_file": "extreme"},
+                }
+            )
+        assert "tool_safety_tiers" in str(excinfo.value)
+        assert "approval_risk_rules" in str(excinfo.value)
         assert not hasattr(ctx.cfg.approval, "tool_safety_tiers")
         assert not hasattr(ctx.cfg.approval, "approval_risk_rules")
         assert list(ctx.cfg.approval.approval_protected_paths) == paths_before
@@ -455,8 +387,8 @@ class TestConfigReloadAtomicity:
         assert list(ctx.cfg.approval.approval_protected_paths) == paths_before
 
 
-class TestDiffMcpServerConfig:
-    """_diff_mcp_server_config is a pure, deterministic per-field comparison (M-1)."""
+class TestDiffMcpDefinitions:
+    """diff_mcp_definitions is a pure, deterministic per-field comparison (M-1)."""
 
     def _make_pair(self) -> tuple[object, object]:
         from shared.mcp_config import McpServerConfig, StartupMode, TransportType
@@ -477,11 +409,28 @@ class TestDiffMcpServerConfig:
         )
         return old, new
 
+    def _diff(self, old: object, new: object) -> tuple[str, ...]:
+        """Return the field paths one changed server definition reports."""
+        from agent.config_dataclasses import MCPConfig
+
+        records = diff_mcp_definitions(
+            MCPConfig(mcp_servers={"svc": old}),
+            MCPConfig(mcp_servers={"svc": new}),
+        )
+        assert len(records) == 1
+        return records[0].field_paths
+
     def test_identical_configs_no_diff(self) -> None:
-        from agent.services.config_outcome_classification import _diff_mcp_server_config
+        from agent.config_dataclasses import MCPConfig
 
         old, new = self._make_pair()
-        assert _diff_mcp_server_config(old, new) == []
+        assert (
+            diff_mcp_definitions(
+                MCPConfig(mcp_servers={"svc": old}),
+                MCPConfig(mcp_servers={"svc": new}),
+            )
+            == []
+        )
 
     @pytest.mark.parametrize(
         "field_name,new_value",
@@ -498,90 +447,80 @@ class TestDiffMcpServerConfig:
     def test_single_field_change_detected(
         self, field_name: str, new_value: object
     ) -> None:
-        from agent.services.config_outcome_classification import _diff_mcp_server_config
-
         old, new = self._make_pair()
         before_old = old.__dict__.copy()
         setattr(new, field_name, new_value)
 
-        assert _diff_mcp_server_config(old, new) == [field_name]
+        assert self._diff(old, new) == (f"mcp_servers/svc.{field_name}",)
         assert old.__dict__ == before_old  # never mutated
 
     def test_startup_mode_change_detected(self) -> None:
-        from agent.services.config_outcome_classification import _diff_mcp_server_config
         from shared.mcp_config import StartupMode
 
         old, new = self._make_pair()
         new.startup_mode = StartupMode.SUBPROCESS
-        assert _diff_mcp_server_config(old, new) == ["startup_mode"]
+        assert self._diff(old, new) == ("mcp_servers/svc.startup_mode",)
 
 
 class TestMcpServerChangeClassification:
-    """_classify_mcp_server_changes reports every MCP definition change as
-    restart-required and never mutates ctx.cfg.mcp.mcp_servers (H-1/H-3/H-4/H-5/H-7)."""
+    """diff_mcp_definitions reports every MCP definition change as a pending
+    restart record and never mutates ctx.cfg.mcp.mcp_servers (H-1/H-3/H-4/H-5/H-7)."""
 
-    def _make_svc(
+    _SERVER_URL = "http://localhost:8080"
+    # `mcp_servers.<key>.cmd` is a non-empty list (shared.config_field_types), so
+    # every server these tests declare carries a command.
+    _CMD = ["python", "s.py"]
+
+    def _server(
+        self,
+        url: str = _SERVER_URL,
+        auth_token: str = "test-token",
+        startup_mode: str = "persistent",
+    ) -> dict[str, Any]:
+        return {
+            "transport": "http",
+            "url": url,
+            "cmd": self._CMD,
+            "auth_token": auth_token,
+            "startup_mode": startup_mode,
+        }
+
+    def _make_ctx(
         self, old_auth: str = "test-token", old_startup: str = "persistent"
-    ) -> object:
-        from agent.services.config_reload import ConfigReloadService
-        from shared.mcp_config import McpServerConfig, StartupMode, TransportType
-
-        cmd = ["python", "s.py"] if old_startup == "subprocess" else []
-        old_srv = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://localhost:8080",
-            cmd=cmd,
-            auth_token=old_auth,
-            startup_mode=StartupMode(old_startup),
+    ) -> tuple[MagicMock, Any]:
+        ctx = _make_ctx(
+            mcp_servers={
+                "svc": self._server(auth_token=old_auth, startup_mode=old_startup)
+            }
         )
-        ctx = MagicMock()
-        ctx.cfg.mcp.mcp_servers = {"svc": old_srv}
-        ctx.services_required.llm = None
-        ctx.services_required.hist_mgr = None
-        ctx.services_required.tools = None
-        return ConfigReloadService(ctx), old_srv
+        return ctx, ctx.cfg.mcp.mcp_servers["svc"]
 
-    def _run(self, svc: object, new_mcp_servers: dict) -> object:  # type: ignore[type-arg]
-        from unittest.mock import patch
+    def _run(self, ctx: MagicMock, new_mcp_servers: dict[str, Any]) -> list[Any]:
+        candidate = _candidate(ctx, mcp_servers=new_mcp_servers)
+        return diff_mcp_definitions(ctx.cfg.mcp, candidate.mcp)
 
-        with patch(
-            "agent.config_builders._build_mcp_servers",
-            return_value=new_mcp_servers,
-        ):
-            return svc._classify_mcp_server_changes(svc._ctx, {})  # type: ignore[attr-defined]
+    @staticmethod
+    def _paths(records: list[Any]) -> list[str]:
+        return [path for record in records for path in record.field_paths]
 
     # --- single-field changes (H-3, H-4, H-5) ---
 
     def test_url_change_reports_field_qualified_restart_entry(self) -> None:
-        from shared.mcp_config import McpServerConfig, TransportType
+        ctx, old_srv = self._make_ctx()
+        new_srv = self._server(url="http://127.0.0.1:9090")
+        records = self._run(ctx, {"svc": new_srv})
 
-        svc, old_srv = self._make_svc()
-        new_srv = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://127.0.0.1:9090",
-            cmd=[],
-            auth_token="test-token",
-        )
-        result = self._run(svc, {"svc": new_srv})
-
-        assert "mcp_servers/svc.url" in result.needs_restart
-        assert old_srv.url == "http://localhost:8080"
-        assert not any("url" in item for item in result.applied)
+        assert "mcp_servers/svc.url" in self._paths(records)
+        assert records[0].server_key == "svc"
+        assert records[0].change == "changed"
+        assert old_srv.url == self._SERVER_URL
 
     def test_auth_token_change_reports_restart_not_deferred(self) -> None:
-        from shared.mcp_config import McpServerConfig, TransportType
+        ctx, old_srv = self._make_ctx(old_auth="old_token")
+        new_srv = self._server(auth_token="new_token")
+        records = self._run(ctx, {"svc": new_srv})
 
-        svc, old_srv = self._make_svc(old_auth="old_token")
-        new_srv = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://localhost:8080",
-            cmd=[],
-            auth_token="new_token",
-        )
-        result = self._run(svc, {"svc": new_srv})
-
-        assert "mcp_servers/svc.auth_token" in result.needs_restart
-        assert not any("auth_token" in item for item in result.applied)
+        assert "mcp_servers/svc.auth_token" in self._paths(records)
         assert old_srv.auth_token == "old_token"
 
     @pytest.mark.parametrize(
@@ -594,102 +533,105 @@ class TestMcpServerChangeClassification:
     def test_startup_mode_change_reports_restart_not_deferred(
         self, old_mode: StartupMode, new_mode: StartupMode
     ) -> None:
-        from shared.mcp_config import McpServerConfig, TransportType
+        ctx, old_srv = self._make_ctx(old_startup=old_mode.value)
+        new_srv = self._server(startup_mode=new_mode.value)
+        records = self._run(ctx, {"svc": new_srv})
 
-        svc, old_srv = self._make_svc(old_startup=old_mode.value)
-        cmd = ["python", "s.py"] if new_mode == StartupMode.SUBPROCESS else []
-        new_srv = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://localhost:8080",
-            cmd=cmd,
-            startup_mode=new_mode,
-            auth_token="test-token",
-        )
-        result = self._run(svc, {"svc": new_srv})
-
-        assert "mcp_servers/svc.startup_mode" in result.needs_restart
-        assert not any("startup_mode" in item for item in result.applied)
+        assert "mcp_servers/svc.startup_mode" in self._paths(records)
         assert old_srv.startup_mode == old_mode
 
     def test_removed_server_reports_restart(self) -> None:
-        svc, old_srv = self._make_svc()
-        result = self._run(svc, {})  # new config has no servers at all
+        ctx, _ = self._make_ctx()
+        records = self._run(ctx, {"other": self._server(url="http://localhost:8090")})
 
-        assert "mcp_servers/svc (removed server)" in result.needs_restart
-        assert result.skipped == []
+        assert "mcp_servers/svc" in self._paths(records)
+        removed = [r for r in records if r.change == "removed"]
+        assert [r.field_paths for r in removed] == [("mcp_servers/svc",)]
 
     def test_rename_reports_remove_and_add(self) -> None:
-        from shared.mcp_config import McpServerConfig, TransportType
+        ctx, _ = self._make_ctx()
+        records = self._run(ctx, {"renamed_key": self._server()})
 
-        svc, old_srv = self._make_svc()
-        renamed_srv = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://localhost:8080",
-            cmd=[],
-            auth_token="test-token",
+        removed = [r for r in records if r.change == "removed"]
+        added = [r for r in records if r.change == "added"]
+        assert [r.field_paths for r in removed] == [("mcp_servers/svc",)]
+        assert [r.field_paths for r in added] == [("mcp_servers/renamed_key",)]
+
+    # --- display strings the CLI prints (rendered by config_reload, not the classifier) ---
+
+    def test_added_and_removed_servers_render_display_suffixes(self) -> None:
+        from agent.services.config_reload import ConfigReloadService
+
+        ctx = _make_ctx(mcp_servers={"svc": self._server()})
+        outcome = ConfigReloadService(ctx).apply_config_dict(  # type: ignore[attr-defined]
+            {"mcp_servers": {"other": self._server(url="http://localhost:8090")}}
         )
-        result = self._run(svc, {"renamed_key": renamed_srv})
 
-        assert "mcp_servers/svc (removed server)" in result.needs_restart
-        assert "mcp_servers/renamed_key (new server)" in result.needs_restart
+        assert "mcp_servers/svc (removed server)" in outcome.needs_restart
+        assert "mcp_servers/other (new server)" in outcome.needs_restart
+        assert "mcp_servers/svc" not in outcome.needs_restart
 
     # --- no duplicate skip/restart classification (M-2) ---
 
     def test_no_item_classified_as_both_skipped_and_needs_restart(self) -> None:
-        from shared.mcp_config import McpServerConfig, TransportType
-
-        svc, old_srv = self._make_svc()
-        new_srv = McpServerConfig(
-            transport=TransportType.HTTP,
-            url="http://localhost:9000",
-            cmd=[],
-            auth_token="test-token",
+        ctx, old_srv = self._make_ctx()
+        live = agent_config_payload(ctx.cfg)["mcp_servers"]
+        records = self._run(
+            ctx,
+            {
+                "svc": live["svc"],
+                "extra": self._server(url="http://localhost:9000"),
+            },
         )
-        result = self._run(svc, {"svc": old_srv, "extra": new_srv})
 
-        assert set(result.skipped).isdisjoint(set(result.needs_restart))
+        # A definition change is never also a skipped field: the classifier names
+        # the changed server fields, and nothing else reports them.
+        paths = self._paths(records)
+        assert "mcp_servers/extra" in paths
+        assert paths.count("mcp_servers/extra") == 1
+        assert not any(path.startswith("mcp_servers/svc.") for path in paths)
+
+
+def _candidate(ctx: MagicMock, **overrides: Any) -> AgentConfig:
+    """Build the candidate the reload path builds for this payload (REQ-002)."""
+    return reload_candidate(ctx, **overrides)
 
 
 class TestStartupOnlyDetection:
-    """_classify_startup_only_fields classifies hot_reloadable=False changes."""
-
-    def _make_svc(
-        self, use_memory_layer: bool = False, memory_embed_enabled: bool = True
-    ) -> object:
-        from agent.services.config_reload import ConfigReloadService
-
-        ctx = MagicMock()
-        ctx.cfg.memory.use_memory_layer = use_memory_layer
-        ctx.cfg.memory.memory_embed_enabled = memory_embed_enabled
-        return ConfigReloadService(ctx)
+    """classify_startup_only_fields reports hot_reloadable=False changes as pending records."""
 
     def test_no_change_returns_empty(self) -> None:
-        svc = self._make_svc(use_memory_layer=True)
-        result = svc._classify_startup_only_fields({"use_memory_layer": True})
+        ctx = _make_ctx(use_memory_layer=True)
+        result = classify_startup_only_fields(
+            ctx, _candidate(ctx, use_memory_layer=True)
+        )
         assert result == []
 
     def test_missing_key_returns_empty(self) -> None:
-        svc = self._make_svc(use_memory_layer=False)
-        result = svc._classify_startup_only_fields({})
+        ctx = _make_ctx(use_memory_layer=False)
+        # A payload that names nothing keeps the live value, so nothing is pending.
+        result = classify_startup_only_fields(ctx, _candidate(ctx))
         assert result == []
 
     def test_memory_embed_enabled_change_detected(self) -> None:
-        svc = self._make_svc(use_memory_layer=True, memory_embed_enabled=False)
-        result = svc._classify_startup_only_fields({"memory_embed_enabled": True})
-        assert "memory_embed_enabled" in result
+        ctx = _make_ctx(use_memory_layer=True, memory_embed_enabled=False)
+        result = classify_startup_only_fields(
+            ctx, _candidate(ctx, memory_embed_enabled=True)
+        )
+        assert "memory_embed_enabled" in [record.field_path for record in result]
 
     def test_memory_embed_enabled_no_change(self) -> None:
-        svc = self._make_svc(use_memory_layer=True, memory_embed_enabled=True)
-        result = svc._classify_startup_only_fields({"memory_embed_enabled": True})
-        assert "memory_embed_enabled" not in result
+        ctx = _make_ctx(use_memory_layer=True, memory_embed_enabled=True)
+        result = classify_startup_only_fields(
+            ctx, _candidate(ctx, memory_embed_enabled=True)
+        )
+        assert "memory_embed_enabled" not in [record.field_path for record in result]
 
 
 class TestRuntimeToolPolicyReapplication:
-    """After /reload, RuntimeToolRegistry.apply_policy() is re-applied via _sync_services()."""
+    """The runtime_tools commit step re-applies RuntimeToolRegistry.apply_policy() (REQ-006)."""
 
-    def _make_svc(self, with_registry: bool = True) -> tuple[object, object]:
-        from agent.services.config_reload import ConfigReloadService
-
+    def _make_ctx(self, with_registry: bool = True) -> MagicMock:
         ctx = MagicMock()
         ctx.cfg.tool.allowed_tools = []
         ctx.cfg.tool.tool_policy_mode = "explicit_allowlist"
@@ -698,47 +640,56 @@ class TestRuntimeToolPolicyReapplication:
         ctx.services_required.hist_mgr = None
         ctx.services_required.tools = None
         ctx.services_required.runtime_tools = MagicMock() if with_registry else None
-        return ConfigReloadService(ctx), ctx
+        return ctx
+
+    def _apply_registry_step(self, ctx: MagicMock) -> PreparedStep | None:
+        """Run the service step the reload transaction drives for the registry."""
+        from agent.services.config_service_sync import ServiceSyncer
+
+        step = ServiceSyncer(ctx).prepare_runtime_tools()
+        if step is not None:
+            step.apply()
+        return step
 
     def test_apply_policy_called_with_current_allowed_tools_policy(self) -> None:
         """agentcfg003 REQ-005: apply_policy is re-applied without a tier_map —
         the tier each entry carries is the one its producer declared."""
-        svc, ctx = self._make_svc()
-        svc._sync_services({}, None, None, ctx.services_required.runtime_tools)  # type: ignore[attr-defined]
+        ctx = self._make_ctx()
+        self._apply_registry_step(ctx)
         ctx.services_required.runtime_tools.apply_policy.assert_called_once_with(
             allowed_tools=ctx.cfg.tool.allowed_tools,
             tool_policy_mode=ctx.cfg.tool.tool_policy_mode,
             disabled_tools=ctx.cfg.tool.disabled_tools,
         )
 
-    def test_runtime_tools_reported_in_applied(self) -> None:
-        svc, ctx = self._make_svc()
-        result = svc._sync_services({}, None, None, ctx.services_required.runtime_tools)
-        assert "runtime_tools" in result.applied
+    def test_the_registry_step_is_named_runtime_tools(self) -> None:
+        ctx = self._make_ctx()
+        step = self._apply_registry_step(ctx)
+        assert step is not None
+        assert step.service == "runtime_tools"
 
-    def test_no_runtime_tools_registry_is_noop(self) -> None:
-        svc, ctx = self._make_svc(with_registry=False)
-        result = svc._sync_services({}, None, None, None)
-        assert "runtime_tools" not in result.applied
+    def test_no_runtime_tools_registry_produces_no_step(self) -> None:
+        from agent.services.config_service_sync import ServiceSyncer
 
-    def test_reload_does_not_fetch_tools_over_http(self, svc: object) -> None:
-        # Regression guard: _sync_services must never trigger HTTP calls
-        # Uses direct _sync_services call to avoid MCP discovery complexity
-        svc._ctx.services_required.http = MagicMock()  # type: ignore[attr-defined]
-        svc._sync_services({}, None, None, None)  # type: ignore[attr-defined]
-        svc._ctx.services_required.http.get.assert_not_called()  # type: ignore[attr-defined]
+        ctx = self._make_ctx(with_registry=False)
+        assert ServiceSyncer(ctx).prepare_runtime_tools() is None
 
-    def test_apply_config_dict_exercises_real_registry_and_no_discovery_call(
-        self, capsys: pytest.CaptureFixture
-    ) -> None:
-        """E2E: _sync_services → apply_policy on a real RuntimeToolRegistry."""
+    def test_the_registry_step_does_not_fetch_tools_over_http(self) -> None:
+        # Regression guard: the service step must never trigger MCP discovery.
+        ctx = self._make_ctx()
+        ctx.services_required.http = MagicMock()
+        self._apply_registry_step(ctx)
+        ctx.services_required.http.get.assert_not_called()
+
+    def test_the_registry_step_applies_policy_to_a_real_registry(self) -> None:
+        """E2E: the runtime_tools step → apply_policy on a real RuntimeToolRegistry."""
 
         from shared.runtime_tool import AgentSafetyTier
         from shared.runtime_tool_registry import RuntimeToolRegistry
 
         from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
 
-        svc, ctx = self._make_svc(with_registry=True)
+        ctx = self._make_ctx()
         tools = {
             "read_file": build_fixture_runtime_tool(
                 name="read_file",
@@ -764,11 +715,11 @@ class TestRuntimeToolPolicyReapplication:
         real_registry = RuntimeToolRegistry(
             tools=tools, allowed_servers=frozenset({"fs"})
         )
-        ctx.services_required.runtime_tools = real_registry  # type: ignore[attr-defined]
-        ctx.services_required.http = MagicMock()  # type: ignore[attr-defined]
-        ctx.cfg.tool.allowed_tools = ["read_file"]  # type: ignore[attr-defined]
+        ctx.services_required.runtime_tools = real_registry
+        ctx.services_required.http = MagicMock()
+        ctx.cfg.tool.allowed_tools = ["read_file"]
 
-        svc._sync_services({}, None, None, ctx.services_required.runtime_tools)  # type: ignore[attr-defined]
+        self._apply_registry_step(ctx)
 
         assert real_registry.resolve("read_file") == "fs"
         read_tool = real_registry.get("read_file")
@@ -791,7 +742,7 @@ class TestRuntimeToolPolicyReapplication:
 
         from tests.shared.runtime_tool_factory import build_fixture_runtime_tool
 
-        svc, ctx = self._make_svc(with_registry=True)
+        ctx = self._make_ctx()
         tools = {
             "read_file": build_fixture_runtime_tool(
                 name="read_file",
@@ -817,9 +768,10 @@ class TestRuntimeToolPolicyReapplication:
         registry = RuntimeToolRegistry(tools=tools, allowed_servers=frozenset({"fs"}))
         assert registry.get("read_file").enabled_for_llm is True
 
-        ctx.services_required.runtime_tools = registry  # type: ignore[attr-defined]
-        ctx.cfg.tool.allowed_tools = []  # type: ignore[attr-defined]
-        svc._sync_services({}, None, None, registry)  # type: ignore[attr-defined]
+        ctx.services_required.runtime_tools = registry
+        ctx.cfg.tool.allowed_tools = []
+
+        self._apply_registry_step(ctx)
 
         assert registry.get("read_file").enabled_for_llm is False
         assert registry.get("delete_file").enabled_for_llm is False
@@ -959,73 +911,31 @@ class TestRuntimeToolPolicyReapplication:
 
 
 class TestApprovalGitopsPushBlocked:
-    """gitops_push_blocked can be updated via /reload."""
+    """gitops_push_blocked is startup-only: /reload reports it and leaves the live value alone."""
 
     def _make_svc(self, gitops_push_blocked: bool = False) -> object:
         from agent.services.config_reload import ConfigReloadService
 
-        ctx = MagicMock()
-        ctx.cfg.approval = ApprovalConfig(gitops_push_blocked=gitops_push_blocked)
-        ctx.cfg.tool.masked_fields = []
-        ctx.cfg.llm.llm_url = ""
-        ctx.cfg.llm.llm_max_tokens = 1000
-        ctx.cfg.llm.llm_temperature = 0.7
-        ctx.cfg.llm.title_llm_temperature = 0.5
-        ctx.cfg.llm.title_llm_max_tokens = 50
-        ctx.cfg.llm.stream = True
-        ctx.cfg.llm.stream_retry_limit = 3
-        ctx.cfg.llm.sse_heartbeat_timeout = 30
-        ctx.cfg.llm.sse_reconnect_max = 5
-        ctx.cfg.llm.sse_reconnect_delay = 1.0
-        ctx.cfg.llm.sse_malformed_retry = 1
-        ctx.cfg.mcp.mcp_servers = {}
-        ctx.services_required.memory = None
-        ctx.services_required.embedding = None
-        ctx.services_required.retriever = None
-        ctx.services_required.llm = None
-        return ConfigReloadService(ctx)
+        return ConfigReloadService(_make_ctx(gitops_push_blocked=gitops_push_blocked))
 
     def test_gitops_push_blocked_true_via_reload(self) -> None:
-        from unittest.mock import patch
-
-        from agent.services.config_reload import ConfigReloadOutcome
-
         svc = self._make_svc(gitops_push_blocked=False)
-        expected_outcome = ConfigReloadOutcome(
-            applied=["hist_mgr", "runtime_tools"],
-            needs_restart=[],
-            skipped=[],
-            source_files=[],
-            startup_only=[],
-            always_live=[],
-        )
-        with patch.object(
-            type(svc), "_classify_mcp_server_changes", return_value=expected_outcome
-        ):
-            outcome = svc.apply_config_dict({"gitops_push_blocked": True})
-        assert svc._ctx.cfg.approval.gitops_push_blocked is True
-        assert "gitops_push_blocked" not in outcome.applied
+        outcome = svc.apply_config_dict({"gitops_push_blocked": True})
+        assert svc._ctx.cfg.approval.gitops_push_blocked is False
+        assert "approval" not in outcome.applied
+        assert "gitops_push_blocked" in outcome.startup_only
 
     def test_gitops_push_blocked_false_via_reload(self) -> None:
-        from unittest.mock import patch
-
-        from agent.services.config_reload import ConfigReloadOutcome
-
         svc = self._make_svc(gitops_push_blocked=True)
-        expected_outcome = ConfigReloadOutcome(
-            applied=["hist_mgr", "runtime_tools"],
-            needs_restart=[],
-            skipped=[],
-            source_files=[],
-            startup_only=[],
-            always_live=[],
-        )
-        with patch.object(
-            type(svc), "_classify_mcp_server_changes", return_value=expected_outcome
-        ):
-            outcome = svc.apply_config_dict({"gitops_push_blocked": False})
-        assert svc._ctx.cfg.approval.gitops_push_blocked is False
-        assert "gitops_push_blocked" not in outcome.applied
+        outcome = svc.apply_config_dict({"gitops_push_blocked": False})
+        assert svc._ctx.cfg.approval.gitops_push_blocked is True
+        assert "approval" not in outcome.applied
+        assert "gitops_push_blocked" in outcome.startup_only
+
+    def test_unchanged_startup_only_field_is_not_reported(self) -> None:
+        svc = self._make_svc(gitops_push_blocked=True)
+        outcome = svc.apply_config_dict({"gitops_push_blocked": True})
+        assert outcome.startup_only == []
 
     def test_invalid_llm_temperature_raises(self, svc: object) -> None:
         from agent.services.exceptions import ConfigReloadValidationError
@@ -1054,7 +964,7 @@ class TestApprovalGitopsPushBlocked:
     def test_empty_llm_url_does_not_raise(self, svc: object) -> None:
         from agent.services.models import ConfigReloadRequest
 
-        req = ConfigReloadRequest(llm={"url": ""})
+        req = ConfigReloadRequest(llm={"llm_url": ""})
         result = svc.apply_config(req)  # type: ignore[attr-defined]
         assert result is not None
 
@@ -1084,78 +994,20 @@ class TestApprovalGitopsPushBlocked:
         with pytest.raises(ConfigReloadValidationError):
             svc.apply_config(req)  # type: ignore[attr-defined]
 
-    def test_invalid_context_token_limit_raises(self, svc: object) -> None:
-        from agent.services.exceptions import ConfigReloadValidationError
+    def test_startup_only_context_token_limit_is_not_applied(self, svc: object) -> None:
+        """A startup-only field is validated by the candidate build but never applied:
+        reload reports it as pending and leaves the live value alone (REQ-003)."""
         from agent.services.models import ConfigReloadRequest
 
-        req = ConfigReloadRequest(llm={"context_token_limit": -1})
-        with pytest.raises(ConfigReloadValidationError):
-            svc.apply_config(req)  # type: ignore[attr-defined]
+        req = ConfigReloadRequest(llm={"context_token_limit": 5000})
+        result = svc.apply_config(req)  # type: ignore[attr-defined]
+        assert "context_token_limit" in result.startup_only
+        assert "llm" not in result.applied
+        assert svc._ctx.cfg.llm.context_token_limit != 5000  # type: ignore[attr-defined]
 
 
 class TestRegistryFieldClassification:
     """Tests verifying CONFIG_FIELD_REGISTRY correctly categorizes fields by section."""
-
-    @pytest.fixture()
-    def svc(self) -> object:
-        from agent.services.config_reload import ConfigReloadService
-
-        llm_cfg = LLMConfig(
-            llm_url="",
-            http_timeout=30.0,
-            llm_retry_base_delay=1.0,
-            llm_temperature=0.7,
-            llm_max_tokens=1000,
-            title_llm_temperature=0.5,
-            title_llm_max_tokens=50,
-            sse_heartbeat_timeout=30.0,
-            sse_malformed_retry=1,
-            sse_reconnect_max=5,
-            llm_stream_retry_on_heartbeat_timeout=True,
-            llm_stream_retry_on_malformed_chunk=False,
-        )
-        tool_cfg = ToolConfig(
-            masked_fields=[],
-        )
-        ctx = MagicMock()
-        # The Memory section owns the embedding endpoint, so the Memory fixture carries it.
-        ctx.cfg = AgentConfig(
-            llm=llm_cfg,
-            memory=MemoryConfig(
-                memory_embed_enabled=True,
-                memory_embed_url="http://localhost:8080/embed",
-            ),
-            tool=tool_cfg,
-            db=MIN_DB_CONFIG,
-            maintenance=MIN_MAINTENANCE_CONFIG,
-        )
-        ctx.cfg.approval = MagicMock()
-        ctx.cfg.approval.require_approval_for = []
-        ctx.cfg.approval.plan_mode_enabled = False
-        ctx.cfg.mcp = MagicMock()
-        ctx.cfg.mcp.mcp_servers = {}
-        ctx.services_required = MagicMock()
-        ctx.services_required.memory = None
-        ctx.services_required.embedding = None
-        ctx.services_required.retriever = None
-        ctx.services_required.llm = None
-        from unittest.mock import patch
-
-        from shared.mcp_config import McpServerConfig, StartupMode, TransportType
-
-        old_mcp_srv = MagicMock(spec=McpServerConfig)
-        old_mcp_srv.url = "http://localhost:8080"
-        old_mcp_srv.auth_token = "tok"
-        old_mcp_srv.startup_mode = StartupMode.PERSISTENT
-        old_mcp_srv.transport = TransportType.HTTP
-        old_mcp_srv.cmd = []
-        ctx.cfg.mcp.mcp_servers = {"_none": old_mcp_srv}
-        with patch(
-            "agent.config_builders._build_mcp_servers",
-            return_value={"_none": old_mcp_srv},
-        ):
-            svc = ConfigReloadService(ctx)
-        return svc
 
     def test_llm_section_fields_are_classified_correctly(self) -> None:
         from agent.services.config_field_registry import CONFIG_FIELD_REGISTRY
@@ -1268,60 +1120,176 @@ class TestRegistryFieldClassification:
             f"Duplicate field names found: {[n for n in names if names.count(n) > 1]}"
         )
 
-    @pytest.fixture()
-    def svc_with_mocked_mcp(self, svc: object) -> object:
-        from unittest.mock import patch
-
-        from shared.mcp_config import McpServerConfig, StartupMode, TransportType
-
-        new_mcp_srv = MagicMock(spec=McpServerConfig)
-        new_mcp_srv.url = "http://localhost:8080"
-        new_mcp_srv.auth_token = "tok"
-        new_mcp_srv.startup_mode = StartupMode.PERSISTENT
-        new_mcp_srv.transport = TransportType.HTTP
-        new_mcp_srv.cmd = []
-        with (
-            patch(
-                "agent.config_builders._build_mcp_servers",
-                return_value={"_none": new_mcp_srv},
-            ),
-            patch.object(svc, "_classify_mcp_server_changes"),
-        ):
-            yield svc
-
     def test_apply_config_dict_applies_llm_fields_via_registry(
-        self, svc_with_mocked_mcp: object
+        self, svc: object
     ) -> None:
-        svc_with_mocked_mcp.apply_config_dict({"llm_temperature": 0.8})
-        assert svc_with_mocked_mcp._ctx.cfg.llm.llm_temperature == 0.8
+        svc.apply_config_dict({"llm_temperature": 0.8})  # type: ignore[attr-defined]
+        assert svc._ctx.cfg.llm.llm_temperature == 0.8  # type: ignore[attr-defined]
 
     def test_apply_config_dict_applies_memory_fields_via_registry(
-        self, svc_with_mocked_mcp: object
+        self, svc: object
     ) -> None:
-        svc_with_mocked_mcp.apply_config_dict({"memory_embed_url": "http://embed:8081"})
-        assert svc_with_mocked_mcp._ctx.cfg.memory.memory_embed_url == (
+        svc.apply_config_dict({"memory_embed_url": "http://embed:8081"})  # type: ignore[attr-defined]
+        assert svc._ctx.cfg.memory.memory_embed_url == (  # type: ignore[attr-defined]
             "http://embed:8081"
         )
 
     def test_apply_config_dict_applies_tool_fields_via_registry(
-        self, svc_with_mocked_mcp: object
+        self, svc: object
     ) -> None:
-        svc_with_mocked_mcp.apply_config_dict({"max_tool_turns": 10})
-        assert svc_with_mocked_mcp._ctx.cfg.tool.max_tool_turns == 10
+        svc.apply_config_dict({"max_tool_turns": 10})  # type: ignore[attr-defined]
+        assert svc._ctx.cfg.tool.max_tool_turns == 10  # type: ignore[attr-defined]
 
-    def test_apply_config_dict_skips_missing_fields(
-        self, svc_with_mocked_mcp: object
-    ) -> None:
-        svc_with_mocked_mcp.apply_config_dict({})
-        assert svc_with_mocked_mcp._ctx.cfg.llm.llm_temperature == 0.7
+    def test_apply_config_dict_skips_missing_fields(self, svc: object) -> None:
+        svc.apply_config_dict({})  # type: ignore[attr-defined]
+        assert svc._ctx.cfg.llm.llm_temperature == 0.7  # type: ignore[attr-defined]
 
-    def test_apply_config_dict_handles_partial_updates(
-        self, svc_with_mocked_mcp: object
-    ) -> None:
-        svc_with_mocked_mcp.apply_config_dict(
+    def test_apply_config_dict_handles_partial_updates(self, svc: object) -> None:
+        svc.apply_config_dict(  # type: ignore[attr-defined]
             {"llm_temperature": 0.9, "memory_embed_url": "http://embed:8081"}
         )
-        assert svc_with_mocked_mcp._ctx.cfg.llm.llm_temperature == 0.9
-        assert svc_with_mocked_mcp._ctx.cfg.memory.memory_embed_url == (
+        assert svc._ctx.cfg.llm.llm_temperature == 0.9  # type: ignore[attr-defined]
+        assert svc._ctx.cfg.memory.memory_embed_url == (  # type: ignore[attr-defined]
             "http://embed:8081"
         )
+
+
+class TestConfigFieldRegistrySectionCategorization:
+    """Row 4: registry_for returns only hot-reloadable entries and startup_only_for is the complement."""
+
+    _SECTIONS = ("llm", "tool", "approval", "memory")
+
+    def test_every_entry_declares_a_type_rule_and_a_validator(self) -> None:
+        """REQ-010: no entry reaches the reload path without a declared rule and validator."""
+        from agent.services.config_field_registry import CONFIG_FIELD_REGISTRY
+
+        for name, entry in CONFIG_FIELD_REGISTRY.items():
+            assert entry.field_type is not None, name
+            assert entry.validator_fn is not None, name
+
+    def test_the_two_accessors_partition_every_section(self) -> None:
+        """registry_for and startup_only_for are disjoint and cover every entry of a section."""
+        from agent.services.config_field_registry import (
+            CONFIG_FIELD_REGISTRY,
+            registry_for,
+            startup_only_for,
+        )
+
+        for section in self._SECTIONS:
+            live = {entry.name for entry in registry_for(section)}
+            pending = {entry.name for entry in startup_only_for(section)}
+            all_names = {
+                entry.name
+                for entry in CONFIG_FIELD_REGISTRY.values()
+                if entry.section_path == section
+            }
+            assert live | pending == all_names
+            assert not (live & pending)
+
+    def test_the_startup_only_set_is_the_named_fields(self) -> None:
+        """REQ-003: exactly these fields stay pending until restart."""
+        from agent.services.config_field_registry import startup_only_for
+
+        pending = {
+            entry.name
+            for section in self._SECTIONS
+            for entry in startup_only_for(section)
+        }
+        assert pending == {
+            "context_token_limit",
+            "context_char_limit",
+            "context_compress_turns",
+            "gitops_push_blocked",
+            "approval_medium_preview_fallback",
+            "use_memory_layer",
+            "memory_embed_enabled",
+        }
+
+    def test_mcp_has_no_reloadable_field_entries(self) -> None:
+        """REQ-003: MCP server definitions are restart-required, so no field entry exists."""
+        from agent.services.config_field_registry import registry_for, startup_only_for
+
+        assert registry_for("mcp") == []
+        assert startup_only_for("mcp") == []
+
+
+class TestSectionCandidateRuleEnforcement:
+    """prepare_validated_section applies the registry's declared rule to the candidate."""
+
+    def test_a_wrong_typed_candidate_field_raises_the_reload_error(self) -> None:
+        """REQ-001: the declared rule is enforced on the candidate, not only on the payload."""
+        from agent.config_dataclasses import ToolConfig
+        from agent.services.config_section_reload import prepare_validated_section
+        from agent.services.exceptions import ConfigReloadValidationError
+
+        ctx = _make_ctx()
+        # The dataclass does not type-check, so a hand-built candidate can carry a
+        # value the shared rule rejects.
+        candidate = ToolConfig(max_tool_turns="5")  # type: ignore[arg-type]
+
+        with pytest.raises(ConfigReloadValidationError, match="max_tool_turns") as e:
+            prepare_validated_section(ctx, "tool", candidate)
+
+        assert "must be int, got str" in str(e.value)
+        assert "5" not in str(e.value)
+        # The failure happens before any live mutation.
+        assert ctx.cfg.tool.max_tool_turns == 5
+
+
+class TestMaskedFieldsCandidateFold:
+    """masked_fields is not a registry entry, so it folds into the tool candidate separately."""
+
+    def _svc(self, ctx: MagicMock) -> object:
+        from agent.services.config_reload import ConfigReloadService
+
+        return ConfigReloadService(ctx)
+
+    def test_a_changed_value_is_committed_with_the_tool_section(self) -> None:
+        ctx = _make_ctx()
+        outcome = self._svc(ctx).apply_config_dict(  # type: ignore[attr-defined]
+            {"masked_fields": ["api_key", "token"]}
+        )
+
+        assert list(ctx.cfg.tool.masked_fields) == ["api_key", "token"]
+        assert "tool" in outcome.applied
+
+    def test_an_unchanged_value_adds_no_tool_candidate(self) -> None:
+        """A payload that does not name masked_fields leaves the live value alone (REQ-002)."""
+        ctx = _make_ctx()
+        before = list(ctx.cfg.tool.masked_fields)
+        outcome = self._svc(ctx).apply_config_dict({"llm_temperature": 0.4})  # type: ignore[attr-defined]
+
+        assert list(ctx.cfg.tool.masked_fields) == before
+        assert "tool" not in outcome.applied
+
+
+class TestServiceSyncerLlmStep:
+    """The llm commit step the reload transaction drives (REQ-006, REQ-013).
+
+    `apply_config_dict` commits through the transaction, which prepares these steps:
+    no separate apply-and-collect path remains.
+    """
+
+    def _make_ctx(self, with_llm: bool) -> MagicMock:
+        ctx = _make_ctx()
+        ctx.services_required.llm = MagicMock() if with_llm else None
+        ctx.services_required.hist_mgr = None
+        ctx.services_required.runtime_tools = None
+        return ctx
+
+    def test_a_live_llm_client_gets_an_apply_step(self) -> None:
+        from agent.services.config_service_sync import ServiceSyncer
+
+        ctx = self._make_ctx(with_llm=True)
+        step = ServiceSyncer(ctx).prepare_llm()
+
+        assert step is not None
+        assert step.service == "llm"
+        step.apply()
+        ctx.services_required.llm.apply_config.assert_called_once()
+
+    def test_no_llm_client_produces_no_step(self) -> None:
+        from agent.services.config_service_sync import ServiceSyncer
+
+        ctx = self._make_ctx(with_llm=False)
+        assert ServiceSyncer(ctx).prepare_llm() is None

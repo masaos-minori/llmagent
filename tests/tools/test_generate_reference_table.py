@@ -188,6 +188,10 @@ _FULL_SOURCES: dict[str, str] = {
         "_FIELDS = [\n"
         '    ConfigFieldRegistry("theme", "ui", True, _validate_theme),\n'
         '    ConfigFieldRegistry("max_retries", "network", False),\n'
+        "    ConfigFieldRegistry(\n"
+        '        "timeout", "network", True, _validate_timeout, RULE_INT,\n'
+        "        allow_empty=True,\n"
+        "    ),\n"
         "]\n"
     ),
     "scripts/shared/security/posture_contract.py": (
@@ -370,6 +374,14 @@ class TestManifestGeneration:
             "section": "network",
             "hot_reloadable": False,
             "validator": None,
+        }
+        # A 5-positional call with an allow_empty keyword parses, and the entry
+        # keeps the four-column shape: field_type and allow_empty are not columns.
+        assert fields[2] == {
+            "field": "timeout",
+            "section": "network",
+            "hot_reloadable": True,
+            "validator": "_validate_timeout",
         }
         health = grt.build_manifest("health_contracts")["entries"]
         assert health[0]["server"] == "agent"

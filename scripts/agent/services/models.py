@@ -9,13 +9,20 @@ db.models and re-exported here for agent-layer callers.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from typing import Any
 
 from db.models import (
     ConsistencyFinding,
     PurgeCounts,
     RagConsistencyReport,
     WalCheckpointCounts,
+)
+from shared.config_field_types import (
+    ConfigFieldTypeError,
+    strict_mapping,
+    strict_str_list,
 )
 
 from agent.services.enums import (
@@ -24,6 +31,7 @@ from agent.services.enums import (
     McpAvailability,
     McpTier,
 )
+from agent.services.exceptions import ConfigReloadValidationError
 
 
 @dataclass(frozen=True)
@@ -334,14 +342,42 @@ class ExportResult:
 
 @dataclass
 class ConfigReloadRequest:
-    """Typed request for apply_config. All fields optional; missing fields are skipped."""
+    """Typed request for apply_config. All fields optional; missing fields are skipped.
 
-    mcp_servers: dict | None = field(default=None)
-    approval: dict | None = field(default=None)
-    llm: dict | None = field(default=None)
+    Each field carries one configuration section's payload, never a bare scalar: the
+    declared type rule of a key inside a payload is enforced by the candidate build
+    (`build_agent_config(cfg_override=...)`), which names the field and the rule it
+    violated (REQ-011).  `__post_init__` enforces the shape the field name declares,
+    so a request cannot carry a raw value of the wrong shape (REQ-005).
+
+    Raises:
+        ConfigReloadValidationError: A supplied payload is not the section shape its
+            field name declares.
+    """
+
+    mcp_servers: Mapping[str, Mapping[str, Any]] | None = field(default=None)
+    approval: Mapping[str, Any] | None = field(default=None)
+    llm: Mapping[str, Any] | None = field(default=None)
     masked_fields: list[str] | None = field(default=None)
-    rag_tool: dict | None = field(default=None)
-    sse: dict | None = field(default=None)
+    rag_tool: Mapping[str, Any] | None = field(default=None)
+    sse: Mapping[str, Any] | None = field(default=None)
+
+    def __post_init__(self) -> None:
+        """Reject a payload that is not the section shape its field name declares."""
+        for section in ("mcp_servers", "approval", "llm", "rag_tool", "sse"):
+            payload = getattr(self, section)
+            if payload is None:
+                continue
+            try:
+                strict_mapping(payload, section, allow_empty=True)
+            except ConfigFieldTypeError as exc:
+                raise ConfigReloadValidationError(str(exc)) from exc
+        if self.masked_fields is not None:
+            # masked_fields is not a registry entry; it keeps its list[str] shape.
+            try:
+                strict_str_list(self.masked_fields, "masked_fields", allow_empty=True)
+            except ConfigFieldTypeError as exc:
+                raise ConfigReloadValidationError(str(exc)) from exc
 
 
 # ── Re-exports from db.models (available to agent-layer callers) ──────────────

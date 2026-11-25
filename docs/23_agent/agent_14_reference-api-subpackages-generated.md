@@ -77,42 +77,48 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `parse_command_args` | `def parse_command_args(tokens) -> ParsedArgs` | Parse command tokens into a structured ParsedArgs. |
 |  | `parse_int_arg` | `def parse_int_arg(raw, *, usage, default, minimum, maximum) -> int \| None` | Parse a command argument into an int, raising on invalid or out-of-range input. |
 | `scripts/agent/services/config_field_registry.py` | `ConfigFieldRegistry` | `class ConfigFieldRegistry` | A single entry in CONFIG_FIELD_REGISTRY. |
-|  | `registry_for` | `def registry_for(section_path) -> list[ConfigFieldRegistry]` | Return all ConfigFieldRegistry entries matching the given section path. |
-| `scripts/agent/services/config_outcome_classification.py` | `classify_mcp_server_changes` | `def classify_mcp_server_changes(ctx, new_cfg) -> list[str]` | Classify MCP server definition changes as restart-required, field by field. |
-|  | `classify_startup_only_fields` | `def classify_startup_only_fields(ctx, new_cfg) -> list[str]` | Return names of startup-only fields that differ between new_cfg and running cfg. |
+|  | `registry_for` | `def registry_for(section_path) -> list[ConfigFieldRegistry]` | Return the hot-reloadable ConfigFieldRegistry entries for the given section path. |
+|  | `startup_only_for` | `def startup_only_for(section_path) -> list[ConfigFieldRegistry]` | Return the ConfigFieldRegistry entries the given section reads only at startup. |
+|  | `validate_section_fields` | `def validate_section_fields(section_path, section) -> None` | Run every registered validator for one section against a built section. |
+| `scripts/agent/services/config_outcome_classification.py` | `PendingChange` | `class PendingChange` | One startup-only configuration change `/reload` records instead of applying live. |
+|  | `diff_mcp_definitions` | `def diff_mcp_definitions(live_mcp, candidate_mcp) -> list[PendingMcpRecord]` | Return one record per MCP server the candidate redefines. |
+|  | `classify_startup_only_fields` | `def classify_startup_only_fields(ctx, candidate) -> list[PendingChange]` | Return pending records for startup-only fields the candidate changes. |
 |  | `detect_diagnostics_live_fields` | `def detect_diagnostics_live_fields(ctx, new_cfg) -> list[str]` | Return names of diagnostics.* fields that differ between new_cfg and running cfg. |
+| `scripts/agent/services/config_pending_state.py` | `PendingMcpRecord` | `class PendingMcpRecord` | One MCP server definition change `/reload` recorded instead of applying. |
+|  | `PendingConfigState` | `class PendingConfigState` | Restart-pending configuration records and the degraded-reload guard. |
+|  | `pending_state_for` | `def pending_state_for(ctx) -> PendingConfigState \| None` | Return the pending state the context's container carries, or None. |
 | `scripts/agent/services/config_reload.py` | `ConfigReloadOutcome` | `class ConfigReloadOutcome` | Structured report of what changed after a /reload. |
 |  | `ConfigReloadService` | `class ConfigReloadService` | Propagate an updated config dict to live service instances. |
-| `scripts/agent/services/config_section_reload.py` | `prepare_validated_section` | `def prepare_validated_section(ctx, section_path, new_cfg, extra_changed_fields) -> tuple[dict[str, Any], Any]` | Build the dataclasses.replace candidate for a validated section (llm/tool/memory/approval) and run its validators. |
-|  | `apply_validated_section` | `def apply_validated_section(ctx, section_path, candidate) -> None` | Commit a prepared validated-section candidate onto ctx.cfg. |
-|  | `reload_validated_section` | `def reload_validated_section(ctx, section_path, new_cfg) -> list[str]` | Reload a validated section (llm/tool/memory/approval) as a prepare-then-apply composition. |
-|  | `prepare_direct_section` | `def prepare_direct_section(ctx, new_cfg, section_path, field_filter) -> dict[str, Any]` | Collect changed fields for a direct section (mcp). |
-|  | `apply_direct_section` | `def apply_direct_section(ctx, section_path, changed_fields) -> None` | Commit prepared direct-section changes onto the live section object. |
-|  | `reload_direct_fields` | `def reload_direct_fields(ctx, new_cfg, section_path, field_filter) -> dict[str, Any]` | Reload a direct section (mcp) as a prepare-then-apply composition. |
-| `scripts/agent/services/config_service_sync.py` | `SyncResult` | `class SyncResult` | Result of ServiceSyncer.sync_all(). |
-|  | `ServiceSyncer` | `class ServiceSyncer` | Propagates config changes to live service instances. |
-| `scripts/agent/services/config_validators.py` | `validate_llm_context_char_limit` | `def validate_llm_context_char_limit(cfg) -> None` | Validate that context_char_limit is non-negative. |
+| `scripts/agent/services/config_reload_transaction.py` | `ReloadStage` | `class ReloadStage` | Stage a `/reload` ended in. |
+|  | `CommitPhase` | `class CommitPhase` | Fixed commit order. Steps run in this order, not in registration order. |
+|  | `PreparedStep` | `class PreparedStep` | One reversible change prepared before commit. |
+|  | `ReloadTransaction` | `class ReloadTransaction` | Snapshot, commit, and rollback owner for one `/reload`. |
+| `scripts/agent/services/config_section_reload.py` | `SectionCandidate` | `class SectionCandidate` | A prepared, validated candidate for one configuration section. |
+|  | `prepare_validated_section` | `def prepare_validated_section(ctx, section_path, candidate_section, extra_changed_fields) -> SectionCandidate \| None` | Diff one hot-reloadable section of the typed candidate against the live section and run its validators. |
+|  | `apply_validated_section` | `def apply_validated_section(ctx, candidate) -> UndoToken` | Commit a prepared validated-section candidate onto ctx.cfg. |
+| `scripts/agent/services/config_service_sync.py` | `ServiceSyncer` | `class ServiceSyncer` | Propagates config changes to live service instances. |
+| `scripts/agent/services/config_validators.py` | `validate_llm_context_char_limit` | `def validate_llm_context_char_limit(cfg) -> None` | Validate that context_char_limit is a non-negative int. |
 |  | `validate_llm_budget_warn_ratio` | `def validate_llm_budget_warn_ratio(cfg) -> None` | Validate that budget_warn_ratio is in (0.0, 1.0]. |
 |  | `validate_llm_retry_base_delay` | `def validate_llm_retry_base_delay(cfg) -> None` | Validate that llm_retry_base_delay is positive. |
 |  | `validate_llm_temperature` | `def validate_llm_temperature(cfg) -> None` | Validate that llm_temperature is in [0.0, LLM_TEMPERATURE_MAX]. |
 |  | `validate_llm_max_tokens` | `def validate_llm_max_tokens(cfg) -> None` | Validate that llm_max_tokens is at least 1. |
 |  | `validate_llm_sse_heartbeat_timeout` | `def validate_llm_sse_heartbeat_timeout(cfg) -> None` | Validate that sse_heartbeat_timeout is non-negative. |
-|  | `validate_llm_sse_malformed_retry` | `def validate_llm_sse_malformed_retry(cfg) -> None` | Validate that sse_malformed_retry is non-negative. |
-|  | `validate_llm_sse_reconnect_max` | `def validate_llm_sse_reconnect_max(cfg) -> None` | Validate that sse_reconnect_max is non-negative. |
+|  | `validate_llm_sse_malformed_retry` | `def validate_llm_sse_malformed_retry(cfg) -> None` | Validate that sse_malformed_retry is a non-negative int. |
+|  | `validate_llm_sse_reconnect_max` | `def validate_llm_sse_reconnect_max(cfg) -> None` | Validate that sse_reconnect_max is a non-negative int. |
 |  | `check_agent_refiner_keys` | `def check_agent_refiner_keys(raw_cfg) -> list[str]` | Return an error when config/agent.toml still carries refiner keys. |
 |  | `validate_tool_dedup_max_repeats` | `def validate_tool_dedup_max_repeats(cfg) -> None` | Validate that tool_dedup_max_repeats is at least 1. |
-|  | `validate_tool_cycle_detect_window` | `def validate_tool_cycle_detect_window(cfg) -> None` | Validate that tool_cycle_detect_window is non-negative. |
-|  | `validate_tool_error_max_consecutive` | `def validate_tool_error_max_consecutive(cfg) -> None` | Validate that tool_error_max_consecutive is non-negative. |
-|  | `validate_tool_error_retry_max` | `def validate_tool_error_retry_max(cfg) -> None` | Validate that tool_error_retry_max is non-negative. |
-|  | `validate_progress_stagnation_window` | `def validate_progress_stagnation_window(cfg) -> None` | Validate that progress_stagnation_window is non-negative. |
+|  | `validate_tool_cycle_detect_window` | `def validate_tool_cycle_detect_window(cfg) -> None` | Validate that tool_cycle_detect_window is a non-negative int. |
+|  | `validate_tool_error_max_consecutive` | `def validate_tool_error_max_consecutive(cfg) -> None` | Validate that tool_error_max_consecutive is a non-negative int. |
+|  | `validate_tool_error_retry_max` | `def validate_tool_error_retry_max(cfg) -> None` | Validate that tool_error_retry_max is a non-negative int. |
+|  | `validate_progress_stagnation_window` | `def validate_progress_stagnation_window(cfg) -> None` | Validate that progress_stagnation_window is a non-negative int. |
 |  | `validate_allowed_tools` | `def validate_allowed_tools(cfg) -> None` | Validate that allowed_tools is a list of strings (an empty list is valid). |
 |  | `validate_tool_policy_mode` | `def validate_tool_policy_mode(cfg) -> None` | Validate that tool_policy_mode is one of the allowed enum values. |
 |  | `validate_disabled_tools` | `def validate_disabled_tools(cfg) -> None` | Validate that disabled_tools is a list of registered tool names. |
 |  | `validate_memory_fts_limit` | `def validate_memory_fts_limit(cfg) -> None` | Validate that memory_fts_limit is at least 1. |
 |  | `validate_memory_rrf_k` | `def validate_memory_rrf_k(cfg) -> None` | Validate that memory_rrf_k is at least 1. |
 |  | `validate_memory_recency_days` | `def validate_memory_recency_days(cfg) -> None` | Validate that memory_recency_days is positive. |
-|  | `validate_memory_max_inject_semantic` | `def validate_memory_max_inject_semantic(cfg) -> None` | Validate that memory_max_inject_semantic is non-negative. |
-|  | `validate_memory_max_inject_episodic` | `def validate_memory_max_inject_episodic(cfg) -> None` | Validate that memory_max_inject_episodic is non-negative. |
+|  | `validate_memory_max_inject_semantic` | `def validate_memory_max_inject_semantic(cfg) -> None` | Validate that memory_max_inject_semantic is a non-negative int. |
+|  | `validate_memory_max_inject_episodic` | `def validate_memory_max_inject_episodic(cfg) -> None` | Validate that memory_max_inject_episodic is a non-negative int. |
 |  | `validate_memory_embed_timeout_sec` | `def validate_memory_embed_timeout_sec(cfg) -> None` | Validate that memory_embed_timeout_sec is positive. |
 |  | `validate_memory_retention_days` | `def validate_memory_retention_days(cfg) -> None` | Validate that memory_retention_days is at least 1. |
 |  | `validate_memory_max_pinned` | `def validate_memory_max_pinned(cfg) -> None` | Validate that memory_max_pinned is at least 1. |
@@ -121,9 +127,25 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `validate_diagnostics_sensitive_fields` | `def validate_diagnostics_sensitive_fields(cfg) -> None` | Validate sensitive_fields is a frozenset of strings. |
 |  | `validate_allowed_root` | `def validate_allowed_root(cfg) -> None` | Validate that allowed_root is a non-empty absolute path. |
 |  | `validate_llm_http_timeout` | `def validate_llm_http_timeout(cfg) -> None` | Validate that http_timeout is positive. |
-|  | `validate_llm_context_token_limit` | `def validate_llm_context_token_limit(cfg) -> None` | Validate that context_token_limit is non-negative. |
+|  | `validate_llm_context_token_limit` | `def validate_llm_context_token_limit(cfg) -> None` | Validate that context_token_limit is a non-negative int. |
 |  | `validate_tool_max_tool_turns` | `def validate_tool_max_tool_turns(cfg) -> None` | Validate that max_tool_turns is positive. |
 |  | `validate_tool_result_max_llm_chars` | `def validate_tool_result_max_llm_chars(cfg) -> None` | Validate that tool_result_max_llm_chars is positive. |
+|  | `validate_llm_url` | `def validate_llm_url(cfg) -> None` | Validate that llm_url is a string (an empty value means no LLM endpoint). |
+|  | `validate_context_compress_turns` | `def validate_context_compress_turns(cfg) -> None` | Validate that context_compress_turns is an int. |
+|  | `validate_llm_stream_retry_on_heartbeat_timeout` | `def validate_llm_stream_retry_on_heartbeat_timeout(cfg) -> None` | Validate that llm_stream_retry_on_heartbeat_timeout is a bool. |
+|  | `validate_llm_stream_retry_on_malformed_chunk` | `def validate_llm_stream_retry_on_malformed_chunk(cfg) -> None` | Validate that llm_stream_retry_on_malformed_chunk is a bool. |
+|  | `validate_serial_tool_calls` | `def validate_serial_tool_calls(cfg) -> None` | Validate that serial_tool_calls is a bool. |
+|  | `validate_plan_blocked_tools` | `def validate_plan_blocked_tools(cfg) -> None` | Validate that plan_blocked_tools is a list of strings (an empty list is valid). |
+|  | `validate_approval_protected_paths` | `def validate_approval_protected_paths(cfg) -> None` | Validate that approval_protected_paths is a list of strings (an empty list is valid). |
+|  | `validate_approval_high_risk_branches` | `def validate_approval_high_risk_branches(cfg) -> None` | Validate that approval_high_risk_branches is a list of strings (an empty list is valid). |
+|  | `validate_approval_shell_safe_prefixes` | `def validate_approval_shell_safe_prefixes(cfg) -> None` | Validate that approval_shell_safe_prefixes is a list of strings. |
+|  | `validate_approval_github_allowed_repos` | `def validate_approval_github_allowed_repos(cfg) -> None` | Validate that approval_github_allowed_repos is a list of strings (an empty list is valid). |
+|  | `validate_gitops_push_blocked` | `def validate_gitops_push_blocked(cfg) -> None` | Validate that gitops_push_blocked is a bool. |
+|  | `validate_approval_medium_preview_fallback` | `def validate_approval_medium_preview_fallback(cfg) -> None` | Validate that approval_medium_preview_fallback is a bool. |
+|  | `validate_memory_local_only` | `def validate_memory_local_only(cfg) -> None` | Validate that memory_local_only is a bool. |
+|  | `validate_use_memory_layer` | `def validate_use_memory_layer(cfg) -> None` | Validate that use_memory_layer is a bool. |
+|  | `validate_memory_embed_enabled` | `def validate_memory_embed_enabled(cfg) -> None` | Validate that memory_embed_enabled is a bool. |
+|  | `validate_memory_embed_url` | `def validate_memory_embed_url(cfg) -> None` | Validate that memory_embed_url is a string. |
 | `scripts/agent/services/context_view.py` | `budget_breakdown` | `def budget_breakdown(messages) -> ContextBudget` | Compute per-category character counts (system / history / tool_messages). |
 |  | `collect_context_state` | `def collect_context_state(ctx) -> ContextStateView` | Aggregate runtime context data for /context display. |
 | `scripts/agent/services/conversation_service.py` | `clear_conversation` | `async def clear_conversation(ctx, *, new_session) -> ConversationActionResult` | Reset in-memory conversation history to the system prompt and clear stats. |
@@ -134,7 +156,10 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `ExportFormat` | `class ExportFormat` | Supported export formats for agent session data. |
 | `scripts/agent/services/exceptions.py` | `McpProbeError` | `class McpProbeError` | Raised when an MCP server probe encounters an unrecoverable error. |
 |  | `SessionTitleGenerationError` | `class SessionTitleGenerationError` | Raised when LLM-based session title generation fails. |
-|  | `ConfigReloadValidationError` | `class ConfigReloadValidationError` | Raised when a config reload request contains invalid field types. |
+|  | `ConfigReloadError` | `class ConfigReloadError` | Base for configuration reload failures. |
+|  | `ConfigReloadValidationError` | `class ConfigReloadValidationError` | Raised when a config reload request or candidate value fails a declared rule. |
+|  | `ConfigReloadCommitError` | `class ConfigReloadCommitError` | Raised when a commit step failed after the transaction undid the applied steps. |
+|  | `ConfigReloadRollbackError` | `class ConfigReloadRollbackError` | Raised when a rollback step failed, leaving live state inconsistent. |
 |  | `ContextStateBuildError` | `class ContextStateBuildError` | Raised when context state cannot be built (e.g. hist_mgr is None). |
 |  | `ExportWriteError` | `class ExportWriteError` | Raised when writing an export file fails. |
 |  | `ConversationStateError` | `class ConversationStateError` | Raised when a conversation state operation fails (e.g. unknown prompt preset). |
@@ -164,7 +189,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `allowed_server_keys` | `def allowed_server_keys(gates) -> set[str]` | Server keys whose gate is fully green, for RuntimeToolRegistry(allowed_servers=...). |
 |  | `check_service_health` | `async def check_service_health(ctx, *, gates) -> HealthCheckResult` | Probe LLM and Embed service health, then every MCP server posture, at startup. |
 |  | `check_readiness` | `async def check_readiness(ctx, *, gates) -> HealthCheckResult` | Probe required services at startup; raise RuntimeError on required-service failure. |
-| `scripts/agent/services/mcp_status.py` | `McpStatusService` | `class McpStatusService` | Probe all configured MCP servers and collect their health statuses. |
+| `scripts/agent/services/mcp_status.py` | `McpPendingRow` | `class McpPendingRow` | One MCP definition change `/mcp status` shows as pending, not as a live server. |
+|  | `McpStatusService` | `class McpStatusService` | Probe all configured MCP servers and collect their health statuses. |
 | `scripts/agent/services/mcp_tool_discovery.py` | `DiscoveryResult` | `class DiscoveryResult` | Result of discovering tools across all configured MCP servers. |
 |  | `McpToolDiscoveryService` | `class McpToolDiscoveryService` | Discover live MCP tools and build a `RuntimeToolRegistry`. |
 | `scripts/agent/services/models.py` | `ProcessInfoSnapshot` | `class ProcessInfoSnapshot` | Read-only snapshot of an HTTP MCP subprocess's runtime state. |

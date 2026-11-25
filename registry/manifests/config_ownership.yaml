@@ -10,23 +10,23 @@ entries:
 - field: approval_github_allowed_repos
   hot_reloadable: true
   section: approval
-  validator: null
+  validator: validate_approval_github_allowed_repos
 - field: approval_high_risk_branches
   hot_reloadable: true
   section: approval
-  validator: null
+  validator: validate_approval_high_risk_branches
 - field: approval_medium_preview_fallback
   hot_reloadable: false
   section: approval
-  validator: null
+  validator: validate_approval_medium_preview_fallback
 - field: approval_protected_paths
   hot_reloadable: true
   section: approval
-  validator: null
+  validator: validate_approval_protected_paths
 - field: approval_shell_safe_prefixes
   hot_reloadable: true
   section: approval
-  validator: null
+  validator: validate_approval_shell_safe_prefixes
 - field: context_char_limit
   hot_reloadable: false
   section: llm
@@ -34,7 +34,7 @@ entries:
 - field: context_compress_turns
   hot_reloadable: false
   section: llm
-  validator: null
+  validator: validate_context_compress_turns
 - field: context_token_limit
   hot_reloadable: false
   section: llm
@@ -46,7 +46,7 @@ entries:
 - field: gitops_push_blocked
   hot_reloadable: false
   section: approval
-  validator: null
+  validator: validate_gitops_push_blocked
 - field: http_timeout
   hot_reloadable: true
   section: llm
@@ -62,11 +62,11 @@ entries:
 - field: llm_stream_retry_on_heartbeat_timeout
   hot_reloadable: true
   section: llm
-  validator: null
+  validator: validate_llm_stream_retry_on_heartbeat_timeout
 - field: llm_stream_retry_on_malformed_chunk
   hot_reloadable: true
   section: llm
-  validator: null
+  validator: validate_llm_stream_retry_on_malformed_chunk
 - field: llm_temperature
   hot_reloadable: true
   section: llm
@@ -74,7 +74,7 @@ entries:
 - field: llm_url
   hot_reloadable: true
   section: llm
-  validator: null
+  validator: validate_llm_url
 - field: max_tool_turns
   hot_reloadable: true
   section: tool
@@ -82,31 +82,31 @@ entries:
 - field: memory_embed_enabled
   hot_reloadable: false
   section: memory
-  validator: null
+  validator: validate_memory_embed_enabled
 - field: memory_embed_url
   hot_reloadable: true
   section: memory
-  validator: null
+  validator: validate_memory_embed_url
 - field: memory_local_only
   hot_reloadable: true
   section: memory
-  validator: null
+  validator: validate_memory_local_only
 - field: memory_max_pinned
   hot_reloadable: true
   section: memory
-  validator: null
+  validator: validate_memory_max_pinned
 - field: memory_retention_days
   hot_reloadable: true
   section: memory
-  validator: null
+  validator: validate_memory_retention_days
 - field: plan_blocked_tools
   hot_reloadable: true
   section: tool
-  validator: null
+  validator: validate_plan_blocked_tools
 - field: serial_tool_calls
   hot_reloadable: true
   section: tool
-  validator: null
+  validator: validate_serial_tool_calls
 - field: sse_heartbeat_timeout
   hot_reloadable: true
   section: llm
@@ -130,7 +130,7 @@ entries:
 - field: use_memory_layer
   hot_reloadable: false
   section: memory
-  validator: null
+  validator: validate_use_memory_layer
 generated_by: tools/generate_reference_table.py
 manifest: config_ownership
 sources:

@@ -5,6 +5,7 @@ McpStatusService — probe all MCP servers and format the status table.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, cast
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
+    from agent.services.config_pending_state import McpChangeKind, PendingMcpRecord
 
 # Tier priority for determining the highest-risk tier across a server's tool set.
 _TIER_PRIORITY: dict[McpTier, int] = {
@@ -50,12 +52,49 @@ def _resolve_health_state(ctx: AgentContext, key: str) -> McpServerHealthState:
     return cast(McpServerHealthState, registry.get_state(key))
 
 
+@dataclasses.dataclass(frozen=True)
+class McpPendingRow:
+    """One MCP definition change `/mcp status` shows as pending, not as a live server.
+
+    A distinct type from `McpProbeResult` on purpose: a pending definition has no
+    probe state, so the command layer cannot render one as if it were a running
+    server (REQ-008).
+
+    Attributes:
+        server_key: MCP server the record names.
+        change: Definition change kind.
+        field_paths: Config field paths that changed.  Field paths only: no
+            configured value reaches the display (REQ-011).
+    """
+
+    server_key: str
+    change: McpChangeKind
+    field_paths: tuple[str, ...]
+
+
 class McpStatusService:
     """Probe all configured MCP servers and collect their health statuses."""
 
     def __init__(self, ctx: AgentContext) -> None:
         """Initialize the MCP status service with the agent context."""
         self._ctx = ctx
+
+    @staticmethod
+    def pending_rows(records: tuple[PendingMcpRecord, ...]) -> list[McpPendingRow]:
+        """Return the display rows for the pending MCP records passed in.
+
+        The records are an argument and no lifecycle or probe state is read: a
+        pending definition has no live process, so a pending row can neither be
+        built from a probe nor rendered as one (REQ-008, AC-4).
+        """
+        return [
+            McpPendingRow(
+                server_key=record.server_key,
+                change=record.change,
+                field_paths=record.field_paths,
+            )
+            for record in records
+        ]
 
     async def probe_all(self) -> list[McpProbeResult]:
         """Probe every configured MCP server and collect health statuses."""

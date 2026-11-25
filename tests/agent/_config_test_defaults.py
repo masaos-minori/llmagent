@@ -21,8 +21,13 @@ SHIPPED_DB_PATH_KEYS and SHIPPED_MEMORY_EMBED_URL mirror the shipped
 config/agent.toml for the typed-config contract (Plan agentcfg004).
 """
 
+from typing import Any
+
+from agent.config_builders import agent_config_payload, build_agent_config
+from agent.config_dataclasses import AgentConfig, MCPConfig
 from db.config import DbConfig
 from db.maintenance import DbMaintenanceConfig
+from shared.mcp_config import _build_mcp_servers
 from shared.tool_registry import get_registry
 
 # A non-empty allowed_root that contains every absolute test path, so the
@@ -86,3 +91,101 @@ MIN_DB_CONFIG: DbConfig = DbConfig(
 # DbMaintenanceConfig validates only through from_mapping(); its defaults are the
 # shipped values, so tests that construct AgentConfig directly use them.
 MIN_MAINTENANCE_CONFIG: DbMaintenanceConfig = DbMaintenanceConfig()
+
+# One declared MCP server. `shared.mcp_config._build_mcp_servers` rejects a missing
+# or empty `mcp_servers` section, so any payload that reaches `build_agent_config`
+# (including the reload candidate) must carry at least one server definition.
+# Reload fixtures use this so the live section and the candidate agree.
+MIN_MCP_SERVERS: dict[str, dict[str, object]] = {
+    "fixture_server": {
+        "transport": "http",
+        "url": "http://mcp.local:8100",
+        "cmd": ["/opt/llm/bin/fixture_server"],
+    }
+}
+
+
+def min_mcp_config() -> MCPConfig:
+    """Return the typed MCP section the fixture server resolves to."""
+    return MCPConfig(mcp_servers=_build_mcp_servers({"mcp_servers": MIN_MCP_SERVERS}))
+
+
+# A complete payload for a config-reload fixture. The reload candidate is built
+# through `build_agent_config` (REQ-002), so a reload fixture's live config must be
+# something the startup entry point itself produced; a hand-built partial
+# AgentConfig is not a valid starting point.
+RELOAD_FIXTURE_PAYLOAD: dict[str, object] = {
+    "llm_url": "http://llm.local:8000",
+    "http_timeout": 30.0,
+    "llm_retry_base_delay": 1.0,
+    "llm_temperature": 0.7,
+    "llm_max_tokens": 1000,
+    "sse_heartbeat_timeout": 30.0,
+    "sse_malformed_retry": 1,
+    "sse_reconnect_max": 5,
+    "llm_stream_retry_on_heartbeat_timeout": True,
+    "llm_stream_retry_on_malformed_chunk": False,
+    "context_token_limit": 0,
+    "context_char_limit": 8000,
+    "context_compress_turns": 4,
+    "max_tool_turns": 5,
+    "tool_result_max_llm_chars": 4000,
+    "serial_tool_calls": False,
+    "tool_policy_mode": "discovered",
+    "allowed_tools": ALL_TOOL_NAMES,
+    "disabled_tools": [],
+    "plan_blocked_tools": ["write_file"],
+    "masked_fields": ["content", "old_text", "new_text"],
+    "allowed_root": PERMISSIVE_ALLOWED_ROOT,
+    "approval_protected_paths": SHIPPED_APPROVAL_PROTECTED_PATHS,
+    "approval_high_risk_branches": ["main"],
+    "approval_shell_safe_prefixes": ["ls"],
+    "approval_github_allowed_repos": [],
+    "use_memory_layer": True,
+    "memory_embed_enabled": True,
+    "memory_embed_url": SHIPPED_MEMORY_EMBED_URL,
+    "memory_retention_days": 90,
+    "memory_max_pinned": 10,
+    "memory_local_only": False,
+    "mcp_servers": MIN_MCP_SERVERS,
+    **SHIPPED_DB_PATH_KEYS,
+}
+
+
+def reload_fixture_config(**overrides: object) -> AgentConfig:
+    """Build a reload fixture's live config through the startup entry point.
+
+    `overrides` apply on top of the complete fixture payload, so a test that names
+    one field starts from a config the startup path would actually accept.
+    """
+    return build_agent_config(cfg_override={**RELOAD_FIXTURE_PAYLOAD, **overrides})
+
+
+def reload_fixture_ctx(**overrides: object) -> Any:
+    """Return a reload-test ctx whose live config is startup-built.
+
+    The reload candidate is built through `build_agent_config` (REQ-002), so a
+    reload test's ctx.cfg must be a real ``AgentConfig``; the service sync skips
+    ``llm``, ``memory``, ``embedding`` and ``retriever`` (all None), while
+    ``hist_mgr``, ``tools`` and ``lifecycle`` stay MagicMocks for tests that assert
+    on those calls.
+    """
+    from unittest.mock import MagicMock
+
+    ctx = MagicMock()
+    ctx.cfg = reload_fixture_config(**overrides)
+    ctx.conv.system_prompt_name = "default"
+    ctx.conv.system_prompt_content = "fixture default prompt"
+    ctx.conv.history = []
+    services = MagicMock()
+    for service in ("llm", "memory", "embedding", "retriever"):
+        setattr(services, service, None)
+    ctx.services_required = services
+    return ctx
+
+
+def reload_candidate(ctx: Any, **overrides: object) -> AgentConfig:
+    """Build the candidate `apply_config_dict` would build for this payload (REQ-002)."""
+    return build_agent_config(
+        cfg_override={**agent_config_payload(ctx.cfg), **overrides}
+    )

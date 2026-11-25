@@ -1,4 +1,4 @@
-"""scripts/agent/services/config_section_reload.py — Section reload logic split into prepare (candidate build + validators / changed-field collection, no live mutation) and apply (setattr only) halves for the validated (llm/tool/memory/approval) and direct (mcp) paths."""
+"""scripts/agent/services/config_section_reload.py — Section reload logic split into prepare (typed candidate build + validators, no live mutation) and apply (setattr only) halves for the validated (llm/tool/memory/approval) sections."""
 
 from __future__ import annotations
 
@@ -8,31 +8,56 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from agent.context import AgentContext
 
+from shared.config_field_types import ConfigFieldTypeError, apply_field_rule
+from shared.config_undo import UndoToken
+
 from agent.services.config_field_registry import registry_for
 from agent.services.exceptions import ConfigReloadValidationError
+
+
+@dataclasses.dataclass(frozen=True)
+class SectionCandidate:
+    """A prepared, validated candidate for one configuration section.
+
+    Carries the field paths it changes so an error or a report can name the field
+    without the value (REQ-011).
+
+    Attributes:
+        section_path: Section identifier (e.g. "llm", "tool", "memory", "approval").
+        field_paths: Dotted ``section.field`` paths of the fields the candidate changes.
+        section: Typed section object built from the live section by the shared
+            type rules.
+    """
+
+    section_path: str
+    field_paths: tuple[str, ...]
+    section: Any
 
 
 def prepare_validated_section(
     ctx: AgentContext,
     section_path: str,
-    new_cfg: dict[str, Any],
+    candidate_section: Any,
     extra_changed_fields: dict[str, Any] | None = None,
-) -> tuple[dict[str, Any], Any]:
-    """Build the dataclasses.replace candidate for a validated section (llm/tool/memory/approval) and run its validators.
+) -> SectionCandidate | None:
+    """Diff one hot-reloadable section of the typed candidate against the live section and run its validators.
 
     Performs no live mutation: the candidate is returned unapplied so callers
-    can validate the whole config before committing.
+    can validate the whole config before committing. Only hot-reloadable registry
+    entries are collected, so a startup-only field never enters a candidate
+    (REQ-003), and a value the payload does not name is identical on both sides
+    because the candidate was built from the live configuration (REQ-002).
 
     Args:
         ctx: AgentContext with cfg attribute.
         section_path: Section identifier (e.g., "llm", "tool", "memory", "approval").
-        new_cfg: New configuration dictionary.
+        candidate_section: The typed section built by `build_agent_config(cfg_override=...)`.
         extra_changed_fields: Optional fields merged into the changed set before
             candidate construction (e.g. masked_fields, which is not a registry
             entry); used to fold direct updates into the section candidate.
 
     Returns:
-        Tuple (changed_fields, candidate). ({}, None) when nothing changed.
+        SectionCandidate, or None when nothing changed.
 
     Raises:
         ConfigReloadValidationError: On any validator failure.
@@ -41,8 +66,21 @@ def prepare_validated_section(
     changed_fields: dict[str, Any] = {}
 
     for field_entry in registry_for(section_path):
-        value = new_cfg.get(field_entry.name)
-        if value is None or value == getattr(cfg, field_entry.name):
+        value = getattr(candidate_section, field_entry.name)
+        # The declared rule is applied to the candidate value as well: the shared
+        # builders already enforce the type, and this is where the registry's
+        # allow_empty decision is enforced for a field the payload supplies.
+        if field_entry.field_type is not None:
+            try:
+                value = apply_field_rule(
+                    field_entry.field_type,
+                    value,
+                    field_entry.name,
+                    allow_empty=field_entry.allow_empty,
+                )
+            except ConfigFieldTypeError as exc:
+                raise ConfigReloadValidationError(str(exc)) from exc
+        if value == getattr(cfg, field_entry.name):
             continue
         changed_fields[field_entry.name] = value
 
@@ -50,7 +88,7 @@ def prepare_validated_section(
         changed_fields.update(extra_changed_fields)
 
     if not changed_fields:
-        return {}, None
+        return None
 
     try:
         replaced = dataclasses.replace(cfg, **changed_fields)
@@ -66,117 +104,34 @@ def prepare_validated_section(
                 except ValueError as e:
                     raise ConfigReloadValidationError(str(e)) from e
 
-    return changed_fields, replaced
+    return SectionCandidate(
+        section_path=section_path,
+        field_paths=tuple(f"{section_path}.{name}" for name in sorted(changed_fields)),
+        section=replaced,
+    )
 
 
 def apply_validated_section(
     ctx: AgentContext,
-    section_path: str,
-    candidate: Any,
-) -> None:
+    candidate: SectionCandidate,
+) -> UndoToken:
     """Commit a prepared validated-section candidate onto ctx.cfg.
 
+    The section object the candidate replaces is captured first, so the returned
+    token writes the previous section back into the same `ctx.cfg` — the live
+    services hold that instance, and a rollback must not replace it (REQ-006).
+
     Args:
         ctx: AgentContext with cfg attribute.
-        section_path: Section identifier (e.g., "llm", "tool", "memory", "approval").
         candidate: Prepared section candidate from prepare_validated_section.
-    """
-    setattr(ctx.cfg, section_path, candidate)
-
-
-def reload_validated_section(
-    ctx: AgentContext,
-    section_path: str,
-    new_cfg: dict[str, Any],
-) -> list[str]:
-    """Reload a validated section (llm/tool/memory/approval) as a prepare-then-apply composition.
-
-    Args:
-        ctx: AgentContext with cfg attribute.
-        section_path: Section identifier (e.g., "llm", "tool", "memory", "approval").
-        new_cfg: New configuration dictionary.
 
     Returns:
-        List of applied section names.
+        UndoToken that restores the section this call replaced.
     """
-    changed_fields, candidate = prepare_validated_section(ctx, section_path, new_cfg)
-    if not changed_fields:
-        return []
-    apply_validated_section(ctx, section_path, candidate)
-    return [section_path]
-
-
-def prepare_direct_section(
-    ctx: AgentContext,
-    new_cfg: dict[str, Any],
-    section_path: str,
-    field_filter: set[str] | None = None,
-) -> dict[str, Any]:
-    """Collect changed fields for a direct section (mcp).
-
-    No validators run and no candidate is built: direct sections carry no
-    registry validators, and their live objects are not guaranteed to be
-    dataclasses (test fixtures model them as mocks). Performs no mutation.
-
-    Args:
-        ctx: AgentContext with cfg attribute.
-        new_cfg: New configuration dictionary.
-        section_path: Section identifier (e.g., "mcp").
-        field_filter: Optional set of field names to process; processes all if None.
-
-    Returns:
-        Dict of changed fields (empty when nothing changed).
-    """
-    cfg = getattr(ctx.cfg, section_path)
-    changed_fields: dict[str, Any] = {}
-
-    for field_entry in registry_for(section_path):
-        if field_filter is not None and field_entry.name not in field_filter:
-            continue
-        value = new_cfg.get(field_entry.name)
-        if value is None or value == getattr(cfg, field_entry.name):
-            continue
-        changed_fields[field_entry.name] = value
-
-    return changed_fields
-
-
-def apply_direct_section(
-    ctx: AgentContext,
-    section_path: str,
-    changed_fields: dict[str, Any],
-) -> None:
-    """Commit prepared direct-section changes onto the live section object.
-
-    Args:
-        ctx: AgentContext with cfg attribute.
-        section_path: Section identifier (e.g., "mcp").
-        changed_fields: Changed fields collected by prepare_direct_section.
-    """
-    cfg = getattr(ctx.cfg, section_path)
-    for field_name, value in changed_fields.items():
-        setattr(cfg, field_name, value)
-
-
-def reload_direct_fields(
-    ctx: AgentContext,
-    new_cfg: dict[str, Any],
-    section_path: str,
-    field_filter: set[str] | None = None,
-) -> dict[str, Any]:
-    """Reload a direct section (mcp) as a prepare-then-apply composition.
-
-    Args:
-        ctx: AgentContext with cfg attribute.
-        new_cfg: New configuration dictionary.
-        section_path: Section identifier (e.g., "mcp").
-        field_filter: Optional set of field names to process; processes all if None.
-
-    Returns:
-        Dict of changed fields.
-    """
-    changed_fields = prepare_direct_section(ctx, new_cfg, section_path, field_filter)
-    if not changed_fields:
-        return {}
-    apply_direct_section(ctx, section_path, changed_fields)
-    return changed_fields
+    previous = getattr(ctx.cfg, candidate.section_path)
+    setattr(ctx.cfg, candidate.section_path, candidate.section)
+    return UndoToken(
+        service=candidate.section_path,
+        field_paths=candidate.field_paths,
+        restore=lambda: setattr(ctx.cfg, candidate.section_path, previous),
+    )
