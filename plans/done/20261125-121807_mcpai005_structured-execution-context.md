@@ -57,6 +57,8 @@ High
 
 ## Implementation Target Files
 **Freeze status**: Frozen
+Amended 2026-11-25 (fallout): added tests/mcp_servers/conftest.py — Endpoint tests build server apps without run_http, so the preview map stays empty and dry-run calls would resolve to applied
+Amended 2026-11-25 (fallout): added tests/mcp_servers/github/test_github_server_endpoints.py — The dispatcher now rejects a keyless side-effecting call; the test at line 459 dispatches github_create_branch with no key
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -65,28 +67,28 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/shared/execution_mode.py | Create (new file): `ExecutionMode`, `resolve_execution_mode` | One shared mode contract for Agent and MCP | REQ-001; AC-1 | No mode type exists: `rg ExecutionMode` finds none; `PreviewCapability` lives in `shared/tool_metadata.py:66` (checked in Step 3) | tests/shared/test_execution_mode.py | Verified |
-| scripts/shared/transport_dto.py | Modify: `ToolExecutionContext.execution_mode`; `ToolCallResult.execution_mode` and `side_effect_applied` | Carry mode out and metadata back | REQ-005, REQ-007; AC-4 | `ToolExecutionContext` has `call_id, tool, args_hash, operation` only (checked in Step 3) | tests/shared/test_transport_dto.py | Verified |
-| scripts/shared/http_transport.py | Modify: send `X-Execution-Mode`, parse response metadata | Wire the mode | REQ-007, REQ-008; AC-4 | Headers set at lines 213-217; call refused without context at line 197 (checked in Step 3) | tests/shared/test_http_transport.py | Verified |
-| scripts/mcp_servers/execution_context.py | Create (new file): `ExecutionContext`, `build_execution_context` | Typed context built once per entry | REQ-002; AC-1, AC-3 | `extract_request_context` returns an untyped 3-tuple (`server.py:258`) (checked in Step 3) | tests/mcp_servers/test_execution_context.py | Verified |
-| scripts/mcp_servers/dispatch.py | Modify: take `ExecutionContext`; preview bypass; remove markers; key rule; metadata | Core behavior | REQ-003, REQ-004, REQ-005, REQ-006; AC-1, AC-2, AC-3 | `_IDEMPOTENCY_DRY_RUN_MARKERS`, `_is_dry_run_output`, `_finalize_dedup(dry_run=...)`; keyless call executes (checked in Step 3) | tests/mcp_servers/test_mcp_dispatch.py | Verified |
-| scripts/mcp_servers/dedup_gate.py | Modify: `DispatchResult` gains `execution_mode`, `side_effect_applied` | Result contract | REQ-005; AC-4 | `DispatchResult` has `output, is_error, error_type, dedup_state` (checked in Step 3) | tests/mcp_servers/test_mcp_dispatch.py | Verified |
-| scripts/mcp_servers/models.py | Modify: `CallToolResponse` metadata fields | HTTP result contract | REQ-005; AC-4 | `CallToolResponse(result, is_error, dedup_state)` (checked in Step 3) | tests/mcp_servers/test_models.py | Verified |
-| scripts/mcp_servers/server.py | Modify: `MCPServer.dispatch(name, args, context)`; header cross-check; preview-capability seam beside `configure_tool_retry_policies` | Base contract | REQ-002, REQ-006, REQ-007; AC-3, AC-4 | `dispatch` at line 293; seam at line 401 (checked in Step 3) | tests/mcp_servers/test_mcp_server_base.py | Verified |
-| scripts/mcp_servers/git/git_server.py | Modify: build and pass context in `call_tool` and `dispatch` | Entry point | REQ-002, REQ-006; AC-3 | `dispatch_tool(..., idempotency_key=...)` at line 332; keyless at line 417 (checked in Step 3) | tests/mcp_servers/git/test_git_service_dispatch.py | Verified |
-| scripts/mcp_servers/github/github_server.py | Modify: same | Entry point | REQ-002, REQ-006; AC-3 | `_dispatch_github_tool(..., idempotency_key=None)` at line 192 (checked in Step 3) | tests/mcp_servers/github/test_github_server_endpoints.py | Verified |
-| scripts/mcp_servers/file/write_server.py | Modify: same | Entry point | REQ-002, REQ-006; AC-3 | `_dispatch_write_tool` at line 130 (checked in Step 3) | tests/mcp_servers/file/test_file_write_mcp_service.py | Verified |
-| scripts/mcp_servers/file/delete_server.py | Modify: same | Entry point | REQ-002, REQ-006; AC-3 | `_dispatch_delete_tool` at line 137 (checked in Step 3) | tests/mcp_servers/file/test_file_delete_mcp_service.py | Verified |
-| scripts/mcp_servers/file/read_server.py | Modify: same | Entry point (read-only; signature only) | REQ-002; AC-3 | `dispatch_tool` at line 140 (checked in Step 3) | tests/mcp_servers/file/test_read_service.py | Verified |
-| scripts/mcp_servers/shell/shell_server.py | Modify: same | Entry point | REQ-002, REQ-006; AC-3 | `dispatch_tool` at line 166 (checked in Step 3) | tests/mcp_servers/test_mcp_dispatch.py | Verified |
-| scripts/mcp_servers/cicd/cicd_server.py | Modify: same | Entry point (names the CI/CD programmatic dispatch) | REQ-002, REQ-006; AC-3 | `dispatch_tool` at line 138 (checked in Step 3) | tests/mcp_servers/test_mcp_dispatch.py | Verified |
-| scripts/mcp_servers/web_search/formatters.py | Modify: same | Entry point (read-only) | REQ-002; AC-3 | `dispatch_tool` at line 65 (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_server.py | Verified |
-| scripts/mcp_servers/web_search/web_search_server.py | Modify: same | Entry point (read-only) | REQ-002; AC-3 | `dispatch` at line 336 (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_server.py | Verified |
-| scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py | Modify: same | Entry point | REQ-002; AC-3 | `dispatch_tool` at line 241 (checked in Step 3) | tests/mcp_servers/test_mcp_dispatch.py | Verified |
-| scripts/mcp_servers/mdq/mdq_server.py | Modify: same | Entry point | REQ-002; AC-3 | `dispatch_tool` at line 322; `dispatch` drops dedup metadata at line 495 (checked in Step 3) | tests/mcp_servers/mdq/test_mdq_exception_handlers.py | Verified |
-| scripts/agent/tool_preparation.py | Modify: resolve and set `execution_mode` on the prepared context | Agent adopts the vocabulary | REQ-001, REQ-007, REQ-009; AC-5 | `ToolExecutionContext(...)` built at line 217 without a mode (checked in Step 3) | tests/agent/test_tool_preparation.py | Verified |
-| scripts/agent/tool_runner.py | Modify: skip state row and `attempt_side_effect` for a preview | Preview is not an applied write | REQ-009; AC-5 | `_record_pending_state` and `_finalize_state` at lines 176-246; `attempt_side_effect = True` at line 286 (checked in Step 3) | tests/agent/test_tool_runner.py | Verified |
-| scripts/agent/tool_approval.py | Modify: preview call carries its own preview context | Preview reaches the server | REQ-008; AC-4, AC-5 | `tools.execute(tool_name, {**args, "dry_run": True})` with no context at lines 144-147 (checked in Step 3) | tests/agent/test_tool_approval_preflight.py | Verified |
+| scripts/shared/execution_mode.py | Create (new file): `ExecutionMode`, `resolve_execution_mode` | One shared mode contract for Agent and MCP | REQ-001; AC-1 | No mode type exists: `rg ExecutionMode` finds none; `PreviewCapability` lives in `shared/tool_metadata.py:66` (checked in Step 3) | `tests/shared/test_execution_mode.py` | Verified |
+| scripts/shared/transport_dto.py | Modify: `ToolExecutionContext.execution_mode`; `ToolCallResult.execution_mode` and `side_effect_applied` | Carry mode out and metadata back | REQ-005, REQ-007; AC-4 | `ToolExecutionContext` has `call_id, tool, args_hash, operation` only (checked in Step 3) | `tests/shared/test_transport_dto.py` | Verified |
+| scripts/shared/http_transport.py | Modify: send `X-Execution-Mode`, parse response metadata | Wire the mode | REQ-007, REQ-008; AC-4 | Headers set at lines 213-217; call refused without context at line 197 (checked in Step 3) | `tests/shared/test_http_transport.py` | Verified |
+| scripts/mcp_servers/execution_context.py | Create (new file): `ExecutionContext`, `build_execution_context` | Typed context built once per entry | REQ-002; AC-1, AC-3 | `extract_request_context` returns an untyped 3-tuple (`server.py:258`) (checked in Step 3) | `tests/mcp_servers/test_execution_context.py` | Verified |
+| scripts/mcp_servers/dispatch.py | Modify: take `ExecutionContext`; preview bypass; remove markers; key rule; metadata | Core behavior | REQ-003, REQ-004, REQ-005, REQ-006; AC-1, AC-2, AC-3 | `_IDEMPOTENCY_DRY_RUN_MARKERS`, `_is_dry_run_output`, `_finalize_dedup(dry_run=...)`; keyless call executes (checked in Step 3) | `tests/mcp_servers/test_mcp_dispatch.py` | Verified |
+| scripts/mcp_servers/dedup_gate.py | Modify: `DispatchResult` gains `execution_mode`, `side_effect_applied` | Result contract | REQ-005; AC-4 | `DispatchResult` has `output, is_error, error_type, dedup_state` (checked in Step 3) | `tests/mcp_servers/test_mcp_dispatch.py` | Verified |
+| scripts/mcp_servers/models.py | Modify: `CallToolResponse` metadata fields | HTTP result contract | REQ-005; AC-4 | `CallToolResponse(result, is_error, dedup_state)` (checked in Step 3) | `tests/mcp_servers/test_models.py` | Verified |
+| scripts/mcp_servers/server.py | Modify: `MCPServer.dispatch(name, args, context)`; header cross-check; preview-capability seam beside `configure_tool_retry_policies` | Base contract | REQ-002, REQ-006, REQ-007; AC-3, AC-4 | `dispatch` at line 293; seam at line 401 (checked in Step 3) | `tests/mcp_servers/test_mcp_server_base.py` | Verified |
+| scripts/mcp_servers/git/git_server.py | Modify: build and pass context in `call_tool` and `dispatch` | Entry point | REQ-002, REQ-006; AC-3 | `dispatch_tool(..., idempotency_key=...)` at line 332; keyless at line 417 (checked in Step 3) | `tests/mcp_servers/git/test_git_service_dispatch.py` | Verified |
+| scripts/mcp_servers/github/github_server.py | Modify: same | Entry point | REQ-002, REQ-006; AC-3 | `_dispatch_github_tool(..., idempotency_key=None)` at line 192 (checked in Step 3) | `tests/mcp_servers/github/test_github_server_endpoints.py` | Verified |
+| scripts/mcp_servers/file/write_server.py | Modify: same | Entry point | REQ-002, REQ-006; AC-3 | `_dispatch_write_tool` at line 130 (checked in Step 3) | `tests/mcp_servers/file/test_file_write_mcp_service.py` | Verified |
+| scripts/mcp_servers/file/delete_server.py | Modify: same | Entry point | REQ-002, REQ-006; AC-3 | `_dispatch_delete_tool` at line 137 (checked in Step 3) | `tests/mcp_servers/file/test_file_delete_mcp_service.py` | Verified |
+| scripts/mcp_servers/file/read_server.py | Modify: same | Entry point (read-only; signature only) | REQ-002; AC-3 | `dispatch_tool` at line 140 (checked in Step 3) | `tests/mcp_servers/file/test_read_service.py` | Verified |
+| scripts/mcp_servers/shell/shell_server.py | Modify: same | Entry point | REQ-002, REQ-006; AC-3 | `dispatch_tool` at line 166 (checked in Step 3) | `tests/mcp_servers/test_mcp_dispatch.py` | Verified |
+| scripts/mcp_servers/cicd/cicd_server.py | Modify: same | Entry point (names the CI/CD programmatic dispatch) | REQ-002, REQ-006; AC-3 | `dispatch_tool` at line 138 (checked in Step 3) | `tests/mcp_servers/test_mcp_dispatch.py` | Verified |
+| scripts/mcp_servers/web_search/formatters.py | Modify: same | Entry point (read-only) | REQ-002; AC-3 | `dispatch_tool` at line 65 (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_server.py` | Verified |
+| scripts/mcp_servers/web_search/web_search_server.py | Modify: same | Entry point (read-only) | REQ-002; AC-3 | `dispatch` at line 336 (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_server.py` | Verified |
+| scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py | Modify: same | Entry point | REQ-002; AC-3 | `dispatch_tool` at line 241 (checked in Step 3) | `tests/mcp_servers/test_mcp_dispatch.py` | Verified |
+| scripts/mcp_servers/mdq/mdq_server.py | Modify: same | Entry point | REQ-002; AC-3 | `dispatch_tool` at line 322; `dispatch` drops dedup metadata at line 495 (checked in Step 3) | `tests/mcp_servers/mdq/test_mdq_exception_handlers.py` | Verified |
+| scripts/agent/tool_preparation.py | Modify: resolve and set `execution_mode` on the prepared context | Agent adopts the vocabulary | REQ-001, REQ-007, REQ-009; AC-5 | `ToolExecutionContext(...)` built at line 217 without a mode (checked in Step 3) | `tests/agent/test_tool_preparation.py` | Verified |
+| scripts/agent/tool_runner.py | Modify: skip state row and `attempt_side_effect` for a preview | Preview is not an applied write | REQ-009; AC-5 | `_record_pending_state` and `_finalize_state` at lines 176-246; `attempt_side_effect = True` at line 286 (checked in Step 3) | `tests/agent/test_tool_runner.py` | Verified |
+| scripts/agent/tool_approval.py | Modify: preview call carries its own preview context | Preview reaches the server | REQ-008; AC-4, AC-5 | `tools.execute(tool_name, {**args, "dry_run": True})` with no context at lines 144-147 (checked in Step 3) | `tests/agent/test_tool_approval_preflight.py` | Verified |
 | tests/shared/test_execution_mode.py | Create (new file): resolver cases | Cover REQ-001 | REQ-001, REQ-010; AC-1 | New module has no test (checked in Step 3) | itself | Verified |
 | tests/mcp_servers/test_execution_context.py | Create (new file): context building and header cross-check | Cover REQ-002, REQ-007 | REQ-002, REQ-010; AC-3 | New module has no test (checked in Step 3) | itself | Verified |
 | tests/mcp_servers/test_dry_run_contract.py | Create (new file): parameterized file/Git/GitHub previews, wording-change regression, dry-run then real | Cover REQ-003 to REQ-006 | REQ-010; AC-1, AC-2 | Existing dry-run cases are 8 refs in `test_mcp_dispatch.py`; no cross-server contract test (checked in Step 3) | itself | Verified |
@@ -102,6 +104,8 @@ table — no other file may be treated as a modification target.
 | docs/22_mcp/mcp_03_01_dispatch-and-routing.md | Modify: execution modes, context contract, key rule; correct the "dry-run results are never cached" sentence | Documentation Impact | REQ-011; AC-6 | Line 68 states dry-run results are never cached (checked in Step 3) | docs gates | Verified |
 | docs/23_agent/agent_13_reference-api-generated.md | Regenerate (never hand-edit) | Public symbols change | REQ-011; AC-6 | Lists agent public API (checked in Step 3) | generator check | Verified |
 | registry/manifests/agent_api.yaml | Regenerate (never hand-edit) | Public symbols change | REQ-011; AC-6 | Lists `ToolExecutionContext` owners (checked in Step 3) | generator check | Verified |
+| `tests/mcp_servers/conftest.py` | Modify: emulate the preview-capability bootstrap seam in the autouse fixture | Endpoint tests build server apps without run_http, so the preview map stays empty and dry-run calls would resolve to applied | REQ-010 / N/A: none cites REQ-010 | _emulate_dedup_bootstrap configures dedup and _tool_retry_policies only (conftest.py lines 48-86) (checked in Step 3a) | itself | Verified |
+| `tests/mcp_servers/github/test_github_server_endpoints.py` | Modify: the keyless _dispatch_github_tool call on a side-effecting tool supplies a context with a key | The dispatcher now rejects a keyless side-effecting call; the test at line 459 dispatches github_create_branch with no key | REQ-006 / AC-3 | github_server._dispatch_github_tool('github_create_branch', ...) with no key at test line 459 (checked in Step 3a) | itself | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) for the full validation procedure):
@@ -128,7 +132,6 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | scripts/mcp_servers/github/github_service_dispatch_writes.py | Emits JSON `"dry_run": true` through `_execute_with_dry_run` | REQ-003 |
 | scripts/shared/tool_executor.py | `execute` forwards an optional context unchanged | REQ-008 |
 | scripts/shared/mcp_dedup.py | Durable store whose acquisition a preview must not reach | REQ-004 |
-| tests/mcp_servers/conftest.py | Fixtures that call `dispatch_tool`; read to judge fallout | UNK-03 |
 
 ## Acceptance Criteria
 - AC-1 (REQ-001, REQ-003): Dry-run behavior is independent of formatter output: changing a formatter's preview wording does not change dedup behavior, and one contract covers file, Git, and GitHub tools.
@@ -149,10 +152,12 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 - Yes. REQ-011 drives an update of the MCP dispatch document located via `docs/00_index.md` "Document References by Task"; the final sweep of the MCP design documents stays with the separate documentation work item. `docs/23_agent/agent_13_reference-api-generated.md` and `registry/manifests/agent_api.yaml` are regenerated, not edited.
 
 ## Assumptions
-- `no_op` is reported for a dedup replay served from a record (`duplicate_hit`, `replayed`); a handler that reports "No changes." stays `applied`, because the dispatcher cannot know the handler's internal effect (falsifiable at procedure review).
+- `no_op` is reported for every outcome where the dispatcher did not run the handler: a dedup replay (`duplicate_hit`, `replayed`), a dedup refusal (`in_progress`, `dedup_store_error`, and so on), and the keyless rejection; all carry `side_effect_applied=False`. A handler that reports "No changes." stays `applied`, because the dispatcher cannot know the handler's internal effect (falsifiable at procedure review; corrected in Step 3a of the procedure cycle so an error result never claims `applied`).
 - Exclusion from applied-operation state is chosen over a new `previewed` `tool_call_state` value, which would require a persisted-schema change under `rules/persisted-schema-change.md`.
 - The key requirement covers preview calls too: HTTP middleware already rejects a keyless side-effecting `POST /v1/call_tool` regardless of `dry_run`, and the Agent preview supplies its own logical call id.
 - Programmatic `dispatch` has no in-tree production caller (`rg "\.dispatch\("` finds only the overrides and one test double), so the key rule changes behavior only for tests and out-of-tree callers.
+- The MCP-side preview-capability map is injected at the `run_http` bootstrap seam (`configure_tool_preview_capabilities`, defined in `mcp_servers/execution_context.py`, called beside `configure_tool_retry_policies`). An unconfigured map (a module-level `app` used directly in a test) resolves every call to `applied`, the safe direction: an undeclared `dry_run` is never treated as a preview that skips dedup. Tests that exercise previews configure the map explicitly (added in Step 3a of the procedure cycle).
+- The Agent preview context is built by a public helper added to `scripts/agent/tool_preparation.py` (`new_execution_context`), which `tool_approval.py` already imports from; no new target file is needed.
 - Overlap judgment (`tools/check_plan_target_overlaps.py`, run after the freeze): the Plan for the MCP launch spec and per-server credentials (cliplc006) also lists `docs/23_agent/agent_13_reference-api-generated.md` and `registry/manifests/agent_api.yaml`; both only regenerate those artifacts from the then-current source, so the overlap is compatible and either order works (regenerate once more after the second lands).
 
 ## Unknowns
@@ -203,6 +208,8 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | docs/22_mcp/mcp_03_01_dispatch-and-routing.md | Modify | Low | N/A | N/A | None |
 | docs/23_agent/agent_13_reference-api-generated.md | Regenerate | Low | N/A | N/A | None |
 | registry/manifests/agent_api.yaml | Regenerate | Low | N/A | N/A | None |
+| `tests/mcp_servers/conftest.py` | Modify | Not assessed (amendment 2026-11-25) | N/A | N/A | Not assessed (amendment 2026-11-25) |
+| `tests/mcp_servers/github/test_github_server_endpoints.py` | Modify | Not assessed (amendment 2026-11-25) | N/A | N/A | Not assessed (amendment 2026-11-25) |
 
 ## Design
 - **Issue Verification** (re-checked against current source by symbol; Step 2):
@@ -226,6 +233,8 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ## Implementation steps
 1. **Phase 1: Tests first (REQ-010)**
    - [ ] Write the wording-regression, preview-no-state, dry-run-then-real, keyless/keyed, header cross-check, and Agent preview tests, expecting failure (REQ-010; tests/mcp_servers/test_dry_run_contract.py, tests/shared/test_execution_mode.py, tests/mcp_servers/test_execution_context.py, tests/mcp_servers/test_mcp_dispatch.py, tests/agent/test_tool_runner.py, tests/agent/test_tool_preparation.py, tests/agent/test_tool_approval_preflight.py)
+   - [ ] Modify: emulate the preview-capability bootstrap seam in the autouse fixture (REQ-010; `tests/mcp_servers/conftest.py`) — amendment 2026-11-25
+   - [ ] Modify: the keyless _dispatch_github_tool call on a side-effecting tool supplies a context with a key (REQ-006; `tests/mcp_servers/github/test_github_server_endpoints.py`) — amendment 2026-11-25
 2. **Phase 2: Shared vocabulary and DTOs (REQ-001, REQ-005, REQ-007)**
    - [ ] Mode type and resolver (scripts/shared/execution_mode.py)
    - [ ] Context and result fields (scripts/shared/transport_dto.py); wire header and metadata (scripts/shared/http_transport.py)
@@ -269,11 +278,11 @@ Validation quality baseline (Step 5): `radon cc` average complexity is A for `di
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | Expected to fail until Phases 2-4 land |
-| 2 | Phase 2: shared vocabulary and DTOs | Pending | — | — | Release unit R1-mode-contract |
-| 3 | Phase 3: MCP dispatcher and entry points | Pending | — | — | Release unit R1-mode-contract |
-| 4 | Phase 4: Agent adoption | Pending | — | — | Release unit R1-mode-contract |
-| 5 | Phase 5: documentation and generated artifacts | Pending | — | — | Regenerate, do not hand-edit |
+| 1 | Phase 1: tests first | In Progress | — | — | Expected to fail until Phases 2-4 land |
+| 2 | Phase 2: shared vocabulary and DTOs | In Progress | — | — | Release unit R1-mode-contract |
+| 3 | Phase 3: MCP dispatcher and entry points | In Progress | — | — | Release unit R1-mode-contract |
+| 4 | Phase 4: Agent adoption | In Progress | — | — | Release unit R1-mode-contract |
+| 5 | Phase 5: documentation and generated artifacts | In Progress | — | — | Regenerate, do not hand-edit |
 | 6 | Phase 6: deployment and verification | Pending | — | — | Deploy is the user's decision |
 
 ### Blocker Log
@@ -284,7 +293,35 @@ Validation quality baseline (Step 5): `radon cc` average complexity is A for `di
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261125-122426_01_scripts_shared_execution_mode.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261125-122426_02_scripts_shared_transport_dto.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261125-122426_03_scripts_shared_http_transport.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261125-122426_04_scripts_mcp_servers_execution_context.py.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_05_scripts_mcp_servers_dispatch.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_06_scripts_mcp_servers_dedup_gate.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_07_scripts_mcp_servers_models.py.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_08_scripts_mcp_servers_server.py.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_09_scripts_mcp_servers_git_git_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_10_scripts_mcp_servers_github_github_server.py.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_11_scripts_mcp_servers_file_write_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_12_scripts_mcp_servers_file_delete_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_13_scripts_mcp_servers_file_read_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_14_scripts_mcp_servers_shell_shell_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_15_scripts_mcp_servers_cicd_cicd_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_16_scripts_mcp_servers_web_search_formatters.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_17_scripts_mcp_servers_web_search_web_search_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_18_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_19_scripts_mcp_servers_mdq_mdq_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-122426_20_scripts_agent_tool_preparation.py.md | 1, 4 | Procedure | Pending | — | — |
+| implementations/20261125-122426_21_scripts_agent_tool_runner.py.md | 1, 4 | Procedure | Pending | — | — |
+| implementations/20261125-122426_22_scripts_agent_tool_approval.py.md | 1, 4 | Procedure | Pending | — | — |
+| implementations/20261125-122426_25_tests_mcp_servers_test_dry_run_contract.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-122426_26_tests_mcp_servers_test_mcp_dispatch.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-122426_27_tests_mcp_servers_test_mcp_dispatch_concurrency.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-122426_35_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261125-122426_36_docs_23_agent_agent_13_reference-api-generated.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261125-122426_37_registry_manifests_agent_api.yaml.md | 5 | Procedure | Pending | — | — |
+| implementations/20261125-122426_38_tests_mcp_servers_conftest.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -293,7 +330,7 @@ Validation quality baseline (Step 5): `radon cc` average complexity is A for `di
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261125-121807
-- **Related target files**: scripts/shared/execution_mode.py, scripts/shared/transport_dto.py, scripts/shared/http_transport.py, scripts/mcp_servers/execution_context.py, scripts/mcp_servers/dispatch.py, scripts/mcp_servers/dedup_gate.py, scripts/mcp_servers/models.py, scripts/mcp_servers/server.py, scripts/mcp_servers/git/git_server.py, scripts/mcp_servers/github/github_server.py, scripts/mcp_servers/file/write_server.py, scripts/mcp_servers/file/delete_server.py, scripts/mcp_servers/file/read_server.py, scripts/mcp_servers/shell/shell_server.py, scripts/mcp_servers/cicd/cicd_server.py, scripts/mcp_servers/web_search/formatters.py, scripts/mcp_servers/web_search/web_search_server.py, scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py, scripts/mcp_servers/mdq/mdq_server.py, scripts/agent/tool_preparation.py, scripts/agent/tool_runner.py, scripts/agent/tool_approval.py, tests/shared/test_execution_mode.py, tests/mcp_servers/test_execution_context.py, tests/mcp_servers/test_dry_run_contract.py, tests/mcp_servers/test_mcp_dispatch.py, tests/mcp_servers/test_mcp_dispatch_concurrency.py, tests/mcp_servers/test_models.py, tests/mcp_servers/test_mcp_server_base.py, tests/shared/test_http_transport.py, tests/shared/test_transport_dto.py, tests/agent/test_tool_preparation.py, tests/agent/test_tool_runner.py, tests/agent/test_tool_approval_preflight.py, docs/22_mcp/mcp_03_01_dispatch-and-routing.md, docs/23_agent/agent_13_reference-api-generated.md, registry/manifests/agent_api.yaml
+- **Related target files**: scripts/shared/execution_mode.py, scripts/shared/transport_dto.py, scripts/shared/http_transport.py, scripts/mcp_servers/execution_context.py, scripts/mcp_servers/dispatch.py, scripts/mcp_servers/dedup_gate.py, scripts/mcp_servers/models.py, scripts/mcp_servers/server.py, scripts/mcp_servers/git/git_server.py, scripts/mcp_servers/github/github_server.py, scripts/mcp_servers/file/write_server.py, scripts/mcp_servers/file/delete_server.py, scripts/mcp_servers/file/read_server.py, scripts/mcp_servers/shell/shell_server.py, scripts/mcp_servers/cicd/cicd_server.py, scripts/mcp_servers/web_search/formatters.py, scripts/mcp_servers/web_search/web_search_server.py, scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py, scripts/mcp_servers/mdq/mdq_server.py, scripts/agent/tool_preparation.py, scripts/agent/tool_runner.py, scripts/agent/tool_approval.py, tests/shared/test_execution_mode.py, tests/mcp_servers/test_execution_context.py, tests/mcp_servers/test_dry_run_contract.py, tests/mcp_servers/test_mcp_dispatch.py, tests/mcp_servers/test_mcp_dispatch_concurrency.py, tests/mcp_servers/test_models.py, tests/mcp_servers/test_mcp_server_base.py, tests/shared/test_http_transport.py, tests/shared/test_transport_dto.py, tests/agent/test_tool_preparation.py, tests/agent/test_tool_runner.py, tests/agent/test_tool_approval_preflight.py, docs/22_mcp/mcp_03_01_dispatch-and-routing.md, docs/23_agent/agent_13_reference-api-generated.md, registry/manifests/agent_api.yaml, tests/mcp_servers/conftest.py, tests/mcp_servers/github/test_github_server_endpoints.py
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -337,3 +374,7 @@ Validation quality baseline (Step 5): `radon cc` average complexity is A for `di
 | REQ-011 | Documentation Impact | docs/22_mcp/mcp_03_01_dispatch-and-routing.md | 5 | AC-6 | docs gates | Explicit in issue |
 | REQ-011 | Documentation Impact (generated reference) | docs/23_agent/agent_13_reference-api-generated.md | 5 | AC-6 | generator check | Derived from confirmed evidence |
 | REQ-011 | Documentation Impact (generated manifest) | registry/manifests/agent_api.yaml | 5 | AC-6 | generator check | Derived from confirmed evidence |
+| REQ-010 | Amendment 2026-11-25: Endpoint tests build server apps without run_http, so the preview map stays empty and dry-run calls would resolve to applied | tests/mcp_servers/conftest.py | Phase 1 | N/A: none cites REQ-010 | itself | Confirmed by repository evidence |
+| REQ-006 | Amendment 2026-11-25: The dispatcher now rejects a keyless side-effecting call; the test at line 459 dispatches github_create_branch with no key | tests/mcp_servers/github/test_github_server_endpoints.py | Phase 1 | AC-3 | itself | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261125-122426 -->
