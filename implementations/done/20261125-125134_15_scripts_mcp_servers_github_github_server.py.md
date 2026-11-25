@@ -68,9 +68,9 @@ Revert the release unit together.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-185812 | 20261125-185812 | changed: github_server.py (identity binding + applied_audit_failed result + health audit_failure_count); assumption verified: _dispatch_github_tool already takes ExecutionContext |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-185812 | 20261125-185812 | TestDispatchGithubToolAppliedAuditAndIdentity added (4 cases); health assertions and _FakeService updated for audit_failure_count |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-185812 | 20261125-185812 | ruff/mypy/bandit/lint-imports pass; 53 targeted tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

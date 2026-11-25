@@ -1,6 +1,6 @@
 ## Goal
 
-Declare `retry_policy = "never"` for `github_create_branch` (REQ-001), the classification owner for these tools.
+Declare `retry_policy = "never"` for `github_create_or_update_file`, `github_push_files`, `github_delete_file` (REQ-001), the classification owner for these tools.
 
 ## Scope
 **Release unit**: R1-github-write-safety
@@ -20,13 +20,15 @@ Keeping `same_logical_call_only` until a reconciler exists was rejected: it lets
 
 ## Implementation
 ### Target file
-`scripts/mcp_servers/github/tools_repository.py`
+`scripts/mcp_servers/github/tools_file.py`
 
 ### Procedure
-Edit the `retry_policy` of the named entries in `scripts/mcp_servers/github/tools_repository.py`.
+Edit the `retry_policy` of the named entries in `scripts/mcp_servers/github/tools_file.py`.
 
 ### Method
-- Set `"retry_policy": "never"` for `github_create_branch`.
+- Set `"retry_policy": "never"` for `github_create_or_update_file`.
+- Set `"retry_policy": "never"` for `github_push_files`.
+- Set `"retry_policy": "never"` for `github_delete_file`.
 
 ### Details
 - Do not touch `reconciliation_policy`; it remains `external_state`, describing where evidence would live once a reconciler exists.
@@ -46,7 +48,7 @@ N/A: revert the commit (together with the release unit).
 ## Validation plan
 
 - `uv run pytest tests/mcp_servers/github/test_github_tool_registry.py tests/shared/test_tool_constants.py`
-- `uv run mypy scripts/mcp_servers/github/tools_repository.py`
+- `uv run mypy scripts/mcp_servers/github/tools_file.py`
 - `uv run ruff check` and `uv run ruff format`
 
 ## Completion criteria
@@ -64,9 +66,9 @@ N/A: revert the commit (together with the release unit).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-183329 | 20261125-183329 | changed: `scripts/mcp_servers/github/tools_file.py` |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-183329 | 20261125-183329 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-183329 | 20261125-183329 | ruff/mypy/bandit/lint-imports pass; targeted tests pass (42 passed) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -86,4 +88,4 @@ N/A: revert the commit (together with the release unit).
 - **Source plan**: plans/20261125-124502_mcpai006_github-write-retry-policy.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261125-125134
-- **Related target files**: `scripts/mcp_servers/github/tools_repository.py`
+- **Related target files**: `scripts/mcp_servers/github/tools_file.py`

@@ -63,8 +63,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the test file described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Update the test file described in Implementation > Procedure/Method/Details | Completed | 20261125-191924 | 20261125-191924 | line-860 case extended with the fmt write path asserting the API stub is not called; helper-level cases added for intent/completion phase+identifiers and the completion-failure counter; empty-path skip cases unchanged |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-191924 | 20261125-191924 | ruff/mypy pass; 643 tests pass (test_github_mcp_service + tests/mcp_servers/github) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

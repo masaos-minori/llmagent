@@ -68,9 +68,9 @@ Revert the release unit together.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-183651 | 20261125-183651 | changed: scripts/mcp_servers/github/github_models_config.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-183651 | 20261125-183651 | added TestWriteTimeouts and TestWriteOutcomeErrors |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-183651 | 20261125-183651 | ruff/mypy/bandit/lint-imports pass; targeted tests pass (50 passed); docstring/module-size/reference-table gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

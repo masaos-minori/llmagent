@@ -69,9 +69,9 @@ Revert the release unit together.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-185946 | 20261125-185946 | changed: exception_handlers.py (504 handler + outcome field in the audit body); note: GitHubAppliedAuditError is a GitHubAuditError subclass but the dispatcher converts it before the handler, so the audit body stays audit_failed |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-185946 | 20261125-185946 | 504 case added, audit case extended for the outcome field |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-185946 | 20261125-185946 | ruff/mypy/bandit/lint-imports pass; 7 tests pass, tests/mcp_servers/github 595 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

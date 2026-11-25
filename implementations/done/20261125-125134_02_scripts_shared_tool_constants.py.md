@@ -70,9 +70,9 @@ N/A: revert the release unit together with the declarations.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-183213 | 20261125-183213 | changed: scripts/shared/tool_constants.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-183213 | 20261125-183213 | added test_no_github_tool_is_retryable; passes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-183217 | 20261125-183329 | drift test fails until tool tables declare never (allowed red state, later members 03-06) drift test passes after members 03-06 landed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

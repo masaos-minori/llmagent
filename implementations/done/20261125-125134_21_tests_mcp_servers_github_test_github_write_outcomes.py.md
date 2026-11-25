@@ -65,8 +65,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the test file described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Update the test file described in Implementation > Procedure/Method/Details | Completed | 20261125-191615 | 20261125-191615 | six groups added to the existing module: store failure refusal (9 tools), intent audit before API call, applied audit failure via API (4 cases), no-retry second dispatch, identifiers with no payload, client construction and health counter |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-191615 | 20261125-191615 | ruff/mypy pass; 32 tests pass; tests/mcp_servers/github 610 passed; client test asserts the tuple through requester because PyGithub asserts isinstance(timeout, int) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

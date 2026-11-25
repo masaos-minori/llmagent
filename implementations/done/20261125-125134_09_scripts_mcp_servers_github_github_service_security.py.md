@@ -16,6 +16,7 @@ Provide the shared write plumbing: the intent audit, the completion audit that r
 
 - The intent audit raises `GitHubAuditError` before the API call (fail closed, nothing applied). The completion audit converts a failure into `GitHubAppliedAuditError`, increments `audit_failure_count` (new), and chains the cause.
 - Ambiguous failures of a write become `GitHubOutcomeUnknownError`: `requests` timeouts and connection errors, urllib3 errors, `TimeoutError`, and a `GithubException` with status 500 or above; definite 4xx outcomes keep their existing mapping.
+- Adversarial verification finding (20261125): `requests` is not a declared project dependency (PyGithub brings it in transitively), so the translation must not import `requests`. Verified against the installed packages: `requests.RequestException` and its timeout/connection subclasses are `OSError` subclasses, and requests wraps urllib3 errors into `RequestException`, so catching `OSError` plus `TimeoutError` covers the listed ambiguous transport failures without a direct `requests` import.
 
 ## Alternatives considered
 
@@ -72,9 +73,9 @@ Revert the release unit together.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-184522 | 20261125-184522 | changed: github_service_security.py; adversarial finding applied: ambiguous failures caught as OSError/TimeoutError without importing requests (requests is not a declared dependency); direct calls without phase default to intent |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-184522 | 20261125-184522 | added tests/mcp_servers/github/test_github_write_outcomes.py (14 tests) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-184522 | 20261125-184522 | ruff/mypy/bandit/lint-imports pass; 120 targeted tests pass module size: 24548 B, under the 24576 gate after trimming the added docstrings/comments |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

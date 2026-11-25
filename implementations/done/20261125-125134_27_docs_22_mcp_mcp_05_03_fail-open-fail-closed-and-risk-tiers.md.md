@@ -1,85 +1,55 @@
 ## Goal
-
-Pin the declared retry policy of every GitHub write to `never` (REQ-001, REQ-009).
-
+Record that GitHub writes are non-retryable and fail closed on a dedup-store failure (REQ-010).
 ## Scope
 **Release unit**: N/A: not part of a release unit
-
 ## Assumptions
-
-- The registry test already loads every GitHub tool declaration; the new case iterates the write and dangerous tiers from `shared.tool_constants`.
-
+- Retryable fail-open text for other servers stays unchanged.
 ## Design decisions
-
-- Test-only change; behavior under test is defined by the code documents of the release unit.
-
+- Edit existing text in place; do not append contradicting statements.
 ## Alternatives considered
-
-N/A: test-only row.
-
+N/A: docs-only row.
 ## Implementation
 ### Target file
-`tests/mcp_servers/github/test_github_tool_registry.py`
-
+`docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 ### Procedure
-Add one parametrized case over the nine write names.
-
+Edit the relevant sections.
 ### Method
-- Assert `retry_policy == "never"` for each name in `GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS`.
-- Assert `retry_policy_is_retryable` is false for each declared value.
-
+- Add GitHub writes to the non-retryable fail-closed examples and state that a timeout never implies non-application.
+- Correct any statement listing a GitHub write as retryable fail-open.
 ### Details
-- Follow the existing fixture style of the file.
-
+- Run the documentation checkers via `tools/run_validation_gates.py`.
 ## Compatibility considerations
-
-Test-only.
-
+N/A: docs-only.
 ## Security considerations
-
-N/A: test code.
-
+N/A: docs-only.
 ## Rollback considerations
-
 N/A: revert the commit.
-
 ## Validation plan
-
-- `uv run pytest tests/mcp_servers/github/test_github_tool_registry.py`
-- `uv run ruff check` and `uv run ruff format`
-
+- `uv run python tools/run_validation_gates.py`
 ## Completion criteria
-
-- The case fails before the declarations change and passes after.
-
+- The document matches the implemented behavior and the gates pass.
 ## Out of Scope
-
-- Production code (other documents).
-
+- ADR text (no decision changes) and the MCP design-document final sweep.
 ## Execution Status
-
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the test file described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
-
+| 1 | Edit the document per Implementation > Procedure/Method/Details | Completed | 20261125-192309 | 20261125-192309 | retry-classification paragraph added after the fail-closed runtime paragraph; table rows unchanged |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-192309 | 20261125-192309 | run_validation_gates fast mode all Pass |
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | — | — | — | — |
-
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
-
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-001, REQ-009
+- **Requirement ID**: REQ-010
 - **Source issue**: issues/20261119-140513_mcpai006_github-write-retry-policy.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261125-124502_mcpai006_github-write-retry-policy.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261125-125134
-- **Related target files**: `tests/mcp_servers/github/test_github_tool_registry.py`
+- **Related target files**: `docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`

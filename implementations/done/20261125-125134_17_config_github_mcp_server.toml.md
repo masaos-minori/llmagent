@@ -61,8 +61,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the configuration per Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Edit the configuration per Implementation > Procedure/Method/Details | Completed | 20261125-190024 | 20261125-190024 | added connect_timeout_sec = 5 and read_timeout_sec = 30 after max_file_read_size_kb with the no-retry comments |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-190024 | 20261125-190024 | strict parsing 44 passed; check_config_comment_length 0 errors |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

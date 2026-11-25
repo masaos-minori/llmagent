@@ -1,23 +1,20 @@
 ## Goal
-Document the GitHub write outcomes, timeouts, and audit phases (REQ-010).
+List the two new GitHub configuration keys (REQ-010).
 ## Scope
 **Release unit**: N/A: not part of a release unit
 ## Assumptions
-- Written in English; the final sweep of the MCP documents stays with a separate work item.
-- Edit lands after the code documents.
+- The inventory lists GitHub keys such as `max_file_read_size_kb`; follow its format.
 ## Design decisions
 - Edit existing text in place; do not append contradicting statements.
 ## Alternatives considered
 N/A: docs-only row.
 ## Implementation
 ### Target file
-`docs/22_mcp/mcp_04_01_web-search-file-read-github.md`
+`docs/22_mcp/mcp_06_01_configuration-file-inventory.md`
 ### Procedure
 Edit the relevant sections.
 ### Method
-- Describe the intent and completion audit and the identifiers in each record, and replace the sentence that a failed audit write returns HTTP 500 with the three outcomes: pre-write audit failure (nothing applied), applied_audit_failed, and `outcome_unknown` (HTTP 504).
-- State that all GitHub writes are non-retryable, the client never re-sends a write, and the two timeout keys.
-- Mention the audit-failure count in `/health`.
+- Add `connect_timeout_sec` and `read_timeout_sec` to the GitHub key list with defaults 5 and 30 and the strict positive-number rule.
 ### Details
 - Run the documentation checkers via `tools/run_validation_gates.py`.
 ## Compatibility considerations
@@ -36,8 +33,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document per Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — |  |
+| 1 | Edit the document per Implementation > Procedure/Method/Details | Completed | 20261125-192346 | 20261125-192346 | strictly-positive rule bullet added to the github-mcp startup rules; the two keys added to the per-server limits sentence (defaults attributed to the shipped config, per the existing 'defaults are not in this document' statement) |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-192346 | 20261125-192346 | run_validation_gates fast mode all Pass |
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
@@ -54,4 +51,4 @@ N/A: revert the commit.
 - **Source plan**: plans/20261125-124502_mcpai006_github-write-retry-policy.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261125-125134
-- **Related target files**: `docs/22_mcp/mcp_04_01_web-search-file-read-github.md`
+- **Related target files**: `docs/22_mcp/mcp_06_01_configuration-file-inventory.md`

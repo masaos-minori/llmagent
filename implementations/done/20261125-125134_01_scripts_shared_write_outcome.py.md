@@ -74,9 +74,9 @@ Delete the module and its test before the GitHub procedures land; afterwards rev
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — |  |
-| 2 | Add or update tests per Validation plan | Pending | — | — |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-183206 | 20261125-183206 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-183206 | 20261125-183206 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-183206 | 20261125-183206 | row3: targeted tests pass (6 passed); gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

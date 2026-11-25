@@ -252,10 +252,10 @@ Validation quality baseline (Step 5): `radon cc` average complexity is A for eve
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | In Progress | — | — | Expected to fail until Phases 2-3 land |
-| 2 | Phase 2: classification | In Progress | — | — | Release unit R1-github-write-safety |
-| 3 | Phase 3: client, outcomes, and audit | In Progress | — | — | Release unit R1-github-write-safety |
-| 4 | Phase 4: documentation | In Progress | — | — |  |
+| 1 | Phase 1: tests first | Completed | — | 20261125-193750 | Expected to fail until Phases 2-3 land |
+| 2 | Phase 2: classification | Completed | — | 20261125-193852 | Release unit R1-github-write-safety all cited target files archived in this batch (close_procedures_batch.py cannot map these citations because the plan cites them without backticks) |
+| 3 | Phase 3: client, outcomes, and audit | Completed | — | 20261125-193852 | Release unit R1-github-write-safety all cited target files archived in this batch (close_procedures_batch.py cannot map these citations because the plan cites them without backticks) |
+| 4 | Phase 4: documentation | Completed | — | 20261125-193852 | all cited target files archived in this batch (close_procedures_batch.py cannot map these citations because the plan cites them without backticks) |
 | 5 | Phase 5: deployment and verification | Pending | — | — | Deploy is the user's decision |
 
 ### Blocker Log
@@ -266,31 +266,31 @@ Validation quality baseline (Step 5): `radon cc` average complexity is A for eve
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261125-125134_01_scripts_shared_write_outcome.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261125-125134_02_scripts_shared_tool_constants.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261125-125134_03_scripts_mcp_servers_github_tools_file.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-125134_04_scripts_mcp_servers_github_tools_issues.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-125134_05_scripts_mcp_servers_github_tools_pull_requests.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-125134_06_scripts_mcp_servers_github_tools_repository.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-125134_07_scripts_mcp_servers_github_github_models_config.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-125134_08_scripts_mcp_servers_github_github_service_init.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-125134_09_scripts_mcp_servers_github_github_service_security.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-125134_10_scripts_mcp_servers_github_github_service_dispatch_writes.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261125-125134_11_scripts_mcp_servers_github_github_service_file.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-125134_12_scripts_mcp_servers_github_github_service_issues.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-125134_13_scripts_mcp_servers_github_github_service_pull_requests.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-125134_14_scripts_mcp_servers_github_github_service_repository.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-125134_15_scripts_mcp_servers_github_github_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-125134_16_scripts_mcp_servers_github_exception_handlers.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261125-125134_17_config_github_mcp_server.toml.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-125134_20_tests_mcp_servers_github_test_github_tool_registry.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-125134_21_tests_mcp_servers_github_test_github_write_outcomes.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-125134_22_tests_mcp_servers_github_test_github_config_strict_parsing.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-125134_24_tests_mcp_servers_github_test_github_mcp_service.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-125134_26_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-125134_27_docs_22_mcp_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-125134_28_docs_22_mcp_mcp_06_01_configuration-file-inventory.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-125134_29_tests_mcp_servers_github_test_service_init.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-125134_01_scripts_shared_write_outcome.py.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261125-125134_02_scripts_shared_tool_constants.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261125-125134_03_scripts_mcp_servers_github_tools_file.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-125134_04_scripts_mcp_servers_github_tools_issues.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-125134_05_scripts_mcp_servers_github_tools_pull_requests.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-125134_06_scripts_mcp_servers_github_tools_repository.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-125134_07_scripts_mcp_servers_github_github_models_config.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-125134_08_scripts_mcp_servers_github_github_service_init.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-125134_09_scripts_mcp_servers_github_github_service_security.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-125134_10_scripts_mcp_servers_github_github_service_dispatch_writes.py.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261125-125134_11_scripts_mcp_servers_github_github_service_file.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-125134_12_scripts_mcp_servers_github_github_service_issues.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-125134_13_scripts_mcp_servers_github_github_service_pull_requests.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-125134_14_scripts_mcp_servers_github_github_service_repository.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-125134_15_scripts_mcp_servers_github_github_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-125134_16_scripts_mcp_servers_github_exception_handlers.py.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261125-125134_17_config_github_mcp_server.toml.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-125134_20_tests_mcp_servers_github_test_github_tool_registry.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-125134_21_tests_mcp_servers_github_test_github_write_outcomes.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-125134_22_tests_mcp_servers_github_test_github_config_strict_parsing.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-125134_24_tests_mcp_servers_github_test_github_mcp_service.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-125134_26_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-125134_27_docs_22_mcp_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-125134_28_docs_22_mcp_mcp_06_01_configuration-file-inventory.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-125134_29_tests_mcp_servers_github_test_service_init.py.md | 1 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
