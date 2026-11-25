@@ -62,8 +62,8 @@ rows).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Consume `TurnControl` and register directives at turn entry | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Consume `TurnControl` and register directives at turn entry | Completed | — | 20261125-130210 | control text passed unchanged; directives assigned fresh at turn entry; TurnControl imported from agent.workflow.workflow_engine control text passed unchanged; directives assigned fresh at turn entry; no new import needed (the returned TurnControl is used as an object) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-130210 | 2026-11-25 | ruff/mypy/bandit/lint-imports/mock-patch-targets pass; test_adapter_guards red state pending procedure 17 end-of-batch run: full suite 14240 passed, diff-cover 100% on changed lines, pre-commit all hooks pass, cited ADR tests 75 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

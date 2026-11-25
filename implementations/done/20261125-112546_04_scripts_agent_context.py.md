@@ -68,8 +68,8 @@ No directive type definition, no persistence, no change to `ConversationStateMan
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `ToolCallRecorder` and add `replay_directives` (new) | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | lint-imports must stay clean |
+| 1 | Extend `ToolCallRecorder` and add `replay_directives` (new) | Completed | — | 20261125-122816 | stale detection clean; changed: scripts/agent/context.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122816 | 2026-11-25 | lint-imports must stay clean ruff/lint-imports/module-size pass; red state: mypy 'agent.tool_preparation has no attribute ReplayDirective' — resolved by procedure 06; tests/agent/test_tool_runner.py 111 passed end-of-batch run: full suite 14240 passed, diff-cover 100% on changed lines, pre-commit all hooks pass, cited ADR tests 75 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -56,8 +56,8 @@ No change to the other adapter guards in this file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the mock return value and add the registration guard | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the mock return value and add the registration guard | Completed | — | 20261125-133505 | mock return is now TurnControl(text='ctrl', directives=[one directive]); new guard test drives the real _run_execute_stage through the existing fixture, which gained optional mock parameters so the awaited conversation-manager calls resolve. Asserts control_message='ctrl' and ctx.turn.replay_directives holds the directive |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125-133505 | 7 passed; ruff format/check pass; mypy shows the 9 pre-existing errors unchanged; check_mock_patch_targets clean. Mutation check: replacing the registration line with an empty list makes the guard fail, then reverted |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

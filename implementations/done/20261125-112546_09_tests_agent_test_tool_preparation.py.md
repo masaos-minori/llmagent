@@ -20,7 +20,7 @@ N/A: test-only change.
 `tests/agent/test_tool_preparation.py`
 
 ### Procedure
-Add three tests for the directive path.
+Add four tests for the directive path.
 
 ### Method
 - Match: build a `ReplayDirective` (resolved from sibling procedure seq 06) on the turn state with a tool name
@@ -28,7 +28,9 @@ Add three tests for the directive path.
 - One-time consumption: prepare two identical calls against one directive; the first gets the original id, the
   second gets a fresh id.
 - Ambiguity: two directives for the same tool and hash; assert the call is rejected with the structured error
-  kind `ambiguity` and appears in `failures`, not in `prepared`.
+  kind `ambiguity` and appears in `failures`, not in `prepared`. The kind is not in the failure tuple, so the
+  test asserts it through the `_reject` warning log.
+- Edited arguments: a reissue with different arguments hashes differently and gets no directive (the Plan's Risk).
 
 ### Details
 - Build directives through the same helper the production code uses, so the consumed flag semantics are the
@@ -59,8 +61,8 @@ No change to the approval-gate tests already in this file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the matching, consumption, and ambiguity tests | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the matching, consumption, and ambiguity tests | Completed | — | 20261125-130447 | 4 tests: match, one-time consumption, ambiguity (kind asserted through caplog), edited-arguments hash; the hash-equality assertion is inside the match test |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125-130447 | ruff pass; mypy 2 pre-existing errors only (tests/agent is outside the CI mypy scope); 23 passed; no patch() added so check_mock_patch_targets has no findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

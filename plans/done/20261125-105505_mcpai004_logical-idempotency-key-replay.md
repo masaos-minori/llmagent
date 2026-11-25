@@ -43,6 +43,11 @@ On recovery the Agent internally attaches the original id to an approved reissue
 
 ## Implementation Target Files
 **Freeze status**: Frozen (Step 8 Implementation Target Files Validation passed 20261125: all 21 rows `Verified`, `tools/audit_plan_target_paths.py` 0 findings, `tools/check_plan_target_overlaps.py` no conflict)
+Amended 2026-11-25 (fallout): added scripts/agent/tool_call_identity.py — tool_runner.py is 24544 B against the 24576 B module-size gate; passing args_hash at the recorder call site plus the mypy union-attr guard exceeds it, so the three private helpers are split out (python-refactoring Path C module split, approved 20261125)
+Amended 2026-11-25 (fallout): added docs/23_agent/agent_14_reference-api-subpackages-generated.md — Regenerate the guarded subpackage reference block: the new subpackage symbols land here, not in agent_13
+Amended 2026-11-25 (fallout): added registry/manifests/agent_api.yaml — Rewrite the committed manifest so the block-vs-manifest direction of the drift gate agrees with live sources; --type agent writes only the doc block and leaves the manifest stale
+Amended 2026-11-25 (fallout): added tools/check_docs_structure.py — Re-record agent_14's per-file ceiling at the size the regenerated block reaches; the ceiling equals the accepted size, so the new rows fail the gate without it
+Amended 2026-11-25 (fallout): added docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md — The ADR Invariant Matrix cites scripts/agent/tool_runner.py::_classify_retry_class; that helper moved to scripts/agent/tool_call_identity.py in plan row 22, so the citation must name the file that defines it or the pre-commit ADR hook fails.
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream `plan-to-implementation-procedure` document MUST reference file paths only from this table — no other file may be treated as a modification target.
 
@@ -69,6 +74,11 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md | Modify | Document the Agent-managed replay in one place, next to the identifier definitions, per the Issue's Documentation Impact | REQ-002, REQ-005 | The identifier definitions are in this doc; the replay directive is not yet described (checked in Step 3) | — | Verified |
 | docs/23_agent/agent_13_reference-api-generated.md | Modify | Regenerate the guarded `AUTO-GENERATED` block after the new `ReplayDirective` symbol under `scripts/agent/` | REQ-007 | `generate_reference_table.py --check` guards the `agent-class-function-reference` block, which lists `scripts/agent/tool_preparation.py` classes (checked in Step 3) | — | Verified |
 | docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md | Modify | Add `args_hash` to the `tool_call_state` column contract | REQ-006 | The doc's `tool_call_state` column contract lists the current columns without `args_hash` (checked in Step 3) | — | Verified |
+| `scripts/agent/tool_call_identity.py` | Create (new file): call identity, side-effect flag, and retry-class classification helpers extracted from agent/tool_runner.py | tool_runner.py is 24544 B against the 24576 B module-size gate; passing args_hash at the recorder call site plus the mypy union-attr guard exceeds it, so the three private helpers are split out (python-refactoring Path C module split, approved 20261125) | REQ-006 / N/A: none cites REQ-006 | wc -c scripts/agent/tool_runner.py = 24544 B at HEAD; tools/check_module_size.py fails at 24580 B with the minimal procedure-05 change; the three helpers are private with no callers outside tool_runner (repository rg) | tests/agent/test_tool_runner.py (existing 111 tests, 99% coverage of tool_runner, behavior lock for the move) | Verified |
+| `docs/23_agent/agent_14_reference-api-subpackages-generated.md` | Modify (generated block) | Regenerate the guarded subpackage reference block: the new subpackage symbols land here, not in agent_13 | REQ-007 / N/A: none cites REQ-007 | tools/generate_reference_table.py _run_manifests rewrites every DOMAIN_DOCS doc including REFERENCE_DOC_AGENT_SUBPACKAGES; live build_manifest("agent_api") gains TurnControl (scripts/agent/workflow/workflow_engine.py) and reconstruct_replay_directives (scripts/agent/workflow/tool_call_state_ops.py) and changes record_tool_call's signature, all non-top-level entries rendered into this doc (current block line 247 shows the old signature) | tests/tools/test_generate_reference_table.py::TestCheckDrift::test_live_docs_have_no_drift | Verified |
+| `registry/manifests/agent_api.yaml` | Modify (generated manifest) | Rewrite the committed manifest so the block-vs-manifest direction of the drift gate agrees with live sources; --type agent writes only the doc block and leaves the manifest stale | REQ-007 / N/A: none cites REQ-007 | uv run python tools/generate_reference_table.py --check reports DRIFT: registry/manifests/agent_api.yaml (manifest stale); the stale entries are exactly this Plan's 4 changes (3 added symbols, 1 changed signature); _run_domain writes only DOMAIN_DOCS docs, _run_manifests writes the manifest then re-renders the docs | tests/tools/test_generate_reference_table.py::TestCheckDrift::test_live_docs_have_no_drift | Verified |
+| `tools/check_docs_structure.py` | Modify (re-accept per-file ceiling) | Re-record agent_14's per-file ceiling at the size the regenerated block reaches; the ceiling equals the accepted size, so the new rows fail the gate without it | REQ-007 / N/A: none cites REQ-007 | tools/check_docs_structure.py:176 SIZE_EXCEPTIONS entry "agent_14_reference-api-subpackages-generated.md": 33078; the live-source render is 33392 B, so tests/tools/test_generate_reference_table.py::TestSymbolEntries::test_generated_agent_index_stays_within_the_document_ceiling fails assert 33392 <= 33078 | tests/tools/test_generate_reference_table.py::TestSymbolEntries::test_generated_agent_index_stays_within_the_document_ceiling | Verified |
+| `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` | Modify (cited source path) | The ADR Invariant Matrix cites scripts/agent/tool_runner.py::_classify_retry_class; that helper moved to scripts/agent/tool_call_identity.py in plan row 22, so the citation must name the file that defines it or the pre-commit ADR hook fails. | REQ-007 / N/A: none cites REQ-007 | pre-commit hook 'Check ADR Invariant Matrix cited test paths exist' reports the cited node missing at line 88 after the move | pre-commit run --all-files (ADR hook); no test file change | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze) for the full validation procedure):
 - One row per file. A directory, glob pattern (`*`, `**`), component/module name, file group, or a vague phrase (e.g. "related files", "as necessary", or "etc.") MUST NOT appear as a row — list each file individually by its exact repository-relative path.
@@ -148,6 +158,11 @@ Yes. Per `docs/00_index.md` "Document References by Task" (Agent spec scope), th
 | docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md | Modify | Low | 8 | High | not applicable (rsynced) |
 | docs/23_agent/agent_13_reference-api-generated.md | Modify | Low | 26 | High | not applicable (rsynced) |
 | docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md | Modify | Low | 14 | High | not applicable (rsynced) |
+| `scripts/agent/tool_call_identity.py` | Modify | Not assessed (amendment 2026-11-25) | N/A | N/A | Not assessed (amendment 2026-11-25) |
+| `docs/23_agent/agent_14_reference-api-subpackages-generated.md` | Modify | Not assessed (amendment 2026-11-25) | N/A | N/A | Not assessed (amendment 2026-11-25) |
+| `registry/manifests/agent_api.yaml` | Modify | Not assessed (amendment 2026-11-25) | N/A | N/A | Not assessed (amendment 2026-11-25) |
+| `tools/check_docs_structure.py` | Modify | Not assessed (amendment 2026-11-25) | N/A | N/A | Not assessed (amendment 2026-11-25) |
+| `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` | Modify | Not assessed (amendment 2026-11-25) | N/A | N/A | Not assessed (amendment 2026-11-25) |
 
 ## Design
 
@@ -198,6 +213,7 @@ Alternatives: a parameter through `handle_llm_turn` — rejected, the executor c
    - [ ] Extend the `ToolCallRecorder` Protocol signature (REQ-006; `scripts/agent/context.py`)
    - [ ] Pass the prepared call's `args_hash` from its execution context at the recorder call site (REQ-006; `scripts/agent/tool_runner.py`)
    - [ ] Update the affected call sites and recorder fakes (REQ-007; `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_status_vocabulary.py`, `tests/agent/test_mcp_call_recovery.py`, `tests/agent/test_tool_runner.py`)
+   - [ ] Create (new file): call identity, side-effect flag, and retry-class classification helpers extracted from agent/tool_runner.py (REQ-006; `scripts/agent/tool_call_identity.py`) — amendment 2026-11-25
 2. **Phase 2: ReplayDirective and preparation matching**
    - [ ] Add the `ReplayDirective` dataclass and the per-turn `replay_directives` field (REQ-001; `scripts/agent/tool_preparation.py`, `scripts/agent/context.py`)
    - [ ] Match a reissued call in `_prepare_one` by tool name plus canonical argument hash, attach the original id to the prepared call's context, consume once, fail closed on ambiguity with a structured error (REQ-002, REQ-003; `scripts/agent/tool_preparation.py`)
@@ -211,6 +227,10 @@ Alternatives: a parameter through `handle_llm_turn` — rejected, the executor c
 5. **Phase 5: Documentation and deployment**
    - [ ] Document the Agent-managed replay next to the identifier definitions; regenerate the guarded reference block; update the `tool_call_state` column contract (REQ-002, REQ-005, REQ-006, REQ-007; `docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md`, `docs/23_agent/agent_13_reference-api-generated.md`, `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md`)
    - [ ] Hand off to `skills/deploy/SKILL.md`: the change is committed and pushed first, and deploying is the user's decision (approval gate); state the prerequisite that an existing deployed `workflow.sqlite` fails the shape gate and must be archived and recreated by the operator per the DB recreation procedure (REQ-006)
+   - [ ] Modify (generated block) (REQ-007; `docs/23_agent/agent_14_reference-api-subpackages-generated.md`) — amendment 2026-11-25
+   - [ ] Modify (generated manifest) (REQ-007; `registry/manifests/agent_api.yaml`) — amendment 2026-11-25
+   - [ ] Modify (re-accept per-file ceiling) (REQ-007; `tools/check_docs_structure.py`) — amendment 2026-11-25
+   - [ ] Modify (cited source path) (REQ-007; `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`) — amendment 2026-11-25
 
 ### Release units
 **Unit**: persisted directive store | **Phases**: 1 | **Reason**: the `args_hash` column and its write path (Protocol, `StateStore`, `tool_call_state_ops`, the `tool_runner` call site) land in one commit; a `NOT NULL` column without a default breaks every existing `INSERT` until the writer populates it, so the members cannot be validated alone.
@@ -229,6 +249,10 @@ Alternatives: a parameter through `handle_llm_turn` — rejected, the executor c
 | tests/integration/test_replay_directive_across_restart.py | Integration | `uv run pytest tests/integration/test_replay_directive_across_restart.py -m integration` | Interrupted-to-reissued-to-completed across restart (AC-005) |
 | Full suite / gates | — | `uv run ruff check scripts/`; `uv run mypy --no-namespace-packages scripts/ tests/eventbus tools`; `PYTHONPATH=scripts uv run lint-imports`; `uv run pytest`; `uv run diff-cover coverage.xml --compare-branch=master`; `uv run pre-commit run --all-files` | All pass; diff-cover ≥ 90% on changed lines (AC-006) |
 | Generated reference block | Gate | `uv run python tools/generate_reference_table.py --check` | No drift after `ReplayDirective` is added |
+| docs/23_agent/agent_14_reference-api-subpackages-generated.md | Gate | `uv run python tools/generate_reference_table.py --check` | No drift after the three subpackage rows (`TurnControl`, `reconstruct_replay_directives`, the changed `record_tool_call` signature) are regenerated |
+| registry/manifests/agent_api.yaml | Gate | `uv run python tools/generate_reference_table.py --manifests` then `--check` | Committed manifest matches live sources; the block-vs-manifest direction agrees |
+| tools/check_docs_structure.py | Test | `uv run pytest tests/tools/test_generate_reference_table.py -q` | `agent_14`'s per-file ceiling test passes at the re-accepted 33,392 B |
+| docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md | Gate | `uv run pre-commit run --all-files` (ADR Invariant Matrix hook) | The cited node for `_classify_retry_class` resolves against `scripts/agent/tool_call_identity.py` |
 | DB separation | Gate | `uv run python tools/check_db_separation.py` | `tool_call_state` ownership unchanged |
 
 ## Risks
@@ -243,11 +267,11 @@ Alternatives: a parameter through `handle_llm_turn` — rejected, the executor c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: persisted directive store (schema column + write path + affected call sites) | In Progress | — | — | Release unit A |
-| 2 | Phase 2: ReplayDirective type, preparation matching, one-time consumption, fail-closed | In Progress | — | — |  |
-| 3 | Phase 3: engine `TurnControl` contract, LLM-safe control text, adapter carry, stub updates | In Progress | — | — |  |
-| 4 | Phase 4: cross-restart integration test | In Progress | — | — |  |
-| 5 | Phase 5: documentation, generated block, deploy hand-off | In Progress | — | — | Deploy is the user's decision |
+| 1 | Phase 1: persisted directive store (schema column + write path + affected call sites) | Completed | — | 20261125-145753 | Release unit A |
+| 2 | Phase 2: ReplayDirective type, preparation matching, one-time consumption, fail-closed | Completed | — | 2026-11-25 | all cited target files have archived procedures in this batch; close_procedures_batch could not map the step because the Plan's original rows write the path without backticks |
+| 3 | Phase 3: engine `TurnControl` contract, LLM-safe control text, adapter carry, stub updates | Completed | — | 2026-11-25 | all cited target files have archived procedures in this batch; close_procedures_batch could not map the step because the Plan's original rows write the path without backticks |
+| 4 | Phase 4: cross-restart integration test | Completed | — | 2026-11-25 | all cited target files have archived procedures in this batch; close_procedures_batch could not map the step because the Plan's original rows write the path without backticks |
+| 5 | Phase 5: documentation, generated block, deploy hand-off | Completed | — | 20261125-145753 | Deploy is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -257,27 +281,32 @@ Alternatives: a parameter through `handle_llm_turn` — rejected, the executor c
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261125-112546_01_scripts_db_schema_sql.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_02_scripts_agent_workflow_tool_call_state_ops.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_03_scripts_agent_workflow_state_store.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_04_scripts_agent_context.py.md` | 1, 2 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_05_scripts_agent_tool_runner.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_06_scripts_agent_tool_preparation.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_07_scripts_agent_workflow_workflow_engine.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_08_scripts_agent_workflow_engine_adapter.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_09_tests_agent_test_tool_preparation.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_10_tests_agent_test_tool_runner.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_11_tests_agent_workflow_test_workflow_engine.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_12_tests_agent_workflow_test_workflow_state_store.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_13_tests_agent_workflow_test_workflow_status_vocabulary.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_14_tests_agent_test_mcp_call_recovery.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_15_tests_agent_test_orchestrator.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_16_tests_agent_workflow_test_no_workflow_bypass.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_17_tests_agent_workflow_test_adapter_guards.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_18_tests_integration_test_replay_directive_across_restart.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_19_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_20_docs_23_agent_agent_13_reference-api-generated.md.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261125-112546_21_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_01_scripts_db_schema_sql.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_02_scripts_agent_workflow_tool_call_state_ops.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_03_scripts_agent_workflow_state_store.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_04_scripts_agent_context.py.md` | 1, 2 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_05_scripts_agent_tool_runner.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_06_scripts_agent_tool_preparation.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_07_scripts_agent_workflow_workflow_engine.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_08_scripts_agent_workflow_engine_adapter.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_09_tests_agent_test_tool_preparation.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_10_tests_agent_test_tool_runner.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_11_tests_agent_workflow_test_workflow_engine.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_12_tests_agent_workflow_test_workflow_state_store.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_13_tests_agent_workflow_test_workflow_status_vocabulary.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_14_tests_agent_test_mcp_call_recovery.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_15_tests_agent_test_orchestrator.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_16_tests_agent_workflow_test_no_workflow_bypass.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_17_tests_agent_workflow_test_adapter_guards.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_18_tests_integration_test_replay_directive_across_restart.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_19_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_20_docs_23_agent_agent_13_reference-api-generated.md.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261125-112546_21_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md` | 5 | Procedure | Completed | — | — |
+| implementations/20261125-112546_22_scripts_agent_tool_call_identity.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-112546_23_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-112546_24_registry_manifests_agent_api.yaml.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-112546_25_tools_check_docs_structure.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-112546_26_docs_10_adr_adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -286,7 +315,7 @@ Alternatives: a parameter through `handle_llm_turn` — rejected, the executor c
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261125-105505
-- **Related target files**: `scripts/db/schema_sql.py`, `scripts/agent/workflow/tool_call_state_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/context.py`, `scripts/agent/tool_runner.py`, `scripts/agent/tool_preparation.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow_engine_adapter.py`, `tests/agent/test_tool_preparation.py`, `tests/agent/test_tool_runner.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_status_vocabulary.py`, `tests/agent/test_mcp_call_recovery.py`, `tests/agent/test_orchestrator.py`, `tests/agent/workflow/test_no_workflow_bypass.py`, `tests/agent/workflow/test_adapter_guards.py`, `tests/integration/test_replay_directive_across_restart.py`, `docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md`, `docs/23_agent/agent_13_reference-api-generated.md`, `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md`
+- **Related target files**: `scripts/db/schema_sql.py`, `scripts/agent/workflow/tool_call_state_ops.py`, `scripts/agent/workflow/state_store.py`, `scripts/agent/context.py`, `scripts/agent/tool_runner.py`, `scripts/agent/tool_preparation.py`, `scripts/agent/workflow/workflow_engine.py`, `scripts/agent/workflow_engine_adapter.py`, `tests/agent/test_tool_preparation.py`, `tests/agent/test_tool_runner.py`, `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_status_vocabulary.py`, `tests/agent/test_mcp_call_recovery.py`, `tests/agent/test_orchestrator.py`, `tests/agent/workflow/test_no_workflow_bypass.py`, `tests/agent/workflow/test_adapter_guards.py`, `tests/integration/test_replay_directive_across_restart.py`, `docs/23_agent/agent_06_01_tool-execution-and-approval-execution.md`, `docs/23_agent/agent_13_reference-api-generated.md`, `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md`, `scripts/agent/tool_call_identity.py`, `docs/23_agent/agent_14_reference-api-subpackages-generated.md`, `registry/manifests/agent_api.yaml`, `tools/check_docs_structure.py`, `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md`
 
 ### Requirement Traceability
 
@@ -325,5 +354,10 @@ Alternatives: a parameter through `handle_llm_turn` — rejected, the executor c
 | REQ-007 | Constraints | tests/agent/workflow/test_no_workflow_bypass.py | Phase 3 | AC-006 | Fake engine stub update | Confirmed by repository evidence |
 | REQ-007 | Constraints | tests/agent/workflow/test_adapter_guards.py | Phase 3 | AC-006 | Mock return-value update | Confirmed by repository evidence |
 | REQ-007 | Constraints | docs/23_agent/agent_13_reference-api-generated.md | Phase 5 | AC-006 | `generate_reference_table.py --check` | Confirmed by repository evidence |
+| REQ-006 | Amendment 2026-11-25: tool_runner.py is 24544 B against the 24576 B module-size gate; passing args_hash at the recorder call site plus the mypy union-attr guard exceeds it, so the three private helpers are split out (python-refactoring Path C module split, approved 20261125) | scripts/agent/tool_call_identity.py | Phase 1 | N/A: none cites REQ-006 | tests/agent/test_tool_runner.py (existing 111 tests, 99% coverage of tool_runner, behavior lock for the move) | Confirmed by repository evidence |
+| REQ-007 | Amendment 2026-11-25: Regenerate the guarded subpackage reference block: the new subpackage symbols land here, not in agent_13 | docs/23_agent/agent_14_reference-api-subpackages-generated.md | Phase 5 | N/A: none cites REQ-007 | tests/tools/test_generate_reference_table.py::TestCheckDrift::test_live_docs_have_no_drift | Confirmed by repository evidence |
+| REQ-007 | Amendment 2026-11-25: Rewrite the committed manifest so the block-vs-manifest direction of the drift gate agrees with live sources; --type agent writes only the doc block and leaves the manifest stale | registry/manifests/agent_api.yaml | Phase 5 | N/A: none cites REQ-007 | tests/tools/test_generate_reference_table.py::TestCheckDrift::test_live_docs_have_no_drift | Confirmed by repository evidence |
+| REQ-007 | Amendment 2026-11-25: Re-record agent_14's per-file ceiling at the size the regenerated block reaches; the ceiling equals the accepted size, so the new rows fail the gate without it | tools/check_docs_structure.py | Phase 5 | N/A: none cites REQ-007 | tests/tools/test_generate_reference_table.py::TestSymbolEntries::test_generated_agent_index_stays_within_the_document_ceiling | Confirmed by repository evidence |
+| REQ-007 | Amendment 2026-11-25: The ADR Invariant Matrix cites scripts/agent/tool_runner.py::_classify_retry_class; that helper moved to scripts/agent/tool_call_identity.py in plan row 22, so the citation must name the file that defines it or the pre-commit ADR hook fails. | docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md | Phase 5 | N/A: none cites REQ-007 | pre-commit run --all-files (ADR hook); no test file change | Confirmed by repository evidence |
 
 <!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261125-112546 -->

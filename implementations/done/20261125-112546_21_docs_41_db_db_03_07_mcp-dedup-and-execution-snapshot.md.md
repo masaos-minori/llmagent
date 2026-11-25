@@ -57,8 +57,8 @@ No change to the retired-table paragraph or to the `mcp_dedup.sqlite` sections.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `args_hash` to the column contract | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Add `args_hash` to the column contract | Completed | — | 2026-11-25 |  |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | — | 2026-11-25 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -6,11 +6,11 @@ Regenerate the guarded `AUTO-GENERATED` reference block after the new `ReplayDir
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- The block is generated, not hand-written: the change is the generator output committed in the same change set
-  (ADR-015 INV-01).
+- The block is generated, not hand-written (ADR-015 INV-01).
 
 ## Design decisions
-- Run the generator for the agent domain rather than editing the table by hand.
+- Run the generator in manifest mode: `--type agent` writes only this document and leaves the committed manifest
+  stale against the sources rows 02 and 06 change.
 
 ## Alternatives considered
 - Hand-editing the block — rejected: the `--check` gate fails whenever the block and the source diverge.
@@ -23,15 +23,17 @@ Regenerate the guarded `AUTO-GENERATED` reference block after the new `ReplayDir
 Refresh the `agent-class-function-reference` block.
 
 ### Method
-Run `uv run python tools/generate_reference_table.py --type agent` after sibling procedure seq 06 adds the dataclass,
-then commit the regenerated block.
+Run `uv run python tools/generate_reference_table.py --manifests` after sibling procedure seq 06 adds the dataclass,
+then commit the regenerated block. The same run writes `registry/manifests/agent_api.yaml` (row 24) and re-renders
+`agent_14` (row 23), so the three rows are one generator run committed as one change set.
 
 ### Details
-- The block lists classes under `scripts/agent/`, so only the new dataclass row appears; no other row changes.
+- Exactly one row is added: `ReplayDirective` in the `scripts/agent/tool_preparation.py` group, before
+  `PreparedToolCall`. The subpackage symbols render into row 23, not here.
+- This document stays under `MAX_SIZE` (28,948 B against 32,768 B), so no `SIZE_EXCEPTIONS` entry is needed.
 
 ## Compatibility considerations
-The CI `lint` job runs `uv run python tools/generate_reference_table.py --check`, so the regenerated block must be
-committed with the code change, not in a later commit.
+The CI `lint` job runs `--check`, so the regenerated block must be committed with the code change.
 
 ## Security considerations
 N/A.
@@ -55,8 +57,8 @@ No change to the other guarded blocks in this document.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the guarded agent reference block | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Regenerate the guarded agent reference block | Completed | — | 2026-11-25 | shared `--manifests` run with rows 23 and 24 shared --manifests run with rows 23 and 24; agent_13 gains exactly 1 row (ReplayDirective) |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | — | 2026-11-25 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

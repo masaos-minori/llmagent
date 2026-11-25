@@ -64,8 +64,8 @@ No dispatcher-side dedup assertions (mcpai001 boundary).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the cross-restart integration test | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the cross-restart integration test | Completed | — | 2026-11-25 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 2026-11-25 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

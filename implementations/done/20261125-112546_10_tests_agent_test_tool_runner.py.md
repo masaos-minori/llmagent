@@ -58,8 +58,8 @@ No change to the DAG scheduling tests in this file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the recorder fake and add the replay recording test | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the recorder fake and add the replay recording test | Completed | — | 20261125-130922 | fake now mirrors the Protocol exactly: the dead snapshot_id parameter was removed and args_hash added in Protocol order; one new test asserts the recorded key is the directive id and the recorded hash is the canonical hash |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125-130922 | 112 passed; ruff format/check pass; mypy clean; check_mock_patch_targets no findings; no tuple-length assertions existed to update |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

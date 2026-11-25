@@ -5,8 +5,7 @@ Move the hand-written fake engine in this file to the `TurnControl` contract.
 **Release unit**: N/A: not part of a release unit
 
 ## Assumptions
-- The stub at line 75 returns an empty string and no test in this file asserts control text, so returning `None`
-  keeps the bypass behavior the tests check.
+- The stub at line 4101 returns `None` and performs no state work, so only its declared return type changes.
 
 ## Design decisions
 N/A: stub signature update.
@@ -16,21 +15,21 @@ N/A: test-only change.
 
 ## Implementation
 ### Target file
-`tests/agent/workflow/test_no_workflow_bypass.py`
+`tests/agent/test_orchestrator.py`
 
 ### Procedure
-Change the fake engine's `build_turn_control_message` to the contract type.
+Change the fake engine's `build_turn_control_message` annotation to the contract type.
 
 ### Method
-Annotate the return as `TurnControl` (resolved from sibling procedure seq 07) or `None` and return `None`.
+Annotate the return as `TurnControl` (resolved from sibling procedure seq 07) or `None` and keep the `None` return.
 
 ### Details
-- If a guard in this file later asserts that the adapter received control text, return a `TurnControl` with the
-  same text and no directives instead of `None`.
+- The docstring line that cites the contract (toolexec001 row 08) stays; no behavior change is expected because
+  the orchestrator tests do not assert control text.
 
 ## Compatibility considerations
-The adapter calls this stub through the same contract as the real engine, so the stub must not return a plain
-string after the contract change.
+Only the fake engines that the adapter calls are affected; files that import the engine without calling the
+method are not.
 
 ## Security considerations
 N/A.
@@ -39,21 +38,21 @@ N/A.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run pytest tests/agent/workflow/test_no_workflow_bypass.py` (REQ-007).
+- `uv run pytest tests/agent/test_orchestrator.py` (REQ-007).
 
 ## Completion criteria
-The bypass guard still proves no workflow-layer bypass exists, and the stub matches the engine contract.
+The fake matches the engine contract and the orchestrator tests still pass.
 
 ## Out of Scope
-No change to the bypass detection itself.
+No change to the turn-boundary tests in this file.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the fake engine stub to the `TurnControl` contract | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the fake engine stub to the `TurnControl` contract | Completed | — | 20261125-132424 | fake engine annotation is now 'TurnControl | None'; TurnControl added to the existing workflow_engine import (same layer, no contract change); the stub still returns None |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 2026-11-25 | 149 passed; ruff format/check pass; check_mock_patch_targets clean; mypy shows the 61 pre-existing errors of this file unchanged (none on the changed lines, tests/agent is outside the CI mypy scope); end-of-batch run: full suite 14240 passed, diff-cover 100% on changed lines, pre-commit all hooks pass, cited ADR tests 75 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -73,4 +72,4 @@ No change to the bypass detection itself.
 - **Source plan**: `plans/20261125-105505_mcpai004_logical-idempotency-key-replay.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261125-112546
-- **Related target files**: `tests/agent/workflow/test_no_workflow_bypass.py`
+- **Related target files**: `tests/agent/test_orchestrator.py`

@@ -1,12 +1,11 @@
 ## Goal
-Update the two recorded-call call sites for the new `args_hash` argument.
+Update the recovery fixture's recorded-call call site for the new `args_hash` argument.
 
 ## Scope
 **Release unit**: persisted directive store
 
 ## Assumptions
-- The file's `KNOWN_WRITER_STATUSES` comment describes the recorder write path; the vocabulary itself does not
-  change.
+- One call site (line 101) inside the helper that plants a stale row; the helper's shape stays the same.
 
 ## Design decisions
 N/A: call-site update only.
@@ -16,16 +15,18 @@ N/A: test-only change.
 
 ## Implementation
 ### Target file
-`tests/agent/workflow/test_workflow_status_vocabulary.py`
+`tests/agent/test_mcp_call_recovery.py`
 
 ### Procedure
-Add the hash argument to the two `store.record_tool_call` calls (line 136 and the second in the same test group).
+Add the hash argument to the `env.store.record_tool_call` call.
 
 ### Method
-Pass a fixed canonical hash so the recorded row is complete under the `NOT NULL` column.
+Pass a fixed canonical hash; the helper keeps its `created_at` aging step unchanged so the row is still past the
+timeout window.
 
 ### Details
-- No new assertion: this file pins the state vocabulary, which is unchanged.
+- Give the helper an optional hash parameter only if more than one test needs a distinct hash; otherwise use the
+  fixed value.
 
 ## Compatibility considerations
 Depends on the DDL column from sibling procedure seq 01.
@@ -37,21 +38,21 @@ N/A.
 N/A: revert the commit.
 
 ## Validation plan
-- `uv run pytest tests/agent/workflow/test_workflow_status_vocabulary.py` (REQ-007).
+- `uv run pytest tests/agent/test_mcp_call_recovery.py` (REQ-007).
 
 ## Completion criteria
-The vocabulary tests still pass with the new column populated.
+The recovery tests pass with the planted row carrying a hash.
 
 ## Out of Scope
-No change to the vocabulary mapping itself.
+No change to the recovery ownership or lease behavior.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the two call sites | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the call site | Completed | — | 20261125-132216 | one call site in _seed_row; fixed hash via _canonical_args_hash, created_at aging unchanged; no helper parameter needed (single test group uses one hash) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125-132216 | 25 passed; ruff format/check pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -65,10 +66,10 @@ No change to the vocabulary mapping itself.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-006` (persisted hash), `REQ-007` (call-site update)
+- **Requirement ID**: `REQ-006` (persisted hash), `REQ-007` (fake signature update)
 - **Source issue**: `issues/20261119-140511_mcpai004_logical-idempotency-key-replay.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: `plans/20261125-105505_mcpai004_logical-idempotency-key-replay.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261125-112546
-- **Related target files**: `tests/agent/workflow/test_workflow_status_vocabulary.py`
+- **Related target files**: `tests/agent/test_mcp_call_recovery.py`

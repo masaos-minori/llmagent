@@ -28,6 +28,9 @@ the same argument order as the underlying helper.
 
 ### Details
 - No other method in this module touches `tool_call_state`, so no further change is needed.
+- Validation correction: the facade gains one read pass-through, `reconstruct_replay_directives(task_id)`, so the
+  engine reaches the reconstruction through the store instead of the `SQLiteHelper` handle. The facade computes
+  nothing, per the Assumptions above.
 - The `ToolCallRecorder` Protocol that this class satisfies is updated by sibling procedure seq 04;
   the two must land in the same release unit.
 
@@ -59,8 +62,8 @@ No hash computation, no change to the recorder facade's other methods.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add and forward the `args_hash` parameter | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add and forward the `args_hash` parameter | Completed | — | 20261125-122719 | stale detection clean; changed: scripts/agent/workflow/state_store.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122719 | 2026-11-25 | ruff/mypy/bandit/module-size pass; 11 red states: call sites updated by procedure 12 end-of-batch run: full suite 14240 passed, diff-cover 100% on changed lines, pre-commit all hooks pass, cited ADR tests 75 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

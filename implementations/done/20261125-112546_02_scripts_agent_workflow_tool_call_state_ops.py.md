@@ -10,6 +10,11 @@ reconstruction that turns `interrupted` replayable rows into replay directives.
 - One-time consumption is recorded durably by the row's state transition (`interrupted` →
   `dispatch_starting` on replay), so a restarted process sees no directive for a consumed row.
 
+Validation correction: the transition records consumption only once the row leaves the replayable states.
+`classify_stale_pending` re-transitions a stale row at `dispatch_starting` to `interrupted` (mcpdl001 REQ-009),
+so a row the replay left there produces a directive again; durable one-time consumption is recorded by the
+terminal state the replay reaches. The query docstring states this.
+
 ## Design decisions
 - This module returns persisted rows only; the directive object itself is declared by sibling
   procedure seq 06 (`agent.tool_preparation`), so no new type is introduced here and no import from
@@ -70,9 +75,9 @@ No directive type, no consumption bookkeeping beyond the row state, no change to
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `record_tool_call`, `ToolCallState`, `_row_to_state` | Pending | — | — | |
-| 2 | Add `reconstruct_replay_directives` (new) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend `record_tool_call`, `ToolCallState`, `_row_to_state` | Completed | — | 20261125-122656 | stale detection clean; changed: scripts/agent/workflow/tool_call_state_ops.py |
+| 2 | Add `reconstruct_replay_directives` (new) | Completed | — | 20261125-122656 | reconstruct_replay_directives added |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122656 | 2026-11-25 | ruff/mypy/bandit/module-size pass; 11 red states: record_tool_call call sites updated by procedure 12 end-of-batch run: full suite 14240 passed, diff-cover 100% on changed lines, pre-commit all hooks pass, cited ADR tests 75 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

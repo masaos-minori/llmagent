@@ -52,8 +52,8 @@ No change to the stale-classification tests beyond the call sites.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the 18 call sites and add the hash assertions | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the 18 call sites and add the hash assertions | Completed | — | 20261125-132045 | 18 call sites pass the canonical hash computed with agent.tool_preparation._canonical_args_hash; added the args_hash exposure assertion and the reconstruction test (interrupted replayable rows only, oldest first). The repeated call-site rewrite is now the tool tools/normalize_test_args_hash.py (AGENTS.md Policy 7), registered in tools/TOOL_DESCRIPTIONS.md |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125-132045 | 56 passed; ruff format/check pass on the test file and the new tool; mypy clean on the tool; check_tool_descriptions_sync and the tools/ module-size gate pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

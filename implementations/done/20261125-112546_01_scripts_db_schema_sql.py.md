@@ -66,9 +66,9 @@ No migration or version-store step; no change to `mcp_dedup.sqlite` tables.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `args_hash` column to the canonical DDL | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Run the path-keyed gates (`rules/tool-gates.md`) | Pending | — | — | check_db_separation, check_module_size |
+| 1 | Add the `args_hash` column to the canonical DDL | Completed | — | 20261125-122003 | stale detection clean; changed: scripts/db/schema_sql.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122006 | 2026-11-25 | tests/db/test_create_schema.py 71 passed; impact-selected run pending end-of-batch run: full suite 14240 passed, diff-cover 100% on changed lines, pre-commit all hooks pass, cited ADR tests 75 passed |
+| 3 | Run the path-keyed gates (`rules/tool-gates.md`) | Completed | — | 2026-11-25 | check_db_separation, check_module_size check_db_separation: no violations; check_module_size: OK, schema_sql.py under the gate |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

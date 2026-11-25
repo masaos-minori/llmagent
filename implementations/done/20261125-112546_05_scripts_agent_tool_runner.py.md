@@ -61,8 +61,8 @@ No change to `_logical_call_id`, the DAG ordering, or the audit path.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Pass `args_hash` at the recorder call site | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Pass `args_hash` at the recorder call site | Completed | — | 20261125-124514 | args_hash passed at the recorder call site from pc.context; changed: scripts/agent/tool_runner.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-124514 | 2026-11-25 | ruff/mypy/bandit pass; module-size gate resolved by procedure 22 (Path C split, approved 20261125): tool_runner 23736 B; tests/agent/test_tool_runner.py 111 passed; recorder fake still lacks args_hash -> red state resolved by procedure 10 end-of-batch run: full suite 14240 passed, diff-cover 100% on changed lines, pre-commit all hooks pass, cited ADR tests 75 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

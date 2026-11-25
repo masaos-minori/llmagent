@@ -12,10 +12,13 @@ original logical call id.
   by the adapter.
 
 ## Design decisions
-- `ReplayDirective` (new) is a frozen dataclass whose fields are `original_call_id` (new), `task_id`, `tool`,
+- `ReplayDirective` (new) is a dataclass whose fields are `original_call_id` (new), `task_id`, `tool`,
   `args_hash`, and `consumed`; it stays inside the `agent` layer, so no import-linter boundary changes.
-- Matching is extracted into its own helper so `_prepare_one`, already at radon C rank, does not grow further
-  (`rules/toolchain.md` complexity gate).
+  Validation correction: it is not frozen — `consumed` is set by the matching helper, and a frozen dataclass
+  cannot carry one-time consumption without a second holder object.
+- Matching, ambiguity, consumption, and the id choice are extracted into one helper that returns the resolved
+  call id or the rejection tuple, so `_prepare_one` gains exactly one branch (radon C (16) → C (17)) instead of
+  the three branches inline matching would add (`rules/toolchain.md` complexity gate).
 
 ## Alternatives considered
 - Matching inside `_prepare_one` inline — rejected: it adds branches to a C-rank function and mixes id
@@ -30,12 +33,12 @@ Add the directive dataclass, the matching helper, and the id attachment in `_pre
 
 ### Method
 - Add `ReplayDirective` (new) with the fields above.
-- Add `_match_replay_directive` (new) that takes the prepared call's tool name and `_canonical_args_hash(args)`
-  and returns the single unconsumed directive for the current task, `None` when nothing matches, and the set of
-  matches when more than one matches.
-- In `_prepare_one`, after the arguments are validated and before the context is built, consult the helper: on a
-  single match, use the directive's original call id as `ToolExecutionContext.call_id` and mark the directive
-  consumed; otherwise keep the fresh `_logical_call_id()`.
+- Add `_resolve_replay_call_id` (new) that takes the prepared call's tool name and `_canonical_args_hash(args)`
+  and returns the resolved logical call id: the single unconsumed directive's original id for the current task
+  (marked consumed), a fresh `_logical_call_id()` when nothing matches, or the `_reject` tuple when more than one
+  directive matches.
+- In `_prepare_one`, after the arguments are validated and before the context is built, consult the helper and
+  return its rejection tuple when it is one; otherwise use the returned id as `ToolExecutionContext.call_id`.
 
 ### Details
 - Ambiguity is fail closed: when several directives match, return `_reject(tc_id, name, args, "ambiguity", ...)`
@@ -77,9 +80,9 @@ No directive persistence, no change to the approval grant or the transport DTO.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `ReplayDirective` (new) and `_match_replay_directive` (new) | Pending | — | — | |
-| 2 | Attach the original id in `_prepare_one`, consume once, fail closed | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `ReplayDirective` (new) and `_match_replay_directive` (new) | Completed | — | 20261125-125350 | ReplayDirective is not frozen (consumed must be mutable); helper named _resolve_replay_call_id returns the resolved id or the _reject tuple |
+| 2 | Attach the original id in `_prepare_one`, consume once, fail closed | Completed | 20261125-125350 | 20261125-125350 | ambiguity kind added to _reject's free-string vocabulary; _prepare_one radon C(16) -> C(17), one added branch ambiguity kind added to _reject's free-string vocabulary; _prepare_one radon C(16) -> C(17), one added branch |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-125350 | 2026-11-25 | ruff/mypy/bandit/module-size/lint-imports/mock-patch-targets pass; tests/agent/test_tool_preparation.py 19 passed (existing); new directive tests come from procedure 09 end-of-batch run: full suite 14240 passed, diff-cover 100% on changed lines, pre-commit all hooks pass, cited ADR tests 75 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

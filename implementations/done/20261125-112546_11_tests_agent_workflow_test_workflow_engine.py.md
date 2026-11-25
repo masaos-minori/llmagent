@@ -33,6 +33,15 @@ Update the control-message tests and add directive-construction tests.
 - `_stale_row` gains an `args_hash` argument with a fixed test value so the directive hash is predictable.
 - The no-listed-rows case still returns `None`; keep that test.
 
+### Validation corrections
+- `test_interrupted_rows_are_consumed_once` cannot assert that a consumed row stops producing a directive through
+  `dispatch_starting`: `classify_stale_pending` re-transitions a stale row in that state to `interrupted`
+  (mcpdl001 REQ-009), so a row the replay left there is replayable again. Durable one-time consumption is recorded
+  by the row leaving the replayable states, so the test asserts the second turn-entry reconstructs the same
+  directive from the persisted row and the turn is clean after the replay reaches a terminal state. The same
+  wording is corrected in `reconstruct_replay_directives` (sibling procedure seq 02) and in the engine docstring
+  (sibling procedure seq 07).
+
 ## Compatibility considerations
 The store fixture must expose the reconstruction helper from sibling procedure seq 02; the tests call it through
 the engine, not directly.
@@ -58,8 +67,8 @@ No change to the workflow stage-execution tests in this file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update control-message assertions and add directive tests | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update control-message assertions and add directive tests | Completed | — | 20261125-131416 | assertions moved to TurnControl (text names tool and args_hash, id absent); directive tests for interrupted/non_retryable/outcome_unknown; consumed-once test rewritten to the terminal-state semantics |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261125-131416 | 38 passed; ruff format/check pass; check_mock_patch_targets no findings; mypy 1 pre-existing error (tests/agent is outside the CI mypy scope) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

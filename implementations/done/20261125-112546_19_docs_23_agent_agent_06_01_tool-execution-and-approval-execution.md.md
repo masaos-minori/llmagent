@@ -61,8 +61,8 @@ No change to the MCP design-document sweep (mcpai012).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the replay-directive paragraph | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Add the replay-directive paragraph | Completed | — | 2026-11-25 |  |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | — | 2026-11-25 | check_docs_consistency --domain agent: 1 pre-existing unrelated warning (agent_14 line 49, /db command) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
