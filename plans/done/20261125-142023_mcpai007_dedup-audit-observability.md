@@ -54,13 +54,13 @@ Add fields additively, with defaults that keep older records and older server re
 | `scripts/shared/http_transport.py` | Parse `dedup_state` in `_parse_http_response` and `_tool_error_result` | Both parsers build the result from `result`/`is_error` only | REQ-002; AC-1, AC-2 | `_parse_http_response` reads `result`, `is_error`, header `x-request-id`; `_tool_error_result` reads `detail`/`result` (checked in Step 3) | `tests/shared/test_http_transport.py` | Verified |
 | `scripts/agent/shared/models.py` | Add `turn_id` to `ToolApprovalEvent` and `ToolExecEvent`; add `task_linkage` to `ToolApprovalEvent` | Events have only `task_id` (turn id); approval event has no workflow task field | REQ-004, REQ-006; AC-3, AC-4 | `ToolApprovalEvent` (line 13) and `ToolExecEvent` (line 39) have no `turn_id`; `ToolExecEvent.task_linkage` exists (checked in Step 3) | `tests/agent/test_tool_audit.py`, `tests/agent/test_audit_log_format.py` | Verified |
 | `scripts/agent/tool_audit.py` | Populate `turn_id` and `task_linkage` from context in `audit_approval` and `audit_tool_exec` | Writers set `task_id=ctx.turn.current_turn_id`; `task_linkage` stays empty | REQ-004, REQ-005; AC-3, AC-5 | `tool_audit.py:141` and `:277` set `task_id` from the turn; `:290` takes `task_linkage` from the caller; `:295` serializes `dedup_state` when non-empty (checked in Step 2) | `tests/agent/test_tool_audit.py`, `tests/agent/test_audit_log_format.py` | Verified |
-| `scripts/agent/tool_runner.py` | Replace the inline `audit_tool_exec` call and `_record_transport_failure` with calls into the new module | File is 23736 B against the 24576 B module size gate (re-measured at Step 8 re-run on 20261125; was 24544 B at plan generation); the audit call omits `dedup_state` | REQ-003, REQ-007; AC-1, AC-6 | `tool_runner.py:362` calls `audit_tool_exec` without `dedup_state`; `wc -c` = 23736 (re-checked at Step 8 re-run) | `tests/agent/test_tool_runner.py` | Verified |
+| `scripts/agent/tool_runner.py` | Replace the inline `audit_tool_exec` call and `_record_transport_failure` with calls into the new module | File is 23736 B against the 24576 B module size gate (re-measured at Step 8 re-run on 20261125; was 24544 B at plan generation); the audit call omits `dedup_state` | REQ-003, REQ-007; AC-1, AC-6 | `tool_runner.py:344` calls `audit_tool_exec` without `dedup_state` (line shifted from 362; re-checked at Step 3a on 20261125); `wc -c` = 23736 (re-checked at Step 8 re-run) | `tests/agent/test_tool_runner.py` | Verified |
 | `scripts/agent/tool_result_audit.py` | Create: `record_tool_exec(ctx, name, args, result, call_id)` and `record_transport_failure(ctx, name, result, call_id)` | Extraction target that keeps `tool_runner.py` under the size gate and carries `dedup_state` and ids | REQ-003, REQ-005, REQ-007; AC-1, AC-5, AC-6 | New file; `scripts/agent/` exists and imports `agent.tool_audit` and `agent.diagnostic_store` without a cycle (checked in Step 3) | `tests/agent/test_tool_runner.py`, `tests/agent/test_dedup_audit_correlation.py` | Verified |
 | `scripts/agent/diagnostic_store.py` | Add optional `call_id`, `request_id`, `task_id`, `turn_id` keyword parameters to `save_transport_failure` | The diagnostic JSON has only tool_name, server_key, error | REQ-005; AC-5 | `save_transport_failure` (line 259) builds `{tool_name, server_key, error}` into the `content` JSON blob; no schema column change (checked in Step 3) | `tests/agent/test_diagnostic_store.py` | Verified |
 | `tests/shared/test_transport_dto.py` | Add default and carry cases for `dedup_state` | Pin REQ-001 | REQ-001; AC-1 | File tests `ToolCallResult.from_transport` (checked in Step 3) | itself | Verified |
 | `tests/shared/test_http_transport.py` | Parser tests for every dedup state, tool-level errors, missing and non-string values | Pin REQ-002 | REQ-002; AC-1, AC-2 | `test_tool_level_status_returns_tool_error_result` and `test_tool_level_status_with_malformed_body` exist at lines 426-455 (checked in Step 3) | itself | Verified |
 | `tests/agent/test_tool_audit.py` | Update the field-set pin and INV-11 tests; add `turn_id`, `task_linkage`, `dedup_state` cases | The exact payload field set is pinned at lines 385-403 | REQ-004, REQ-006; AC-3, AC-4 | `assert set(payload) == expected \| {"execution_snapshot_json"}` (checked in Step 3) | itself | Verified |
-| `tests/agent/test_audit_log_format.py` | Add the new fields to the approval and exec format contracts | Row-8 contract test pins approval serialization | REQ-004, REQ-006; AC-3, AC-4 | `test_approval_event_carries_idempotency_key_field` at line 552 (checked in Step 3) | itself | Verified |
+| `tests/agent/test_audit_log_format.py` | Add the new fields to the approval and exec format contracts | Row-8 contract test pins approval serialization | REQ-004, REQ-006; AC-3, AC-4 | `test_approval_event_carries_idempotency_key_field` at line 551 (line shifted from 552; re-checked at Step 3a on 20261125) | itself | Verified |
 | `tests/agent/test_tool_runner.py` | Assert `dedup_state` reaches the audit line and the diagnostics record carries the ids | Pin REQ-003, REQ-005, REQ-007 | REQ-003, REQ-005; AC-1, AC-5 | File patches `save_transport_failure` and exercises `execute_one_tool_call` (checked in Step 3) | itself | Verified |
 | `tests/agent/test_diagnostic_store.py` | Cover the new optional keys and the old-call-shape compatibility | Pin REQ-005, REQ-006 | REQ-005, REQ-006; AC-4, AC-5 | File covers `save_transport_failure` (checked in Step 3) | itself | Verified |
 | `tests/agent/test_dedup_audit_correlation.py` | Create: end-to-end correlation test | Pin REQ-009 | REQ-009; AC-7 | New file; `tests/agent/` exists (checked in Step 3) | itself | Verified |
@@ -144,7 +144,7 @@ Yes (REQ-006, REQ-008). Update the audit field definitions and the compatibility
 **Classification**: Path B (more than 3 files; changes the runtime `ToolCallResult` contract and audit event shapes). Persisted schema check: no DDL, schema version, or migration is touched (`tool_call_state` is unchanged; diagnostics use a JSON `content` blob), so `rules/persisted-schema-change.md` does not apply.
 
 **Corrected understanding of the Issue** (Step 2 adversarial verification):
-- "No occurrence of `dedup_state` in `scripts/agent/`" is stale: `audit_tool_exec` already accepts and serializes `dedup_state` (`tool_audit.py:222,295`). The real gap is that `ToolCallResult` cannot carry it and `tool_runner.py:362` never passes it.
+- "No occurrence of `dedup_state` in `scripts/agent/`" is stale: `audit_tool_exec` already accepts and serializes `dedup_state` (`tool_audit.py:222,295`). The real gap is that `ToolCallResult` cannot carry it and `tool_runner.py` never passes it (line 344 at the Step 3a re-check on 20261125; 362 at plan generation).
 - The turn-id-in-`task_id` mapping is confirmed (`tool_audit.py:141,277`) and is a documented, tested invariant (ADR-001 INV-11), not an accident; hence UNK-01.
 - Logical call id in approval, state row, and `tool_exec` is already done (`audit_approval`/`audit_tool_exec` take `idempotency_key`; `tool_runner._logical_call_id` is the sole key). The remaining gap is the diagnostics record.
 - `review_required` is not a shipped state (UNK-05).
@@ -212,12 +212,12 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Transport result and parser | Pending | — | — | |
-| 2 | Phase 2: Audit event fields | Pending | — | — | |
-| 3 | Phase 3: Runner wiring, extraction, and diagnostics | Pending | — | — | |
-| 4 | Phase 4: End-to-end correlation test | Pending | — | — | |
-| 5 | Phase 5: Documentation | Pending | — | — | |
-| 6 | Phase 6: Deployment & Verification | Pending | — | — | |
+| 1 | Phase 1: Transport result and parser | In Progress | — | — |  |
+| 2 | Phase 2: Audit event fields | In Progress | — | — |  |
+| 3 | Phase 3: Runner wiring, extraction, and diagnostics | In Progress | — | — |  |
+| 4 | Phase 4: End-to-end correlation test | In Progress | — | — |  |
+| 5 | Phase 5: Documentation | In Progress | — | — |  |
+| 6 | Phase 6: Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -228,6 +228,19 @@ N/A: no release unit
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | issues/20261125-142023_unknowns.md | 2 | Issue | Resolved (option B, 20261125) | — | — |
+| implementations/20261125-162155_01_scripts_shared_transport_dto.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-162155_02_scripts_shared_http_transport.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-162155_03_scripts_agent_shared_models.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-162155_04_scripts_agent_tool_audit.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-162155_05_scripts_agent_tool_runner.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-162155_06_scripts_agent_tool_result_audit.py.md | 3, 4 | Procedure | Pending | — | — |
+| implementations/20261125-162155_07_scripts_agent_diagnostic_store.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-162155_10_tests_agent_test_tool_audit.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-162155_11_tests_agent_test_audit_log_format.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-162155_12_tests_agent_test_tool_runner.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-162155_15_docs_22_mcp_mcp_06_06_end-to-end-tool-call-tracing.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261125-162155_16_docs_40_shared_shared_02_02_types_and_protocols-tool-and-execution-dto.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261125-162155_17_docs_23_agent_agent_13_reference-api-generated.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -245,7 +258,7 @@ N/A: no release unit
 | REQ-001 | Testing Expectations | `tests/shared/test_transport_dto.py` | Phase 1 | AC-1 | `uv run pytest tests/shared/test_transport_dto.py` | Derived from confirmed evidence |
 | REQ-002 | Required Changes bullet 1 (success and tool-level error) | `scripts/shared/http_transport.py` | Phase 1 | AC-1, AC-2 | `tests/shared/test_http_transport.py` | Confirmed by repository evidence |
 | REQ-002 | Testing Expectations (parser tests per state) | `tests/shared/test_http_transport.py` | Phase 1 | AC-2 | `uv run pytest tests/shared/test_http_transport.py` | Explicit in issue |
-| REQ-003 | Acceptance Criteria 1; `tool_runner.py:362` | `scripts/agent/tool_runner.py` | Phase 3 | AC-1 | `tests/agent/test_tool_runner.py` | Confirmed by repository evidence |
+| REQ-003 | Acceptance Criteria 1; `tool_runner.py:344` (line shifted from 362; re-checked at Step 3a on 20261125) | `scripts/agent/tool_runner.py` | Phase 3 | AC-1 | `tests/agent/test_tool_runner.py` | Confirmed by repository evidence |
 | REQ-003 | Acceptance Criteria 1 | `scripts/agent/tool_result_audit.py` | Phase 3 | AC-1 | `tests/agent/test_tool_runner.py` | Derived from confirmed evidence |
 | REQ-003 | Acceptance Criteria 1 | `tests/agent/test_tool_runner.py` | Phase 3 | AC-1 | `uv run pytest tests/agent/test_tool_runner.py` | Derived from confirmed evidence |
 | REQ-004 | Required Changes bullet 2; `tool_audit.py:141,277`; ADR-001 INV-11 | `scripts/agent/shared/models.py` | Phase 2 | AC-3 | `tests/agent/test_tool_audit.py` | Confirmed (UNK-01 resolved: option B, 20261125) |
@@ -263,3 +276,5 @@ N/A: no release unit
 | REQ-008 | Documentation Impact | `docs/40_shared/shared_02_02_types_and_protocols-tool-and-execution-dto.md` | Phase 5 | AC-4 | Docs checkers in Validation plan | Explicit in issue |
 | REQ-008 | Predictable fallout check (generated block) | `docs/23_agent/agent_13_reference-api-generated.md` | Phase 5 | AC-4 | `uv run python tools/generate_reference_table.py --check` | Derived from confirmed evidence |
 | REQ-009 | Testing Expectations (end-to-end correlation) | `tests/agent/test_dedup_audit_correlation.py` | Phase 4 | AC-7 | `uv run pytest tests/agent/test_dedup_audit_correlation.py` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261125-162155 -->
