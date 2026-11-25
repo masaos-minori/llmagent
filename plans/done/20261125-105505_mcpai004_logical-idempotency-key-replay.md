@@ -52,7 +52,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | scripts/agent/workflow/tool_call_state_ops.py | Modify | `record_tool_call` stores `args_hash`; `ToolCallState` and `_row_to_state` gain the field; add directive reconstruction from persisted `interrupted` replayable rows | REQ-001, REQ-006 | `record_tool_call()` INSERT column list and `ToolCallState` dataclass lack `args_hash`; `classify_stale_pending()` is the turn-entry entry point (checked in Step 3) | tests/agent/workflow/test_workflow_state_store.py | Verified |
 | scripts/agent/workflow/state_store.py | Modify | `StateStore.record_tool_call` passes `args_hash` through to `tool_call_state_ops` | REQ-006 | `StateStore.record_tool_call` delegates to `tool_call_state_ops.record_tool_call` (checked in Step 3) | tests/agent/workflow/test_workflow_state_store.py | Verified |
 | scripts/agent/context.py | Modify | `ToolCallRecorder` Protocol `record_tool_call` signature gains `args_hash`; `TurnState` gains the per-turn `replay_directives` field (Agent-controlled directive holder) | REQ-001, REQ-002, REQ-006 | `ToolCallRecorder` Protocol and `TurnState` in `scripts/agent/context.py`; `TurnState` is the per-turn transient state the Issue's constraint requires (checked in Step 3) | tests/agent/test_tool_runner.py (recorder fake) | Verified |
-| scripts/agent/tool_runner.py | Modify | The recorder call site passes the canonical argument hash (`_canonical_args_hash` of the prepared call) | REQ-006 | `tool_runner` calls `recorder.record_tool_call` and already imports `_canonical_args_hash` from `agent.tool_preparation` (checked in Step 3) | tests/agent/test_tool_runner.py | Verified |
+| scripts/agent/tool_runner.py | Modify | The recorder call site passes the canonical argument hash already carried on the prepared call's execution context | REQ-006 | `tool_runner` calls `recorder.record_tool_call` (line 202) and does not import `_canonical_args_hash`; the hash is read from `ToolExecutionContext.args_hash`, so no new import is added (corrected in `plan-to-implementation-procedure` Step 3a) | tests/agent/test_tool_runner.py | Verified |
 | scripts/agent/tool_preparation.py | Modify | Add the `ReplayDirective` dataclass; match a reissued call in `_prepare_one` by tool name plus canonical argument hash; attach the original id to the prepared call's context; consume each directive once; fail closed on ambiguity with a structured error | REQ-001, REQ-002, REQ-003 | `_prepare_one` generates the fresh uuid7 via `_logical_call_id`; `_canonical_args_hash` and the `_reject` failure path exist in the same module (checked in Step 3) | tests/agent/test_tool_preparation.py | Verified |
 | scripts/agent/workflow/workflow_engine.py | Modify | Change `build_turn_control_message` to return a `TurnControl` (control text plus directives); the control text names tool and `args_hash` only, never the id; build directives only from `interrupted` rows with `retry_class` `retryable` | REQ-004, REQ-005 | `build_turn_control_message` prints `idempotency_key` in the replay and unreplayable lines and splits replayable/non-retryable by `retry_class` (checked in Step 3) | tests/agent/workflow/test_workflow_engine.py | Verified |
 | scripts/agent/workflow_engine_adapter.py | Modify | Consume the `TurnControl`: pass the control text unchanged to the executor and register the directives on `ctx.turn.replay_directives` for the turn | REQ-002, REQ-005 | `_run_execute_stage` calls `build_turn_control_message` and passes `control_message` to `handle_llm_turn` (checked in Step 3) | tests/agent/workflow/test_adapter_guards.py | Verified |
@@ -196,7 +196,7 @@ Alternatives: a parameter through `handle_llm_turn` — rejected, the executor c
    - [ ] Store `args_hash` in `record_tool_call`, extend `ToolCallState` and `_row_to_state`, add directive reconstruction from persisted `interrupted` replayable rows (REQ-001, REQ-006; `scripts/agent/workflow/tool_call_state_ops.py`)
    - [ ] Pass `args_hash` through `StateStore.record_tool_call` (REQ-006; `scripts/agent/workflow/state_store.py`)
    - [ ] Extend the `ToolCallRecorder` Protocol signature (REQ-006; `scripts/agent/context.py`)
-   - [ ] Pass `_canonical_args_hash` at the recorder call site (REQ-006; `scripts/agent/tool_runner.py`)
+   - [ ] Pass the prepared call's `args_hash` from its execution context at the recorder call site (REQ-006; `scripts/agent/tool_runner.py`)
    - [ ] Update the affected call sites and recorder fakes (REQ-007; `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_status_vocabulary.py`, `tests/agent/test_mcp_call_recovery.py`, `tests/agent/test_tool_runner.py`)
 2. **Phase 2: ReplayDirective and preparation matching**
    - [ ] Add the `ReplayDirective` dataclass and the per-turn `replay_directives` field (REQ-001; `scripts/agent/tool_preparation.py`, `scripts/agent/context.py`)
@@ -243,11 +243,11 @@ Alternatives: a parameter through `handle_llm_turn` — rejected, the executor c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: persisted directive store (schema column + write path + affected call sites) | Pending | — | — | Release unit A |
-| 2 | Phase 2: ReplayDirective type, preparation matching, one-time consumption, fail-closed | Pending | — | — | |
-| 3 | Phase 3: engine `TurnControl` contract, LLM-safe control text, adapter carry, stub updates | Pending | — | — | |
-| 4 | Phase 4: cross-restart integration test | Pending | — | — | |
-| 5 | Phase 5: documentation, generated block, deploy hand-off | Pending | — | — | Deploy is the user's decision |
+| 1 | Phase 1: persisted directive store (schema column + write path + affected call sites) | In Progress | — | — | Release unit A |
+| 2 | Phase 2: ReplayDirective type, preparation matching, one-time consumption, fail-closed | In Progress | — | — |  |
+| 3 | Phase 3: engine `TurnControl` contract, LLM-safe control text, adapter carry, stub updates | In Progress | — | — |  |
+| 4 | Phase 4: cross-restart integration test | In Progress | — | — |  |
+| 5 | Phase 5: documentation, generated block, deploy hand-off | In Progress | — | — | Deploy is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -257,7 +257,27 @@ Alternatives: a parameter through `handle_llm_turn` — rejected, the executor c
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261125-112546_01_scripts_db_schema_sql.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_02_scripts_agent_workflow_tool_call_state_ops.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_03_scripts_agent_workflow_state_store.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_04_scripts_agent_context.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_05_scripts_agent_tool_runner.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_06_scripts_agent_tool_preparation.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_07_scripts_agent_workflow_workflow_engine.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_08_scripts_agent_workflow_engine_adapter.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_09_tests_agent_test_tool_preparation.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_10_tests_agent_test_tool_runner.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_11_tests_agent_workflow_test_workflow_engine.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_12_tests_agent_workflow_test_workflow_state_store.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_13_tests_agent_workflow_test_workflow_status_vocabulary.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_14_tests_agent_test_mcp_call_recovery.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_15_tests_agent_test_orchestrator.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_16_tests_agent_workflow_test_no_workflow_bypass.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_17_tests_agent_workflow_test_adapter_guards.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_18_tests_integration_test_replay_directive_across_restart.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_19_docs_23_agent_agent_06_01_tool-execution-and-approval-execution.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_20_docs_23_agent_agent_13_reference-api-generated.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261125-112546_21_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md` | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -305,3 +325,5 @@ Alternatives: a parameter through `handle_llm_turn` — rejected, the executor c
 | REQ-007 | Constraints | tests/agent/workflow/test_no_workflow_bypass.py | Phase 3 | AC-006 | Fake engine stub update | Confirmed by repository evidence |
 | REQ-007 | Constraints | tests/agent/workflow/test_adapter_guards.py | Phase 3 | AC-006 | Mock return-value update | Confirmed by repository evidence |
 | REQ-007 | Constraints | docs/23_agent/agent_13_reference-api-generated.md | Phase 5 | AC-006 | `generate_reference_table.py --check` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261125-112546 -->
