@@ -30,7 +30,7 @@ Covers:
 The tool reads ``ROOT_DIR`` (a module constant) to locate templates and to build
 relative file paths, so every test that exercises path handling monkeypatches
 ``tools.check_workitem_structure.ROOT_DIR`` to an isolated ``tmp_path`` tree and
-installs copies of the three real templates underneath it. No test writes into
+installs copies of the real templates underneath it. No test writes into
 the repository's real ``templates/``, ``issues/``, ``plans/``, or
 ``implementations/`` directories.
 """
@@ -43,10 +43,17 @@ import pytest
 
 import tools.check_workitem_structure as cwis
 from tools import _workitem_leftover_rules as wlr
+from tools._workitem_companion_kinds import companion_kind
 from tools._workitem_status_table import STATUS_VOCABULARY
 
 _SRC_ROOT = Path(__file__).resolve().parent.parent.parent
-_TEMPLATE_NAMES = ("issue.md", "plan.md", "implementation-procedure.md")
+_TEMPLATE_NAMES = (
+    "issue.md",
+    "plan.md",
+    "implementation-procedure.md",
+    "unknowns-issue.md",
+    "risks-issue.md",
+)
 
 
 def _write(dir_path: Path, filename: str, content: str) -> Path:
@@ -57,7 +64,7 @@ def _write(dir_path: Path, filename: str, content: str) -> Path:
 
 
 def _install_templates(root: Path) -> None:
-    """Copy the three real canonical templates under ``root/templates``."""
+    """Copy the real canonical templates under ``root/templates``."""
     dest = root / "templates"
     dest.mkdir(parents=True, exist_ok=True)
     for name in _TEMPLATE_NAMES:
@@ -1033,3 +1040,128 @@ def test_length_finding_does_not_mask_a_blocking_finding(doc_root: Path) -> None
         "## Goal\n### Target file\n`docs/a.md`\n" + "Padding line.\n" * 70,
     )
     assert cwis.main(["--file", str(doc)]) == 1
+
+
+# --- companion kinds: unknowns and risks documents (gate001) ------------------------
+
+_TS = "20261125-091717"
+_COMPANION_HEADING_ONLY = {
+    "unknowns": "Evidence Missing",
+    "risks": "Suggested resolution",
+}
+
+
+@pytest.mark.parametrize(
+    ("rel", "kind"),
+    [
+        (f"issues/{_TS}_unknowns.md", "unknowns"),
+        (f"issues/{_TS}_02_unknowns.md", "unknowns"),
+        (f"issues/{_TS}_risks.md", "risks"),
+        (f"issues/{_TS}_01_risks.md", "risks"),
+        (f"issues/{_TS}_1_risks.md", "risks"),
+        (f"issues/{_TS}_001_unknowns.md", "unknowns"),
+        (f"issues/done/{_TS}_unknowns.md", "unknowns"),
+        (f"issues/{_TS}_gate001_unknowns.md", None),
+        (f"issues/{_TS}_x_foo-unknowns.md", None),
+        (f"issues/{_TS}_unknowns.txt", None),
+        (f"issues/{_TS}_ab_risks.md", None),
+        (f"plans/{_TS}_unknowns.md", None),
+        (f"issues/x/{_TS}_unknowns.md", None),
+    ],
+)
+def test_companion_kind_by_filename(rel: str, kind: str | None) -> None:
+    assert companion_kind(Path(rel)) == kind
+
+
+def test_infer_kind_resolves_companion_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
+    assert cwis.infer_kind(tmp_path / "issues" / f"{_TS}_unknowns.md") == "unknowns"
+    assert cwis.infer_kind(tmp_path / "issues" / "done" / f"{_TS}_risks.md") == "risks"
+    assert cwis.infer_kind(tmp_path / "issues" / f"{_TS}_gate001_x.md") == "issue"
+    assert cwis.infer_kind(tmp_path / "plans" / f"{_TS}_unknowns.md") == "plan"
+    assert cwis.infer_kind(tmp_path / "other" / f"{_TS}_unknowns.md") is None
+
+
+def _skeleton(template_name: str) -> str:
+    return _scaffold(template_name)
+
+
+@pytest.mark.parametrize(
+    ("kind", "template"),
+    [("unknowns", "unknowns-issue.md"), ("risks", "risks-issue.md")],
+)
+def test_companion_document_uses_its_own_template(
+    kind: str, template: str, issue_root: Path
+) -> None:
+    doc = _write(issue_root, f"{_TS}_{kind}.md", _skeleton(template))
+    assert cwis.collect_single_file_findings(doc) == []
+    assert cwis.main(["--file", str(doc)]) == 0
+
+
+@pytest.mark.parametrize(
+    ("kind", "template"),
+    [("unknowns", "unknowns-issue.md"), ("risks", "risks-issue.md")],
+)
+def test_companion_missing_its_own_heading_is_reported(
+    kind: str, template: str, issue_root: Path
+) -> None:
+    heading = _COMPANION_HEADING_ONLY[kind]
+    body = _skeleton(template).replace(f"## {heading}\n", "", 1)
+    doc = _write(issue_root, f"{_TS}_02_{kind}.md", body)
+    findings = cwis.collect_single_file_findings(doc)
+    assert [f["detail"] for f in findings] == [
+        f"missing required section: ## {heading}"
+    ]
+    assert cwis.main(["--file", str(doc)]) == 1
+
+
+def test_ordinary_issue_named_like_a_companion_is_still_an_issue(
+    issue_root: Path,
+) -> None:
+    doc = _write(
+        issue_root, f"{_TS}_gate001_unknowns.md", _skeleton("unknowns-issue.md")
+    )
+    details = [f["detail"] for f in cwis.collect_single_file_findings(doc)]
+    assert "missing required section: ## Priority" in details
+
+
+def test_discovery_assigns_and_selects_companion_kinds(issue_root: Path) -> None:
+    _write(issue_root, f"{_TS}_unknowns.md", _skeleton("unknowns-issue.md"))
+    _write(issue_root, f"{_TS}_01_risks.md", _skeleton("risks-issue.md"))
+    _write(issue_root, f"{_TS}_gate001_slug.md", "# plain\n")
+    everything = {"issue", "plan", "implementation", "unknowns", "risks"}
+
+    def kinds_of(selected: set[str]) -> dict[str, str]:
+        found = cwis.discover_documents(selected, include_done=False)
+        return {path.name: kind for kind, path in found}
+
+    assert kinds_of(everything) == {
+        f"{_TS}_unknowns.md": "unknowns",
+        f"{_TS}_01_risks.md": "risks",
+        f"{_TS}_gate001_slug.md": "issue",
+    }
+    assert kinds_of({"issue"}) == {f"{_TS}_gate001_slug.md": "issue"}
+    assert kinds_of({"unknowns"}) == {f"{_TS}_unknowns.md": "unknowns"}
+    assert kinds_of({"plan"}) == {}
+
+
+def test_kind_option_accepts_companion_kinds_and_default_scans_them(
+    issue_root: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    body = _skeleton("risks-issue.md").replace("## Risk\n", "", 1)
+    _write(issue_root, f"{_TS}_risks.md", body)
+    assert cwis.main(["--kind", "risks"]) == 1
+    assert "missing required section: ## Risk" in capsys.readouterr().out
+    assert cwis.main(["--kind", "unknowns"]) == 0
+    assert cwis.main(["--kind", "issue"]) == 0
+    assert cwis.main([]) == 1
+
+
+def test_live_repository_companion_documents_have_no_missing_section(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cwis, "ROOT_DIR", _SRC_ROOT)
+    findings = cwis.collect_findings({"unknowns", "risks"}, include_done=False)
+    assert [f for f in findings if f["category"] == "missing-section"] == []

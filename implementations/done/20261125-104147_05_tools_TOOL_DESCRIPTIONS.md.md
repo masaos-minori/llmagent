@@ -58,8 +58,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the two `check_workitem_structure.py` rows and add the module row | Pending | — | — | |
-| 2 | Run the sync and drift checks (`rules/tool-gates.md` "When to run which tool") | Pending | — | — | |
+| 1 | Edit the two `check_workitem_structure.py` rows and add the module row | Completed | 20261125-105021 | 20261125-105030 | Changed: tools/TOOL_DESCRIPTIONS.md (two checker rows, new _workitem_companion_kinds.py row) |
+| 2 | Run the sync and drift checks (`rules/tool-gates.md` "When to run which tool") | Completed | 20261125-105030 | 20261125-105030 | check_tool_descriptions_sync: no issues; drift: parity OK |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

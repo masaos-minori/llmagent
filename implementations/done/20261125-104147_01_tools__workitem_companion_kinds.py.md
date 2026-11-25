@@ -61,9 +61,9 @@ N/A: revert the commit; nothing else imports the module before `seq` 02.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the module with `COMPANION_TEMPLATES` (new), the name pattern, and `companion_kind` (new) | Pending | — | — | |
-| 2 | Add the detection tests (carried by the `seq` 03 procedure) | Pending | — | — | |
-| 3 | Run ruff, mypy, bandit, and the companion tests | Pending | — | — | |
+| 1 | Create the module with `COMPANION_TEMPLATES` (new), the name pattern, and `companion_kind` (new) | Completed | 20261125-104839 | 20261125-104846 | Changed: tools/_workitem_companion_kinds.py; ruff, mypy, bandit clean; stale check clean |
+| 2 | Add the detection tests (carried by the `seq` 03 procedure) | Completed | 20261125-105715 | 20261125-105715 | Tests carried by the seq 03 procedure; tests/tools/test_check_workitem_structure.py: 104 passed; mutation check failed 14 cases and was reverted |
+| 3 | Run ruff, mypy, bandit, and the companion tests | Completed | 20261125-105715 | 20261125-105715 | ruff format and check, mypy, bandit, size gate, run_validation_gates: no Fail. Full suite once for the batch: 14067 passed, 2 failed (test_generated_agent_index_stays_within_the_document_ceiling fails at HEAD; test_check_repo_path_equivalence passed alone, in tests/mcp_servers/git (445 passed), and at HEAD), unrelated to this change. diff-cover: N/A, no covered lines (tools/ and tests/ are outside --cov=scripts). Step 5/6: N/A, no docs/ file changed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -7,7 +7,8 @@ including each directory's `done/` subdirectory). For each document, extracts
 the `## ` heading set from the matching canonical template's fenced
 ` ```markdown ` block (`templates/issue.md`, `templates/plan.md`,
 `templates/implementation-procedure.md`) and reports any required heading
-missing from the document itself.
+missing from the document itself. Unknown and Risk companion
+documents use their own templates (`tools/_workitem_companion_kinds.py`).
 
 This complements `check_workitem_traceability.py` (which validates the
 content of an existing `## Traceability` section) by validating that a
@@ -83,6 +84,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if __package__ in (None, ""):
     sys.path.insert(0, str(ROOT_DIR))
 
+from tools._workitem_companion_kinds import COMPANION_TEMPLATES, companion_kind
 from tools._workitem_leftover_rules import (
     find_issue_leftover_findings,
     find_plan_leftover_findings,
@@ -154,7 +156,8 @@ def _extract_template_headings(template_path: Path) -> tuple[str, ...]:
 
 def load_template_specs() -> dict[str, TemplateSpec]:
     specs: dict[str, TemplateSpec] = {}
-    for kind, template_rel_path, _dir_rel_path in _WORK_ITEM_KINDS:
+    templates = {k: t for k, t, _dir in _WORK_ITEM_KINDS} | COMPANION_TEMPLATES
+    for kind, template_rel_path in templates.items():
         headings = _extract_template_headings(ROOT_DIR / template_rel_path)
         specs[kind] = TemplateSpec(kind=kind, required_headings=headings)
     return specs
@@ -163,8 +166,9 @@ def load_template_specs() -> dict[str, TemplateSpec]:
 def discover_documents(kinds: set[str], include_done: bool) -> list[tuple[str, Path]]:
     """Return (kind, path) pairs for every target document to check."""
     documents: list[tuple[str, Path]] = []
+    wanted = kinds | ({"issue"} if kinds & COMPANION_TEMPLATES.keys() else set())
     for kind, _template_rel_path, dir_rel_path in _WORK_ITEM_KINDS:
-        if kind not in kinds:
+        if kind not in wanted:
             continue
         dir_candidates = [ROOT_DIR / dir_rel_path]
         if include_done:
@@ -173,7 +177,9 @@ def discover_documents(kinds: set[str], include_done: bool) -> list[tuple[str, P
             if not dir_path.is_dir():
                 continue
             for md_path in sorted(dir_path.glob("*.md")):
-                documents.append((kind, md_path))
+                doc_kind = companion_kind(md_path.relative_to(ROOT_DIR)) or kind
+                if doc_kind in kinds:
+                    documents.append((doc_kind, md_path))
     return documents
 
 
@@ -381,7 +387,7 @@ def infer_kind(doc_path: Path) -> str | None:
     parts = rel_path.parts
     if not parts:
         return None
-    return _DIR_TO_KIND.get(parts[0])
+    return companion_kind(rel_path) or _DIR_TO_KIND.get(parts[0])
 
 
 def _is_archived(doc_path: Path) -> bool:
@@ -519,10 +525,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--kind",
-        choices=["issue", "plan", "implementation"],
+        choices=["issue", "plan", "implementation", *COMPANION_TEMPLATES],
         action="append",
         dest="kinds",
-        help="Restrict the check to one kind (repeatable; default: all three)",
+        help="Restrict the check to one kind (repeatable; default: all kinds)",
     )
     parser.add_argument(
         "--include-done",
@@ -572,7 +578,9 @@ def main(argv: list[str] | None = None) -> int:
             for finding in collect_single_file_findings(path)
         ]
     else:
-        kinds = set(args.kinds) if args.kinds else {"issue", "plan", "implementation"}
+        kinds = set(
+            args.kinds or {"issue", "plan", "implementation", *COMPANION_TEMPLATES}
+        )
         findings = collect_findings(kinds, args.include_done)
 
     if args.format == "json":

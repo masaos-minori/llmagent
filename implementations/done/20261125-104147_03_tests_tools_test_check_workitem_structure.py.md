@@ -62,9 +62,9 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the fixture template list and add the detection, inference, and selection tests | Pending | — | — | |
-| 2 | Add the per-template pass, malformed, and skeleton tests and the live check | Pending | — | — | |
-| 3 | Run the tests, the mutation check, ruff, and mypy | Pending | — | — | |
+| 1 | Extend the fixture template list and add the detection, inference, and selection tests | Completed | 20261125-104920 | 20261125-105012 | Changed: tests/tools/test_check_workitem_structure.py (fixture template list, detection, inference, per-template, selection, live-repository tests) |
+| 2 | Add the per-template pass, malformed, and skeleton tests and the live check | Completed | 20261125-105012 | 20261125-105012 | Companion cases added in the same edit; 104 passed; mutation check (companion_kind returning None) failed 14 cases and was reverted |
+| 3 | Run the tests, the mutation check, ruff, and mypy | Completed | 20261125-105715 | 20261125-105715 | ruff format and check, mypy, bandit, size gate, run_validation_gates: no Fail. Full suite once for the batch: 14067 passed, 2 failed (test_generated_agent_index_stays_within_the_document_ceiling fails at HEAD; test_check_repo_path_equivalence passed alone, in tests/mcp_servers/git (445 passed), and at HEAD), unrelated to this change. diff-cover: N/A, no covered lines (tools/ and tests/ are outside --cov=scripts). Step 5/6: N/A, no docs/ file changed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

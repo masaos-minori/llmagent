@@ -185,9 +185,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the companion kind module and its detection tests | In Progress | — | — |  |
-| 2 | Wire the checker and add selection and regression tests | In Progress | — | — |  |
-| 3 | Update the gate row and tool description rows | In Progress | — | — |  |
+| 1 | Create the companion kind module and its detection tests | Completed | — | 20261125-105728 |  |
+| 2 | Wire the checker and add selection and regression tests | Completed | — | 20261125-105728 |  |
+| 3 | Update the gate row and tool description rows | Completed | — | 20261125-105728 |  |
 | 4 | Verify gates, hook, and real scaffolds | Pending | — | — |  |
 
 ### Blocker Log
@@ -198,11 +198,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261125-104147_01_tools__workitem_companion_kinds.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-104147_02_tools_check_workitem_structure.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-104147_03_tests_tools_test_check_workitem_structure.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261125-104147_04_rules_tool-gates.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-104147_05_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-104147_01_tools__workitem_companion_kinds.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-104147_02_tools_check_workitem_structure.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-104147_03_tests_tools_test_check_workitem_structure.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261125-104147_04_rules_tool-gates.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-104147_05_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
