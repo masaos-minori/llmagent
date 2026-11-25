@@ -156,11 +156,11 @@ An optional subsystem enabled when `use_memory_layer=True`, accessed via `ctx.se
 
 #### Shutdown
 
-Graceful shutdown is controlled via flags. On a signal, the `shutdown_requested` flag and the shared shutdown event are set. At the prompt this ends the loop immediately (`TestSignalDuringPromptEndsLoop`); during a turn the in-flight dispatch is cancelled and the wait for that cancellation is bounded by `_GRACEFUL_TIMEOUT_S` before the loop exits (`TestMidTurnSignalIsBounded`).
+Graceful shutdown is controlled via flags. On a signal, the `shutdown_requested` flag and the shared shutdown event are set. At the prompt this ends the loop immediately (`TestSignalDuringPromptEndsLoop`); during a turn the in-flight dispatch is cancelled and the wait for that cancellation is bounded by the remaining time of the shared shutdown budget, falling back to `_GRACEFUL_TIMEOUT_S` when no budget is attached to the loop (`TestMidTurnSignalIsBounded`).
 
 The bound keeps a slow or non-cooperative turn from hanging the loop indefinitely, rather than performing a direct system exit. Handlers do not block; the loop stops waiting for the cancelled dispatch once the bound elapses.
 
-Resource closing occurs after WAL checkpointing, and both calls are independent and protected. One failing does not block the other.
+The shutdown sequence settles the in-flight writers and closes the write gate first, then persists the session snapshot, then runs the WAL checkpoint and backup, then terminates the MCP lifecycles and closes the remaining resources. Every step is independent and protected — one failing does not block the others — and each step records one outcome in the shutdown report.
 
 #### Startup Validation Pipeline
 

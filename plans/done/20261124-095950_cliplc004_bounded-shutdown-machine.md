@@ -418,7 +418,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | 4 | Phase 4: coordinator sequence, writer settling, snapshot step | Completed | 20261125-095950 | 20261125-105200 | OD-01 and OD-02 decided 2026-11-24; UNK-02 measured here: `asyncio.wait` over the writer tasks keeps an unfinished writer pending and records it `outcome_unknown` with its task name, so the sequence never waits on a worker it cannot settle. R4-sequence-and-snapshot complete 2026-11-25 (rows 5, 7, 9, 26, 27, 32): one `close_resources()` call runs the eight named steps, the persist step is registered in `AgentREPL.__init__` so the startup-failure path persists too, and `ReplInputLoop` and the coordinator share one `ShutdownBudget` |
 | 5 | Phase 5: bounded checkpoint, atomic publication, backup naming | Completed | 20261125-100500 | 20261125-105200 | UNK-01 measured here: the TRUNCATE retry checks the deadline and the interrupt event between attempts, and `SQLiteHelper.interrupt_when(stop)` aborts the in-flight statement at a progress callback, so a bounded step stops without holding the thread. UNK-05 measured here: the backup name is `{db basename}-wal-backup-{unix seconds}-{process token}` and carries no session identifier. R5-checkpoint-and-backup complete 2026-11-25 (rows 6, 28, 29): publication is `<final>.partial` then `os.replace`, so an interrupted copy is never visible under the name a later reader trusts |
 | 6 | Phase 6: termination with the remaining deadline, second-SIGINT routing | Completed | 20261125-111000 | 20261125-122647 | OD-04 and OD-05 decided 2026-11-24; UNK-03 measured here UNK-03 measured here: the remaining deadline reaches every termination wait through one optional keyword-only `budget` on the five `shutdown_all()` definitions and on `ProcessTerminator.terminate_with_timeout()`, so a wait is clamped to `budget.remaining()` and stops early on the budget's interrupt event, while SIGTERM and SIGKILL are still sent to every server (OD-05) and an unconfirmed server reports `exit_unconfirmed` / `timed_out`, never a completed step. R6-termination complete 2026-11-25 (rows 10-16, 35-40, 42, 43): `SignalHandler` arms the budget on SIGTERM and requests the interrupt on a mid-sequence SIGINT, and the startup rollback carries the same budget object. |
-| 7 | Phase 7: reporting, documents, generated artifacts | In Progress | — | — | UNK-04 settled during the operator-facing review of the summary |
+| 7 | Phase 7: reporting, documents, generated artifacts | Completed | 20261125-122600 | 20261125-130500 | UNK-04 settled during the operator-facing review of the summary. R7-reporting-and-docs complete 2026-11-25 (rows 45-55): eight documents rewritten to the bounded, reported sequence, the generated manifest and both reference blocks regenerated with no drift and no diff, and the confirm-window key wired into `ProcessTerminator` through the factory by user decision 2026-11-25 (row 48 Step 3b). Step 3b notes corrected procedure claims on rows 45-48, 50-55: the generator records top-level classes and functions of `scripts/agent` only, so `scripts/db/write_gate.py` and `shutdown_all()` method signatures appear in no manifest or generated table (the gate is documented in `docs/41_db` 4d and the signatures are pinned by code tests) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -464,17 +464,17 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261125-000005_42_tests_agent_test_startup_mcp_starter.py.md | 6 | Procedure | Completed | — | — |
 | implementations/20261125-000005_43_tests_agent_test_startup_mcp_lifecycle.py.md | 6 | Procedure | Completed | — | — |
 | implementations/20261125-000005_44_tests_agent_test_config_builders.py.md | 1 | Procedure | Completed | — | — |
-| implementations/20261125-000005_45_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-000005_46_docs_23_agent_agent_02_runtime-architecture.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-000005_47_docs_23_agent_agent_07_05_cli-and-commands-repl-io.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-000005_48_docs_23_agent_agent_08_01_configuration-loading-agent-config.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-000005_49_docs_01_overview_overview_01_03-arch-features.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-000005_50_docs_22_mcp_mcp_03_04_tool-call-tracing-and-lifecycle.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-000005_51_docs_23_agent_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-000005_52_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-000005_53_docs_23_agent_agent_13_reference-api-generated.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-000005_54_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-000005_55_registry_manifests_agent_api.yaml.md | 7 | Procedure | Pending | — | — |
+| implementations/20261125-000005_45_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-000005_46_docs_23_agent_agent_02_runtime-architecture.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-000005_47_docs_23_agent_agent_07_05_cli-and-commands-repl-io.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-000005_48_docs_23_agent_agent_08_01_configuration-loading-agent-config.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-000005_49_docs_01_overview_overview_01_03-arch-features.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-000005_50_docs_22_mcp_mcp_03_04_tool-call-tracing-and-lifecycle.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-000005_51_docs_23_agent_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-000005_52_docs_41_db_db_01_architecture_and_schema-overview-and-config.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-000005_53_docs_23_agent_agent_13_reference-api-generated.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-000005_54_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-000005_55_registry_manifests_agent_api.yaml.md | 7 | Procedure | Completed | — | — |
 ## Traceability
 - **Workflow phase**: issue-to-plan
 - **Source issue**: issues/20261119-145302_cliplc004_bounded-shutdown-machine.md

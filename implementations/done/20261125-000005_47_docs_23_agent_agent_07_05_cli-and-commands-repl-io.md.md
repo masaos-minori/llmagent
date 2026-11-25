@@ -15,6 +15,13 @@ Update the REPL input document so the interrupt and shutdown behavior it states 
 - The key constraint at `docs/23_agent/agent_07_05_cli-and-commands-repl-io.md:56` states that Ctrl-C never ends the REPL by itself, and the Plan keeps that property.
 - The Ctrl-C bullet already anticipates an opt-in force exit during shutdown; the Plan supplies the configuration key that opt-in reads.
 
+## Step 3b verification against the current source (20261125-122600)
+
+- Anchors hold: the Ctrl-C and shutdown-starting bullets are `docs/23_agent/agent_07_05_cli-and-commands-repl-io.md:39-40`, the Shutdown Behavior bullet `:47`, and the Ctrl-C constraint `:56`.
+- Procedure step 3 is corrected against the code: the refusal is one console warning line naming the phase (`ReplInputLoop._report_shutdown_refusal`, `scripts/agent/repl_input_loop.py:149-157`); what the shutdown report records is the refused-write count (`ShutdownReport.refused_write_count`), not a record per refused command or turn. The document states the line and the write count.
+- Procedure step 4 names `InputOutcome.SHUTDOWN`; the document's existing outcome vocabulary at `:41` uses the enum value `shutdown` (`scripts/agent/repl_input_controller.py:42`), and `ReplInputController.shutdown()` settles the open request with it (`:249`), so the document keeps that vocabulary.
+- The force-exit opt-in is `shutdown_force_exit_on_second_sigint` read once at `SignalHandler` construction (`scripts/agent/signal_handler.py:100-105`); the interrupt request on an armed budget is `:129-134`.
+
 ## Design decisions
 
 - Keep "Ctrl-C never ends the REPL by itself" and change only what a second Ctrl-C does during shutdown: the Plan's stated defect is the unbounded sequence, not the accidental-Ctrl-C protection.
@@ -81,8 +88,8 @@ Update the REPL input document so the interrupt and shutdown behavior it states 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the interrupt and shutdown-behavior wording | Pending | — | — | Phase 7 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Replace the interrupt and shutdown-behavior wording | Completed | 20261125-130118 | 20261125-130118 | Phase 7 Ctrl-C, shutdown-starting, and constraint bullets rewritten; Step 3b note added |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-130118 | 20261125-130118 | quality/structure/policy clean; consistency shows only the pre-existing /db warning |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -49,7 +49,7 @@ Two derived or disposable stores live outside these platform databases. `mcp_ded
 
 `SQLiteHelper` manages connection lifecycle. Its `target` (`DbTarget`: `RAG`/`SESSION`/`WORKFLOW`, enum member or same-named string) selects the DB file. The Event Bus service owns `eventbus.sqlite` and opens its own connection through `open_db()` in `scripts/eventbus/db_conn.py`; `SQLiteHelper` does not serve it.
 
-Each `open()` call loads the `sqlite-vec` extension when enabled (then `enable_load_extension(False)`), sets `PRAGMA journal_mode=WAL`, `synchronous=NORMAL`, `busy_timeout` (from `agent.toml::sqlite_busy_timeout_ms`) and, when `write_mode=True`, `foreign_keys=ON`. The extension is loaded by default for the `rag` and `session` targets (the targets that own vec0 tables), and only when `sqlite_vec_so` is non-empty; `workflow` does not load it. When `db_path` is passed explicitly (see 4a), the default follows whether `sqlite_vec_so` is non-empty. `sqlite_vec_so` is required for processes that open `rag.sqlite` or `session.sqlite`: `build_db_config()` raises when the key is empty or absent, and Agent startup validation rejects an empty value. An explicit `db_path` helper bypasses `build_db_config()` and may pass an empty `sqlite_vec_so` to skip the vec extension.
+Each `open()` call loads the `sqlite-vec` extension when enabled (then `enable_load_extension(False)`), sets `PRAGMA journal_mode=WAL`, `synchronous=NORMAL`, `busy_timeout` (from `agent.toml::sqlite_busy_timeout_ms`) and, when `write_mode=True`, `foreign_keys=ON`. The extension is loaded by default for the `rag` and `session` targets (the targets that own vec0 tables), and only when `sqlite_vec_so` is non-empty; `workflow` does not load it. When `db_path` is passed explicitly (see 4a), the default follows whether `sqlite_vec_so` is non-empty. `sqlite_vec_so` is required for processes that open `rag.sqlite` or `session.sqlite`: `build_db_config()` raises when the key is empty or absent, and Agent startup validation rejects an empty value. An explicit `db_path` helper bypasses `build_db_config()` and may pass an empty `sqlite_vec_so` to skip the vec extension. Every write entry point — `open(write_mode=True)`, `execute` and `executemany` on a write statement, `executescript`, `commit`, and the transaction helpers of 4c — consults the write gate described in 4d before doing any work.
 
 ### 4a. `SQLiteHelper` constructor `db_path` override
 
@@ -65,7 +65,11 @@ Each `open()` call loads the `sqlite-vec` extension when enabled (then `enable_l
 
 ### 4c. Transaction helpers
 
-`SQLiteHelper` provides context managers `begin_immediate()` / `begin_exclusive()` that wrap `BEGIN IMMEDIATE` / `BEGIN EXCLUSIVE`. Both attempt a `ROLLBACK` upon normal exceptions (swallowing `sqlite3.OperationalError`) and re-raise the original exception. They do not catch `BaseException` (e.g., `KeyboardInterrupt`/`SystemExit`). `begin_exclusive()` is intended specifically for operations requiring exclusive locks, such as `VACUUM` or schema changes.
+`SQLiteHelper` provides context managers `begin_immediate()` / `begin_exclusive()` that wrap `BEGIN IMMEDIATE` / `BEGIN EXCLUSIVE`. Both attempt a `ROLLBACK` upon normal exceptions (swallowing `sqlite3.OperationalError`) and re-raise the original exception. They do not catch `BaseException` (e.g., `KeyboardInterrupt`/`SystemExit`). `begin_exclusive()` is intended specifically for operations requiring exclusive locks, such as `VACUUM` or schema changes. Both are guarded write entry points: the gate is consulted before the `BEGIN` is issued (see 4d).
+
+### 4d. Write gate
+
+The db layer honors a process-wide write gate created by the agent layer: the db layer does not own the gate, it refuses writes when the gate says shutdown has begun. The gate has three states — `open`, `closing`, and `closed`. A write attempted while `closing` without authorization, or while `closed`, raises `WriteGateClosed` before any statement is prepared, so a refused write never allocates a cursor or opens a transaction, and is counted as a refused write before the exception is raised; a caller that swallows the exception is still in the count. The shutdown-owned writes (the snapshot, checkpoint, and persist steps) run inside a short-lived authorized context the gate provides: writes are permitted only for the duration of that block, the authorization does not outlive it, and it does not reach a thread that was not started inside it. Reads are never gated and succeed in every state, which is what lets the checkpoint and snapshot steps keep reading after the gate closes. The refusal count is reported by the shutdown report.
 
 ---
 
@@ -76,3 +80,4 @@ Each `open()` call loads the `sqlite-vec` extension when enabled (then `enable_l
 - dbconfig
 - sqlitehelper
 - layer-structure
+- write-gate

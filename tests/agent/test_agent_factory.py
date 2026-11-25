@@ -16,9 +16,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.factory import (
+    _build_tool_executor,
     build_agent_context,
     init_tracer,
 )
+from agent.http_lifecycle_process_terminator import ProcessTerminator
 from agent.lifecycle import LifecycleState
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.lifecycle_router import (
@@ -521,6 +523,33 @@ class TestLifecycleShutdownSurfaceAcceptsBudget:
 
         subprocess_mgr._http_mgr.shutdown_all.assert_awaited_once_with(budget=budget)
         assert unconfirmed == []
+
+
+class TestTerminatorConfirmWindowWiring:
+    """REQ-002: the configured confirm window reaches the process terminator.
+
+    The factory is the only place that reads AgentConfig, so it injects the
+    terminator; the router and the manager keep their own defaults when none is given.
+    """
+
+    def test_router_forwards_an_injected_terminator_to_the_manager(self) -> None:
+        terminator = ProcessTerminator(kill_confirm_timeout_sec=3.0)
+        router = _ServerLifecycleRouter(
+            server_configs={}, tool_executor=MagicMock(), process_terminator=terminator
+        )
+        assert router._subprocess_mgr._http_mgr._process_terminator is terminator
+
+    def test_router_without_an_injection_keeps_the_terminator_default(self) -> None:
+        router = _ServerLifecycleRouter(server_configs={}, tool_executor=MagicMock())
+        manager_terminator = router._subprocess_mgr._http_mgr._process_terminator
+        assert manager_terminator._kill_confirm_timeout_sec == 2.0
+
+    def test_build_tool_executor_injects_the_configured_confirm_window(self) -> None:
+        ctx = _make_ctx()
+        ctx.cfg.shutdown_termination_confirm_seconds = 7.5
+        result = _build_tool_executor(ctx, MagicMock())
+        terminator = result.lifecycle._subprocess_mgr._http_mgr._process_terminator
+        assert terminator._kill_confirm_timeout_sec == 7.5
 
 
 class TestEnsureReadyAutoStart:

@@ -21,6 +21,7 @@ from shared.tool_lifecycle import ServerCooldownError
 
 from agent.http_lifecycle import HttpServerLifecycleManager
 from agent.http_lifecycle_errors import TerminationOutcome
+from agent.http_lifecycle_process_terminator import ProcessTerminator
 from agent.lifecycle import LifecycleState, assert_valid_transition
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.services.models import ProcessInfoSnapshot
@@ -56,10 +57,19 @@ class _SubprocessLifecycleManager(LifecycleManagerProtocol):
         self,
         server_configs: dict[str, McpServerConfig],
         tool_executor: ToolExecutor,
+        *,
+        process_terminator: ProcessTerminator | None = None,
     ) -> None:
-        """Initialize the subprocess lifecycle manager."""
+        """Initialize the subprocess lifecycle manager.
+
+        The terminator is injected by the factory so the configured
+        ``shutdown_termination_confirm_seconds`` reaches the post-SIGKILL confirm
+        window; ``None`` keeps the terminator's own module default.
+        """
         self._server_configs = server_configs
-        self._http_mgr = HttpServerLifecycleManager()
+        self._http_mgr = HttpServerLifecycleManager(
+            process_terminator=process_terminator
+        )
 
     async def ensure_ready(self, server_key: str) -> None:
         """Ensure the HTTP subprocess server is running; start it if needed."""
@@ -149,11 +159,13 @@ class _ServerLifecycleRouter:
         self,
         server_configs: dict[str, McpServerConfig],
         tool_executor: ToolExecutor,
+        *,
+        process_terminator: ProcessTerminator | None = None,
     ) -> None:
         """Initialize the lifecycle router with MCP server configurations."""
         self._server_configs = server_configs
         self._subprocess_mgr = _SubprocessLifecycleManager(
-            server_configs, tool_executor
+            server_configs, tool_executor, process_terminator=process_terminator
         )
         self._shutting_down: bool = False
         self._states: dict[str, LifecycleState] = {}

@@ -62,12 +62,11 @@ The `/memory status` command is retired by ADR-008; the diagnostics owner is `/s
 ## Graceful Shutdown
 
 - `SIGTERM` → handled by the signal handler, which sets the shutdown flag and the shutdown event
-- Shutdown flag set → REPL input competes between blocking stdin read calls and `_shutdown_event` (using `asyncio.wait(FIRST_COMPLETED)`). If the shutdown event completes first, stdin read returns `None` immediately without waiting for next keypress. The prompt read runs on a daemon reader thread that is not interrupted and is not joined at interpreter exit, so an abandoned read does not delay process exit (`TestAbandonedReadDoesNotDelayProcessExit`).
-- `finally` block:
-  - Session diagnostics persistence → writes runtime summary to `session_diagnostics` table via `DiagnosticStore.save(kind="session_summary")`
-  - `memory.on_session_stop()` → extraction and persistence of memory
-  - Resource cleanup → saving readline history, `lifecycle.shutdown_all()`, closing HTTP clients
-- `shutdown_all()` temporarily absorbs additional `SIGINT` (e.g., second Ctrl-C) during execution to ensure all MCP subprocesses complete their shutdown processing without interruption (returns to normal interrupt handling after completion).
+- Shutdown flag set → REPL input competes between blocking stdin read calls and `_shutdown_event` (using `asyncio.wait(FIRST_COMPLETED)`). If the shutdown event completes first, stdin read returns `None` immediately without waiting for next keypress. The prompt read runs on a daemon reader thread that is not interrupted and is not joined at interpreter exit, so an abandoned read does not delay process exit (`TestAbandonedReadDoesNotDelayProcessExit`). Once the acceptance phase is draining, new commands and turns are refused with one warning line.
+- `finally` block → one bounded shutdown sequence (`ResourceShutdownCoordinator.close_resources`): one deadline bounds every step and each step records one outcome in the shutdown report (full step list: `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`).
+  - Persistence step (`persist_snapshot`) → session diagnostics (`DiagnosticStore.save(kind="session_summary")` writes the runtime summary to the `session_diagnostics` table) and `memory.on_session_stop()` extraction and persistence, both from one session snapshot captured before the later steps run
+  - Resource cleanup (`terminate_lifecycles`, `close_hooks`) → saving readline history, `lifecycle.shutdown_all()` with the time the deadline leaves, and closing HTTP clients; a server whose exit remains unconfirmed appears in the reported unconfirmed list
+- During shutdown a second Ctrl-C requests an interrupt on the step in progress; nothing is absorbed. The process exits through the force-exit path only when `shutdown_force_exit_on_second_sigint` is true.
 
 ## Keywords
 

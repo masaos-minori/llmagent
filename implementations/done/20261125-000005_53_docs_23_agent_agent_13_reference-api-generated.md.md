@@ -13,6 +13,11 @@ Regenerate the agent API reference table so the new shutdown module and the chan
 - The symbols that appear are the ones rows 1, 5, 11, 13, 14 and 15 define; this document does not define them.
 - Overlap: this file is also a target row of the cliplc003 Plan (`plans/done/20261124-001800_cliplc003_maintenance-job-framework.md`), whose procedures under `implementations/20261124-122732_` land first, and of the frozen cliplc005 Plan (`plans/20261124-110935_cliplc005_staged-reload-transaction.md`). Both regenerate rather than edit, so the content is whatever the manifests hold at regeneration time and no text conflict is possible.
 
+## Step 3b verification against the current source (20261125-122600)
+
+- The regeneration ran (`tools/generate_reference_table.py --manifests`) and produced no diff: the manifest and both generated blocks were already current at HEAD, and `--check --manifests` reports no drift.
+- Procedure step 2 is corrected against the generator's scope: the `agent_api` manifest records top-level public classes and functions of `scripts/agent` (`_MANIFEST_SOURCES`, `tools/generate_reference_table.py:527`), not method signatures, so no `shutdown_all()` signature appears in the block. What the block does record is the shutdown surface as class entries — `ShutdownBudget` and its members from `scripts/agent/shutdown_budget.py` (`registry/manifests/agent_api.yaml:1487-1511`, rendered at `docs/23_agent/agent_13_reference-api-generated.md:142`), plus `ResourceShutdownCoordinator`, `ShutdownCoordinator`, `ProcessTerminator`, `ReplInputLoop`, and `SignalHandler` entries.
+
 ## Design decisions
 
 - Generation only: no prose is added, because the generator owns the whole block and `--check` is the gate that confirms manifest, block, and source agree.
@@ -76,8 +81,8 @@ Regenerate the agent API reference table so the new shutdown module and the chan
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate from the manifest | Pending | — | — | Phase 7 |
-| 2 | Run the generator drift check and the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Regenerate from the manifest | Completed | 20261125-130118 | 20261125-130118 | Phase 7 Regenerated with row 55's command; no diff, blocks already current; Step 3b note added |
+| 2 | Run the generator drift check and the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-130118 | 20261125-130118 | --check --manifests: no drift; structure and quality clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

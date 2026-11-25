@@ -76,21 +76,24 @@ Startup validation runs in two stages. The config-only stage (`mcp_auth`, `compo
 
 ### Resource Cleanup on Shutdown
 
-Resources are closed once, when the interactive session ends or when startup fails or is interrupted; they are not closed during a successful startup. The exit sequence runs in a single `finally` block in the following order:
+Resources are closed once, when the interactive session ends or when startup fails or is interrupted; they are not closed during a successful startup. The exit sequence runs in a single `finally` block as one bounded sequence: the first shutdown request arms one deadline (`shutdown_deadline_seconds`), every step is given the time that remains, and each step records exactly one outcome (`completed`, `timed_out`, `failed`, `not_started`, `outcome_unknown`). A step with no time left is recorded `not_started` rather than silently skipped. The steps run in this order:
 
-1. Persist session state (`AgentREPL._persist_session_state`) — writes a session summary and session memory, but only when a session was started. On a startup failure or interrupt no session exists, so this step runs and writes nothing, by design (the write-or-skip decision is owned by `SessionPersister`, keyed on `ctx.session.session_id`).
-2. WAL checkpoint (with PASSIVE → TRUNCATE fallback)
-3. WAL backup (with path validation)
-4. `lifecycle.shutdown_all()` — terminates every started MCP subprocess server and returns the servers whose exit it could not confirm; each one is added to the shutdown errors as an `http_termination` entry (`<server_key> (<outcome>)`), so a clean shutdown means every started server was confirmed gone (the process group was observed to exit, including after SIGKILL).
-5. `http.aclose()`
+1. `enter_shutdown` — arms the deadline and closes the write gate: new turns, commands, and writes are refused, not queued.
+2. `settle_writers` — interrupts and joins the in-flight tracked writers within the settling window (`shutdown_settle_seconds`); a writer that did not finish is reported as unsettled rather than counted as settled.
+3. `persist_snapshot` — writes the session summary and session memory from one captured snapshot, but only when a session was started. On a startup failure or interrupt no session exists, so this step runs and writes nothing, by design (the write-or-skip decision is owned by `SessionPersister`, keyed on `ctx.session.session_id`). A section that ran out of time is reported as partial instead of being dropped.
+4. `checkpoint` — WAL checkpoint (with PASSIVE → TRUNCATE fallback), retried only while the remaining deadline allows.
+5. `backup` — WAL backup (with path validation), published atomically.
+6. `terminate_lifecycles` — `lifecycle.shutdown_all()` terminates every started MCP subprocess server and closes the HTTP client in the same step; the confirmation waits are clamped to the remaining deadline, while SIGTERM and SIGKILL are still sent to every server. A server whose exit remains unconfirmed is recorded on this step's record as an unconfirmed outcome (`http_termination` entry, `<server_key> (<outcome>)`), so a clean shutdown means every started server was confirmed gone (the process group was observed to exit, including after SIGKILL).
+7. `close_hooks` — runs the registered close hooks (for example the workflow store close) after every turn-processing step.
+8. `report` — always runs, even when the deadline is spent: prints one warning line for each step that did not complete, plus a summary line.
 
-Persist is first because it reads `ctx.services` clients that `close_resources()` releases; a persistence failure is contained and reported as non-fatal, so it cannot replace the exception the process was already reporting.
+Persist precedes the steps that close services because it reads `ctx.services` clients that the termination step releases; a persistence failure is contained and reported as non-fatal, so it cannot replace the exception the process was already reporting.
 
 Each step is independently guarded so that if one fails, others still execute. WAL backups are allowed only within paths matching `allowed_root`, and symlinks are resolved before validation.
 
 ### SIGINT/SIGTERM Interruption During Startup
 
-If SIGINT/SIGTERM is received during the startup sequence, the shutdown event is observed at the MCP stages' per-server boundaries and delay waits, and raced against the service validation and prompt setup stages. The stage in progress is cancelled and ended cleanly — cancelling the service validation stage also stops the RAG consistency check through its stop event — a `StartupInterrupted` exception is raised, and the servers started so far are rolled back through `shutdown_all()`. After the rollback the process exits with status 0 and prints no traceback, because the entry function treats a requested shutdown during startup as a normal end; a genuine startup failure still ends with a non-zero status and a visible fatal message.
+If SIGINT/SIGTERM is received during the startup sequence, the shutdown event is observed at the MCP stages' per-server boundaries and delay waits, and raced against the service validation and prompt setup stages. The stage in progress is cancelled and ended cleanly — cancelling the service validation stage also stops the RAG consistency check through its stop event — a `StartupInterrupted` exception is raised, and the servers started so far are rolled back through `shutdown_all()`, which is given the remaining shutdown deadline so the rollback cannot run past it. After the rollback the process exits with status 0 and prints no traceback, because the entry function treats a requested shutdown during startup as a normal end; a genuine startup failure still ends with a non-zero status and a visible fatal message.
 
 ### Secret Masking in MCP Subprocess Failure Reports
 
@@ -159,8 +162,8 @@ The recreated databases contain schema only: all workflow state (tasks, attempts
 
 ## Known Limitations / Unresolved Issues
 
-- The WAL checkpoint and the WAL backup at shutdown share one timeout bound, fixed in `ResourceShutdownCoordinator.close_resources()` and not configurable; when it expires the step is abandoned, recorded as a shutdown error and logged, and an abandoned checkpoint leaves the WAL to be replayed or checkpointed on the next open ("timed out" means "not rolled back", never "left clean"). The collected shutdown errors are also shown on the console (Explicit in code — `scripts/agent/resource_shutdown_coordinator.py`, `scripts/agent/wal_checkpoint_manager.py`).
-- A failure of the rollback `shutdown_all()` during startup failure, or a server it could not confirm stopped, is logged and shown on the console with the rollback error or the unconfirmed server keys and the startup cause; the original startup exception is still the one re-raised (Explicit in code — `scripts/agent/startup.py`, `StartupOrchestrator._rollback_servers`).
+- Every shutdown step shares one deadline, `shutdown_deadline_seconds` (default 45.0, configurable in `config/agent.toml`); a step that runs out of time is abandoned, recorded on its step record with its outcome (`timed_out`, or `not_started` when it never got a window), and reported by the `report` step. An abandoned checkpoint still leaves the WAL to be replayed or checkpointed on the next open ("timed out" means "not rolled back", never "left clean") (Explicit in code — `scripts/agent/resource_shutdown_coordinator.py`, `scripts/agent/wal_checkpoint_manager.py`).
+- The rollback `shutdown_all()` is bounded by the remaining shutdown deadline when one is armed. Its failure, or a server whose stop it could not confirm, is logged and shown on the console with the rollback error or the unconfirmed server keys and outcomes and the startup cause; an unconfirmed server keeps its process-group and stderr-log tracking for manual cleanup, and the shutdown sequence's `terminate_lifecycles` step never attempts the same server twice because the rollback already removed its process entry. The original startup exception is still the one re-raised (Explicit in code — `scripts/agent/startup.py`, `StartupOrchestrator._rollback_servers`).
 - Secret masking of MCP subprocess output is incomplete (see Secret Masking in MCP Subprocess Failure Reports).
 
 ## Keywords

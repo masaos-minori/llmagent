@@ -15,6 +15,13 @@ Update the overview's session-termination description so the persistence and WAL
 - The overview is a feature summary, not a runbook: it states what the sequence guarantees, and the step-by-step operational detail lives in `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md` (row 45).
 - The "no data loss occurs" and WAL-growth statements in the same item stay true under the new sequence.
 
+## Step 3b verification against the current source (20261125-122600)
+
+- Anchors hold: the exit-path sentence is `docs/01_overview/overview_01_03-arch-features.md:65` and the three-item list `:67-69`.
+- The "up to 3 attempts" claim stays true: `_MAX_TRUNCATE_ATTEMPTS = 3` (`scripts/agent/wal_checkpoint_manager.py:50`) still caps the TRUNCATE fallback, and each attempt is additionally bounded by the deadline — the retry loop checks it before every attempt and sleeps on the interrupt event (`_sleep_before_retry`, `:70-83`; `_stopped_retry`, `:107-117`).
+- The backup properties the procedure states match the implemented publication: copy to `<final>.partial`, flush and fsync, size check, then `os.replace`, with the temp file removed when the copy is interrupted; the name is `{db basename}-wal-backup-{unix seconds}-{process token}` and carries no session identifier (`scripts/agent/wal_checkpoint_manager.py`, `backup_sync`).
+- The old wording "recorded as shutdown errors" is replaced by the step record, which is what the coordinator now produces (`ShutdownStepRecord` in `scripts/agent/resource_shutdown_coordinator.py`).
+
 ## Design decisions
 
 - Keep the existing three items and their guarantees, and add the two steps the sequence now performs around them (settling writers, publishing the backup) rather than replacing the block with a step table: the overview's level of detail is one paragraph plus a short list.
@@ -80,8 +87,8 @@ Update the overview's session-termination description so the persistence and WAL
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the termination-sequence and backup wording | Pending | — | — | Phase 7 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Replace the termination-sequence and backup wording | Completed | 20261125-130118 | 20261125-130118 | Phase 7 Termination block rewritten as the bounded sequence with verified backup publication; Step 3b note added |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-130118 | 20261125-130118 | quality/structure/policy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

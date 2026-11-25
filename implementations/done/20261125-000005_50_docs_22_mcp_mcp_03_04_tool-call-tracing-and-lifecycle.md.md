@@ -14,6 +14,12 @@ Correct the MCP lifecycle document's termination claim: the total shutdown time 
 - The "awaited together" property is unchanged by this Plan: what changes is the size of the window and where it comes from.
 - The 30-second figure is the module constant `_SHUTDOWN_TIMEOUT_SEC` in `scripts/agent/http_lifecycle_shutdown_coordinator.py`, which the Plan replaces with the budget-derived window plus `shutdown_termination_confirm_seconds` (new) as the confirm fallback.
 
+## Step 3b verification against the current source (20261125-122600)
+
+- Anchor holds: the Implementation Note (Shutdown Termination) paragraph is `docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md:97`.
+- Scope extended by one paragraph: the Implementation Note (Double SIGINT Guard) at `:91-93` stated that the handler is always `_absorb_sigint_during_shutdown()`. The code now installs `_request_interrupt_on_sigint(budget)` when a budget is supplied and the absorb guard only when it is not (`scripts/agent/http_lifecycle_shutdown_coordinator.py:184-193`), so leaving that note untouched would keep a false claim in the same document. It was rewritten alongside the target paragraph.
+- The window is `min(_SHUTDOWN_TIMEOUT_SEC, budget.remaining())` with `_SHUTDOWN_TIMEOUT_SEC = 30.0` as the no-budget fallback (`scripts/agent/http_lifecycle_shutdown_coordinator.py:38-41`, `:88-96`); per the Design decision the document names the budget and the fallback without quoting the constant. The confirm window is owned by `ProcessTerminator` and reaches its configured value through the factory injection recorded in row 48.
+
 ## Design decisions
 
 - State the bound as "the time left in the shutdown sequence" and name the configuration key that sets the total, rather than quoting a number: a document that repeats a constant is the thing that goes stale when the constant changes.
@@ -77,8 +83,8 @@ Correct the MCP lifecycle document's termination claim: the total shutdown time 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the termination-window wording | Pending | — | — | Phase 7 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Replace the termination-window wording | Completed | 20261125-130118 | 20261125-130118 | Phase 7 Termination-window and SIGINT-guard paragraphs rewritten; Step 3b note added |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-130118 | 20261125-130118 | quality/structure/policy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

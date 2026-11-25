@@ -14,6 +14,11 @@ Regenerate the API registry manifest so it records the new shutdown module, the 
 - The manifest is the input of rows 53 and 54, so it must be regenerated before those documents.
 - The Plan adds no manifest-only entry: every entry the regenerated manifest gains corresponds to a symbol a code row defines.
 
+## Step 3b verification against the current source (20261125-122600)
+
+- The regeneration ran and produced no diff: the manifest was already current at HEAD (the R6 validation gate ran the same generator), and `--check --manifests` reports no drift. Step 3 therefore has nothing to report: no entry from another Plan appeared.
+- Procedure step 2 is corrected against the generator's scope: `agent_api` records top-level public classes and functions of `scripts/agent` (`_MANIFEST_SOURCES`, `tools/generate_reference_table.py:527`), so `scripts/agent/shutdown_budget.py` is recorded (`registry/manifests/agent_api.yaml:1487-1511`), but `scripts/db/write_gate.py` is in no manifest — no symbol manifest covers `scripts/db` (`:511-528`) — and method signatures such as `shutdown_all()`'s budget parameter are not manifest entries at all (entries carry `class X` / `def f(...)` signatures only). The write gate is documented in `docs/41_db/db_01_architecture_and_schema-overview-and-config.md` 4d (row 52) and the budget-accepting signatures are pinned by the code tests (rows 11, 13), not by the manifest.
+
 ## Design decisions
 
 - Regenerate rather than hand-edit: a hand-written entry that does not match the source is exactly the drift `--check` is meant to catch, and the entry would be overwritten at the next generation run.
@@ -78,8 +83,8 @@ Regenerate the API registry manifest so it records the new shutdown module, the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the manifest | Pending | — | — | Phase 7 |
-| 2 | Run the generator drift check and the generator test | Pending | — | — | |
+| 1 | Regenerate the manifest | Completed | 20261125-130118 | 20261125-130118 | Phase 7 Manifest regenerated; no diff, nothing from another Plan to report; Step 3b note records the generator-scope corrections |
+| 2 | Run the generator drift check and the generator test | Completed | 20261125-130118 | 20261125-130118 | --check --manifests: no drift; generator tests 33 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

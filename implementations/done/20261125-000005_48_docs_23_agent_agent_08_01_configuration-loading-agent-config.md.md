@@ -15,6 +15,12 @@ Add the four shutdown keys to the per-key configuration reference so the deadlin
 - The `ROWS: 77` tally line at `docs/23_agent/agent_08_01_configuration-loading-agent-config.md:214` counts the reference tables' data rows, so adding four rows changes it to 81.
 - `### Settings Requiring Restart` (`docs/23_agent/agent_08_01_configuration-loading-agent-config.md:41-46`) lists keys named individually, so the four new keys belong there as `[RESTART]`.
 
+## Step 3b verification against the current source (20261125-122600)
+
+- Anchors hold: the per-key reference starts at `docs/23_agent/agent_08_01_configuration-loading-agent-config.md:67`, the restart list at `:41-46`, the `### MCP server definitions` table at `:203-213`, and the tally line was `ROWS: 77` at `:214` (now 81).
+- Procedure step 3 exposed a Plan gap: `shutdown_termination_confirm_seconds` had no runtime consumer — `HttpServerLifecycleManager` built `ProcessTerminator()` with no arguments (`scripts/agent/http_lifecycle.py:84`) and the confirm window was the module default `_DEFAULT_KILL_CONFIRM_TIMEOUT_SEC = 2.0` (`scripts/agent/http_lifecycle_process_terminator.py:37`). User decision 2026-11-25: wire the key. `scripts/agent/factory.py:133-138` now injects `ProcessTerminator(kill_confirm_timeout_sec=ctx.cfg.shutdown_termination_confirm_seconds)` through the new optional keyword-only `process_terminator` on `_ServerLifecycleRouter` (`scripts/agent/lifecycle_router.py:160-169`) and `_SubprocessLifecycleManager` (`:57-72`), which `HttpServerLifecycleManager` already accepted. Pinned by `TestTerminatorConfirmWindowWiring` in `tests/agent/test_agent_factory.py`.
+- The reading components in the new table name those consumers: `ShutdownBudget` is built in `scripts/agent/repl.py:89-91`, `shutdown_settle_seconds` is read by `ResourceShutdownCoordinator` (`scripts/agent/resource_shutdown_coordinator.py:265`), and `shutdown_force_exit_on_second_sigint` is read at `SignalHandler` construction (`scripts/agent/signal_handler.py:102`).
+
 ## Design decisions
 
 - Add one `### Shutdown and termination` subsection rather than spreading the four keys across existing tables: they are sequence-wide settings read by different components, and a shared subsection states that they belong together.
@@ -80,8 +86,8 @@ Add the four shutdown keys to the per-key configuration reference so the deadlin
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the shutdown-key subsection, restart entries, and tally update | Pending | — | — | Phase 7 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Add the shutdown-key subsection, restart entries, and tally update | Completed | 20261125-130118 | 20261125-130118 | Phase 7 Shutdown and termination table added, restart list extended, ROWS 77 to 81; confirm key wired into ProcessTerminator via factory per user decision |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-130118 | 20261125-130118 | quality/structure/policy clean; targeted tests 140 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

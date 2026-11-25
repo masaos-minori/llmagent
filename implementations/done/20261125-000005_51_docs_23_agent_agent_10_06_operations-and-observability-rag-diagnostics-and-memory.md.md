@@ -14,6 +14,12 @@ Replace the diagnostics-path shutdown wording: the `finally` block items become 
 - `docs/23_agent/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md:70` states that `shutdown_all()` temporarily absorbs additional `SIGINT` during execution and restores normal handling afterwards. That absorption is what row 11 removes.
 - The diagnostics and memory writes are the persistence step the Plan keeps, and they read one snapshot captured before the later steps run (row 9).
 
+## Step 3b verification against the current source (20261125-122600)
+
+- Anchors hold: the input-competition bullet is `docs/23_agent/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md:65`, the `finally` block items `:66-69`, and the absorption statement `:70`.
+- Procedure step 3 matches the installed behavior: the SIGINT guard during `shutdown_all()` forwards the signal to the budget as an interrupt request when a budget is supplied (`scripts/agent/http_lifecycle_shutdown_coordinator.py:187-191`), and the absorb path only exists when no budget is supplied. The force-exit opt-in is `shutdown_force_exit_on_second_sigint` (`scripts/agent/signal_handler.py:102`).
+- The step names used match the coordinator's registered sequence (`persist_snapshot`, `terminate_lifecycles`, `close_hooks` in `scripts/agent/resource_shutdown_coordinator.py`), and the cross-reference points at the row 45 runbook.
+
 ## Design decisions
 
 - Replace the absorption statement outright rather than qualifying it: the Plan's requirement is that a second signal interrupts the running step, so a document that says the signal is swallowed contradicts the requirement it is meant to describe.
@@ -78,8 +84,8 @@ Replace the diagnostics-path shutdown wording: the `finally` block items become 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the finally-block and SIGINT-absorption wording | Pending | — | — | Phase 7 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Replace the finally-block and SIGINT-absorption wording | Completed | 20261125-130118 | 20261125-130118 | Phase 7 finally-block items rewritten as recorded steps, absorption statement replaced; Step 3b note added |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-130118 | 20261125-130118 | quality clean after unconfirmed rephrase; structure/policy clean; consistency shows only the pre-existing /db warning |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

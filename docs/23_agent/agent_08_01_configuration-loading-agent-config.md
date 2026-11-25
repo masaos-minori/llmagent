@@ -43,6 +43,7 @@ Documents the `AgentConfig` structure, configuration file ownership, the classif
 - Changes to MCP server URL, authentication tokens, startup modes, commands, or environment variables.
 - `use_memory_layer` — Enabling/disabling the memory subsystem (startup only).
 - `memory_embed_enabled` — Enabling/disabling embedding generation and KNN search (startup only).
+- `shutdown_deadline_seconds`, `shutdown_settle_seconds`, `shutdown_termination_confirm_seconds`, `shutdown_force_exit_on_second_sigint` — Read into `AgentConfig` at startup; no reload path re-arms a live shutdown budget.
 
 ### Hot-Reloadable Scope
 
@@ -211,7 +212,16 @@ the policy means comparing each key the file states with the Code default column
 | `mcp_servers.*.control_auth_token` | McpServerConfig | string | n/a | `''` | [RESTART] |
 | `mcp_servers.*.role` | McpServerConfig | string | n/a | `''` | [RESTART] |
 | `mcp_servers.*.cmd` | McpServerConfig | string list | n/a | `[]` | [RESTART] |
-ROWS: 77
+
+### Shutdown and termination
+
+| Key name | Reading component | Value type | Unit | Code default | Reload class |
+|---|---|---|---|---|---|
+| `shutdown_deadline_seconds` | ShutdownBudget (built in `scripts/agent/repl.py`) | float | seconds | `45.0` | [RESTART] |
+| `shutdown_settle_seconds` | ResourceShutdownCoordinator | float | seconds | `10.0` | [RESTART] |
+| `shutdown_termination_confirm_seconds` | ProcessTerminator (injected by `scripts/agent/factory.py`) | float | seconds | `2.0` | [RESTART] |
+| `shutdown_force_exit_on_second_sigint` | SignalHandler | boolean | n/a | `False` | [RESTART] |
+ROWS: 81
 ## Keywords
 
 - configuration loading

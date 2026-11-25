@@ -15,6 +15,12 @@ Replace the shutdown wording in the operations runbook with the bounded machine:
 - The Known Limitations bullet at `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md:162` states that the checkpoint and backup share one timeout bound that is "fixed in `ResourceShutdownCoordinator.close_resources()` and not configurable", and `:163` states how a rollback failure and unconfirmed servers are shown.
 - The document has no "30 seconds" claim; the 30 s termination claim lives in `docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md` (row 50).
 
+## Step 3b verification against the current source (20261125-122600)
+
+- All anchors hold: the step list is `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md:81-85`, the startup-interrupt section `:91-93`, and the two Known Limitations bullets `:162-163`. The step names match `scripts/agent/shutdown_budget.py:30-37` exactly, and the outcome vocabulary matches `ShutdownOutcome` (`:62-73`).
+- Procedure step 6 is corrected against the code: the rollback's failure and unconfirmed server keys are reported only through the console fatal lines in `StartupOrchestrator._rollback_servers()` (`scripts/agent/startup.py:147-165`), not as a coordinator step record. `ShutdownCoordinator.shutdown_all()` removes each process entry before terminating it (`scripts/agent/http_lifecycle_shutdown_coordinator.py:209-210`), so the coordinator's `terminate_lifecycles` step sees no server left after a rollback and records `completed`; an unconfirmed server keeps its pgid and stderr-log tracking for manual cleanup. The document states this relationship instead of promising a rollback step record.
+- The deadline is a top-level key in `config/agent.toml:39` (`shutdown_deadline_seconds = 45.0`), not a section key; the rewritten bullet names the file, not a section.
+
 ## Design decisions
 
 - State the sequence by step name and outcome, not by line of code: the runbook's job is what an operator can observe, and the step names are what the report prints.
@@ -82,8 +88,8 @@ Replace the shutdown wording in the operations runbook with the bounded machine:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the shutdown-step list, startup-rollback, and Known Limitations wording | Pending | — | — | Phase 7 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Replace the shutdown-step list, startup-rollback, and Known Limitations wording | Completed | 20261125-130118 | 20261125-130118 | Phase 7 Runbook rewritten as the bounded step sequence; Step 3b note added |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-130118 | 20261125-130118 | quality/structure/policy clean; consistency shows only the pre-existing /db warning |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -13,6 +13,11 @@ Regenerate the subpackage API reference so the new `db.write_gate` module and it
 - The symbols that appear are the ones rows 2 and 4 define (`WriteGate` (new), `WriteGateClosed` (new), and the package exports); this document does not define them.
 - Overlap: this file is also a target row of the frozen cliplc005 Plan (`plans/20261124-110935_cliplc005_staged-reload-transaction.md`) and of the cliplc003 Plan (`plans/done/20261124-001800_cliplc003_maintenance-job-framework.md`). All three regenerate rather than edit, so the block reflects whatever the source holds at regeneration time and no text conflict is possible.
 
+## Step 3b verification against the current source (20261125-122600)
+
+- The regeneration ran with row 55's command and produced no diff; `--check --manifests` reports no drift and the structure and quality checkers pass on this file.
+- Procedure step 2 contradicts the generator's scope and is corrected: `agent_14` renders only `scripts/agent/` subpackage symbols (`workflow/`, `services/`, `commands/`, `shared/`; `tools/generate_reference_table.py:477`), and no symbol manifest covers `scripts/db` at all (`_MANIFEST_SOURCES`, `:511-528` — the only db entry is `db_schema_versions` over `scripts/db/config.py`). The `db.write_gate` exports therefore appear in no generated table; the gate is documented at the architecture level in `docs/41_db/db_01_architecture_and_schema-overview-and-config.md` 4d (row 52), which is where a db-layer contributor reads it.
+
 ## Design decisions
 
 - Generation only: the generator owns the block, and `--check` is the gate that confirms manifest, block, and source agree.
@@ -76,8 +81,8 @@ Regenerate the subpackage API reference so the new `db.write_gate` module and it
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate from the manifest | Pending | — | — | Phase 7 |
-| 2 | Run the generator drift check and the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Regenerate from the manifest | Completed | 20261125-130118 | 20261125-130118 | Phase 7 Regenerated with row 55's command; no diff; Step 3b note records that scripts/db is outside the generator scope |
+| 2 | Run the generator drift check and the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-130118 | 20261125-130118 | --check --manifests: no drift; structure and quality clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -14,6 +14,12 @@ Document the write gate in the db architecture reference: the db layer gains a r
 - The gate is created by the agent layer and consulted by the helper (Plan Design, and the import-linter contract verified in the Plan's Step 5), so `db` describes the gate as an input it honors, not as a component it owns.
 - The refusal is an exception at the write entry point, not a silent no-op: a caller that does not handle it fails the same way any other write failure fails.
 
+## Step 3b verification against the current source (20261125-122600)
+
+- Anchors hold: section 4 is `docs/41_db/db_01_architecture_and_schema-overview-and-config.md:48-52`, `### 4b` `:58-64`, `### 4c` `:66-68`, and the Keywords list `:72-78`.
+- Procedure step 3 lists four guarded entry points; the implemented guard is wider: `open(write_mode=True)` (`scripts/db/helper.py:410`), `begin_immediate()`/`begin_exclusive()` (`:474`), `checkpoint` (`:525`), `vacuum` (`:538`), `execute`/`executemany` on a classified write statement (`:553`, `:573`), `executescript` (`:563`), and `commit` (`:595`). The document names the full set.
+- The gate behavior matches `scripts/db/write_gate.py`: states `open`/`closing`/`closed` (`WriteGateState`, `:53-59`), `check_write` counts the refusal before raising `WriteGateClosed` (`:175-200`), and `authorize()` is a context-scoped, nestable authorization that does not reach threads started outside the block (`:196-210`).
+
 ## Design decisions
 
 - Add one subsection `### 4d. Write gate` rather than editing each existing bullet: the gate is a new cross-cutting property of the write paths, and scattering it across 4, 4b and 4c would make it invisible as a contract.
@@ -78,8 +84,8 @@ Document the write gate in the db architecture reference: the db layer gains a r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the write-gate subsection and cross-references | Pending | — | — | Phase 7 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Add the write-gate subsection and cross-references | Completed | 20261125-130118 | 20261125-130118 | Phase 7 4d Write gate subsection, guarded-entry-point sentences, write-gate keyword added; Step 3b note added |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-130118 | 20261125-130118 | quality/structure/policy clean; consistency --domain db clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

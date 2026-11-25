@@ -33,6 +33,7 @@ from shared.tool_executor import ToolExecutor
 from agent.cli_view import CLIView
 from agent.context import AgentContext, AppServices
 from agent.history import HistoryManager
+from agent.http_lifecycle_process_terminator import ProcessTerminator
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.lifecycle_router import _ServerLifecycleRouter
 from agent.repository_gateway import RepositoryGateway
@@ -131,6 +132,9 @@ def _build_tool_executor(
     lifecycle: LifecycleManagerProtocol = _ServerLifecycleRouter(
         ctx.cfg.mcp.mcp_servers,
         tools,
+        process_terminator=ProcessTerminator(
+            kill_confirm_timeout_sec=ctx.cfg.shutdown_termination_confirm_seconds
+        ),
     )
     tools.set_lifecycle(lifecycle)
     return ToolExecutorResult(

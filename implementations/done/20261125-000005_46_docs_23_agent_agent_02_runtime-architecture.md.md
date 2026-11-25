@@ -15,6 +15,11 @@ Correct the shutdown-order statement in the runtime architecture document so it 
 - `docs/23_agent/agent_02_runtime-architecture.md:163` states "Resource closing occurs after WAL checkpointing, and both calls are independent and protected", which is the order this Plan reverses.
 - The independence claim in the same sentence stays true: the Plan keeps every step guarded.
 
+## Step 3b verification against the current source (20261125-122600)
+
+- Anchors hold: the Shutdown subsection sentences are at `docs/23_agent/agent_02_runtime-architecture.md:159`, `:161`, `:163`.
+- Procedure step 1 is corrected against the code: `_GRACEFUL_TIMEOUT_S` is not a window drawn from the budget. `ReplInputLoop._graceful_window()` (`scripts/agent/repl_input_loop.py:142-147`) returns `budget.remaining()` when a budget is attached and `_GRACEFUL_TIMEOUT_S` as the fallback when it is not, and `ShutdownBudget.remaining()` (`scripts/agent/shutdown_budget.py:171-176`) returns the full window while unarmed. The document states the remaining time with the fallback named.
+
 ## Design decisions
 
 - Rewrite the order sentence rather than annotate it: the architecture document is the canonical place the shutdown order is stated, and a stale order there is what a later reader would implement again.
@@ -78,8 +83,8 @@ Correct the shutdown-order statement in the runtime architecture document so it 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the shutdown-order and window wording | Pending | — | — | Phase 7 |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Replace the shutdown-order and window wording | Completed | 20261125-130118 | 20261125-130118 | Phase 7 Shutdown subsection rewritten; Step 3b note added |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261125-130118 | 20261125-130118 | quality/structure/policy clean; consistency shows only the pre-existing /db warning |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
