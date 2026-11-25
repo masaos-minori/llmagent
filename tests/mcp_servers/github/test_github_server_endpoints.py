@@ -34,6 +34,10 @@ from unittest.mock import AsyncMock, MagicMock
 import mcp_servers.dispatch as dispatch
 import pytest
 from fastapi.testclient import TestClient
+from mcp_servers.execution_context import (
+    ExecutionContext,
+    configure_tool_preview_capabilities,
+)
 from mcp_servers.github import github_server
 from mcp_servers.github.github_models import GitHubConfig
 from mcp_servers.github.github_models_base import IssueInfo, PullRequestInfo
@@ -341,7 +345,13 @@ class TestCallToolEndpoint:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body == {"result": "42 stars", "is_error": False, "dedup_state": ""}
+        assert body == {
+            "result": "42 stars",
+            "is_error": False,
+            "dedup_state": "",
+            "execution_mode": "applied",
+            "side_effect_applied": False,
+        }
         handler.assert_awaited_once_with({"owner": "acme", "repo": "widgets"})
 
     def test_unknown_tool_returns_error_result(
@@ -364,7 +374,55 @@ class TestCallToolEndpoint:
             "/v1/call_tool", json={"name": "github_list_issues", "args": {}}
         )
         assert resp.status_code == 200
-        assert resp.json() == {"result": "ok", "is_error": False, "dedup_state": ""}
+        assert resp.json() == {
+            "result": "ok",
+            "is_error": False,
+            "dedup_state": "",
+            "execution_mode": "applied",
+            "side_effect_applied": False,
+        }
+
+    def test_call_tool_reports_the_structured_metadata(
+        self, client: TestClient, fake_service: _FakeService
+    ) -> None:
+        """The response carries the resolved mode and the side-effect flag.
+
+        The preview case declares the tool's capability explicitly because this
+        test drives the endpoint without going through `run_http`.
+        """
+        handler = AsyncMock(return_value='{"dry_run": true}')
+        fake_service._dispatch_table["github_create_branch"] = handler
+        configure_tool_preview_capabilities(
+            ({"name": "github_create_branch", "preview_capability": "dry_run"},)
+        )
+        preview = client.post(
+            "/v1/call_tool",
+            json={
+                "name": "github_create_branch",
+                "args": {"owner": "acme", "repo": "widgets", "dry_run": True},
+            },
+            headers={
+                "x-idempotency-key": "key-meta-preview",
+                "x-execution-mode": "preview",
+            },
+        )
+        assert preview.status_code == 200
+        body = preview.json()
+        assert body["execution_mode"] == "preview"
+        assert body["side_effect_applied"] is False
+
+        applied = client.post(
+            "/v1/call_tool",
+            json={
+                "name": "github_create_branch",
+                "args": {"owner": "acme", "repo": "widgets"},
+            },
+            headers={"x-idempotency-key": "key-applied"},
+        )
+        assert applied.status_code == 200
+        body = applied.json()
+        assert body["execution_mode"] == "applied"
+        assert body["side_effect_applied"] is True
 
     def test_audit_record_keeps_session_and_request_context_in_order(
         self,
@@ -456,8 +514,16 @@ class TestDispatchGithubTool:
     ) -> None:
         handler = AsyncMock(return_value="dispatched")
         fake_service._dispatch_table["github_create_branch"] = handler
+        # A side-effecting call needs a keyed context: a keyless one is refused
+        # before the handler runs.
         result = await github_server._dispatch_github_tool(
-            "github_create_branch", {"owner": "acme", "repo": "widgets"}
+            "github_create_branch",
+            {"owner": "acme", "repo": "widgets"},
+            context=ExecutionContext.for_programmatic_call(
+                "github_create_branch",
+                {"owner": "acme", "repo": "widgets"},
+                idempotency_key="key-1",
+            ),
         )
         assert result.output == "dispatched"
         assert result.is_error is False
@@ -594,7 +660,7 @@ class TestCallToolValidation:
                     "message": "m",
                 },
                 "CreateOrUpdateFileRequest",
-                {"x-idempotency-key": "key-1"},
+                {"x-idempotency-key": "key-validation-1"},
             ),
             # empty files list
             (

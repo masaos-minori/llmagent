@@ -44,7 +44,11 @@ from agent.tool_policy import (
     classify_risk,
     is_plan_mode_blocked,
 )
-from agent.tool_preparation import PreparedToolCall, _canonical_args_hash
+from agent.tool_preparation import (
+    PreparedToolCall,
+    _canonical_args_hash,
+    new_execution_context,
+)
 from agent.tool_result_formatter import build_preview, mask_args
 
 if TYPE_CHECKING:
@@ -141,9 +145,12 @@ async def _build_preview_with_dry_run(
         )
         return PreviewResult(preview, "static", required)
     try:
+        preview_args = {**args, "dry_run": True}
+        context = new_execution_context(tool_name, preview_args, "preview")
         result = await ctx.services_required.tools.execute(
             tool_name,
-            {**args, "dry_run": True},
+            preview_args,
+            context=context,
         )
     except (RuntimeError, OSError) as e:
         logger.warning(

@@ -18,6 +18,7 @@ from agent.tool_preparation import (
     PreparedToolCall,
     ReplayDirective,
     _canonical_args_hash,
+    new_execution_context,
     prepare_tool_calls,
 )
 from shared.tool_spec import ToolSpec
@@ -464,6 +465,96 @@ class TestPrepareToolCallsLogicalIdentity:
         parsed = uuid.UUID(value)
         assert parsed.version == 7
         assert parsed.variant == uuid.RFC_4122
+
+
+class TestPrepareToolCallsExecutionMode:
+    """mcpai005 REQ-001/REQ-009: the resolved execution mode on the prepared context."""
+
+    def _registry(self, preview_capability: str) -> MagicMock:
+        runtime_tool = MagicMock()
+        runtime_tool.input_schema = {"type": "object", "properties": {}}
+        runtime_tool.allow_extra_fields = True
+        runtime_tool.preview_capability = preview_capability
+        registry = MagicMock()
+        registry.get = MagicMock(return_value=runtime_tool)
+        registry.tool_spec_for_call = MagicMock(
+            side_effect=lambda call_id, name, args: ToolSpec(
+                call_id=call_id, name=name, args=args
+            )
+        )
+        return registry
+
+    def _ctx(self, preview_capability: str) -> MagicMock:
+        ctx = _make_ctx()
+        ctx.services_required.runtime_tools = self._registry(preview_capability)
+        return ctx
+
+    def test_preview_capable_tool_with_dry_run_prepares_as_preview(self) -> None:
+        """AC-5: a dry-run call carries `preview`, so the runner records no state row."""
+        prepared, failures = prepare_tool_calls(
+            self._ctx("dry_run"),
+            [_tc("write_text_file", '{"path": "/a", "dry_run": true}')],
+        )
+        assert failures == []
+        assert prepared[0].context.execution_mode == "preview"
+
+    def test_dry_run_false_on_a_preview_capable_tool_prepares_as_applied(self) -> None:
+        prepared, failures = prepare_tool_calls(
+            self._ctx("dry_run"),
+            [_tc("write_text_file", '{"path": "/a", "dry_run": false}')],
+        )
+        assert failures == []
+        assert prepared[0].context.execution_mode == "applied"
+
+    def test_tool_without_preview_capability_prepares_as_applied(self) -> None:
+        """`dry_run` on a non-capable tool is an ordinary argument, not a mode."""
+        prepared, failures = prepare_tool_calls(
+            self._ctx("none"),
+            [_tc("write_text_file", '{"path": "/a", "dry_run": true}')],
+        )
+        assert failures == []
+        assert prepared[0].context.execution_mode == "applied"
+
+    def test_non_boolean_dry_run_is_rejected_before_dispatch(self) -> None:
+        """A malformed `dry_run` is a validation rejection that names the tool only."""
+        prepared, failures = prepare_tool_calls(
+            self._ctx("dry_run"),
+            [_tc("write_text_file", '{"path": "/a", "dry_run": "true"}')],
+        )
+        assert prepared == []
+        assert len(failures) == 1
+        text = failures[0][3]
+        assert "dry_run argument is of type str" in text
+        assert "/a" not in text
+
+    def test_new_execution_context_yields_distinct_ids_per_call(self) -> None:
+        """The single construction site generates one uuid7 logical id per call."""
+        first = new_execution_context("write_text_file", {"path": "/a"})
+        second = new_execution_context("write_text_file", {"path": "/a"})
+        assert first.call_id != second.call_id
+        assert uuid.UUID(first.call_id).version == 7
+        assert first.execution_mode == "applied"
+        assert first.operation == "call_tool"
+        assert first.args_hash == _canonical_args_hash({"path": "/a"})
+
+    def test_replay_directive_id_is_kept_on_the_prepared_context(self) -> None:
+        """The helper must not replace a matched replay directive's call id."""
+        ctx = self._ctx("dry_run")
+        directive = ReplayDirective(
+            task_id=ctx.workflow.current_task_id,
+            tool="write_text_file",
+            args_hash=_canonical_args_hash({"path": "/a", "dry_run": True}),
+            original_call_id="00000000-0000-7000-8000-000000000000",
+            consumed=False,
+        )
+        ctx.turn.replay_directives = [directive]
+        prepared, failures = prepare_tool_calls(
+            ctx, [_tc("write_text_file", '{"path": "/a", "dry_run": true}')]
+        )
+        assert failures == []
+        context = prepared[0].context
+        assert context.call_id == directive.original_call_id
+        assert context.execution_mode == "preview"
 
 
 class TestPrepareToolCallsReplayDirective:

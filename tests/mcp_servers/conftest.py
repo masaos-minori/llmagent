@@ -34,14 +34,21 @@ _TOOL_LIST_MODULES = (
 )
 
 
-def _declared_retry_policies() -> dict[str, str]:
-    """Union of the declared retry_policy metadata across all TOOL_LISTs."""
+def _declared_tool_entries() -> list[dict]:
+    """Every TOOL_LIST entry across the declared modules, in module order."""
     from importlib import import_module
 
-    policies: dict[str, str] = {}
+    entries: list[dict] = []
     for name in _TOOL_LIST_MODULES:
-        for entry in getattr(import_module(name), "TOOL_LIST", ()):
-            policies[str(entry["name"])] = str(entry["retry_policy"])
+        entries.extend(getattr(import_module(name), "TOOL_LIST", ()))
+    return entries
+
+
+def _declared_retry_policies() -> dict[str, str]:
+    """Union of the declared retry_policy metadata across all TOOL_LISTs."""
+    policies: dict[str, str] = {}
+    for entry in _declared_tool_entries():
+        policies[str(entry["name"])] = str(entry["retry_policy"])
     return policies
 
 
@@ -49,11 +56,14 @@ def _declared_retry_policies() -> dict[str, str]:
 def _emulate_dedup_bootstrap() -> Iterator[None]:
     """Emulate the server bootstrap seams for TestClient-based endpoint tests.
 
-    A live MCP server calls ``configure_dedup()`` and
-    ``configure_tool_retry_policies()`` inside ``run_http()`` (mcpdl003
-    REQ-001/REQ-005); these tests construct server apps directly and skip that
+    A live MCP server calls ``configure_dedup()``,
+    ``configure_tool_retry_policies()`` and
+    ``configure_tool_preview_capabilities()`` inside ``run_http()`` (mcpdl003
+    REQ-001/REQ-005; the preview seam is plan mcpai005 REQ-010); these tests
+    construct server apps directly and skip that
     bootstrap. Without it, side-effecting tools fail closed on the
-    ``not_configured`` degradation path. The store config comes from the
+    ``not_configured`` degradation path and a declared ``dry_run`` argument
+    resolves to ``applied`` instead of ``preview``. The store config comes from the
     session's isolated config copy (its ``[dedup]`` db_path is rewritten into
     the isolation root), matching what each server file would inject in
     production.
@@ -63,6 +73,7 @@ def _emulate_dedup_bootstrap() -> Iterator[None]:
     from pathlib import Path
 
     import mcp_servers.dispatch as dispatch_mod
+    from mcp_servers.execution_context import configure_tool_preview_capabilities
     from shared.mcp_dedup import load_dedup_section
 
     cfg_dir = Path(
@@ -73,7 +84,9 @@ def _emulate_dedup_bootstrap() -> Iterator[None]:
     data = tomllib.loads((cfg_dir / own_file).read_text(encoding="utf-8"))
     store_config = load_dedup_section(data.get("dedup"), own_file)
     dispatch_mod.configure_dedup(store_config)
+    entries = _declared_tool_entries()
     dispatch_mod._tool_retry_policies = _declared_retry_policies()
+    configure_tool_preview_capabilities(entries)
     yield
     opened = dispatch_mod._dedup_store
     if opened is not None:
@@ -84,6 +97,7 @@ def _emulate_dedup_bootstrap() -> Iterator[None]:
     dispatch_mod._dedup_start_state = None
     dispatch_mod._purge_done = False
     dispatch_mod._tool_retry_policies = {}
+    configure_tool_preview_capabilities(())
 
 
 @pytest.fixture(autouse=True)

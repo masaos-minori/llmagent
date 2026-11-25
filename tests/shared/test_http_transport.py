@@ -15,10 +15,16 @@ derive_idempotency_key.
 ControlClient pins (mcpdl004 REQ-001, row 07): every control-plane failure is a
 fixed label in a typed result, never a raise or a response body, and control
 requests are single attempts.
+
+Execution-mode pins (mcpai005 REQ-007, row 03): X-Execution-Mode equals the
+context mode, parsed results carry execution_mode/side_effect_applied with
+defaults when absent, and a wrong type or unknown mode takes the transport
+error path.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -395,6 +401,20 @@ class TestLogicalCallIdHeader:
         assert headers["X-Session-Id"] == "sess-pin"
         assert headers["Authorization"] == "Bearer test-token"
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("mode", ["applied", "preview"])
+    async def test_execution_mode_header_equals_context_mode(self, mode: str) -> None:
+        """X-Execution-Mode carries the context mode (REQ-007); the key header is unchanged."""
+        transport, mock_post = self._success_transport()
+        ctx = dataclasses.replace(
+            _ctx("write_file", "018f0000-0000-7000-8000-000000000005"),
+            execution_mode=mode,
+        )
+        await transport.call("write_file", {"path": "/p"}, ctx)
+        headers = mock_post.call_args.kwargs["headers"]
+        assert headers["X-Execution-Mode"] == mode
+        assert headers["X-Idempotency-Key"] == ctx.call_id
+
 
 class TestToolLevelStatusClassification:
     """Tool-level statuses return tool results; transport statuses still raise
@@ -495,6 +515,80 @@ class TestToolLevelStatusClassification:
         with pytest.raises(TransportError, match="retry suppressed"):
             await transport.call("write_file", {}, _ctx("write_file"))
         assert mock_post.call_count == 1
+
+
+class TestResponseExecutionMetadata:
+    """Result metadata from the response body (REQ-007): carried through,
+    defaulted when absent, and a bad value takes the transport error path."""
+
+    @staticmethod
+    def _make_transport() -> tuple[HttpTransport, AsyncMock]:
+        transport = HttpTransport(
+            http=MagicMock(spec=httpx.AsyncClient),
+            base_url="http://127.0.0.1:8000",
+            server_key="srv",
+            cfg=_http_cfg(),
+        )
+        mock_post = AsyncMock()
+        transport._http.post = mock_post
+        return transport, mock_post
+
+    @staticmethod
+    def _json_resp(body: bytes) -> MagicMock:
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.content = body
+        resp.text = body.decode("utf-8")
+        resp.headers = {"x-request-id": "req-1"}
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    @pytest.mark.asyncio
+    async def test_parsed_result_carries_the_metadata(self) -> None:
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [
+            self._json_resp(
+                b'{"result":"ok","is_error":false,"execution_mode":"preview",'
+                b'"side_effect_applied":false}'
+            )
+        ]
+        result = await transport.call("write_file", {}, _ctx("write_file"))
+        assert result.execution_mode == "preview"
+        assert result.side_effect_applied is False
+
+    @pytest.mark.asyncio
+    async def test_absent_fields_default(self) -> None:
+        """An older server omits both fields: the result keeps the defaults."""
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [self._json_resp(b'{"result":"ok","is_error":false}')]
+        result = await transport.call("write_file", {}, _ctx("write_file"))
+        assert result.execution_mode == ""
+        assert result.side_effect_applied is False
+
+    @pytest.mark.asyncio
+    async def test_unknown_mode_raises_through_the_transport_error_path(self) -> None:
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [
+            self._json_resp(
+                b'{"result":"ok","is_error":false,"execution_mode":"forced"}'
+            )
+        ]
+        with pytest.raises(TransportError) as excinfo:
+            await transport.call("write_file", {}, _ctx("write_file"))
+        assert excinfo.value.stage == "response"
+
+    @pytest.mark.asyncio
+    async def test_wrong_types_raise_through_the_transport_error_path(self) -> None:
+        transport, mock_post = self._make_transport()
+        mock_post.side_effect = [
+            self._json_resp(
+                b'{"result":"ok","is_error":false,"execution_mode":1,'
+                b'"side_effect_applied":"yes"}'
+            )
+        ]
+        with pytest.raises(TransportError) as excinfo:
+            await transport.call("write_file", {}, _ctx("write_file"))
+        assert excinfo.value.stage == "response"
 
 
 # ── ControlClient (mcpdl004 REQ-001, row 07) ─────────────────────────────────

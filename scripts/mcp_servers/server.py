@@ -23,6 +23,10 @@ from typing import Any, Protocol
 from starlette.requests import Request
 
 from mcp_servers.dispatch import DispatchResult
+from mcp_servers.execution_context import (
+    ExecutionContext,
+    build_execution_context,
+)
 from mcp_servers.models import McpTool
 
 # Library module: use standard getLogger without a dedicated log file.
@@ -273,11 +277,36 @@ def extract_request_context(request: Request) -> tuple[str, str, str]:
     return session_id, request_id, idempotency_key
 
 
+def extract_execution_context(
+    request: Request, tool: str, args: dict
+) -> ExecutionContext:
+    """Build the per-call execution context from request headers/state.
+
+    Reads the same key, session, and request ids as `extract_request_context()`
+    plus the `x-execution-mode` header claim, then resolves the mode from the
+    validated arguments through `build_execution_context()`.
+
+    Raises:
+        ExecutionContextError: the header claim disagrees with the resolved mode
+            or the arguments carry a malformed `dry_run`.
+    """
+    session_id, request_id, idempotency_key = extract_request_context(request)
+    return build_execution_context(
+        tool,
+        args,
+        session_id=session_id,
+        request_id=request_id,
+        idempotency_key=idempotency_key,
+        header_mode=request.headers.get("x-execution-mode", ""),
+    )
+
+
 class MCPServer:
     """Base class for MCP servers.
 
     Subclasses declare server_name, server_version, http_host, http_port,
-    app_module, and mcp_tools as class attributes, and override dispatch().
+    app_module, and mcp_tools as class attributes, and override dispatch(),
+    which takes an optional execution context.
 
     run_http() starts the HTTP server via uvicorn.
     """
@@ -290,8 +319,17 @@ class MCPServer:
     own_config_file: str = ""  # e.g. "web_search_mcp_server.toml"; set by subclasses
     mcp_tools: list[McpTool]  # tool definitions (retained for subclass reference)
 
-    async def dispatch(self, name: str, args: ToolArgs) -> DispatchResult:
-        """Handle a tools/call request. Subclasses must override this."""
+    async def dispatch(
+        self,
+        name: str,
+        args: ToolArgs,
+        context: ExecutionContext | None = None,
+    ) -> DispatchResult:
+        """Handle a tools/call request. Subclasses must override this.
+
+        `context` is the per-call execution context built from the request; a
+        programmatic caller may pass None and the dispatcher resolves its own.
+        """
         raise NotImplementedError(f"{type(self).__name__}.dispatch is not implemented")
 
     def _enforce_startup_posture_gate(self) -> None:
@@ -372,6 +410,7 @@ class MCPServer:
         from shared.mcp_dedup import load_dedup_section
 
         from mcp_servers.dispatch import configure_dedup, configure_tool_retry_policies
+        from mcp_servers.execution_context import configure_tool_preview_capabilities
 
         if own_data is not None:
             dedup_cfg = load_dedup_section(own_data.get("dedup"), self.own_config_file)
@@ -399,6 +438,7 @@ class MCPServer:
         configure_control(control_token, dedup_cfg, self.server_name)
 
         configure_tool_retry_policies(getattr(self, "mcp_tools", ()))
+        configure_tool_preview_capabilities(getattr(self, "mcp_tools", ()))
 
         self._enforce_startup_posture_gate()
 

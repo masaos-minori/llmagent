@@ -14,6 +14,7 @@ from collections.abc import Awaitable, Callable
 from shared.formatters import MAX_SNIPPET_CHARS, truncate
 
 from mcp_servers.dispatch import DispatchResult, ToolArgs, dispatch_tool
+from mcp_servers.execution_context import ExecutionContext
 from mcp_servers.web_search import web_search_service as service
 from mcp_servers.web_search.web_search_models import BrowserFetchResponse, SearchResult
 
@@ -59,9 +60,11 @@ _WEB_DISPATCH: dict[str, Callable[[ToolArgs], Awaitable[str]]] = {
 
 
 async def dispatch_web_tool(
-    name: str, args: ToolArgs, idempotency_key: str | None = None
+    name: str, args: ToolArgs, context: ExecutionContext | None = None
 ) -> DispatchResult:
-    """Route a tool call through the web-search dispatch table."""
-    return await dispatch_tool(
-        _WEB_DISPATCH, name, args, idempotency_key=idempotency_key
-    )
+    """Route a tool call through the web-search dispatch table.
+
+    The context carries the idempotency key and the resolved execution mode;
+    these read-only tools accept a call without a key.
+    """
+    return await dispatch_tool(_WEB_DISPATCH, name, args, context=context)

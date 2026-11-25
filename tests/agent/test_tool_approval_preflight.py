@@ -25,7 +25,11 @@ from agent.tool_policy import (
     check_preflight,
     is_plan_mode_blocked,
 )
-from agent.tool_preparation import PreparedToolCall, _canonical_args_hash
+from agent.tool_preparation import (
+    PreparedToolCall,
+    _canonical_args_hash,
+    new_execution_context,
+)
 from agent.tool_runner import execute_one_tool_call
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult, ToolExecutionContext
@@ -657,6 +661,46 @@ class TestCheckApprovalDryRun:
         assert call_args[1]["dry_run"] is True
 
     @pytest.mark.asyncio
+    async def test_dry_run_call_carries_its_own_preview_context(self) -> None:
+        """mcpai005 REQ-009: the pre-approval preview call carries a preview context
+        with a fresh logical id, so it cannot be presented as the approved call's."""
+        cfg = _make_cfg()
+        ctx = _make_ctx(cfg=cfg)
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: /tmp/newdir [would delete]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+
+        with (
+            patch("builtins.print", side_effect=lambda *a: None),
+            patch(
+                "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+            ),
+        ):
+            assert (
+                await check_approval(ctx, "delete_directory", {"path": "/tmp/newdir"})
+                is True
+            )
+
+        call = ctx.services_required.tools.execute.await_args
+        assert call.args[0] == "delete_directory"
+        assert call.args[1]["dry_run"] is True
+        context = call.kwargs["context"]
+        assert isinstance(context, ToolExecutionContext)
+        assert context.execution_mode == "preview"
+        assert context.operation == "call_tool"
+        approved = new_execution_context("delete_directory", {"path": "/tmp/newdir"})
+        assert context.call_id != approved.call_id
+        assert context.args_hash == _canonical_args_hash(
+            {"path": "/tmp/newdir", "dry_run": True}
+        )
+
+    @pytest.mark.asyncio
     async def test_github_tool_triggers_dry_run(self) -> None:
         """github_push_files declares dry_run; dry-run output enriches the preview."""
         cfg = _make_cfg(approval_github_allowed_repos=["octocat/hello-world"])
@@ -721,8 +765,10 @@ class TestCheckApprovalDryRun:
         """
         mutations: list[str] = []
 
-        def _execute_side_effect(*call_args: Any) -> ToolCallResult:
+        def _execute_side_effect(*call_args: Any, **call_kwargs: Any) -> ToolCallResult:
             # Mirror the server contract: only a non-dry_run call mutates.
+            # The preview call now arrives with its own context (mcpai005 REQ-009),
+            # which the no-op contract does not depend on.
             if call_args[1].get("dry_run") is not True:
                 mutations.append(call_args[0])
             return ToolCallResult(

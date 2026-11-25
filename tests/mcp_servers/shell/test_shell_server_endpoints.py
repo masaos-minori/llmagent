@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
+from mcp_servers.execution_context import ExecutionContext
 from mcp_servers.shell import server as shell_server
 from mcp_servers.shell.shell_models import ShellConfig
 
@@ -131,7 +132,13 @@ class TestCallToolEndpoint:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body == {"result": "ok: 0", "is_error": False, "dedup_state": ""}
+        assert body == {
+            "result": "ok: 0",
+            "is_error": False,
+            "dedup_state": "",
+            "execution_mode": "applied",
+            "side_effect_applied": True,
+        }
         handler.assert_awaited_once_with({"command": "echo hi"})
 
     def test_audit_record_keeps_session_and_request_context_in_order(
@@ -194,6 +201,13 @@ class TestShellMCPServerDispatch:
         handler = AsyncMock(return_value="dispatched")
         fake_service._dispatch_table["shell_run"] = handler
         server = shell_server.ShellMCPServer()
-        result = await server.dispatch("shell_run", {"command": "true"})
+        # shell_run is side-effecting: the programmatic path needs a keyed context.
+        result = await server.dispatch(
+            "shell_run",
+            {"command": "true"},
+            context=ExecutionContext.for_programmatic_call(
+                "shell_run", {"command": "true"}, idempotency_key="shell-dispatch-1"
+            ),
+        )
         assert result.output == "dispatched"
         assert result.is_error is False

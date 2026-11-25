@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import orjson
+from shared.execution_mode import ExecutionMode, resolve_execution_mode
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult, ToolExecutionContext
 
@@ -168,6 +169,27 @@ def _logical_call_id() -> str:
     return str(uuid.UUID(int=value))
 
 
+def new_execution_context(
+    tool: str,
+    args: dict[str, Any],
+    mode: ExecutionMode = "applied",
+    call_id: str | None = None,
+) -> ToolExecutionContext:
+    """Build one prepared call's execution context: the single construction site.
+
+    `call_id` is the matched replay directive's id when preparation resolved one,
+    otherwise a fresh uuid7 logical call id. `mode` is the mode resolved from the
+    validated arguments and the tool's declared preview capability.
+    """
+    return ToolExecutionContext(
+        call_id=call_id or _logical_call_id(),
+        tool=tool,
+        args_hash=_canonical_args_hash(args),
+        operation="call_tool",
+        execution_mode=mode,
+    )
+
+
 def _reject(tc_id: str, name: str, args: dict, kind: str, reason: str) -> _PrepFailure:
     """Build the synthetic failure tuple for a rejected tool call.
 
@@ -262,6 +284,13 @@ def _prepare_one(ctx: AgentContext, tc: dict) -> PreparedToolCall | _PrepFailure
         return _reject(tc_id, name, args, "schema", validation.reason)
 
     try:
+        mode = resolve_execution_mode(
+            name, args, runtime_tool.preview_capability == "dry_run"
+        )
+    except ValueError as exc:
+        return _reject(tc_id, name, args, "validation", str(exc))
+
+    try:
         spec = registry.tool_spec_for_call(tc_id, name, args)
     except KeyError:
         return _reject(
@@ -279,12 +308,7 @@ def _prepare_one(ctx: AgentContext, tc: dict) -> PreparedToolCall | _PrepFailure
         args=args,
         spec=spec,
         original_call=tc,
-        context=ToolExecutionContext(
-            call_id=resolved,
-            tool=name,
-            args_hash=args_hash,
-            operation="call_tool",
-        ),
+        context=new_execution_context(name, args, mode, call_id=resolved),
     )
 
 

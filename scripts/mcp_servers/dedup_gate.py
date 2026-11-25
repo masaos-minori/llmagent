@@ -43,17 +43,27 @@ class DispatchResult:
       (reconciliation_required, outcome_unknown, replay_unavailable)
     - ``dedup_store_error``: durable dedup store unavailable for a non-retryable tool
     - ``dispatch_error``: generic dispatch failure (no specific category)
+    - ``idempotency_key_required``: side-effecting call without an idempotency key
 
     ``dedup_state`` carries the durable-dedup branch taken: ``""`` (no dedup
     branch), ``duplicate_hit``, ``replayed``, ``store_error``,
     ``in_progress``, ``reconciliation_required``, ``interrupted``,
     ``outcome_unknown``, ``replay_unavailable``, ``lease_conflict``.
+
+    ``execution_mode`` carries what the call actually did: ``preview`` (the
+    handler ran as a preview), ``applied`` (the handler ran for real), ``no_op``
+    (the handler did not run: replay, refusal, key rejection, unknown tool), or
+    ``""`` when no dispatcher outcome was attached. ``side_effect_applied`` is
+    True only for an applied success on a side-effecting tool. Both are written
+    by the dispatcher, not derived from ``error_type`` or ``dedup_state``.
     """
 
     output: str
     is_error: bool
     error_type: str | None = None
     dedup_state: str = ""
+    execution_mode: str = ""
+    side_effect_applied: bool = False
 
     @property
     def outcome(self) -> str:

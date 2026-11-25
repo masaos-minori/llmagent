@@ -4,6 +4,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
+from shared.execution_mode import ExecutionMode
 from shared.mcp_health import McpServerHealthState
 
 
@@ -31,13 +32,17 @@ class ToolExecutionContext:
     may appear here. The wider identity ids (session/workflow/task/turn) ride
     on the audit event side (``ToolExecEvent``/``execution_snapshot_json``);
     ``server_key`` and the approval reference are not knowable at preparation
-    time and are deliberately absent.
+    time and are deliberately absent. ``execution_mode`` is the shared mode
+    vocabulary from ``shared.execution_mode`` and defaults to ``applied``, so
+    an existing caller that does not resolve a mode still means a real
+    execution.
     """
 
     call_id: str  # uuid7 logical call id, generated once at preparation
     tool: str  # tool name as dispatched
     args_hash: str  # hex sha256 over canonical-JSON args; grant comparison key
     operation: str  # RPC operation name (e.g. "call_tool")
+    execution_mode: ExecutionMode = "applied"  # shared mode vocabulary
 
 
 @dataclass(frozen=True)
@@ -65,16 +70,29 @@ class ToolCallResult:
         # "response" HTTP response received; the intent-state writer uses this
         # to keep a post-send failure at a dispatch-stage state (never replayed)
     )
+    execution_mode: str = (
+        ""  # server-reported execution mode; "" when the server did not report one
+    )
+    side_effect_applied: bool = (
+        False  # True when the server ran the handler and the tool is side-effecting
+    )
 
     @classmethod
     def from_transport(
-        cls, output: str, is_error: bool, request_id: str = ""
+        cls,
+        output: str,
+        is_error: bool,
+        request_id: str = "",
+        execution_mode: str = "",
+        side_effect_applied: bool = False,
     ) -> "ToolCallResult":
         """Build a ToolCallResult from a successful transport response.
 
         This method handles HTTP 200 responses carrying is_error: true
         (i.e., tool-level errors). Transport failures are produced by the
         invoker via _error_result(..., error_type="transport"), not here.
+        The result metadata is carried through unchanged; absent means the
+        server reported nothing.
         """
         return cls(
             output=output,
@@ -83,6 +101,8 @@ class ToolCallResult:
             server_key="",
             source="mcp",
             error_type="tool" if is_error else "",
+            execution_mode=execution_mode,
+            side_effect_applied=side_effect_applied,
         )
 
 

@@ -7,6 +7,7 @@ dispatch_tool without pulling in the full MCPServer base class.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 import logging
 import sqlite3
@@ -43,6 +44,7 @@ from mcp_servers.dedup_gate import (
     _LeaseHeartbeat,
     _new_owner_id,
 )
+from mcp_servers.execution_context import ExecutionContext
 from mcp_servers.models import CallToolResponse
 
 logger = logging.getLogger(__name__)
@@ -59,30 +61,11 @@ logger = logging.getLogger(__name__)
 _write_tools = ALL_SIDE_EFFECTING_TOOLS
 
 
-# UNK-01 resolution: dispatch_tool() only sees the final output string, so a
-# dry-run result is recognised by a conservative marker scan rather than a
-# structured signal. Matching errs toward *not* caching (i.e. always execute),
-# which is the safe direction under ADR-004 (never report non-execution as
-# success). Extend this tuple if a service emits a different marker.
-_IDEMPOTENCY_DRY_RUN_MARKERS: tuple[str, ...] = (
-    '"dry_run": true',
-    '"dry_run":true',
-    '"dry_run": True',
-    '"dry_run":True',
-    "(dry_run)",
-)
-
-
 def _normalize_args_hash(args: ToolArgs) -> str:
     """Deterministic hash of arguments so logically identical arguments match
     regardless of insertion order."""
     serialized = json.dumps(args, sort_keys=True, default=str)
     return sha256(serialized.encode("utf-8")).hexdigest()
-
-
-def _is_dry_run_output(output: str) -> bool:
-    """UNK-01: best-effort dry-run detection on the output string."""
-    return any(marker in output for marker in _IDEMPOTENCY_DRY_RUN_MARKERS)
 
 
 def _is_side_effecting(tool_name: str) -> bool:
@@ -248,7 +231,11 @@ async def _dispatch_with_heartbeat(
 def _to_call_tool_response(r: DispatchResult) -> CallToolResponse:
     """Convert a DispatchResult into a CallToolResponse."""
     return CallToolResponse(
-        result=r.output, is_error=r.is_error, dedup_state=r.dedup_state
+        result=r.output,
+        is_error=r.is_error,
+        dedup_state=r.dedup_state,
+        execution_mode=r.execution_mode,
+        side_effect_applied=r.side_effect_applied,
     )
 
 
@@ -348,7 +335,6 @@ def _finalize_dedup(
     owner: str | None,
     snapshot: dict[str, str] | None,
     heartbeat: _LeaseHeartbeat | None,
-    dry_run: bool,
     result: str,
     dedup_state: str,
 ) -> str:
@@ -356,16 +342,12 @@ def _finalize_dedup(
 
     Returns the dedup_state to report: a lost lease (renewal failed during the
     handler, or a finalization write that matched zero rows) is surfaced as
-    ``lease_conflict`` and never re-dispatches the handler (AC-4); a dry-run
-    outcome leaves no replayable state behind.
+    ``lease_conflict`` and never re-dispatches the handler (AC-4).
     """
     if store is None or owner is None or snapshot is None:
         return dedup_state
     if heartbeat is not None and heartbeat.renewal_lost:
         return "lease_conflict"
-    if dry_run:
-        _store_op(store, lambda: store.clear(key), "clear-dry-run")
-        return dedup_state
     if not _store_op(
         store,
         lambda: store.record_completed(key, snapshot, result, owner),
@@ -379,28 +361,37 @@ async def dispatch_tool(
     table: Mapping[str, Callable[[ToolArgs], Awaitable[str]]],
     name: str,
     args: ToolArgs,
-    idempotency_key: str | None = None,
+    context: ExecutionContext | None = None,
 ) -> DispatchResult:
     """Route a tool call through a dispatch table.
 
     Returns a DispatchResult with output text and is_error flag.
-    Raises for non-ValueError handler exceptions (caller is responsible for transport-level handling).
-    ValueError from handlers is converted to an error result (user-input/validation errors).
-    Unknown tool and empty name return error results without raising.
-    If a non-empty idempotency_key is provided and name is side-effecting, the
-    call is deduplicated: a matching prior call is served, a reused key with
-    different content is rejected, and a keyless call always executes. Error and
-    dry-run results are never cached. When the durable store is available the
-    same contract holds across processes through one acquisition call
-    (try_acquire_execution) in mcp_servers.dedup_gate: completed results with a
-    matching execution snapshot are replayed, a live lease refuses as
-    in_progress, an expired lease replays for retryable tools only through
-    reconcile-then-reacquire and is refused for non-retryable ones, terminal
-    rows refuse replay, and the branch taken is reported in dedup_state. The
-    owner lease is renewed while the handler runs, and a lease lost during
-    dispatch is reported as lease_conflict without re-dispatching the handler.
-    The in-process overlay cache is read and written only on the degraded path
-    where no durable store is available.
+    Raises for non-ValueError handler exceptions (caller is responsible for
+    transport-level handling). ValueError from handlers is converted to an error
+    result (user-input/validation errors). Unknown tool and empty name return
+    error results without raising.
+
+    The execution context carries the logical-call identity; a call with no
+    context is built for a programmatic caller. Every side-effecting call needs
+    a key: a keyless side-effecting call is refused before the handler runs,
+    while a read-only call executes without one.
+
+    The mode on the context decides what the handler call means. A preview runs
+    the handler and reports the mode without touching the ledger, the heartbeat,
+    or the overlay cache, so a later real execution with the same key is not
+    blocked. An applied side-effecting call is deduplicated through the one
+    acquisition decision: a matching prior call is served, a reused key with
+    different content is rejected, and the branch taken is reported in
+    dedup_state. The owner lease is renewed while the handler runs, and a lease
+    lost during dispatch is reported as lease_conflict without re-dispatching
+    the handler. The in-process overlay cache is read and written only on the
+    degraded path where no durable store is available.
+
+    execution_mode reports what actually happened: ``preview`` for a preview,
+    ``applied`` when the handler ran, and ``no_op`` for every outcome where the
+    handler did not run (replay, dedup refusal, key rejection, unknown tool).
+    side_effect_applied is True only for an applied success on a side-effecting
+    tool.
     """
     if not isinstance(name, str) or not name.strip():
         logger.warning("dispatch_tool called with empty tool name")
@@ -408,36 +399,74 @@ async def dispatch_tool(
             output="Tool name must be a non-empty string",
             is_error=True,
             error_type="invalid_tool_name",
+            execution_mode="no_op",
         )
 
     handler = table.get(name)
     if handler is None:
         logger.warning("Unknown tool requested: %s", name)
         return DispatchResult(
-            output=f"Unknown tool: {name}", is_error=True, error_type="unknown_tool"
+            output=f"Unknown tool: {name}",
+            is_error=True,
+            error_type="unknown_tool",
+            execution_mode="no_op",
         )
 
-    # duplicate-check for side-effecting tools (a non-empty key is
-    # required; a keyless call never touches the cache or the store and always
-    # executes). With a durable store the one acquisition is the only decision
-    # point and the in-process overlay is neither read nor written; the overlay
-    # serves the degraded (storeless) path only (REQ-001, REQ-007).
-    key = idempotency_key
+    if context is None:
+        context = ExecutionContext.for_programmatic_call(name, args)
+
     side_effecting = _is_side_effecting(name)
-    args_hash = _normalize_args_hash(args) if (key and side_effecting) else ""
-    store_key = key if key else ""
-    decision = (
-        _acquire_dedup(key, name, args_hash) if (key and side_effecting) else _NO_DEDUP
-    )
+    key = context.idempotency_key
+    if side_effecting and not key:
+        logger.warning(
+            "Idempotency key required for side-effecting tool: %s",
+            name,
+        )
+        return DispatchResult(
+            output=f"Idempotency key required for tool {name!r}",
+            is_error=True,
+            error_type="idempotency_key_required",
+            execution_mode="no_op",
+        )
+
+    # A preview never acquires: no lease, no heartbeat, no finalization, no
+    # overlay write, so the ledger stays empty and the same key can still run
+    # the tool for real afterwards.
+    if context.execution_mode == "preview":
+        try:
+            result = await handler(args)
+        except ValueError as e:
+            logger.warning("Tool '%s' validation error: %s", name, e)
+            return DispatchResult(
+                output=f"Validation error: {e}",
+                is_error=True,
+                error_type="validation_error",
+                execution_mode="preview",
+            )
+        return DispatchResult(
+            output=result,
+            is_error=False,
+            execution_mode="preview",
+            side_effect_applied=False,
+        )
+
+    # Duplicate-check for side-effecting tools. With a durable store the one
+    # acquisition is the only decision point and the in-process overlay is
+    # neither read nor written; the overlay serves the degraded (storeless) path
+    # only.
+    args_hash = _normalize_args_hash(args) if side_effecting else ""
+    decision = _acquire_dedup(key, name, args_hash) if side_effecting else _NO_DEDUP
     if decision.early is not None:
-        return decision.early
+        return dataclasses.replace(
+            decision.early, execution_mode="no_op", side_effect_applied=False
+        )
     store = decision.store
     owner = decision.owner
     snapshot_at_start = decision.snapshot
     dedup_state = decision.dedup_state
 
     heartbeat = (
-        _LeaseHeartbeat(store, store_key, owner)
+        _LeaseHeartbeat(store, key, owner)
         if store is not None and owner is not None
         else None
     )
@@ -450,7 +479,7 @@ async def dispatch_tool(
         if store is not None and owner is not None:
             _store_op(
                 store,
-                lambda: store.mark_interrupted(store_key, owner),
+                lambda: store.mark_interrupted(key, owner),
                 "mark-interrupted",
             )
         raise
@@ -461,7 +490,7 @@ async def dispatch_tool(
         if store is not None and owner is not None:
             _store_op(
                 store,
-                lambda: store.record_failed(store_key, "validation_error", owner),
+                lambda: store.record_failed(key, "validation_error", owner),
                 "record-failed",
             )
         return DispatchResult(
@@ -469,6 +498,7 @@ async def dispatch_tool(
             is_error=True,
             error_type="validation_error",
             dedup_state=dedup_state,
+            execution_mode="applied",
         )
     except Exception as exc:  # noqa: BLE001 -- re-raised unchanged; the only added
         # behavior is closing the durable pending row (pending -> failed) before the
@@ -477,30 +507,32 @@ async def dispatch_tool(
         if store is not None and owner is not None:
             _store_op(
                 store,
-                lambda: store.record_failed(store_key, error_class, owner),
+                lambda: store.record_failed(key, error_class, owner),
                 "record-failed",
             )
         raise
     # All other exceptions (CancelledError aside, RuntimeError, IOError,
     # HTTPException, etc.) propagate to caller.
 
-    dry_run = _is_dry_run_output(result)
     dedup_state = _finalize_dedup(
         store,
-        store_key,
+        key,
         owner,
         snapshot_at_start,
         heartbeat,
-        dry_run,
         result,
         dedup_state,
     )
     dispatched_result = DispatchResult(
-        output=result, is_error=False, dedup_state=dedup_state
+        output=result,
+        is_error=False,
+        dedup_state=dedup_state,
+        execution_mode="applied",
+        side_effect_applied=side_effecting,
     )
-    # Cache only real, successful, non-dry-run results, and only on the degraded
-    # path: on the durable path the store is the record and a replay is served
-    # from it, so the overlay stays empty (REQ-001, T-6).
-    if key and side_effecting and store is None and not dry_run:
+    # Cache only real, successful results, and only on the degraded path: on the
+    # durable path the store is the record and a replay is served from it, so
+    # the overlay stays empty.
+    if side_effecting and store is None:
         _idem_store(key, name, args_hash, dispatched_result, _idem_now())
     return dispatched_result

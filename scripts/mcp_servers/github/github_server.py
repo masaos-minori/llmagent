@@ -49,6 +49,7 @@ from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
+from mcp_servers.execution_context import ExecutionContext, ExecutionContextError
 from mcp_servers.github.exception_handlers import setup_exception_handlers
 from mcp_servers.github.github_models import (
     GitHubConfig,
@@ -65,6 +66,7 @@ from mcp_servers.server import (
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
+    extract_execution_context,
     extract_request_context,
     require_auth_token,
 )
@@ -191,11 +193,11 @@ async def health() -> JSONResponse:
 
 
 async def _dispatch_github_tool(
-    name: str, args: ToolArgs, idempotency_key: str | None = None
+    name: str, args: ToolArgs, context: ExecutionContext | None = None
 ) -> DispatchResult:
     """Route a tool call to GitHubService via its dispatch table."""
     return await dispatch_tool(
-        _service.get_dispatch_table(), name, args, idempotency_key=idempotency_key
+        _service.get_dispatch_table(), name, args, context=context
     )
 
 
@@ -235,8 +237,13 @@ async def call_tool(req: CallToolRequest, request: "Request") -> CallToolRespons
     if not enabled:
         return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
 
-    session_id, request_id, idempotency_key = extract_request_context(request)
-    r = await _dispatch_github_tool(req.name, req.args, idempotency_key=idempotency_key)
+    try:
+        exec_ctx = extract_execution_context(request, req.name, req.args)
+    except ExecutionContextError as exc:
+        return CallToolResponse(result=f"Validation error: {exc}", is_error=True)
+    session_id, request_id = extract_request_context(request)[:2]
+
+    r = await _dispatch_github_tool(req.name, req.args, context=exec_ctx)
     owner = str(req.args.get("owner", ""))
     repo = str(req.args.get("repo", ""))
     # The audit target names the same canonical identity the guard compared (REQ-002).
@@ -269,9 +276,14 @@ class GithubMCPServer(MCPServer):
     app_module = "mcp_servers.github.github_server:app"
     mcp_tools = TOOL_LIST
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+    async def dispatch(
+        self,
+        name: str,
+        args: dict[str, Any],
+        context: ExecutionContext | None = None,
+    ) -> DispatchResult:
         """Route a GitHub tool call to the appropriate handler."""
-        return await _dispatch_github_tool(name, args)
+        return await _dispatch_github_tool(name, args, context=context)
 
 
 def _enforce_posture_gate() -> None:

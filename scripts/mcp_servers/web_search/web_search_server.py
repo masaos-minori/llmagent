@@ -22,6 +22,7 @@ from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response
+from mcp_servers.execution_context import ExecutionContext, ExecutionContextError
 from mcp_servers.health_response import dedup_health_details, make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
@@ -29,6 +30,7 @@ from mcp_servers.server import (
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
+    extract_execution_context,
     extract_request_context,
     require_auth_token,
 )
@@ -162,10 +164,10 @@ async def health_endpoint() -> JSONResponse:
 
 
 async def _dispatch_web_tool(
-    name: str, args: dict[str, Any], idempotency_key: str | None = None
+    name: str, args: dict[str, Any], context: ExecutionContext | None = None
 ) -> DispatchResult:
     """Route a tool call through the web-search dispatch table."""
-    return await dispatch_web_tool(name, args, idempotency_key=idempotency_key)
+    return await dispatch_web_tool(name, args, context=context)
 
 
 def _classify_dispatch_error(output: str, error_type: str | None) -> str:
@@ -269,20 +271,26 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     if not enabled:
         return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
 
-    session_id, request_id, idempotency_key = extract_request_context(request)
+    session_id, request_id = extract_request_context(request)[:2]
     t0 = time.perf_counter()
     outcome = "ok"
     error_type = ""
     latency_ms = 0.0
     try:
-        r = await _dispatch_web_tool(
-            req.name, req.args, idempotency_key=idempotency_key
-        )
+        exec_ctx = extract_execution_context(request, req.name, req.args)
+        r = await _dispatch_web_tool(req.name, req.args, context=exec_ctx)
         outcome = r.outcome
         latency_ms = (time.perf_counter() - t0) * 1000
         if outcome == "error":
             error_type = _classify_dispatch_error(r.output, r.error_type)
         return _to_call_tool_response(r)
+    except ExecutionContextError as e:
+        # A malformed context (e.g. a non-boolean `dry_run`) is a validation
+        # error: it is refused before dispatch, so no durable state is created.
+        outcome = "error"
+        error_type = "validation_error"
+        latency_ms = (time.perf_counter() - t0) * 1000
+        return CallToolResponse(result=f"Validation error: {e}", is_error=True)
     except WebSearchUpstreamError as e:
         outcome = "error"
         error_type = _classify_upstream_error(e)
@@ -333,9 +341,14 @@ class WebSearchMCPServer(MCPServer):
     app_module = "mcp_servers.web_search.web_search_server:app"
     mcp_tools = TOOL_LIST
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+    async def dispatch(
+        self,
+        name: str,
+        args: dict[str, Any],
+        context: ExecutionContext | None = None,
+    ) -> DispatchResult:
         """Route a web search tool call to the appropriate handler."""
-        return await _dispatch_web_tool(name, args)
+        return await _dispatch_web_tool(name, args, context=context)
 
 
 def _enforce_posture_gate() -> None:

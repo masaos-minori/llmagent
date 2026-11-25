@@ -23,6 +23,7 @@ from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
+from mcp_servers.execution_context import ExecutionContext, ExecutionContextError
 from mcp_servers.file.common import (
     FileAuthorizationError,
     FileValidationError,
@@ -43,7 +44,7 @@ from mcp_servers.server import (
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
-    extract_request_context,
+    extract_execution_context,
     require_auth_token,
 )
 
@@ -134,11 +135,11 @@ async def health() -> JSONResponse:
 
 
 async def _dispatch_read_tool(
-    name: str, args: ToolArgs, idempotency_key: str | None = None
+    name: str, args: ToolArgs, context: ExecutionContext | None = None
 ) -> DispatchResult:
     """Route a tool call through the shared dispatch mechanism."""
     return await dispatch_tool(
-        _service.get_dispatch_table(), name, args, idempotency_key=idempotency_key
+        _service.get_dispatch_table(), name, args, context=context
     )
 
 
@@ -184,8 +185,11 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         req.validate_args()
     except ValueError as e:
         return CallToolResponse(result=f"Validation error: {e}", is_error=True)
-    _, _, idempotency_key = extract_request_context(request)
-    r = await _dispatch_read_tool(req.name, req.args, idempotency_key=idempotency_key)
+    try:
+        exec_ctx = extract_execution_context(request, req.name, req.args)
+    except ExecutionContextError as exc:
+        return CallToolResponse(result=f"Validation error: {exc}", is_error=True)
+    r = await _dispatch_read_tool(req.name, req.args, context=exec_ctx)
     return _to_call_tool_response(r)
 
 
@@ -204,9 +208,14 @@ class FileReadMCPServer(MCPServer):
     app_module = "mcp_servers.file.read_server:app"
     mcp_tools = TOOL_LIST
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+    async def dispatch(
+        self,
+        name: str,
+        args: dict[str, Any],
+        context: ExecutionContext | None = None,
+    ) -> DispatchResult:
         """Dispatch a tool call to the appropriate handler."""
-        return await _dispatch_read_tool(name, args)
+        return await _dispatch_read_tool(name, args, context=context)
 
 
 def _enforce_posture_gate() -> None:

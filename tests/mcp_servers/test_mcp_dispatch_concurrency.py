@@ -15,9 +15,20 @@ from typing import Any
 
 import pytest
 from mcp_servers.dispatch import _duplicate_cache, dispatch_tool
+from mcp_servers.execution_context import ExecutionContext
 from shared.mcp_dedup import DedupLeaseConflict, DedupStore, DedupStoreConfig
 
 TOOL = "write_file"
+
+
+def _ctx(key: str) -> ExecutionContext:
+    """An applied context for one key: the concurrency pins are all real executions."""
+    return ExecutionContext(
+        request_id="",
+        session_id="",
+        idempotency_key=key,
+        execution_mode="applied",
+    )
 
 
 def _wire_store(
@@ -94,7 +105,7 @@ class TestConcurrentDispatch:
         results = await asyncio.gather(
             *(
                 dispatch_tool(
-                    {TOOL: _handler(calls, 0.2)}, TOOL, {"p": "a"}, idempotency_key="k1"
+                    {TOOL: _handler(calls, 0.2)}, TOOL, {"p": "a"}, context=_ctx("k1")
                 )
                 for _ in range(100)
             )
@@ -164,7 +175,7 @@ class TestLeaseHeartbeat:
             {TOOL: _handler(calls, self.LEASE_SECONDS * 1.2, events)},
             TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert len(calls) == 1
         assert not res.is_error
@@ -187,7 +198,7 @@ class TestLeaseHeartbeat:
             {TOOL: _handler(calls, self.LEASE_SECONDS * 1.4)},
             TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert len(calls) == 1  # never re-dispatched
         assert renewal_blocked["renew"] >= 1

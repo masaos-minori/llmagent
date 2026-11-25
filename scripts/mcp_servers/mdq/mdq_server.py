@@ -30,6 +30,7 @@ from shared.security.result_dto import SecurityCheckStatus
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
+from mcp_servers.execution_context import ExecutionContext, ExecutionContextError
 from mcp_servers.health_response import dedup_health_details, make_health_response
 from mcp_servers.mdq.audit_target import extract_audit_target
 from mcp_servers.mdq.health_check import _collect_dependencies, _degraded_response
@@ -59,6 +60,7 @@ from mcp_servers.server import (
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
+    extract_execution_context,
     extract_request_context,
     require_auth_token,
 )
@@ -208,6 +210,9 @@ class MdqDispatchResult:
     output: str
     is_error: bool
     metadata: dict[str, Any]
+    execution_mode: str = ""
+    side_effect_applied: bool = False
+    dedup_state: str = ""
 
     @property
     def outcome(self) -> str:
@@ -306,7 +311,7 @@ _DISPATCH_TABLE = {
 
 
 async def _dispatch_mdq_tool(
-    name: str, args: ToolArgs, idempotency_key: str | None = None
+    name: str, args: ToolArgs, context: ExecutionContext | None = None
 ) -> MdqDispatchResult:
     """Route a tool call through the shared dispatch mechanism, capturing mdq-local metadata.
 
@@ -319,14 +324,17 @@ async def _dispatch_mdq_tool(
     except Exception:  # noqa: BLE001 — set() failure must not corrupt state
         raise RuntimeError("Failed to set mdq metadata ContextVar")
     try:
-        result = await dispatch_tool(
-            _DISPATCH_TABLE, name, args, idempotency_key=idempotency_key
-        )
+        result = await dispatch_tool(_DISPATCH_TABLE, name, args, context=context)
         metadata = _mdq_metadata_var.get() or {}
     finally:
         _mdq_metadata_var.reset(token)
     return MdqDispatchResult(
-        output=result.output, is_error=result.is_error, metadata=metadata
+        output=result.output,
+        is_error=result.is_error,
+        metadata=metadata,
+        execution_mode=result.execution_mode,
+        side_effect_applied=result.side_effect_applied,
+        dedup_state=result.dedup_state,
     )
 
 
@@ -396,13 +404,16 @@ async def list_tools(
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Handle MCP call_tool requests with audit logging and error handling."""
     t0 = time.perf_counter()
-    session_id, request_id, idempotency_key = extract_request_context(request)
+    session_id, request_id = extract_request_context(request)[:2]
     target = extract_audit_target(req.name, req.args)
 
     try:
-        r = await _dispatch_mdq_tool(
-            req.name, req.args, idempotency_key=idempotency_key
-        )
+        exec_ctx = extract_execution_context(request, req.name, req.args)
+    except ExecutionContextError as exc:
+        return CallToolResponse(result=f"Validation error: {exc}", is_error=True)
+
+    try:
+        r = await _dispatch_mdq_tool(req.name, req.args, context=exec_ctx)
     except (
         MdqValidationError,
         MdqAuthorizationError,
@@ -440,7 +451,15 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         detail=", ".join(detail_parts),
         server_key="mdq",
     )
-    return _to_call_tool_response(DispatchResult(output=r.output, is_error=r.is_error))
+    return _to_call_tool_response(
+        DispatchResult(
+            output=r.output,
+            is_error=r.is_error,
+            dedup_state=r.dedup_state,
+            execution_mode=r.execution_mode,
+            side_effect_applied=r.side_effect_applied,
+        )
+    )
 
 
 @app.get("/health")
@@ -492,10 +511,21 @@ class MdqMCPServer(MCPServer):
     mcp_tools = TOOL_LIST
     server_key = "mdq"
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+    async def dispatch(
+        self,
+        name: str,
+        args: dict[str, Any],
+        context: ExecutionContext | None = None,
+    ) -> DispatchResult:
         """Route an MDQ tool call to the appropriate handler."""
-        r = await _dispatch_mdq_tool(name, args)
-        return DispatchResult(output=r.output, is_error=r.is_error)
+        r = await _dispatch_mdq_tool(name, args, context=context)
+        return DispatchResult(
+            output=r.output,
+            is_error=r.is_error,
+            dedup_state=r.dedup_state,
+            execution_mode=r.execution_mode,
+            side_effect_applied=r.side_effect_applied,
+        )
 
 
 # Attach the common Bearer authentication middleware. allowed_dirs path authorization

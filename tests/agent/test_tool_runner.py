@@ -37,6 +37,7 @@ from agent.tool_runner import (
     _emit_tool_result,
     _execute_with_dag,
     _finalize_state,
+    _record_pending_state,
     execute_all_tool_calls,
     execute_one_tool_call,
 )
@@ -200,6 +201,7 @@ def _pc(
     *,
     context: bool = True,
     grant: bool = True,
+    execution_mode: str = "applied",
 ) -> PreparedToolCall:
     """Build a PreparedToolCall for tests that exercise execute_one_tool_call()
 
@@ -212,6 +214,7 @@ def _pc(
     grant the real pipeline produces — the context call_id equals call_id so
     state-row keys stay deterministic. context=False / grant=False build the
     id-less / ungranted shapes the fail-closed gates deny (REQ-003/REQ-006).
+    execution_mode carries the mode resolved at preparation (mcpai005 REQ-009).
     """
     resolved_call_id = call_id or f"call_{name}"
     return PreparedToolCall(
@@ -231,6 +234,7 @@ def _pc(
                 tool=name,
                 args_hash=_canonical_args_hash(args),
                 operation="call_tool",
+                execution_mode=execution_mode,
             )
             if context
             else None
@@ -2982,6 +2986,67 @@ class TestAttemptSideEffectFlag:
             )
 
         assert ctx.turn.attempt_side_effect is True
+
+
+class TestPreviewCallsDoNotRecordState:
+    """mcpai005 REQ-009: a preview-mode call writes no tool_call_state row and
+    does not set the per-attempt side-effect flag."""
+
+    @pytest.mark.asyncio
+    async def test_preview_call_records_no_row_and_leaves_flag_unset(self) -> None:
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+        ctx.turn = TurnState(current_turn_id="test-turn-id")
+        pc = _pc(
+            "shell_run",
+            {"command": "echo hi", "dry_run": True},
+            call_id="call_pre",
+            execution_mode="preview",
+        )
+        collected: dict[str, tuple] = {}
+
+        await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected=collected
+        )
+
+        assert collected["call_pre"][4] is False
+        assert recorder.records() == []
+        assert recorder.finalizes() == []
+        assert ctx.turn.attempt_side_effect is False
+
+    @pytest.mark.asyncio
+    async def test_applied_call_of_the_same_tool_is_recorded_as_before(self) -> None:
+        """The guard is mode-scoped: the same tool with `applied` still records."""
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+        ctx.turn = TurnState(current_turn_id="test-turn-id")
+        pc = _pc(
+            "shell_run",
+            {"command": "echo hi"},
+            call_id="call_applied",
+            execution_mode="applied",
+        )
+        collected: dict[str, tuple] = {}
+
+        await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected=collected
+        )
+
+        assert [r[2] for r in recorder.records()] == ["call_applied"]
+        assert ctx.turn.attempt_side_effect is True
+
+    def test_preview_without_a_recorder_does_not_raise(self) -> None:
+        """A side-effecting call without a recorder is fail-closed for an applied
+        call; a preview writes nothing, so the intent gate does not fire."""
+        ctx = _state_ctx(None)
+        pc = _pc(
+            "shell_run",
+            {"command": "echo hi", "dry_run": True},
+            call_id="call_pre_no_recorder",
+            execution_mode="preview",
+        )
+
+        assert _record_pending_state(ctx, pc) is None
 
 
 class TestToolCallSinkScrub:

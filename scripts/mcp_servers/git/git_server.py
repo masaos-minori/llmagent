@@ -36,7 +36,15 @@ from shared.security.startup_flow import run_startup_validation
 from shared.tool_constants import GIT_WRITE_TOOLS
 
 from mcp_servers.audit import _audit_log
-from mcp_servers.dispatch import DispatchResult, dispatch_tool
+from mcp_servers.dispatch import (
+    DispatchResult,
+    _to_call_tool_response,
+    dispatch_tool,
+)
+from mcp_servers.execution_context import (
+    ExecutionContext,
+    ExecutionContextError,
+)
 from mcp_servers.git.errors import GitPolicyError, GitServiceError
 from mcp_servers.git.git_models import (
     GitConfig,
@@ -56,6 +64,7 @@ from mcp_servers.server import (
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
+    extract_execution_context,
     extract_request_context,
     require_auth_token,
 )
@@ -264,7 +273,11 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     except ValueError as e:
         return CallToolResponse(result=f"Validation error: {e}", is_error=True)
     t0 = time.perf_counter()
-    session_id, request_id, idempotency_key = extract_request_context(request)
+    try:
+        exec_ctx = extract_execution_context(request, req.name, req.args)
+    except ExecutionContextError as exc:
+        return CallToolResponse(result=f"Validation error: {exc}", is_error=True)
+    session_id, request_id = extract_request_context(request)[:2]
     repo_path = cast(str, req.args.get("repo_path", ""))
     ok, err, resolved = _resolve_repo_path(repo_path)
     if not ok:
@@ -333,7 +346,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
             _service.get_dispatch_table(),
             req.name,
             req.args,
-            idempotency_key=idempotency_key,
+            context=exec_ctx,
         )
     except GitPolicyError as exc:
         policy_exc = exc
@@ -364,10 +377,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     if policy_exc is not None:
         return CallToolResponse(result=str(policy_exc), is_error=True)
     assert result is not None
-    return CallToolResponse(
-        result=result.output,
-        is_error=result.is_error,
-    )
+    return _to_call_tool_response(result)
 
 
 @app.get("/health")
@@ -412,9 +422,16 @@ class GitMCPServer(MCPServer):
     app_module = "mcp_servers.git.git_server:app"
     mcp_tools = TOOL_LIST
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+    async def dispatch(
+        self,
+        name: str,
+        args: dict[str, Any],
+        context: ExecutionContext | None = None,
+    ) -> DispatchResult:
         """Delegate a tool call to the git service's dispatch table."""
-        return await dispatch_tool(_service.get_dispatch_table(), name, args)
+        return await dispatch_tool(
+            _service.get_dispatch_table(), name, args, context=context
+        )
 
 
 def _enforce_posture_gate() -> None:

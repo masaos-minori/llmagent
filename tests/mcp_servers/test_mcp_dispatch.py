@@ -17,7 +17,23 @@ from mcp_servers.dispatch import (
     _is_side_effecting,
     dispatch_tool,
 )
+from mcp_servers.execution_context import ExecutionContext
+from shared.execution_mode import ExecutionMode
 from shared.mcp_dedup import DedupStoreError
+
+
+def _ctx(key: str = "", mode: ExecutionMode = "applied") -> ExecutionContext:
+    """The context a call site passes to dispatch_tool: the key and the mode.
+
+    One helper keeps the mechanical rename from `idempotency_key=` to the context
+    a single expression, so the mode is visible at every call site.
+    """
+    return ExecutionContext(
+        request_id="",
+        session_id="",
+        idempotency_key=key,
+        execution_mode=mode,
+    )
 
 
 def _attempt_history(store: Any) -> list[tuple[int, str, str | None]]:
@@ -155,8 +171,9 @@ class TestDispatchIdempotencyCache:
         return name
 
     @pytest.mark.asyncio
-    async def test_keyless_and_empty_key_always_execute(self) -> None:
-        """A keyless or empty-key call never touches the cache (REQ-001)."""
+    async def test_keyless_side_effecting_call_is_rejected(self) -> None:
+        """A side-effecting call without a key is refused before the handler runs
+        and reports no_op (REQ-006)."""
 
         calls: list[int] = []
 
@@ -165,16 +182,32 @@ class TestDispatchIdempotencyCache:
             return "wrote"
 
         tool = self._side_effecting_tool()
-        for key in (None, ""):
-            r1 = await dispatch_tool(
-                {tool: handler}, tool, {"p": "a"}, idempotency_key=key
-            )
-            r2 = await dispatch_tool(
-                {tool: handler}, tool, {"p": "a"}, idempotency_key=key
-            )
-            assert not r1.is_error and not r2.is_error
-        assert len(calls) == 4  # executed every time across both keyless calls
-        assert len(_duplicate_cache) == 0  # nothing stored
+        r = await dispatch_tool({tool: handler}, tool, {"p": "a"}, context=_ctx())
+        assert r.is_error
+        assert r.error_type == "idempotency_key_required"
+        assert r.execution_mode == "no_op"
+        assert r.side_effect_applied is False
+        assert calls == []
+        assert len(_duplicate_cache) == 0
+
+    @pytest.mark.asyncio
+    async def test_keyless_read_only_call_executes(self) -> None:
+        """The key requirement is scoped to side-effecting tools: a keyless read-only
+        call runs and writes no cache entry (REQ-006)."""
+
+        calls: list[int] = []
+
+        async def handler(args: dict) -> str:
+            calls.append(1)
+            return "contents"
+
+        tool = "read_text_file"
+        assert not _is_side_effecting(tool)
+        r = await dispatch_tool({tool: handler}, tool, {"p": "a"}, context=_ctx())
+        assert not r.is_error
+        assert r.execution_mode == "applied"
+        assert len(calls) == 1
+        assert len(_duplicate_cache) == 0
 
     @pytest.mark.asyncio
     async def test_same_key_served_from_cache(self) -> None:
@@ -188,8 +221,8 @@ class TestDispatchIdempotencyCache:
 
         tool = self._side_effecting_tool()
         key = "same-key"
-        r1 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key=key)
-        r2 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key=key)
+        r1 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, context=_ctx(key))
+        r2 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, context=_ctx(key))
         assert not r1.is_error and not r2.is_error
         assert r1.output == r2.output == "wrote"
         assert len(calls) == 1  # executed once
@@ -209,10 +242,10 @@ class TestDispatchIdempotencyCache:
             assert _is_side_effecting(tool)
             key = f"mdq-key-{tool}"
             r1 = await dispatch_tool(
-                {tool: handler}, tool, {"p": "a"}, idempotency_key=key
+                {tool: handler}, tool, {"p": "a"}, context=_ctx(key)
             )
             r2 = await dispatch_tool(
-                {tool: handler}, tool, {"p": "a"}, idempotency_key=key
+                {tool: handler}, tool, {"p": "a"}, context=_ctx(key)
             )
             assert not r1.is_error and not r2.is_error
             assert r1.output == r2.output == "indexed"
@@ -230,8 +263,8 @@ class TestDispatchIdempotencyCache:
             return "wrote"
 
         table = {"write_file": handler, "shell_run": handler}
-        r1 = await dispatch_tool(table, "write_file", {"p": "a"}, idempotency_key="k")
-        r2 = await dispatch_tool(table, "shell_run", {"p": "a"}, idempotency_key="k")
+        r1 = await dispatch_tool(table, "write_file", {"p": "a"}, context=_ctx("k"))
+        r2 = await dispatch_tool(table, "shell_run", {"p": "a"}, context=_ctx("k"))
         assert not r1.is_error
         assert r2.is_error
         assert "reused with different content" in r2.output
@@ -248,8 +281,8 @@ class TestDispatchIdempotencyCache:
             return "wrote"
 
         tool = self._side_effecting_tool()
-        r1 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key="k")
-        r2 = await dispatch_tool({tool: handler}, tool, {"p": "b"}, idempotency_key="k")
+        r1 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, context=_ctx("k"))
+        r2 = await dispatch_tool({tool: handler}, tool, {"p": "b"}, context=_ctx("k"))
         assert not r1.is_error
         assert r2.is_error
         assert "reused with different content" in r2.output
@@ -269,12 +302,12 @@ class TestDispatchIdempotencyCache:
         monkeypatch.setattr("mcp_servers.dispatch._idem_now", lambda: clock["t"])
         tool = self._side_effecting_tool()
         key = "ttl-key"
-        await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key=key)
+        await dispatch_tool({tool: handler}, tool, {"p": "a"}, context=_ctx(key))
         clock["t"] = 1000.0 + _IDEMPOTENCY_CACHE_TTL_SECONDS // 2  # within TTL
-        await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key=key)
+        await dispatch_tool({tool: handler}, tool, {"p": "a"}, context=_ctx(key))
         assert len(calls) == 1  # served from cache
         clock["t"] = 1000.0 + _IDEMPOTENCY_CACHE_TTL_SECONDS + 1.0  # past TTL
-        r3 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key=key)
+        r3 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, context=_ctx(key))
         assert not r3.is_error
         assert len(calls) == 2  # expired, re-executed
 
@@ -291,15 +324,15 @@ class TestDispatchIdempotencyCache:
         tool = self._side_effecting_tool()
         table = {tool: handler}
         for i in range(_IDEMPOTENCY_CACHE_MAX_ENTRIES + 5):
-            await dispatch_tool(table, tool, {"i": i}, idempotency_key=f"k{i}")
+            await dispatch_tool(table, tool, {"i": i}, context=_ctx(f"k{i}"))
         # Oldest keys were evicted -> a repeat re-executes.
         before = len(calls)
-        r0 = await dispatch_tool(table, tool, {"i": 0}, idempotency_key="k0")
+        r0 = await dispatch_tool(table, tool, {"i": 0}, context=_ctx("k0"))
         assert not r0.is_error
         assert len(calls) == before + 1
         # A still-present middle key is served from cache (no re-execution).
         mid_before = len(calls)
-        await dispatch_tool(table, tool, {"i": 100}, idempotency_key="k100")
+        await dispatch_tool(table, tool, {"i": 100}, context=_ctx("k100"))
         assert len(calls) == mid_before
 
     @pytest.mark.asyncio
@@ -313,33 +346,66 @@ class TestDispatchIdempotencyCache:
             raise ValueError("bad input")
 
         tool = self._side_effecting_tool()
-        r1 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key="k")
+        r1 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, context=_ctx("k"))
         assert r1.is_error
         assert "Validation error" in r1.output
         assert len(_duplicate_cache) == 0
         calls.clear()
-        r2 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key="k")
+        r2 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, context=_ctx("k"))
         assert r2.is_error
         assert len(calls) == 1  # re-executed, not served
 
     @pytest.mark.asyncio
-    async def test_dry_run_result_not_cached(self) -> None:
-        """A dry-run result is never cached; a repeat call re-executes (REQ-004 / UNK-01)."""
+    async def test_preview_result_is_not_cached(self) -> None:
+        """A preview never acquires, so nothing is cached and a repeat preview
+        re-executes the handler (REQ-004)."""
 
         calls: list[int] = []
 
         async def handler(args: dict) -> str:
             calls.append(1)
-            return '{"dry_run": true}'
+            return "would write"
 
         tool = self._side_effecting_tool()
-        r1 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key="k")
+        r1 = await dispatch_tool(
+            {tool: handler}, tool, {"p": "a"}, context=_ctx("k", "preview")
+        )
         assert not r1.is_error
+        assert r1.execution_mode == "preview"
+        assert r1.side_effect_applied is False
         assert len(_duplicate_cache) == 0
         calls.clear()
-        r2 = await dispatch_tool({tool: handler}, tool, {"p": "a"}, idempotency_key="k")
+        r2 = await dispatch_tool(
+            {tool: handler}, tool, {"p": "a"}, context=_ctx("k", "preview")
+        )
         assert not r2.is_error
         assert len(calls) == 1  # re-executed, not served
+
+    @pytest.mark.asyncio
+    async def test_replay_reports_no_op_and_applied_success_reports_the_flag(
+        self,
+    ) -> None:
+        """The mode on the result is what happened, not what was claimed: a served
+        replay is no_op, an applied success on a side-effecting tool sets the flag."""
+
+        calls: list[int] = []
+
+        async def handler(args: dict) -> str:
+            calls.append(1)
+            return "wrote"
+
+        tool = self._side_effecting_tool()
+        first = await dispatch_tool(
+            {tool: handler}, tool, {"p": "a"}, context=_ctx("k", "applied")
+        )
+        replay = await dispatch_tool(
+            {tool: handler}, tool, {"p": "a"}, context=_ctx("k", "applied")
+        )
+        assert first.execution_mode == "applied"
+        assert first.side_effect_applied is True
+        assert replay.execution_mode == "no_op"
+        assert replay.side_effect_applied is False
+        assert len(calls) == 1
 
 
 class TestDurableDedup:
@@ -436,7 +502,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert not r1.is_error and len(calls) == 1
         durable["store"].close()
@@ -447,7 +513,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert not r2.is_error
         assert r2.output == "wrote"
@@ -464,10 +530,10 @@ class TestDurableDedup:
         calls: list[int] = []
         handler = self._handler(calls)
         r1 = await dispatch_tool(
-            {self.TOOL: handler}, self.TOOL, {"p": "a"}, idempotency_key="k1"
+            {self.TOOL: handler}, self.TOOL, {"p": "a"}, context=_ctx("k1")
         )
         r2 = await dispatch_tool(
-            {self.TOOL: handler}, self.TOOL, {"p": "a"}, idempotency_key="k1"
+            {self.TOOL: handler}, self.TOOL, {"p": "a"}, context=_ctx("k1")
         )
         assert not r1.is_error and not r2.is_error
         assert r1.dedup_state == ""  # fresh acquisition
@@ -488,7 +554,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert r1.dedup_state == ""
         assert len(calls) == 1
@@ -507,7 +573,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert r2.is_error
         assert r2.error_type == "dedup_unreplayable"
@@ -524,7 +590,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert r3.dedup_state == "duplicate_hit"
         assert len(calls) == 1
@@ -552,7 +618,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert not r.is_error
         assert r.dedup_state == "replayed"
@@ -577,7 +643,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert r.is_error
         assert r.error_type == "dedup_in_progress"
@@ -611,7 +677,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert r.is_error
         assert r.error_type == "dedup_unreplayable"
@@ -641,7 +707,7 @@ class TestDurableDedup:
         durable["store"].mark_interrupted(key, "seed-owner")
         row = durable["store"].get_execution(key)
         assert row is not None and row.status == "interrupted"
-        return row.attempt_number
+        return int(row.attempt_number)
 
     @pytest.mark.asyncio
     async def test_interrupted_row_non_retryable_refused(self, durable: dict) -> None:
@@ -655,7 +721,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert r.is_error
         assert r.error_type == "dedup_unreplayable"
@@ -678,7 +744,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert not r.is_error
         assert r.dedup_state == ""  # one acquisition, directly reopened
@@ -706,7 +772,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert r.is_error
         assert r.error_type == "dedup_unreplayable"
@@ -729,7 +795,7 @@ class TestDurableDedup:
             return "x" * 9000  # above RESULT_MAX_CHARS: stored as a truncated preview
 
         r1 = await dispatch_tool(
-            {self.TOOL: long_handler}, self.TOOL, {"p": "a"}, idempotency_key="k1"
+            {self.TOOL: long_handler}, self.TOOL, {"p": "a"}, context=_ctx("k1")
         )
         assert not r1.is_error
         row = durable["store"].get_execution("k1")
@@ -741,7 +807,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert r2.is_error
         assert r2.error_type == "dedup_unreplayable"
@@ -778,7 +844,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="before",
+            context=_ctx("before"),
         )
         assert r1.is_error
         assert r1.error_type == "dedup_in_progress"
@@ -798,7 +864,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="after",
+            context=_ctx("after"),
         )
         assert r2.is_error
         assert r2.error_type == "dedup_unreplayable"
@@ -845,7 +911,7 @@ class TestDurableDedup:
                 {self.TOOL: self._handler(calls)},
                 self.TOOL,
                 {"p": "a"},
-                idempotency_key="k1",
+                context=_ctx("k1"),
             )
             assert r.is_error
             assert r.error_type == "dedup_unreplayable"
@@ -860,7 +926,7 @@ class TestDurableDedup:
                 {self.TOOL: self._handler(calls2)},
                 self.TOOL,
                 {"p": "a"},
-                idempotency_key="k1",
+                context=_ctx("k1"),
             )
             assert not r2.is_error
             assert r2.dedup_state == "store_error"
@@ -882,7 +948,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert not r1.is_error
         durable["mod"]._dedup_store.close()
@@ -894,7 +960,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "b"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert r2.is_error
         assert r2.error_type == "idempotency_key_reused"
@@ -919,7 +985,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert not r.is_error
         assert r.dedup_state == "store_error"
@@ -931,7 +997,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls2)},
             self.TOOL,
             {"p": "b"},
-            idempotency_key="k2",
+            context=_ctx("k2"),
         )
         assert r2.is_error
         assert r2.error_type == "dedup_store_error"
@@ -957,7 +1023,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert not r.is_error
         assert r.dedup_state == "store_error"
@@ -971,7 +1037,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls2)},
             self.TOOL,
             {"p": "b"},
-            idempotency_key="k2",
+            context=_ctx("k2"),
         )
         assert r2.is_error
         assert r2.error_type == "dedup_store_error"
@@ -1060,7 +1126,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="fresh-1",
+            context=_ctx("fresh-1"),
         )
         assert not r.is_error
         assert len(calls) == 1
@@ -1085,7 +1151,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert r.is_error
         assert r.error_type == "dedup_store_error"
@@ -1107,7 +1173,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert not r.is_error
         assert len(calls) == 1
@@ -1131,7 +1197,7 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k1",
+            context=_ctx("k1"),
         )
         assert (
             durable["store"].get_execution("old1") is None
@@ -1146,24 +1212,24 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k2",
+            context=_ctx("k2"),
         )
         assert (
             durable["store"].get_execution("old2") is not None
         )  # no second sweep in-process
 
     @pytest.mark.asyncio
-    async def test_error_and_dry_run_do_not_leave_replayable_state(
+    async def test_error_and_preview_do_not_leave_replayable_state(
         self, durable: dict
     ) -> None:
-        """A validation failure lands on 'failed'; a dry-run outcome is cleared
-        (no cached result, no replayable completed row)."""
+        """A validation failure lands on 'failed'; a preview leaves nothing behind:
+        no cached result and no durable row, so the key is still free for a real call."""
 
         async def bad(args: dict) -> str:
             raise ValueError("bad input")
 
         r1 = await dispatch_tool(
-            {self.TOOL: bad}, self.TOOL, {"p": "a"}, idempotency_key="k1"
+            {self.TOOL: bad}, self.TOOL, {"p": "a"}, context=_ctx("k1")
         )
         assert r1.is_error
         assert durable["store"].get_execution("k1").status == "failed"
@@ -1173,20 +1239,24 @@ class TestDurableDedup:
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k2",
+            context=_ctx("k2", "preview"),
         )
         assert not r2.is_error
-        assert durable["store"].get_execution("k2").status == "completed"
-        # Turn k2's completed row into a dry-run-shaped second attempt is out of
-        # scope here; instead assert the completed row exists and replays as a hit.
+        assert r2.execution_mode == "preview"
+        assert durable["store"].get_execution("k2") is None  # no replayable state
+        assert len(_duplicate_cache) == 0
+
         r3 = await dispatch_tool(
             {self.TOOL: self._handler(calls)},
             self.TOOL,
             {"p": "a"},
-            idempotency_key="k2",
+            context=_ctx("k2"),
         )
-        assert r3.dedup_state in ("duplicate_hit", "")  # overlay or store serve
-        assert len(calls) == 1
+        assert not r3.is_error
+        assert r3.execution_mode == "applied"
+        assert r3.side_effect_applied is True
+        assert durable["store"].get_execution("k2").status == "completed"
+        assert len(calls) == 2  # the preview ran, the applied call ran again
 
 
 class TestDurableDedupDryRunClear:
@@ -1217,14 +1287,15 @@ class TestDurableDedupDryRunClear:
         _duplicate_cache.clear()
 
     @pytest.mark.asyncio
-    async def test_dry_run_clears_pending_row(self, durable: dict) -> None:
+    async def test_preview_leaves_no_row(self, durable: dict) -> None:
         async def dry(args: dict) -> str:
-            return '{"dry_run": true}'
+            return "would write"
 
         r = await dispatch_tool(
-            {self.TOOL: dry}, self.TOOL, {"p": "a"}, idempotency_key="k1"
+            {self.TOOL: dry}, self.TOOL, {"p": "a"}, context=_ctx("k1", "preview")
         )
         assert not r.is_error
+        assert r.execution_mode == "preview"
         assert durable["store"].get_execution("k1") is None  # no replayable state left
         assert len(_duplicate_cache) == 0
 
@@ -1247,7 +1318,7 @@ class TestDurableDedupDryRunClear:
             return "wrote"
 
         r = await dispatch_tool(
-            {self.TOOL: handler}, self.TOOL, {"p": "a"}, idempotency_key="k1"
+            {self.TOOL: handler}, self.TOOL, {"p": "a"}, context=_ctx("k1")
         )
         assert not r.is_error  # the handler already ran; the outcome is surfaced
         assert r.dedup_state == "lease_conflict"

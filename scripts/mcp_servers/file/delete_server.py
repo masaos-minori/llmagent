@@ -25,6 +25,7 @@ from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
+from mcp_servers.execution_context import ExecutionContext, ExecutionContextError
 from mcp_servers.file.common import (
     FileAuthorizationError,
     FileValidationError,
@@ -51,6 +52,7 @@ from mcp_servers.server import (
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
+    extract_execution_context,
     extract_request_context,
     require_auth_token,
 )
@@ -135,11 +137,11 @@ async def health() -> JSONResponse:
 
 
 async def _dispatch_delete_tool(
-    name: str, args: ToolArgs, idempotency_key: str | None = None
+    name: str, args: ToolArgs, context: ExecutionContext | None = None
 ) -> DispatchResult:
     """Dispatch a tool request to the delete-file service."""
     return await dispatch_tool(
-        _service.get_dispatch_table(), name, args, idempotency_key=idempotency_key
+        _service.get_dispatch_table(), name, args, context=context
     )
 
 
@@ -208,7 +210,7 @@ def _emit_call_tool_audit(req: CallToolRequest, request: Request, outcome: str) 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Handle a generic MCP call_tool request with audit logging."""
-    session_id, request_id, idempotency_key = extract_request_context(request)
+    session_id, request_id = extract_request_context(request)[:2]
     raw_path = cast(str, req.args.get("path", ""))
     audit_target = raw_path[:80]
     if not _cfg.allowed_dirs:
@@ -230,11 +232,14 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     except ValueError as e:
         _emit_call_tool_audit(req, request, outcome="rejected")
         return CallToolResponse(result=f"Validation error: {e}", is_error=True)
+    try:
+        exec_ctx = extract_execution_context(request, req.name, req.args)
+    except ExecutionContextError as exc:
+        _emit_call_tool_audit(req, request, outcome="rejected")
+        return CallToolResponse(result=f"Validation error: {exc}", is_error=True)
     result: DispatchResult | None = None
     try:
-        result = await _dispatch_delete_tool(
-            req.name, req.args, idempotency_key=idempotency_key
-        )
+        result = await _dispatch_delete_tool(req.name, req.args, context=exec_ctx)
     except FileAuthorizationError:
         _emit_call_tool_audit(req, request, outcome="rejected")
         raise
@@ -262,9 +267,14 @@ class FileDeleteMCPServer(MCPServer):
     app_module = "mcp_servers.file.delete_server:app"
     mcp_tools = TOOL_LIST
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+    async def dispatch(
+        self,
+        name: str,
+        args: dict[str, Any],
+        context: ExecutionContext | None = None,
+    ) -> DispatchResult:
         """Dispatch a tool invocation via the delete-file service."""
-        return await _dispatch_delete_tool(name, args)
+        return await _dispatch_delete_tool(name, args, context=context)
 
 
 def _enforce_posture_gate() -> None:

@@ -9,6 +9,7 @@ from urllib.parse import quote
 
 import httpx
 
+from shared.execution_mode import EXECUTION_MODES
 from shared.json_utils import parse_http_json
 from shared.logger import attach_redaction_filter, register_secret
 from shared.mcp_config import McpServerConfig
@@ -100,7 +101,9 @@ class HttpTransport:
     def _parse_http_response(resp: httpx.Response) -> ToolCallResult:
         """Parse HTTP response body and return a ToolCallResult.
 
-        Raises ValueError if the response structure is invalid.
+        Raises ValueError if the response structure is invalid, including an
+        execution_mode outside the closed vocabulary or a wrong metadata type.
+        Absent metadata fields default to "" and False.
         """
         data = parse_http_json(resp)
         result_val = data.get("result")
@@ -112,8 +115,27 @@ class HttpTransport:
                 f"MCP 'is_error' must be bool, got {type(is_error_val).__name__}"
             )
         x_request_id = resp.headers.get("x-request-id", "")
+        execution_mode = data.get("execution_mode", "")
+        if not isinstance(execution_mode, str):
+            raise ValueError(
+                f"MCP 'execution_mode' must be str, got {type(execution_mode).__name__}"
+            )
+        if execution_mode and execution_mode not in EXECUTION_MODES:
+            # Protocol error: a value outside the closed vocabulary never becomes
+            # metadata. The value is not echoed into the message.
+            raise ValueError("MCP 'execution_mode' is outside the closed vocabulary")
+        side_effect_applied = data.get("side_effect_applied", False)
+        if not isinstance(side_effect_applied, bool):
+            raise ValueError(
+                f"MCP 'side_effect_applied' must be bool, got "
+                f"{type(side_effect_applied).__name__}"
+            )
         return ToolCallResult.from_transport(
-            output=result_val, is_error=is_error_val, request_id=x_request_id
+            output=result_val,
+            is_error=is_error_val,
+            request_id=x_request_id,
+            execution_mode=execution_mode,
+            side_effect_applied=side_effect_applied,
         )
 
     _RETRYABLE_STATUS: frozenset[int] = frozenset({429, 502, 503, 504})
@@ -189,10 +211,10 @@ class HttpTransport:
 
         `context` carries the logical call id sent as X-Idempotency-Key (AC-1:
         one opaque uuid7 per logical call, reused unchanged across every
-        retry). A call with no context or an empty `call_id` is refused before
-        any HTTP send (AC-3 gate at the wire boundary) and returns an error
-        result with `error_type="routing"` and `dispatch_stage=""` instead of
-        raising.
+        retry) and the execution mode sent as X-Execution-Mode. A call with no
+        context or an empty `call_id` is refused before any HTTP send (AC-3 gate
+        at the wire boundary) and returns an error result with
+        `error_type="routing"` and `dispatch_stage=""` instead of raising.
         """
         if context is None or not context.call_id:
             # AC-3: sending without a logical id re-creates the identical-args
@@ -215,6 +237,7 @@ class HttpTransport:
         if self._session_id:
             headers["X-Session-Id"] = self._session_id
         headers["X-Idempotency-Key"] = context.call_id
+        headers["X-Execution-Mode"] = context.execution_mode
 
         timeout = httpx.Timeout(self._timeout) if self._timeout > 0 else None
         last_retryable_status: int | None = None

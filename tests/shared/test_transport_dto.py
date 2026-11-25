@@ -12,7 +12,11 @@ from shared.mcp_health import (
     HEALTH_REASON_SERVER_UNAVAILABLE,
     McpServerHealthState,
 )
-from shared.transport_dto import DynamicAvailabilityHint, ToolCallResult
+from shared.transport_dto import (
+    DynamicAvailabilityHint,
+    ToolCallResult,
+    ToolExecutionContext,
+)
 
 
 class TestFromTransport:
@@ -28,11 +32,73 @@ class TestFromTransport:
         assert result.request_id == "req-1"
         assert result.source == "mcp"
 
-    def test_success_has_empty_error_type(self) -> None:
+    def test_success_has_empty_metadata(self) -> None:
         result = ToolCallResult.from_transport(output="ok", is_error=False)
 
         assert not result.is_error
         assert result.error_type == ""
+        assert result.execution_mode == ""
+        assert result.side_effect_applied is False
+
+    def test_from_transport_carries_result_metadata(self) -> None:
+        result = ToolCallResult.from_transport(
+            output="ok",
+            is_error=False,
+            request_id="req-2",
+            execution_mode="preview",
+            side_effect_applied=False,
+        )
+
+        assert result.execution_mode == "preview"
+        assert result.side_effect_applied is False
+
+    def test_from_transport_carries_applied_metadata(self) -> None:
+        result = ToolCallResult.from_transport(
+            output="ok",
+            is_error=False,
+            execution_mode="applied",
+            side_effect_applied=True,
+        )
+
+        assert result.execution_mode == "applied"
+        assert result.side_effect_applied is True
+
+
+class TestExecutionContextExecutionMode:
+    """ToolExecutionContext.execution_mode contract: default, explicit value, frozen."""
+
+    def test_defaults_to_applied(self) -> None:
+        ctx = ToolExecutionContext(
+            call_id="call-1",
+            tool="write_file",
+            args_hash="hash",
+            operation="call_tool",
+        )
+        assert ctx.execution_mode == "applied"
+
+    def test_accepts_preview_mode(self) -> None:
+        ctx = ToolExecutionContext(
+            call_id="call-1",
+            tool="write_file",
+            args_hash="hash",
+            operation="call_tool",
+            execution_mode="preview",
+        )
+        assert ctx.execution_mode == "preview"
+
+    def test_stays_frozen(self) -> None:
+        ctx = ToolExecutionContext(
+            call_id="call-1",
+            tool="write_file",
+            args_hash="hash",
+            operation="call_tool",
+        )
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            ctx.execution_mode = "preview"  # type: ignore[misc] — frozen dataclass field write; mypy flags the direct assignment though the runtime FrozenInstanceError guard blocks it, which this assertion verifies.
+        assert (
+            dataclasses.replace(ctx, execution_mode="preview").execution_mode
+            == "preview"
+        )
 
 
 class TestAvailabilityHint:

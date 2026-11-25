@@ -62,6 +62,20 @@ class CallToolResponse(BaseModel):
         default="",
         description="Durable-dedup state tag for this call ('' when no dedup branch was taken)",
     )
+    execution_mode: str = Field(
+        default="",
+        description=(
+            "Execution mode for this call: preview, applied, no_op "
+            "('' when no dispatcher outcome was attached)"
+        ),
+    )
+    side_effect_applied: bool = Field(
+        default=False,
+        description=(
+            "True when the handler ran for real on a side-effecting tool "
+            "(a preview never reports it)"
+        ),
+    )
 
 
 # Decision vocabulary for the reconcile endpoint (mcpdl004 REQ-001). It is the

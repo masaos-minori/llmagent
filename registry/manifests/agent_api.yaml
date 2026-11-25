@@ -1810,6 +1810,12 @@ entries:
   summary: A raw tool call that has passed preparation and is ready for approval/execution.
 - file: scripts/agent/tool_preparation.py
   kind: function
+  name: new_execution_context
+  signature: def new_execution_context(tool, args, mode, call_id) -> ToolExecutionContext
+  summary: 'Build one prepared call''s execution context: the single construction
+    site.'
+- file: scripts/agent/tool_preparation.py
+  kind: function
   name: prepare_tool_calls
   signature: def prepare_tool_calls(ctx, tool_calls) -> tuple[list[PreparedToolCall],
     list[_PrepFailure]]

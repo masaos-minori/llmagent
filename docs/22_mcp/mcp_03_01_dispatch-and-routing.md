@@ -62,10 +62,10 @@ In addition to this transport key, the Agent also records a separate audit-side 
 
 - **Key ownership:** the caller/Agent generates one idempotency key per logical call. `HttpTransport.call()` emits it as the `X-Idempotency-Key` header and reuses the same value on every retry of that call, so a re-sent write keeps a single identity.
 - **Audit key (separate):** the Agent's `tool_exec` audit event records its own workflow-scoped logical-call identity (workflow, task, turn, and call id joined by colons) in its `idempotency_key` field. This value is never sent to a server, is not the `X-Idempotency-Key`, and no de-duplication keys on it; to follow one call across the Agent and a server, join on the request id (see [mcp_02_03](mcp_02_03_audit-logging-and-errors.md)).
-- **Empty-key rule:** a call with no key (empty or `None`) is never de-duplicated — it always executes and is never stored. The guard applies to side-effecting tools.
+- **Key requirement:** every side-effecting dispatch, HTTP or programmatic, needs a key. A keyless side-effecting call is refused before the handler runs with `error_type=idempotency_key_required`; a read-only call executes without a key and is never stored.
 - **Cache keying:** a successful result is stored keyed by the idempotency key plus the resolved tool name plus a normalized hash of the arguments. Reusing a key with different tool or argument content is rejected as an error rather than served.
 - **TTL and eviction:** cached results carry a fixed time-to-live; the cache is bounded to a maximum entry count and evicts oldest-first past that bound, dropping expired entries first.
-- **Error and dry-run results are never cached**, so a failed or dry-run call always re-executes.
+- **Errors are never cached**, so a failed call always re-executes. A preview performs no dedup acquisition at all: it runs the handler and writes neither a durable ledger row nor an overlay entry, so the same key can still execute for real afterwards.
 - **Write-tool retry:** side-effecting tools (the transport's `_WRITE_TOOLS`, mirroring the
   dispatch layer's write set) are retried only on pre-send connection failures
   (`httpx.ConnectError`, `httpx.ProxyError`) and on `429`; post-send ambiguous request errors
@@ -75,6 +75,23 @@ In addition to this transport key, the Agent also records a separate audit-side 
   per-call key, so retried writes keep a stable identity.
 
 Enforcement points: `dispatch_tool()` in `scripts/mcp_servers/dispatch.py` (server-side dedup) and `HttpTransport.call()` (key generation and retry).
+
+### Execution modes
+
+`scripts/shared/execution_mode.py` is the closed vocabulary a dispatch reports on `DispatchResult.execution_mode`:
+
+- `preview` — the handler ran as a preview. Returned only when the tool declares `preview_capability=dry_run` and its `dry_run` argument is exactly `True`. A preview takes no dedup acquisition: no lease, no heartbeat, no ledger row, no overlay write.
+- `applied` — the handler ran for real.
+- `no_op` — the handler did not run: a served replay, a dedup refusal, a key rejection, or an unknown tool.
+- `""` — no dispatcher outcome was attached.
+
+`side_effect_applied` is `True` only for an applied success on a side-effecting tool. Both fields are written by the dispatcher, never derived from `error_type` or `dedup_state`.
+
+The mode is resolved from the validated arguments plus the tool's declared `preview_capability`, never read from the request. A tool without the capability treats `dry_run` as an ordinary argument handled by argument validation. A `dry_run` that is present on a capable tool but is not a `bool` raises `ValueError` naming the tool and the offending type only — the value is never echoed because arguments can carry secrets.
+
+`X-Execution-Mode` is a cross-check only. The caller may claim `preview` or `applied`; `no_op` is a dispatcher outcome and is never an accepted claim. A claim outside the input-derived modes, or one that disagrees with the resolver's answer, is an `ExecutionContextError` rather than a silent override, and an empty claim lets the resolved mode stand.
+
+Enforcement points: `resolve_execution_mode()` in `scripts/shared/execution_mode.py`, `build_execution_context()` and `extract_execution_context()` in `scripts/mcp_servers/execution_context.py`, `HttpTransport.call()` (emits the claim), and `dispatch_tool()` (reports the outcome).
 
 ---
 

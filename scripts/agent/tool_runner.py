@@ -164,7 +164,13 @@ def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None
     call id, unwired recorder/task, or a recorder write failure raises
     IntentRecordUnavailableError — no dispatch without the durable intent row.
     Read-only calls keep the logged best-effort path.
+
+    A preview call writes no row (REQ-009): the call did not apply a side
+    effect, so workflow state must not report it as an applied write. The audit
+    record is still emitted by the caller.
     """
+    if pc.context is not None and pc.context.execution_mode == "preview":
+        return None
     key = _logical_call_id(pc)
     side_effecting = _side_effecting(pc.name)
     recorder = ctx.workflow.tool_call_recorder
@@ -256,6 +262,9 @@ async def _execute_prepared_call(
     ToolExecutor.execute() and cannot execute. NOTE: in
     production, factory.py creates RepositoryGateway unconditionally during
     AppServices construction, so this branch should never execute.
+
+    A preview call is not recorded as an attempted side effect (REQ-009): the
+    per-attempt flag is left unset for it, while the grant check still runs.
     """
     name = pc.name
     args = pc.args
@@ -265,7 +274,10 @@ async def _execute_prepared_call(
     # call also blocks retry (the adapter records attempts, not successes).
     op = classify_operation_type(name, ctx.services_required.runtime_tools)
     if op != OperationType.READ:
-        ctx.turn.attempt_side_effect = True
+        # A preview is not an applied side effect (REQ-009): the flag that blocks
+        # retry is set only for a call that actually ran for real.
+        if pc.context is not None and pc.context.execution_mode != "preview":
+            ctx.turn.attempt_side_effect = True
         if pc.grant is None or pc.context is None:
             # AC-3/AC-4: an ungranted or id-less side-effecting call never
             # reaches any executor, gatewayed or not.

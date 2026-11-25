@@ -29,6 +29,7 @@ from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
+from mcp_servers.execution_context import ExecutionContext, ExecutionContextError
 from mcp_servers.health_response import dedup_health_details, make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
@@ -37,6 +38,7 @@ from mcp_servers.server import (
     _FastAPIApp,
     attach_auth_middleware,
     build_tools_response,
+    extract_execution_context,
     extract_request_context,
     require_auth_token,
 )
@@ -160,11 +162,11 @@ async def health() -> JSONResponse:
 
 
 async def _dispatch_shell_tool(
-    name: str, args: ToolArgs, idempotency_key: str | None = None
+    name: str, args: ToolArgs, context: ExecutionContext | None = None
 ) -> DispatchResult:
     """Route shell tool calls through the service's dispatch table."""
     return await dispatch_tool(
-        _service.get_dispatch_table(), name, args, idempotency_key=idempotency_key
+        _service.get_dispatch_table(), name, args, context=context
     )
 
 
@@ -192,8 +194,12 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     enabled, reason = _shell_tool_availability(_cfg, req.name)
     if not enabled:
         return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
-    session_id, request_id, idempotency_key = extract_request_context(request)
-    r = await _dispatch_shell_tool(req.name, req.args, idempotency_key=idempotency_key)
+    try:
+        exec_ctx = extract_execution_context(request, req.name, req.args)
+    except ExecutionContextError as exc:
+        return CallToolResponse(result=f"Validation error: {exc}", is_error=True)
+    session_id, request_id = extract_request_context(request)[:2]
+    r = await _dispatch_shell_tool(req.name, req.args, context=exec_ctx)
     _audit_log(
         logger,
         session_id=session_id,
@@ -221,9 +227,14 @@ class ShellMCPServer(MCPServer):
     app_module = "mcp_servers.shell.shell_server:app"
     mcp_tools = TOOL_LIST
 
-    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+    async def dispatch(
+        self,
+        name: str,
+        args: dict[str, Any],
+        context: ExecutionContext | None = None,
+    ) -> DispatchResult:
         """Dispatch a tool by name with the given arguments via the shell service."""
-        return await _dispatch_shell_tool(name, args)
+        return await _dispatch_shell_tool(name, args, context=context)
 
 
 def _enforce_posture_gate() -> None:

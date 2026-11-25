@@ -35,3 +35,38 @@ class TestCallToolResponse:
         resp = CallToolResponse(result="ok", is_error=False)
         assert resp.result == "ok"
         assert resp.is_error is False
+
+    def test_metadata_defaults(self) -> None:
+        resp = CallToolResponse(result="ok", is_error=False)
+        assert resp.execution_mode == ""
+        assert resp.side_effect_applied is False
+
+    def test_metadata_round_trip(self) -> None:
+        resp = CallToolResponse(
+            result="ok",
+            is_error=False,
+            dedup_state="replayed",
+            execution_mode="preview",
+            side_effect_applied=False,
+        )
+        assert resp.execution_mode == "preview"
+        assert resp.side_effect_applied is False
+
+        applied = CallToolResponse(
+            result="ok",
+            is_error=False,
+            execution_mode="applied",
+            side_effect_applied=True,
+        )
+        assert applied.execution_mode == "applied"
+        assert applied.side_effect_applied is True
+
+    def test_serialized_key_set(self) -> None:
+        resp = CallToolResponse(result="ok", is_error=False)
+        assert set(resp.model_dump()) == {
+            "result",
+            "is_error",
+            "dedup_state",
+            "execution_mode",
+            "side_effect_applied",
+        }

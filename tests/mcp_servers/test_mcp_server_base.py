@@ -32,7 +32,9 @@ class _SimpleServer(MCPServer):
         {"name": "tool_b", "description": "Tool B"},
     ]
 
-    async def dispatch(self, name: str, args: dict) -> DispatchResult:
+    async def dispatch(
+        self, name: str, args: dict, context: object | None = None
+    ) -> DispatchResult:
         if name == "tool_a":
             return DispatchResult("result_a", False)
         return DispatchResult(f"unknown: {name}", True)
@@ -45,7 +47,9 @@ class _EmptyServer(MCPServer):
     app_module = "empty:app"
     own_config_file = "empty_mcp_server.toml"
 
-    async def dispatch(self, name: str, args: dict) -> DispatchResult:
+    async def dispatch(
+        self, name: str, args: dict, context: object | None = None
+    ) -> DispatchResult:
         return DispatchResult("noop", False)
 
 
@@ -512,8 +516,113 @@ class TestAppModuleImportability:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# _LoopbackVerifyingServer.startup() override (lifespan failure / loopback bind)
+# Execution context: base dispatch signature, request helper, bootstrap seam
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+def _make_request(headers: dict[str, str], state: dict[str, str] | None = None):
+    """Build a Request with the given headers and request.state values."""
+    from starlette.requests import Request
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/v1/call_tool",
+        "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+    }
+    request = Request(scope)
+    for key, value in (state or {}).items():
+        setattr(request.state, key, value)
+    return request
+
+
+class TestExecutionContextOnBaseServer:
+    async def test_base_dispatch_accepts_and_ignores_context(self) -> None:
+        from mcp_servers.execution_context import ExecutionContext
+
+        server = _EmptyServer()
+        ctx = ExecutionContext(
+            request_id="req-1",
+            session_id="sess-1",
+            idempotency_key="key-1",
+            execution_mode="applied",
+        )
+        assert await server.dispatch("noop", {}, ctx) == DispatchResult("noop", False)
+
+    async def test_base_dispatch_without_context_still_raises(self) -> None:
+        class _NoOverrideServer(MCPServer):
+            server_name = "no-override-mcp"
+            server_version = "1.0"
+            http_port = 9988
+            app_module = "no_override:app"
+            mcp_tools = []
+
+        with pytest.raises(NotImplementedError, match="dispatch is not implemented"):
+            await _NoOverrideServer().dispatch("tool_a", {})
+
+    def test_extract_execution_context_from_headers_and_state(self) -> None:
+        from mcp_servers.execution_context import configure_tool_preview_capabilities
+        from mcp_servers.server import extract_execution_context
+
+        configure_tool_preview_capabilities(
+            ({"name": "tool_a", "preview_capability": "dry_run"},)
+        )
+        request = _make_request(
+            {
+                "x-session-id": "sess-9",
+                "x-request-id": "req-9",
+                "x-idempotency-key": " key-9 ",
+                "x-execution-mode": "preview",
+            },
+            state={"request_id": "req-state", "idempotency_key": "key-state"},
+        )
+        ctx = extract_execution_context(request, "tool_a", {"dry_run": True})
+        assert ctx.session_id == "sess-9"
+        assert ctx.request_id == "req-state"
+        assert ctx.idempotency_key == "key-state"
+        assert ctx.execution_mode == "preview"
+
+    def test_extract_execution_context_rejects_a_disagreeing_claim(self) -> None:
+        from mcp_servers.execution_context import (
+            ExecutionContextError,
+            configure_tool_preview_capabilities,
+        )
+        from mcp_servers.server import extract_execution_context
+
+        configure_tool_preview_capabilities(
+            ({"name": "tool_a", "preview_capability": "dry_run"},)
+        )
+        request = _make_request({"x-execution-mode": "applied"})
+        with pytest.raises(ExecutionContextError, match="disagrees"):
+            extract_execution_context(request, "tool_a", {"dry_run": True})
+
+    def test_run_http_bootstrap_configures_the_preview_map(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import uvicorn
+        from mcp_servers.execution_context import configure_tool_preview_capabilities
+
+        calls: list[tuple] = []
+
+        def _record(entries: object) -> None:
+            calls.append(tuple(entries))
+
+        def _fake_run(self: object) -> None:
+            self.started = True  # type: ignore[attr-defined] — dynamically attached test flag
+
+        monkeypatch.setattr(uvicorn.Server, "run", _fake_run)
+        monkeypatch.setattr(
+            "shared.config_loader.ConfigLoader.restrict_to", lambda x: None
+        )
+        monkeypatch.setattr(
+            "mcp_servers.execution_context.configure_tool_preview_capabilities", _record
+        )
+        # The seam is imported inside run_http from this module, so patching the
+        # module attribute is what the lazy import resolves.
+        assert configure_tool_preview_capabilities is not None
+        _SimpleServer().run_http()
+        assert calls, "run_http must inject the declared preview capabilities"
+        assert {entry["name"] for entry in calls[0]} == {"tool_a", "tool_b"}
 
 
 class _FakeSocket:
