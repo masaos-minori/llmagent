@@ -207,7 +207,7 @@ Yes.
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
 | UNK-01 | Whether any deployed MCP server table relies on a coercive coercion this Plan removes | None found: strict typing applied to the 10 deployed server definitions reports no newly rejected value | Confirm again at implementation time with the parity test against `config/agent.toml` and `config/*_mcp_server.toml` | False |
-| UNK-02 | Whether `RuntimeToolRegistry` holds derived state beyond `_tools` and the policy fields that a restore must cover | The internal derived caches of `RuntimeToolRegistry.apply_policy` were read but not exhaustively enumerated | Read the class during Step 1 of implementation and extend `snapshot_policy` to every mutated attribute; the transaction test asserts no attribute differs after restore | False |
+| UNK-02 | Whether `RuntimeToolRegistry` holds derived state beyond `_tools` and the policy fields that a restore must cover | Resolved during procedure verification (2026-11-25): `apply_policy` mutates only `self._tools` (`runtime_tool_registry.py:247`); the policy inputs are call arguments, not stored state, and no primary-tool state exists in the module | The transaction test still asserts no attribute differs after restore | False |
 | UNK-03 | Whether any MCP lifecycle or discovery state is rebuilt from `ctx.cfg.mcp` lazily during a session, which would make a pending definition observable before restart | No lazy rebuild call site was found; `startup_validation` and the discovery services read the config at startup | Run the pending-state test with a live lifecycle and assert no observable change; if a lazy read exists, move that service behind the fail-before-commit gate | False |
 | UNK-04 | Whether `agentcfg001` or `agentcfg004` land before this Plan and change the registry entry shape this Plan extends | Their execution state is not decided | If either lands first, re-measure `CONFIG_FIELD_REGISTRY` and `tests/agent/test_config_effective_snapshot.py` before the first code change | False |
 | UNK-05 | Whether the strict `str_list` rule should reject an empty list for every list field or only for `allowed_tools` | `config_builders` rejects an empty `allowed_tools`; no rule exists for `plan_blocked_tools`, `disabled_tools`, `approval_protected_paths`, or `masked_fields` | Decide per entry in `ConfigFieldRegistry.allow_empty`; the parity test pins the chosen value for each entry | False |
@@ -414,13 +414,13 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: strict primitives, delegating validators, strict MCP parser | In Progress | — | — | UNK-01 re-confirmed here against the deployed MCP tables |
-| 2 | Phase 2: typed field registry, startup-only filtering, sync cleanup | In Progress | — | — | UNK-05 decides `allow_empty` per entry here |
-| 3 | Phase 3: reload candidate through the startup parser, pre-mutation classification | In Progress | — | — | OD-01 decided 2026-11-24 |
-| 4 | Phase 4: transaction, service snapshot and restore, outcome stage | In Progress | — | — | UNK-02 enumerates the registry state here |
-| 5 | Phase 5: MCP restart-only, pending state, CLI display | In Progress | — | — | OD-03 decided 2026-11-24; UNK-03 checked here |
-| 6 | Phase 6: dead-code removal and test retargeting | In Progress | — | — | OD-07 keeps the existing outcome lists intact |
-| 7 | Phase 7: documentation and generated artifacts | In Progress | — | — | Regenerated artifacts are produced, never hand-edited |
+| 1 | Phase 1: strict primitives, delegating validators, strict MCP parser | Completed | — | 20261125-153417 | UNK-01 re-confirmed here against the deployed MCP tables R1-strict-primitives archived 20261125: rows 1,2,13,14,15,25,29,30 plus row 36 tests; full suite 14447 passed, diff-cover 100% |
+| 2 | Phase 2: typed field registry, startup-only filtering, sync cleanup | Completed | — | 20261125-163000 | UNK-05 decides `allow_empty` per entry here R2-typed-registry archived 20261125: rows 3,4,5,10,27; full suite 14588 passed 5 skipped, diff-cover 100 percent, integration 146 passed 1 skipped; ownership manifest regenerated in this unit |
+| 3 | Phase 3: reload candidate through the startup parser, pre-mutation classification | Completed | — | 20261125-184431 | OD-01 decided 2026-11-24 R3 archived 20261125: rows 06 (Phase 3 half only), 09, 38, 39; full suite 14667 passed 5 skipped, diff-cover 100 percent, integration 146 passed 1 skipped, mypy and lint-imports clean |
+| 4 | Phase 4: transaction, service snapshot and restore, outcome stage | Completed | — | 20261125-194257 | UNK-02 enumerates the registry state here R4-transaction-and-restore archived 20261125: rows 07, 11, 12, 16, 17, 18, 26; full suite 14722 passed 5 skipped, diff-cover 100 percent over 482 lines, integration 146 passed 1 skipped, mypy 466 files clean, lint-imports 6 kept. Row 06 (scripts/agent/services/config_reload.py) stays open: its Phase 5 and Phase 6 halves remain |
+| 5 | Phase 5: MCP restart-only, pending state, CLI display | Completed | 20261125-194300 | 20261125-204907 | OD-03 decided 2026-11-24; UNK-03 checked here R5-pending-restart archived 20261125: rows 08, 19, 20, 21, 22, 23, 24, 28 and the R5 run of row 38; full suite 14768 passed 5 skipped, diff-cover 100 percent over 667 lines, integration 146 passed 1 skipped, mypy 467 files clean, lint-imports 6 kept, radon worst grade B in cmd_mcp.py and cmd_config.py |
+| 6 | Phase 6: dead-code removal and test retargeting | Completed | 20261125-205000 | 20261125-210919 | OD-07 keeps the existing outcome lists intact R6-dead-code-removal archived 20261125: rows 06, 34, 37; _sync_services, _classify_startup_only_fields, ServiceSyncer.sync_all and SyncResult deleted; vulture reports no reload dead code; full suite 14768 passed 5 skipped, diff-cover 100 percent over 660 lines, integration 146 passed 1 skipped, mypy 467 files clean, lint-imports 6 kept |
+| 7 | Phase 7: documentation and generated artifacts | Completed | 20261125-211000 | 20261125-213153 | Regenerated artifacts are produced, never hand-edited R7-docs-and-manifests archived 20261125: rows 43, 44, 45, 46; agent_07_06 atomicity and never-applied claims replaced with the reload stages and pending restart display; agent_08_01 hot-reloadable scope restated from CONFIG_FIELD_REGISTRY; config_ownership.yaml and agent_14 regenerated; gate: docs quality, structure, content policy, consistency, japanese, generate_reference_table --check no drift, pre-commit all hooks pass, run_validation_gates --full Pass (pytest and diff-cover) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -429,48 +429,71 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | — | Issue `不明`: whether LLM, HistoryManager, and RuntimeToolRegistry expose reversible apply operations | Yes | 2026-11-24 |
 | 4 | Issue instruction: stop and report if a live service is neither reversible nor behind a fail-before-commit gate. Resolved: the three configuration services are reversible; the MCP lifecycle is not and is gated before any live mutation | Yes | 2026-11-24 |
 | — | `tools/check_config_ownership.py` is cited by archived agentcfg003 content but does not exist in `tools/`; reported to the owner, not invented | Yes | 2026-11-24 |
+| — | Procedure verification (2026-11-25): target rows 31, 32, 33, 35, 36, 40, 41, 42 have no standalone procedure document. Each is covered as the companion test file of rows 09, 15, 16, 17, 18, 22, 23, 24, so the work is executed inside those procedures' test steps rather than as its own unit | Yes | 2026-11-25 |
+| — | Procedure verification (2026-11-25): `config/documentation_canonical_sources.toml` is a Supporting Files row with no target row and no procedure; neither `agent_07_06` nor `agent_08_01` is registered there today. Whether the R7 prose needs a registry entry, or must defer to `registry/manifests/config_ownership.yaml`, is decided from the `tools/check_docs_content_policy.py` output during the R7 run | No | — |
+| — | Procedure verification (2026-11-25): `scripts/shared/` symbols (rows 1, 15, 16, 18) are covered by no generated-reference domain, and `docs/23_agent/agent_13_reference-api-generated.md` is not a target row even though `build_agent_config` is listed there with its signature. `tools/generate_reference_table.py --check` is the gate that catches any drift row 13 introduces | Yes | 2026-11-25 |
+| 2 | R2 execution (2026-11-25): the registry stores a declared `FieldRule`, but the reload candidate compared the raw payload value against live state before validating it, so `1 == True` skipped a wrong-typed value. Resolved by adding `apply_field_rule(rule, value, field_path, *, allow_empty)` to `scripts/shared/config_field_types.py` (beyond the row 1 symbol list) and running it before the comparison; `classify_startup_only_fields` uses the same type-aware rule | Yes | 2026-11-25 |
+| 2 | R2 execution (2026-11-25): row 4 changed the registry source of the ownership manifest, so `tools/generate_reference_table.py --manifests` was run in R2 instead of R7; `registry/manifests/config_ownership.yaml`, `registry/manifests/agent_api.yaml` and the generated subpackage doc are current, and `tools/check_docs_structure.py`'s size ceiling for that doc was raised 33078 to 35212 with a dated justification. Row 45's R7 run becomes a confirmation | Yes | 2026-11-25 |
+| 2 | R2 execution (2026-11-25): `tokenize_url` was listed in the Plan's reload-payload examples. Resolved: the docs key table marks it `[RESTART]`, it is not a registry entry, and the only live-sync path was the removed history sync, so it stays restart-required and outside the registry | Yes | 2026-11-25 |
+| 2 | R2 execution (2026-11-25): rows 5 and 10 state that `apply_validated_section` and `sync_all` return undo tokens. The token type is created by row 7, so the token-return half of both rows is deferred to R4; rows 5 and 10 record the deferral | Yes | 2026-11-25 |
+| 3 | R3 execution (2026-11-25): the Plan names no way to build a candidate from a partial payload. Resolved as Option Y: `apply_config_dict` builds `build_agent_config(cfg_override={**agent_config_payload(ctx.cfg), **new_cfg})`, which requires the new renderer `agent_config_payload()` in `scripts/agent/config_builders.py` (beyond the Plan's symbol list). Option Z (require a complete payload) was rejected: a partial payload would silently reset unnamed fields to builder defaults. `tests/agent/test_config_builders.py::test_renderer_roundtrip_rebuilds_the_same_config` pins the renderer against drift | Yes | 2026-11-25 |
+| 3 | R3 execution (2026-11-25): startup and the reload candidate applied different rules, so a value startup accepted could fail as a candidate. Resolved by adding `validate_section_fields(section_path, section)` to `scripts/agent/services/config_field_registry.py` and calling it from `_assemble_agent_config` for `llm`/`tool`/`memory`/`approval`: both paths now run the same registry validators and raise the same key-naming error (REQ-001, REQ-010). The shipped `config/` parses with `errors: []` | Yes | 2026-11-25 |
+| 3 | R3 execution (2026-11-25): contract change the Plan states only implicitly — an unknown or removed key in a reload payload is now rejected by the candidate build instead of silently ignored. `test_removed_map_reload_keys_are_rejected` and `test_removed_approval_maps_rejected_on_reload` assert the new behavior and that nothing live mutates | Yes | 2026-11-25 |
+| 3 | R3 execution (2026-11-25): startup-only fields are validated by the candidate build but never applied, so a payload naming one must carry a valid value. `test_startup_only_context_token_limit_is_not_applied` now sends `5000` and asserts the live value is unchanged; the field lands in `outcome.startup_only` | Yes | 2026-11-25 |
+| 3 | R3 execution (2026-11-25): `PendingChange` is owned by `scripts/agent/services/config_outcome_classification.py`, a file row 8 does not name as its owner. Recorded as a Plan deviation: the record type lives with the classifiers that produce it, and row 8 owns the pending-state store that consumes it | Yes | 2026-11-25 |
+| 3 | R3 execution (2026-11-25): `classify_mcp_server_changes` diffs typed `McpServerConfig` objects, so the display strings the CLI and `tests/agent/commands/test_cmd_mcp.py` expect (`mcp_servers/<key>.<field>`, `mcp_servers/<key> (new server)`, `mcp_servers/<key> (removed server)`) are rendered in `scripts/agent/services/config_reload.py` by `_MCP_RECORD_SUFFIXES` and `_mcp_record_display` rather than by the classifier | Yes | 2026-11-25 |
+| 3 | R3 execution (2026-11-25): the new public symbols raised `tools/check_docs_structure.py`'s size ceiling for `docs/23_agent/agent_14_reference-api-subpackages-generated.md` from 35212 to 35530, with a dated justification. The generated doc and the manifests were regenerated, not hand-edited | Yes | 2026-11-25 |
+| 4 | R4 execution (2026-11-25): the Plan puts the snapshot model in `scripts/agent/services/config_reload_transaction.py`, but `.importlinter`'s `shared-is-leaf` contract forbids `shared` importing `agent`, and rows 16, 17, 18 make `scripts/shared/llm_hot_config.py`, `scripts/agent/history.py`, `scripts/shared/runtime_tool_registry.py` return the token. Resolved by a new leaf module `scripts/shared/config_undo.py` that owns `ServiceSnapshot` and `UndoToken`; `config_reload_transaction.py` owns only `ReloadStage`, `CommitPhase`, `PreparedStep`, `ReloadTransaction` and has no `ctx` reference. `lint-imports` reports 6 contracts kept | Yes | 2026-11-25 |
+| 4 | R4 execution (2026-11-25): the Plan's transaction model does not say where prepare runs. Resolved: prepare lives in `scripts/agent/services/config_reload.py` and `ServiceSyncer.prepare_llm` / `prepare_runtime_tools`, which capture the snapshot before any mutation; the transaction only registers, commits, and rolls back. `ServiceSyncer` reads `ctx.cfg.llm` and `ctx.cfg.tool` inside `apply()` so the section steps that run first supply the candidate values | Yes | 2026-11-25 |
+| 4 | R4 execution (2026-11-25): the Plan's fixed commit order includes a `history` phase, but every value `HistoryManager` reads from a reload (`context_char_limit`, `context_compress_turns`, `context_token_limit`, `tokenize_url`) is registry startup-only, so no history step can ever be prepared (REQ-003, AC-2). `CommitPhase.HISTORY` stays in the order and `snapshot_config` / `restore_config` exist as the manager's restore pair; the absence of a step is documented in `apply_config_dict` | Yes | 2026-11-25 |
+| 4 | R4 execution (2026-11-25): the `degraded` refusal must survive across commands, which is Phase 5 step 2 (`PendingConfigState`, row 8). Interim guard: `ReloadTransaction` refuses further steps once degraded, and `ConfigReloadService._degraded_services` refuses the next reload on the same instance. `scripts/agent/commands/cmd_config.py` builds a new service per command, so cross-command refusal is not met until row 8 lands in R5. Resolved in R5: the container-owned `PendingConfigState` holds the degraded flag, `ConfigReloadService._refuse_if_degraded` reads it from the ctx before preparing anything, and `AppServices.pending_config` gives every command the same instance | Yes | 2026-11-25 |
+| 4 | R4 execution (2026-11-25): commit and rollback failures need their own types while `cmd_config.py`'s `except ValueError` keeps working. Resolved with `ConfigReloadError(ConfigFieldTypeError)` plus `ConfigReloadValidationError`, `ConfigReloadCommitError`, and `ConfigReloadRollbackError(service=...)` in `scripts/agent/services/exceptions.py` (REQ-011) | Yes | 2026-11-25 |
+| 4 | R4 execution (2026-11-25): `ConfigReloadRequest` shape validation is row 19 (R5), but the transaction requires typed sections, so `__post_init__` now runs `strict_mapping` and `strict_str_list` and raises `ConfigReloadValidationError` at construction. `tests/agent/services/test_config_reload.py::test_invalid_masked_fields_type_raises` was retargeted to assert at construction; row 19 keeps the remaining models.py work | Yes | 2026-11-25 |
+| 4 | R4 execution (2026-11-25): `_sync_services` is no longer reached from `apply_config_dict`, but `tests/agent/services/test_config_reload.py` calls it directly in six places, so both it and `ServiceSyncer.sync_all` stay until Phase 6 (rows 6, 34) retargets those calls. `TestLegacySyncServicePath` covers the live-LLM branch of `sync_all` in the meantime | Yes | 2026-11-25 |
+| 4 | R4 execution (2026-11-25): `outcome.applied` is derived from `ReloadTransaction.applied` excluding the `conversation` service, so the CLI report keeps its pre-transaction membership while `outcome.stage` is new (OD-07) | Yes | 2026-11-25 |
+| 4 | R4 execution (2026-11-25): the transaction and restore-pair symbols raised `tools/check_docs_structure.py`'s ceiling for `docs/23_agent/agent_14_reference-api-subpackages-generated.md` from 35530 to 36384, with a dated justification; the doc and manifests were regenerated, not hand-edited | Yes | 2026-11-25 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261125-074359_01_scripts_shared_config_field_types.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-074359_02_scripts_agent_services_typed_validators.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-074359_03_scripts_agent_services_config_validators.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261125-074359_04_scripts_agent_services_config_field_registry.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-074359_05_scripts_agent_services_config_section_reload.py.md | 2, 6 | Procedure | Pending | — | — |
-| implementations/20261125-074359_06_scripts_agent_services_config_reload.py.md | 3, 4, 5, 6 | Procedure | Pending | — | — |
-| implementations/20261125-074359_07_scripts_agent_services_config_reload_transaction.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-074359_08_scripts_agent_services_config_pending_state.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261125-074359_09_scripts_agent_services_config_outcome_classification.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-074359_10_scripts_agent_services_config_service_sync.py.md | 2, 6 | Procedure | Pending | — | — |
-| implementations/20261125-074359_11_scripts_agent_services_models.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-074359_12_scripts_agent_services_exceptions.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-074359_13_scripts_agent_config_builders.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-074359_14_scripts_agent_config_section_builders.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-074359_15_scripts_shared_mcp_config.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-074359_16_scripts_shared_llm_hot_config.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-074359_17_scripts_agent_history.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-074359_18_scripts_shared_runtime_tool_registry.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-074359_19_scripts_agent_commands_cmd_config.py.md | N/A: no Implementation step cites this path (Plan Gap) | Procedure | Pending | — | — |
-| implementations/20261125-074359_20_scripts_agent_commands_cmd_config_display.py.md | N/A: no Implementation step cites this path (Plan Gap) | Procedure | Pending | — | — |
-| implementations/20261125-074359_21_scripts_agent_commands_cmd_mcp.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261125-074359_22_scripts_agent_services_mcp_status.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261125-074359_23_scripts_agent_context.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261125-074359_24_scripts_agent_factory.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261125-074359_25_tests_shared_test_config_field_types.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-074359_26_tests_agent_services_test_config_reload_transaction.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261125-074359_27_tests_agent_services_test_config_reload_parity.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261125-074359_28_tests_agent_services_test_config_pending_state.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261125-074359_29_tests_agent_services_test_typed_validators.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-074359_30_tests_agent_test_config_builders.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261125-074359_34_tests_agent_services_test_config_reload.py.md | 2, 6 | Procedure | Pending | — | — |
-| implementations/20261125-074359_37_tests_agent_commands_test_cmd_mcp.py.md | 5, 6 | Procedure | Pending | — | — |
-| implementations/20261125-074359_38_tests_agent_commands_test_agent_cmd_config.py.md | 3, 5 | Procedure | Pending | — | — |
-| implementations/20261125-074359_39_tests_agent_test_removed_config_keys_rejected.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261125-074359_43_docs_23_agent_agent_07_06_cli-and-commands-hot-reload.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-074359_44_docs_23_agent_agent_08_01_configuration-loading-agent-config.md.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-074359_45_registry_manifests_config_ownership.yaml.md | 7 | Procedure | Pending | — | — |
-| implementations/20261125-074359_46_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 7 | Procedure | Pending | — | — |
+| implementations/20261125-074359_01_scripts_shared_config_field_types.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-074359_02_scripts_agent_services_typed_validators.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-074359_03_scripts_agent_services_config_validators.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261125-074359_04_scripts_agent_services_config_field_registry.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-074359_05_scripts_agent_services_config_section_reload.py.md | 2, 6 | Procedure | Completed | — | — |
+| implementations/20261125-074359_06_scripts_agent_services_config_reload.py.md | 3, 4, 5, 6 | Procedure | Completed | — | — |
+| implementations/20261125-074359_07_scripts_agent_services_config_reload_transaction.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-074359_08_scripts_agent_services_config_pending_state.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-074359_09_scripts_agent_services_config_outcome_classification.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-074359_10_scripts_agent_services_config_service_sync.py.md | 2, 6 | Procedure | Completed | — | — |
+| implementations/20261125-074359_11_scripts_agent_services_models.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-074359_12_scripts_agent_services_exceptions.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-074359_13_scripts_agent_config_builders.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-074359_14_scripts_agent_config_section_builders.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-074359_15_scripts_shared_mcp_config.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-074359_16_scripts_shared_llm_hot_config.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-074359_17_scripts_agent_history.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-074359_18_scripts_shared_runtime_tool_registry.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-074359_19_scripts_agent_commands_cmd_config.py.md | N/A: no Implementation step cites this path (Plan Gap) | Procedure | Completed | — | — |
+| implementations/20261125-074359_20_scripts_agent_commands_cmd_config_display.py.md | N/A: no Implementation step cites this path (Plan Gap) | Procedure | Completed | — | — |
+| implementations/20261125-074359_21_scripts_agent_commands_cmd_mcp.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-074359_22_scripts_agent_services_mcp_status.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-074359_23_scripts_agent_context.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-074359_24_scripts_agent_factory.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-074359_25_tests_shared_test_config_field_types.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-074359_26_tests_agent_services_test_config_reload_transaction.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-074359_27_tests_agent_services_test_config_reload_parity.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-074359_28_tests_agent_services_test_config_pending_state.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-074359_29_tests_agent_services_test_typed_validators.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-074359_30_tests_agent_test_config_builders.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-074359_34_tests_agent_services_test_config_reload.py.md | 2, 6 | Procedure | Completed | — | — |
+| implementations/20261125-074359_37_tests_agent_commands_test_cmd_mcp.py.md | 5, 6 | Procedure | Completed | — | — |
+| implementations/20261125-074359_38_tests_agent_commands_test_agent_cmd_config.py.md | 3, 5 | Procedure | Completed | — | — |
+| implementations/20261125-074359_39_tests_agent_test_removed_config_keys_rejected.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-074359_43_docs_23_agent_agent_07_06_cli-and-commands-hot-reload.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-074359_44_docs_23_agent_agent_08_01_configuration-loading-agent-config.md.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-074359_45_registry_manifests_config_ownership.yaml.md | 7 | Procedure | Completed | — | — |
+| implementations/20261125-074359_46_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 7 | Procedure | Completed | — | — |
 ## Traceability
 - **Workflow phase**: issue-to-plan
 - **Source issue**: issues/20261119-145303_cliplc005_staged-reload-transaction.md
