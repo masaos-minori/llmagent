@@ -24,7 +24,7 @@ The checker has no notion of the companion kinds. Every companion document commi
 Add the companion kinds beside, not inside, the existing directory-based kinds: a small new module owns the strict filename pattern and the template map, and the checker asks it for the kind before falling back to the directory. Keep the existing kinds, flags, output, and exit codes unchanged. The checker is 23,930 B against the 24,576 B module-size gate, so the new logic must be in a new module and the checker's own growth must stay minimal. Companion documents get only the missing-section rule (their templates define no leftover or status rules).
 
 ## Requirements
-- `REQ-001`: A path `issues/{timestamp}_unknowns.md`, `issues/{timestamp}_{NN}_unknowns.md`, `issues/{timestamp}_risks.md`, or `issues/{timestamp}_{NN}_risks.md` (also under `issues/done/`) resolves to the `unknowns` or `risks` kind through a strict filename pattern; an ordinary Issue named `{timestamp}_{id}_{slug}.md` (its id always has a letter) and any path outside `issues/` keep their current kind.
+- `REQ-001`: A path `issues/{timestamp}_unknowns.md`, `issues/{timestamp}_{seq}_unknowns.md`, `issues/{timestamp}_risks.md`, or `issues/{timestamp}_{seq}_risks.md`, where `{seq}` is any run of digits because `generate_workitem.py --seq` does not validate its value (also under `issues/done/`) resolves to the `unknowns` or `risks` kind through a strict filename pattern; an ordinary Issue named `{timestamp}_{id}_{slug}.md` (its id always has a letter) and any path outside `issues/` keep their current kind.
 - `REQ-002`: The required `## ` headings of the `unknowns` and `risks` kinds come from the fenced block of `templates/unknowns-issue.md` and `templates/risks-issue.md`; a missing heading is reported as `missing required section`, and no leftover, release-unit, status-value, or length rule applies to them.
 - `REQ-003`: The existing behavior for `issue`, `plan`, and `implementation` documents, and the `--file`, `--kind`, `--include-done`, `--archived-status`, `--format` forms and exit codes, are unchanged; the default scan covers all five kinds, `--kind` accepts `unknowns` and `risks`, and `--kind issue` no longer includes companion documents.
 - `REQ-004`: `tools/check_workitem_structure.py` stays within the 24,576 B module-size gate without a new baseline entry, with the companion logic in a new `tools/_workitem_companion_kinds.py`.
@@ -74,7 +74,7 @@ glob patterns, components, file groups, or vague phrases.
 - AC-7 (`REQ-007`): ruff format and check, mypy, and bandit pass for the changed tool files; `uv run python tools/check_workitem_structure.py` exits 0 with only advisory findings; `uv run pre-commit run workitem-structure --all-files` passes; a temporary companion scaffold from `generate_workitem.py` passes `--file` and is then removed.
 
 ## Tests
-- `REQ-001`: parametrized filename-detection tests (accepted: `{ts}_unknowns.md`, `{ts}_02_unknowns.md`, `{ts}_risks.md`, `{ts}_01_risks.md`; rejected: `{ts}_gate001_unknowns.md`, `{ts}_x_foo-unknowns.md`, `{ts}_unknowns.txt`, a 3-digit sequence) and `infer_kind` tests for `issues/`, `issues/done/`, `plans/`, `other/`.
+- `REQ-001`: parametrized filename-detection tests (accepted: `{ts}_unknowns.md`, `{ts}_02_unknowns.md`, `{ts}_risks.md`, `{ts}_01_risks.md`; rejected: `{ts}_gate001_unknowns.md`, `{ts}_x_foo-unknowns.md`, `{ts}_unknowns.txt`, a non-numeric sequence such as `ab`; accepted: a one-digit and a three-digit numeric sequence) and `infer_kind` tests for `issues/`, `issues/done/`, `plans/`, `other/`.
 - `REQ-002`: per template, a complete document passes, a document with one heading removed reports exactly that heading, and a real-template end-to-end case under the temporary root.
 - `REQ-003`: default-kind selection includes the companion kinds; `--kind issue` excludes them; existing tests for plan, issue, implementation, `--file`, `--archived-status` stay green.
 - `REQ-005`: a regression check that the companion tests fail without the companion module (mutation by name, reverted).
@@ -87,7 +87,7 @@ glob patterns, components, file groups, or vague phrases.
 - Companion documents need only the missing-section rule; the issue-template leftover rule is not applied to them because it is built from `templates/issue.md` lines (a judgment call of this Plan).
 - `--kind issue` excluding companion documents is acceptable: a companion document is no longer an "issue" for this tool, and no caller passes `--kind issue` (the callers use `--file` or the default scan; checked in Step 3).
 - Legacy archived companions fail their own template (26 of 32); `--include-done` reporting them is consistent with the existing behavior for the other kinds' archives and is left unchanged.
-- The strict pattern `^\d{8}-\d{6}(_\d{2})?_(unknowns|risks)\.md$` is the complete set of producer names (only `tools/generate_workitem.py` writes them; checked in Step 2).
+- The strict pattern `^\d{8}-\d{6}(_\d+)?_(unknowns|risks)\.md$` is the complete set of producer names (the sequence is an unvalidated `--seq` string; digits are the documented form) (only `tools/generate_workitem.py` writes them; checked in Step 2).
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -118,7 +118,7 @@ Path B (more than 3 target files and a new module). Analysis recorded in Step 3/
 - **Operational**: no port, database, or process is involved (`ss` and `fuser` not applicable); no dependency upgrade (`pip-audit` not applicable).
 
 Design decisions:
-1. New module `tools/_workitem_companion_kinds.py` exports `COMPANION_TEMPLATES` (kind to template path) and `companion_kind(path)` which applies `^\d{8}-\d{6}(_\d{2})?_(unknowns|risks)\.md$` to the file name when the path's top-level directory is `issues` (also `issues/done/`). Alternative considered: extend `_WORK_ITEM_KINDS` with filename patterns inside the checker; rejected because of the size gate.
+1. New module `tools/_workitem_companion_kinds.py` exports `COMPANION_TEMPLATES` (kind to template path) and `companion_kind(path)` which applies `^\d{8}-\d{6}(_\d+)?_(unknowns|risks)\.md$` to the file name when the path's top-level directory is `issues` (also `issues/done/`). Alternative considered: extend `_WORK_ITEM_KINDS` with filename patterns inside the checker; rejected because of the size gate.
 2. `infer_kind()` calls `companion_kind()` first and falls back to the directory map. `load_template_specs()` adds the two companion kinds from `COMPANION_TEMPLATES`. `discover_documents()` assigns each `issues/*.md` file to its companion kind when `companion_kind()` matches, otherwise to `issue`.
 3. `--kind` gains the choices `unknowns` and `risks`; the default set becomes all five kinds. `--kind issue` therefore means ordinary Issues only (compatibility note in the docstring).
 4. `collect_findings` and `collect_single_file_findings` run only `find_missing_sections` for the companion kinds; the existing `if kind == ...` branches already skip them.
@@ -169,7 +169,7 @@ N/A: no release unit
 Validation baseline (recorded in Step 5): `radon cc tools/check_workitem_structure.py -s` rates every function A (highest 4); `vulture scripts/ --min-confidence 80` reports 3 existing findings outside the targets; `bandit -r scripts/` reports existing findings outside the targets; `bandit tools/check_workitem_structure.py` is clean. The diff-cover baseline is `N/A: no scripts/ target` (coverage is measured over `scripts/` only, and this Plan changes `tools/`, `tests/`, and rules documents).
 
 ## Risks
-- **Risk**: The new filename pattern misclassifies an ordinary Issue as a companion document → **Mitigation**: the pattern is anchored and requires exactly `{timestamp}[_{NN}]_unknowns|risks.md`; ordinary ids contain a letter; AC-1 tests the near-miss forms (`gate001`, slug ending in `unknowns`).
+- **Risk**: The new filename pattern misclassifies an ordinary Issue as a companion document → **Mitigation**: the pattern is anchored and requires exactly `{timestamp}[_{digits}]_unknowns|risks.md`; ordinary ids contain a letter; AC-1 tests the near-miss forms (`gate001`, slug ending in `unknowns`).
 - **Risk**: Adding code to the checker pushes it over the 24,576 B gate → **Mitigation**: the logic lives in the new module and the checker's growth is limited to a few lines; AC-4 measures it. If it still exceeds the gate, a plan amendment adds a row for a second extracted module instead of a baseline entry.
 - **Risk**: Loading the companion templates breaks existing tests that install only three templates under a temporary root → **Mitigation**: the fixture list is a target row and Phase 1 updates it before the checker is wired.
 - **Risk**: `--kind issue` stops covering companion documents, which a script may rely on → **Mitigation**: the consumer scan found no caller using `--kind issue`; the docstring and tool rows state the new meaning.
@@ -185,10 +185,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the companion kind module and its detection tests | Pending | — | — | |
-| 2 | Wire the checker and add selection and regression tests | Pending | — | — | |
-| 3 | Update the gate row and tool description rows | Pending | — | — | |
-| 4 | Verify gates, hook, and real scaffolds | Pending | — | — | |
+| 1 | Create the companion kind module and its detection tests | In Progress | — | — |  |
+| 2 | Wire the checker and add selection and regression tests | In Progress | — | — |  |
+| 3 | Update the gate row and tool description rows | In Progress | — | — |  |
+| 4 | Verify gates, hook, and real scaffolds | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -198,7 +198,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261125-104147_01_tools__workitem_companion_kinds.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-104147_02_tools_check_workitem_structure.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-104147_03_tests_tools_test_check_workitem_structure.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261125-104147_04_rules_tool-gates.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-104147_05_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -228,3 +232,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-007 | Issue Acceptance Criteria (hook and drift) | `tools/check_workitem_structure.py` | Phase 4 | AC-7 | Hook run, lint, types, bandit, real scaffold | Explicit in issue |
 | REQ-007 | Same | `tools/TOOL_DESCRIPTIONS.md` | Phase 4 | AC-7 | `check_tool_descriptions_sync.py` | Explicit in issue |
 | REQ-007 | Same | `rules/tool-gates.md` | Phase 4 | AC-7 | `run_validation_gates.py drift` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261125-104147 -->
