@@ -13,6 +13,12 @@ Pin the warning wording for a server that was terminated but whose exit could no
 - Cleanup failures are non-fatal by policy (`docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`), and today every collected error is written as a warning (`scripts/agent/resource_shutdown_coordinator.py:168-171`).
 - The Plan keeps that behavior (Unknowns UNK-04): the warning line stays, with a redacted detail, and the step record is the durable answer.
 
+Step 3b verification against the current source (20261125-122600):
+
+- The `scripts/agent/resource_shutdown_coordinator.py:168-171` anchor is not what these cases read. The three cases assert the terminator's own console line, which is the no-pgid fallback warning at `scripts/agent/http_lifecycle_process_terminator.py:239-243`: `Lifecycle: %r pid=%s has no pgid; proc.terminate() fallback, exit not observed`.
+- The assertions are shared through `_LineCapture` (`:18`), `_attach()` (`:38`), and `_assert_unconfirmed_termination_line()` (`:47`): exactly one `proc.terminate() fallback` warning naming the server key, containing `exit not observed`, containing no `/`, and nothing logged at ERROR or worse. The SIGKILL confirm line (`:315-320`) is an error line by design and is not what the cleanup warning policy covers.
+- The three cases are unchanged in name: `test_terminate_warning_when_no_pgid`, `test_terminate_warning_when_killpg_fails`, `test_terminate_warning_integration_simulation`.
+
 ## Design decisions
 
 - Assert the warning as a warning, not an error or a fatal line: the policy that cleanup failure must not mask the original failure is what these cases protect.
@@ -72,9 +78,9 @@ Pin the warning wording for a server that was terminated but whose exit could no
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | _LineCapture (:18), _attach() (:38) and _assert_unconfirmed_termination_line() (:47) replace the per-case wording checks |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | this row is the test row this row is the test row; the three existing cases now assert one warning naming the server key, `exit not observed`, no `/`, nothing at ERROR |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, pytest Pass; the asserted line is scripts/agent/http_lifecycle_process_terminator.py:239-243 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

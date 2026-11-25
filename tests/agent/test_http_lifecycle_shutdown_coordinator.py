@@ -1,10 +1,15 @@
 import asyncio
+import signal
 import time
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from agent.http_lifecycle_errors import TerminationOutcome
-from agent.http_lifecycle_shutdown_coordinator import ShutdownCoordinator
+from agent.http_lifecycle_shutdown_coordinator import (
+    _SHUTDOWN_TIMEOUT_SEC,
+    ShutdownCoordinator,
+)
+from agent.shutdown_budget import ShutdownBudget
 
 
 class TestShutdownCoordinatorFailureScenarios:
@@ -90,6 +95,117 @@ def _multi_manager(keys, terminate):
     manager.iter_processes = MagicMock(return_value=procs)
     manager.clear_all_health_checks = MagicMock()
     return manager
+
+
+class TestShutdownCoordinatorBudget:
+    """REQ-010, REQ-011: one armed budget bounds every server, and a SIGINT delivered
+    during cleanup reaches that budget instead of being absorbed.
+
+    The budget is the real object, not a mock: what these cases turn on is
+    ``remaining()`` being read once for the whole gather and the interrupt being a
+    flag the terminator can read.
+    """
+
+    @staticmethod
+    def _armed_budget(*, elapsed: float, total: float = 45.0) -> ShutdownBudget:
+        """Return a budget armed at 100.0 whose remaining() reads total - elapsed."""
+        ticks = iter([100.0, 100.0 + elapsed]).__next__
+        budget = ShutdownBudget(total_seconds=total, clock=ticks)
+        budget.arm()
+        return budget
+
+    @pytest.mark.asyncio
+    async def test_remaining_deadline_shared_across_servers(self) -> None:
+        """REQ-010, AC-1: three servers get the same clamped window from one budget."""
+        budget = self._armed_budget(elapsed=30.0)
+        windows: list[float] = []
+        forwarded: list[ShutdownBudget | None] = []
+
+        async def terminate(proc, key, timeout, budget=None, **kwargs):
+            windows.append(timeout)
+            forwarded.append(budget)
+            return TerminationOutcome.EXITED
+
+        manager = _multi_manager(["a", "b", "c"], terminate)
+
+        await ShutdownCoordinator().shutdown_all(manager, budget=budget)
+
+        # 45 s total, 30 s already spent: the 30 s module window cannot be used up.
+        assert windows == [15.0, 15.0, 15.0]
+        assert forwarded == [budget, budget, budget]
+
+    @pytest.mark.asyncio
+    async def test_no_budget_keeps_the_module_fallback_window(self) -> None:
+        """A caller without a budget (a restart, a health check) keeps today's window."""
+        windows: list[float] = []
+        forwarded: list[ShutdownBudget | None] = []
+
+        async def terminate(proc, key, timeout, budget=None, **kwargs):
+            windows.append(timeout)
+            forwarded.append(budget)
+            return TerminationOutcome.EXITED
+
+        manager = _multi_manager(["a", "b"], terminate)
+
+        await ShutdownCoordinator().shutdown_all(manager)
+
+        assert windows == [_SHUTDOWN_TIMEOUT_SEC, _SHUTDOWN_TIMEOUT_SEC]
+        assert forwarded == [None, None]
+
+    @pytest.mark.asyncio
+    async def test_spent_deadline_still_signals_every_server(self) -> None:
+        """OD-05: a spent deadline shortens the waiting, it does not skip a signal."""
+        budget = self._armed_budget(elapsed=45.0)
+        windows: list[float] = []
+
+        async def terminate(proc, key, timeout, budget=None, **kwargs):
+            windows.append(timeout)
+            return TerminationOutcome.EXIT_UNCONFIRMED
+
+        manager = _multi_manager(["a", "b", "c"], terminate)
+
+        failures = await ShutdownCoordinator().shutdown_all(manager, budget=budget)
+
+        assert windows == [0.0, 0.0, 0.0]
+        assert [key for key, _ in failures] == ["a", "b", "c"]
+
+    @pytest.mark.asyncio
+    async def test_sigint_during_cleanup_requests_the_budget_interrupt(self) -> None:
+        """REQ-011, AC-4: a Ctrl-C mid-cleanup is forwarded, and the handler is restored."""
+        shutdown_budget = self._armed_budget(elapsed=5.0)
+        original_handler = signal.getsignal(signal.SIGINT)
+        interrupt_seen: list[bool] = []
+
+        async def terminate(proc, key, timeout, budget=None, **kwargs):
+            handler = signal.getsignal(signal.SIGINT)
+            assert callable(handler)
+            handler(signal.SIGINT, None)  # a second Ctrl-C arriving mid-cleanup
+            interrupt_seen.append(shutdown_budget.interrupt_requested)
+            return TerminationOutcome.EXITED
+
+        manager = _multi_manager(["a", "b"], terminate)
+
+        await ShutdownCoordinator().shutdown_all(manager, budget=shutdown_budget)
+
+        assert interrupt_seen == [True, True]
+        assert signal.getsignal(signal.SIGINT) is original_handler
+
+    @pytest.mark.asyncio
+    async def test_sigint_is_absorbed_only_when_no_budget_is_supplied(self) -> None:
+        """The absorbing guard survives only on the paths that have no interrupt channel."""
+        shutdown_budget = self._armed_budget(elapsed=5.0)
+
+        async def terminate(proc, key, timeout, budget=None, **kwargs):
+            handler = signal.getsignal(signal.SIGINT)
+            assert callable(handler)
+            handler(signal.SIGINT, None)
+            return TerminationOutcome.EXITED
+
+        manager = _multi_manager(["a"], terminate)
+
+        await ShutdownCoordinator().shutdown_all(manager)
+
+        assert shutdown_budget.interrupt_requested is False
 
 
 class TestShutdownCoordinatorConcurrency:

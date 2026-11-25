@@ -13,6 +13,12 @@ Update the protocol and router signature expectations so every lifecycle impleme
 - This file is the signature-level consumer: 15 `shutdown_all` and 20 `terminate_with_timeout` references, including the doubles that stand in for the protocol implementations.
 - A double that does not accept the new keyword fails as soon as a caller forwards it, so the doubles must change in the same release unit as rows 14 and 15.
 
+Step 3b verification against the current source (20261125-122600):
+
+- The reference counts are 23 `shutdown_all` and 20 `terminate_with_timeout` after this row's change, not 15 and 20.
+- Two doubles gained the keyword so the router can forward it: `terminate_and_interrupt` (`tests/agent/test_lifecycle.py:927`) and `flaky_terminate` (`:967`), both as `*, budget: object = None`. The doubles do not read the value; they only accept it.
+- The new case is `TestShutdownAllCleanup::test_shutdown_all_forwards_the_budget_it_is_given` (`:947`), which asserts `call.kwargs["budget"] is budget` — the same object, not a copy — and `call.kwargs["timeout"] <= 15.0`, the budget the test armed.
+
 ## Design decisions
 
 - Update the doubles to accept the parameter and assert it is forwarded, rather than accepting it and ignoring it: the point of the signature tests is that the value survives the delegation chain.
@@ -71,9 +77,9 @@ Update the protocol and router signature expectations so every lifecycle impleme
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | terminate_and_interrupt (:927) and flaky_terminate (:967) gained `*, budget: object = None` |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | this row is the test row this row is the test row; TestShutdownAllCleanup::test_shutdown_all_forwards_the_budget_it_is_given (:947) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, pytest Pass (83 cases) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

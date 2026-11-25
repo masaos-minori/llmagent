@@ -4,6 +4,16 @@ Shutdown coordinator for graceful HTTP server lifecycle management.
 
 Delegates cleanup operations back to HttpServerLifecycleManager via its public
 methods (cleanup_server_key, clear_all_health_checks, process_terminator).
+
+When a shutdown budget is supplied (REQ-010):
+
+  - every per-server wait is clamped to ``budget.remaining()``, so the lifecycle
+    step cannot extend the shutdown sequence past its one deadline
+  - SIGINT received during cleanup is forwarded to ``budget.request_interrupt()``
+    instead of being absorbed, so a second Ctrl-C stops the waits rather than
+    being swallowed (REQ-011)
+  - the SIGTERM and SIGKILL sends themselves are never clamped: a spent deadline
+    shortens the waiting, it does not skip a signal (OD-05)
 """
 
 from __future__ import annotations
@@ -13,6 +23,7 @@ import logging
 import os
 import signal
 import subprocess
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from .http_lifecycle_errors import TerminationOutcome
@@ -22,9 +33,11 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from agent.http_lifecycle import HttpServerLifecycleManager
+    from agent.shutdown_budget import ShutdownBudget
 
-# Bound on the SIGTERM wait of the shutdown path (shutdown_all); the post-SIGKILL
-# confirmation window is owned by ProcessTerminator.
+# Fallback bound on the SIGTERM wait of the shutdown path (shutdown_all) when no
+# budget is supplied; the post-SIGKILL confirmation window is owned by
+# ProcessTerminator. With a budget the bound is min(this, budget.remaining()).
 _SHUTDOWN_TIMEOUT_SEC = 30.0
 
 
@@ -42,10 +55,46 @@ def _get_pgid(proc: subprocess.Popen[bytes]) -> int | None:
 
 
 def _absorb_sigint_during_shutdown(signum: int, frame: object) -> None:
-    """Absorb SIGINT signals during shutdown_all() cleanup."""
+    """Absorb SIGINT signals during a shutdown_all() cleanup that has no budget.
+
+    Only the no-budget paths (a restart, a startup rollback) reach this: with a
+    budget present the signal is forwarded to it instead, so the interrupt is not
+    swallowed (REQ-011).
+    """
     logger.warning(
         "Lifecycle: SIGINT received during shutdown_all(); ignoring until cleanup completes"
     )
+
+
+def _request_interrupt_on_sigint(
+    budget: ShutdownBudget,
+) -> Callable[[int, object], None]:
+    """Return the SIGINT handler for a cleanup that runs inside the shutdown budget.
+
+    The handler does the one thing the budget's interrupt channel can do from a
+    signal handler: set it. The waits inside ProcessTerminator read that event and
+    stop at their next boundary, and the step records what was and was not proved.
+    """
+
+    def _handler(signum: int, frame: object) -> None:
+        logger.warning(
+            "Lifecycle: SIGINT received during shutdown_all(); interrupt requested "
+            "for the termination in progress"
+        )
+        budget.request_interrupt()
+
+    return _handler
+
+
+def _termination_window(budget: ShutdownBudget | None) -> float:
+    """Return the SIGTERM-wait bound for this shutdown, clamped to the budget.
+
+    A spent deadline gives 0.0, which skips the waiting but not the signals: the
+    terminator still sends SIGTERM and SIGKILL and reports what it could not prove.
+    """
+    if budget is None:
+        return _SHUTDOWN_TIMEOUT_SEC
+    return min(_SHUTDOWN_TIMEOUT_SEC, budget.remaining())
 
 
 class ShutdownCoordinator:
@@ -102,6 +151,8 @@ class ShutdownCoordinator:
         manager: HttpServerLifecycleManager,
         terminator: ProcessTerminator | None = None,
         fields: dict[str, Any] | None = None,
+        *,
+        budget: ShutdownBudget | None = None,
     ) -> list[tuple[str, TerminationOutcome]]:
         """Gracefully shut down every managed server.
 
@@ -115,10 +166,17 @@ class ShutdownCoordinator:
             fields: Additional keyword arguments to pass to each
                 ``terminate_with_timeout()`` call. If None, defaults to
                 an empty dict.
+            budget: The shutdown sequence's budget. When supplied, every wait in this
+                shutdown is clamped to ``budget.remaining()`` and a SIGINT delivered
+                during cleanup is forwarded to the budget as an interrupt request.
+                When None, the module fallback window is used and the signal is
+                absorbed as before.
 
         Returns:
             One ``(server_key, outcome)`` pair per server whose exit was not
-            confirmed; empty when every started server was confirmed gone.
+            confirmed; empty when every started server was confirmed gone. A server
+            whose wait was cut short by the deadline or the interrupt is in this list
+            with an unconfirmed outcome, never as a clean shutdown.
         """
         old_sigint: object | None = None
         try:
@@ -127,16 +185,22 @@ class ShutdownCoordinator:
             old_sigint = None
 
         if old_sigint is not None:
+            guard = (
+                _request_interrupt_on_sigint(budget)
+                if budget is not None
+                else ShutdownCoordinator._absorb_sigint_during_shutdown
+            )
             try:
-                signal.signal(
-                    signal.SIGINT, ShutdownCoordinator._absorb_sigint_during_shutdown
-                )
+                signal.signal(signal.SIGINT, guard)
             except ValueError:
                 logger.debug("Lifecycle: could not set SIGINT guard handler")
 
         try:
             terminator = terminator or manager.process_terminator
-            terminate_kwargs: dict[str, Any] = {"timeout": _SHUTDOWN_TIMEOUT_SEC}
+            terminate_kwargs: dict[str, Any] = {
+                "timeout": _termination_window(budget),
+                "budget": budget,
+            }
             if fields:
                 terminate_kwargs.update(fields)
             running: list[tuple[str, subprocess.Popen[bytes]]] = []

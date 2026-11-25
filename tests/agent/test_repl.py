@@ -52,11 +52,12 @@ def _isolate_shared_reader() -> Iterator[None]:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-def _make_bare_repl() -> AgentREPL:
+def _make_bare_repl(budget_seconds: float = 45.0) -> AgentREPL:
     """Return an AgentREPL instance bypassing __init__ to avoid real deps.
 
-    Bypasses `AgentREPL.__init__` and hand-supplies the shutdown event and its holders;
-    the paired wiring guard that runs the real constructor is `TestWiringGuard`.
+    Bypasses `AgentREPL.__init__` and hand-supplies the shutdown event, its holders, and
+    the one budget they share; the paired wiring guard that runs the real constructor is
+    `TestWiringGuard`.
     """
     repl = AgentREPL.__new__(AgentREPL)
     ctx = MagicMock()
@@ -88,6 +89,9 @@ def _make_bare_repl() -> AgentREPL:
     repl._orchestrator = AsyncMock()
     repl._orchestrator.handle_turn = AsyncMock()
     repl._shutdown_event = asyncio.Event()
+    # The same one budget the real constructor builds: run() forwards it to the startup
+    # rollback, so the bare REPL has to hold it like every other consumer does.
+    repl._shutdown_budget = ShutdownBudget(total_seconds=budget_seconds)
     ds = MagicMock()
     ds.fetch.return_value = []
     repl._diagnostic_store = ds
@@ -99,16 +103,22 @@ def _make_bare_repl() -> AgentREPL:
 
     view = MagicMock()
     repl._view = view
-    repl._signal = SignalHandler(ctx, repl._shutdown_event)
+    repl._signal = SignalHandler(
+        ctx, repl._shutdown_event, budget=repl._shutdown_budget
+    )
     repl._banner = StartupBanner(ctx, view)
     repl._persister = SessionPersister(ctx, MagicMock(), view)
     repl._persister.persist_session_diagnostics = AsyncMock()
     repl._persister.persist_session_memories = AsyncMock()
-    repl._input_loop = ReplInputLoop(ctx, view, repl._shutdown_event)
+    repl._input_loop = ReplInputLoop(
+        ctx, view, repl._shutdown_event, budget=repl._shutdown_budget
+    )
     repl._input_loop._cmds = repl._cmds
     repl._input_loop._orchestrator = repl._orchestrator
     repl._wal = WalCheckpointManager(ctx)
-    repl._shutdown = ResourceShutdownCoordinator(ctx, view, repl._wal)
+    repl._shutdown = ResourceShutdownCoordinator(
+        ctx, view, repl._wal, budget=repl._shutdown_budget
+    )
     return repl
 
 
@@ -938,13 +948,16 @@ class TestWiringGuard:
         assert repl._signal._shutdown_event is event_before
         assert MockStartup.call_args.kwargs["shutdown_event"] is event_before
 
-    def test_input_loop_and_coordinator_share_the_one_budget(self) -> None:
-        """REQ-001: the deadline is process-wide, so every consumer holds the same object."""
+    def test_every_consumer_shares_the_one_budget(self) -> None:
+        """REQ-001, REQ-002: the deadline is process-wide, so every consumer holds the same object."""
         repl = _make_real_wired_repl()
 
         assert isinstance(repl._shutdown_budget, ShutdownBudget)
         assert repl._input_loop._budget is repl._shutdown_budget
         assert repl._shutdown._budget is repl._shutdown_budget
+        # The signal handler is the consumer that arms it, so it must be the same budget
+        # the coordinator bounds its steps with.
+        assert repl._signal._budget is repl._shutdown_budget
 
     def test_persist_step_is_registered_at_construction(self) -> None:
         """REQ-007: persistence is a step of the sequence, so it is registered before run().
@@ -996,8 +1009,10 @@ class TestMidTurnSignalIsBounded:
     async def _run_with_signal_during_turn(
         monkeypatch: pytest.MonkeyPatch, *, cooperative: bool
     ) -> tuple[MagicMock, float, list[asyncio.Task]]:
-        monkeypatch.setattr(ReplInputLoop, "_GRACEFUL_TIMEOUT_S", 0.2)
-        repl = _make_bare_repl()
+        # The shared budget, not the no-budget fallback, is what bounds the graceful
+        # window here: the fallback is set far longer than the budget on purpose.
+        monkeypatch.setattr(ReplInputLoop, "_GRACEFUL_TIMEOUT_S", 30.0)
+        repl = _make_bare_repl(budget_seconds=0.2)
         tasks: list[asyncio.Task] = []
         turn_started = asyncio.Event()
 

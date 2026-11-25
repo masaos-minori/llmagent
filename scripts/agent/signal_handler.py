@@ -6,10 +6,14 @@ SignalHandler — platform-specific signal handling for the REPL.
 Responsibilities:
   - Registering SIGTERM and SIGINT handlers on Unix (loop.add_signal_handler)
   - SIGTERM (and Windows close/logoff/shutdown events) begin graceful shutdown by
-    setting the shutdown_event owned by AgentREPL
+    arming the one ShutdownBudget and setting the shutdown_event owned by AgentREPL,
+    so the global deadline starts when shutdown is requested, not when the first step
+    runs
   - SIGINT (and Windows Ctrl-C/Ctrl-Break) acts by input state through
     ReplInputController: discard the prompt line, cancel the turn, request job
-    cancellation, or report that shutdown is already in progress
+    cancellation, or report that shutdown is already in progress. Once the budget is
+    armed it also asks the step in progress to stop, instead of killing the process
+    (REQ-002, REQ-011)
   - An opt-in force exit on a second Ctrl-C during shutdown (off by default)
   - Registering Windows console control handler fallback
 """
@@ -31,6 +35,7 @@ from agent.repl_input_controller import (
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
+    from agent.shutdown_budget import ShutdownBudget
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +65,10 @@ class SignalHandler:
 
     Responsibilities:
       - Registering SIGTERM/SIGINT handlers on Unix (loop.add_signal_handler)
-      - Beginning graceful shutdown on SIGTERM and console close events
-      - Acting on Ctrl-C by input state through the input controller
+      - Beginning graceful shutdown on SIGTERM and console close events, arming the
+        process's one shutdown budget as it does
+      - Acting on Ctrl-C by input state through the input controller, and asking the
+        shutdown step in progress to stop once that budget is armed
       - Registering Windows console control handler fallback
     """
 
@@ -71,6 +78,7 @@ class SignalHandler:
         shutdown_event: asyncio.Event | None,
         *,
         controller: ReplInputController | None = None,
+        budget: ShutdownBudget | None = None,
         force_exit_on_second_sigint: bool = False,
         force_exit: Callable[[int], None] | None = None,
     ) -> None:
@@ -79,13 +87,22 @@ class SignalHandler:
         Precondition: ctx must be an AgentContext instance. Passing other types
         will result in type checker errors but will not raise at runtime due to
         Python's dynamic typing. ``controller`` defaults to the process-shared input
-        controller; ``force_exit`` defaults to an immediate process exit and is only
-        called when ``force_exit_on_second_sigint`` is set.
+        controller; ``budget`` is the process's one ShutdownBudget, and a handler
+        without one keeps the pre-budget behavior of arming nothing. ``force_exit``
+        defaults to an immediate process exit and is only called when the force-exit
+        flag is set, which comes from ``shutdown_force_exit_on_second_sigint`` read
+        once here rather than per signal.
         """
         self._ctx = ctx
         self._shutdown_event = shutdown_event
         self._controller = controller
-        self._force_exit_on_second_sigint = force_exit_on_second_sigint
+        self._budget = budget
+        # Read the configured flag once: a signal handler does no configuration work.
+        # Identity, not truthiness: a non-bool stand-in for cfg must not enable os._exit.
+        configured = getattr(ctx.cfg, "shutdown_force_exit_on_second_sigint", False)
+        self._force_exit_on_second_sigint = (
+            force_exit_on_second_sigint or configured is True
+        )
         self._force_exit = force_exit if force_exit is not None else _exit_process
         self._ctypes_callback: object | None = None
 
@@ -95,7 +112,11 @@ class SignalHandler:
         )
 
     def _sigterm_handler(self) -> None:
-        """Handle SIGTERM by setting the shutdown flag and the shutdown event."""
+        """Handle SIGTERM by arming the budget and beginning graceful shutdown."""
+        if self._budget is not None:
+            # The deadline starts at the request, so every step that follows is bounded
+            # by what this request left rather than by a fresh window (REQ-002).
+            self._budget.arm()
         self._ctx.conv.shutdown_requested = True
         if self._shutdown_event is not None:
             self._shutdown_event.set()
@@ -106,6 +127,12 @@ class SignalHandler:
         """Handle Ctrl-C by the current input state; never starts shutdown itself."""
         action = self._controller_obj().handle_interrupt()
         logger.info("Interrupt received; action=%s", action.value)
+        if self._budget is not None and self._budget.armed:
+            # Shutdown is already running: ask the step in progress to stop at its next
+            # boundary instead of killing the process (REQ-011). Which step that was,
+            # and whether it says timed_out or outcome_unknown, is its own record.
+            self._budget.request_interrupt()
+            logger.warning("Interrupt requested for the shutdown step in progress")
         if (
             action is InterruptAction.SHUTDOWN_IN_PROGRESS
             and self._force_exit_on_second_sigint

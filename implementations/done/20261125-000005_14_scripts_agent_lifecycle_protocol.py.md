@@ -13,6 +13,12 @@ Add the optional remaining-deadline parameter to the lifecycle protocol's `shutd
 - The protocol method is `async def shutdown_all(self) -> list[tuple[str, TerminationOutcome]]` (`scripts/agent/lifecycle_protocol.py:36`), and it is one of the five `shutdown_all()` definitions the shutdown sequence must reach.
 - Implementations already return one pair per server whose exit was not confirmed, so only the parameter changes.
 
+Step 3b verification against the current source (20261125-122600):
+
+- The declaration is `scripts/agent/lifecycle_protocol.py:39-54` after the parameter and the docstring lines were added; it was `:36` when this procedure was written.
+- The docstring states the value is the time left in the shutdown sequence, that an implementation must not wait past `budget.remaining()`, that the termination signals themselves are not skipped for a short budget (OD-05), and that `None` means the implementation uses its own default.
+- All three implementations now match the declaration: `scripts/agent/http_lifecycle.py:416`, `scripts/agent/lifecycle_router.py:83`, `scripts/agent/lifecycle_router.py:263`.
+
 ## Design decisions
 
 - The parameter is optional with no default behavior change: an implementation that ignores it keeps today's fixed windows, which lets rows 11, 13 and 15 land in any order after this one.
@@ -68,9 +74,9 @@ Add the optional remaining-deadline parameter to the lifecycle protocol's `shutd
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | row 39, row 40 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | LifecycleManagerProtocol.shutdown_all(*, budget=None) declared at scripts/agent/lifecycle_protocol.py:39-54 with the OD-05 wait/signal contract in the docstring |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | row 39, row 40 row 39 doubles and row 40::TestLifecycleShutdownSurfaceAcceptsBudget pin the declaration shape |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, mypy, lint-imports, pytest Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

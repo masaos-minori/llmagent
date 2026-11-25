@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 from agent.http_lifecycle_errors import TerminationOutcome
 from agent.http_lifecycle_process_terminator import ProcessTerminator
+from agent.shutdown_budget import ShutdownBudget
 
 
 class _FakeGroup:
@@ -61,6 +62,13 @@ def _fast_terminator() -> ProcessTerminator:
     return ProcessTerminator(
         terminate_poll_interval_sec=0.001, kill_confirm_timeout_sec=0.02
     )
+
+
+def _budget(*, remaining: float) -> ShutdownBudget:
+    """Return an armed budget whose ``remaining()`` always reads *remaining* seconds."""
+    budget = ShutdownBudget(total_seconds=remaining, clock=lambda: 100.0)
+    budget.arm()
+    return budget
 
 
 class TestTerminationOutcomeContract:
@@ -343,6 +351,125 @@ _IGNORE_SIGTERM = (
     "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); "
     "print('ready', flush=True); time.sleep(60)"
 )
+
+
+class TestTerminationBudgetClamping:
+    """REQ-010, OD-05: a supplied budget bounds the waits, never the signals.
+
+    The budget is the real object with a fixed clock, so each case states the time
+    the shutdown sequence has left and asserts what the terminator does with it.
+    """
+
+    @pytest.mark.asyncio
+    async def test_clamped_window_still_sends_sigterm_and_sigkill(self, monkeypatch):
+        """A 5 s wait inside a 0.005 s budget still escalates to SIGKILL."""
+        group = _FakeGroup(monkeypatch)
+        start = time.monotonic()
+
+        outcome = await _fast_terminator().terminate_with_timeout(
+            _proc(), "srv", timeout=5.0, budget=_budget(remaining=0.005)
+        )
+        elapsed = time.monotonic() - start
+
+        assert outcome is TerminationOutcome.EXIT_UNCONFIRMED
+        assert signal.SIGTERM in group.signals
+        assert signal.SIGKILL in group.signals
+        assert elapsed < 1.0
+
+    @pytest.mark.asyncio
+    async def test_clamped_window_still_reports_a_confirmed_exit(self, monkeypatch):
+        """Clamping does not turn an observed exit into an unconfirmed one."""
+        _FakeGroup(monkeypatch, probe=ProcessLookupError())
+
+        outcome = await _fast_terminator().terminate_with_timeout(
+            _proc(), "srv", timeout=5.0, budget=_budget(remaining=0.005)
+        )
+
+        assert outcome is TerminationOutcome.EXITED
+
+    @pytest.mark.asyncio
+    async def test_confirm_window_never_exceeds_the_supplied_remaining(
+        self, monkeypatch
+    ):
+        """The 2 s default post-SIGKILL window is clamped to what the budget has left."""
+        _FakeGroup(monkeypatch)
+        terminator = ProcessTerminator(terminate_poll_interval_sec=0.001)
+        start = time.monotonic()
+
+        outcome = await terminator.terminate_with_timeout(
+            _proc(), "srv", timeout=0.0, budget=_budget(remaining=0.02)
+        )
+        elapsed = time.monotonic() - start
+
+        assert outcome is TerminationOutcome.EXIT_UNCONFIRMED
+        assert elapsed < 0.5
+
+    @pytest.mark.asyncio
+    async def test_no_budget_keeps_the_default_confirm_window(self, monkeypatch):
+        """A caller without a budget gets today's window unchanged, not a clamped one."""
+        _FakeGroup(monkeypatch)
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=0.001, kill_confirm_timeout_sec=0.05
+        )
+        start = time.monotonic()
+
+        await terminator.terminate_with_timeout(_proc(), "srv", timeout=0.0)
+
+        assert time.monotonic() - start >= 0.04
+
+    @pytest.mark.asyncio
+    async def test_requested_interrupt_ends_the_waits_and_still_kills(
+        self, monkeypatch
+    ):
+        """REQ-011: the interrupt stops the waiting; the escalation is not skipped."""
+        group = _FakeGroup(monkeypatch)
+        budget = _budget(remaining=10.0)
+        budget.request_interrupt()
+        terminator = ProcessTerminator(
+            terminate_poll_interval_sec=0.001, kill_confirm_timeout_sec=1.0
+        )
+        start = time.monotonic()
+
+        outcome = await terminator.terminate_with_timeout(
+            _proc(pid=4242), "srv", timeout=5.0, budget=budget
+        )
+        elapsed = time.monotonic() - start
+
+        assert outcome is TerminationOutcome.EXIT_UNCONFIRMED
+        assert group.signals == [signal.SIGTERM, signal.SIGKILL, 0]
+        assert elapsed < 0.5
+
+    @pytest.mark.asyncio
+    async def test_wait_exited_gives_up_at_the_deadline(self, monkeypatch):
+        """A 5 s wait handed a 0.02 s budget returns False at the deadline."""
+        _FakeGroup(monkeypatch)
+        start = time.monotonic()
+
+        exited = await ProcessTerminator().wait_exited(
+            _proc(),
+            "srv",
+            poll_interval=0.001,
+            timeout=5.0,
+            budget=_budget(remaining=0.02),
+        )
+
+        assert exited is False
+        assert time.monotonic() - start < 1.0
+
+    @pytest.mark.asyncio
+    async def test_wait_exited_gives_up_on_the_interrupt(self, monkeypatch):
+        """REQ-011: a requested interrupt ends the wait at its next poll."""
+        _FakeGroup(monkeypatch)
+        budget = _budget(remaining=10.0)
+        budget.request_interrupt()
+        start = time.monotonic()
+
+        exited = await ProcessTerminator().wait_exited(
+            _proc(), "srv", poll_interval=0.001, timeout=5.0, budget=budget
+        )
+
+        assert exited is False
+        assert time.monotonic() - start < 0.5
 
 
 class TestProcessTerminatorRealChild:

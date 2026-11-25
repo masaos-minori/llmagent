@@ -13,6 +13,12 @@ Extend the largest lifecycle shutdown integration test with a deadline: assert t
 - This file is the largest consumer of the termination path (36 `shutdown_all` and 22 `terminate_with_timeout` references), so it is where a clamped window is observable end to end.
 - The existing cases assert outcomes and process cleanup, not durations, so the new cases must measure against a supplied deadline rather than against wall-clock expectations.
 
+Step 3b verification against the current source (20261125-122600):
+
+- Procedure step 1's "asserts the call returns within it" is implemented the way this file's Method states it: the assertion is on the window handed to `terminate_with_timeout()` and on the returned pairs, never on a measured duration. A measured assertion would be the flaky kind.
+- The three cases are `TestShutdownSequenceWithBudget`: `test_supplied_deadline_bounds_the_window_given_to_termination` (a 15 s budget cannot be spent as the module's 30 s window, asserted against `_SHUTDOWN_TIMEOUT_SEC`), `test_spent_deadline_reports_the_server_it_could_not_confirm` (a spent budget hands a 0.0 window and still returns `("a", TerminationOutcome.EXIT_UNCONFIRMED)`, OD-05), and `test_sigint_during_cleanup_reaches_the_budget` (the guard the coordinator installs calls `budget.request_interrupt()`, and the previous handler is restored in `finally`).
+- Existing default-path cases are untouched, as step 4 requires.
+
 ## Design decisions
 
 - Add a small-deadline case: supply a remaining deadline shorter than the default windows and assert the shutdown completes within it and reports the servers it could not confirm.
@@ -74,9 +80,9 @@ Extend the largest lifecycle shutdown integration test with a deadline: assert t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | TestShutdownSequenceWithBudget (3 cases) asserts the window handed to termination, never a measured duration |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | this row is the test row this row is the test row; existing default-path cases untouched |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, pytest Pass; check_mock_patch_targets Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

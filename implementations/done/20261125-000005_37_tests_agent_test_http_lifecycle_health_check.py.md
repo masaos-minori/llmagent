@@ -13,6 +13,12 @@ Confirm that the health-check path keeps today's fixed terminate window when no 
 - The health-check call sites are not in the shutdown path: `scripts/agent/http_lifecycle_health_checker.py:76`, `:166`, `:210`, `:226` call the terminate path with no budget, and this file asserts those windows.
 - The remaining-deadline parameter is optional (rows 12, 13), so these call sites keep the module default.
 
+Step 3b verification against the current source (20261125-122600):
+
+- The four line numbers in the first Assumption are stale. The health checker has one terminate call today: `scripts/agent/http_lifecycle_health_checker.py:75-76`, inside `_terminate_for_startup_failure()` (`:63-85`), which passes the caller's `terminate_timeout_sec` as `timeout=` and no `budget`. That helper is reached from two startup-failure sites (`:209-211` and `:226-228`); `:166` is a docstring line, not a call site.
+- All five terminate doubles in this file are aliased as `term`, and each now carries `_assert_no_shutdown_budget(term)`, which states `timeout == hl_module.TERMINATE_TIMEOUT_SEC` and that no `budget` keyword was passed. That is what separates "the default was used" from "the default happened to match".
+- The new case is `TestHealthPathTerminationWindow::test_default_window_is_used_when_the_call_carries_no_budget` (`tests/agent/test_http_lifecycle_health_check.py:548`).
+
 ## Design decisions
 
 - Assert the default explicitly rather than leaving the cases silent: the point of these cases is that a non-shutdown caller is unaffected, and an explicit default assertion is what proves it.
@@ -70,9 +76,9 @@ Confirm that the health-check path keeps today's fixed terminate window when no 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | _assert_no_shutdown_budget() applied to the five aliased terminate stubs |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | this row is the test row this row is the test row; TestHealthPathTerminationWindow::test_default_window_is_used_when_the_call_carries_no_budget (:548) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, pytest Pass; the health path keeps hl_module.TERMINATE_TIMEOUT_SEC |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

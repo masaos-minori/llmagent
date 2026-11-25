@@ -14,6 +14,13 @@ Clamp the terminator's confirm window to the time the shutdown sequence actually
 - The confirm deadline is computed from that constant inside `_confirm_group_gone()` (`scripts/agent/http_lifecycle_process_terminator.py:139-151`), so clamping has to reach that computation, not only the outer `timeout` argument.
 - An unconfirmed process is reported with the existing unconfirmed outcome, which is the value the shutdown report counts (REQ-012).
 
+Step 3b verification against the current source (20261125-122600):
+
+- Anchors moved: `_DEFAULT_TERMINATE_POLL_INTERVAL_SEC` is `scripts/agent/http_lifecycle_process_terminator.py:32`, `_DEFAULT_KILL_CONFIRM_TIMEOUT_SEC` is `:37`, `wait_exited()` is `:134-177`, `_confirm_group_gone()` is `:185-200`, `terminate_with_timeout()` is `:202`, and the SIGTERM wait inside it is `:270-287`.
+- Clamping is applied through two new module-level helpers, `_clamped_deadline()` (`:40`) and `_interrupt_requested()` (`:52`), so the SIGTERM wait and both post-SIGKILL confirm windows clamp the same way. `_confirm_window()` (`:179-183`) clamps the confirm bound; `_DEFAULT_TERMINATE_POLL_INTERVAL_SEC` is never clamped because it bounds one poll sleep, not the step.
+- An interrupt stops the waiting, not the escalation: the SIGTERM wait breaks straight into the SIGKILL send (OD-05), and the outcome stays `EXIT_UNCONFIRMED`.
+- The unconfirmed line's wording changed to name the window it ran out of: `not confirmed gone within the %.2fs confirm window after SIGKILL` (`:316`). That is the line row 38's wording assertions read.
+
 ## Design decisions
 
 - The escalation is never skipped: SIGTERM is sent, SIGKILL is sent when the term window expires, and only the confirmation wait is clamped. A short remaining deadline shortens the waiting, never the killing.
@@ -78,9 +85,9 @@ Clamp the terminator's confirm window to the time the shutdown sequence actually
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | companion row 34 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | _clamped_deadline() :40, _interrupt_requested() :52, wait_exited(..., budget=None) :134, _confirm_window() :179, _confirm_group_gone(..., budget=None) :185, terminate_with_timeout(..., budget=None) :202; escalation stays unconditional (OD-05) |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | companion row 34 tests/agent/test_http_lifecycle_process_terminator.py::TestTerminationBudgetClamping (7 cases) with the _budget(remaining=) helper |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, mypy, pytest Pass; the spent-budget case asserts the signals are still sent and the outcome stays EXIT_UNCONFIRMED |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

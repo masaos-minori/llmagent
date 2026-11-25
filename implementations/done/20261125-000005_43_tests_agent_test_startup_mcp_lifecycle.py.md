@@ -13,6 +13,12 @@ Update the one terminate-call expectation in this file so the startup lifecycle 
 - The file asserts one terminate call made from the startup lifecycle path, today with the fixed window.
 - The parameter is optional (row 12), so a call that supplies no deadline keeps today's window.
 
+Step 3b verification against the current source (20261125-122600):
+
+- The terminate call this case reaches is `scripts/agent/http_lifecycle.py:379-381`, inside `_reterminate_recorded_failed_start()` (`:363`), which passes `TERMINATE_TIMEOUT_SEC` (`:52`) through `_terminate_for_startup_failure()`; the helper forwards it as `timeout=` and no `budget` (`scripts/agent/http_lifecycle_health_checker.py:75-76`).
+- The double is patched on `mgr._process_terminator` (`tests/agent/test_startup_mcp_lifecycle.py:339-344`) and the window assertions are `:357-360`: `call.kwargs["timeout"] == TERMINATE_TIMEOUT_SEC` and `call.kwargs.get("budget") is None`. `get("budget")` is used rather than `["budget"]` because a no-budget call must not have to pass the keyword at all.
+- The case is `test_unconfirmed_first_failure_raises_not_records_spawn` (`:281`), unchanged in name and in the behavior it pins.
+
 ## Design decisions
 
 - Assert the default path only: the startup lifecycle path in this file does not hold a budget, and inventing one here would test a case that does not exist.
@@ -70,9 +76,9 @@ Update the one terminate-call expectation in this file so the startup lifecycle 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | the startup-path terminate expectation now asserts timeout == TERMINATE_TIMEOUT_SEC and budget is None (:357-360) |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | this row is the test row this row is the test row; test_unconfirmed_first_failure_raises_not_records_spawn (:281) unchanged in behavior |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, pytest Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

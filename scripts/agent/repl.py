@@ -84,8 +84,8 @@ class AgentREPL:
         )
         self._shutdown_event = asyncio.Event()
         # One budget for the whole process: the input loop stops accepting work when
-        # it is draining, and the coordinator bounds every shutdown step by it.
-        # SignalHandler is not given it yet: SIGINT arming is the signal-handler row.
+        # it is draining, the signal handler arms it on the first shutdown request, and
+        # the coordinator bounds every shutdown step by it.
         self._shutdown_budget = ShutdownBudget(
             total_seconds=self._ctx.cfg.shutdown_deadline_seconds
         )
@@ -105,7 +105,11 @@ class AgentREPL:
         # record (REQ-001, REQ-007).
         self._shutdown.register_snapshot_step(self._persist_session_state)
         self._banner = StartupBanner(self._ctx, self._view)
-        self._signal = SignalHandler(self._ctx, self._shutdown_event)
+        # The same budget: SIGTERM arms it, so the deadline starts at the request, and a
+        # later Ctrl-C interrupts the step the coordinator is running (REQ-002, REQ-011).
+        self._signal = SignalHandler(
+            self._ctx, self._shutdown_event, budget=self._shutdown_budget
+        )
 
     async def _persist_session_state(self, window: float | None = None) -> None:
         """Persist session state as the shutdown sequence's persist_snapshot step.
@@ -130,7 +134,10 @@ class AgentREPL:
 
         # Run startup orchestration
         startup = StartupOrchestrator(
-            self._ctx, self._view, shutdown_event=self._shutdown_event
+            self._ctx,
+            self._view,
+            shutdown_event=self._shutdown_event,
+            budget=self._shutdown_budget,
         )
         # One finally for the whole session: the shutdown sequence owns every exit
         # path, including session persistence, which is its persist_snapshot step.

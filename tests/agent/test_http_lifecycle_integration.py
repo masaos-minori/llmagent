@@ -24,7 +24,11 @@ from agent.http_lifecycle import (
     StartupFailure,
 )
 from agent.http_lifecycle_errors import TerminationOutcome
-from agent.http_lifecycle_shutdown_coordinator import ShutdownCoordinator
+from agent.http_lifecycle_shutdown_coordinator import (
+    _SHUTDOWN_TIMEOUT_SEC,
+    ShutdownCoordinator,
+)
+from agent.shutdown_budget import ShutdownBudget
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
 
@@ -840,6 +844,107 @@ class TestShutdownSequence:
         assert len(terminate_keys) == 3
         assert terminate_keys[0] != terminate_keys[1]
         assert terminate_keys[1] != terminate_keys[2]
+
+
+class TestShutdownSequenceWithBudget:
+    """REQ-010, REQ-011: one supplied budget bounds the whole shutdown sequence.
+
+    The assertions are about the window the terminate call is handed and the outcomes it
+    reports, never about measured durations.
+    """
+
+    @pytest.mark.asyncio
+    async def test_supplied_deadline_bounds_the_window_given_to_termination(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """A 15 s budget cannot be spent as the module's 30 s window."""
+        budget = ShutdownBudget(total_seconds=15.0)
+        budget.arm()
+        windows: list[float] = []
+
+        async def _terminate(
+            proc: object, key: str, **kwargs: object
+        ) -> TerminationOutcome:
+            windows.append(float(kwargs["timeout"]))
+            return TerminationOutcome.EXITED
+
+        mgr._http_procs["a"] = Mock(poll=Mock(return_value=None))
+        mgr._http_procs["b"] = Mock(poll=Mock(return_value=None))
+
+        with patch.object(
+            mgr._process_terminator,
+            "terminate_with_timeout",
+            side_effect=_terminate,
+        ):
+            unconfirmed = await mgr.shutdown_all(budget=budget)
+
+        assert windows, "expected both servers to be terminated"
+        assert all(window <= 15.0 for window in windows)
+        assert all(window < _SHUTDOWN_TIMEOUT_SEC for window in windows)
+        assert unconfirmed == []
+
+    @pytest.mark.asyncio
+    async def test_spent_deadline_reports_the_server_it_could_not_confirm(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """OD-05: a spent deadline shortens the waiting and still reports the server."""
+        budget = ShutdownBudget(total_seconds=0.0)
+        budget.arm()
+
+        async def _terminate(
+            proc: object, key: str, **kwargs: object
+        ) -> TerminationOutcome:
+            # The terminator is handed a zero window, signals anyway, and cannot observe
+            # the exit inside it.
+            assert kwargs["timeout"] == 0.0
+            return TerminationOutcome.EXIT_UNCONFIRMED
+
+        mgr._http_procs["a"] = Mock(poll=Mock(return_value=None))
+
+        with patch.object(
+            mgr._process_terminator,
+            "terminate_with_timeout",
+            side_effect=_terminate,
+        ):
+            unconfirmed = await mgr.shutdown_all(budget=budget)
+
+        # The list is the contract the shutdown step record consumes (REQ-012).
+        assert unconfirmed == [("a", TerminationOutcome.EXIT_UNCONFIRMED)]
+
+    @pytest.mark.asyncio
+    async def test_sigint_during_cleanup_reaches_the_budget(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """REQ-011: a second Ctrl-C mid-cleanup interrupts the step, it is not absorbed."""
+        budget = ShutdownBudget(total_seconds=30.0)
+        budget.arm()
+        original_handler = signal.getsignal(signal.SIGINT)
+        interrupt_seen: list[bool] = []
+
+        async def _terminate(
+            proc: object, key: str, **kwargs: object
+        ) -> TerminationOutcome:
+            handler = signal.getsignal(signal.SIGINT)
+            assert callable(handler)
+            handler(signal.SIGINT, None)  # a second Ctrl-C arriving mid-cleanup
+            interrupt_seen.append(budget.interrupt_requested)
+            return TerminationOutcome.EXITED
+
+        mgr._http_procs["a"] = Mock(poll=Mock(return_value=None))
+
+        try:
+            with patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                side_effect=_terminate,
+            ):
+                await mgr.shutdown_all(budget=budget)
+
+            assert interrupt_seen == [True]
+        finally:
+            signal.signal(signal.SIGINT, original_handler)
+
+        assert signal.getsignal(signal.SIGINT) is original_handler
 
 
 class TestErrorRecovery:

@@ -9,6 +9,7 @@ Unit tests for agent/factory.py and the lifecycle router (agent/lifecycle_router
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -19,6 +20,7 @@ from agent.factory import (
     init_tracer,
 )
 from agent.lifecycle import LifecycleState
+from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.lifecycle_router import (
     StartSuppressedError,
     _logger,
@@ -26,6 +28,7 @@ from agent.lifecycle_router import (
     _SubprocessLifecycleManager,
 )
 from agent.services.maintenance_jobs import MaintenanceJobRegistry
+from agent.shutdown_budget import ShutdownBudget
 from shared.mcp_config import (
     McpServerConfig,
     StartupMode,
@@ -485,6 +488,39 @@ def _make_router_with_mock_mgr(
     mock_mgr._http_procs = {}
     router._subprocess_mgr._http_mgr = mock_mgr
     return router, mock_mgr
+
+
+class TestLifecycleShutdownSurfaceAcceptsBudget:
+    """REQ-010: the lifecycle surface the factory assembles accepts the shutdown budget.
+
+    The factory wires `_ServerLifecycleRouter` as `ctx.services.lifecycle`, and the
+    shutdown sequence calls it with the budget. The doubles other files use cannot prove
+    the real surface has that parameter, so it is asserted here against the real classes.
+    """
+
+    @pytest.mark.parametrize(
+        "lifecycle_class",
+        [_ServerLifecycleRouter, _SubprocessLifecycleManager, LifecycleManagerProtocol],
+    )
+    def test_shutdown_all_declares_an_optional_budget(
+        self, lifecycle_class: Any
+    ) -> None:
+        param = inspect.signature(lifecycle_class.shutdown_all).parameters["budget"]
+        assert param.kind is inspect.Parameter.KEYWORD_ONLY
+        assert param.default is None
+
+    @pytest.mark.asyncio
+    async def test_assembled_router_forwards_the_budget_it_is_given(self) -> None:
+        """Acceptance only: the behavior behind it is covered by the lifecycle tests."""
+        router, subprocess_mgr = _make_router()
+        subprocess_mgr._http_mgr.shutdown_all.return_value = []
+        budget = ShutdownBudget(total_seconds=15.0)
+        budget.arm()
+
+        unconfirmed = await router.shutdown_all(budget=budget)
+
+        subprocess_mgr._http_mgr.shutdown_all.assert_awaited_once_with(budget=budget)
+        assert unconfirmed == []
 
 
 class TestEnsureReadyAutoStart:

@@ -4,6 +4,10 @@ Process termination for HTTP subprocess MCP servers.
 
 Owns terminate-then-kill escalation logic via `terminate_with_timeout()`.
 Enables independent unit testing of process termination behavior.
+
+Every wait here can be clamped by a shutdown budget (REQ-010): the escalation
+itself is never clamped, so SIGTERM and SIGKILL are always delivered and only the
+observation of the exit gives up early, reported as an unconfirmed exit (OD-05).
 """
 
 from __future__ import annotations
@@ -13,18 +17,41 @@ import logging
 import os
 import signal
 import time
+from typing import TYPE_CHECKING
 
 from agent.http_lifecycle_errors import TerminationOutcome
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from agent.shutdown_budget import ShutdownBudget
+
 # Poll interval for wait_exited(), which probes process-group liveness via
 # os.killpg(); a different waiting mechanism would need a different default.
+# Never clamped: a short window must not turn a wait into a busy loop.
 _DEFAULT_TERMINATE_POLL_INTERVAL_SEC: float = 0.1
 
-# Window in which an exit must be observed after SIGKILL was delivered; a process
-# that is still in the group after it is reported EXIT_UNCONFIRMED.
+# Fallback window in which an exit must be observed after SIGKILL was delivered; a
+# process that is still in the group after it is reported EXIT_UNCONFIRMED. With a
+# budget this is clamped to what the shutdown sequence has left.
 _DEFAULT_KILL_CONFIRM_TIMEOUT_SEC: float = 2.0
+
+
+def _clamped_deadline(window: float, budget: ShutdownBudget | None) -> float:
+    """Return the monotonic instant *window* seconds from now, never past the budget.
+
+    Clamping at the point each deadline is computed is what keeps a caller without a
+    budget on today's behavior exactly.
+    """
+    now = time.monotonic()
+    if budget is None:
+        return now + window
+    return min(now + window, now + budget.remaining())
+
+
+def _interrupt_requested(budget: ShutdownBudget | None) -> bool:
+    """Return True when the shutdown sequence asked the step in progress to stop."""
+    return budget is not None and budget.interrupt_requested
 
 
 def _resolve_pgid(proc: object) -> int | None:
@@ -110,6 +137,8 @@ class ProcessTerminator:
         server_key: str,
         poll_interval: float = 0.1,
         timeout: float = 5.0,
+        *,
+        budget: ShutdownBudget | None = None,
     ) -> bool:
         """Wait for a process to exit, up to `timeout` seconds.
 
@@ -118,16 +147,27 @@ class ProcessTerminator:
             server_key: Unique identifier for the server.
             poll_interval: Time between polls.
             timeout: Maximum time to wait before giving up.
+            budget: When supplied, the wait ends at the shutdown deadline instead,
+                and an interrupt request for the step in progress ends it at the next
+                poll.
 
         Returns:
-            True if process has exited, False if `timeout` elapsed first.
+            True if process has exited, False if `timeout`, the deadline, or the
+            interrupt came first.
         """
         pgid = _resolve_pgid(proc)
         if pgid is None:
             return False
 
-        deadline = time.monotonic() + timeout
+        deadline = _clamped_deadline(timeout, budget)
         while time.monotonic() < deadline:
+            if _interrupt_requested(budget):
+                logger.warning(
+                    "Lifecycle: interrupt requested while waiting for %r pid=%s to exit",
+                    server_key,
+                    getattr(proc, "pid", None),
+                )
+                return False
             _reap(proc)
             try:
                 os.killpg(pgid, 0)  # Check if process exists
@@ -136,21 +176,36 @@ class ProcessTerminator:
                 return True
         return False
 
-    async def _confirm_group_gone(self, proc: object, pgid: int) -> bool:
+    def _confirm_window(self, budget: ShutdownBudget | None) -> float:
+        """Return the post-SIGKILL confirm window, clamped to what the budget has left."""
+        if budget is None:
+            return self._kill_confirm_timeout_sec
+        return min(self._kill_confirm_timeout_sec, budget.remaining())
+
+    async def _confirm_group_gone(
+        self, proc: object, pgid: int, *, budget: ShutdownBudget | None = None
+    ) -> bool:
         """Return True when process group *pgid* is observed gone within the kill window."""
-        deadline = time.monotonic() + self._kill_confirm_timeout_sec
+        deadline = time.monotonic() + self._confirm_window(budget)
         while True:
             _reap(proc)
             try:
                 os.killpg(pgid, 0)
             except ProcessLookupError:
                 return True
+            if _interrupt_requested(budget):
+                return False
             if time.monotonic() >= deadline:
                 return False
             await asyncio.sleep(self._terminate_poll_interval_sec)
 
     async def terminate_with_timeout(
-        self, proc: object, server_key: str, timeout: float
+        self,
+        proc: object,
+        server_key: str,
+        timeout: float,
+        *,
+        budget: ShutdownBudget | None = None,
     ) -> TerminationOutcome:
         """Terminate a process with a strict timeout and report what was proved.
 
@@ -159,6 +214,10 @@ class ProcessTerminator:
             server_key: Unique identifier for the server.
             timeout: Maximum time to wait before escalating to SIGKILL; every call
                 site states its own bound.
+            budget: When supplied, both waits are cut short by the shutdown deadline
+                and by an interrupt request for the step in progress. The signals are
+                not cut short: SIGTERM and SIGKILL are sent whatever the remaining
+                time is (OD-05), and a wait that gave up reports an unconfirmed exit.
 
         Returns:
             ALREADY_EXITED: the exit was observed before any signal was sent.
@@ -167,7 +226,8 @@ class ProcessTerminator:
             SIGNAL_NOT_DELIVERED: no signal call succeeded.
             EXIT_UNCONFIRMED: a signal call succeeded but the exit was not observed
                 (no process group to probe, the SIGKILL call failed after SIGTERM,
-                or the group was still present after the post-SIGKILL window).
+                the group was still present after the post-SIGKILL window, or the
+                deadline or an interrupt ended a wait first).
         """
         pid = getattr(proc, "pid", None)
         pgid = _resolve_pgid(proc)
@@ -207,8 +267,17 @@ class ProcessTerminator:
                 return TerminationOutcome.EXIT_UNCONFIRMED
             return TerminationOutcome.SIGNAL_NOT_DELIVERED
 
-        deadline = time.monotonic() + timeout
+        deadline = _clamped_deadline(timeout, budget)
         while time.monotonic() < deadline:
+            if _interrupt_requested(budget):
+                logger.warning(
+                    "Lifecycle: interrupt requested during the termination wait for "
+                    "%r pid=%s pgid=%d; escalating without waiting",
+                    server_key,
+                    pid,
+                    pgid,
+                )
+                break
             _reap(proc)
             try:
                 os.killpg(pgid, 0)  # Check if process exists
@@ -240,13 +309,14 @@ class ProcessTerminator:
         logger.warning(
             "Escalated to SIGKILL for %r pid=%s pgid=%d", server_key, pid, pgid
         )
-        if await self._confirm_group_gone(proc, pgid):
+        confirm_window = self._confirm_window(budget)
+        if await self._confirm_group_gone(proc, pgid, budget=budget):
             return TerminationOutcome.EXITED
         logger.error(
-            "%r pid=%s pgid=%d still present %.2fs after SIGKILL",
+            "%r pid=%s pgid=%d not confirmed gone within the %.2fs confirm window after SIGKILL",
             server_key,
             pid,
             pgid,
-            self._kill_confirm_timeout_sec,
+            confirm_window,
         )
         return TerminationOutcome.EXIT_UNCONFIRMED

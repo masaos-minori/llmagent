@@ -82,6 +82,7 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/http_lifecycle_errors.py` | `StartupFailure` | `class StartupFailure` | Records the full stderr output and reason when an HTTP subprocess fails to start. |
 |  | `HttpStartupError` | `class HttpStartupError` | Raised when an HTTP subprocess MCP server fails to start. |
 |  | `TerminationOutcome` | `class TerminationOutcome` | What one MCP server termination attempt proved about the process. |
+|  | `termination_step_outcome` | `def termination_step_outcome(outcomes, *, other_failures) -> ShutdownOutcome` | Map MCP termination results onto the shutdown step outcome vocabulary. |
 | `scripts/agent/http_lifecycle_health_checker.py` | `HealthChecker` | `class HealthChecker` | Performs HTTP health checks against a running server. |
 | `scripts/agent/http_lifecycle_process_terminator.py` | `ProcessTerminator` | `class ProcessTerminator` | Manages process termination with SIGTERM → SIGKILL escalation. |
 | `scripts/agent/http_lifecycle_shutdown_coordinator.py` | `ShutdownCoordinator` | `class ShutdownCoordinator` | Coordinates shutdown of HTTP server process and associated resources. |

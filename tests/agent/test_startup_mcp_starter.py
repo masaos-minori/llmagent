@@ -368,7 +368,31 @@ class TestStartupRetryWithRealRouter:
         fake_http_mgr.shutdown_all = AsyncMock(return_value=[])
         await router.shutdown_all()
 
+        # The no-argument call is today's default path: the surface is reached with no
+        # budget, and the lifecycle fills in its own window (REQ-010).
+        fake_http_mgr.shutdown_all.assert_awaited_once_with(budget=None)
+
         with pytest.raises(StartupInterrupted):
             await McpServerStarter(ctx, MagicMock()).start_servers()
 
         fake_http_mgr.start.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_all_accepts_the_budget_it_is_given(self) -> None:
+        """REQ-010: the startup path's lifecycle surface accepts a supplied budget.
+
+        Only the surface is pinned here; the rollback path decides when a budget exists,
+        and that is asserted in tests/agent/test_startup_rollback.py.
+        """
+        from unittest.mock import AsyncMock
+
+        from agent.shutdown_budget import ShutdownBudget
+
+        _ctx, router, fake_http_mgr, _proc = _real_router_ctx([])
+        fake_http_mgr.shutdown_all = AsyncMock(return_value=[])
+        budget = ShutdownBudget(total_seconds=15.0)
+        budget.arm()
+
+        await router.shutdown_all(budget=budget)
+
+        fake_http_mgr.shutdown_all.assert_awaited_once_with(budget=budget)

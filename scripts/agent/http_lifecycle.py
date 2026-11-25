@@ -3,7 +3,7 @@
 HTTP subprocess MCP server lifecycle: start, health-poll, restart, shutdown.
 
 Two methods delegate with arguments rather than forwarding the call unchanged:
-shutdown_all passes the manager to ShutdownCoordinator, and
+shutdown_all passes the manager and the shutdown budget to ShutdownCoordinator, and
 _health_poll_until_ready passes the manager and this module's poll timings to
 HealthChecker.poll_until_ready. SubprocessLauncher is instead constructed with this
 class's components and tracking dicts, which it holds by reference.
@@ -23,7 +23,7 @@ import subprocess  # nosec B404 — used to launch admin-controlled MCP server p
 import time
 from collections.abc import Iterator
 from dataclasses import asdict
-from typing import IO, NoReturn
+from typing import IO, TYPE_CHECKING, NoReturn
 
 import httpx
 from shared.mcp_config import McpServerConfig
@@ -41,6 +41,9 @@ from .http_lifecycle_process_terminator import ProcessTerminator
 from .http_lifecycle_shutdown_coordinator import ShutdownCoordinator
 from .http_lifecycle_stderr_log_manager import StderrLogManager
 from .http_lifecycle_subprocess_launcher import SubprocessLauncher
+
+if TYPE_CHECKING:
+    from agent.shutdown_budget import ShutdownBudget
 
 logger = logging.getLogger(__name__)
 
@@ -410,10 +413,16 @@ class HttpServerLifecycleManager:
         self._http_pgids.pop(server_key, None)
         await self.start(server_key, cfg)
 
-    async def shutdown_all(self) -> list[tuple[str, TerminationOutcome]]:
+    async def shutdown_all(
+        self, *, budget: ShutdownBudget | None = None
+    ) -> list[tuple[str, TerminationOutcome]]:
         """Shut down all managed servers.
 
         Delegates to ShutdownCoordinator.shutdown_all(); returns the servers whose
         exit was not confirmed (empty when every started server was confirmed gone).
+
+        Args:
+            budget: The shutdown sequence's budget, forwarded unchanged so the
+                coordinator can bound every wait in this shutdown by it (REQ-010).
         """
-        return await self._shutdown_coordinator.shutdown_all(self)
+        return await self._shutdown_coordinator.shutdown_all(self, budget=budget)

@@ -428,6 +428,53 @@ class TestHttpTerminationReported:
 
         coordinator._view.write_warning.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_only_unconfirmed_servers_record_timed_out(self) -> None:
+        """A server that was signalled but never observed is a wait that ran out."""
+        coordinator = self._coordinator_with_services(
+            [
+                ("a", TerminationOutcome.EXIT_UNCONFIRMED),
+                ("b", TerminationOutcome.EXIT_UNCONFIRMED),
+            ]
+        )
+
+        report = await coordinator.close_resources()
+
+        record = _record(report, STEP_TERMINATE_LIFECYCLES)
+        # Never "completed": the processes are still unaccounted for (REQ-010, AC-4).
+        assert record.outcome is ShutdownOutcome.TIMED_OUT
+        assert record.detail.count("http_termination") == 2
+
+    @pytest.mark.asyncio
+    async def test_undelivered_signal_keeps_the_step_failed(self) -> None:
+        """A signal that never reached a process is a broken step, not a slow one."""
+        coordinator = self._coordinator_with_services(
+            [("a", TerminationOutcome.SIGNAL_NOT_DELIVERED)]
+        )
+
+        report = await coordinator.close_resources()
+
+        assert (
+            _record(report, STEP_TERMINATE_LIFECYCLES).outcome is ShutdownOutcome.FAILED
+        )
+
+    @pytest.mark.asyncio
+    async def test_service_close_failure_keeps_the_step_failed(self) -> None:
+        """An unconfirmed server does not soften another service's close failure."""
+        coordinator = self._coordinator_with_services(
+            [("a", TerminationOutcome.EXIT_UNCONFIRMED)]
+        )
+        coordinator._ctx.services.http.aclose = AsyncMock(
+            side_effect=RuntimeError("close failed")
+        )
+
+        report = await coordinator.close_resources()
+
+        record = _record(report, STEP_TERMINATE_LIFECYCLES)
+        assert record.outcome is ShutdownOutcome.FAILED
+        assert "http_termination" in record.detail
+        assert "http_close" in record.detail
+
 
 class TestSelectiveTaskCancellation:
     """Real tasks in a real registry: only tracked background tasks are cancelled at shutdown."""
@@ -617,7 +664,7 @@ class TestCloseHooks:
         coordinator = self._coordinator_with_services()
         order: list[str] = []
 
-        async def _shutdown_all() -> list:
+        async def _shutdown_all(*, budget: object = None) -> list:
             order.append("services")
             return []
 

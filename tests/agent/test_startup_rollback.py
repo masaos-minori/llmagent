@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.http_lifecycle_errors import TerminationOutcome
+from agent.shutdown_budget import ShutdownBudget
 from agent.startup import StartupInterrupted, StartupOrchestrator
 from agent.startup_component_init import ComponentInitializer
 from shared.mcp_config import (
@@ -35,7 +36,9 @@ def _http_subprocess_cfg() -> McpServerConfig:
     )
 
 
-def _make_rollback_startup() -> tuple[StartupOrchestrator, AsyncMock]:
+def _make_rollback_startup(
+    budget: ShutdownBudget | None = None,
+) -> tuple[StartupOrchestrator, AsyncMock]:
     """Return (orchestrator, mock_lifecycle) for a rollback-window failure."""
     ctx = MagicMock()
     ctx.cfg.obs.audit_log_file = "/opt/llm/logs/audit.log"
@@ -44,7 +47,7 @@ def _make_rollback_startup() -> tuple[StartupOrchestrator, AsyncMock]:
     mock_lifecycle.shutdown_all.return_value = []  # every server confirmed stopped
     ctx.services_required.lifecycle = mock_lifecycle
     view = MagicMock()
-    orch = StartupOrchestrator(ctx, view)
+    orch = StartupOrchestrator(ctx, view, budget=budget)
     return orch, mock_lifecycle
 
 
@@ -84,7 +87,25 @@ class TestStartupRollback:
         with pytest.raises(RuntimeError, match="health check failed"):
             await orch.run()
 
-        mock_lifecycle.shutdown_all.assert_awaited_once()
+        # No budget held means no deadline forwarded: today's default call shape (REQ-010).
+        mock_lifecycle.shutdown_all.assert_awaited_once_with(budget=None)
+
+    @pytest.mark.asyncio
+    async def test_rollback_carries_the_budget_the_repl_supplied(self) -> None:
+        """REQ-010: a rollback cannot run past the deadline the shutdown request set."""
+        budget = ShutdownBudget(total_seconds=15.0)
+        budget.arm()
+        orch, mock_lifecycle = _make_rollback_startup(budget=budget)
+        orch._start_servers = AsyncMock()
+        orch._check_services = AsyncMock(
+            side_effect=RuntimeError("health check failed")
+        )
+        orch._setup_prompt = AsyncMock()
+
+        with pytest.raises(RuntimeError, match="health check failed"):
+            await orch.run()
+
+        mock_lifecycle.shutdown_all.assert_awaited_once_with(budget=budget)
 
     @pytest.mark.asyncio
     async def test_rollback_on_setup_prompt_failure(self) -> None:

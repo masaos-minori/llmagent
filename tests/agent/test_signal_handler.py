@@ -25,6 +25,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.repl_input_controller import InterruptAction
+from agent.shutdown_budget import ShutdownBudget, ShutdownPhase
 from agent.signal_handler import SignalHandler
 
 
@@ -153,10 +154,15 @@ class _StubController:
 
 
 def _handler(
-    action: InterruptAction = InterruptAction.DISCARD_INPUT, **kwargs: Any
+    action: InterruptAction = InterruptAction.DISCARD_INPUT,
+    *,
+    configured_force_exit: bool | None = None,
+    **kwargs: Any,
 ) -> tuple[SignalHandler, _StubController, Any]:
     ctx = MagicMock()
     ctx.conv.shutdown_requested = False
+    if configured_force_exit is not None:
+        ctx.cfg.shutdown_force_exit_on_second_sigint = configured_force_exit
     stub = _StubController(action)
     return SignalHandler(ctx, asyncio.Event(), controller=stub, **kwargs), stub, ctx  # type: ignore[arg-type] — stub mirrors the two controller methods used
 
@@ -193,6 +199,108 @@ class TestInterruptByState:
             handler.register(loop)
         assert bound[signal.SIGTERM] == handler._sigterm_handler
         assert bound[signal.SIGINT] == handler._sigint_handler
+
+
+class TestBudgetArmingAndInterrupt:
+    """REQ-002, REQ-011: the first shutdown request arms one deadline; a later Ctrl-C
+    asks the step in progress to stop instead of killing the process.
+
+    The budget is the real object, not a mock: what these cases turn on is arming being
+    idempotent and the interrupt being a flag a bounded step can read.
+    """
+
+    def test_sigterm_arms_the_budget_and_moves_the_phase_to_draining(self) -> None:
+        budget = ShutdownBudget(total_seconds=30.0)
+        handler, _stub, _ctx = _handler(budget=budget)
+
+        handler._sigterm_handler()
+
+        assert budget.armed is True
+        assert budget.phase is ShutdownPhase.DRAINING
+
+    def test_repeated_sigterm_does_not_extend_the_deadline(self) -> None:
+        """The first request wins: a second signal must not buy more time."""
+        ticks = iter([100.0, 105.0, 110.0])
+        budget = ShutdownBudget(total_seconds=30.0, clock=lambda: next(ticks))
+        handler, _stub, _ctx = _handler(budget=budget)
+
+        handler._sigterm_handler()
+        after_first = budget.remaining()
+        handler._sigterm_handler()
+        after_second = budget.remaining()
+
+        assert after_first == 25.0
+        assert after_second == 20.0
+
+    def test_sigint_never_arms_the_budget(self) -> None:
+        """An accidental Ctrl-C still does not begin the sequence."""
+        budget = ShutdownBudget(total_seconds=30.0)
+        handler, _stub, ctx = _handler(budget=budget)
+
+        handler._sigint_handler()
+
+        assert budget.armed is False
+        assert budget.interrupt_requested is False
+        assert ctx.conv.shutdown_requested is False
+
+    def test_second_sigint_interrupts_running_step_without_force_exit(self) -> None:
+        """REQ-011, AC-4: the interrupt is a request the step acts on, not os._exit."""
+        budget = ShutdownBudget(total_seconds=30.0)
+        budget.arm()
+        exits: list[int] = []
+        handler, _stub, _ctx = _handler(
+            InterruptAction.SHUTDOWN_IN_PROGRESS, budget=budget, force_exit=exits.append
+        )
+
+        handler._sigint_handler()
+
+        assert budget.interrupt_requested is True
+        assert exits == []
+
+    def test_interrupt_is_requested_when_ctrl_c_cancels_a_turn_too(self) -> None:
+        """A turn cancelled after shutdown began does not leave the coordinator's step running."""
+        budget = ShutdownBudget(total_seconds=30.0)
+        budget.arm()
+        handler, stub, _ctx = _handler(InterruptAction.CANCEL_TURN, budget=budget)
+
+        handler._sigint_handler()
+
+        assert stub.interrupts == 1
+        assert budget.interrupt_requested is True
+
+    def test_configured_force_exit_is_read_once_at_construction(self) -> None:
+        """shutdown_force_exit_on_second_sigint is the configured opt-in, no constructor flag."""
+        exits: list[int] = []
+        handler, _stub, _ctx = _handler(
+            InterruptAction.SHUTDOWN_IN_PROGRESS,
+            configured_force_exit=True,
+            force_exit=exits.append,
+        )
+
+        handler._sigint_handler()
+
+        assert exits == [130]
+
+    def test_a_non_bool_configured_flag_does_not_enable_force_exit(self) -> None:
+        """The configured value is read by identity, so a stand-in cfg cannot arm os._exit."""
+        exits: list[int] = []
+        handler, _stub, _ctx = _handler(
+            InterruptAction.SHUTDOWN_IN_PROGRESS, force_exit=exits.append
+        )
+
+        handler._sigint_handler()
+
+        assert exits == []
+
+    def test_windows_control_events_use_the_same_budget(self) -> None:
+        """Close/logoff/shutdown arm the one budget; Ctrl-C then interrupts the step."""
+        budget = ShutdownBudget(total_seconds=30.0)
+        handler, _stub, _ctx = _handler(budget=budget)
+
+        assert handler._dispatch_control_event(2) is True  # CTRL_CLOSE_EVENT
+        assert budget.armed is True
+        assert handler._dispatch_control_event(0) is True  # CTRL_C_EVENT
+        assert budget.interrupt_requested is True
 
 
 class TestForceExit:

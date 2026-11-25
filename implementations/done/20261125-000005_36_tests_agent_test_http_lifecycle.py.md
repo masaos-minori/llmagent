@@ -13,6 +13,11 @@ Update the terminate-timeout expectations in this file so they hold against the 
 - The file consumes `terminate_with_timeout()` in four places, all through the manager's wiring, and today asserts the fixed window.
 - The parameter is optional (rows 12, 13), so a call with no deadline must keep today's value.
 
+Step 3b verification against the current source (20261125-122600):
+
+- The four terminate expectations are the startup-failure cases; each now calls the shared `_assert_default_termination_window()` helper (`tests/agent/test_http_lifecycle.py:42`), which states `timeout == hl_module.TERMINATE_TIMEOUT_SEC` and that no `budget` keyword was passed. That is what separates "the default was used" from "the default happened to match".
+- The new case is `TestShutdownAllBudgetForwarding::test_supplied_budget_reaches_the_terminate_call`, which is the observable contract between rows 11, 12, and 13.
+
 ## Design decisions
 
 - Assert both paths: one case with no deadline asserting the existing default, and one case with a supplied deadline asserting the supplied value reaches the terminate call.
@@ -70,9 +75,9 @@ Update the terminate-timeout expectations in this file so they hold against the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | _assert_default_termination_window() (:42) applied to the four startup-failure cases |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | this row is the test row this row is the test row; TestShutdownAllBudgetForwarding::test_supplied_budget_reaches_the_terminate_call |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, pytest Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

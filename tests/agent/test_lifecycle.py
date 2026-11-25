@@ -924,7 +924,7 @@ class TestShutdownAllCleanup:
         call_count = 0
 
         async def flaky_terminate(
-            proc: MagicMock, key: str, timeout: float
+            proc: MagicMock, key: str, timeout: float, *, budget: object = None
         ) -> TerminationOutcome:
             nonlocal call_count
             call_count += 1
@@ -942,6 +942,26 @@ class TestShutdownAllCleanup:
         assert len(mgr._http_procs) == 0
         assert call_count == 2
         assert unconfirmed == [("srv1", TerminationOutcome.EXIT_UNCONFIRMED)]
+
+    @pytest.mark.asyncio
+    async def test_shutdown_all_forwards_the_budget_it_is_given(self) -> None:
+        """The facade hands the budget it is given down to the termination call."""
+        from agent.shutdown_budget import ShutdownBudget
+
+        mgr = HttpServerLifecycleManager()
+        mgr._http_procs["srv"] = _make_mock_proc(exit_code=None)
+        budget = ShutdownBudget(total_seconds=15.0)
+        budget.arm()
+        term = AsyncMock(return_value=TerminationOutcome.EXITED)
+        mgr._process_terminator.terminate_with_timeout = term
+
+        unconfirmed = await mgr.shutdown_all(budget=budget)
+
+        call = term.await_args
+        assert call is not None
+        assert call.kwargs["budget"] is budget
+        assert call.kwargs["timeout"] <= 15.0
+        assert unconfirmed == []
 
     @pytest.mark.asyncio
     async def test_shutdown_all_twice_is_safe(self) -> None:
@@ -964,7 +984,7 @@ class TestShutdownAllCleanup:
         call_count = 0
 
         async def terminate_and_interrupt(
-            proc: MagicMock, key: str, timeout: float
+            proc: MagicMock, key: str, timeout: float, *, budget: object = None
         ) -> TerminationOutcome:
             nonlocal call_count
             call_count += 1

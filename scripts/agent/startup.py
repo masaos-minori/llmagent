@@ -34,6 +34,7 @@ class StartupInterrupted(BaseException):
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
     from agent.commands.registry import CommandRegistry
+    from agent.shutdown_budget import ShutdownBudget
 
 logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
@@ -51,13 +52,18 @@ class StartupOrchestrator:
         ctx: AgentContext,
         view: CLIView,
         shutdown_event: asyncio.Event | None = None,
+        *,
+        budget: ShutdownBudget | None = None,
     ) -> None:
-        """Initialize with agent context, REPL view for output, and an optional shutdown event."""
+        """Initialize with agent context, REPL view, an optional shutdown event, and the
+        optional shutdown budget that bounds the rollback of started servers.
+        """
         self._ctx = ctx
         self._view = view
         self._cmds: CommandRegistry | None = None
         self._orchestrator: Orchestrator | None = None
         self._shutdown_event = shutdown_event
+        self._budget = budget
         self._mcp_starter = McpServerStarter(ctx, view, shutdown_event)
         self._validation_pipeline = StartupValidationPipeline(ctx, view)
         self._reporter = ReadinessReporter(ctx, view)
@@ -132,11 +138,15 @@ class StartupOrchestrator:
     async def _rollback_servers(self, cause: str) -> None:
         """Stop the servers started so far; report anything that could not be stopped.
 
-        Termination is owned by lifecycle.shutdown_all(). A failure here is reported
-        on the console and never replaces the startup error being propagated.
+        Termination is owned by lifecycle.shutdown_all(), bounded here by the shutdown
+        budget when the REPL supplied one, so a rollback cannot run past the deadline
+        the shutdown request already set (REQ-010). A failure here is reported on the
+        console and never replaces the startup error being propagated.
         """
         try:
-            unconfirmed = await self._ctx.services_required.lifecycle.shutdown_all()
+            unconfirmed = await self._ctx.services_required.lifecycle.shutdown_all(
+                budget=self._budget
+            )
         except Exception as shutdown_err:  # noqa: BLE001 — rollback shutdown failure must not mask the original startup error
             logger.error(
                 "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s",

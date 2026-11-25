@@ -13,6 +13,12 @@ Confirm that the lifecycle surface the agent factory assembles accepts the remai
 - The factory wires the lifecycle object the coordinator calls, and this file asserts that surface through 10 `shutdown_all` references.
 - The parameter is optional (rows 13, 14, 15), so the factory itself needs no change; only the assertions about the assembled object do.
 
+Step 3b verification against the current source (20261125-122600):
+
+- The file has 19 `shutdown_all` references after this row's change, not 10.
+- The new class is `TestLifecycleShutdownSurfaceAcceptsBudget` (`tests/agent/test_agent_factory.py:493`). `test_shutdown_all_declares_an_optional_budget` (`:505`) is parametrized over `_ServerLifecycleRouter`, `_SubprocessLifecycleManager`, and `LifecycleManagerProtocol`, and pins `inspect.Parameter.KEYWORD_ONLY` with `default is None` on each `shutdown_all` declaration. That is the contract rows 14 and 15 must keep for the factory's wiring to stay valid.
+- `test_assembled_router_forwards_the_budget_it_is_given` (`:513`) is the one forwarding case: the object the factory assembles passes the budget it is given down to the low-level manager.
+
 ## Design decisions
 
 - Assert the assembled object's method accepts the parameter, rather than asserting the factory passes one: the factory does not own the deadline, the shutdown sequence does (row 7).
@@ -71,9 +77,9 @@ Confirm that the lifecycle surface the agent factory assembles accepts the remai
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | TestLifecycleShutdownSurfaceAcceptsBudget (:493) parametrized over the three lifecycle surfaces |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | this row is the test row this row is the test row; test_shutdown_all_declares_an_optional_budget (:505) pins KEYWORD_ONLY with default None, test_assembled_router_forwards_the_budget_it_is_given (:513) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, pytest Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

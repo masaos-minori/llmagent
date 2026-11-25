@@ -13,6 +13,12 @@ Forward the remaining deadline through both router delegations so the budget rea
 - Two of the five `shutdown_all()` definitions live here: the HTTP delegation (`scripts/agent/lifecycle_router.py:79-81`) and the composite router's own definition (`scripts/agent/lifecycle_router.py:257-260`), which sets `self._shutting_down` and then delegates to the subprocess manager.
 - Both return the unconfirmed-server list unchanged, so forwarding a parameter does not alter the return contract.
 
+Step 3b verification against the current source (20261125-122600):
+
+- Anchors moved: the HTTP delegation is `scripts/agent/lifecycle_router.py:83-87` and the composite router's own definition is `:263-271`.
+- Both forward the value as the `budget=` keyword, and both keep their existing behavior: the composite still sets `self._shutting_down` first, delegates, then marks every configured server `STOPPED` and returns the list it was given.
+- The restart path (`:79-82`, `:90-95`) is a no-budget caller and is untouched: a restart is not part of the shutdown sequence.
+
 ## Design decisions
 
 - Pure forwarding: the routers do not clamp, default, or interpret the value, because the coordinator (row 11) is the component that owns clamping.
@@ -68,9 +74,9 @@ Forward the remaining deadline through both router delegations so the budget rea
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | row 39 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | both shutdown_all definitions forward the budget as a keyword: scripts/agent/lifecycle_router.py:83-87 and :263-271; the restart path stays a no-budget caller |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | row 39 row 39 doubles; tests/agent/test_agent_factory.py::test_assembled_router_forwards_the_budget_it_is_given |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, mypy, lint-imports, pytest Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

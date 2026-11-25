@@ -53,6 +53,17 @@ def mgr() -> HttpServerLifecycleManager:
     return HttpServerLifecycleManager()
 
 
+def _assert_no_shutdown_budget(terminator: AsyncMock) -> None:
+    """State that every terminate call in this case carried no shutdown budget.
+
+    The readiness poll is not part of a shutdown sequence: it owns its own window and
+    must not be coupled to a deadline it does not hold (REQ-010).
+    """
+    assert terminator.await_count >= 1, "expected a terminate_with_timeout() call"
+    for call in terminator.await_args_list:
+        assert call.kwargs.get("budget") is None
+
+
 class _RecordingAsyncClient:
     """Minimal stand-in for ``httpx.AsyncClient`` recording context-manager exit."""
 
@@ -96,13 +107,14 @@ class TestHealthPollClientLifecycle:
                 mgr._process_terminator,
                 "terminate_with_timeout",
                 AsyncMock(return_value=TerminationOutcome.EXITED),
-            ),
+            ) as term,
             pytest.raises(HttpStartupError),
         ):
             await mgr._health_poll_until_ready(
                 "test-server", cfg, proc, deadline=0.0, shutdown_event=None
             )
 
+        _assert_no_shutdown_budget(term)
         assert instantiated, "AsyncClient was never instantiated"
         for client in instantiated:
             assert client.exited, (
@@ -130,7 +142,7 @@ class TestHealthPollClientLifecycle:
                     mgr._process_terminator,
                     "terminate_with_timeout",
                     AsyncMock(return_value=TerminationOutcome.EXITED),
-                ),
+                ) as term,
             ):
                 for server_key in ("test-server", "test-server-2"):
                     with pytest.raises(HttpStartupError):
@@ -143,6 +155,7 @@ class TestHealthPollClientLifecycle:
                         )
 
         assert len(instantiated) == 2
+        _assert_no_shutdown_budget(term)
 
 
 def _auth_required_route(token: str):
@@ -265,7 +278,7 @@ class TestStartupPollWithDistinctServerToken:
                 mgr._process_terminator,
                 "terminate_with_timeout",
                 AsyncMock(return_value=TerminationOutcome.EXITED),
-            ),
+            ) as term,
             pytest.raises(HttpStartupError),
         ):
             await mgr._health_poll_until_ready(
@@ -276,6 +289,7 @@ class TestStartupPollWithDistinctServerToken:
                 shutdown_event=None,
             )
         assert seen == []
+        _assert_no_shutdown_budget(term)
 
     @pytest.mark.asyncio
     async def test_poll_succeeds_when_tokens_match(
@@ -359,7 +373,7 @@ class TestHealthPollDegradedTolerance:
                 mgr._process_terminator,
                 "terminate_with_timeout",
                 AsyncMock(return_value=TerminationOutcome.EXITED),
-            ),
+            ) as term,
             pytest.raises(HttpStartupError),
         ):
             router.get("http://localhost:8080/health").mock(
@@ -372,6 +386,8 @@ class TestHealthPollDegradedTolerance:
             await mgr._health_poll_until_ready(
                 "srv", cfg, proc, deadline=time.monotonic() + 0.05, shutdown_event=None
             )
+
+        _assert_no_shutdown_budget(term)
 
     def test_is_degraded_but_live_branches(self) -> None:
         """Unit-cover every branch of the degraded-detection helper."""
@@ -503,7 +519,7 @@ class TestHealthPollDegradedTolerance:
                 mgr._process_terminator,
                 "terminate_with_timeout",
                 AsyncMock(return_value=TerminationOutcome.EXITED),
-            ),
+            ) as term,
             pytest.raises(HttpStartupError),
         ):
             router.get("http://localhost:8080/health").mock(
@@ -516,3 +532,40 @@ class TestHealthPollDegradedTolerance:
             await mgr._health_poll_until_ready(
                 "srv", cfg, proc, deadline=time.monotonic() + 0.05, shutdown_event=None
             )
+
+        _assert_no_shutdown_budget(term)
+
+
+class TestHealthPathTerminationWindow:
+    """REQ-010: the readiness poll keeps its own window when no budget is supplied.
+
+    This is the fallback pinned where it matters: the health path is the caller that
+    never holds a shutdown budget, so a change to the shutdown windows must not move
+    this one.
+    """
+
+    @pytest.mark.asyncio
+    async def test_default_window_is_used_when_the_call_carries_no_budget(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """The terminate call states the module constant, not a clamped value."""
+        import time
+
+        cfg = _make_cfg()
+        proc = Mock(pid=1234, poll=Mock(return_value=None))
+        term = AsyncMock(return_value=TerminationOutcome.EXITED)
+
+        with (
+            patch.object(hl_module, "HEALTH_POLL_INTERVAL_SEC", 0.01),
+            patch.object(mgr, "_cleanup_server_resources", return_value=""),
+            patch.object(mgr._process_terminator, "terminate_with_timeout", term),
+            pytest.raises(HttpStartupError),
+        ):
+            await mgr._health_poll_until_ready(
+                "srv", cfg, proc, deadline=time.monotonic() + 0.05, shutdown_event=None
+            )
+
+        call = term.await_args
+        assert call is not None
+        assert call.kwargs["timeout"] == hl_module.TERMINATE_TIMEOUT_SEC
+        assert call.kwargs.get("budget") is None

@@ -13,6 +13,12 @@ Pass the remaining deadline through `shutdown_all()` and the terminate calls thi
 - `TERMINATE_TIMEOUT_SEC: float = 5.0` (`scripts/agent/http_lifecycle.py:49`) is used at three call sites: the shutdown wiring (`scripts/agent/http_lifecycle.py:96`), the health-check wiring (`scripts/agent/http_lifecycle.py:312`), and the startup-failure termination (`scripts/agent/http_lifecycle.py:378`).
 - `shutdown_all()` (`scripts/agent/http_lifecycle.py:413-420`) is a thin delegation to the shutdown coordinator and returns the servers whose exit was not confirmed.
 
+Step 3b verification against the current source (20261125-122600):
+
+- Anchors moved by three lines: `TERMINATE_TIMEOUT_SEC` is `scripts/agent/http_lifecycle.py:52`, the shutdown wiring is `:99`, the health-check wiring is `:315`, the startup-failure termination is `:381`, and `shutdown_all()` is `:416-423`.
+- A fourth no-budget call site exists that the Assumptions do not list: the restart path at `:404` (`timeout=TERMINATE_TIMEOUT_SEC`). It stays on the constant, like the health-check and startup-failure sites, because none of them holds a shutdown budget.
+- The parameter is typed under `if TYPE_CHECKING:` (`agent.shutdown_budget.ShutdownBudget`) so the facade does not import the budget module at runtime, matching how the coordinator's own budget import is done.
+
 ## Design decisions
 
 - `shutdown_all()` takes an optional remaining deadline and forwards it unchanged to the coordinator (row 11), which is the component that clamps per-server windows; this module does not clamp.
@@ -71,9 +77,9 @@ Pass the remaining deadline through `shutdown_all()` and the terminate calls thi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | rows 35, 36, 39 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | shutdown_all(*, budget=None) at scripts/agent/http_lifecycle.py:416-423; budget typed under TYPE_CHECKING; the restart (:403), health (:315) and startup-failure (:381) sites keep TERMINATE_TIMEOUT_SEC (:52) |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | rows 35, 36, 39 rows 35, 36, 39 carry the assertions for this file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, mypy, lint-imports, pytest Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

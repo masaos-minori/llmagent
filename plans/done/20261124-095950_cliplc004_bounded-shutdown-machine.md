@@ -417,7 +417,7 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | 3 | Phase 3: acceptance gate for turns, commands, approvals | Completed | 20261125-091128 | 20261125-092708 | R3-acceptance-gate complete 2026-11-25 (row 8): acceptance is decided by `budget.phase` at the top of each loop iteration and at the head of `_dispatch_line`; the refusal is reported once and releases a pending wait through `ReplInputController.shutdown()`. The budget argument is keyword-only and optional, so `_GRACEFUL_TIMEOUT_S` remains as the documented no-budget fallback until row 7 supplies the budget in R4, and the `closed` phase transition is made by the coordinator's report step in Phase 4 |
 | 4 | Phase 4: coordinator sequence, writer settling, snapshot step | Completed | 20261125-095950 | 20261125-105200 | OD-01 and OD-02 decided 2026-11-24; UNK-02 measured here: `asyncio.wait` over the writer tasks keeps an unfinished writer pending and records it `outcome_unknown` with its task name, so the sequence never waits on a worker it cannot settle. R4-sequence-and-snapshot complete 2026-11-25 (rows 5, 7, 9, 26, 27, 32): one `close_resources()` call runs the eight named steps, the persist step is registered in `AgentREPL.__init__` so the startup-failure path persists too, and `ReplInputLoop` and the coordinator share one `ShutdownBudget` |
 | 5 | Phase 5: bounded checkpoint, atomic publication, backup naming | Completed | 20261125-100500 | 20261125-105200 | UNK-01 measured here: the TRUNCATE retry checks the deadline and the interrupt event between attempts, and `SQLiteHelper.interrupt_when(stop)` aborts the in-flight statement at a progress callback, so a bounded step stops without holding the thread. UNK-05 measured here: the backup name is `{db basename}-wal-backup-{unix seconds}-{process token}` and carries no session identifier. R5-checkpoint-and-backup complete 2026-11-25 (rows 6, 28, 29): publication is `<final>.partial` then `os.replace`, so an interrupted copy is never visible under the name a later reader trusts |
-| 6 | Phase 6: termination with the remaining deadline, second-SIGINT routing | In Progress | — | — | OD-04 and OD-05 decided 2026-11-24; UNK-03 measured here |
+| 6 | Phase 6: termination with the remaining deadline, second-SIGINT routing | Completed | 20261125-111000 | 20261125-122647 | OD-04 and OD-05 decided 2026-11-24; UNK-03 measured here UNK-03 measured here: the remaining deadline reaches every termination wait through one optional keyword-only `budget` on the five `shutdown_all()` definitions and on `ProcessTerminator.terminate_with_timeout()`, so a wait is clamped to `budget.remaining()` and stops early on the budget's interrupt event, while SIGTERM and SIGKILL are still sent to every server (OD-05) and an unconfirmed server reports `exit_unconfirmed` / `timed_out`, never a completed step. R6-termination complete 2026-11-25 (rows 10-16, 35-40, 42, 43): `SignalHandler` arms the budget on SIGTERM and requests the interrupt on a mid-sequence SIGINT, and the startup rollback carries the same budget object. |
 | 7 | Phase 7: reporting, documents, generated artifacts | In Progress | — | — | UNK-04 settled during the operator-facing review of the summary |
 
 ### Blocker Log
@@ -442,27 +442,27 @@ Each checklist item cites `Implementation Target Files` rows. Tests are the firs
 | implementations/20261125-000005_07_scripts_agent_repl.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261125-000005_08_scripts_agent_repl_input_loop.py.md | 3 | Procedure | Completed | — | — |
 | implementations/20261125-000005_09_scripts_agent_session_persister.py.md | 4 | Procedure | Completed | — | — |
-| implementations/20261125-000005_10_scripts_agent_signal_handler.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_11_scripts_agent_http_lifecycle_shutdown_coordinator.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_12_scripts_agent_http_lifecycle_process_terminator.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_13_scripts_agent_http_lifecycle.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_14_scripts_agent_lifecycle_protocol.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_15_scripts_agent_lifecycle_router.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_16_scripts_agent_startup.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261125-000005_10_scripts_agent_signal_handler.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_11_scripts_agent_http_lifecycle_shutdown_coordinator.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_12_scripts_agent_http_lifecycle_process_terminator.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_13_scripts_agent_http_lifecycle.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_14_scripts_agent_lifecycle_protocol.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_15_scripts_agent_lifecycle_router.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_16_scripts_agent_startup.py.md | 6 | Procedure | Completed | — | — |
 | implementations/20261125-000005_17_scripts_agent_config_dataclasses.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261125-000005_18_scripts_agent_config_builders.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261125-000005_19_config_agent.toml.md | 1 | Procedure | Completed | — | — |
 | implementations/20261125-000005_21_tests_db_test_write_gate.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261125-000005_25_tests_db_test_helper_thread_safety.py.md | 2 | Procedure | Completed | — | — |
 | implementations/20261125-000005_27_tests_agent_test_repl.py.md | 1 | Procedure | Completed | — | — |
-| implementations/20261125-000005_35_tests_agent_test_http_lifecycle_integration.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_36_tests_agent_test_http_lifecycle.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_37_tests_agent_test_http_lifecycle_health_check.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_38_tests_agent_test_http_lifecycle_warning.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_39_tests_agent_test_lifecycle.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_40_tests_agent_test_agent_factory.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_42_tests_agent_test_startup_mcp_starter.py.md | 6 | Procedure | Pending | — | — |
-| implementations/20261125-000005_43_tests_agent_test_startup_mcp_lifecycle.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261125-000005_35_tests_agent_test_http_lifecycle_integration.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_36_tests_agent_test_http_lifecycle.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_37_tests_agent_test_http_lifecycle_health_check.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_38_tests_agent_test_http_lifecycle_warning.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_39_tests_agent_test_lifecycle.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_40_tests_agent_test_agent_factory.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_42_tests_agent_test_startup_mcp_starter.py.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-000005_43_tests_agent_test_startup_mcp_lifecycle.py.md | 6 | Procedure | Completed | — | — |
 | implementations/20261125-000005_44_tests_agent_test_config_builders.py.md | 1 | Procedure | Completed | — | — |
 | implementations/20261125-000005_45_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md | 7 | Procedure | Pending | — | — |
 | implementations/20261125-000005_46_docs_23_agent_agent_02_runtime-architecture.md.md | 7 | Procedure | Pending | — | — |

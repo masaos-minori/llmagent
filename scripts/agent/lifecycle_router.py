@@ -13,6 +13,7 @@ import logging
 import subprocess
 import time
 from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING
 
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.tool_executor import ToolExecutor
@@ -23,6 +24,9 @@ from agent.http_lifecycle_errors import TerminationOutcome
 from agent.lifecycle import LifecycleState, assert_valid_transition
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.services.models import ProcessInfoSnapshot
+
+if TYPE_CHECKING:
+    from agent.shutdown_budget import ShutdownBudget
 
 _logger = logging.getLogger(__name__)
 
@@ -76,9 +80,11 @@ class _SubprocessLifecycleManager(LifecycleManagerProtocol):
                 )
                 await self._http_mgr.restart(server_key, cfg)
 
-    async def shutdown_all(self) -> list[tuple[str, TerminationOutcome]]:
-        """Shut down all managed HTTP subprocess servers."""
-        return await self._http_mgr.shutdown_all()
+    async def shutdown_all(
+        self, *, budget: ShutdownBudget | None = None
+    ) -> list[tuple[str, TerminationOutcome]]:
+        """Shut down all managed HTTP subprocess servers within the budget."""
+        return await self._http_mgr.shutdown_all(budget=budget)
 
     async def restart(self, server_key: str) -> None:
         """Restart one HTTP subprocess MCP server; the router pre-checks startup_mode."""
@@ -254,10 +260,12 @@ class _ServerLifecycleRouter:
                     lambda: self._subprocess_mgr.restart(server_key),
                 )
 
-    async def shutdown_all(self) -> list[tuple[str, TerminationOutcome]]:
-        """Shut down all managed HTTP subprocess servers."""
+    async def shutdown_all(
+        self, *, budget: ShutdownBudget | None = None
+    ) -> list[tuple[str, TerminationOutcome]]:
+        """Shut down all managed HTTP subprocess servers within the budget."""
         self._shutting_down = True
-        unconfirmed = await self._subprocess_mgr.shutdown_all()
+        unconfirmed = await self._subprocess_mgr.shutdown_all(budget=budget)
         for key in self._server_configs:
             self._set_state(key, LifecycleState.STOPPED)
         return unconfirmed

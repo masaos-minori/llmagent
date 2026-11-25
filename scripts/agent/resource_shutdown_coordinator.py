@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Final
 from db.write_gate import get_write_gate
 
 from agent.cli_view import CLIView
+from agent.http_lifecycle_errors import TerminationOutcome, termination_step_outcome
 from agent.shutdown_budget import (
     SHUTDOWN_STEPS,
     STEP_BACKUP,
@@ -494,9 +495,9 @@ class ResourceShutdownCoordinator:
         """Shut down services and terminate MCP lifecycles with the time that is left.
 
         The step is not cut off by wait_for: termination must always deliver SIGTERM
-        and SIGKILL (OD-05), so only the confirmation waits inside it are clamped,
-        which the termination modules do from their own remaining-deadline argument.
-        The HTTP client is closed in the same gather as today, keeping INV-07.
+        and SIGKILL (OD-05), so only the confirmation waits are clamped, from the
+        budget this step hands them. The HTTP client closes in the same gather,
+        keeping INV-07.
         """
         reasons: list[str] = []
         svc = self._ctx.services
@@ -505,19 +506,25 @@ class ResourceShutdownCoordinator:
             return _StepResult(ShutdownOutcome.COMPLETED)
 
         svc_results = await asyncio.gather(
-            svc.lifecycle.shutdown_all(), svc.http.aclose(), return_exceptions=True
+            svc.lifecycle.shutdown_all(budget=self._budget),
+            svc.http.aclose(),
+            return_exceptions=True,
         )
+        outcomes: list[TerminationOutcome] = []
+        other_failures = 0
         for i, res in enumerate(svc_results):
             if isinstance(res, Exception):
                 err_name = "lifecycle_shutdown" if i == 0 else "http_close"
                 logger.error("%s failed: %s", err_name, res)
                 reasons.append(_reason(err_name, res))
+                other_failures += 1
             elif i == 0 and isinstance(res, list):
                 for server_key, outcome in res:
                     logger.error(
                         "MCP server %r not confirmed stopped (%s)", server_key, outcome
                     )
                     reasons.append(f"http_termination: {server_key} ({outcome})")
+                    outcomes.append(outcome)
 
         # Plain-REPL session intent store (factory-wired, mcpdl001 REQ-007):
         # closed with the other services, after turn processing settled.
@@ -527,9 +534,13 @@ class ResourceShutdownCoordinator:
             except Exception as e:  # noqa: BLE001 — shutdown path must record and continue past any store-close failure, not propagate
                 logger.error("session intent store close failed: %s", e)
                 reasons.append(_reason("intent_store_close", e))
+                other_failures += 1
 
         if reasons:
-            return _StepResult(ShutdownOutcome.FAILED, _detail(reasons))
+            return _StepResult(
+                termination_step_outcome(outcomes, other_failures=other_failures),
+                _detail(reasons),
+            )
         return _StepResult(ShutdownOutcome.COMPLETED)
 
     async def _step_close_hooks(

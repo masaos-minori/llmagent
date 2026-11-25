@@ -13,6 +13,12 @@ Give the startup rollback path the same bounded termination the shutdown sequenc
 - Rollback is a second, currently unbudgeted caller of the same termination path: `_rollback_servers()` (`scripts/agent/startup.py:132-149`) calls `lifecycle.shutdown_all()` at `scripts/agent/startup.py:139` with no deadline.
 - Rollback is not a shutdown step: it runs during startup, so it has no `ShutdownReport` and its failures keep being reported on the console as they are today.
 
+Step 3b verification against the current source (20261125-122600):
+
+- Anchors moved: `_rollback_servers()` is `scripts/agent/startup.py:138-165` and the `shutdown_all()` call is `:147-149`, not `:132-149` / `:139`.
+- The procedure's one-call change needs a source for the value, which the Procedure does not name: `StartupOrchestrator.__init__()` (`:50-56`) gained an optional keyword-only `budget` stored as `self._budget` (`:66`), and `scripts/agent/repl.py` passes the same budget object it gives `SignalHandler`, `ReplInputLoop`, and `ResourceShutdownCoordinator`. Without that the rollback could not reach the deadline the shutdown request set.
+- The rollback keeps its own reporting: no `ShutdownReport`, the same `CRITICAL: Startup rollback FAILED` fatal line, and the same unconfirmed-server reporting after the call.
+
 ## Design decisions
 
 - The rollback path supplies the remaining deadline of the budget the startup path already holds, rather than inventing its own window: one clock covers both the shutdown sequence and a startup rollback.
@@ -74,9 +80,9 @@ Give the startup rollback path the same bounded termination the shutdown sequenc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | companion row 41 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | StartupOrchestrator.__init__ gained the optional keyword-only budget (:50-56, stored at :66); _rollback_servers() (:138) calls shutdown_all(budget=self._budget) at :147; scripts/agent/repl.py passes the same budget object |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | companion row 41 tests/agent/test_startup_rollback.py: _make_rollback_startup(budget=None), assert_awaited_once_with(budget=None), test_rollback_carries_the_budget_the_repl_supplied |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, mypy, lint-imports, pytest Pass; rollback keeps its own console reporting and no ShutdownReport |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

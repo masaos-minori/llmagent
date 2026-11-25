@@ -12,7 +12,7 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from agent.http_lifecycle import HttpServerLifecycleManager
+from agent.http_lifecycle import TERMINATE_TIMEOUT_SEC, HttpServerLifecycleManager
 from agent.http_lifecycle_errors import (
     HttpStartupError,
     StartupFailure,
@@ -341,7 +341,7 @@ class TestStartupOrchestratorStartServers:
                 mgr._process_terminator,
                 "terminate_with_timeout",
                 AsyncMock(return_value=TerminationOutcome.EXIT_UNCONFIRMED),
-            ),
+            ) as term,
             patch("agent.startup_mcp_starter.RETRY_DELAY_SEC", 0.05),
         ):
             with pytest.raises(HttpStartupError) as exc_info:
@@ -352,6 +352,12 @@ class TestStartupOrchestratorStartServers:
         assert startup._mcp_starter._spawned_subprocesses == []
         assert mgr._http_procs.get("web") is fake_proc
         assert mgr._failed_start_procs.get("web") is fake_proc
+        # The startup path owns its own window: the module default, and no budget, which
+        # is the call shape a shutdown budget must not change (REQ-010).
+        call = term.await_args
+        assert call is not None
+        assert call.kwargs["timeout"] == TERMINATE_TIMEOUT_SEC
+        assert call.kwargs.get("budget") is None
 
     @pytest.mark.asyncio
     async def test_failing_start_calls_twice_with_retry_gap(self) -> None:

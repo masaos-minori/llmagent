@@ -17,6 +17,7 @@ import httpx
 import pytest
 from agent.http_lifecycle import HttpServerLifecycleManager
 from agent.http_lifecycle_errors import HttpStartupError, TerminationOutcome
+from agent.shutdown_budget import ShutdownBudget
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
 
@@ -36,6 +37,18 @@ def _make_cfg(**overrides: object) -> McpServerConfig:
 @pytest.fixture
 def mgr() -> HttpServerLifecycleManager:
     return HttpServerLifecycleManager()
+
+
+def _assert_default_termination_window(terminator: AsyncMock) -> None:
+    """Assert a terminate call used the module default window and carried no budget.
+
+    The startup-failure and restart paths own their own bound (they are not part of a
+    shutdown sequence), so what pins them is that no budget reached the call.
+    """
+    call = terminator.call_args
+    assert call is not None, "expected terminate_with_timeout() to be called"
+    assert call.kwargs["timeout"] == hl_module.TERMINATE_TIMEOUT_SEC
+    assert call.kwargs.get("budget") is None
 
 
 class TestGetPgidFailureTracking:
@@ -60,7 +73,7 @@ class TestGetPgidFailureTracking:
                 mgr._process_terminator,
                 "terminate_with_timeout",
                 AsyncMock(return_value=TerminationOutcome.EXITED),
-            ),
+            ) as term,
             patch.object(launcher_module, "logger") as mock_logger,
         ):
             with pytest.raises(OSError, match="no such process"):
@@ -68,6 +81,8 @@ class TestGetPgidFailureTracking:
 
         # Successful termination -> no termination-failure error logged.
         assert mock_logger.error.call_count == 0
+        # The startup-failure path owns its own bound: default window, no budget.
+        _assert_default_termination_window(term)
         # Resource cleanup completed (stderr handle closed once).
         stderr_fh_mock.close.assert_called_once()
         # Tracking entries were not retained (removed in the success path).
@@ -93,7 +108,7 @@ class TestGetPgidFailureTracking:
                 mgr._process_terminator,
                 "terminate_with_timeout",
                 AsyncMock(return_value=TerminationOutcome.EXIT_UNCONFIRMED),
-            ),
+            ) as term,
             patch.object(launcher_module, "logger") as mock_logger,
         ):
             with pytest.raises(OSError, match="no such process"):
@@ -102,6 +117,7 @@ class TestGetPgidFailureTracking:
         logged = [str(call) for call in mock_logger.error.call_args_list]
         assert len(logged) == 1
         assert "9999" in logged[0] and "exit_unconfirmed" in logged[0]
+        _assert_default_termination_window(term)
         assert mgr._http_procs.get("test") is None
         assert mgr._http_pgids.get("test") is None
         stderr_fh_mock.close.assert_called_once()
@@ -125,7 +141,7 @@ class TestGetPgidFailureTracking:
                 mgr._process_terminator,
                 "terminate_with_timeout",
                 AsyncMock(side_effect=RuntimeError("kill failed")),
-            ),
+            ) as term,
             patch.object(launcher_module, "logger") as mock_logger,
         ):
             caught: BaseException | None = None
@@ -139,6 +155,32 @@ class TestGetPgidFailureTracking:
             logged = [str(call) for call in mock_logger.error.call_args_list]
             assert logged, "expected a termination-failure error log"
             assert "9999" in logged[0]
+            _assert_default_termination_window(term)
+
+
+class TestShutdownAllBudgetForwarding:
+    """REQ-010: the manager forwards the budget it is handed to the terminate call."""
+
+    @pytest.mark.asyncio
+    async def test_supplied_budget_reaches_the_terminate_call(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """Both the clamped window and the budget itself are on the call arguments."""
+        budget = ShutdownBudget(total_seconds=15.0)
+        budget.arm()
+        proc = Mock(pid=9999, poll=Mock(return_value=None))
+        term = AsyncMock(return_value=TerminationOutcome.EXITED)
+
+        mgr._http_procs["test"] = proc
+        with patch.object(mgr._process_terminator, "terminate_with_timeout", term):
+            unconfirmed = await mgr.shutdown_all(budget=budget)
+
+        call = term.call_args
+        assert call is not None
+        # The 30 s coordinator window cannot be used up by a 15 s budget.
+        assert call.kwargs["timeout"] == pytest.approx(15.0, abs=0.5)
+        assert call.kwargs["budget"] is budget
+        assert unconfirmed == []
 
 
 class TestStartupFailureCleanupCharacterization:
@@ -199,7 +241,7 @@ class TestStartupFailureCleanupCharacterization:
                 mgr._process_terminator,
                 "terminate_with_timeout",
                 AsyncMock(return_value=TerminationOutcome.EXITED),
-            ),
+            ) as term,
             patch.object(launcher_module, "logger") as mock_logger,
         ):
             with pytest.raises(OSError, match="no such process"):
@@ -211,6 +253,7 @@ class TestStartupFailureCleanupCharacterization:
         ]
         assert exit_code_logs, "expected an exit-code info log"
         assert exit_code_logs[0].args[3] == 1
+        _assert_default_termination_window(term)
         assert mgr._http_procs.get("test") is None
         assert mgr._http_pgids.get("test") is None
         stderr_fh.close.assert_called_once()

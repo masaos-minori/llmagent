@@ -440,6 +440,11 @@ entries:
   name: TerminationOutcome
   signature: class TerminationOutcome
   summary: What one MCP server termination attempt proved about the process.
+- file: scripts/agent/http_lifecycle_errors.py
+  kind: function
+  name: termination_step_outcome
+  signature: def termination_step_outcome(outcomes, *, other_failures) -> ShutdownOutcome
+  summary: Map MCP termination results onto the shutdown step outcome vocabulary.
 - file: scripts/agent/http_lifecycle_health_checker.py
   kind: class
   name: HealthChecker

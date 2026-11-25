@@ -13,6 +13,12 @@ Update the startup-path lifecycle expectations so the starter's `shutdown_all()`
 - The starter calls `shutdown_all()` in the startup path at two points, and today asserts the no-argument form.
 - The parameter is optional (rows 13, 14, 15), so the starter keeps calling without a deadline unless a budget is armed (row 16).
 
+Step 3b verification against the current source (20261125-122600):
+
+- The first Assumption is wrong about the source: `scripts/agent/startup_mcp_starter.py` never calls `shutdown_all()`. Its shutdown handling is the `shutdown_event` checks (`:62`, `:140`) and the `StartupInterrupted` path. Every `shutdown_all` reference in this test file is the lifecycle surface the startup path uses, reached through `_ServerLifecycleRouter` built by the `_real_router_ctx()` helper (`tests/agent/test_startup_mcp_starter.py:258`).
+- The no-argument case now states the keyword explicitly: `fake_http_mgr.shutdown_all.assert_awaited_once_with(budget=None)` (`:373`). Asserting `budget=None` rather than omitting the keyword is what pins "the default path was taken" against a call that silently gained an argument.
+- The new case is `test_shutdown_all_accepts_the_budget_it_is_given` (`:381`), which pins only that the startup path's surface accepts a supplied budget and forwards the same object. The rollback behavior is asserted in `tests/agent/test_startup_rollback.py` (row 41).
+
 ## Design decisions
 
 - Assert both forms: the no-argument call keeps working, and a call that carries a deadline is accepted.
@@ -70,9 +76,9 @@ Update the startup-path lifecycle expectations so the starter's `shutdown_all()`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this row is the test row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | the no-argument startup-path assertion now reads assert_awaited_once_with(budget=None) (:373) |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | this row is the test row this row is the test row; test_shutdown_all_accepts_the_budget_it_is_given (:381) pins the surface only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, pytest Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

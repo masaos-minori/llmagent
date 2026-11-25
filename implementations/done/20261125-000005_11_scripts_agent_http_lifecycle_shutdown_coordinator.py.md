@@ -14,6 +14,13 @@ Bring the lifecycle shutdown path inside the shutdown deadline: take the remaini
 - `_absorb_sigint_during_shutdown()` (`scripts/agent/http_lifecycle_shutdown_coordinator.py:44-48`) installs a handler that logs and ignores SIGINT for the duration of cleanup (`scripts/agent/http_lifecycle_shutdown_coordinator.py:129`, `:135`, `:139`), which discards the interrupt the budget is trying to deliver.
 - The terminate call is built as a kwargs dict at `scripts/agent/http_lifecycle_shutdown_coordinator.py:171-176`, which is where the clamped window is passed.
 
+Step 3b verification against the current source (20261125-121000):
+
+- Procedure step 2 contradicts the Plan's frozen OD-05 (`plans/done/20261124-095950_cliplc004_bounded-shutdown-machine.md:299`): "stop starting new servers' termination once the deadline is spent, recording them as not attempted" would skip the SIGTERM/SIGKILL send, and `TerminationOutcome` has no not-attempted value. Implemented in the OD-05-compatible form: every running server is still signalled, its confirm wait is clamped to 0.0, and it is returned in the unconfirmed list as `EXIT_UNCONFIRMED`, which is the value the shutdown step record counts (REQ-012).
+- Anchors moved: `_SHUTDOWN_TIMEOUT_SEC` is `:41`, `_absorb_sigint_during_shutdown()` is `:55-65`, the guard install site is `:187-196` and the restore site is `:235-240`, and the terminate kwargs dict is `:200-205`, not `:171-176`. `shutdown_all()` is `:149`.
+- "Replace `_SHUTDOWN_TIMEOUT_SEC`" is not implemented as a removal: the constant stays as the no-budget fallback because `scripts/agent/http_lifecycle.py:404` (restart), `scripts/agent/http_lifecycle_health_checker.py:75`, and `scripts/agent/http_lifecycle_subprocess_launcher.py:146` call the terminate path with no budget and must keep today's window. `_termination_window()` clamps it to `min(_SHUTDOWN_TIMEOUT_SEC, budget.remaining())`, which is 0.0 for a spent budget.
+- The SIGINT guard is now selected per call: with a budget the coordinator installs `_request_interrupt_on_sigint(budget)`; without one it installs `_absorb_sigint_during_shutdown` unchanged, so the no-budget paths (restart, startup rollback) keep today's absorbed behavior. `_absorb_sigint_during_shutdown` is documented in `docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md` and `docs/23_agent/agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md`, which rows 50 and 51 rewrite.
+
 ## Design decisions
 
 - The remaining deadline is a parameter, not a constant: the caller (row 5, row 13, row 16) supplies `remaining()` (row 1) and this coordinator clamps each per-server window to it, so the sum of the per-server waits cannot exceed what the sequence has left.
@@ -81,9 +88,9 @@ Bring the lifecycle shutdown path inside the shutdown deadline: take the remaini
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | companion rows 33, row 35 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | shutdown_all(*, budget=None) at scripts/agent/http_lifecycle_shutdown_coordinator.py:149; the terminate step forwards the budget at :122 and maps outcomes through http_lifecycle_errors.termination_step_outcome() |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | companion rows 33, row 35 tests/agent/test_http_lifecycle_shutdown_coordinator.py::TestShutdownCoordinatorBudget (5 cases, incl. test_remaining_deadline_shared_across_servers); tests/agent/test_resource_shutdown_coordinator.py::TestHttpTerminationReported gained the timed_out/failed mapping cases |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | module size gate Pass: scripts/agent/resource_shutdown_coordinator.py recorded at 24616 B in tools/check_module_size_baseline.txt (user-approved) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

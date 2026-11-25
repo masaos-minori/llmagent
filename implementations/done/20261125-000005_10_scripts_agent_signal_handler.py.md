@@ -14,6 +14,14 @@ Make the first shutdown request start the bounded sequence and the second one in
 - `force_exit_on_second_sigint` is a constructor parameter today (`scripts/agent/signal_handler.py:74`), not a configured value; the Plan makes it come from `shutdown_force_exit_on_second_sigint` (new) (rows 17, 19).
 - `_exit_process` (`scripts/agent/signal_handler.py:53-55`) calls `os._exit`, which skips every cleanup step, so it must stay an explicit opt-in.
 
+Step 3b verification against the current source (20261125-111000):
+
+- One anchor is stale: `_sigterm_handler()` is `scripts/agent/signal_handler.py:97-103`, not `:91-103`. `_sigint_handler()` `:105-114`, the `force_exit_on_second_sigint` parameter `:74`, `_exit_process` `:53-55`, `_FORCE_EXIT_STATUS` `:47`, and the Windows dispatch `:116` onward are current.
+- The Plan's Problem section names `SignalHandler._on_sigint`; the method is `_sigint_handler`. It also names `scripts/agent/cli_infra.py:143` and `scripts/agent/services/agent_factory.py:213` as production construction sites; neither constructs `SignalHandler` today. The only construction site is `scripts/agent/repl.py:108`, so the budget wiring lands there.
+- The budget is already armed by the coordinator's `enter_shutdown` step (`scripts/agent/resource_shutdown_coordinator.py:287`), so arming in the SIGTERM handler is additive: `arm()` returns `False` for the step's later call and the coordinator's `first_request=` log line reads `False` on the signal path. That is the intended meaning of the log field (which request armed the deadline), not a defect.
+- "logs the step it interrupted by name (REQ-012)" is not implementable here: the handler holds no reference to the running step and `ShutdownBudget` does not carry a current-step name. The handler logs the interrupt request; the step name and its `timed_out` / `outcome_unknown` outcome are recorded by the coordinator's step record (row 5), which is where REQ-012's per-step line comes from.
+- The configured force-exit value must be read as a bool identity (`configured is True`), not truthiness: `tests/agent/test_signal_handler.py` constructs `SignalHandler` with a `MagicMock` context, whose `cfg.shutdown_force_exit_on_second_sigint` is a truthy mock, and a truthy read would call the real `os._exit` inside those tests.
+
 ## Design decisions
 
 - Arming happens outside the SIGINT handler: the deadline starts when shutdown is actually requested (SIGTERM, or the REPL exit paths in rows 7 and 8), before any step runs, and `arm()` (row 1) returns `False` for later requests so repeated signals cannot extend the deadline.
@@ -31,22 +39,24 @@ Make the first shutdown request start the bounded sequence and the second one in
 `scripts/agent/signal_handler.py`
 
 ### Procedure
-1. Take the budget in `__init__` alongside the shutdown event.
-2. In `_sigterm_handler()` (`scripts/agent/signal_handler.py:91-103`), arm the budget before setting the shutdown event, so the deadline starts before the sequence does.
-3. In `_sigint_handler()` (`scripts/agent/signal_handler.py:105-114`), keep the existing controller delegation when no shutdown is in progress, and call `request_interrupt()` (new) when the budget is already armed. SIGINT never arms the budget.
-4. Keep the force-exit branch (`scripts/agent/signal_handler.py:110-113`) but drive it from the configured value (row 17) rather than only the constructor argument, and keep `_FORCE_EXIT_STATUS` (`scripts/agent/signal_handler.py:47`) unchanged.
-5. Leave the Windows control-event dispatch (`scripts/agent/signal_handler.py:116` onward) arming the same budget, so every shutdown request shares one deadline.
+1. Take the budget in `__init__` alongside the shutdown event as an optional keyword argument (`budget: ShutdownBudget | None = None`), so a handler built without one keeps today's behavior.
+2. In `_sigterm_handler()` (`scripts/agent/signal_handler.py:97-103`), arm the budget before setting the shutdown event, so the deadline starts before the sequence does.
+3. In `_sigint_handler()` (`scripts/agent/signal_handler.py:105-114`), keep the existing controller delegation, and call `request_interrupt()` when the budget is already armed. SIGINT never arms the budget.
+4. Keep the force-exit branch (`scripts/agent/signal_handler.py:109-114`) and `_FORCE_EXIT_STATUS` (`:47`) unchanged, but read the configured `shutdown_force_exit_on_second_sigint` once at construction with bool identity, so a signal handler does no configuration work and a non-bool context cannot enable `os._exit`.
+5. Leave the Windows control-event dispatch (`scripts/agent/signal_handler.py:116` onward) unchanged: it already routes close/logoff/shutdown events through `_sigterm_handler()` and Ctrl-C/Ctrl-Break through `_sigint_handler()`, so it arms and interrupts the same budget with no new code.
+6. Pass the REPL's budget at the only construction site, `scripts/agent/repl.py:108`, and drop the comment there that says the signal handler is not given the budget yet.
 
 ### Method
 - The handler does three things only: arm, request an interrupt, or (when configured) force an exit. It never runs a step and never touches the write gate.
 
 ### Details
-- The log lines stay at the same levels so existing log expectations keep holding; the new interrupt path logs the step it interrupted by name (REQ-012).
+- The log lines stay at the same levels so existing log expectations keep holding. The new interrupt path logs the interrupt request; the step it interrupted is named by the coordinator's step record, not by the handler (see Step 3b).
 
 ### Companion test files
 - `tests/agent/test_signal_handler.py`
-  - Procedure: arm the budget on the first signal, route a second signal to the budget's interrupt channel, and keep `os._exit` reachable only when `shutdown_force_exit_on_second_sigint` (new) is true.
+  - Procedure: arm the budget on the first shutdown request, route a second signal to the budget's interrupt channel, and keep `os._exit` reachable only when `shutdown_force_exit_on_second_sigint` is true.
   - Validation: `uv run pytest tests/agent/test_signal_handler.py -q` (REQ-002, REQ-011; AC-4).
+  - Plan-named case: `test_second_sigint_interrupts_running_step_without_force_exit`.
 
 ## Compatibility considerations
 
@@ -82,9 +92,9 @@ Make the first shutdown request start the bounded sequence and the second one in
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | companion row 31 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261125-122329 | 20261125-122329 | budget armed on SIGTERM, interrupt requested on SIGINT only when armed; configured force exit read once at construction under a `configured is True` identity guard |
+| 2 | Add or update tests per Validation plan | Completed | 20261125-122329 | 20261125-122329 | companion row 31 tests/agent/test_signal_handler.py::TestBudgetArmingAndInterrupt (8 cases); tests/agent/test_repl.py::test_every_consumer_shares_the_one_budget pins the shared object |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261125-122329 | 20261125-122329 | ruff format/check, mypy, lint-imports, bandit, pytest Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
