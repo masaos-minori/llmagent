@@ -20,8 +20,8 @@ High
   - Sandboxing of the child beyond environment and executable confinement (rlimits, seccomp, user switching).
   - Any change to `ProductionConfigValidator`, `scripts/agent/config_builders.py`, or the Agent-to-server authentication protocol.
 - **Dependencies**:
-  - Builds on the strict MCP configuration model of the staged-reload-transaction Plan (cliplc005), whose implementation procedures are generated but not yet executed; see UNK-01 and `Assumptions`. This Plan blocks cliplc007, cliplc008, and cliplc013.
-  - **Depends on**: plans/done/20261124-110935_cliplc005_staged-reload-transaction.md | phase 1 | its strict `_build_single_server` parser declares the allowed MCP key set that this Plan extends with `credential_env`; the Plan is archived, so `tools/plan_dependency_order.py` reads this as closed, while the implementation procedures under `implementations/` are still pending (UNK-01).
+  - Builds on the strict MCP configuration model of the staged-reload-transaction Plan (cliplc005), which is already implemented: `_MCP_SERVER_KEYS` and the `reject_unknown_keys` call in `_build_single_server` are in the current source (`scripts/shared/mcp_config.py:37-53`, `:368`), and its 38 procedures are archived under `implementations/done/20261125-074359_*` (UNK-01 resolved in this cycle). This Plan blocks cliplc007, cliplc008, and cliplc013.
+  - **Depends on**: plans/done/20261124-110935_cliplc005_staged-reload-transaction.md | phase 1 | its strict `_build_single_server` parser declares the allowed MCP key set that this Plan extends with `credential_env`; the dependency is closed — the Plan is archived and its phase 1 code is present in the current source (re-verified in this cycle).
 
 ## Background
 - Source: consolidated CLI REPL and MCP lifecycle backlog (`memo-issue.md`, Issue 7), filed as `issues/20261119-145304_cliplc006_mcp-launch-spec-credentials.md`.
@@ -63,19 +63,19 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/shared/mcp_config.py | Modify: add `validate_server_key`, enforce it in `McpServerConfig` and `_build_mcp_servers`; remove the `fields` dataclass field; add `credential_env` field and parse key | Key rule, `fields` removal, per-server credential declaration | REQ-002, REQ-005, REQ-006; AC-2, AC-4 | `fields: dict[str, Any]` at line 77; `_build_single_server` builds `McpServerConfig` without `fields` and with `key=key` and no key check (checked in Step 3) | tests/shared/test_mcp_config_validation.py | Verified |
+| scripts/shared/mcp_config.py | Modify: add `validate_server_key`, enforce it in `McpServerConfig` and `_build_mcp_servers`; remove the `fields` dataclass field; add `credential_env` field and parse key | Key rule, `fields` removal, per-server credential declaration | REQ-002, REQ-005, REQ-006; AC-2, AC-4 | `fields: dict[str, Any]` at lines 108-110; `_MCP_SERVER_KEYS` at 37-53 and `reject_unknown_keys` at 368 already declare the allowed key set; `_build_single_server` passes `key=key` at 405 with no key-pattern check (re-verified in this cycle) | tests/shared/test_mcp_config_validation.py | Verified |
 | scripts/agent/http_lifecycle_launch_spec.py | Create (new file): frozen `LaunchSpec`, the fixed option set, and the minimal-environment builder | One construction site for the Popen inputs | REQ-001, REQ-006, REQ-007; AC-1, AC-3 | No launch-spec type exists; `popen_kwargs` is a free dict at `http_lifecycle_subprocess_launcher.py:96-103` (checked in Step 3) | tests/agent/test_http_lifecycle_launch_spec.py | Verified |
-| scripts/agent/http_lifecycle_command_validator.py | Modify: strict default with explicit permissive opt-in, owner and file-mode checks, identity capture, narrowed env allowlist, `filter_env` replaced by a per-server builder | Confinement and credential isolation | REQ-003, REQ-004, REQ-006; AC-1, AC-2, AC-3 | `_strict_confinement` opt-in at lines 107-109; wildcard patterns in `_DEFAULT_ALLOWED_ENV_VARS` lines 56-71; `filter_env` returns `None` for `None` at line 240 (checked in Step 3) | tests/agent/test_http_lifecycle_command_validator.py | Verified |
-| scripts/agent/http_lifecycle_subprocess_launcher.py | Modify: build and run a `LaunchSpec`, drop `cfg.fields`, execute the validated path, release stderr on `HttpStartupError` | Execute what was validated; no option override | REQ-001, REQ-002, REQ-003, REQ-008; AC-1, AC-2 | `validate(...)` return discarded at line 84; `Popen(cfg.cmd, ...)` at line 108; `except ValueError` at line 85 vs `HttpStartupError(RuntimeError)` (checked in Step 3) | tests/agent/test_http_lifecycle.py | Verified |
+| scripts/agent/http_lifecycle_command_validator.py | Modify: strict default with explicit permissive opt-in, owner and file-mode checks, identity capture, narrowed env allowlist, `filter_env` replaced by a per-server builder | Confinement and credential isolation | REQ-003, REQ-004, REQ-006; AC-1, AC-2, AC-3 | `_strict_confinement` opt-in at lines 118-121 (`_STRICT_ENV_VAR` at 75); wildcard patterns at 63-65 inside `_DEFAULT_ALLOWED_ENV_VARS` (51-66); `filter_env` returns `None` for `None` at line 241 (re-verified in this cycle) | tests/agent/test_http_lifecycle_command_validator.py | Verified |
+| scripts/agent/http_lifecycle_subprocess_launcher.py | Modify: build and run a `LaunchSpec`, drop `cfg.fields`, execute the validated path, release stderr on `HttpStartupError` | Execute what was validated; no option override | REQ-001, REQ-002, REQ-003, REQ-008; AC-1, AC-2 | `validate(...)` return discarded at line 84; `popen_kwargs` at 96-103 with `popen_kwargs.update(cfg.fields)` at 102-103; `Popen(cfg.cmd, **popen_kwargs)` at 106-107; `except ValueError` at line 85 vs `HttpStartupError(RuntimeError)` (re-verified in this cycle) | tests/agent/test_http_lifecycle.py | Verified |
 | scripts/agent/http_lifecycle_stderr_log_manager.py | Modify: reject an invalid key before building `{tmp}/mcp_server_logs/{key}` | Key must not become a path component | REQ-005; AC-4 | `log_dir = f"{tempfile.gettempdir()}/mcp_server_logs/{server_key}"` at line 46 (checked in Step 3) | tests/agent/test_http_lifecycle_stderr_log_manager.py | Verified |
 | config/agent.toml | Modify: add `credential_env = ["GITHUB_TOKEN"]` to `[mcp_servers.github]` and `[mcp_servers.cicd]` | Only designated servers get `GITHUB_TOKEN` | REQ-007; AC-3 | Only `scripts/mcp_servers/github` and `scripts/mcp_servers/cicd` read `GITHUB_TOKEN` (`rg environ.get("GITHUB_TOKEN")`); both tables at lines 293-309 (checked in Step 3) | tests/agent/test_http_lifecycle_env_allowlist_integration.py | Verified |
-| tests/shared/test_mcp_config_validation.py | Modify: add key-pattern, `fields`-removed, and `credential_env` type cases | Validate REQ-002, REQ-005, REQ-006 | REQ-005, REQ-009; AC-4 | Existing key-prefix and env-denylist cases at lines 168-186 (checked in Step 3) | itself | Verified |
+| tests/shared/test_mcp_config_validation.py | Modify: add key-pattern, `fields`-removed, and `credential_env` type cases | Validate REQ-002, REQ-005, REQ-006 | REQ-005, REQ-009; AC-4 | Existing server-key error case at 168-170 and env-denylist cases at 176-188 (re-verified in this cycle) | itself | Verified |
 | tests/agent/test_http_lifecycle_launch_spec.py | Create (new file): spec immutability, fixed options, minimal env, credential isolation, key names only in audit | Cover the new module | REQ-001, REQ-006, REQ-007, REQ-009; AC-1, AC-3 | New module has no test file (checked in Step 3) | itself | Verified |
 | tests/agent/test_http_lifecycle_command_validator.py | Modify: strict-by-default, opt-in permissive, owner and mode, PATH and symlink change after validation, replaced env-filter cases | Cover REQ-003, REQ-004, REQ-006 | REQ-003, REQ-004, REQ-009; AC-1, AC-2 | 36 existing cases cover allowlist, strict mode, and `filter_env` (checked in Step 3) | itself | Verified |
-| tests/agent/test_http_lifecycle.py | Modify: replace `test_cfg_fields_reach_popen_kwargs` (line 252) with an override-impossible test; make the validation-failure test use the real validator's `HttpStartupError` | Existing test pins the removed behavior and masks the leak | REQ-002, REQ-008, REQ-009; AC-2 | Test sets `fields={"cwd": ...}` at line 256; failure test mocks `ValueError` at line 152 (checked in Step 3) | itself | Verified |
+| tests/agent/test_http_lifecycle.py | Modify: replace `test_cfg_fields_reach_popen_kwargs` (line 295) with an override-impossible test; make the validation-failure test use the real validator's `HttpStartupError` | Existing test pins the removed behavior and masks the leak | REQ-002, REQ-008, REQ-009; AC-2 | Test sets `fields={"cwd": ...}` at line 299; failure test mocks `ValueError` at line 195 (re-verified in this cycle) | itself | Verified |
 | tests/agent/test_http_lifecycle_env_allowlist_integration.py | Modify: replace the pattern-alignment gate with a per-server gate (each shipped server's child env holds its own tokens, no other server's) and start every shipped server under the minimal env | Static allowlist gate pins the wildcard model | REQ-006, REQ-007, REQ-009; AC-3 | Imports `_DEFAULT_ALLOWED_ENV_VARS` and calls `CommandValidator().filter_env({})` at lines 183 and 301 (checked in Step 3) | itself | Verified |
 | tests/agent/test_http_lifecycle_stderr_log_manager.py | Modify: add traversal and control-character key cases | Cover REQ-005 at the path boundary | REQ-005, REQ-009; AC-4 | 216-line file; no key-validity case (checked in Step 3) | itself | Verified |
-| docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md | Modify: replace the inherited-variable list and `env` text with the per-server model; document `credential_env` and the key rule | Documentation Impact | REQ-010; AC-5 | "Inherited variables" list at lines 23-28 names the wildcard patterns (checked in Step 3) | `tools/check_docs_*` gates | Verified |
+| docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md | Modify: replace the inherited-variable list and `env` text with the per-server model; document `credential_env` and the key rule | Documentation Impact | REQ-010; AC-5 | "Inherited variables" list at lines 25-28 names the wildcard patterns (re-verified in this cycle) | `tools/check_docs_*` gates | Verified |
 | docs/90_deployment/deployment_01_deployment.md | Modify: describe strict confinement default, the opt-in permissive variable, and owner and mode requirements | Documentation Impact | REQ-010; AC-5 | Line 240 states the CommandValidator rejects binaries under a writable directory (checked in Step 3) | `tools/check_docs_*` gates | Verified |
 | docs/23_agent/agent_13_reference-api-generated.md | Regenerate (never hand-edit) | Public symbols change | REQ-010; AC-5 | Lists `CommandValidator` (checked in Step 3) | generator check | Verified |
 | registry/manifests/agent_api.yaml | Regenerate (never hand-edit) | Public symbols change | REQ-010; AC-5 | Lists `CommandValidator` (checked in Step 3) | generator check | Verified |
@@ -97,14 +97,13 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | File Path | Why It Must Be Read | Related Target File or Requirement |
 |---|---|---|
 | scripts/agent/config_builders.py | The Issue names it as a target; it only calls `_build_mcp_servers` (defined in `shared/mcp_config.py`), so it needs no change | REQ-005 |
-| scripts/agent/http_lifecycle.py | Calls `create_and_validate_proc` and logs `cfg.cmd` (line 343); constructs the validator and launcher | REQ-001, REQ-003 |
+| scripts/agent/http_lifecycle.py | Calls `create_and_validate_proc` and logs `cfg.cmd` (line 346); constructs the validator and launcher | REQ-001, REQ-003 |
 | scripts/agent/http_lifecycle_errors.py | `HttpStartupError` is a `RuntimeError`, not a `ValueError` | REQ-008 |
 | scripts/shared/config_utils.py | `resolve_env_ref` resolves `${ENV:...}` inside the child | REQ-006 |
 | scripts/agent/production_config_validator.py | Production validation entry; confirms no server-key check exists there | REQ-005 |
 | scripts/mcp_servers/github/github_service_init.py | Reads `GITHUB_TOKEN` | REQ-007 |
 | scripts/mcp_servers/cicd/cicd_service_init.py | Reads `GITHUB_TOKEN` | REQ-007 |
 | config/github_mcp_server.toml | Child-side `${ENV:MCP_GITHUB_*}` references | REQ-006 |
-| implementations/20261125-074359_15_scripts_shared_mcp_config.py.md | cliplc005's pending procedure rewrites `_build_single_server` with a declared key set | UNK-01 |
 
 ## Acceptance Criteria
 - AC-1 (REQ-001, REQ-003): The executable passed to `Popen` equals the path `validate` returned; a PATH change or a symlink retarget after validation does not change it, and a changed file identity before `Popen` aborts the start with a `StartupFailure`.
@@ -129,14 +128,14 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 - Strict-by-default replaces the opt-in `LLMAGENT_STRICT_COMMAND`; the opt-in name for permissive mode is `LLMAGENT_COMMAND_MODE=permissive` (a judgment call, falsifiable by the owner at procedure review). No production or development indicator exists in `scripts/` (`rg LLMAGENT_ENV|is_production` finds none), so an explicit variable is the only available switch.
 - All ten shipped subprocess servers use `cmd = ["/opt/llm/bin/mcp_<name>"]` (`config/agent.toml:239-327`) and `/opt/llm/bin` is mode 0755 owned by uid 1000, the Agent user; the shipped binaries therefore pass strict confinement. A deployment with a different owner would be rejected by the new owner check.
 - The parent's `PATH`, `HOME`, `USER` remain inherited for the runtime set because the existing protected-variable rule already treats them as parent-controlled.
-- cliplc005 lands first (its procedures 13 and 15 already target `config_builders.py` and `mcp_config.py`); this Plan's parser edit adds `credential_env` to the allowed-key set that cliplc005 declares. If cliplc005 slips, the edit is a one-line addition to the current coercing `_build_single_server`.
+- cliplc005 is already implemented: `_build_single_server` is the strict declared-key parser (`_MCP_SERVER_KEYS` at `scripts/shared/mcp_config.py:37-53`, `reject_unknown_keys` called at 368), so this Plan's parser edit adds `credential_env` to that existing key set instead of rewriting a coercing parser. Its procedures are archived under `implementations/done/20261125-074359_*` (verified in this cycle).
 - Overlap judgment (`tools/check_plan_target_overlaps.py`, run after the freeze): no other Frozen Plan in `plans/` lists any of these files; no overlap to judge.
-- The `fields` removal is safe: `_build_single_server` never sets it, so no TOML configuration can reach it today; the only user is `tests/agent/test_http_lifecycle.py:256`.
+- The `fields` removal is safe: `_build_single_server` never sets it, so no TOML configuration can reach it today; the only user is `tests/agent/test_http_lifecycle.py:299` (re-verified in this cycle).
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | cliplc005's strict-parser procedures (`implementations/20261125-074359_*`) are not yet implemented, while its Plan is archived, so the dependency tool reads it as closed | Implementation status of procedures 13 and 15 at the time this Plan's procedures execute | Execute cliplc005 phase 1 before this Plan's `mcp_config.py` step; re-read `_build_single_server` at procedure generation | False |
+| UNK-01 | Resolved in this cycle: cliplc005's strict-parser procedures (`implementations/done/20261125-074359_*`) are implemented, so `_build_single_server` already declares the allowed key set | None: `_MCP_SERVER_KEYS` at `scripts/shared/mcp_config.py:37-53` and the `reject_unknown_keys` call at 368 are in the current source | This Plan's `scripts/shared/mcp_config.py` step adds `credential_env` to `_MCP_SERVER_KEYS` | False |
 | UNK-02 | Whether any out-of-tree deployment places `mcp_*` binaries owned by a user other than the Agent user, which the new owner check would reject | Deployment inventory beyond `/opt/llm/bin` on this host | Check owner on the target host at deploy time (`skills/deploy/SKILL.md`); report any rejected server rather than relaxing the check | False |
 | UNK-03 | Whether the rag_pipeline child needs credentials beyond its own two tokens (`rag/ingestion` configs) | The static scan found only `MCP_RAG_PIPELINE_*` references in `config/`; runtime reads in `scripts/rag` are not exhaustively confirmed | The real-child startup gate (REQ-009) starts every shipped server under the minimal env; a failure names the missing variable and is added to that server's `credential_env` | False |
 
@@ -166,14 +165,14 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | Issue claim | Verdict | Evidence |
 |---|---|---|
 | Launcher builds env with `filter_env(cfg.env)` | Confirmed | `http_lifecycle_subprocess_launcher.py:69` |
-| `popen_kwargs.update(cfg.fields)` follows `start_new_session: True`, so `fields` can override it | Confirmed, with a correction | Lines 96-103. `_build_single_server` never passes `fields`, so TOML cannot reach it; the exposure is direct construction and the one test at `tests/agent/test_http_lifecycle.py:256` |
-| Permissive mode accepts a resolved basename on an allowlist and returns a resolved path | Confirmed | `http_lifecycle_command_validator.py:78-81` (docstring), 160-166, 118 equivalent return at `return cmd_path` |
-| Validation may resolve one binary while another runs | Confirmed | `validate(...)` result discarded (launcher line 84); `Popen(cfg.cmd, ...)` runs the unresolved `cfg.cmd[0]` |
-| `filter_env(None)` behavior | Confirmed | Returns `None` (line 240), so `Popen(env=None)` inherits the full parent environment. Not reachable from TOML (`dict(v.get("env", {}))`), reachable by direct construction |
-| `MCP_*_AUTH_TOKEN` and `GITHUB_TOKEN` inherited by all servers | Confirmed | Patterns in `_DEFAULT_ALLOWED_ENV_VARS` (lines 66-68) |
+| `popen_kwargs.update(cfg.fields)` follows `start_new_session: True`, so `fields` can override it | Confirmed, with a correction | Lines 96-107. `_build_single_server` never passes `fields`, so TOML cannot reach it; the exposure is direct construction and the one test at `tests/agent/test_http_lifecycle.py:299` |
+| Permissive mode accepts a resolved basename on an allowlist and returns a resolved path | Confirmed | `http_lifecycle_command_validator.py:83-89` (docstring), 180-196, with `return cmd_path` at 177 (strict) and 198 (permissive) |
+| Validation may resolve one binary while another runs | Confirmed | `validate(...)` result discarded (launcher line 84); `Popen(cfg.cmd, **popen_kwargs)` at 106-107 runs the unresolved `cfg.cmd[0]` |
+| `filter_env(None)` behavior | Confirmed | Returns `None` (line 241), so `Popen(env=None)` inherits the full parent environment. Not reachable from TOML (`dict(v.get("env", {}))`), reachable by direct construction |
+| `MCP_*_AUTH_TOKEN` and `GITHUB_TOKEN` inherited by all servers | Confirmed | Patterns in `_DEFAULT_ALLOWED_ENV_VARS` (lines 63-65) |
 | Server keys unvalidated, used in paths | Confirmed | `http_lifecycle_stderr_log_manager.py:46`; no key check in `mcp_config.py` or `production_config_validator.py` |
-| Strict mode is a production control | Corrected | Opt-in only; no deploy script or config sets `LLMAGENT_STRICT_COMMAND`, so production is permissive |
-| (Found) validation failure releases stderr | Contradicted | `validate` raises `HttpStartupError(RuntimeError)`, the launcher catches `ValueError`; the handle and `_stderr_files` entry leak. The existing test (`test_http_lifecycle.py:152`) mocks a `ValueError`, which hides it |
+| Strict mode is a production control | Corrected | Opt-in only: `_STRICT_ENV_VAR` at `http_lifecycle_command_validator.py:75` and `self._strict_confinement` at 118-121 read `LLMAGENT_STRICT_COMMAND`, which no deploy script or config sets, so production is permissive |
+| (Found) validation failure releases stderr | Contradicted | `validate` raises `HttpStartupError(RuntimeError)`, the launcher catches `ValueError` at line 85; the handle and `_stderr_files` entry leak. The existing test (`test_http_lifecycle.py:195`) mocks a `ValueError`, which hides it |
 | `scripts/agent/config_builders.py` is a target | Corrected | It only imports `_build_mcp_servers`; the builder lives in `shared/mcp_config.py`. It is a reference row |
 
 - **Launch spec**: `LaunchSpec` is a frozen dataclass in a new `scripts/agent/http_lifecycle_launch_spec.py` (agent layer; it depends on `shared.mcp_config` only, consistent with the import-layer contract). `CommandValidator` returns the resolved path and file identity; one `build_launch_spec(server_key, cfg, resolved, env, stderr)` call produces the spec. The launcher calls `Popen(spec.argv, **spec.popen_kwargs())`, where `popen_kwargs()` is the only source of keyword arguments.
@@ -181,6 +180,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 - **Credentials**: derived keys are `MCP_<KEY.upper()>_AUTH_TOKEN` and `MCP_<KEY.upper()>_CONTROL_TOKEN` (every shipped child config uses exactly these names; checked by the existing `${ENV:...}` scan). Extra variables come from `credential_env` and must name variables, not patterns.
 - **Consumer scan** (`tools/scan_change_consumers.py`, seed `scripts/shared/mcp_config.py`): 20 direct script importers, none reads `McpServerConfig.fields`; `rg "\.fields\b"` finds only the launcher. Each candidate is `not affected: field never read` except the launcher and the stderr log manager (targets). ADR citations of `tests/shared/test_mcp_config.py` cases are untouched because those cases are not edited.
 - **Predictable fallout**: `tests/agent/test_http_lifecycle_env_allowlist_integration.py` pins the removed patterns (target row); generated reference artifacts (rows 15-16); no tool inventory change; module size gate: the new module is small and the validator grows by under 60 lines.
+- **Step 2 and Step 3a revalidation (this cycle)**: all 16 rows re-checked against the current source; every row still passes the four Plan-Freeze checks, and no other Frozen Plan in `plans/` lists any of these files. Corrected evidence: `fields` at `scripts/shared/mcp_config.py:108-110` (was line 77); validator at 118-121, 51-66, 241 (was 107-109, 56-71, 240); launcher `Popen` at 106-107 (was 108); `tests/agent/test_http_lifecycle.py` at 195 and 295/299 (was 152 and 252/256); `tests/shared/test_mcp_config_validation.py` at 168-188 (was 168-186); `docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md` at 25-28 (was 23-28); `scripts/agent/http_lifecycle.py:346` (was 343). cliplc005 is implemented, so UNK-01 is resolved and the stale `Reference Files` row naming its pending procedure was removed (a `Reference Files` row is never a modification target, so implementation scope is unchanged).
 
 ## Implementation steps
 1. **Phase 1: Tests first (REQ-009)**
@@ -220,7 +220,7 @@ Validation quality baseline (Step 5): `radon cc` average complexity A or B for a
 - **Risk**: Removing wildcard token inheritance leaves a server without a variable it reads (UNK-03) → **Mitigation**: the real-child startup gate for every shipped server runs before merge; the missing name goes into that server's `credential_env`.
 - **Risk**: A residual race remains between the identity re-check and `execve` → **Mitigation**: the trusted directory must not be group- or world-writable and must be owned by the Agent user or root, so only a privileged attacker can win it; recorded in the deployment document.
 - **Risk**: `McpServerConfig` has 19 importing modules; removing a field and adding one can break an equality-based `/reload` diff → **Mitigation**: the consumer scan found no reader of `fields`; the new field participates in equality like `env` does, which is the intended restart-required behavior from cliplc005.
-- **Risk**: Landing before cliplc005 conflicts on `_build_single_server` → **Mitigation**: UNK-01 and the `Depends on` bullet; procedures are executed in cliplc005-first order.
+- **Risk**: Landing before cliplc005 conflicts on `_build_single_server` → **Mitigation**: resolved in this cycle; cliplc005's strict parser is already in the source (`_MCP_SERVER_KEYS` at `scripts/shared/mcp_config.py:37-53`, `reject_unknown_keys` at 368), so this Plan's edit extends an existing declared key set rather than racing a pending rewrite.
 - **Risk**: A secret reaches a log line → **Mitigation**: the audit records key names only, asserted by a log-capture test (AC-3).
 
 ## Execution Status
@@ -228,10 +228,10 @@ Validation quality baseline (Step 5): `radon cc` average complexity A or B for a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | Expected to fail until Phases 2-3 land |
-| 2 | Phase 2: identifier rule and configuration | Pending | — | — | Release unit R1-launch-spec |
-| 3 | Phase 3: launch spec and confinement | Pending | — | — | Release unit R1-launch-spec |
-| 4 | Phase 4: documentation and generated artifacts | Pending | — | — | Regenerate, do not hand-edit |
+| 1 | Phase 1: tests first | In Progress | — | — | Expected to fail until Phases 2-3 land Procedures generated 20261125-223712 |
+| 2 | Phase 2: identifier rule and configuration | In Progress | — | — | Release unit R1-launch-spec Procedures generated 20261125-223712 |
+| 3 | Phase 3: launch spec and confinement | In Progress | — | — | Release unit R1-launch-spec Procedures generated 20261125-223712 |
+| 4 | Phase 4: documentation and generated artifacts | In Progress | — | — | Regenerate, do not hand-edit Procedures generated 20261125-223712 |
 | 5 | Phase 5: deployment and verification | Pending | — | — | Deploy is the user's decision |
 
 ### Blocker Log
@@ -242,7 +242,22 @@ Validation quality baseline (Step 5): `radon cc` average complexity A or B for a
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261125-223712_01_scripts_shared_mcp_config.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-223712_02_scripts_agent_http_lifecycle_launch_spec.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-223712_03_scripts_agent_http_lifecycle_command_validator.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-223712_04_scripts_agent_http_lifecycle_subprocess_launcher.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-223712_05_scripts_agent_http_lifecycle_stderr_log_manager.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-223712_06_config_agent.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-223712_07_tests_shared_test_mcp_config_validation.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-223712_08_tests_agent_test_http_lifecycle_launch_spec.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-223712_09_tests_agent_test_http_lifecycle_command_validator.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-223712_10_tests_agent_test_http_lifecycle.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-223712_11_tests_agent_test_http_lifecycle_env_allowlist_integration.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-223712_12_tests_agent_test_http_lifecycle_stderr_log_manager.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-223712_13_docs_22_mcp_mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261125-223712_14_docs_90_deployment_deployment_01_deployment.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261125-223712_15_docs_23_agent_agent_13_reference-api-generated.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261125-223712_16_registry_manifests_agent_api.yaml.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -281,3 +296,5 @@ Validation quality baseline (Step 5): `radon cc` average complexity A or B for a
 | REQ-010 | Documentation Impact | docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md | 4 | AC-5 | docs gates | Explicit in issue |
 | REQ-010 | Documentation Impact (generated reference) | docs/23_agent/agent_13_reference-api-generated.md | 4 | AC-5 | generator check | Derived from confirmed evidence |
 | REQ-010 | Documentation Impact (generated manifest) | registry/manifests/agent_api.yaml | 4 | AC-5 | generator check | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261125-223712 -->
