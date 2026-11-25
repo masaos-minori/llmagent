@@ -53,6 +53,7 @@ High
 
 ## Implementation Target Files
 **Freeze status**: Frozen
+Amended 2026-11-25 (fallout): added tests/mcp_servers/github/test_service_init.py — The test pins the import-time Github() singleton (lines 31-63); the client moves to build_service(cfg) with explicit timeouts and retry=None
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -89,6 +90,7 @@ table — no other file may be treated as a modification target.
 | docs/22_mcp/mcp_04_01_web-search-file-read-github.md | Modify: GitHub write outcomes, timeouts, audit layers | Documentation Impact | REQ-010; AC-6 | Audit and config text at lines 93-114 (checked in Step 3) | docs gates | Verified |
 | docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md | Modify: GitHub writes are fail-closed on store failure and non-retryable | Documentation Impact | REQ-010; AC-6 | Mentions GitHub writes and audit (checked in Step 3) | docs gates | Verified |
 | docs/22_mcp/mcp_06_01_configuration-file-inventory.md | Modify: the two new GitHub config keys | Documentation Impact | REQ-010; AC-6 | Lists GitHub config keys such as `max_file_read_size_kb` (checked in Step 3) | docs gates | Verified |
+| `tests/mcp_servers/github/test_service_init.py` | Modify: characterization of the client built at import now covers the config-built client with timeouts and no retry | The test pins the import-time Github() singleton (lines 31-63); the client moves to build_service(cfg) with explicit timeouts and retry=None | REQ-002 / AC-2 | test_service_init.py asserts reloaded._gh is Github() with auth None or Auth.Token at lines 31-63 (checked in Step 3a) | itself | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) for the full validation procedure):
@@ -182,6 +184,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | docs/22_mcp/mcp_04_01_web-search-file-read-github.md | Modify | Low | N/A | N/A | None |
 | docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md | Modify | Low | N/A | N/A | None |
 | docs/22_mcp/mcp_06_01_configuration-file-inventory.md | Modify | Low | N/A | N/A | None |
+| `tests/mcp_servers/github/test_service_init.py` | Modify | Not assessed (amendment 2026-11-25) | N/A | N/A | Not assessed (amendment 2026-11-25) |
 
 ## Design
 - **Issue Verification** (re-checked against current source and the installed library; Step 2):
@@ -207,6 +210,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 ## Implementation steps
 1. **Phase 1: Tests first (REQ-009)**
    - [ ] Write the classification, store-failure, audit-failure, timeout, no-retry, and client-construction tests, expecting failure (REQ-009; tests/mcp_servers/github/test_github_write_outcomes.py, tests/shared/test_write_outcome.py, tests/shared/test_tool_constants.py, tests/mcp_servers/github/test_github_tool_registry.py, tests/mcp_servers/github/test_github_config_strict_parsing.py, tests/mcp_servers/github/test_github_exception_handlers.py, tests/mcp_servers/github/test_github_mcp_service.py, tests/mcp_servers/github/test_service_dispatch.py)
+   - [ ] Modify: characterization of the client built at import now covers the config-built client with timeouts and no retry (REQ-002; `tests/mcp_servers/github/test_service_init.py`) — amendment 2026-11-25
 2. **Phase 2: Classification (REQ-001)**
    - [ ] Declare `never` for the nine writes and shrink the reference set (REQ-001; scripts/mcp_servers/github/tools_file.py, scripts/mcp_servers/github/tools_issues.py, scripts/mcp_servers/github/tools_pull_requests.py, scripts/mcp_servers/github/tools_repository.py, scripts/shared/tool_constants.py)
 3. **Phase 3: Client, outcomes, and audit (REQ-002 to REQ-008)**
@@ -248,10 +252,10 @@ Validation quality baseline (Step 5): `radon cc` average complexity is A for eve
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first | Pending | — | — | Expected to fail until Phases 2-3 land |
-| 2 | Phase 2: classification | Pending | — | — | Release unit R1-github-write-safety |
-| 3 | Phase 3: client, outcomes, and audit | Pending | — | — | Release unit R1-github-write-safety |
-| 4 | Phase 4: documentation | Pending | — | — | |
+| 1 | Phase 1: tests first | In Progress | — | — | Expected to fail until Phases 2-3 land |
+| 2 | Phase 2: classification | In Progress | — | — | Release unit R1-github-write-safety |
+| 3 | Phase 3: client, outcomes, and audit | In Progress | — | — | Release unit R1-github-write-safety |
+| 4 | Phase 4: documentation | In Progress | — | — |  |
 | 5 | Phase 5: deployment and verification | Pending | — | — | Deploy is the user's decision |
 
 ### Blocker Log
@@ -262,7 +266,31 @@ Validation quality baseline (Step 5): `radon cc` average complexity is A for eve
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261125-125134_01_scripts_shared_write_outcome.py.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261125-125134_02_scripts_shared_tool_constants.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261125-125134_03_scripts_mcp_servers_github_tools_file.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-125134_04_scripts_mcp_servers_github_tools_issues.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-125134_05_scripts_mcp_servers_github_tools_pull_requests.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-125134_06_scripts_mcp_servers_github_tools_repository.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261125-125134_07_scripts_mcp_servers_github_github_models_config.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-125134_08_scripts_mcp_servers_github_github_service_init.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-125134_09_scripts_mcp_servers_github_github_service_security.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-125134_10_scripts_mcp_servers_github_github_service_dispatch_writes.py.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261125-125134_11_scripts_mcp_servers_github_github_service_file.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-125134_12_scripts_mcp_servers_github_github_service_issues.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-125134_13_scripts_mcp_servers_github_github_service_pull_requests.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-125134_14_scripts_mcp_servers_github_github_service_repository.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-125134_15_scripts_mcp_servers_github_github_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-125134_16_scripts_mcp_servers_github_exception_handlers.py.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261125-125134_17_config_github_mcp_server.toml.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-125134_20_tests_mcp_servers_github_test_github_tool_registry.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-125134_21_tests_mcp_servers_github_test_github_write_outcomes.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-125134_22_tests_mcp_servers_github_test_github_config_strict_parsing.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-125134_24_tests_mcp_servers_github_test_github_mcp_service.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261125-125134_26_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261125-125134_27_docs_22_mcp_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261125-125134_28_docs_22_mcp_mcp_06_01_configuration-file-inventory.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261125-125134_29_tests_mcp_servers_github_test_service_init.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -271,7 +299,7 @@ Validation quality baseline (Step 5): `radon cc` average complexity is A for eve
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261125-124502
-- **Related target files**: scripts/shared/write_outcome.py, scripts/shared/tool_constants.py, scripts/mcp_servers/github/tools_file.py, scripts/mcp_servers/github/tools_issues.py, scripts/mcp_servers/github/tools_pull_requests.py, scripts/mcp_servers/github/tools_repository.py, scripts/mcp_servers/github/github_models_config.py, scripts/mcp_servers/github/github_service_init.py, scripts/mcp_servers/github/github_service_security.py, scripts/mcp_servers/github/github_service_dispatch_writes.py, scripts/mcp_servers/github/github_service_file.py, scripts/mcp_servers/github/github_service_issues.py, scripts/mcp_servers/github/github_service_pull_requests.py, scripts/mcp_servers/github/github_service_repository.py, scripts/mcp_servers/github/github_server.py, scripts/mcp_servers/github/exception_handlers.py, config/github_mcp_server.toml, tests/shared/test_write_outcome.py, tests/shared/test_tool_constants.py, tests/mcp_servers/github/test_github_tool_registry.py, tests/mcp_servers/github/test_github_write_outcomes.py, tests/mcp_servers/github/test_github_config_strict_parsing.py, tests/mcp_servers/github/test_github_exception_handlers.py, tests/mcp_servers/github/test_github_mcp_service.py, tests/mcp_servers/github/test_service_dispatch.py, docs/22_mcp/mcp_04_01_web-search-file-read-github.md, docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md, docs/22_mcp/mcp_06_01_configuration-file-inventory.md
+- **Related target files**: scripts/shared/write_outcome.py, scripts/shared/tool_constants.py, scripts/mcp_servers/github/tools_file.py, scripts/mcp_servers/github/tools_issues.py, scripts/mcp_servers/github/tools_pull_requests.py, scripts/mcp_servers/github/tools_repository.py, scripts/mcp_servers/github/github_models_config.py, scripts/mcp_servers/github/github_service_init.py, scripts/mcp_servers/github/github_service_security.py, scripts/mcp_servers/github/github_service_dispatch_writes.py, scripts/mcp_servers/github/github_service_file.py, scripts/mcp_servers/github/github_service_issues.py, scripts/mcp_servers/github/github_service_pull_requests.py, scripts/mcp_servers/github/github_service_repository.py, scripts/mcp_servers/github/github_server.py, scripts/mcp_servers/github/exception_handlers.py, config/github_mcp_server.toml, tests/shared/test_write_outcome.py, tests/shared/test_tool_constants.py, tests/mcp_servers/github/test_github_tool_registry.py, tests/mcp_servers/github/test_github_write_outcomes.py, tests/mcp_servers/github/test_github_config_strict_parsing.py, tests/mcp_servers/github/test_github_exception_handlers.py, tests/mcp_servers/github/test_github_mcp_service.py, tests/mcp_servers/github/test_service_dispatch.py, docs/22_mcp/mcp_04_01_web-search-file-read-github.md, docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md, docs/22_mcp/mcp_06_01_configuration-file-inventory.md, tests/mcp_servers/github/test_service_init.py
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -308,3 +336,6 @@ Validation quality baseline (Step 5): `radon cc` average complexity is A for eve
 | REQ-010 | Documentation Impact | docs/22_mcp/mcp_04_01_web-search-file-read-github.md | 4 | AC-6 | docs gates | Explicit in issue |
 | REQ-010 | Documentation Impact | docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md | 4 | AC-6 | docs gates | Explicit in issue |
 | REQ-010 | Documentation Impact (configuration keys) | docs/22_mcp/mcp_06_01_configuration-file-inventory.md | 4 | AC-6 | docs gates | Derived from confirmed evidence |
+| REQ-002 | Amendment 2026-11-25: The test pins the import-time Github() singleton (lines 31-63); the client moves to build_service(cfg) with explicit timeouts and retry=None | tests/mcp_servers/github/test_service_init.py | Phase 1 | AC-2 | itself | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261125-125134 -->
