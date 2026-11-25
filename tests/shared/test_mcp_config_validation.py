@@ -1,7 +1,12 @@
 """Tests for McpServerConfig value validation constraints."""
 
 import pytest
-from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_config import (
+    McpServerConfig,
+    StartupMode,
+    TransportType,
+    _build_mcp_servers,
+)
 
 
 def _http_cfg(**kwargs):
@@ -261,3 +266,103 @@ def test_health_timeout_positive_returns_value():
 
     cfg = _http_cfg(health_timeout=15.0)
     assert get_effective_health_timeout(cfg) == 15.0
+
+
+# --- cliplc006: server-identifier rule, `fields` removal, `credential_env` ---
+
+# Invalid key forms from AC-4: traversal, separators, uppercase, whitespace,
+# control characters, and the 64-character length boundary.
+_INVALID_KEYS = [
+    "..",
+    "a/b",
+    "a.b",
+    "A",
+    "a b",
+    "a\n",
+    "a" * 65,
+    "a\x01",
+]
+
+_VALID_KEYS = ["a", "a0", "a_b", "a-b", "a" * 64]
+
+
+def _server_dict(**overrides):
+    """Minimal TOML-shaped `[mcp_servers.<key>]` section for parser cases."""
+    v = {
+        "transport": "http",
+        "url": "http://localhost:8080",
+        "startup_mode": "persistent",
+        "auth_token": "test-token",
+    }
+    v.update(overrides)
+    return v
+
+
+@pytest.mark.parametrize("bad_key", _INVALID_KEYS)
+def test_invalid_server_key_rejected_by_dataclass(bad_key):
+    with pytest.raises(ValueError, match="server identifier"):
+        _http_cfg(key=bad_key)
+
+
+@pytest.mark.parametrize("bad_key", _INVALID_KEYS)
+def test_invalid_server_key_rejected_by_parser(bad_key):
+    with pytest.raises(ValueError, match="server identifier"):
+        _build_mcp_servers({"mcp_servers": {bad_key: _server_dict()}})
+
+
+@pytest.mark.parametrize("good_key", _VALID_KEYS)
+def test_valid_server_key_accepted_at_both_points(good_key):
+    assert _http_cfg(key=good_key).key == good_key
+    built = _build_mcp_servers({"mcp_servers": {good_key: _server_dict()}})
+    assert built[good_key].key == good_key
+
+
+def test_default_empty_key_still_valid():
+    assert _http_cfg(key="").key == ""
+
+
+def test_config_fields_kwarg_rejected():
+    with pytest.raises(TypeError):
+        McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://localhost:8080",
+            fields={"cwd": "/tmp/opencode"},
+        )
+
+
+def test_credential_env_parses_to_tuple():
+    built = _build_mcp_servers(
+        {"mcp_servers": {"github": _server_dict(credential_env=["GITHUB_TOKEN"])}}
+    )
+    assert built["github"].credential_env == ("GITHUB_TOKEN",)
+
+
+def test_credential_env_default_is_empty_tuple():
+    built = _build_mcp_servers({"mcp_servers": {"git": _server_dict()}})
+    assert built["git"].credential_env == ()
+
+
+def test_credential_env_non_list_rejected():
+    with pytest.raises(ValueError, match="credential_env.*must be list"):
+        _build_mcp_servers(
+            {"mcp_servers": {"git": _server_dict(credential_env="GITHUB_TOKEN")}}
+        )
+
+
+def test_credential_env_non_string_item_rejected():
+    with pytest.raises(ValueError, match=r"credential_env\[0\]"):
+        _build_mcp_servers({"mcp_servers": {"git": _server_dict(credential_env=[7])}})
+
+
+def test_credential_env_wildcard_rejected():
+    with pytest.raises(ValueError, match="credential_env.*not patterns"):
+        _build_mcp_servers(
+            {"mcp_servers": {"git": _server_dict(credential_env=["GITHUB_*"])}}
+        )
+
+
+def test_credential_env_denylisted_name_rejected():
+    with pytest.raises(ValueError, match="credential_env.*denylisted"):
+        _build_mcp_servers(
+            {"mcp_servers": {"git": _server_dict(credential_env=["LD_PRELOAD"])}}
+        )

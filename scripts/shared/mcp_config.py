@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import fnmatch
 import logging
+import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -31,15 +32,37 @@ logger = logging.getLogger(__name__)
 
 _ENV_KEY_DENYLIST: tuple[str, ...] = ("LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH")
 
+# REQ-005: the only server-identifier shape that may become a path component or terminal text.
+_SERVER_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+# A credential_env entry is a variable name, never a pattern (REQ-006).
+_CREDENTIAL_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def validate_server_key(key: str, *, context: str) -> str:
+    """Return a server identifier unchanged, or reject it before it reaches a path.
+
+    `context` names the section and field in the raised message. An empty key is allowed:
+    it is the dataclass default for instances built without a config section.
+    """
+    if key == "":
+        return key
+    if not _SERVER_KEY_RE.fullmatch(key):
+        raise ValueError(
+            f"{context} is not a valid server identifier: {key!r} must match "
+            "^[a-z0-9][a-z0-9_-]{0,63}$"
+        )
+    return key
+
+
 # Declared key set of one [mcp_servers.<key>] table. A key outside this set is rejected by name
-# instead of being dropped in silence; `fields` is a McpServerConfig attribute the parser does not
-# read, so it is not a configurable key.
+# instead of being dropped in silence.
 _MCP_SERVER_KEYS: tuple[str, ...] = (
     "transport",
     "url",
     "startup_mode",
     "cmd",
     "env",
+    "credential_env",
     "call_timeout_sec",
     "health_timeout",
     "startup_timeout_sec",
@@ -105,9 +128,9 @@ class McpServerConfig:
         default_factory=list
     )  # launch command for startup_mode=subprocess
     env: dict[str, str] = field(default_factory=dict)  # extra env vars for subprocess
-    fields: dict[str, Any] = field(
-        default_factory=dict
-    )  # additional kwargs for subprocess.Popen()
+    credential_env: tuple[str, ...] = field(
+        default_factory=tuple
+    )  # credential variable names this server's child receives (REQ-007)
     key: str = field(
         default="", compare=False, repr=False
     )  # server key from config; compare=False keeps equality unaffected
@@ -153,10 +176,15 @@ class McpServerConfig:
         ):
             raise ValueError(f"{self.startup_mode!r} is not a valid StartupMode")
 
+    def _validate_key(self) -> None:
+        """Reject a server identifier that could become a path component (REQ-005)."""
+        validate_server_key(self.key, context="McpServerConfig.key")
+
     def _validate_cross_fields(self) -> None:
         """Validate cross-field constraints such as required URLs and timeouts."""
         key_prefix = f"McpServerConfig[{self.key!r}]" if self.key else "McpServerConfig"
 
+        self._validate_key()
         self._validate_startup_requirements(key_prefix)
         self._validate_timeouts(key_prefix)
         self._validate_auth_token(key_prefix)
@@ -278,7 +306,13 @@ def _build_mcp_servers(cfg: dict[str, Any]) -> dict[str, McpServerConfig]:
             "mcp_servers config section is missing or empty. "
             "Add [mcp_servers.<key>] to the server's config/*_mcp_server.toml."
         )
-    return {key: _build_single_server(key, v) for key, v in raw.items()}
+    servers: dict[str, McpServerConfig] = {}
+    for key, value in raw.items():
+        # Defensive second enforcement: a section name is the identifier the log
+        # directory and the derived token names are built from (REQ-005).
+        validate_server_key(key, context=f"mcp_servers.{key} section name")
+        servers[key] = _build_single_server(key, value)
+    return servers
 
 
 _ABSENT = object()
@@ -290,6 +324,37 @@ def _read_str(v: dict[str, Any], name: str, section: str, *, default: str = "") 
     if raw is _ABSENT:
         return default
     return strict_str(raw, f"{section}.{name}", allow_empty=True)
+
+
+def _read_credential_env(v: dict[str, Any], section: str) -> tuple[str, ...]:
+    """Read `credential_env`; an absent key takes the empty-tuple default (REQ-006/007).
+
+    Entries are variable names: a glob metacharacter, whitespace, `=`, or a denylisted
+    name is rejected, so the list can never widen a child environment by pattern.
+    """
+    raw = v.get("credential_env", _ABSENT)
+    if raw is _ABSENT:
+        return ()
+    if isinstance(raw, tuple):
+        # `agent_config_payload` renders the dataclass value back into a reload payload,
+        # so the roundtrip must accept what startup produced. TOML and JSON input is a
+        # list; every other type is rejected by the strict primitive below.
+        raw = list(raw)
+    names = strict_str_list(raw, f"{section}.credential_env", allow_empty=True)
+    field_path = f"{section}.credential_env"
+    for index, name in enumerate(names):
+        item_path = f"{field_path}[{index}]"
+        if not _CREDENTIAL_NAME_RE.match(name):
+            raise ValueError(
+                f"config key {item_path!r} is invalid: credential_env entries are "
+                "variable names, not patterns, and may not contain whitespace or '='"
+            )
+        if name in _ENV_KEY_DENYLIST:
+            raise ValueError(
+                f"config key {item_path!r} is denylisted: {name!r} is a "
+                "loader/interpreter variable and cannot be granted to a subprocess"
+            )
+    return tuple(names)
 
 
 def _read_bool(v: dict[str, Any], name: str, section: str, *, default: bool) -> bool:
@@ -402,6 +467,7 @@ def _build_single_server(key: str, v: dict[str, Any]) -> McpServerConfig:
         role=_read_str(v, "role", section),
         cmd=cmd,
         env=env,
+        credential_env=_read_credential_env(v, section),
         key=key,
         required=_read_bool(v, "required", section, default=True),
     )

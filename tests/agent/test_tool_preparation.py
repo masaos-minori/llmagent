@@ -59,7 +59,7 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "tool_results_turn_max_chars": 0,
         "memory_embed_url": "http://127.0.0.1:9999",
         "mcp_servers": {
-            "_dummy": {
+            "dummy": {
                 "transport": "http",
                 "url": "http://127.0.0.1:9999",
                 "auth_token": "test-token",

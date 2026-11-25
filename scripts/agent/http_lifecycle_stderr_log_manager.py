@@ -13,6 +13,10 @@ import os
 import tempfile
 from typing import IO
 
+from shared.mcp_config import validate_server_key
+
+from agent.http_lifecycle_errors import HttpStartupError, StartupFailure
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_STDERR_TAIL_BYTES: int = 64 * 1024
@@ -40,17 +44,32 @@ class StderrLogManager:
             Open file handle in append mode.
 
         Raises:
-            HttpStartupError: If the log directory cannot be created or opened.
+            HttpStartupError: If the server key is not a valid identifier, or the log
+                directory cannot be created or opened.
         """
-        # Determine log directory and filename based on server_key
+        # REQ-005 (AC-4): the key becomes a path component below, so an invalid one is
+        # rejected before any directory or file is touched.
+        try:
+            validate_server_key(
+                server_key,
+                context=f"stderr log path for server key {server_key}",
+            )
+        except ValueError as e:
+            raise HttpStartupError(
+                StartupFailure(
+                    server_key=server_key,
+                    reason=str(e),
+                    stderr_full="",
+                )
+            ) from e
+
+        # Determine log directory and filename based on the validated server_key
         log_dir = f"{tempfile.gettempdir()}/mcp_server_logs/{server_key}"
         log_file_path = f"{log_dir}/stderr.log"
 
         try:
             os.makedirs(log_dir, mode=0o700, exist_ok=True)
         except OSError as e:
-            from agent.http_lifecycle_errors import HttpStartupError, StartupFailure
-
             raise HttpStartupError(
                 StartupFailure(
                     server_key=server_key,

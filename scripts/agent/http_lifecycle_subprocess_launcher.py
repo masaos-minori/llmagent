@@ -1,8 +1,8 @@
 """scripts/agent/http_lifecycle_subprocess_launcher.py — Spawn and validate the HTTP MCP subprocess that the lifecycle manager tracks.
 
 Subprocess startup cluster extracted from HttpServerLifecycleManager: command
-validation, stderr-log wiring, `Popen` construction with the config's popen
-fields, process-group id capture, and the failure paths that release resources
+validation, stderr-log wiring, `Popen` construction from the immutable launch
+specification, process-group id capture, and the failure paths that release resources
 before a startup error is raised.
 
 `HttpServerLifecycleManager` keeps ownership of the tracking dicts and of the
@@ -15,12 +15,13 @@ from __future__ import annotations
 import logging
 import os
 import subprocess  # nosec B404 — used to launch admin-controlled MCP server processes
-from typing import IO, Any, NoReturn, cast
+from typing import IO, NoReturn, cast
 
 from shared.mcp_config import McpServerConfig
 
 from .http_lifecycle_command_validator import CommandValidator
 from .http_lifecycle_errors import HttpStartupError, StartupFailure
+from .http_lifecycle_launch_spec import build_launch_spec
 from .http_lifecycle_process_terminator import ProcessTerminator
 from .http_lifecycle_stderr_log_manager import StderrLogManager
 
@@ -57,16 +58,17 @@ class SubprocessLauncher:
     ) -> tuple[subprocess.Popen[bytes], IO[bytes]]:
         """Create and validate subprocess for the given server configuration.
 
-        Validates the command, filters environment variables, creates the subprocess,
-        and handles getpgid failure with resource cleanup.
+        Validates the command, builds the immutable launch specification from the
+        validated path and file identity, re-checks that identity, spawns from the
+        specification only, and handles getpgid failure with resource cleanup.
 
         Returns:
             A tuple of (proc, stderr_fh) on success.
 
         Raises:
-            HttpStartupError: If command validation fails or getpgid fails.
+            HttpStartupError: If command validation fails, the launch target changed
+                between validation and spawn, or getpgid fails.
         """
-        env = self._command_validator.filter_env(cfg.env)
         stderr_fh = self._stderr_log_manager.open_log(server_key, cfg)
         self._stderr_files[server_key] = stderr_fh
         if not cfg.cmd or not cfg.cmd[0]:
@@ -79,32 +81,44 @@ class SubprocessLauncher:
                 )
             )
 
-        # Validate command using CommandValidator
+        # Validate command using CommandValidator, then build the one specification the
+        # spawn may use: argv, environment, and stderr come from it and nothing else.
         try:
-            self._command_validator.validate(server_key, cfg.cmd[0])
-        except ValueError as e:
+            resolved_path, identity = self._command_validator.validate(
+                server_key, cfg.cmd[0]
+            )
+            spec = build_launch_spec(
+                server_key, cfg, resolved_path, identity, stderr_fh
+            )
+        except (ValueError, HttpStartupError) as e:
             self.close_stderr_log(server_key, stderr_fh)
+            # An HttpStartupError already carries the server key in its message, so its
+            # own reason is reused instead of wrapping the whole message in a new one.
+            reason = e.failure.reason if isinstance(e, HttpStartupError) else str(e)
             raise HttpStartupError(
                 StartupFailure(
                     server_key=server_key,
-                    reason=str(e),
+                    reason=reason,
                     stderr_full="",
                 )
             ) from e
 
         try:
-            popen_kwargs: dict[str, Any] = {
-                "stdout": subprocess.DEVNULL,
-                "stderr": stderr_fh,
-                "env": env,
-                "start_new_session": True,
-            }
-            if cfg.fields:
-                popen_kwargs.update(cfg.fields)
+            # REQ-003 (AC-1): the file behind the validated path must still be the same
+            # file, whatever happened to PATH or a symlink in the meantime.
+            identity_mismatch = spec.verify_identity()
+            if identity_mismatch is not None:
+                raise HttpStartupError(
+                    StartupFailure(
+                        server_key=server_key,
+                        reason=identity_mismatch,
+                        stderr_full="",
+                    )
+                )
             proc = cast(
                 subprocess.Popen[bytes],
-                subprocess.Popen(  # nosec B603  # noqa: S603  # — cmd comes from admin-controlled config, not user input
-                    cfg.cmd, **popen_kwargs
+                subprocess.Popen(  # nosec B603  # noqa: S603  # — argv[0] is the validator-resolved absolute path, not a config string
+                    spec.argv, **spec.popen_kwargs()
                 ),
             )
         except Exception:

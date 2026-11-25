@@ -6,6 +6,7 @@ from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 import pytest
+from agent.http_lifecycle_errors import HttpStartupError
 from agent.http_lifecycle_stderr_log_manager import (
     _DEFAULT_STDERR_TAIL_BYTES,
     StderrLogManager,
@@ -214,3 +215,51 @@ class TestClear:
         mgr.forget("server1")
         mgr.clear()
         assert mgr.rotate_log("server1", 1024) is False
+
+
+class TestOpenLogServerKeyValidity:
+    """REQ-005 (AC-4): open_log rejects an invalid server key before touching the filesystem."""
+
+    # The same invalid forms as tests/shared/test_mcp_config_validation.py: traversal,
+    # separators, uppercase, whitespace, control characters, and the 65-character boundary.
+    _INVALID_KEYS = [
+        "..",
+        "a/b",
+        "a.b",
+        "A",
+        "a b",
+        "a\n",
+        "a\x00",
+        "a\x01",
+        "a" * 65,
+    ]
+
+    def _tmp_root(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        return tmp_path
+
+    @pytest.mark.parametrize("bad_key", _INVALID_KEYS)
+    def test_invalid_key_rejected_before_any_path_use(
+        self, monkeypatch, tmp_path, bad_key
+    ):
+        root = self._tmp_root(monkeypatch, tmp_path)
+        mgr = StderrLogManager()
+
+        with pytest.raises(HttpStartupError):
+            mgr.open_log(bad_key, MagicMock())
+
+        assert not (root / "mcp_server_logs").exists()
+        assert sorted(path.name for path in root.iterdir()) == []
+        assert mgr.get_log_path(bad_key) is None
+
+    def test_valid_key_log_path_is_the_validated_key(self, monkeypatch, tmp_path):
+        root = self._tmp_root(monkeypatch, tmp_path)
+        mgr = StderrLogManager()
+
+        handle = mgr.open_log("github", MagicMock())
+        try:
+            expected = str(root / "mcp_server_logs" / "github" / "stderr.log")
+            assert mgr.get_log_path("github") == expected
+            assert os.path.isfile(expected)
+        finally:
+            handle.close()

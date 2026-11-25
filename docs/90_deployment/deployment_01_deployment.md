@@ -188,6 +188,7 @@ bash deploy/start_agent.sh
 > - Web Search: DuckDuckGo — No API key required. DuckDuckGo is the only search provider the server implements; `BRAVE_API_KEY` and `BING_API_KEY` in `conf.d/web-search-mcp` are not referenced by any code under `scripts/`
 > - GitHub Operations: Export `GITHUB_TOKEN` in shell or source `conf.d/github-mcp` before startup
 > - CI/CD: `conf.d/cicd-mcp` holds `GITHUB_TOKEN` for `cicd-mcp`
+> - `GITHUB_TOKEN` reaches a subprocess server only when that server's `[mcp_servers.*]` table declares `credential_env = ["GITHUB_TOKEN"]`. The shipped configuration declares it for `github` and `cicd`; no other server's child process receives it. (Explicit in code — `scripts/agent/http_lifecycle_launch_spec.py`)
 >
 > `conf.d/` contains environment files only for the `cicd-mcp`, `git-mcp`, `github-mcp` and `web-search-mcp` servers; `git-mcp` defines no variables there (comments only). `deploy/deploy.sh` does not copy `conf.d/`. The MCP authentication tokens (`MCP_<SERVER_KEY>_AUTH_TOKEN`) are not part of `conf.d/`; they are set as environment variables (see Section 2.5). (Explicit in code — `conf.d/`)
 
@@ -199,7 +200,7 @@ MCP servers automatically start as uvicorn subprocesses according to the `startu
 
 ### 2.5 MCP Authentication Tokens
 
-Every enabled `[mcp_servers.*]` entry in `config/agent.toml` holds an `"${ENV:VAR_NAME}"` reference as its `auth_token` rather than a literal secret. Set the corresponding `MCP_<SERVER_KEY_UPPER>_AUTH_TOKEN` environment variable (for example `MCP_SHELL_AUTH_TOKEN`, `MCP_GIT_AUTH_TOKEN`) for every server before starting the agent; an unset variable raises `ValueError` at config-load time (fail-closed). `git_mcp_server.toml` and `cicd_mcp_server.toml` use the same variable value as the corresponding `agent.toml` entry (shared secret between client and server); `web_search_mcp_server.toml` shares `MCP_WEB_SEARCH_AUTH_TOKEN` with its `agent.toml` entry in the same way. Changes to authentication, MCP server definitions, or bind addresses take effect only after a full agent restart (not `/reload`). (Explicit in code — `config/agent.toml`, `scripts/shared/config_utils.py`) For setup and troubleshooting, see [`mcp_06_14_mcp-authentication-setup.md`](../22_mcp/mcp_06_14_mcp-authentication-setup.md).
+Every enabled `[mcp_servers.*]` entry in `config/agent.toml` holds an `"${ENV:VAR_NAME}"` reference as its `auth_token` rather than a literal secret. Set the corresponding `MCP_<SERVER_KEY_UPPER>_AUTH_TOKEN` environment variable (for example `MCP_SHELL_AUTH_TOKEN`, `MCP_GIT_AUTH_TOKEN`) for every server before starting the agent; an unset variable raises `ValueError` at config-load time (fail-closed). `git_mcp_server.toml` and `cicd_mcp_server.toml` use the same variable value as the corresponding `agent.toml` entry (shared secret between client and server); `web_search_mcp_server.toml` shares `MCP_WEB_SEARCH_AUTH_TOKEN` with its `agent.toml` entry in the same way. Changes to authentication, MCP server definitions, or bind addresses take effect only after a full agent restart (not `/reload`). Each subprocess server receives only its own `MCP_<SERVER_KEY_UPPER>_AUTH_TOKEN` and `MCP_<SERVER_KEY_UPPER>_CONTROL_TOKEN`, derived from its section name; another server's tokens are absent from its environment. (Explicit in code — `config/agent.toml`, `scripts/shared/config_utils.py`, `scripts/agent/http_lifecycle_launch_spec.py`) For setup and troubleshooting, see [`mcp_06_14_mcp-authentication-setup.md`](../22_mcp/mcp_06_14_mcp-authentication-setup.md).
 
 ### 2.5.1 Loading MCP tokens from a .env file
 
@@ -237,7 +238,7 @@ The agent and its MCP servers are distributed as Nuitka `--onefile` binaries rat
 
 Layout on the deployed host:
 
-- `/opt/llm/bin/` holds the 11 binaries (`agent` plus one `mcp_<server>` per MCP server). It must not be group/world-writable; the CommandValidator rejects binaries located under a writable directory.
+- `/opt/llm/bin/` holds the 11 binaries (`agent` plus one `mcp_<server>` per MCP server). Command confinement is on by default: the directory and every `mcp_<server>` binary must be owned by the user running the agent or by root, and neither may be group- or world-writable. A binary that fails these checks aborts startup with a `StartupFailure` naming the server and the path. (Explicit in code — `scripts/agent/http_lifecycle_command_validator.py`)
 - `/opt/llm/dict/system.dic` is the external Sudachi dictionary (built by `deploy/build_binaries.sh`, placed by `deploy/deploy.sh`).
 - `config/` stays external (copied by `deploy/deploy.sh`).
 - `/opt/llm/docs/` holds a copy of the repository `docs/` tree (created and synced with `rsync --delete` by `deploy/deploy.sh`). It is the directory `config/mdq_mcp_server.toml` lists in `allowed_dirs`; without it mdq-mcp has nothing to serve and withholds all its tools.
@@ -248,6 +249,11 @@ Layout on the deployed host:
 - `LLMAGENT_SUDACHI_DICT=/opt/llm/dict/system.dic`
 
 A missing config directory or dictionary fails startup with an explicit error naming the path.
+
+`LLMAGENT_COMMAND_MODE` is not set by any deploy script. Setting it to exactly `permissive` restores
+the basename allowlist for development only; any other value keeps the strict default described
+above, and setting it in production disables that control. (Explicit in code —
+`scripts/agent/http_lifecycle_command_validator.py`)
 
 **Missing binary pre-flight.** `deploy/start_agent.sh` verifies `/opt/llm/bin/agent` exists and is executable before launch; a missing or non-executable binary aborts startup with an actionable rebuild/redeploy message (`deploy/build_binaries.sh` to rebuild from current source, then `deploy/deploy.sh` to deploy) instead of a bare bash ENOENT. Because the binary gate runs before the revision record is written, `/opt/llm/DEPLOYED_REV` records only a successful, binary-gated deploy.
 

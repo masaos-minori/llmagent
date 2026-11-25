@@ -58,7 +58,7 @@ def _make_cfg(**overrides: Any) -> AgentConfig:
             # build_agent_config() resolves the typed DB configuration from the mapping, so the fixture supplies the mirrored path keys.
             **SHIPPED_DB_PATH_KEYS,
             "mcp_servers": {
-                "_dummy": {
+                "dummy": {
                     "transport": "http",
                     "url": "http://127.0.0.1:9999",
                     "auth_token": "test-token",

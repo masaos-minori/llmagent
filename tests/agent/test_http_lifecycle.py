@@ -16,6 +16,7 @@ import agent.http_lifecycle_subprocess_launcher as launcher_module
 import httpx
 import pytest
 from agent.http_lifecycle import HttpServerLifecycleManager
+from agent.http_lifecycle_command_validator import CommandValidator
 from agent.http_lifecycle_errors import HttpStartupError, TerminationOutcome
 from agent.shutdown_budget import ShutdownBudget
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
@@ -32,6 +33,18 @@ def _make_cfg(**overrides: object) -> McpServerConfig:
     )
     defaults.update(overrides)  # type: ignore[arg-type] — test helper merges arbitrary override kwargs into a typed dict; mypy cannot narrow the value types
     return McpServerConfig(**defaults)  # type: ignore[arg-type] — test helper merges arbitrary override kwargs into a typed dict; mypy cannot narrow the value types
+
+
+@pytest.fixture(autouse=True)
+def _permissive_spawn_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Opt into the documented permissive mode for these spawn-behavior tests.
+
+    Strict confinement is the production default (cliplc006 REQ-004), and these cases
+    characterize process-group, cleanup, and shutdown behavior through a fixture binary
+    that lives on PATH rather than in the trusted directory. Confinement itself is
+    covered in tests/agent/test_http_lifecycle_command_validator.py.
+    """
+    monkeypatch.setenv("LLMAGENT_COMMAND_MODE", "permissive")
 
 
 @pytest.fixture
@@ -190,6 +203,31 @@ class TestStartupFailureCleanupCharacterization:
     async def test_command_validation_failure_closes_stderr_and_raises(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
+        """A rejection by the real validator releases the handle (REQ-008).
+
+        The validator is not mocked: HttpStartupError is what the production path
+        actually raises, and it is a RuntimeError, not a ValueError.
+        """
+        cfg = _make_cfg(cmd=["nonexistent_cmd_xyz_12345", "/fake/server.js"])
+        stderr_fh = MagicMock()
+
+        with (
+            patch.object(mgr._stderr_log_manager, "open_log", return_value=stderr_fh),
+            patch.object(mgr, "_command_validator", CommandValidator()),
+            patch.object(subprocess, "Popen") as mock_popen,
+        ):
+            with pytest.raises(HttpStartupError, match="not found in PATH"):
+                await mgr.start("test", cfg)
+
+        stderr_fh.close.assert_called_once()
+        assert "test" not in mgr._stderr_files
+        mock_popen.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_validator_value_error_still_releases_stderr_handle(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """The other raise shape stays covered: a ValueError is converted and cleaned."""
         cfg = _make_cfg()
         stderr_fh = MagicMock()
         validate = MagicMock(side_effect=ValueError("command not allowed"))
@@ -292,28 +330,79 @@ class TestSubprocessSpawnCharacterization:
         assert "test" not in mgr._http_pgids
 
     @pytest.mark.asyncio
-    async def test_cfg_fields_reach_popen_kwargs(
-        self, mgr: HttpServerLifecycleManager
+    async def test_popen_options_cannot_be_overridden(
+        self, mgr: HttpServerLifecycleManager, tmp_path
     ) -> None:
-        """cfg.fields are merged into the Popen kwargs on top of the manager defaults."""
-        cfg = _make_cfg(startup_timeout_sec=0, fields={"cwd": "/tmp/opencode"})
+        """REQ-002 (AC-2) and REQ-003 (AC-1): no config value reaches the Popen
+        kwargs, and argv[0] is the path the validator returned."""
+        exe = tmp_path / "mcp_node"
+        exe.write_text("#!/bin/sh\nexit 0\n")
+        exe.chmod(0o755)
+        st = os.stat(exe)
+        cfg = _make_cfg(
+            startup_timeout_sec=0,
+            cmd=["node", "/fake/server.js"],
+            env={"HOME": "/tmp/evil-home"},
+            credential_env=("GITHUB_TOKEN",),
+        )
+        # The config parser rejects a denylisted `env` key (row 1); injecting it here is
+        # the defense-in-depth case where such a value still reaches the launcher.
+        cfg.env["PYTHONPATH"] = "/tmp/evil"
         proc_mock = Mock(pid=4242, poll=Mock(return_value=None))
         stderr_fh = MagicMock()
+        validate = MagicMock(return_value=(str(exe), (st.st_dev, st.st_ino)))
 
         with (
             patch.object(mgr._stderr_log_manager, "open_log", return_value=stderr_fh),
+            patch.object(mgr._command_validator, "validate", validate),
             patch.object(subprocess, "Popen", return_value=proc_mock) as mock_popen,
-            patch.object(os, "getpgid", return_value=4242) as mock_getpgid,
+            patch.object(os, "getpgid", return_value=4242),
         ):
             await mgr.start("test", cfg)
 
-        kwargs = mock_popen.call_args.kwargs
-        assert kwargs["stderr"] is stderr_fh
+        call = mock_popen.call_args
+        assert call is not None
+        assert call.args[0][0] == str(exe)
+        assert call.args[0][1] == "/fake/server.js"
+        kwargs = call.kwargs
+        assert set(kwargs) == {"start_new_session", "stdout", "stderr", "env"}
         assert kwargs["start_new_session"] is True
-        assert kwargs["cwd"] == "/tmp/opencode"
-        mock_getpgid.assert_called_once_with(4242)
+        assert kwargs["stdout"] is subprocess.DEVNULL
+        assert kwargs["stderr"] is stderr_fh
+        for forbidden in ("shell", "preexec_fn", "cwd", "close_fds"):
+            assert forbidden not in kwargs
+        assert kwargs["env"]["HOME"] != "/tmp/evil-home"
+        assert "PYTHONPATH" not in kwargs["env"]
         assert mgr._http_procs["test"] is proc_mock
         assert mgr._http_pgids["test"] == 4242
+
+    @pytest.mark.asyncio
+    async def test_changed_identity_between_validation_and_spawn_aborts(
+        self, mgr: HttpServerLifecycleManager, tmp_path
+    ) -> None:
+        """REQ-003 (AC-1): a file identity that no longer matches aborts the start."""
+        exe = tmp_path / "mcp_node"
+        exe.write_text("#!/bin/sh\nexit 0\n")
+        exe.chmod(0o755)
+        cfg = _make_cfg(startup_timeout_sec=0, cmd=["node", "/fake/server.js"])
+        stderr_fh = MagicMock()
+        # An identity that cannot match the file on disk: the re-check must abort.
+        validate = MagicMock(return_value=(str(exe), (0, 0)))
+
+        with (
+            patch.object(mgr._stderr_log_manager, "open_log", return_value=stderr_fh),
+            patch.object(mgr._command_validator, "validate", validate),
+            patch.object(subprocess, "Popen") as mock_popen,
+        ):
+            with pytest.raises(HttpStartupError) as exc_info:
+                await mgr.start("test", cfg)
+
+        reason = exc_info.value.failure.reason
+        assert "test" in reason
+        assert str(exe) in reason
+        mock_popen.assert_not_called()
+        stderr_fh.close.assert_called_once()
+        assert "test" not in mgr._stderr_files
 
 
 class TestHealthAndRestartTrackingCharacterization:

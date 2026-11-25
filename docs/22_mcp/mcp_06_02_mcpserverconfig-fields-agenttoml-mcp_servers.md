@@ -19,28 +19,30 @@ Each MCP server's application settings are described in its corresponding `*_mcp
 The configurable fields, plus an automatically derived `key` field (below), are defined in `scripts/shared/mcp_config.py::McpServerConfig`.
 
 **About the `env` field:** A subprocess server does not inherit a copy of the Agent
-process's environment. `CommandValidator.filter_env` builds the child environment from an
-allowlist and merges the configured `env` on top of it.
+process's environment. `scripts/agent/http_lifecycle_launch_spec.py::build_child_env` builds the
+child environment once per server, from a fixed runtime set plus that server's own derived
+credentials, and merges the configured `env` on top of it.
 
-- Inherited variables: `PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`, `TMP`,
-  `TEMP`, `LANG`, `LC_*`, `MCP_*_AUTH_TOKEN`, `MCP_*_CONTROL_TOKEN`, `GITHUB_TOKEN`,
-  `LLMAGENT_CONFIG_DIR`, `LLMAGENT_SUDACHI_DICT`. Everything else in the Agent process's
-  environment is absent from the child, including unrelated credentials and proxy variables.
-- The allowlist is not a convenience: each server's `auth_token =
-  "${ENV:MCP_<NAME>_AUTH_TOKEN}"` is resolved inside the child, so the token pattern must
-  stay inherited or the server refuses to start.
-- The control-token pattern is resolved inside the child from each server's own `[control]`
-  table, so `MCP_*_CONTROL_TOKEN` must stay inherited for the same reason as the tool-token
-  pattern. What differs is an unset variable: control-token resolution is tolerant, so an unset
-  or empty value does not stop the server — it closes only that server's control paths, and tool
-  authorization keeps its own behavior.
-- A variable outside the allowlist reaches one server only through that server's own
-  `env`.
+- Fixed runtime variables: `PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`, `TMP`,
+  `TEMP`, `LANG`, `LC_*`, `LLMAGENT_CONFIG_DIR`, `LLMAGENT_SUDACHI_DICT`. Everything else in the
+  Agent process's environment is absent from the child, including unrelated credentials and proxy
+  variables.
+- Each server additionally receives `MCP_<KEY>_AUTH_TOKEN` and `MCP_<KEY>_CONTROL_TOKEN`, derived
+  from its own `[mcp_servers.<key>]` section name, plus only the variables its own
+  `credential_env` declares. Another server's tokens are never present in a child's environment,
+  and `GITHUB_TOKEN` reaches a child only when that server declares it.
+- The derived tokens are not a convenience: each server's `auth_token =
+  "${ENV:MCP_<KEY>_AUTH_TOKEN}"` is resolved inside the child, so the child must carry its own
+  token or the server refuses to start.
+- Control-token resolution is tolerant, so an unset or empty variable does not stop the server —
+  it closes only that server's control paths, and tool authorization keeps its own behavior.
+- A variable outside the fixed runtime set reaches one server only through that server's own
+  `env` or `credential_env`.
 - Declared `env` entries are filtered before the child sees them: a key matching the
   denylist (`LD_PRELOAD`, `LD_LIBRARY_PATH`, `PYTHONPATH`) is dropped, and a key naming a
   protected variable (`PATH`, `PYTHONPATH`, `LD_LIBRARY_PATH`, `HOME`, `USER`) is refused.
   Both are logged by key only, never by value.
-- The same inherited set is what a `shell_run` command sees, together with the shell
+- The same fixed runtime set is what a `shell_run` command sees, together with the shell
   server's configured `PATH` and the environment supplied in the request.
 
 **Timing, logging and policy fields:** timeout, startup-stagger, and stderr-rotation fields are
@@ -61,12 +63,18 @@ with design meaning are:
   paths and changes nothing about tool authorization. The value is registered as a secret and never
   logged. See [mcp_05_01](./mcp_05_01_access-control-and-allowlists.md) and
   [mcp_02_01](./mcp_02_01_endpoints-and-transport.md).
+- `credential_env`: the extra credential variables this server's child process receives, written
+  as variable names (`credential_env = ["GITHUB_TOKEN"]`), never as patterns. Optional, defaults
+  to empty, and is validated at parse time: a name must match `[A-Za-z_][A-Za-z0-9_]*` and is
+  refused when it matches the `env` denylist or names a protected variable, so a wildcard or a
+  protected name is a startup error rather than a silently widened grant. Only the servers that
+  read a credential declare it.
 
 **About `tool_names`:** Not used for routing decisions. It is metadata for drift validation (see `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`), used by `validate_tool_names_match()` in `scripts/shared/tool_routing_validation.py`. An empty or omitted list skips validation.
 
 **About `role`:** A human-readable label for operators, displayed in the `ROLE` column of `/mcp status` output. It is for display only and is never referenced by routing or dispatch logic.
 
-**About the `key` field:** `key` is not a TOML setting. It is derived from the `[mcp_servers.<key>]` section name, used as an error-message prefix, and excluded from equality comparison so it never affects `/reload` diff detection.
+**About the `key` field:** `key` is not a TOML setting. It is derived from the `[mcp_servers.<key>]` section name, used as an error-message prefix, and excluded from equality comparison so it never affects `/reload` diff detection. A section name must match `[a-z0-9][a-z0-9_-]{0,63}`: `validate_server_key()` in `scripts/shared/mcp_config.py` enforces it when the section is parsed, when `McpServerConfig` is constructed, and when the stderr log directory is opened, so a name containing a path separator or a control character is a startup error rather than a directory outside the log root.
 
 **`startup_mode="none"`:** This server is not started as a subprocess, and no health check is performed at startup. All tool calls routed to this server are immediately rejected with a `"disabled (startup_mode=none)"` error by the shared invocation-boundary guard `ToolTransportInvoker._run_precall_gates()` (inherited by `ToolExecutor`) before attempting network access. This is the default if `startup_mode` is omitted in the config — to make the server available, you must explicitly specify `"persistent"` or `"subprocess"`.
 
@@ -82,4 +90,5 @@ with design meaning are:
 - McpServerConfig
 - key
 - env
+- credential_env
 - control_auth_token

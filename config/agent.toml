@@ -296,6 +296,7 @@ url              = "http://127.0.0.1:8006"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_GITHUB_AUTH_TOKEN}"
 control_auth_token = "${ENV:MCP_GITHUB_CONTROL_TOKEN}"
+credential_env   = ["GITHUB_TOKEN"]
 role             = "search"
 cmd              = ["/opt/llm/bin/mcp_github"]
 
@@ -305,6 +306,7 @@ url              = "http://127.0.0.1:8012"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_CICD_AUTH_TOKEN}"
 control_auth_token = "${ENV:MCP_CICD_CONTROL_TOKEN}"
+credential_env   = ["GITHUB_TOKEN"]
 role             = "query"
 cmd              = ["/opt/llm/bin/mcp_cicd"]
 

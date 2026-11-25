@@ -35,6 +35,19 @@ from shared.tool_lifecycle import ServerCooldownError
 _TEST_HTTP_URL = "http://127.0.0.1:9999"
 
 
+@pytest.fixture(autouse=True)
+def _permissive_spawn_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Opt into the documented permissive mode for these spawn-behavior tests.
+
+    Strict confinement is the production default (cliplc006 REQ-004), and these cases
+    characterize the lifecycle router and subprocess manager through fixture commands
+    (`uvicorn`, `sys.executable`) that live in the project virtualenv rather than in the
+    trusted binary directory. Confinement itself is covered in
+    tests/agent/test_http_lifecycle_command_validator.py.
+    """
+    monkeypatch.setenv("LLMAGENT_COMMAND_MODE", "permissive")
+
+
 def _wire_http_client(MockClient, status_code: int = 200):
     """Wire up AsyncClient mock to return a response with given status code."""
     mock_resp = MagicMock()

@@ -45,6 +45,18 @@ def _make_cfg(**overrides: object) -> McpServerConfig:
     return McpServerConfig(**defaults)  # type: ignore[arg-type]
 
 
+@pytest.fixture(autouse=True)
+def _permissive_spawn_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Opt into the documented permissive mode for these lifecycle characterizations.
+
+    Strict confinement is the production default (cliplc006 REQ-004). These cases pin
+    signal handling, shutdown, and restart behavior through a fixture command on PATH,
+    not the trusted-directory policy, which tests/agent/test_http_lifecycle_command_validator.py
+    owns.
+    """
+    monkeypatch.setenv("LLMAGENT_COMMAND_MODE", "permissive")
+
+
 @pytest.fixture
 def mgr() -> HttpServerLifecycleManager:
     return HttpServerLifecycleManager()

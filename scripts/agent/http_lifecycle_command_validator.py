@@ -9,15 +9,12 @@ security-critical validation logic.
 
 from __future__ import annotations
 
-import fnmatch
 import logging
 import os
 import re
 import shutil
 import stat
 from pathlib import Path
-
-from shared.mcp_config import _ENV_KEY_DENYLIST
 
 from .http_lifecycle_errors import HttpStartupError, StartupFailure
 
@@ -29,25 +26,14 @@ _DEFAULT_ALLOWED_COMMANDS: frozenset[str] = frozenset(
 _DEFAULT_PROTECTED_ENV_VARS: frozenset[str] = frozenset(
     {"PATH", "PYTHONPATH", "LD_LIBRARY_PATH", "HOME", "USER"}
 )
-# Default-deny allowlist for the environment a subprocess server inherits from the
-# Agent process (see CommandValidator.filter_env). Patterns, in the same fnmatch
-# form as the imported _ENV_KEY_DENYLIST, so a newly configured server's own
-# MCP_<NAME>_AUTH_TOKEN is covered without editing this file.
-#
-# MCP_*_CONTROL_TOKEN is admitted for the same reason: each server's [control] table
-# resolves its own control token from the inherited environment (mcpdl004 REQ-002),
-# and without this pattern every subprocess server would resolve an empty token and
-# keep its control paths closed.
-#
-# Required, not optional: each server's config/<server>_mcp_server.toml sets
-# auth_token = "${ENV:MCP_<NAME>_AUTH_TOKEN}" and the child resolves it from its
-# inherited environment (shared/config_utils.py::resolve_env_ref), so dropping the
-# token pattern makes every server refuse to start.
-#
-# Deliberately absent: LLMAGENT_BINARY_DIR and LLMAGENT_STRICT_COMMAND (parent-only
-# controls a child never reads), unrelated parent credentials, proxy variables (a
-# proxy URL can itself embed credentials), and interpreter toolchain variables
-# (XDG_*, UV_*, NPM_*). A server that needs one declares it in its own env.
+# The fixed runtime set a child may inherit from the Agent process (REQ-006), in the same
+# fnmatch form the previous allowlist used so locale variables behave unchanged. It is the
+# canonical definition: `http_lifecycle_launch_spec.build_child_env` builds every child
+# environment from it. Server tokens are deliberately absent: they are derived per server key
+# there, so one server's token can no longer reach another server. `LLMAGENT_BINARY_DIR` and
+# `LLMAGENT_COMMAND_MODE` are parent-only controls a child never reads, and unrelated parent
+# credentials, proxy variables, and interpreter toolchain variables are absent for the same
+# reason.
 _DEFAULT_ALLOWED_ENV_VARS: frozenset[str] = frozenset(
     {
         "PATH",
@@ -60,34 +46,36 @@ _DEFAULT_ALLOWED_ENV_VARS: frozenset[str] = frozenset(
         "TEMP",
         "LANG",
         "LC_*",
-        "MCP_*_AUTH_TOKEN",
-        "MCP_*_CONTROL_TOKEN",
-        "GITHUB_TOKEN",
         "LLMAGENT_CONFIG_DIR",
         "LLMAGENT_SUDACHI_DICT",
     }
 )
 _INTERPRETER_BASENAME_RE = re.compile(r"python3(?:\.\d+)?")
 
-# Opt-in switch for strict command confinement (see CommandValidator). Any value
-# other than the falsy ones below turns strict mode on, so an unexpected value
-# fails closed.
-_STRICT_ENV_VAR = "LLMAGENT_STRICT_COMMAND"
-_STRICT_FALSY_VALUES: frozenset[str] = frozenset({"", "0", "false", "off", "no"})
+# The only opt-out from strict command confinement (REQ-004). Exactly the literal value
+# `permissive` opts in; anything else, including `PERMISSIVE` or a padded value, keeps the
+# strict default, so a mistyped control fails closed.
+_COMMAND_MODE_ENV_VAR = "LLMAGENT_COMMAND_MODE"
+_PERMISSIVE_MODE_VALUE = "permissive"
+
+
+def _permissive_mode() -> bool:
+    """True only when the parent process sets `LLMAGENT_COMMAND_MODE=permissive`."""
+    return os.environ.get(_COMMAND_MODE_ENV_VAR) == _PERMISSIVE_MODE_VALUE
 
 
 class CommandValidator:
-    """Validates commands and filters environment variables for HTTP subprocess MCP servers.
+    """Validates commands for HTTP subprocess MCP servers.
 
-    Two command-validation modes exist:
+    Command confinement is strict by default (REQ-004):
 
-    - Permissive (default): a command is accepted when its resolved basename is
-      on the allowlist, matches ``python3[.N]``, or the resolved path is inside
-      the trusted binary directory.
-    - Strict: a command is accepted only when its resolved path is inside the
-      trusted binary directory; the basename allowlist does not apply. This
-      closes PATH injection, because a binary found elsewhere on ``PATH`` is
-      rejected whatever its name.
+    - Strict (default): a command is accepted only when its resolved path is inside the
+      trusted binary directory, that directory and the file are owned by root or the Agent
+      user, and the file is neither group- nor world-writable. The basename allowlist does
+      not apply, so a binary found elsewhere on ``PATH`` is rejected whatever its name.
+    - Permissive (opt-in): the basename allowlist applies in addition to the trusted
+      directory. Set ``LLMAGENT_COMMAND_MODE=permissive`` in the Agent process to restore
+      it; only that literal value opts in, and any other value keeps the strict default.
 
     The trusted binary directory is ``LLMAGENT_BINARY_DIR`` when set, else
     ``/opt/llm/bin``. A command is inside it only when it is a regular file
@@ -95,10 +83,10 @@ class CommandValidator:
     world-writable. Symlinks are resolved before the check, so the directory
     must hold real files: a symlink in it that points elsewhere is rejected.
 
-    Strict mode is enabled by setting the environment variable
-    ``LLMAGENT_STRICT_COMMAND`` when the validator is constructed. It is off
-    when unset, empty, or ``0``/``false``/``off``/``no`` (any case); any other
-    value turns it on.
+    ``validate`` returns the resolved path together with its ``(st_dev, st_ino)``
+    identity, which the launch specification re-checks immediately before the spawn
+    (REQ-003). Building the child environment is not this class's job: it belongs to
+    ``http_lifecycle_launch_spec.build_child_env``, which builds it per server key.
     """
 
     PROTECTED_ENV_VARS: frozenset[str] = frozenset(
@@ -115,25 +103,25 @@ class CommandValidator:
     ) -> None:
         self._allowed_commands = allowed_commands or _DEFAULT_ALLOWED_COMMANDS
         self._protected_env_vars = protected_env_vars or _DEFAULT_PROTECTED_ENV_VARS
-        self._strict_confinement = (
-            os.environ.get(_STRICT_ENV_VAR, "").strip().lower()
-            not in _STRICT_FALSY_VALUES
-        )
+        self._permissive = _permissive_mode()
 
-    def validate(self, server_key: str, cmd_name: str) -> str:
-        """Validate and resolve a command name to an absolute executable path.
+    def validate(self, server_key: str, cmd_name: str) -> tuple[str, tuple[int, int]]:
+        """Validate a command name and return its path with its file identity.
 
-        Performs four security checks in order:
+        Performs five security checks in order:
         1. Resolve via shutil.which (PATH lookup)
         2. Resolve symlinks via os.path.realpath
         3. Verify resolved path exists and is a regular file
-        4. Permissive mode: check basename against allowlist OR resolved path
-           inside the allowed binary directory (regular file, exact real-path
-           parent, not group/world-writable). Strict mode: require the resolved
-           path inside the allowed binary directory; the allowlist is ignored.
+        4. Strict (default): require the resolved path inside the allowed binary
+           directory (regular file, exact real-path parent, directory not
+           group/world-writable); the allowlist is ignored. Permissive: accept when the
+           basename is on the allowlist OR the path satisfies that directory rule.
+        5. Strict only: the file and the directory are owned by root or the Agent user,
+           and the file is neither group- nor world-writable.
 
         Raises HttpStartupError with a descriptive StartupFailure on any failure.
-        Returns the resolved absolute path on success.
+        Returns ``(resolved_path, (st_dev, st_ino))``: the identity is what the launch
+        specification re-checks before spawning.
         """
         # Check 1: PATH lookup
         cmd_executable = shutil.which(cmd_name)
@@ -159,8 +147,8 @@ class CommandValidator:
                 )
             )
 
-        # Check 4 (strict): only the allowed binary directory is trusted.
-        if self._strict_confinement:
+        # Check 4 (strict, the default): only the allowed binary directory is trusted.
+        if not self._permissive:
             if not self._inside_allowed_binary_dir(cmd_path):
                 raise HttpStartupError(
                     StartupFailure(
@@ -174,7 +162,10 @@ class CommandValidator:
                         stderr_full="",
                     )
                 )
-            return cmd_path
+            # Check 5: the trusted directory and the file must be owned and moded so
+            # that untrusted users cannot swap or edit what the Agent is about to run.
+            self._trusted_ownership_and_mode(server_key, cmd_path)
+            return cmd_path, _file_identity(cmd_path)
 
         # Check 4: Allowlist OR allowed-binary-directory rule. Reject only when
         # the command is outside BOTH controls; the directory branch is additive
@@ -195,7 +186,7 @@ class CommandValidator:
                 )
             )
 
-        return cmd_path
+        return cmd_path, _file_identity(cmd_path)
 
     def _allowed_binary_dir(self) -> str:
         """Return the allowed binary directory, overridable via LLMAGENT_BINARY_DIR."""
@@ -219,39 +210,55 @@ class CommandValidator:
         mode = os.stat(allowed).st_mode
         return (mode & (stat.S_IWGRP | stat.S_IWOTH)) == 0
 
-    def filter_env(self, env: dict[str, str] | None) -> dict[str, str] | None:
-        """Build the child environment under a default-deny allowlist.
+    def _trusted_ownership_and_mode(self, server_key: str, cmd_path: str) -> None:
+        """Reject a validated path whose ownership or mode the Agent cannot trust.
 
-        The inherited part is the Agent process's own environment reduced to
-        ``_DEFAULT_ALLOWED_ENV_VARS``: a subprocess server receives only the runtime
-        basics, the shared ``MCP_*_AUTH_TOKEN`` and ``MCP_*_CONTROL_TOKEN`` tokens and
-        ``GITHUB_TOKEN``, and the ``LLMAGENT_*`` path overrides — never an unrelated
-        parent credential.
-
-        The server's configured ``env`` is merged on top, and is the route for any
-        variable outside the allowlist. Two filters apply to it: a key matching
-        ``_ENV_KEY_DENYLIST`` is dropped, and a key naming a protected variable is
-        refused. Both are logged by key only, so a secret value cannot reach a log
-        file.
-
-        Returns ``None`` when the input is ``None``, leaving the launch without an
-        explicit environment.
+        The file and the trusted directory must be owned by root or the Agent user, and
+        the file must be neither group- nor world-writable: a name inside the trusted
+        directory is only safe while untrusted users cannot replace or edit it.
         """
-        if env is None:
-            return None
+        allowed_dir = os.path.realpath(self._allowed_binary_dir())
+        trusted_uids = {0, os.geteuid()}
 
-        result = {
-            key: value
-            for key, value in os.environ.items()
-            if any(
-                fnmatch.fnmatch(key, pattern) for pattern in _DEFAULT_ALLOWED_ENV_VARS
+        file_st = os.stat(cmd_path)
+        if file_st.st_uid not in trusted_uids:
+            raise HttpStartupError(
+                StartupFailure(
+                    server_key=server_key,
+                    reason=(
+                        f"Command '{cmd_path}' is owned by uid {file_st.st_uid}, "
+                        "which is neither root nor the Agent user."
+                    ),
+                    stderr_full="",
+                )
             )
-        }
-        for key, value in env.items():
-            if any(fnmatch.fnmatch(key, p) for p in _ENV_KEY_DENYLIST):
-                logger.warning("Blocked denylisted env var from server config: %s", key)
-            elif key in self._protected_env_vars:
-                logger.warning("Blocked protected env var override: %s", key)
-            else:
-                result[key] = value
-        return result
+        if file_st.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            raise HttpStartupError(
+                StartupFailure(
+                    server_key=server_key,
+                    reason=(
+                        f"Command '{cmd_path}' is group- or world-writable, "
+                        "so its contents are not trusted."
+                    ),
+                    stderr_full="",
+                )
+            )
+
+        dir_st = os.stat(allowed_dir)
+        if dir_st.st_uid not in trusted_uids:
+            raise HttpStartupError(
+                StartupFailure(
+                    server_key=server_key,
+                    reason=(
+                        f"Trusted binary directory '{allowed_dir}' is owned by uid "
+                        f"{dir_st.st_uid}, which is neither root nor the Agent user."
+                    ),
+                    stderr_full="",
+                )
+            )
+
+
+def _file_identity(path: str) -> tuple[int, int]:
+    """Return the ``(st_dev, st_ino)`` pair that identifies this exact file."""
+    st = os.stat(path)
+    return (st.st_dev, st.st_ino)

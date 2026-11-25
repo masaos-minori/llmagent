@@ -428,8 +428,7 @@ entries:
   kind: class
   name: CommandValidator
   signature: class CommandValidator
-  summary: Validates commands and filters environment variables for HTTP subprocess
-    MCP servers.
+  summary: Validates commands for HTTP subprocess MCP servers.
 - file: scripts/agent/http_lifecycle_errors.py
   kind: class
   name: StartupFailure
@@ -456,6 +455,22 @@ entries:
   name: HealthChecker
   signature: class HealthChecker
   summary: Performs HTTP health checks against a running server.
+- file: scripts/agent/http_lifecycle_launch_spec.py
+  kind: class
+  name: LaunchSpec
+  signature: class LaunchSpec
+  summary: Everything one subprocess spawn may use, fixed at one construction site.
+- file: scripts/agent/http_lifecycle_launch_spec.py
+  kind: function
+  name: build_launch_spec
+  signature: def build_launch_spec(server_key, cfg, resolved_path, expected_identity,
+    stderr_fh) -> LaunchSpec
+  summary: Build the one specification a server's spawn may use.
+- file: scripts/agent/http_lifecycle_launch_spec.py
+  kind: function
+  name: build_child_env
+  signature: def build_child_env(server_key, cfg) -> dict[str, str]
+  summary: Build one server's minimal child environment.
 - file: scripts/agent/http_lifecycle_process_terminator.py
   kind: class
   name: ProcessTerminator
