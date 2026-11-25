@@ -199,7 +199,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `check_allowed_root` | `def check_allowed_root(cfg, tool_name, args, registry) -> bool` | Return False when any path argument is outside cfg.approval.allowed_root. |
 |  | `check_allowed_repo` | `def check_allowed_repo(cfg, tool_name, args) -> bool` | Return False when a GitHub write tool targets a repo not in the allowlist. |
 |  | `check_preflight` | `def check_preflight(cfg, tool_name, args, registry) -> None` | Raise PolicyViolationError when a pre-flight check denies the tool call. |
-| `scripts/agent/tool_preparation.py` | `PreparedToolCall` | `class PreparedToolCall` | A raw tool call that has passed preparation and is ready for approval/execution. |
+| `scripts/agent/tool_preparation.py` | `ReplayDirective` | `class ReplayDirective` | One-time Agent-managed replay directive for a reissued tool call. |
+|  | `PreparedToolCall` | `class PreparedToolCall` | A raw tool call that has passed preparation and is ready for approval/execution. |
 |  | `prepare_tool_calls` | `def prepare_tool_calls(ctx, tool_calls) -> tuple[list[PreparedToolCall], list[_PrepFailure]]` | Prepare a batch of raw tool calls, in order. |
 | `scripts/agent/tool_result_formatter.py` | `turn_limit_hint` | `def turn_limit_hint(omitted_chars, omitted_lines, limit) -> str` | Build the hint shown to the LLM in place of a tool result dropped for |
 |  | `build_execution_failure_text` | `def build_execution_failure_text(exc) -> str` | Build the LLM-facing text for a tool call whose execution raised. |

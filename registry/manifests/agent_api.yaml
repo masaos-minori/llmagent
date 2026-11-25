@@ -1800,6 +1800,11 @@ entries:
   summary: Raise PolicyViolationError when a pre-flight check denies the tool call.
 - file: scripts/agent/tool_preparation.py
   kind: class
+  name: ReplayDirective
+  signature: class ReplayDirective
+  summary: One-time Agent-managed replay directive for a reissued tool call.
+- file: scripts/agent/tool_preparation.py
+  kind: class
   name: PreparedToolCall
   signature: class PreparedToolCall
   summary: A raw tool call that has passed preparation and is ready for approval/execution.
@@ -2048,8 +2053,8 @@ entries:
 - file: scripts/agent/workflow/tool_call_state_ops.py
   kind: function
   name: record_tool_call
-  signature: def record_tool_call(db, task_id, idempotency_key, tool, retry_class)
-    -> None
+  signature: def record_tool_call(db, task_id, idempotency_key, tool, retry_class,
+    args_hash) -> None
   summary: Insert a tool-call row in state 'pending'.
 - file: scripts/agent/workflow/tool_call_state_ops.py
   kind: function
@@ -2067,6 +2072,11 @@ entries:
   signature: def classify_stale_pending(db, task_id, timeout_seconds, resolver) ->
     list[ToolCallState]
   summary: Transition this task's timed-out tool-call rows by dispatch stage.
+- file: scripts/agent/workflow/tool_call_state_ops.py
+  kind: function
+  name: reconstruct_replay_directives
+  signature: def reconstruct_replay_directives(db, task_id) -> list[ToolCallState]
+  summary: Return this task's `interrupted` replayable rows, oldest first.
 - file: scripts/agent/workflow/tool_call_state_ops.py
   kind: function
   name: get_tool_call_state
@@ -2102,6 +2112,11 @@ entries:
   name: WorkflowStageNotFoundError
   signature: class WorkflowStageNotFoundError
   summary: Raised when a requested stage_id has no StageDefinition in the loaded workflow.
+- file: scripts/agent/workflow/workflow_engine.py
+  kind: class
+  name: TurnControl
+  signature: class TurnControl
+  summary: 'Turn-entry control report: the LLM-facing text plus the Agent-side directives.'
 - file: scripts/agent/workflow/workflow_engine.py
   kind: class
   name: WorkflowEngine

@@ -24,7 +24,12 @@ from agent.tool_enums import ApprovalDecisionType
 from agent.tool_exceptions import ToolExecutorUnavailableError
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.tool_policy import PolicyViolationError
-from agent.tool_preparation import PreparedToolCall, _canonical_args_hash
+from agent.tool_preparation import (
+    PreparedToolCall,
+    ReplayDirective,
+    _canonical_args_hash,
+    prepare_tool_calls,
+)
 from agent.tool_run_recorder import get_serialization_stats
 from agent.tool_runner import (
     _apply_turn_char_limit,
@@ -2284,8 +2289,8 @@ class FakeRecorder:
     """In-memory stand-in for the StateStore facade the adapter wires (row 05).
 
     Mirrors the agent.context.ToolCallRecorder Protocol signatures exactly, and
-    logs every call as a (method, task_id, key, tool, retry_class, state) tuple
-    plus an event string into a shared list so tests can pin the ordering of
+    logs every call as a (method, task_id, key, tool, retry_class, state, args_hash)
+    tuple plus an event string into a shared list so tests can pin the ordering of
     record vs. executor vs. finalize (design decision in implementation
     procedure 20261101-110802_04).
     """
@@ -2297,7 +2302,7 @@ class FakeRecorder:
         fail_record: bool = False,
         fail_finalize: bool = False,
     ) -> None:
-        self.calls: list[tuple[str, str, str, str, str, str]] = []
+        self.calls: list[tuple[str, str, str, str, str, str, str]] = []
         self.events = events if events is not None else []
         self._fail_record = fail_record
         self._fail_finalize = fail_finalize
@@ -2305,28 +2310,36 @@ class FakeRecorder:
     def record_tool_call(
         self,
         task_id: str,
-        idempotency_key: str,
+        call_id: str,
         tool: str,
         retry_class: str,
-        snapshot_id: str | None = None,
+        args_hash: str,
     ) -> None:
         if self._fail_record:
             raise RuntimeError("recorder record down")
         self.events.append("record")
         self.calls.append(
-            ("record_tool_call", task_id, idempotency_key, tool, retry_class, "pending")
+            (
+                "record_tool_call",
+                task_id,
+                call_id,
+                tool,
+                retry_class,
+                "pending",
+                args_hash,
+            )
         )
 
-    def finalize_tool_call(self, idempotency_key: str, state: str) -> None:
+    def finalize_tool_call(self, call_id: str, state: str) -> None:
         if self._fail_finalize:
             raise RuntimeError("recorder finalize down")
         self.events.append(f"finalize:{state}")
-        self.calls.append(("finalize_tool_call", "", idempotency_key, "", "", state))
+        self.calls.append(("finalize_tool_call", "", call_id, "", "", state, ""))
 
-    def records(self) -> list[tuple[str, str, str, str, str, str]]:
+    def records(self) -> list[tuple[str, str, str, str, str, str, str]]:
         return [c for c in self.calls if c[0] == "record_tool_call"]
 
-    def finalizes(self) -> list[tuple[str, str, str, str, str, str]]:
+    def finalizes(self) -> list[tuple[str, str, str, str, str, str, str]]:
         return [c for c in self.calls if c[0] == "finalize_tool_call"]
 
 
@@ -2386,6 +2399,34 @@ class TestToolCallStateProducer:
         # mcpdl001 REQ-003: the row key is the logical call id; nothing derived
         assert pc.context is not None
         assert recorded[2] == pc.context.call_id == "c1"
+
+    @pytest.mark.asyncio
+    async def test_replay_directive_keys_the_row_with_the_original_id(self) -> None:
+        """AC-001 at the recording boundary: a prepared call that matches a turn
+        directive records the row under the directive's original id, and the recorded
+        hash is the canonical hash the directive matched on."""
+        recorder = FakeRecorder()
+        ctx = _state_ctx(recorder)
+        ctx.services_required.runtime_tools = make_producer_registry()
+        args = {"path": "/tmp/r", "content": "x"}
+        directive = ReplayDirective(
+            original_call_id="0199e2f3-0000-7000-8000-000000000006",
+            task_id="task-1",
+            tool="write_file",
+            args_hash=_canonical_args_hash(args),
+        )
+        ctx.turn.replay_directives = [directive]
+
+        prepared, failures = prepare_tool_calls(
+            ctx, [_tc("write_file", '{"path": "/tmp/r", "content": "x"}')]
+        )
+        assert failures == []
+        await _execute_with_dag(ctx, prepared, guard=ToolLoopGuard(ctx), collected={})
+
+        (recorded,) = recorder.records()
+        assert recorded[2] == directive.original_call_id
+        assert recorded[6] == _canonical_args_hash(args)
+        assert directive.consumed
 
     @pytest.mark.asyncio
     async def test_completed_finalize_after_success(self) -> None:

@@ -20,15 +20,17 @@ from uuid import uuid4
 from shared.json_utils import (
     dumps as _json_dumps,
 )
-from shared.runtime_tool_registry import RuntimeToolRegistry
-from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS
 from shared.tool_executor import ToolExecutor
 from shared.tool_executor_helpers import tool_hash_key
-from shared.tool_metadata import retry_policy_is_retryable
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
 
 from agent.tool_audit import audit_tool_exec
+from agent.tool_call_identity import (
+    _classify_retry_class,
+    _logical_call_id,
+    _side_effecting,
+)
 from agent.tool_enums import OperationType, ToolCallStopReason
 from agent.tool_exceptions import (
     IntentRecordUnavailableError,
@@ -152,30 +154,6 @@ async def _run_group_calls(
     )
 
 
-def _logical_call_id(pc: PreparedToolCall) -> str:
-    """The call's logical call id from the preparation-phase execution context.
-
-    Sole key for the tool_call_state row and the audit idempotency_key field
-    (mcpdl001 REQ-003): the same uuid7 the transport sends as
-    X-Idempotency-Key. Nothing is derived — the old key derivations collided.
-    """
-    return pc.context.call_id if pc.context else ""
-
-
-def _side_effecting(tool_name: str) -> bool:
-    """True when the tool is in shared.tool_constants.ALL_SIDE_EFFECTING_TOOLS."""
-    return tool_name in ALL_SIDE_EFFECTING_TOOLS
-
-
-def _classify_retry_class(tool_name: str, registry: RuntimeToolRegistry | None) -> str:
-    """Declared retry_policy decides the dedup retry class; fail-safe non_retryable."""
-    try:
-        declared = registry.get(tool_name).retry_policy if registry else None
-    except KeyError:
-        declared = None
-    return "retryable" if retry_policy_is_retryable(declared) else "non_retryable"
-
-
 def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None:
     """Write the pending tool_call_state row before dispatch.
 
@@ -191,7 +169,8 @@ def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None
     side_effecting = _side_effecting(pc.name)
     recorder = ctx.workflow.tool_call_recorder
     task_id = ctx.workflow.current_task_id
-    if not key or recorder is None or task_id is None:
+    context = pc.context
+    if not key or context is None or recorder is None or task_id is None:
         if side_effecting:
             raise IntentRecordUnavailableError(
                 f"cannot record tool_call_state for side-effecting tool {pc.name!r}: "
@@ -199,11 +178,14 @@ def _record_pending_state(ctx: AgentContext, pc: PreparedToolCall) -> str | None
             )
         return None
     try:
+        # The hash is the preparation-phase value carried on the context; it is not
+        # recomputed here, so the stored hash is the one directive matching compares.
         recorder.record_tool_call(
             task_id,
             key,
             pc.name,
             _classify_retry_class(pc.name, ctx.services_required.runtime_tools),
+            context.args_hash,
         )
     except Exception as exc:  # noqa: BLE001 — classification decides fail-closed vs best-effort
         if side_effecting:

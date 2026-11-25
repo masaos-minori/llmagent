@@ -144,14 +144,17 @@ class StateStore:
         call_id: str,
         tool: str,
         retry_class: str,
+        args_hash: str,
     ) -> None:
         """Insert a tool-call row in state 'pending' for the task.
 
         `call_id` is the opaque uuid7 logical call id (the call's execution
-        context `call_id`), unique by construction.
+        context `call_id`), unique by construction. `args_hash` is passed through
+        unchanged: hash computation belongs to the preparation phase, so the facade
+        stores the same value the caller computed.
         """
         tool_call_state_ops.record_tool_call(
-            self._db, task_id, call_id, tool, retry_class
+            self._db, task_id, call_id, tool, retry_class, args_hash
         )
 
     def finalize_tool_call(self, call_id: str, state: str) -> None:
@@ -175,6 +178,15 @@ class StateStore:
         return tool_call_state_ops.classify_stale_pending(
             self._db, task_id, timeout_seconds, resolver=resolver
         )
+
+    def reconstruct_replay_directives(self, task_id: str) -> list[ToolCallState]:
+        """Return this task's `interrupted` replayable rows, oldest first.
+
+        Pass-through only: the facade does not decide what a directive is, it lists
+        the persisted rows the engine builds directives from (REQ-006). Read-only, so
+        it cannot race the guarded UPDATE in `classify_stale_pending`.
+        """
+        return tool_call_state_ops.reconstruct_replay_directives(self._db, task_id)
 
     # ── Artifact ─────────────────────────────────────────────────────────────
 

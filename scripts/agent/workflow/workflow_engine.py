@@ -13,11 +13,13 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from contextlib import nullcontext
+from dataclasses import dataclass
 from typing import Protocol
 
+from agent.tool_preparation import ReplayDirective
 from agent.workflow.models import TaskRecord, WorkflowDef
 from agent.workflow.state_store import StateStore
-from agent.workflow.tool_call_state_ops import CallStateResolver
+from agent.workflow.tool_call_state_ops import CallStateResolver, ToolCallState
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +124,19 @@ class WorkflowStageNotFoundError(Exception):
     """Raised when a requested stage_id has no StageDefinition in the loaded workflow."""
 
 
+@dataclass
+class TurnControl:
+    """Turn-entry control report: the LLM-facing text plus the Agent-side directives.
+
+    `text` names tool name and canonical argument hash only — the logical call id is
+    never in it (REQ-005). `directives` carry the ids, and only the adapter and the
+    preparation phase read them, so the LLM cannot copy or alter an identity value.
+    """
+
+    text: str
+    directives: list[ReplayDirective]
+
+
 class WorkflowEngine:
     """Runs a workflow definition against a set of stage callbacks.
 
@@ -165,25 +180,27 @@ class WorkflowEngine:
             return self._tracer.start_as_current_span(name)
         return nullcontext(_NoOpSpan())
 
-    def build_turn_control_message(self, task_id: str) -> str | None:
-        """Build the replay control message for a task's stale tool calls.
+    def build_turn_control_message(self, task_id: str) -> TurnControl | None:
+        """Build the turn-entry control report for a task's stale tool calls.
 
         Turn-entry detection (toolexec001): stale rows are first classified by
         dispatch stage (mcpdl001 REQ-009) — never-dispatched rows become
         'interrupted' (timeout from the dispatcher-side dedup config), dispatched
-        rows become 'outcome_unknown'. Interrupted rows are then listed —
-        retryable ones with a re-issue instruction, non-retryable ones as
-        unreplayable status text the LLM must report rather than replay (the
-        dispatcher's ``dedup_unreplayable`` refusal semantics, row 04).
-        Outcome-unknown rows join the unreplayable section only: their request
-        may already have executed server-side, so re-issuing them could
-        duplicate side effects (AC-6).
+        rows become 'outcome_unknown'. The report lists tool name and the canonical
+        argument hash only: the logical call id stays in the directives, which the
+        adapter registers on the turn state for preparation (REQ-005).
+
+        Directives are built only from `interrupted` replayable rows (REQ-004), read
+        from the persisted rows so a restarted process sees the same directives as
+        the process that classified them (REQ-006). A row the replay completed is no
+        longer in a replayable state, so it produces no directive. Outcome-unknown
+        rows join the unreplayable section only and produce no directive (AC-6).
 
         Detection must not raise into the turn path: on store or config errors the
         turn proceeds with no control message (the dispatcher's own dedup still
         guards execution). No listed rows -> None -> byte-identical turn
-        behavior. Fresh pending rows (within the timeout window) are not
-        listed: they may still belong to a call in flight, and re-issuing them could
+        behavior. Fresh pending rows (within the timeout window) are not listed:
+        they may still belong to a call in flight, and re-issuing them could
         duplicate live work.
         """
         try:
@@ -191,6 +208,7 @@ class WorkflowEngine:
             classified = self._store.classify_stale_pending(
                 task_id, timeout_seconds, resolver=self._call_state_resolver
             )
+            directives = self._build_replay_directives(task_id)
         except Exception as exc:  # noqa: BLE001 — turn availability beats replay accuracy; the dispatcher dedup still guards execution
             logger.warning(
                 "Tool-call state detection failed for task %s (%s); proceeding without control message",
@@ -198,23 +216,44 @@ class WorkflowEngine:
                 exc,
             )
             return None
-        interrupted = [c for c in classified if c.state == "interrupted"]
-        replayable = [c for c in interrupted if c.retry_class == "retryable"]
-        unreplayable = [c for c in interrupted if c.retry_class != "retryable"] + [
-            c for c in classified if c.state == "outcome_unknown"
+        unreplayable = [
+            c
+            for c in classified
+            if c.state == "outcome_unknown"
+            or (c.state == "interrupted" and c.retry_class != "retryable")
         ]
-        if not replayable and not unreplayable:
+        if not directives and not unreplayable:
             return None
+        return TurnControl(
+            text=self._control_text(directives, unreplayable), directives=directives
+        )
+
+    def _build_replay_directives(self, task_id: str) -> list[ReplayDirective]:
+        """One directive per persisted `interrupted` replayable row, oldest first."""
+        return [
+            ReplayDirective(
+                original_call_id=row.idempotency_key,
+                task_id=row.task_id,
+                tool=row.tool,
+                args_hash=row.args_hash,
+            )
+            for row in self._store.reconstruct_replay_directives(task_id)
+        ]
+
+    def _control_text(
+        self, directives: list[ReplayDirective], unreplayable: list[ToolCallState]
+    ) -> str:
+        """The LLM-facing lines: tool name and canonical argument hash, never the id."""
         lines = ["[tool-call replay control]"]
-        if replayable:
+        if directives:
             lines.append(
                 "The following tool calls from a previous turn were interrupted."
                 " Re-issue each call with the identical tool name and identical arguments;"
                 " the dispatcher replays or deduplicates them by the recorded key."
             )
             lines.extend(
-                f"- replay: tool={c.tool} idempotency_key={c.idempotency_key} state=interrupted"
-                for c in replayable
+                f"- replay: tool={d.tool} args_hash={d.args_hash} state=interrupted"
+                for d in directives
             )
         if unreplayable:
             lines.append(
@@ -222,7 +261,7 @@ class WorkflowEngine:
                 " tell the user they require manual action (unreplayable: manual action required)."
             )
             lines.extend(
-                f"- unreplayable: tool={c.tool} idempotency_key={c.idempotency_key} state={c.state}"
+                f"- unreplayable: tool={c.tool} args_hash={c.args_hash} state={c.state}"
                 for c in unreplayable
             )
         return "\n".join(lines)

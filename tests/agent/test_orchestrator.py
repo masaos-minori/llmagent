@@ -35,7 +35,7 @@ from agent.workflow import (
 )
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 from agent.workflow.state_store import StateStore
-from agent.workflow.workflow_engine import WorkflowEngine
+from agent.workflow.workflow_engine import TurnControl, WorkflowEngine
 from agent.workflow_engine_adapter import WorkflowEngineAdapter, _status_for_exit
 from db.config import DbConfig
 from db.create_schema import create_workflow_schema
@@ -4098,7 +4098,7 @@ class _RetryThenHaltEngine:
         """Expose the definition version the adapter reads (mirrors WorkflowEngine)."""
         return self._wdef.version
 
-    def build_turn_control_message(self, task_id: str) -> str | None:
+    def build_turn_control_message(self, task_id: str) -> TurnControl | None:
         """Mirror the WorkflowEngine turn-entry detection contract (toolexec001 row 08); no state here."""
         return None
 

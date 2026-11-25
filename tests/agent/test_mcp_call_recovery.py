@@ -22,6 +22,7 @@ import httpx
 import pytest
 import respx
 from agent.mcp_call_recovery import McpCallRecoveryService, RecoveryResolution
+from agent.tool_preparation import _canonical_args_hash
 from agent.workflow import tool_call_state_ops
 from agent.workflow.state_store import StateStore
 from db.config import DbConfig
@@ -98,7 +99,9 @@ def _seed_row(env: Env, key: str, state: str = "dispatched") -> None:
     `created_at` is moved back so the row is past the caller's timeout window: recovery
     must never have to wait for a row to look stale.
     """
-    env.store.record_tool_call(env.task_id, key, _TOOL, "retryable")
+    env.store.record_tool_call(
+        env.task_id, key, _TOOL, "retryable", _canonical_args_hash({"path": "/seed"})
+    )
     env.store._db.execute(
         "UPDATE tool_call_state SET created_at=? WHERE idempotency_key=?",
         (time.time() - 600.0, key),

@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from agent.turn_result import TurnResult
-from agent.workflow.workflow_engine import WorkflowStageFailure
+from agent.workflow.workflow_engine import TurnControl, WorkflowStageFailure
 from agent.workflow_engine_adapter import WorkflowEngineAdapter
 
 from tests.agent.test_orchestrator import _make_ctx
@@ -72,8 +72,8 @@ class _RecordingEngine:
         finally:
             self.active = False
 
-    def build_turn_control_message(self, task_id: str) -> str:
-        return ""
+    def build_turn_control_message(self, task_id: str) -> TurnControl | None:
+        return None
 
 
 class _FakeConversationManager:

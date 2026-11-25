@@ -385,15 +385,19 @@ class WorkflowEngineAdapter:
         with the same contract as the removed _process_turn.
         """
         # Turn-entry replay detection (toolexec001 row 08): the engine owns the
-        # decision; the adapter only carries the constructed message to the runner.
-        control_message = self._workflow_engine.build_turn_control_message(task_id)
+        # decision; the adapter carries the control text to the runner and registers
+        # the directives on the turn state, where preparation reads them during the
+        # same turn (REQ-002). TurnState is not reset between turns, so this
+        # assignment is the per-turn reset: a turn with no control starts with none.
+        control = self._workflow_engine.build_turn_control_message(task_id)
+        ctx.turn.replay_directives = list(control.directives) if control else []
         result = await self._llm_executor.handle_llm_turn(
             ctx.conv.llm_url,
             workflow_id=ctx.workflow.workflow_id or "",
             task_id=ctx.workflow.current_task_id or "",
             stage_id="execute",
             attempt_id=ctx.turn.current_turn_id or "",
-            control_message=control_message,
+            control_message=control.text if control else None,
         )
         answer = result.answer
         error_kind: str | None = None

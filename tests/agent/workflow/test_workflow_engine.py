@@ -729,8 +729,16 @@ class TestRunStageWithRetryGeneralization:
 class TestBuildTurnControlMessage:
     """Turn-entry replay detection (toolexec001 REQ-008, row 08)."""
 
-    def _stale_row(self, store, task_id: str, key: str, tool: str, retry_class: str):
-        store.record_tool_call(task_id, key, tool, retry_class)
+    def _stale_row(
+        self,
+        store,
+        task_id: str,
+        key: str,
+        tool: str,
+        retry_class: str,
+        args_hash: str = "hash-1",
+    ):
+        store.record_tool_call(task_id, key, tool, retry_class, args_hash)
         store._db.execute(
             "UPDATE tool_call_state SET created_at=? WHERE idempotency_key=?",
             (time.time() - 3600, key),
@@ -741,13 +749,19 @@ class TestBuildTurnControlMessage:
         task = create_task(store._db, "s1", 1, "1.0.0", "wf")
         self._stale_row(store, task.task_id, "k1", "calculator__calculate", "retryable")
         engine = WorkflowEngine(_make_wdef(), store)
-        msg = engine.build_turn_control_message(task.task_id)
-        assert msg is not None
+        control = engine.build_turn_control_message(task.task_id)
+        assert control is not None
         assert (
-            "replay: tool=calculator__calculate idempotency_key=k1 state=interrupted"
-            in msg
+            "replay: tool=calculator__calculate args_hash=hash-1 state=interrupted"
+            in control.text
         )
-        assert "unreplayable" not in msg
+        assert "unreplayable" not in control.text
+        # AC-004: the LLM-facing text names tool and hash, never the logical id.
+        assert "k1" not in control.text
+        # AC-003: the replayable row is the one row that produces a directive.
+        (directive,) = control.directives
+        assert directive.original_call_id == "k1"
+        assert directive.args_hash == "hash-1"
         # Row was classified interrupted exactly once.
         row = store._db.execute(
             "SELECT state FROM tool_call_state WHERE idempotency_key='k1'"
@@ -757,13 +771,23 @@ class TestBuildTurnControlMessage:
     def test_non_retryable_yields_unreplayable_section_not_replay(self, store) -> None:
         task = create_task(store._db, "s1", 1, "1.0.0", "wf")
         self._stale_row(
-            store, task.task_id, "k2", "filesystem__write_file", "non_retryable"
+            store,
+            task.task_id,
+            "k2",
+            "filesystem__write_file",
+            "non_retryable",
+            args_hash="hash-2",
         )
         engine = WorkflowEngine(_make_wdef(), store)
-        msg = engine.build_turn_control_message(task.task_id)
-        assert msg is not None
-        assert "unreplayable: tool=filesystem__write_file idempotency_key=k2" in msg
-        assert "replay: tool=filesystem__write_file" not in msg
+        control = engine.build_turn_control_message(task.task_id)
+        assert control is not None
+        assert (
+            "unreplayable: tool=filesystem__write_file args_hash=hash-2" in control.text
+        )
+        assert "replay: tool=filesystem__write_file" not in control.text
+        assert "k2" not in control.text
+        # AC-003: a non-retryable row produces no directive.
+        assert control.directives == []
 
     def test_dispatched_stale_row_is_outcome_unknown_not_replay(self, store) -> None:
         """AC-6 (mcpdl001 REQ-009): a stale dispatched row becomes outcome_unknown
@@ -771,7 +795,12 @@ class TestBuildTurnControlMessage:
         retryable — its request may already have executed server-side."""
         task = create_task(store._db, "s1", 1, "1.0.0", "wf")
         self._stale_row(
-            store, task.task_id, "kd", "filesystem__write_file", "retryable"
+            store,
+            task.task_id,
+            "kd",
+            "filesystem__write_file",
+            "retryable",
+            args_hash="hash-3",
         )
         store.finalize_tool_call("kd", "dispatched")
         store._db.execute(
@@ -780,13 +809,16 @@ class TestBuildTurnControlMessage:
         )
         store._db.commit()
         engine = WorkflowEngine(_make_wdef(), store)
-        msg = engine.build_turn_control_message(task.task_id)
-        assert msg is not None
-        assert "replay:" not in msg
+        control = engine.build_turn_control_message(task.task_id)
+        assert control is not None
+        assert "replay:" not in control.text
         assert (
-            "unreplayable: tool=filesystem__write_file idempotency_key=kd"
-            " state=outcome_unknown" in msg
+            "unreplayable: tool=filesystem__write_file args_hash=hash-3"
+            " state=outcome_unknown" in control.text
         )
+        assert "kd" not in control.text
+        # AC-003: an outcome-unknown row joins the text but produces no directive.
+        assert control.directives == []
         row = store._db.execute(
             "SELECT state FROM tool_call_state WHERE idempotency_key='kd'"
         ).fetchone()
@@ -806,12 +838,14 @@ class TestBuildTurnControlMessage:
         )
         store._db.commit()
         engine = WorkflowEngine(_make_wdef(), store)
-        msg = engine.build_turn_control_message(task.task_id)
-        assert msg is not None
+        control = engine.build_turn_control_message(task.task_id)
+        assert control is not None
         assert (
-            "replay: tool=calculator__calculate idempotency_key=ks state=interrupted"
-            in msg
+            "replay: tool=calculator__calculate args_hash=hash-1 state=interrupted"
+            in control.text
         )
+        assert "ks" not in control.text
+        assert [d.original_call_id for d in control.directives] == ["ks"]
 
     def test_no_rows_yields_none(self, store) -> None:
         task = create_task(store._db, "s1", 1, "1.0.0", "wf")
@@ -820,17 +854,32 @@ class TestBuildTurnControlMessage:
 
     def test_fresh_pending_is_not_listed(self, store) -> None:
         task = create_task(store._db, "s1", 1, "1.0.0", "wf")
-        store.record_tool_call(task.task_id, "k3", "calculator__calculate", "retryable")
+        store.record_tool_call(
+            task.task_id, "k3", "calculator__calculate", "retryable", "hash-4"
+        )
         engine = WorkflowEngine(_make_wdef(), store)
         assert engine.build_turn_control_message(task.task_id) is None
         assert len(tool_call_state_ops.pending_tool_calls(store._db, task.task_id)) == 1
 
     def test_interrupted_rows_are_consumed_once(self, store) -> None:
+        """Plan Design D1: consumption is the row's state transition, not a flag.
+        The persisted `interrupted` row keeps producing the same directive until the
+        replay moves it out of the replayable states; a row the replay left at
+        `dispatch_starting` is still replayable (mcpdl001 REQ-009), so durable
+        one-time consumption is recorded by the terminal state the replay reaches."""
         task = create_task(store._db, "s1", 1, "1.0.0", "wf")
         self._stale_row(store, task.task_id, "k4", "calculator__calculate", "retryable")
         engine = WorkflowEngine(_make_wdef(), store)
-        assert engine.build_turn_control_message(task.task_id) is not None
-        # Second turn-entry: the row is already interrupted, not re-listed.
+        first = engine.build_turn_control_message(task.task_id)
+        assert first is not None
+        # Second turn-entry: the row is still `interrupted`, so the same directive
+        # is reconstructed from the persisted row (the process may have restarted).
+        second = engine.build_turn_control_message(task.task_id)
+        assert second is not None
+        assert [d.original_call_id for d in second.directives] == ["k4"]
+        # The replay consumed the row: it reached a terminal state, so the next
+        # turn entry lists nothing.
+        store.finalize_tool_call("k4", "completed")
         assert engine.build_turn_control_message(task.task_id) is None
 
     def test_store_failure_returns_none_not_raise(self, store) -> None:
@@ -870,7 +919,9 @@ class TestBuildTurnControlMessage:
         """SEQ-03: the constructor's pending_timeout_minutes sets the stale window —
         a 2h-old row stays 'pending' (not listed) when the configured window is 4h."""
         task = create_task(store._db, "s1", 1, "1.0.0", "wf")
-        store.record_tool_call(task.task_id, "kt", "calculator__calculate", "retryable")
+        store.record_tool_call(
+            task.task_id, "kt", "calculator__calculate", "retryable", "hash-5"
+        )
         store._db.execute(
             "UPDATE tool_call_state SET created_at=? WHERE idempotency_key=?",
             (time.time() - 2 * 3600, "kt"),
@@ -884,7 +935,9 @@ class TestBuildTurnControlMessage:
         """SEQ-03: a small configured window classifies an old row as interrupted —
         a 2h-old row is listed when the window is 1m."""
         task = create_task(store._db, "s1", 1, "1.0.0", "wf")
-        store.record_tool_call(task.task_id, "kx", "calculator__calculate", "retryable")
+        store.record_tool_call(
+            task.task_id, "kx", "calculator__calculate", "retryable", "hash-6"
+        )
         store._db.execute(
             "UPDATE tool_call_state SET created_at=? WHERE idempotency_key=?",
             (time.time() - 2 * 3600, "kx"),
@@ -892,9 +945,10 @@ class TestBuildTurnControlMessage:
         store._db.commit()
         engine = WorkflowEngine(_make_wdef(), store, pending_timeout_minutes=1)
         # 1m window << 2h age -> interrupted -> replay section present.
-        msg = engine.build_turn_control_message(task.task_id)
-        assert msg is not None
-        assert "replay: tool=calculator__calculate idempotency_key=kx" in msg
+        control = engine.build_turn_control_message(task.task_id)
+        assert control is not None
+        assert "replay: tool=calculator__calculate args_hash=hash-6" in control.text
+        assert "kx" not in control.text
 
 
 class TestEngineFacadeRouting:

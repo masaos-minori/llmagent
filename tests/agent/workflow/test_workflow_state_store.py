@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from agent.tool_preparation import _canonical_args_hash
 from agent.workflow import tool_call_state_ops
 from agent.workflow.artifact_ops import record_artifact
 from agent.workflow.attempt_ops import finish_attempt
@@ -870,7 +871,11 @@ class TestToolCallStateOps:
         t1 = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         t2 = create_task(store._db, "sess2", 2, "1.0.0", "wf-test")
         store.record_tool_call(
-            t1.task_id, "key-1", "calculator__calculate", "retryable"
+            t1.task_id,
+            "key-1",
+            "calculator__calculate",
+            "retryable",
+            _canonical_args_hash({"expression": "1+1"}),
         )
         pending1 = tool_call_state_ops.pending_tool_calls(store._db, t1.task_id)
         assert [c.idempotency_key for c in pending1] == ["key-1"]
@@ -883,17 +888,29 @@ class TestToolCallStateOps:
     def test_record_duplicate_key_is_ignored(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         store.record_tool_call(
-            task.task_id, "key-dup", "deepresearch__search", "retryable"
+            task.task_id,
+            "key-dup",
+            "deepresearch__search",
+            "retryable",
+            _canonical_args_hash({"query": "x"}),
         )
         store.record_tool_call(
-            task.task_id, "key-dup", "deepresearch__search", "retryable"
+            task.task_id,
+            "key-dup",
+            "deepresearch__search",
+            "retryable",
+            _canonical_args_hash({"query": "x"}),
         )
         assert len(tool_call_state_ops.pending_tool_calls(store._db, task.task_id)) == 1
 
     def test_finalize_moves_state_and_bumps_updated_at(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         store.record_tool_call(
-            task.task_id, "key-f", "calculator__calculate", "non_retryable"
+            task.task_id,
+            "key-f",
+            "calculator__calculate",
+            "non_retryable",
+            _canonical_args_hash({"expression": "1+1"}),
         )
         before = tool_call_state_ops.pending_tool_calls(store._db, task.task_id)[0]
         store.finalize_tool_call("key-f", "failed")
@@ -918,8 +935,20 @@ class TestToolCallStateOps:
         tb = create_task(store._db, "sessB", 2, "1.0.0", "wf-test")
         key_a = "base-key:" + ta.task_id
         key_b = "base-key:" + tb.task_id
-        store.record_tool_call(ta.task_id, key_a, "calculator__calculate", "retryable")
-        store.record_tool_call(tb.task_id, key_b, "calculator__calculate", "retryable")
+        store.record_tool_call(
+            ta.task_id,
+            key_a,
+            "calculator__calculate",
+            "retryable",
+            _canonical_args_hash({"expression": "1+1"}),
+        )
+        store.record_tool_call(
+            tb.task_id,
+            key_b,
+            "calculator__calculate",
+            "retryable",
+            _canonical_args_hash({"expression": "1+1"}),
+        )
         store.finalize_tool_call(key_a, "completed")
         assert tool_call_state_ops.pending_tool_calls(store._db, ta.task_id) == []
         assert [
@@ -942,7 +971,11 @@ class TestToolCallStateOps:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         for i in range(3):
             store.record_tool_call(
-                task.task_id, f"key-{i}", "calculator__calculate", "retryable"
+                task.task_id,
+                f"key-{i}",
+                "calculator__calculate",
+                "retryable",
+                _canonical_args_hash({"expression": "1+1"}),
             )
             time.sleep(0.01)
         keys = [
@@ -956,10 +989,18 @@ class TestToolCallStateOps:
     ) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         store.record_tool_call(
-            task.task_id, "old", "calculator__calculate", "retryable"
+            task.task_id,
+            "old",
+            "calculator__calculate",
+            "retryable",
+            _canonical_args_hash({"expression": "1+1"}),
         )
         store.record_tool_call(
-            task.task_id, "fresh", "calculator__calculate", "retryable"
+            task.task_id,
+            "fresh",
+            "calculator__calculate",
+            "retryable",
+            _canonical_args_hash({"expression": "1+1"}),
         )
         # Backdate 'old' past the timeout.
         store._db.execute(
@@ -988,12 +1029,14 @@ class TestToolCallStateOps:
             "018f0000-0000-7000-8000-0000000000a1",
             "calculator__calculate",
             "retryable",
+            _canonical_args_hash({"expression": "1+1"}),
         )
         store.record_tool_call(
             task.task_id,
             "018f0000-0000-7000-8000-0000000000a2",
             "calculator__calculate",
             "retryable",
+            _canonical_args_hash({"expression": "1+1"}),
         )
         pending = tool_call_state_ops.pending_tool_calls(store._db, task.task_id)
         assert [c.idempotency_key for c in pending] == [
@@ -1012,7 +1055,11 @@ class TestToolCallStateOps:
         listing, though it is still live for stale classification."""
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         store.record_tool_call(
-            task.task_id, "walk-1", "calculator__calculate", "retryable"
+            task.task_id,
+            "walk-1",
+            "calculator__calculate",
+            "retryable",
+            _canonical_args_hash({"expression": "1+1"}),
         )
         store.finalize_tool_call("walk-1", "dispatch_starting")
         assert tool_call_state_ops.pending_tool_calls(store._db, task.task_id) == []
@@ -1029,18 +1076,34 @@ class TestToolCallStateOps:
         never replayed."""
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         store.record_tool_call(
-            task.task_id, "never", "calculator__calculate", "retryable"
+            task.task_id,
+            "never",
+            "calculator__calculate",
+            "retryable",
+            _canonical_args_hash({"expression": "1+1"}),
         )
         store.record_tool_call(
-            task.task_id, "starting", "calculator__calculate", "retryable"
+            task.task_id,
+            "starting",
+            "calculator__calculate",
+            "retryable",
+            _canonical_args_hash({"expression": "1+1"}),
         )
         store.finalize_tool_call("starting", "dispatch_starting")
         store.record_tool_call(
-            task.task_id, "sent", "filesystem__write_file", "non_retryable"
+            task.task_id,
+            "sent",
+            "filesystem__write_file",
+            "non_retryable",
+            _canonical_args_hash({"path": "/a"}),
         )
         store.finalize_tool_call("sent", "dispatched")
         store.record_tool_call(
-            task.task_id, "resp", "filesystem__write_file", "non_retryable"
+            task.task_id,
+            "resp",
+            "filesystem__write_file",
+            "non_retryable",
+            _canonical_args_hash({"path": "/a"}),
         )
         store.finalize_tool_call("resp", "response_received")
         store._db.execute(
@@ -1065,7 +1128,11 @@ class TestToolCallStateOps:
         answer it gives replaces 'outcome_unknown' for the row it read."""
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         store.record_tool_call(
-            task.task_id, "sent", "git__remote_update", "non_retryable"
+            task.task_id,
+            "sent",
+            "git__remote_update",
+            "non_retryable",
+            _canonical_args_hash({"path": "/a"}),
         )
         store.finalize_tool_call("sent", "dispatched")
         store._db.execute(
@@ -1098,7 +1165,11 @@ class TestToolCallStateOps:
         }
         for key in answers:
             store.record_tool_call(
-                task.task_id, key, "git__remote_update", "non_retryable"
+                task.task_id,
+                key,
+                "git__remote_update",
+                "non_retryable",
+                _canonical_args_hash({"remote": "origin"}),
             )
             store.finalize_tool_call(key, "dispatched")
         store._db.execute(
@@ -1121,3 +1192,59 @@ class TestToolCallStateOps:
         assert tool_call_state_ops._resolved_target(_Answering(), None) == (
             "outcome_unknown"
         )
+
+    def test_recorded_row_exposes_args_hash(self, store) -> None:
+        """REQ-006: the hash written by `record_tool_call` is the canonical hash the
+        replay match compares against, and `_row_to_state` exposes it."""
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        args = {"expression": "1+1"}
+        store.record_tool_call(
+            task.task_id,
+            "key-hash",
+            "calculator__calculate",
+            "retryable",
+            _canonical_args_hash(args),
+        )
+        row = tool_call_state_ops.pending_tool_calls(store._db, task.task_id)[0]
+        assert row.args_hash == _canonical_args_hash(args)
+
+    def test_reconstruct_returns_only_interrupted_replayable_rows(self, store) -> None:
+        """REQ-004/REQ-006: reconstruction lists `interrupted` rows with retry_class
+        'retryable' only — a non-retryable interrupted row and a fresh pending row are
+        not directives, and the rows come back oldest first."""
+        task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        args = {"expression": "1+1"}
+        store.record_tool_call(
+            task.task_id,
+            "r1",
+            "calculator__calculate",
+            "retryable",
+            _canonical_args_hash(args),
+        )
+        store.record_tool_call(
+            task.task_id,
+            "r2",
+            "calculator__calculate",
+            "non_retryable",
+            _canonical_args_hash(args),
+        )
+        store.record_tool_call(
+            task.task_id,
+            "r3",
+            "calculator__calculate",
+            "retryable",
+            _canonical_args_hash({"expression": "2+2"}),
+        )
+        # Backdate r1 and r2 so classification transitions both to interrupted; r3 stays
+        # fresh pending and is not a directive source.
+        store._db.execute(
+            "UPDATE tool_call_state SET created_at=? WHERE idempotency_key IN ('r1','r2')",
+            (time.time() - 120,),
+        )
+        store._db.commit()
+        store.classify_stale_pending(task.task_id, 60.0)
+        rows = tool_call_state_ops.reconstruct_replay_directives(
+            store._db, task.task_id
+        )
+        assert [r.idempotency_key for r in rows] == ["r1"]
+        assert rows[0].args_hash == _canonical_args_hash(args)

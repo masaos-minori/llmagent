@@ -156,6 +156,8 @@ database shape against that canonical DDL. Column definitions (canonical DDL:
 - `tool_call_state`: `idempotency_key` (TEXT PK), `task_id` (TEXT NOT NULL),
   `tool` (TEXT NOT NULL), `state` (TEXT NOT NULL, CHECK `pending|completed|failed|interrupted`),
   `retry_class` (TEXT NOT NULL),
+  `args_hash` (TEXT NOT NULL, populated by the recording write path; it is the value
+  replay-directive reconstruction matches a reissued call against at turn entry),
   `created_at` / `updated_at` (REAL NOT NULL).
 - Index: `idx_tool_call_state_task_state` on `tool_call_state(task_id, state)`.
 

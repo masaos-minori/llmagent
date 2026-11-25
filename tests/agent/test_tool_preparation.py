@@ -14,7 +14,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
-from agent.tool_preparation import PreparedToolCall, prepare_tool_calls
+from agent.tool_preparation import (
+    PreparedToolCall,
+    ReplayDirective,
+    _canonical_args_hash,
+    prepare_tool_calls,
+)
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolExecutionContext
 
@@ -459,3 +464,113 @@ class TestPrepareToolCallsLogicalIdentity:
         parsed = uuid.UUID(value)
         assert parsed.version == 7
         assert parsed.variant == uuid.RFC_4122
+
+
+class TestPrepareToolCallsReplayDirective:
+    """mcpai004 REQ-001/REQ-002/REQ-003: the one-time replay directive at preparation."""
+
+    def _ctx(self, directives: list[ReplayDirective]) -> MagicMock:
+        runtime_tool = MagicMock()
+        runtime_tool.input_schema = {"type": "object", "properties": {}}
+        runtime_tool.allow_extra_fields = True
+        registry = MagicMock()
+        registry.get = MagicMock(return_value=runtime_tool)
+        registry.tool_spec_for_call = MagicMock(
+            side_effect=lambda call_id, name, args: ToolSpec(
+                call_id=call_id, name=name, args=args
+            )
+        )
+        ctx = _make_ctx()
+        ctx.services_required.runtime_tools = registry
+        ctx.workflow.current_task_id = "task_1"
+        ctx.turn.replay_directives = directives
+        return ctx
+
+    def _directive(
+        self, tool: str, args: dict[str, Any], call_id: str
+    ) -> ReplayDirective:
+        return ReplayDirective(
+            original_call_id=call_id,
+            task_id="task_1",
+            tool=tool,
+            args_hash=_canonical_args_hash(args),
+        )
+
+    def _context(self, prepared: PreparedToolCall) -> ToolExecutionContext:
+        """Narrow the optional execution context so the assertions read as the contract."""
+        assert prepared.context is not None
+        return prepared.context
+
+    def test_matching_directive_reuses_the_original_id(self) -> None:
+        """AC-001: a byte-identical reissue keeps the original logical call id, and the
+        prepared context carries the same canonical hash the directive matched on."""
+        args = {"path": "/a"}
+        directive = self._directive(
+            "read_text_file", args, "0199e2f3-0000-7000-8000-000000000001"
+        )
+        prepared, failures = prepare_tool_calls(
+            self._ctx([directive]),
+            [_tc("read_text_file", '{"path": "/a"}', call_id="call_1")],
+        )
+        assert failures == []
+        context = self._context(prepared[0])
+        assert context.call_id == directive.original_call_id
+        assert context.args_hash == directive.args_hash
+        assert directive.consumed
+
+    def test_directive_is_consumed_once(self) -> None:
+        """AC-002: the second identical call in the same batch gets a fresh id."""
+        args = {"path": "/a"}
+        directive = self._directive(
+            "read_text_file", args, "0199e2f3-0000-7000-8000-000000000002"
+        )
+        prepared, failures = prepare_tool_calls(
+            self._ctx([directive]),
+            [
+                _tc("read_text_file", '{"path": "/a"}', call_id="call_1"),
+                _tc("read_text_file", '{"path": "/a"}', call_id="call_2"),
+            ],
+        )
+        assert failures == []
+        assert self._context(prepared[0]).call_id == directive.original_call_id
+        second = self._context(prepared[1]).call_id
+        assert second != directive.original_call_id
+        assert uuid.UUID(second).version == 7
+
+    def test_ambiguous_match_fails_closed_before_dispatch(self, caplog) -> None:
+        """AC-002: several matching directives reject the call with the structured
+        `ambiguity` kind, list the matching ids, and consume nothing."""
+        args = {"path": "/a"}
+        first = self._directive(
+            "read_text_file", args, "0199e2f3-0000-7000-8000-000000000003"
+        )
+        second = self._directive(
+            "read_text_file", args, "0199e2f3-0000-7000-8000-000000000004"
+        )
+        prepared, failures = prepare_tool_calls(
+            self._ctx([first, second]),
+            [_tc("read_text_file", '{"path": "/a"}', call_id="call_1")],
+        )
+        assert prepared == []
+        assert len(failures) == 1
+        assert failures[0][3].startswith(
+            "2 replay directives match tool 'read_text_file'"
+        )
+        assert first.original_call_id in failures[0][3]
+        assert second.original_call_id in failures[0][3]
+        assert "kind=ambiguity" in caplog.text
+        assert not first.consumed and not second.consumed
+
+    def test_edited_arguments_do_not_match(self) -> None:
+        """Plan Risk on edited arguments: a reissue with different args hashes
+        differently, so no directive matches and the call proceeds as a new call."""
+        directive = self._directive(
+            "read_text_file", {"path": "/a"}, "0199e2f3-0000-7000-8000-000000000005"
+        )
+        prepared, failures = prepare_tool_calls(
+            self._ctx([directive]),
+            [_tc("read_text_file", '{"path": "/b"}', call_id="call_1")],
+        )
+        assert failures == []
+        assert self._context(prepared[0]).call_id != directive.original_call_id
+        assert not directive.consumed

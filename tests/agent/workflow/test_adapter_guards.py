@@ -12,10 +12,13 @@ engine is required.
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.tool_preparation import ReplayDirective, _canonical_args_hash
 from agent.turn_result import TurnResult
+from agent.workflow.workflow_engine import TurnControl
 from agent.workflow_engine_adapter import (
     TurnBoundaryMissingError,
     WorkflowEngineAdapter,
@@ -26,14 +29,20 @@ from agent.workflow_engine_adapter import (
 from tests.agent.test_orchestrator import _make_ctx
 
 
-def _adapter_with_engine(*, workflow_engine: object) -> WorkflowEngineAdapter:
+def _adapter_with_engine(
+    *,
+    workflow_engine: object,
+    state_store: Any = None,
+    conversation_manager: Any = None,
+    llm_executor: Any = None,
+) -> WorkflowEngineAdapter:
     """Build an adapter over injected mocks (no real store/engine needed)."""
     return WorkflowEngineAdapter(
         _make_ctx(),
-        state_store=MagicMock(),
+        state_store=state_store or MagicMock(),
         workflow_engine=workflow_engine,
-        conversation_manager=MagicMock(),
-        llm_executor=MagicMock(),
+        conversation_manager=conversation_manager or MagicMock(),
+        llm_executor=llm_executor or MagicMock(),
     )
 
 
@@ -60,7 +69,17 @@ async def test_missing_boundary_raises_protocol_error() -> None:
 
     engine = MagicMock()
     engine.version = "1.0.0"
-    engine.build_turn_control_message.return_value = "ctrl"
+    engine.build_turn_control_message.return_value = TurnControl(
+        text="ctrl",
+        directives=[
+            ReplayDirective(
+                original_call_id="018f0000-0000-7000-8000-0000000000b1",
+                task_id="task-guard",
+                tool="calculator__calculate",
+                args_hash=_canonical_args_hash({"expression": "1+1"}),
+            )
+        ],
+    )
 
     async def _run(
         task: object, plan_fn: object, execute_fn: object, verify_fn: object
@@ -107,6 +126,65 @@ async def test_missing_boundary_raises_protocol_error() -> None:
             await adapter.execute_turn("hello", 0.0, "s-boundary")
 
     assert audit.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_control_directives_are_registered_on_the_turn_state() -> None:
+    """REQ-002 guard: the adapter passes the control text unchanged to the runner and
+    registers the directives on the turn state, where preparation reads them during the
+    same turn. Driven through the real ``_run_execute_stage``, so a guard that stops
+    consuming ``TurnControl`` or stops registering the directives fails here."""
+    directive = ReplayDirective(
+        original_call_id="018f0000-0000-7000-8000-0000000000b1",
+        task_id="task-directive",
+        tool="calculator__calculate",
+        args_hash=_canonical_args_hash({"expression": "1+1"}),
+    )
+
+    engine = MagicMock()
+    engine.version = "1.0.0"
+    engine.build_turn_control_message.return_value = TurnControl(
+        text="ctrl", directives=[directive]
+    )
+
+    async def _run(task: Any, plan_fn: Any, execute_fn: Any, verify_fn: Any) -> None:
+        await plan_fn()
+        await execute_fn()
+        await verify_fn()
+
+    engine.run = AsyncMock(side_effect=_run)
+
+    llm_executor = MagicMock()
+    llm_executor.handle_llm_turn = AsyncMock(
+        return_value=TurnResult(
+            action="continue", answer="hi", persist_as_assistant=False
+        )
+    )
+
+    conversation_manager = MagicMock()
+    conversation_manager.clear_previous_turn_ephemeral_messages = MagicMock()
+    conversation_manager.handle_memory_injection = AsyncMock()
+    conversation_manager.append_user_message = AsyncMock()
+    conversation_manager.handle_history_compression = AsyncMock()
+
+    adapter = _adapter_with_engine(
+        workflow_engine=engine,
+        conversation_manager=conversation_manager,
+        llm_executor=llm_executor,
+    )
+
+    with (
+        patch(
+            "agent.workflow_engine_adapter.classify_and_inject_mode",
+            new=AsyncMock(),
+        ),
+        patch("agent.workflow_engine_adapter.audit_stage_completed", new=MagicMock()),
+    ):
+        await adapter.execute_turn("hello", 0.0, "s-directive")
+
+    # The text the LLM sees carries no identity value; the id stays on the directive.
+    assert llm_executor.handle_llm_turn.call_args.kwargs["control_message"] == "ctrl"
+    assert adapter._ctx.turn.replay_directives == [directive]
 
 
 @pytest.mark.asyncio

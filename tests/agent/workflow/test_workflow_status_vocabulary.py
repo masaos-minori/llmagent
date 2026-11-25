@@ -16,6 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from agent.tool_preparation import _canonical_args_hash
 from agent.workflow import tool_call_state_ops
 from agent.workflow.attempt_ops import finish_attempt
 from agent.workflow.idempotency_ops import begin_stage_if_new
@@ -134,7 +135,11 @@ class TestHelperRejection:
     def test_finalize_tool_call_rejects_and_writes_nothing(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         store.record_tool_call(
-            task.task_id, "key-v", "calculator__calculate", "retryable"
+            task.task_id,
+            "key-v",
+            "calculator__calculate",
+            "retryable",
+            _canonical_args_hash({"expression": "1+1"}),
         )
         store.finalize_tool_call("key-v", "completed")
         with pytest.raises(ValueError, match="invalid tool_call_state.state 'done'"):

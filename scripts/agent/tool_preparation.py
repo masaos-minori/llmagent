@@ -37,6 +37,29 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+@dataclass
+class ReplayDirective:
+    """One-time Agent-managed replay directive for a reissued tool call.
+
+    Built at turn entry from a persisted `interrupted` replayable `tool_call_state`
+    row (see `agent.workflow.tool_call_state_ops.reconstruct_replay_directives`) and
+    held on `TurnState.replay_directives`, so the LLM never sees the id it carries
+    (REQ-002). `original_call_id` is the logical call id of the interrupted call;
+    after the mcpdl001 id unification it is also the row's `idempotency_key`.
+
+    `consumed` records one-time consumption within the turn. The dataclass is not
+    frozen: `consumed` is the field the matching helper sets, and a frozen dataclass
+    cannot carry one-time consumption without a second holder object.
+    """
+
+    original_call_id: str
+    task_id: str
+    tool: str
+    args_hash: str
+    consumed: bool = False
+
+
 # Matches execute_one_tool_call()'s return shape: (tc_id, name, args, full_text,
 # is_error, llm_text). A prepare-phase failure has no separate "full" vs
 # "truncated" text, so both text fields carry the same rejection reason.
@@ -86,6 +109,43 @@ def _canonical_args_hash(args: dict[str, Any]) -> str:
     """
     canonical = json.dumps(args, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _resolve_replay_call_id(
+    ctx: AgentContext, tc_id: str, tool: str, args: dict, args_hash: str
+) -> str | _PrepFailure:
+    """The logical call id for a prepared call: the directive's, or a fresh one.
+
+    Matching is tool name plus canonical argument hash, scoped to the current task
+    (REQ-002). A match is consumed here, so one directive serves exactly one call
+    (REQ-001). Several matches is fail closed: the helper returns the `ambiguity`
+    rejection tuple — a new `kind` value in `_reject`'s free-string vocabulary —
+    listing the matching ids, so an ambiguous call never reaches dispatch (REQ-003).
+    Keeping the decision here is what limits `_prepare_one` to one added branch.
+    """
+    matches = [
+        d
+        for d in ctx.turn.replay_directives
+        if d.task_id == ctx.workflow.current_task_id
+        and d.tool == tool
+        and d.args_hash == args_hash
+        and not d.consumed
+    ]
+    if len(matches) > 1:
+        ids = ", ".join(d.original_call_id for d in matches)
+        return _reject(
+            tc_id,
+            tool,
+            args,
+            "ambiguity",
+            f"{len(matches)} replay directives match tool {tool!r} "
+            f"(args hash {args_hash}): {ids}",
+        )
+    if not matches:
+        return _logical_call_id()
+    directive = matches[0]
+    directive.consumed = True
+    return directive.original_call_id
 
 
 def _logical_call_id() -> str:
@@ -208,6 +268,11 @@ def _prepare_one(ctx: AgentContext, tc: dict) -> PreparedToolCall | _PrepFailure
             tc_id, name, args, "metadata", f"failed to build tool metadata for {name!r}"
         )
 
+    args_hash = _canonical_args_hash(args)
+    resolved = _resolve_replay_call_id(ctx, tc_id, name, args, args_hash)
+    if isinstance(resolved, tuple):
+        return resolved
+
     return PreparedToolCall(
         call_id=tc_id,
         name=name,
@@ -215,9 +280,9 @@ def _prepare_one(ctx: AgentContext, tc: dict) -> PreparedToolCall | _PrepFailure
         spec=spec,
         original_call=tc,
         context=ToolExecutionContext(
-            call_id=_logical_call_id(),
+            call_id=resolved,
             tool=name,
-            args_hash=_canonical_args_hash(args),
+            args_hash=args_hash,
             operation="call_tool",
         ),
     )

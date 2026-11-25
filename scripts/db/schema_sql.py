@@ -213,13 +213,15 @@ CREATE TABLE IF NOT EXISTS artifacts (
 -- The state column carries the dispatch-intent vocabulary mirrored in
 -- agent.workflow.models.TOOL_CALL_STATES.
 -- This file is its single canonical definition; fresh-created databases are
--- the only databases the workflow layer accepts.
+-- the only databases the workflow layer accepts. args_hash is the field
+-- replay-directive reconstruction reads from an interrupted row.
 CREATE TABLE IF NOT EXISTS tool_call_state (
     idempotency_key TEXT PRIMARY KEY,
     task_id         TEXT NOT NULL,
     tool            TEXT NOT NULL,
     state           TEXT NOT NULL CHECK (state IN ('pending', 'dispatch_starting', 'dispatched', 'response_received', 'completed', 'failed', 'interrupted', 'outcome_unknown', 'reconciliation_required')),
     retry_class     TEXT NOT NULL,
+    args_hash       TEXT NOT NULL,
     created_at      REAL NOT NULL,
     updated_at      REAL NOT NULL
 );

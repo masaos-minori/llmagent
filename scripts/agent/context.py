@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from agent.memory.services import MemoryServices
     from agent.repository_gateway import RepositoryGateway
     from agent.services.maintenance_jobs import MaintenanceJobRegistry
+    from agent.tool_preparation import ReplayDirective
     from agent.turn_persistence import TurnPersistence
 
 
@@ -260,6 +261,12 @@ class TurnState:
     # by the adapter's failure wrap to make side-effect-flagged failures terminal.
     # Transient process state: no DB column, no persistence-boundary write.
     attempt_side_effect: bool = False
+    # Per-turn replay directives (mcpai004): assigned fresh at turn entry by the
+    # workflow adapter, read by agent.tool_preparation._prepare_one. Agent-controlled —
+    # the LLM never sees this object and cannot change the id it carries (REQ-002).
+    # TurnState is constructed once with AgentContext and is not reset between turns,
+    # so the per-turn semantics come from the adapter assigning the field.
+    replay_directives: list[ReplayDirective] = field(default_factory=list)
 
 
 @dataclass
@@ -290,8 +297,11 @@ class ToolCallRecorder(Protocol):
     imported here so context.py stays import-cycle-free.
 
     `call_id` is the opaque uuid7 logical call id from the call's execution
-    context (the same value the transport sends as X-Idempotency-Key). `state`
-    must come from agent.workflow.models.TOOL_CALL_STATES. A recorder failure
+    context (the same value the transport sends as X-Idempotency-Key). `args_hash`
+    is the hex sha256 over canonical-JSON args — the same value
+    `agent.tool_preparation._canonical_args_hash` produces at preparation — and is
+    the field replay-directive reconstruction matches a reissued call against.
+    `state` must come from agent.workflow.models.TOOL_CALL_STATES. A recorder failure
     for a side-effecting call is raised by the caller (fail-closed in
     tool_runner), not swallowed here.
     """
@@ -302,6 +312,7 @@ class ToolCallRecorder(Protocol):
         call_id: str,
         tool: str,
         retry_class: str,
+        args_hash: str,
     ) -> None: ...
 
     def finalize_tool_call(self, call_id: str, state: str) -> None: ...
