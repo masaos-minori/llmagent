@@ -160,3 +160,21 @@ changes to the checker, its tests, and the documentation rows named above.
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261125-091717
 - **Related target files**: `tools/check_workitem_structure.py`, `tests/tools/test_check_workitem_structure.py`, `.pre-commit-config.yaml`, `rules/tool-gates.md`, `tools/TOOL_DESCRIPTIONS.md`, `templates/unknowns-issue.md`
+
+## Verification Result (20261125, issue-to-plan Step 2, adversarial)
+Status: **Defect confirmed as latent; the measured symptom in Problem no longer reproduces.** Checked on master at `9cdeac5e0`.
+
+Corrections to the Problem section:
+- The two live companion documents (`issues/20261123-120131_unknowns.md`, `_02_unknowns.md`) were removed by `e85d0c148`. `uv run python tools/check_workitem_structure.py` now reports 10 findings, all advisory `procedure-length`, and exits 0; `uv run pre-commit run workitem-structure --all-files` passes. The 41/31 figures and Acceptance Criteria 1 and 2 as written are therefore already met by the deletion, not by a fix.
+- The defect itself is reproduced with the producer's own output: `uv run python tools/generate_workitem.py --kind unknowns` writes `issues/{timestamp}_unknowns.md`, and `check_workitem_structure.py --file` on that scaffold reports 15 `missing required section` findings (it is judged against `templates/issue.md`). The scaffold file was deleted afterwards. The next companion document committed under `issues/` fails the hook the same way.
+- The unresolved question about the decision-record shape of `_02_unknowns.md` is moot: the file no longer exists. A future decision-record-shaped companion would be judged against the unknowns template; no shape decision is needed to fix kind detection.
+- 26 of the 32 archived companion documents under `issues/done/` fail their own template today (they predate the template revision), so `--include-done` would report them once kind detection exists. The default scan does not include `done/`, as for the other kinds.
+
+Facts that shape the fix:
+- `tools/check_workitem_structure.py` is 23,930 B against the 24,576 B module-size gate (not baselined), so the companion logic must live in a new module.
+- `tests/tools/test_check_workitem_structure.py` installs only the three core templates under a temporary root (`_install_templates`); loading companion specs requires installing the two companion templates there too.
+- All callers (`amend_plan.py`, `check_procedure_pass.py`, `generate_issue_batch.py`, the hook, `run_validation_gates.py`) call the CLI, none imports it; the `--file` and `--archived-status` forms are the contract.
+- The filename forms that must resolve are `{timestamp}_unknowns.md`, `{timestamp}_{NN}_unknowns.md`, `{timestamp}_risks.md`, `{timestamp}_{NN}_risks.md` (`tools/generate_workitem.py:245-261`). Ordinary issue ids contain a letter, so the strict pattern cannot collide with `{timestamp}_{id}_{slug}.md`.
+- Producer assumption confirmed: only `tools/generate_workitem.py --kind unknowns|risks` (used by `skills/issue-to-plan` Step 6) writes these names.
+
+Priority stays High: a defect that blocks the commit of every companion document produced by `issue-to-plan` Step 6 affects workflow execution; it is currently latent.
