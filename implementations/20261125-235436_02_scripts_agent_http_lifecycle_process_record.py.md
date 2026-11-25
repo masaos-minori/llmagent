@@ -22,7 +22,7 @@ Create `ManagedProcessRecord` (new) — one record that owns process, pid, pgid,
 `scripts/agent/http_lifecycle_process_record.py` (new)
 
 ### Procedure
-Define `ManagedProcessRecord` (new) with fields: `process` (`subprocess.Popen[bytes]`), `pid`, `pgid` (`int | None`), `stderr_log` (stderr-manager handle), `state` (`LifecycleState`), `last_outcome` (new) (`TerminationOutcome | None`).
+Define `ManagedProcessRecord` (new) with fields: `process` (`subprocess.Popen[bytes]`), `pid`, `pgid` (`int | None`), `stderr_log` (stderr-manager handle), `state` (`LifecycleState`), `last_outcome` (new) (`TerminationOutcome | None`), `failed_start` (new) (`bool`, the startup-failure retention flag that replaces `_failed_start_procs`).
 
 ### Method
 Plain dataclass; no methods beyond field storage and a `confirmed`-outcome convenience check delegating to `TerminationOutcome.confirmed` (`scripts/agent/http_lifecycle_errors.py:61`).

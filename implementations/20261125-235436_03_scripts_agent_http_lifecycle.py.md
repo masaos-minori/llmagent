@@ -21,7 +21,7 @@ Replace the three parallel tracking dicts with the `ManagedProcessRecord` regist
 `scripts/agent/http_lifecycle.py`
 
 ### Procedure
-Swap the three dicts for the record registry; rewire `_clear_server_tracking_data` (`:162-165`), `remove_process_entry` (`:174-175`), `_build_snapshot` (`:189-193`), the startup-failure path (`:254-281`), `start()` re-termination (`:318`, `:332-341`, `:363-394`), and `restart()` (`:396-414`) to the record; add the refusal branch in `restart()`.
+Swap the three dicts for the record registry `_records` (new) (`dict[str, ManagedProcessRecord]`); rewire `_clear_server_tracking_data` (`:162-165`), `remove_process_entry` (`:174-175`), `_build_snapshot` (`:189-193`), the startup-failure path (`:254-281`), `start()` re-termination (`:318`, `:332-341`, `:363-394`), and `restart()` (`:396-414`) to the record; add the refusal branch in `restart()`.
 
 ### Method
 Mechanical dict-to-record substitution plus one new refusal branch; the terminator and stderr-manager APIs are unchanged (Reference Files).
