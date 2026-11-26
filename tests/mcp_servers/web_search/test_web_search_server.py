@@ -15,6 +15,8 @@ from mcp_servers.web_search import web_search_server
 from mcp_servers.web_search import web_search_service as service
 from mcp_servers.web_search.web_search_models import (
     BrowserFetchResponse,
+    BrowserHttpStatusError,
+    BrowserUnsupportedContentError,
     WebSearchNetworkError,
     WebSearchParseError,
     WebSearchProviderError,
@@ -159,3 +161,60 @@ class TestBrowserFetchDispatchSuccess:
         )
 
         assert resp.status_code == 200
+
+
+class TestBrowserFetchAuditErrorType:
+    """The audit `error_type` of a fetch failure equals the metrics `error_type`."""
+
+    _CASES = [
+        (BrowserHttpStatusError("x", 301, "redirect"), "http_redirect"),
+        (BrowserHttpStatusError("x", 404, "client_error"), "http_client_error"),
+        (BrowserHttpStatusError("x", 429, "rate_limited"), "http_rate_limited"),
+        (BrowserHttpStatusError("x", 503, "server_error"), "http_server_error"),
+        (BrowserHttpStatusError("x", 199, "other"), "http_other"),
+        (
+            BrowserUnsupportedContentError("x", "application/pdf"),
+            "unsupported_content",
+        ),
+    ]
+
+    @pytest.mark.parametrize(("exc", "expected"), _CASES)
+    def test_the_classifier_returns_the_documented_type(
+        self, exc: Exception, expected: str
+    ) -> None:
+        assert web_search_server._classify_upstream_error(exc) == expected
+
+    @pytest.mark.parametrize(("exc", "expected"), _CASES)
+    def test_the_server_and_service_vocabularies_agree(
+        self, exc: Exception, expected: str
+    ) -> None:
+        assert service._classify_browser_error(exc) == expected
+        assert web_search_server._classify_upstream_error(exc) == expected
+
+    @pytest.mark.parametrize(("exc", "expected"), _CASES)
+    def test_a_failing_fetch_is_a_502_and_the_audit_carries_the_type(
+        self, monkeypatch: pytest.MonkeyPatch, exc: Exception, expected: str
+    ) -> None:
+        records: list[dict[str, object]] = []
+
+        def _audit(server_logger: object, **kwargs: object) -> None:
+            records.append(kwargs)
+
+        async def _raise(*args: object, **kwargs: object) -> None:
+            raise exc
+
+        monkeypatch.setattr(web_search_server, "_audit_log", _audit)
+        monkeypatch.setattr(service, "_provider_fetch_browser", _raise)
+        monkeypatch.setattr(
+            web_search_server._cfg, "browser_allowed_domains", ["example.com"]
+        )
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
+
+        resp = client.post(
+            "/v1/call_tool",
+            json={"name": "browser_fetch", "args": {"url": "https://example.com/"}},
+        )
+
+        assert resp.status_code == 502
+        assert len(records) == 1
+        assert records[0]["error_type"] == expected

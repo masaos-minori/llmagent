@@ -63,9 +63,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the provider tests of the seq 10 procedure against the change | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-133732 | 20261126-133732 | Changed: scripts/mcp_servers/web_search/search_provider.py |
+| 2 | Run the provider tests of the seq 10 procedure against the change | Completed | 20261126-133732 | 20261126-133732 | seq 10 provider tests pass; live smoke test: https://example.com fetched with the pinned address and verified, and a hostname-mismatch site was rejected |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-133732 | 20261126-133732 | ruff format/check, mypy (CI invocation), lint-imports, bandit, module size, docstring, reference table, validation gates passed; full suite (parallel, coverage): 26 failed and 88 errors in tests/agent/* and tests/docs/test_command_docs_sync.py from a pre-existing NameError in scripts/agent/commands/cmd_mcp.py, unrelated to this change; no failing test touches a changed file; diff-cover 95% on the changed tracked files; targeted tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

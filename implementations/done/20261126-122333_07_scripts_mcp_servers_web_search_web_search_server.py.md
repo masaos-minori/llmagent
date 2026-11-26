@@ -62,9 +62,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add the companion test cases, then confirm they pass | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-133738 | 20261126-133738 | Changed: scripts/mcp_servers/web_search/web_search_server.py |
+| 2 | Add the companion test cases, then confirm they pass | Completed | 20261126-133738 | 20261126-133738 | Changed: tests/mcp_servers/web_search/test_web_search_server.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-133738 | 20261126-133738 | ruff format/check, mypy (CI invocation), lint-imports, bandit, module size, validation gates passed; full suite: 26 failed and 88 errors from a pre-existing NameError in scripts/agent/commands/cmd_mcp.py, unrelated to this change; targeted tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -15,10 +15,12 @@ from collections.abc import Iterator
 
 import httpx
 import pytest
-import respx
 from mcp_servers.web_search import health, metrics, service
 from mcp_servers.web_search.web_search_models import (
     BrowserAuthorizationError,
+    BrowserFetchResponse,
+    BrowserHttpStatusError,
+    BrowserUnsupportedContentError,
     BrowserValidationError,
     SearchResult,
     WebSearchNetworkError,
@@ -219,17 +221,20 @@ class TestSearchWebValidationError:
 
 
 class TestFetchBrowserSuccess:
-    @respx.mock
     async def test_success_returns_result_and_records_browser_success(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # The real, config-loaded allowlist defaults to empty (fail-closed);
-        # allow "example.com" for this success-path test only.
-        monkeypatch.setattr(service._cfg, "browser_allowed_domains", ["example.com"])
-        respx.get("https://example.com/").mock(
-            return_value=httpx.Response(
-                200, html="<html><body><p>Hello</p></body></html>"
+        async def _ok(*args: object, **kwargs: object) -> BrowserFetchResponse:
+            return BrowserFetchResponse(
+                text="Hello",
+                truncated=False,
+                url="https://example.com/",
+                status_code=200,
+                elapsed_sec=0.01,
             )
+
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service._provider_fetch_browser", _ok
         )
         # search_web's own health/metrics must stay untouched by a browser_fetch call.
         result = await service.fetch_browser({"url": "https://example.com/"})
@@ -324,3 +329,90 @@ class TestFetchBrowserFetchError:
         assert health.is_browser_degraded() is True
         # search_web's own degradation state is unaffected by browser_fetch failures.
         assert health.is_degraded() is False
+
+
+class TestFetchBrowserClassification:
+    """Each fetch outcome is typed for metrics; only some count as health failures."""
+
+    @staticmethod
+    async def _fail_with(monkeypatch: pytest.MonkeyPatch, exc: Exception) -> None:
+        async def _raise(*args: object, **kwargs: object) -> None:
+            raise exc
+
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service._provider_fetch_browser", _raise
+        )
+        with pytest.raises(type(exc)):
+            await service.fetch_browser({"url": "https://example.com/"})
+
+    @pytest.mark.parametrize(
+        ("exc", "error_type", "is_health_failure"),
+        [
+            (BrowserHttpStatusError("x", 301, "redirect"), "http_redirect", False),
+            (
+                BrowserHttpStatusError("x", 404, "client_error"),
+                "http_client_error",
+                False,
+            ),
+            (
+                BrowserHttpStatusError("x", 403, "client_error"),
+                "http_client_error",
+                False,
+            ),
+            (
+                BrowserHttpStatusError("x", 429, "rate_limited"),
+                "http_rate_limited",
+                True,
+            ),
+            (
+                BrowserHttpStatusError("x", 500, "server_error"),
+                "http_server_error",
+                True,
+            ),
+            (
+                BrowserHttpStatusError("x", 503, "server_error"),
+                "http_server_error",
+                True,
+            ),
+            (BrowserHttpStatusError("x", 199, "other"), "http_other", True),
+            (
+                BrowserUnsupportedContentError("x", "application/pdf"),
+                "unsupported_content",
+                False,
+            ),
+            (WebSearchNetworkError("no such host"), "network_error", True),
+            (httpx.ReadTimeout("slow"), "fetch_error", True),
+            (httpx.ConnectError("refused"), "fetch_error", True),
+        ],
+    )
+    async def test_error_type_and_health_effect(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        exc: Exception,
+        error_type: str,
+        is_health_failure: bool,
+    ) -> None:
+        await self._fail_with(monkeypatch, exc)
+
+        assert metrics.browser_snapshot()["last_error_type"] == error_type
+        assert metrics.browser_snapshot()["queries_failed"] == 1
+        details = health.browser_health_details()
+        assert details["consecutive_failures"] == (1 if is_health_failure else 0)
+        assert health.is_degraded() is False
+
+    async def test_a_success_records_no_failure(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def _ok(*args: object, **kwargs: object) -> BrowserFetchResponse:
+            return BrowserFetchResponse(
+                text="t", truncated=False, url="u", status_code=200, elapsed_sec=0.0
+            )
+
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service._provider_fetch_browser", _ok
+        )
+        await service.fetch_browser({"url": "https://example.com/"})
+
+        assert metrics.browser_snapshot()["queries_failed"] == 0
+        assert metrics.browser_snapshot()["last_error_type"] == ""
+        assert health.browser_health_details()["consecutive_failures"] == 0

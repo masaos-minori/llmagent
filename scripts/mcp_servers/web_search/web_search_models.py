@@ -47,6 +47,28 @@ class BrowserValidationError(ValueError):
     """Raised on invalid input (HTTP 400/422)."""
 
 
+class BrowserHttpStatusError(WebSearchUpstreamError):
+    """Raised when the fetched site answers with a non-2xx outcome.
+
+    `category` is one of `redirect`, `client_error`, `rate_limited`,
+    `server_error`, or `other`. The message carries the status and category only,
+    never the upstream body.
+    """
+
+    def __init__(self, message: str, status_code: int, category: str) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.category = category
+
+
+class BrowserUnsupportedContentError(WebSearchUpstreamError):
+    """Raised when the fetched content type or encoding is not supported."""
+
+    def __init__(self, message: str, content_type: str) -> None:
+        super().__init__(message)
+        self.content_type = content_type
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Typed config object
 # ──────────────────────────────────────────────────────────────────────────────
@@ -312,10 +334,17 @@ class BrowserFetchRequest(BaseModel):
 
 
 class BrowserFetchResponse(BaseModel):
-    """Response body from a browser fetch."""
+    """Response body from a browser fetch.
+
+    `truncated` means the extracted text was cut to the returned-size limit;
+    `download_truncated` means the download itself stopped at a network, decoding,
+    or parser-input limit.
+    """
 
     text: str
     truncated: bool
     url: str
     status_code: int
     elapsed_sec: float
+    download_truncated: bool = False
+    content_type: str = ""

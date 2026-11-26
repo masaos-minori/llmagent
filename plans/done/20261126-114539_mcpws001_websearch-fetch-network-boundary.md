@@ -230,10 +230,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Address policy | In Progress | — | — |  |
-| 2 | Bounded fetch helper | In Progress | — | — |  |
-| 3 | Wire `browser_fetch` and classify results | In Progress | — | — |  |
-| 4 | Documentation | In Progress | — | — |  |
+| 1 | Address policy | Completed | — | 20261126-133757 |  |
+| 2 | Bounded fetch helper | Completed | — | 20261126-133757 |  |
+| 3 | Wire `browser_fetch` and classify results | Completed | — | 20261126-133757 |  |
+| 4 | Documentation | Completed | — | 20261126-133757 |  |
 | 5 | Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -244,15 +244,15 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261126-122333_01_scripts_mcp_servers_address_policy.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261126-122333_02_scripts_mcp_servers_bounded_fetch.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-122333_03_scripts_mcp_servers_web_search_web_search_models.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-122333_04_scripts_mcp_servers_web_search_search_provider.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-122333_05_scripts_mcp_servers_web_search_web_search_service.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-122333_06_scripts_mcp_servers_web_search_formatters.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-122333_07_scripts_mcp_servers_web_search_web_search_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-122333_10_tests_mcp_servers_web_search_test_web_search_provider.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-122333_14_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261126-122333_01_scripts_mcp_servers_address_policy.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261126-122333_02_scripts_mcp_servers_bounded_fetch.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-122333_03_scripts_mcp_servers_web_search_web_search_models.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-122333_04_scripts_mcp_servers_web_search_search_provider.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-122333_05_scripts_mcp_servers_web_search_web_search_service.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-122333_06_scripts_mcp_servers_web_search_formatters.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-122333_07_scripts_mcp_servers_web_search_web_search_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-122333_10_tests_mcp_servers_web_search_test_web_search_provider.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-122333_14_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -8,11 +8,11 @@ No real network calls — `DDGS` is monkeypatched per test.
 from __future__ import annotations
 
 import time
+from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
 import httpx
 import pytest
-import respx
 from mcp_servers.web_search.search_provider import (
     _check_domain,
     _extract_text,
@@ -24,6 +24,8 @@ from mcp_servers.web_search.web_search_models import (
     BrowserAuthorizationError,
     BrowserConfig,
     BrowserFetchRequest,
+    BrowserHttpStatusError,
+    BrowserUnsupportedContentError,
     BrowserValidationError,
     WebSearchNetworkError,
     WebSearchParseError,
@@ -226,78 +228,252 @@ class TestExtractText:
 
 # ── fetch_browser (ported from browser-mcp's BrowserService.fetch) ────────────
 
+_PUBLIC = "93.184.216.34"
+_HTML = {"content-type": "text/html; charset=utf-8"}
+
+
+class _AsyncStream(httpx.AsyncByteStream):
+    def __init__(self, source: AsyncIterator[bytes]) -> None:
+        self._source = source
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        async for chunk in self._source:
+            yield chunk
+
+
+def _response(
+    status: int, body: bytes = b"", headers: dict[str, str] | None = None
+) -> httpx.Response:
+    async def _one() -> AsyncIterator[bytes]:
+        if body:
+            yield body
+
+    return httpx.Response(status, stream=_AsyncStream(_one()), headers=headers)
+
+
+def _resolver(*answers: str):
+    async def _resolve(host: str, port: int) -> Sequence[str]:
+        return list(answers) or [_PUBLIC]
+
+    return _resolve
+
+
+class _Net:
+    """Injected transport and resolver; records every request that is sent."""
+
+    def __init__(self, handler, *answers: str) -> None:
+        self.requests: list[httpx.Request] = []
+        self._handler = handler
+        self.resolver = _resolver(*answers)
+
+    @property
+    def transport(self) -> httpx.MockTransport:
+        async def _call(request: httpx.Request) -> httpx.Response:
+            self.requests.append(request)
+            return await self._handler(request)
+
+        return httpx.MockTransport(_call)
+
+
+def _html(body: str = "<html><body><p>Hello</p></body></html>"):
+    async def _handler(request: httpx.Request) -> httpx.Response:
+        return _response(200, body.encode(), _HTML)
+
+    return _handler
+
+
+async def _fetch(
+    url: str,
+    net: _Net,
+    *,
+    allowed: list[str] | None = None,
+    max_response_kb: int = 256,
+    caller_kb: int | None = None,
+):
+    cfg = _make_browser_config(
+        allowed_domains=allowed or ["example.com"], max_response_kb=max_response_kb
+    )
+    req = BrowserFetchRequest(url=url, max_response_kb=caller_kb)
+    return await fetch_browser(req, cfg, resolver=net.resolver, transport=net.transport)
+
 
 class TestFetchBrowser:
     @pytest.mark.asyncio
-    @respx.mock
     async def test_fetch_returns_extracted_text(self) -> None:
-        respx.get("https://example.com/page").mock(
-            return_value=httpx.Response(
-                200, html="<html><body><p>Hello</p></body></html>"
-            )
-        )
-        cfg = _make_browser_config(allowed_domains=["example.com"])
-        req = BrowserFetchRequest(url="https://example.com/page")
-        resp = await fetch_browser(req, cfg)
+        resp = await _fetch("https://example.com/page", _Net(_html()))
         assert "Hello" in resp.text
         assert resp.status_code == 200
         assert resp.truncated is False
+        assert resp.download_truncated is False
+        assert resp.content_type == "text/html"
 
     @pytest.mark.asyncio
-    @respx.mock
     async def test_fetch_disallowed_domain_raises_before_network_call(self) -> None:
-        route = respx.get("https://evil.example/").mock(
-            return_value=httpx.Response(200, html="<html></html>")
-        )
-        cfg = _make_browser_config(allowed_domains=["example.com"])
-        req = BrowserFetchRequest(url="https://evil.example/")
+        net = _Net(_html())
         with pytest.raises(BrowserAuthorizationError):
-            await fetch_browser(req, cfg)
-        assert route.called is False
+            await _fetch("https://evil.example/", net)
+        assert net.requests == []
 
     @pytest.mark.asyncio
-    @respx.mock
-    async def test_fetch_non_2xx_response_passthrough(self) -> None:
-        # No raise_for_status is performed at the provider layer; the status
-        # code and whatever body text exists are passed through unmodified,
-        # letting the caller/LLM decide how to interpret it.
-        respx.get("https://example.com/missing").mock(
-            return_value=httpx.Response(
-                404, html="<html><body><p>Not Found</p></body></html>"
-            )
-        )
-        cfg = _make_browser_config(allowed_domains=["example.com"])
-        req = BrowserFetchRequest(url="https://example.com/missing")
-        resp = await fetch_browser(req, cfg)
-        assert resp.status_code == 404
-        assert "Not Found" in resp.text
+    @pytest.mark.parametrize(
+        ("status", "category"),
+        [
+            (403, "client_error"),
+            (404, "client_error"),
+            (429, "rate_limited"),
+            (500, "server_error"),
+            (503, "server_error"),
+        ],
+    )
+    async def test_fetch_non_2xx_raises_and_returns_no_body(
+        self, status: int, category: str
+    ) -> None:
+        async def _handler(request: httpx.Request) -> httpx.Response:
+            return _response(status, b"<html><body>Not Found</body></html>", _HTML)
+
+        with pytest.raises(BrowserHttpStatusError) as excinfo:
+            await _fetch("https://example.com/missing", _Net(_handler))
+        assert excinfo.value.status_code == status
+        assert excinfo.value.category == category
+        assert "Not Found" not in str(excinfo.value)
 
     @pytest.mark.asyncio
-    @respx.mock
+    async def test_fetch_redirect_without_location_is_a_status_error(self) -> None:
+        async def _handler(request: httpx.Request) -> httpx.Response:
+            return _response(301)
+
+        with pytest.raises(BrowserHttpStatusError) as excinfo:
+            await _fetch("https://example.com/", _Net(_handler))
+        assert excinfo.value.category == "redirect"
+
+    @pytest.mark.asyncio
     async def test_fetch_timeout_propagates_raw_httpx_exception(self) -> None:
-        # fetch_browser() intentionally does not catch httpx errors — per the
-        # search_provider.py implementation doc, httpx.HTTPError subclasses
-        # propagate unhandled up to service.py, which classifies them as
-        # "fetch_error" (see test_web_search_service.py).
-        respx.get("https://example.com/slow").mock(
-            side_effect=httpx.TimeoutException("timed out")
-        )
-        cfg = _make_browser_config(allowed_domains=["example.com"])
-        req = BrowserFetchRequest(url="https://example.com/slow")
+        async def _handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.TimeoutException("timed out")
+
         with pytest.raises(httpx.TimeoutException):
-            await fetch_browser(req, cfg)
+            await _fetch("https://example.com/slow", _Net(_handler))
 
     @pytest.mark.asyncio
-    @respx.mock
     async def test_fetch_clamps_caller_max_response_kb_to_server_max(self) -> None:
-        respx.get("https://example.com/big").mock(
-            return_value=httpx.Response(
-                200, html=f"<html><body><p>{'A' * 4096}</p></body></html>"
-            )
+        resp = await _fetch(
+            "https://example.com/big",
+            _Net(_html(f"<html><body><p>{'A' * 4096}</p></body></html>")),
+            max_response_kb=1,
+            caller_kb=999,
         )
-        cfg = _make_browser_config(allowed_domains=["example.com"], max_response_kb=1)
-        # Caller asks for far more than the server allows; result is clamped.
-        req = BrowserFetchRequest(url="https://example.com/big", max_response_kb=999)
-        resp = await fetch_browser(req, cfg)
         assert resp.truncated is True
+        assert resp.download_truncated is False
         assert len(resp.text.encode("utf-8")) <= 1024
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "answers",
+        [
+            ("127.0.0.1",),
+            ("10.0.0.5",),
+            ("169.254.169.254",),
+            ("::ffff:10.0.0.5",),
+            (_PUBLIC, "10.0.0.5"),
+        ],
+    )
+    async def test_fetch_rejects_a_prohibited_resolved_address(
+        self, answers: tuple[str, ...]
+    ) -> None:
+        net = _Net(_html(), *answers)
+        with pytest.raises(BrowserAuthorizationError):
+            await _fetch("https://example.com/", net)
+        assert net.requests == []
+
+    @pytest.mark.asyncio
+    async def test_fetch_resolution_failure_is_a_network_error(self) -> None:
+        net = _Net(_html())
+
+        async def _fail(host: str, port: int) -> Sequence[str]:
+            raise OSError("no such host")
+
+        net.resolver = _fail
+        with pytest.raises(WebSearchNetworkError):
+            await _fetch("https://example.com/", net)
+
+    @pytest.mark.asyncio
+    async def test_fetch_follows_a_redirect_inside_the_allowlist(self) -> None:
+        async def _handler(request: httpx.Request) -> httpx.Response:
+            if request.headers["host"] == "example.com":
+                return _response(302, headers={"location": "https://docs.example.com/"})
+            return _response(200, b"<html><body>docs</body></html>", _HTML)
+
+        resp = await _fetch(
+            "https://example.com/",
+            _Net(_handler),
+            allowed=["example.com", "docs.example.com"],
+        )
+        assert "docs" in resp.text
+
+    @pytest.mark.asyncio
+    async def test_fetch_rejects_a_redirect_outside_the_allowlist(self) -> None:
+        async def _handler(request: httpx.Request) -> httpx.Response:
+            return _response(302, headers={"location": "https://evil.example/"})
+
+        with pytest.raises(BrowserAuthorizationError):
+            await _fetch("https://example.com/", _Net(_handler))
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "media", ["application/pdf", "image/png", "application/zip"]
+    )
+    async def test_fetch_rejects_binary_types_before_the_parser(
+        self, media: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _fail(html: str) -> str:
+            raise AssertionError("the parser must not run")
+
+        monkeypatch.setattr(
+            "mcp_servers.web_search.search_provider._extract_text", _fail
+        )
+
+        async def _handler(request: httpx.Request) -> httpx.Response:
+            return _response(200, b"%PDF-1.4", {"content-type": media})
+
+        with pytest.raises(BrowserUnsupportedContentError) as excinfo:
+            await _fetch("https://example.com/", _Net(_handler))
+        assert excinfo.value.content_type == media
+
+    @pytest.mark.asyncio
+    async def test_fetch_rejects_a_missing_content_type(self) -> None:
+        async def _handler(request: httpx.Request) -> httpx.Response:
+            return _response(200, b"data")
+
+        with pytest.raises(BrowserUnsupportedContentError):
+            await _fetch("https://example.com/", _Net(_handler))
+
+    @pytest.mark.asyncio
+    async def test_fetch_returns_text_plain_without_the_html_parser(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _fail(html: str) -> str:
+            raise AssertionError("the parser must not run for text/plain")
+
+        monkeypatch.setattr(
+            "mcp_servers.web_search.search_provider._extract_text", _fail
+        )
+
+        async def _handler(request: httpx.Request) -> httpx.Response:
+            return _response(200, b"  plain text  ", {"content-type": "text/plain"})
+
+        resp = await _fetch("https://example.com/", _Net(_handler))
+        assert resp.text == "plain text"
+        assert resp.content_type == "text/plain"
+
+    @pytest.mark.asyncio
+    async def test_download_truncation_is_reported_separately_from_text_truncation(
+        self,
+    ) -> None:
+        big = b"<html><body><p>" + b"x" * (3 * 1024 * 1024) + b"</p></body></html>"
+
+        async def _handler(request: httpx.Request) -> httpx.Response:
+            return _response(200, big, _HTML)
+
+        resp = await _fetch("https://example.com/", _Net(_handler))
+        assert resp.download_truncated is True
+        assert resp.truncated is True

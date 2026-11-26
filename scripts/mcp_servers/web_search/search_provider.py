@@ -17,11 +17,26 @@ import httpx
 from bs4 import BeautifulSoup
 from duckduckgo_search import DDGS
 
+from mcp_servers.address_policy import (
+    KIND_PROHIBITED_ADDRESS,
+    AddressRejectedError,
+    Resolver,
+)
+from mcp_servers.bounded_fetch import (
+    FetchContentTypeError,
+    FetchLimits,
+    FetchRedirectError,
+    FetchStatusError,
+    FetchUnsupportedEncodingError,
+    fetch_bounded,
+)
 from mcp_servers.web_search.web_search_models import (
     BrowserAuthorizationError,
     BrowserConfig,
     BrowserFetchRequest,
     BrowserFetchResponse,
+    BrowserHttpStatusError,
+    BrowserUnsupportedContentError,
     BrowserValidationError,
     SearchResult,
     WebSearchNetworkError,
@@ -29,6 +44,14 @@ from mcp_servers.web_search.web_search_models import (
     WebSearchProviderError,
     WebSearchTimeoutError,
 )
+
+# Network limits of one browser_fetch (the returned-text limit comes from the
+# configured browser_max_response_kb): raw bytes read, bytes after content decoding,
+# and bytes handed to the parser.
+_FETCH_RAW_LIMIT_BYTES = 2 * 1024 * 1024
+_FETCH_DECODED_LIMIT_BYTES = 8 * 1024 * 1024
+_FETCH_PARSER_INPUT_LIMIT_BYTES = 2 * 1024 * 1024
+_ALLOWED_CONTENT_TYPES = frozenset({"text/html", "text/plain"})
 
 
 async def search_duckduckgo(
@@ -144,37 +167,92 @@ def _truncate(text: str, max_kb: int) -> tuple[str, bool]:
     return encoded[:max_bytes].decode("utf-8", errors="replace"), True
 
 
+def _decode_body(body: bytes, charset: str | None) -> str:
+    """Decode a fetched body with its declared charset, falling back to UTF-8."""
+    try:
+        return body.decode(charset or "utf-8", errors="replace")
+    except LookupError:
+        return body.decode("utf-8", errors="replace")
+
+
 async def fetch_browser(
-    req: BrowserFetchRequest, cfg: BrowserConfig
+    req: BrowserFetchRequest,
+    cfg: BrowserConfig,
+    *,
+    resolver: Resolver | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> BrowserFetchResponse:
     """Fetch a URL and return extracted, truncated text.
 
     Steps:
       1. Domain allowlist and IP-literal/loopback check
       2. Clamp caller-supplied max_response_kb to the server maximum
-      3. GET the URL via httpx.AsyncClient with the configured timeout
-      4. Extract visible text from the HTML response
+      3. Bounded fetch: every hop is allowlist-checked, every resolved address must
+         be public, the connection is pinned to the validated address, redirects are
+         bounded, only 2xx text/html and text/plain responses are accepted, and
+         raw, decoded, and parser-input bytes are limited independently
+      4. Extract visible text from HTML (plain text is used as is)
       5. Truncate the extracted text if over the size cap
+
+    `resolver` and `transport` exist for tests; production callers omit them.
 
     Raises:
         BrowserValidationError: on a malformed URL (bad scheme or missing hostname).
-        BrowserAuthorizationError: on an IP-literal target or a non-allowlisted domain.
+        BrowserAuthorizationError: on an IP-literal target, a non-allowlisted
+            domain, or a host that resolves to a prohibited address.
+        WebSearchNetworkError: when the host cannot be resolved.
+        BrowserHttpStatusError: on a non-2xx outcome or an unusable redirect.
+        BrowserUnsupportedContentError: on a content type or encoding that is not
+            supported.
     """
-    _check_domain(req.url, set(cfg.allowed_domains))
+    allowed = set(cfg.allowed_domains)
+    _check_domain(req.url, allowed)
     max_response_kb = min(
         req.max_response_kb or cfg.max_response_kb, cfg.max_response_kb
     )
+    limits = FetchLimits(
+        raw_bytes=_FETCH_RAW_LIMIT_BYTES,
+        decoded_bytes=_FETCH_DECODED_LIMIT_BYTES,
+        parser_input_bytes=_FETCH_PARSER_INPUT_LIMIT_BYTES,
+        returned_bytes=max_response_kb * 1024,
+    )
 
-    async with httpx.AsyncClient(timeout=cfg.timeout_sec) as client:
-        resp = await client.get(req.url)
+    try:
+        fetched = await fetch_bounded(
+            req.url,
+            limits=limits,
+            host_policy=lambda url: _check_domain(url, allowed),
+            allowed_content_types=_ALLOWED_CONTENT_TYPES,
+            timeout_sec=float(cfg.timeout_sec),
+            resolver=resolver,
+            transport=transport,
+        )
+    except AddressRejectedError as exc:
+        if exc.kind == KIND_PROHIBITED_ADDRESS:
+            raise BrowserAuthorizationError(str(exc)) from exc
+        raise WebSearchNetworkError(str(exc)) from exc
+    except FetchStatusError as exc:
+        raise BrowserHttpStatusError(str(exc), exc.status_code, exc.category) from exc
+    except FetchRedirectError as exc:
+        raise BrowserHttpStatusError(str(exc), 0, "redirect") from exc
+    except FetchContentTypeError as exc:
+        raise BrowserUnsupportedContentError(str(exc), exc.content_type) from exc
+    except FetchUnsupportedEncodingError as exc:
+        raise BrowserUnsupportedContentError(str(exc), exc.encoding) from exc
 
-    text = _extract_text(resp.text)
+    text = _decode_body(fetched.body, fetched.charset)
+    if fetched.content_type == "text/html":
+        text = _extract_text(text)
+    else:
+        text = text.strip()
     text, truncated = _truncate(text, max_response_kb)
 
     return BrowserFetchResponse(
         text=text,
         truncated=truncated,
         url=req.url,
-        status_code=resp.status_code,
-        elapsed_sec=resp.elapsed.total_seconds(),
+        status_code=fetched.status_code,
+        elapsed_sec=fetched.elapsed_sec,
+        download_truncated=fetched.download_truncated,
+        content_type=fetched.content_type,
     )

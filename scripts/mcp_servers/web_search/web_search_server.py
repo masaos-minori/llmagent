@@ -39,6 +39,8 @@ from mcp_servers.web_search.formatters import dispatch_web_tool
 from mcp_servers.web_search.web_search_models import (
     WEB_SEARCH_OWN_CONFIG_FILE,
     BrowserAuthorizationError,
+    BrowserHttpStatusError,
+    BrowserUnsupportedContentError,
     BrowserValidationError,
     WebSearchConfig,
     WebSearchNetworkError,
@@ -194,8 +196,14 @@ def _classify_upstream_error(exc: WebSearchUpstreamError) -> str:
     web_search_models.py now defines distinct WebSearchUpstreamError
     subclasses (WebSearchTimeoutError, WebSearchNetworkError,
     WebSearchParseError, WebSearchProviderError), so classification uses
-    isinstance checks rather than a substring match on str(exc).
+    isinstance checks rather than a substring match on str(exc). A browser_fetch
+    status error is `http_<category>` and unsupported content is
+    `unsupported_content`, the same strings the service records in its metrics.
     """
+    if isinstance(exc, BrowserHttpStatusError):
+        return f"http_{exc.category}"
+    if isinstance(exc, BrowserUnsupportedContentError):
+        return "unsupported_content"
     if isinstance(exc, WebSearchTimeoutError):
         return "timeout"
     if isinstance(exc, WebSearchNetworkError):

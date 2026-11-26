@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import pytest
 from mcp_servers.web_search.formatters import (
+    _format_fetch_result,
     dispatch_web_tool,
     fdisp_browser_fetch,
     fdisp_search_web,
@@ -130,3 +131,67 @@ class TestDispatchWebToolBrowserFetch:
 
         assert result.outcome == "ok"
         assert "ok" in result.output
+
+
+class TestFormatFetchResultTruncation:
+    """Download truncation and text truncation render as independent markers."""
+
+    @staticmethod
+    def _result(
+        *, truncated: bool, download_truncated: bool, content_type: str = ""
+    ) -> BrowserFetchResponse:
+        return BrowserFetchResponse(
+            text="body",
+            truncated=truncated,
+            url="https://example.com/",
+            status_code=200,
+            elapsed_sec=0.1,
+            download_truncated=download_truncated,
+            content_type=content_type,
+        )
+
+    def test_neither_marker_when_nothing_was_cut(self) -> None:
+        out = _format_fetch_result(
+            self._result(truncated=False, download_truncated=False)
+        )
+
+        assert "[DOWNLOAD TRUNCATED]" not in out
+        assert "[RESPONSE TRUNCATED]" not in out
+        assert out.endswith("body")
+
+    def test_only_the_download_marker(self) -> None:
+        out = _format_fetch_result(
+            self._result(truncated=False, download_truncated=True)
+        )
+
+        assert "[DOWNLOAD TRUNCATED]" in out
+        assert "[RESPONSE TRUNCATED]" not in out
+
+    def test_only_the_text_marker(self) -> None:
+        out = _format_fetch_result(
+            self._result(truncated=True, download_truncated=False)
+        )
+
+        assert "[RESPONSE TRUNCATED]" in out
+        assert "[DOWNLOAD TRUNCATED]" not in out
+
+    def test_both_markers_download_first(self) -> None:
+        out = _format_fetch_result(
+            self._result(truncated=True, download_truncated=True)
+        )
+
+        assert out.index("[DOWNLOAD TRUNCATED]") < out.index("[RESPONSE TRUNCATED]")
+
+    def test_content_type_is_shown_when_present_and_omitted_when_empty(self) -> None:
+        shown = _format_fetch_result(
+            self._result(
+                truncated=False, download_truncated=False, content_type="text/html"
+            )
+        )
+        omitted = _format_fetch_result(
+            self._result(truncated=False, download_truncated=False)
+        )
+
+        assert "content_type=text/html" in shown.splitlines()[0]
+        assert "content_type" not in omitted
+        assert "status_code=200" in shown

@@ -34,6 +34,8 @@ from mcp_servers.web_search.web_search_models import (
     BrowserConfig,
     BrowserFetchRequest,
     BrowserFetchResponse,
+    BrowserHttpStatusError,
+    BrowserUnsupportedContentError,
     BrowserValidationError,
     SearchRequest,
     SearchResponse,
@@ -127,19 +129,44 @@ async def search_web(args: dict[str, Any]) -> SearchResponse:
     )
 
 
+# Error types that describe the caller's input, the target, or the content, not a
+# failing outbound fetch: recorded in the metrics only, never as a browser health
+# failure.
+_HEALTH_NEUTRAL_ERROR_TYPES = frozenset(
+    {
+        "authorization_error",
+        "validation_error",
+        "http_redirect",
+        "http_client_error",
+        "unsupported_content",
+    }
+)
+
+
 def _classify_browser_error(exc: Exception) -> str:
     """Classify an exception raised while fetching a browser_fetch request.
 
     Mirrors `_classify_upstream_error`'s role for `search_web`, but keyed to
-    the browser_fetch-specific exception hierarchy (BrowserAuthorizationError/
-    BrowserValidationError) plus a catch-all for unclassified fetch failures
-    (e.g. raw httpx exceptions propagating from search_provider.fetch_browser).
+    the browser_fetch-specific exception hierarchy. A non-2xx outcome is
+    `http_<category>`; anything unclassified (e.g. a raw httpx timeout or
+    connection error from the provider) is `fetch_error`.
     """
     if isinstance(exc, BrowserAuthorizationError):
         return "authorization_error"
     if isinstance(exc, BrowserValidationError):
         return "validation_error"
+    if isinstance(exc, BrowserHttpStatusError):
+        return f"http_{exc.category}"
+    if isinstance(exc, BrowserUnsupportedContentError):
+        return "unsupported_content"
+    if isinstance(exc, WebSearchNetworkError):
+        return "network_error"
     return "fetch_error"
+
+
+def _is_health_neutral(error_type: str) -> bool:
+    """Return True when `error_type` must not count as a browser health failure."""
+    return error_type in _HEALTH_NEUTRAL_ERROR_TYPES
 
 
 async def fetch_browser(args: dict[str, Any]) -> BrowserFetchResponse:
@@ -154,10 +181,11 @@ async def fetch_browser(args: dict[str, Any]) -> BrowserFetchResponse:
             failure; not a browser-health failure either, for the same reason —
             it is a caller/target problem, not a signal that outbound fetches
             are failing).
-        Exception: any other fetch failure propagating from the provider layer
-            (recorded as a "fetch_error" browser-metrics AND browser-health
-            failure — this is the only case that reflects the fetch itself
-            failing).
+        Exception: any other fetch failure propagating from the provider layer.
+            It is recorded as a browser-metrics failure typed by
+            `_classify_browser_error`; it also counts as a browser-health failure
+            unless the type is health-neutral (a redirect, a 4xx answer, or
+            unsupported content describes the target, not a failing fetch).
     """
     t0 = time.perf_counter()
     browser_cfg = BrowserConfig.from_web_search_config(_cfg)
@@ -186,7 +214,8 @@ async def fetch_browser(args: dict[str, Any]) -> BrowserFetchResponse:
         metrics.record_browser_query(
             success=False, latency_ms=ms, error_type=error_type
         )
-        health.record_browser_failure(error_type)
+        if not _is_health_neutral(error_type):
+            health.record_browser_failure(error_type)
         raise
 
     ms = _elapsed_ms(t0)

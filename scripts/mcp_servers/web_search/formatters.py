@@ -37,10 +37,18 @@ async def fdisp_search_web(args: ToolArgs) -> str:
 
 
 def _format_fetch_result(result: BrowserFetchResponse) -> str:
-    """Format a BrowserFetchResponse as plain text for the LLM."""
-    parts: list[str] = [
-        f"status_code={result.status_code} elapsed={result.elapsed_sec}s"
-    ]
+    """Format a BrowserFetchResponse as plain text for the LLM.
+
+    `[DOWNLOAD TRUNCATED]` means the download stopped at a network, decoding, or
+    parser-input limit; `[RESPONSE TRUNCATED]` means the extracted text was cut to
+    the returned-size limit. The two are independent.
+    """
+    status_line = f"status_code={result.status_code} elapsed={result.elapsed_sec}s"
+    if result.content_type:
+        status_line += f" content_type={result.content_type}"
+    parts: list[str] = [status_line]
+    if result.download_truncated:
+        parts.append("[DOWNLOAD TRUNCATED]")
     if result.truncated:
         parts.append("[RESPONSE TRUNCATED]")
     parts.append(result.text)
