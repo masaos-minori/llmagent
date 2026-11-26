@@ -65,19 +65,19 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/mcp_servers/address_policy.py | Create: resolve all A/AAAA answers, classify prohibited addresses, return validated addresses | No resolver step exists; the RAG crawler check is unpinned and not importable by `mcp_servers` | REQ-001, REQ-002, REQ-008; AC-01 | `rg getaddrinfo scripts/mcp_servers/web_search` no match (checked in Step 3); `.importlinter` contract `mcp_servers -> db, shared` (checked in Step 3); `crawler_utils.py:140-190` (checked in Step 3) | tests/mcp_servers/test_address_policy.py | Verified |
-| scripts/mcp_servers/bounded_fetch.py | Create: pinned, redirect-bounded, status- and content-type-checked, independently limited streaming download | Reusable helper required by the issue and by the CI/CD log work | REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, REQ-008; AC-02, AC-03, AC-04, AC-05 | httpx 0.28.1 `follow_redirects=False` default and `sni_hostname` extension; httpcore 1.0.9 (checked in Step 3); only existing redirect user is `cicd_service_github_actions_job.py:85` (checked in Step 3) | tests/mcp_servers/test_bounded_fetch.py | Verified |
-| scripts/mcp_servers/web_search/search_provider.py | Modify: `fetch_browser` calls the helper with the allowlist host policy, limits, and content types; keep `_check_domain` | Current fetch has no resolution, status, type, or stream control | REQ-001 to REQ-007; AC-01 to AC-07 | `search_provider.py:90-123,134-180` (checked in Step 2) | tests/mcp_servers/web_search/test_web_search_provider.py | Verified |
-| scripts/mcp_servers/web_search/web_search_models.py | Modify: add typed errors (status category, unsupported content) and `download_truncated`, `content_type` on `BrowserFetchResponse` | Errors and result metadata need typed carriers | REQ-004, REQ-006, REQ-007; AC-04, AC-06, AC-07 | `web_search_models.py:22-46,314-321` (checked in Step 2) | tests/mcp_servers/web_search/test_web_search_provider.py | Verified |
-| scripts/mcp_servers/web_search/web_search_service.py | Modify: classify the new errors for metrics and health | `_classify_browser_error` knows three outcomes only | REQ-007; AC-07 | `web_search_service.py:130-199` (checked in Step 2) | tests/mcp_servers/web_search/test_web_search_service.py | Verified |
-| scripts/mcp_servers/web_search/formatters.py | Modify: render `download_truncated` and `content_type` next to `truncated` | The text result shows only `truncated` | REQ-007; AC-06 | `formatters.py:42-52` (checked in Step 2) | tests/mcp_servers/web_search/test_web_search_formatters.py | Verified |
-| scripts/mcp_servers/web_search/web_search_server.py | Modify: audit `error_type` and HTTP mapping for the new errors | The server enumerates browser error classes explicitly | REQ-007; AC-07 | `web_search_server.py:111-135,191-205,294-310` (checked in Step 2) | tests/mcp_servers/web_search/test_web_search_server.py | Verified |
-| tests/mcp_servers/test_address_policy.py | Create: IPv4, IPv6, mapped, mixed, empty, and failed-resolution cases | New module | REQ-001; AC-01 | `tests/mcp_servers/` exists (checked in Step 3) | tests/mcp_servers/test_address_policy.py | Verified |
-| tests/mcp_servers/test_bounded_fetch.py | Create: pinning, redirect, status, type, and limit cases with a fake transport and resolver | New module | REQ-002 to REQ-006, REQ-008; AC-02 to AC-05 | `tests/mcp_servers/` exists (checked in Step 3) | tests/mcp_servers/test_bounded_fetch.py | Verified |
-| tests/mcp_servers/web_search/test_web_search_provider.py | Modify: reverse the 404 passthrough expectation; adapt respx mocks to the pinned request; add prohibited-address, redirect, type, and limit cases | The 404 test asserts the removed behavior; mocks route by hostname | REQ-001 to REQ-007; AC-01 to AC-07 | `test_web_search_provider.py:222-300` (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_provider.py | Verified |
-| tests/mcp_servers/web_search/test_web_search_service.py | Modify: metrics and health classification for every status category | Existing tests cover three outcomes | REQ-007; AC-07 | `test_web_search_service.py:225-325` (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_service.py | Verified |
-| tests/mcp_servers/web_search/test_web_search_formatters.py | Modify: truncation metadata rendering | Response gains fields | REQ-007; AC-06 | `test_web_search_formatters.py:60-82` (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_formatters.py | Verified |
-| tests/mcp_servers/web_search/test_web_search_server.py | Modify: audit error type and status mapping for the new errors | Server maps the error classes | REQ-007; AC-07 | `test_web_search_server.py` exists (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_server.py | Verified |
+| scripts/mcp_servers/address_policy.py | Create: resolve all A/AAAA answers, classify prohibited addresses, return validated addresses | No resolver step exists; the RAG crawler check is unpinned and not importable by `mcp_servers` | REQ-001, REQ-002, REQ-008; AC-01 | `rg getaddrinfo scripts/mcp_servers/web_search` no match (checked in Step 3); `.importlinter` contract `mcp_servers -> db, shared` (checked in Step 3); `crawler_utils.py:140-190` (checked in Step 3) | `tests/mcp_servers/test_address_policy.py` | Verified |
+| scripts/mcp_servers/bounded_fetch.py | Create: pinned, redirect-bounded, status- and content-type-checked, independently limited streaming download | Reusable helper required by the issue and by the CI/CD log work | REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, REQ-008; AC-02, AC-03, AC-04, AC-05 | httpx 0.28.1 `follow_redirects=False` default and `sni_hostname` extension; httpcore 1.0.9 (checked in Step 3); only existing redirect user is `cicd_service_github_actions_job.py:85` (checked in Step 3) | `tests/mcp_servers/test_bounded_fetch.py` | Verified |
+| scripts/mcp_servers/web_search/web_search_models.py | Modify: add typed errors (status category, unsupported content) and `download_truncated`, `content_type` on `BrowserFetchResponse` | Errors and result metadata need typed carriers | REQ-004, REQ-006, REQ-007; AC-04, AC-06, AC-07 | `web_search_models.py:22-46,314-321` (checked in Step 2) | `tests/mcp_servers/web_search/test_web_search_provider.py` | Verified |
+| scripts/mcp_servers/web_search/search_provider.py | Modify: `fetch_browser` calls the helper with the allowlist host policy, limits, and content types; keep `_check_domain` | Current fetch has no resolution, status, type, or stream control | REQ-001 to REQ-007; AC-01 to AC-07 | `search_provider.py:90-123,134-180` (checked in Step 2) | `tests/mcp_servers/web_search/test_web_search_provider.py` | Verified |
+| scripts/mcp_servers/web_search/web_search_service.py | Modify: classify the new errors for metrics and health | `_classify_browser_error` knows three outcomes only | REQ-007; AC-07 | `web_search_service.py:130-199` (checked in Step 2) | `tests/mcp_servers/web_search/test_web_search_service.py` | Verified |
+| scripts/mcp_servers/web_search/formatters.py | Modify: render `download_truncated` and `content_type` next to `truncated` | The text result shows only `truncated` | REQ-007; AC-06 | `formatters.py:42-52` (checked in Step 2) | `tests/mcp_servers/web_search/test_web_search_formatters.py` | Verified |
+| scripts/mcp_servers/web_search/web_search_server.py | Modify: audit `error_type` and HTTP mapping for the new errors | The server enumerates browser error classes explicitly | REQ-007; AC-07 | `web_search_server.py:111-135,191-205,294-310` (checked in Step 2) | `tests/mcp_servers/web_search/test_web_search_server.py` | Verified |
+| tests/mcp_servers/test_address_policy.py | Create: IPv4, IPv6, mapped, mixed, empty, and failed-resolution cases | New module | REQ-001; AC-01 | `tests/mcp_servers/` exists (checked in Step 3) | `tests/mcp_servers/test_address_policy.py` | Verified |
+| tests/mcp_servers/test_bounded_fetch.py | Create: pinning, redirect, status, type, and limit cases with a fake transport and resolver | New module | REQ-002 to REQ-006, REQ-008; AC-02 to AC-05 | `tests/mcp_servers/` exists (checked in Step 3) | `tests/mcp_servers/test_bounded_fetch.py` | Verified |
+| tests/mcp_servers/web_search/test_web_search_provider.py | Modify: reverse the 404 passthrough expectation; adapt respx mocks to the pinned request; add prohibited-address, redirect, type, and limit cases | The 404 test asserts the removed behavior; mocks route by hostname | REQ-001 to REQ-007; AC-01 to AC-07 | `test_web_search_provider.py:222-300` (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_provider.py` | Verified |
+| tests/mcp_servers/web_search/test_web_search_service.py | Modify: metrics and health classification for every status category | Existing tests cover three outcomes | REQ-007; AC-07 | `test_web_search_service.py:225-325` (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_service.py` | Verified |
+| tests/mcp_servers/web_search/test_web_search_formatters.py | Modify: truncation metadata rendering | Response gains fields | REQ-007; AC-06 | `test_web_search_formatters.py:60-82` (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_formatters.py` | Verified |
+| tests/mcp_servers/web_search/test_web_search_server.py | Modify: audit error type and status mapping for the new errors | Server maps the error classes | REQ-007; AC-07 | `test_web_search_server.py` exists (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_server.py` | Verified |
 | docs/22_mcp/mcp_04_01_web-search-file-read-github.md | Modify: `browser_fetch` security boundary section | Documents extracted-text truncation only | REQ-009; AC-08 | `mcp_04_01...md:44-55` (checked in Step 3) | `uv run python tools/run_validation_gates.py` | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
@@ -230,11 +230,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Address policy | Pending | — | — | |
-| 2 | Bounded fetch helper | Pending | — | — | |
-| 3 | Wire `browser_fetch` and classify results | Pending | — | — | |
-| 4 | Documentation | Pending | — | — | |
-| 5 | Deployment & Verification | Pending | — | — | |
+| 1 | Address policy | In Progress | — | — |  |
+| 2 | Bounded fetch helper | In Progress | — | — |  |
+| 3 | Wire `browser_fetch` and classify results | In Progress | — | — |  |
+| 4 | Documentation | In Progress | — | — |  |
+| 5 | Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -244,7 +244,15 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261126-122333_01_scripts_mcp_servers_address_policy.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261126-122333_02_scripts_mcp_servers_bounded_fetch.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-122333_03_scripts_mcp_servers_web_search_web_search_models.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-122333_04_scripts_mcp_servers_web_search_search_provider.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-122333_05_scripts_mcp_servers_web_search_web_search_service.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-122333_06_scripts_mcp_servers_web_search_formatters.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-122333_07_scripts_mcp_servers_web_search_web_search_server.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-122333_10_tests_mcp_servers_web_search_test_web_search_provider.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-122333_14_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -274,3 +282,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-008 | Required Changes bullet 8; `cicd_service_github_actions_job.py:85` | scripts/mcp_servers/address_policy.py | Phase 1 | AC-01 | T-01 | Explicit in issue |
 | REQ-008 | Required Changes bullet 8 | scripts/mcp_servers/bounded_fetch.py | Phase 2 | AC-03 | T-03 | Explicit in issue |
 | REQ-009 | Documentation Impact; `mcp_04_01...md:44-55` | docs/22_mcp/mcp_04_01_web-search-file-read-github.md | Phase 4 | AC-08 | T-07 | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-122333 -->

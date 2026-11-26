@@ -59,23 +59,23 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| scripts/mcp_servers/web_search/host_normalization.py | Create: the single allowlist/URL host normalization and entry validation function | Normalization is scattered (`_check_domain` lowercase, `_is_hostname_shape`) and is not IDNA-aware | REQ-001, REQ-002; AC-01, AC-02 | `search_provider.py:100-123`, `web_search_security_checks.py:48-60` (checked in Step 2) | tests/mcp_servers/web_search/test_host_normalization.py | Verified |
-| scripts/mcp_servers/audit.py | Modify: add the exactly-once guard, hash helper, URL redaction helper; remove the plaintext preview example | Shared audit-emission contract and redaction are required by this and two later issues | REQ-006; AC-06 | `audit.py:28,55-143` (checked in Step 2) | tests/mcp_servers/test_audit_redaction.py | Verified |
-| scripts/mcp_servers/web_search/web_search_models.py | Modify: strict request models, `url` and `max_response_kb` bounds, allowlist validation at load through the normalizer | Models ignore unknown fields and the allowlist entries are unchecked | REQ-002, REQ-003; AC-02, AC-03 | `web_search_models.py:180-182,254-321` (checked in Step 2) | tests/mcp_servers/web_search/test_web_search_models.py | Verified |
-| scripts/mcp_servers/web_search/web_search_tools.py | Modify: generate both `inputSchema` values with `build_input_schema()` | Hand-written schemas drift from the models | REQ-003; AC-03 | `web_search_tools.py:14-90`; `request_contract.py:35-50` (checked in Step 2) | tests/mcp_servers/web_search/test_web_search_tool_schema.py | Verified |
-| scripts/mcp_servers/web_search/web_search_security_checks.py | Modify: the allowlist posture check reuses the normalizer; the malformed-entry warning path is removed | Load-time failure replaces the warning | REQ-001, REQ-002; AC-02 | `web_search_security_checks.py:48-60,118-148` (checked in Step 2) | tests/mcp_servers/web_search/test_web_search_security_validation.py | Verified |
-| scripts/mcp_servers/web_search/search_provider.py | Modify: `_check_domain` compares the normalized URL host to the normalized set | Runtime authorization must use the same normalization | REQ-001; AC-01 | `search_provider.py:90-123` (checked in Step 2) | tests/mcp_servers/web_search/test_web_search_provider.py | Verified |
-| scripts/mcp_servers/web_search/web_search_server.py | Modify: context first, exactly-once audit for every outcome including disabled and envelope validation, redacted targets and details | Disabled and envelope rejections are not audited and targets carry raw input | REQ-004, REQ-005; AC-04, AC-05 | `web_search_server.py:208-226,265-311` (checked in Step 2) | tests/mcp_servers/web_search/test_web_search_audit.py, tests/mcp_servers/web_search/test_web_search_server.py | Verified |
-| config/web_search_mcp_server.toml | Modify: document the normalization and rejection rules next to `browser_allowed_domains` | The comment describes exact host match only | REQ-001, REQ-002; AC-02 | `config/web_search_mcp_server.toml:12-15` (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_models.py | Verified |
-| tests/mcp_servers/web_search/test_host_normalization.py | Create: uppercase, IDNA, trailing dot, scheme, path, query, fragment, userinfo, port, blank, non-string, duplicate cases | New module | REQ-001, REQ-002; AC-01, AC-02 | `tests/mcp_servers/web_search/` exists (checked in Step 3) | tests/mcp_servers/web_search/test_host_normalization.py | Verified |
-| tests/mcp_servers/test_audit_redaction.py | Create: exactly-once guard, hash, and URL redaction (signed URL, token, OAuth, personal data) | New shared helpers | REQ-006; AC-06 | `tests/mcp_servers/` exists (checked in Step 3) | tests/mcp_servers/test_audit_redaction.py | Verified |
-| tests/mcp_servers/web_search/test_web_search_models.py | Modify: strict model and config-load rejection cases | Config load behavior changes | REQ-002, REQ-003; AC-02, AC-03 | `test_web_search_models.py` exists (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_models.py | Verified |
-| tests/mcp_servers/web_search/test_web_search_tool_schema.py | Modify: extend parity to `browser_fetch` and unknown-field rejection | Drift test covers `search_web` only | REQ-003; AC-03 | `test_web_search_tool_schema.py:1-40` (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_tool_schema.py | Verified |
-| tests/mcp_servers/web_search/test_web_search_security_validation.py | Modify: reverse the warning expectation to a startup failure | The test asserts the removed warning (`:183-186`) | REQ-002; AC-02 | `test_web_search_security_validation.py:183-186` (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_security_validation.py | Verified |
-| tests/mcp_servers/web_search/test_web_search_audit.py | Modify: replace plaintext expectations with redaction expectations; add disabled, envelope, and one-record-per-outcome tests | Existing tests assert the preview fields (`:127-155,268-299,418`) | REQ-004, REQ-005; AC-04, AC-05 | `test_web_search_audit.py:127-155,268-299,418` (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_audit.py | Verified |
-| tests/mcp_servers/web_search/test_web_search_server.py | Modify: disabled-tool and envelope rejection responses and context ordering | Gate ordering changes | REQ-005; AC-05 | `test_web_search_server.py` exists (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_server.py | Verified |
-| tests/mcp_servers/web_search/test_web_search_health.py | Modify: rejected calls leave health counts unchanged | No test pins health isolation for rejections | REQ-005; AC-05 | `test_web_search_health.py` exists (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_health.py | Verified |
-| tests/mcp_servers/web_search/test_web_search_provider.py | Modify: normalized host matching in `_check_domain` | Runtime matching changes | REQ-001; AC-01 | `test_web_search_provider.py:155-191` (checked in Step 3) | tests/mcp_servers/web_search/test_web_search_provider.py | Verified |
+| scripts/mcp_servers/web_search/host_normalization.py | Create: the single allowlist/URL host normalization and entry validation function | Normalization is scattered (`_check_domain` lowercase, `_is_hostname_shape`) and is not IDNA-aware | REQ-001, REQ-002; AC-01, AC-02 | `search_provider.py:100-123`, `web_search_security_checks.py:48-60` (checked in Step 2) | `tests/mcp_servers/web_search/test_host_normalization.py` | Verified |
+| scripts/mcp_servers/audit.py | Modify: add the exactly-once guard, hash helper, URL redaction helper; remove the plaintext preview example | Shared audit-emission contract and redaction are required by this and two later issues | REQ-006; AC-06 | `audit.py:28,55-143` (checked in Step 2) | `tests/mcp_servers/test_audit_redaction.py` | Verified |
+| scripts/mcp_servers/web_search/web_search_models.py | Modify: strict request models, `url` and `max_response_kb` bounds, allowlist validation at load through the normalizer | Models ignore unknown fields and the allowlist entries are unchecked | REQ-002, REQ-003; AC-02, AC-03 | `web_search_models.py:180-182,254-321` (checked in Step 2) | `tests/mcp_servers/web_search/test_web_search_models.py` | Verified |
+| scripts/mcp_servers/web_search/web_search_tools.py | Modify: generate both `inputSchema` values with `build_input_schema()` | Hand-written schemas drift from the models | REQ-003; AC-03 | `web_search_tools.py:14-90`; `request_contract.py:35-50` (checked in Step 2) | `tests/mcp_servers/web_search/test_web_search_tool_schema.py` | Verified |
+| scripts/mcp_servers/web_search/web_search_security_checks.py | Modify: the allowlist posture check reuses the normalizer; the malformed-entry warning path is removed | Load-time failure replaces the warning | REQ-001, REQ-002; AC-02 | `web_search_security_checks.py:48-60,118-148` (checked in Step 2) | `tests/mcp_servers/web_search/test_web_search_security_validation.py` | Verified |
+| scripts/mcp_servers/web_search/search_provider.py | Modify: `_check_domain` compares the normalized URL host to the normalized set | Runtime authorization must use the same normalization | REQ-001; AC-01 | `search_provider.py:90-123` (checked in Step 2) | `tests/mcp_servers/web_search/test_web_search_provider.py` | Verified |
+| scripts/mcp_servers/web_search/web_search_server.py | Modify: context first, exactly-once audit for every outcome including disabled and envelope validation, redacted targets and details | Disabled and envelope rejections are not audited and targets carry raw input | REQ-004, REQ-005; AC-04, AC-05 | `web_search_server.py:208-226,265-311` (checked in Step 2) | `tests/mcp_servers/web_search/test_web_search_audit.py`, `tests/mcp_servers/web_search/test_web_search_server.py` | Verified |
+| config/web_search_mcp_server.toml | Modify: document the normalization and rejection rules next to `browser_allowed_domains` | The comment describes exact host match only | REQ-001, REQ-002; AC-02 | `config/web_search_mcp_server.toml:12-15` (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_models.py` | Verified |
+| tests/mcp_servers/web_search/test_host_normalization.py | Create: uppercase, IDNA, trailing dot, scheme, path, query, fragment, userinfo, port, blank, non-string, duplicate cases | New module | REQ-001, REQ-002; AC-01, AC-02 | `tests/mcp_servers/web_search/` exists (checked in Step 3) | `tests/mcp_servers/web_search/test_host_normalization.py` | Verified |
+| tests/mcp_servers/test_audit_redaction.py | Create: exactly-once guard, hash, and URL redaction (signed URL, token, OAuth, personal data) | New shared helpers | REQ-006; AC-06 | `tests/mcp_servers/` exists (checked in Step 3) | `tests/mcp_servers/test_audit_redaction.py` | Verified |
+| tests/mcp_servers/web_search/test_web_search_models.py | Modify: strict model and config-load rejection cases | Config load behavior changes | REQ-002, REQ-003; AC-02, AC-03 | `test_web_search_models.py` exists (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_models.py` | Verified |
+| tests/mcp_servers/web_search/test_web_search_tool_schema.py | Modify: extend parity to `browser_fetch` and unknown-field rejection | Drift test covers `search_web` only | REQ-003; AC-03 | `test_web_search_tool_schema.py:1-40` (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_tool_schema.py` | Verified |
+| tests/mcp_servers/web_search/test_web_search_security_validation.py | Modify: reverse the warning expectation to a startup failure | The test asserts the removed warning (`:183-186`) | REQ-002; AC-02 | `test_web_search_security_validation.py:183-186` (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_security_validation.py` | Verified |
+| tests/mcp_servers/web_search/test_web_search_audit.py | Modify: replace plaintext expectations with redaction expectations; add disabled, envelope, and one-record-per-outcome tests | Existing tests assert the preview fields (`:127-155,268-299,418`) | REQ-004, REQ-005; AC-04, AC-05 | `test_web_search_audit.py:127-155,268-299,418` (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_audit.py` | Verified |
+| tests/mcp_servers/web_search/test_web_search_server.py | Modify: disabled-tool and envelope rejection responses and context ordering | Gate ordering changes | REQ-005; AC-05 | `test_web_search_server.py` exists (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_server.py` | Verified |
+| tests/mcp_servers/web_search/test_web_search_health.py | Modify: rejected calls leave health counts unchanged | No test pins health isolation for rejections | REQ-005; AC-05 | `test_web_search_health.py` exists (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_health.py` | Verified |
+| tests/mcp_servers/web_search/test_web_search_provider.py | Modify: normalized host matching in `_check_domain` | Runtime matching changes | REQ-001; AC-01 | `test_web_search_provider.py:155-191` (checked in Step 3) | `tests/mcp_servers/web_search/test_web_search_provider.py` | Verified |
 | docs/22_mcp/mcp_02_03_audit-logging-and-errors.md | Modify: redaction, exactly-once rule, removed fields, shared helpers | The target column description and field list predate redaction | REQ-007; AC-07 | `mcp_02_03...md:22-48` (checked in Step 3) | `uv run python tools/run_validation_gates.py` | Verified |
 | docs/22_mcp/mcp_04_01_web-search-file-read-github.md | Modify: allowlist normalization, search-result URLs not authorized, health wording, Bearer examples | Documents exact host match only | REQ-007; AC-07 | `mcp_04_01...md:44-55` (checked in Step 3) | `uv run python tools/run_validation_gates.py` | Verified |
 
@@ -238,13 +238,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Host normalization and strict configuration | Pending | — | — | |
-| 2 | Strict models and generated schemas | Pending | — | — | |
-| 3 | Shared audit helpers | Pending | — | — | |
-| 4 | Redacted targets | Pending | — | — | |
-| 5 | Exactly-once audit for every outcome | Pending | — | — | |
-| 6 | Documentation | Pending | — | — | |
-| 7 | Deployment & Verification | Pending | — | — | |
+| 1 | Host normalization and strict configuration | In Progress | — | — |  |
+| 2 | Strict models and generated schemas | In Progress | — | — |  |
+| 3 | Shared audit helpers | In Progress | — | — |  |
+| 4 | Redacted targets | In Progress | — | — |  |
+| 5 | Exactly-once audit for every outcome | In Progress | — | — |  |
+| 6 | Documentation | In Progress | — | — |  |
+| 7 | Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -254,7 +254,18 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261126-123433_01_scripts_mcp_servers_web_search_host_normalization.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261126-123433_02_scripts_mcp_servers_audit.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-123433_03_scripts_mcp_servers_web_search_web_search_models.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261126-123433_04_scripts_mcp_servers_web_search_web_search_tools.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-123433_05_scripts_mcp_servers_web_search_web_search_security_checks.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261126-123433_06_scripts_mcp_servers_web_search_search_provider.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261126-123433_07_scripts_mcp_servers_web_search_web_search_server.py.md | 4, 5 | Procedure | Pending | — | — |
+| implementations/20261126-123433_08_config_web_search_mcp_server.toml.md | 1 | Procedure | Pending | — | — |
+| implementations/20261126-123433_11_tests_mcp_servers_web_search_test_web_search_models.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261126-123433_16_tests_mcp_servers_web_search_test_web_search_health.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261126-123433_18_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261126-123433_19_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 6 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -281,3 +292,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-006 | Required Changes bullets 5-6; `audit.py:28` | scripts/mcp_servers/audit.py | Phase 3 | AC-06 | T-05 | Confirmed by repository evidence |
 | REQ-007 | Documentation Impact | docs/22_mcp/mcp_02_03_audit-logging-and-errors.md | Phase 6 | AC-07 | T-06 | Explicit in issue |
 | REQ-007 | Documentation Impact | docs/22_mcp/mcp_04_01_web-search-file-read-github.md | Phase 6 | AC-07 | T-06 | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-123433 -->
