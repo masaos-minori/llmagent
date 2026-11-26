@@ -96,8 +96,8 @@ to the item.
   - "Execution Status" lists only the steps that apply: a docs-only row drops the
     "Add or update tests" step and keeps the validation step as the documentation
     checkers named in `rules/tool-gates.md` "When to run which tool".
-  - Target length is about 80 lines; `tools/check_workitem_structure.py` reports a
-    documentation-only procedure over 120 lines as an advisory `procedure-length`
+  - Target length is about 100 lines; `tools/check_workitem_structure.py` reports a
+    documentation-only procedure over 150 lines as an advisory `procedure-length`
     finding. A row that does not fit the lightweight criteria
     above uses the full form.
 

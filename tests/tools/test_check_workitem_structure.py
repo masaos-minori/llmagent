@@ -1000,7 +1000,7 @@ def test_long_docs_procedure_is_reported_but_does_not_fail(
     doc = _write(
         doc_root / "implementations",
         "20260105-000020_procedure.md",
-        _docs_procedure(target_line, 130),
+        _docs_procedure(target_line, 160),
     )
     findings = [
         f
@@ -1023,7 +1023,7 @@ def test_short_docs_procedure_and_long_code_procedure_are_not_reported(
     code = _write(
         doc_root / "implementations",
         "20260105-000022_procedure.md",
-        _docs_procedure("`scripts/a.py`", 130),
+        _docs_procedure("`scripts/a.py`", 160),
     )
     for doc in (short, code):
         assert [
@@ -1037,7 +1037,7 @@ def test_length_finding_does_not_mask_a_blocking_finding(doc_root: Path) -> None
     doc = _write(
         doc_root / "implementations",
         "20260105-000023_procedure.md",
-        "## Goal\n### Target file\n`docs/a.md`\n" + "Padding line.\n" * 130,
+        "## Goal\n### Target file\n`docs/a.md`\n" + "Padding line.\n" * 160,
     )
     assert cwis.main(["--file", str(doc)]) == 1
 

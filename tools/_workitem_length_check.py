@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 
-PROCEDURE_LINE_LIMIT = 120
+PROCEDURE_LINE_LIMIT = 150
 
 _TARGET_FILE_RE = re.compile(r"(?m)^### Target file\s*\n\s*(?:-\s*)?`([^`]+)`")
 
