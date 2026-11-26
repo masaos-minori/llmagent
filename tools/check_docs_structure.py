@@ -199,7 +199,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Re-accepted at 37198 (2026-11-25, cliplc005 rebased onto mcpai004): the merged
     # index carries both plans' symbols, so the regenerated file is 37198. The ceiling
     # equals the accepted size.
-    "agent_14_reference-api-subpackages-generated.md": 37198,
+    # Re-accepted at 37507 (2026-11-26, cliplc008 row 6): the capability classification adds
+    # public symbols in scripts/agent/services/mcp_health.py (CapabilityFinding,
+    # classify_capabilities), so the regenerated index grew 37198 -> 37507. The ceiling
+    # equals the accepted size.
+    "agent_14_reference-api-subpackages-generated.md": 37507,
 }
 
 
