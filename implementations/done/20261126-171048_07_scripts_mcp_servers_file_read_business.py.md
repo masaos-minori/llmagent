@@ -60,9 +60,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-181657 | 20261126-181657 | symlink exclusion + scanned-file/cumulative-byte/deadline limits with structured reason in search_files and _collect_grep_matches; byte_limit reported in read_single_file error text (FileResult has no truncation_reason field: seq 01 added it only to traversal responses — Step 3a correction); tree reason wired through TraversalState. Directory-entry match behavior in search_files preserved. Plan amended (owner-approved 20261126): read_service.py build_service() wiring added as a new target row; the new FileReadConfig fields have no other consumer path. Files: scripts/mcp_servers/file/read_business.py, scripts/mcp_servers/file/read_service.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-201535 | 20261126-201535 | new symlink/limit cases are owned by seq 14; only the direct consumer of the changed _collect_grep_matches signature (3-tuple unpack) was updated here. Full test matrix pending in seq 14 The test matrix owned by seq 14 landed: symlink-exclusion and limit cases plus a stat-race case for the OSError branch in search_files/_collect_grep_matches. Targeted run 115 passed. Files: tests/mcp_servers/file/test_read_service.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/mypy/lint-imports/module-size/mock-patch-targets/reference-table pass; targeted run tests/mcp_servers/file/test_read_service.py 99 passed; full-suite run deferred to end of plan batch; Step 5/6: N/A: no docs/00_index.md task-scope mapping for scripts/mcp_servers/file/read_business.py End-of-batch full-suite run passed (15774 passed, 5 skipped); diff-cover 100% on changed lines after the seq 14 stat-race tests covered the previously uncovered OSError branches (lines 265-266, 313-314); gates pass. Intermittent flaky failures in 3 unrelated tests under -n logical, all pass serially. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

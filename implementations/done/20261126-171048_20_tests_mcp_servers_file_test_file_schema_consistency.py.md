@@ -55,9 +55,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-184344 | 20261126-184344 | File created. Group 1: discovery-vs-model schema equality for read (9 tools), write (4), delete (2). Group 2: extra-field rejection for every file tool request model. Step 3a correction: the procedure's wire-boundary assumption is not implementable — no validator is registered for file tools in tool_validators.py and the dispatch handlers build models from cherry-picked arg keys, so an extra field on POST /v1/call_tool is ignored at runtime; the strict-base rejection is asserted at the model boundary instead. Files: tests/mcp_servers/file/test_file_schema_consistency.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-184344 | 20261126-184344 | The file is the test deliverable; targeted run 6 passed (3 schema-equality + 3 extra-field groups covering all 15 tools). Gap noted for the owner: AC-1 wire-level extra-field rejection is not enforced by the current dispatch path; recorded in the test file docstring. Files: tests/mcp_servers/file/test_file_schema_consistency.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/format/mock-patch-targets/reference-table pass; full-suite run deferred to end of plan batch; Step 5/6: N/A: no docs/00_index.md task-scope mapping for tests/mcp_servers/file/test_file_schema_consistency.py End-of-batch full-suite run passed (15774 passed, 5 skipped); coverage gate N/A for a test-only file (no scripts/ source changed by this row); targeted run 6 passed; gates pass. Intermittent flaky failures in 3 unrelated tests under -n logical, all pass serially. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

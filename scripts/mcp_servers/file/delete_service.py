@@ -31,6 +31,7 @@ from shared.security.result_dto import (
     SecurityCheckResult,
     SecurityCheckStatus,
 )
+from shared.write_outcome import APPLIED_AUDIT_FAILED
 
 from mcp_servers.file.common import (
     FileAuthorizationError,
@@ -92,15 +93,21 @@ class DeleteFileService(FileSecurityMixin):
         path: str,
         before_state: str | None = None,
         after_state: str | None = None,
-    ) -> None:
+        fail_closed: bool = False,
+    ) -> bool:
         """Append a single audit record to the audit log file.
 
         Format: {ISO8601} op={op} path={path} [before=<before-state>]
                 [after=<after-state>] user=llm-agent
         before/after are appended only when provided, so legacy two-argument
-        callers keep emitting the original line shape. Writing errors are logged
-        but never propagated — audit failure must not block the actual delete
-        operation from returning a result to the caller.
+        callers keep emitting the original line shape.
+
+        Returns True when the record was written, False when the write failed.
+        A completion-phase failure is logged and reported as the
+        `applied_audit_failed` outcome rather than propagated, because the delete
+        already landed. An intent-phase failure (`fail_closed=True`) raises
+        FileAuthorizationError instead: a destructive operation must not run with
+        no record of the intent (REQ-005).
         """
         ts = now_iso_raw()
         parts = [f"{ts} op={op} path={path}"]
@@ -115,6 +122,12 @@ class DeleteFileService(FileSecurityMixin):
                 fh.write(record)
         except OSError as e:
             logger.error("_write_audit_log: failed to write audit log: %s", e)
+            if fail_closed:
+                raise FileAuthorizationError(
+                    f"Intent audit could not be written, delete refused: {e}"
+                )
+            return False
+        return True
 
     # ── Business operation methods ──
 
@@ -129,9 +142,16 @@ class DeleteFileService(FileSecurityMixin):
             return f"stat error: {e}"
 
     def delete_file(self, req: DeleteFileRequest) -> DeleteFileResponse:
-        """Delete the specified file and record the operation in the audit log."""
+        """Delete the specified file and record the operation in the audit log.
+
+        The allowed-root guard runs before the dry-run branch so dry-run and real
+        deletion share one validation path (REQ-004). The intent audit is written
+        before the destructive call and fails closed (REQ-005); the completion audit
+        stays after it and reports `applied_audit_failed` when it cannot be written.
+        """
         target = self._resolve_safe(req.path)
         self._require_file(target, req.path)
+        self._check_not_deleting_allowed_root(target)
         if req.dry_run:
             return DeleteFileResponse(
                 path=str(target),
@@ -139,6 +159,10 @@ class DeleteFileService(FileSecurityMixin):
                 file_info=self._stat_info_for_dry_run(target),
             )
         before_state = self._fs_state(target)
+        # Intent audit before the destructive call: fail closed (REQ-005)
+        self._write_audit_log(
+            "delete_file", str(target), before_state, fail_closed=True
+        )
         try:
             target.unlink()
         except PermissionError as e:
@@ -149,8 +173,12 @@ class DeleteFileService(FileSecurityMixin):
 
         self._verify_deleted(target)
 
-        # Audit log written after successful deletion
-        self._write_audit_log("delete_file", str(target), before_state, "absent")
+        if not self._write_audit_log(
+            "delete_file", str(target), before_state, "absent"
+        ):
+            return DeleteFileResponse(
+                path=str(target), deleted=True, file_info=APPLIED_AUDIT_FAILED
+            )
         return DeleteFileResponse(path=str(target), deleted=True, file_info="")
 
     def _scan_directory_for_dry_run(self, target: Path) -> tuple[int, int, bool]:
@@ -211,19 +239,26 @@ class DeleteFileService(FileSecurityMixin):
     def delete_directory(self, req: DeleteDirectoryRequest) -> DeleteDirectoryResponse:
         """Delete a directory and record the operation in the audit log.
 
-        Raises if not empty when recursive=False.
+        Raises if not empty when recursive=False. The allowed-root guard runs before
+        the dry-run branch so dry-run and real deletion share one validation path
+        (REQ-004); the intent audit precedes the destructive call and fails closed
+        (REQ-005).
         """
         target = self._resolve_safe(req.path)
         self._require_dir(target, req.path)
 
+        # Allowed-root protection applies to every delete_directory call, including
+        # the dry-run branch and the non-recursive (rmdir) path.
+        self._check_not_deleting_allowed_root(target)
+
         if req.dry_run:
             return self._dry_run_directory_response(target)
 
-        # Allowed-root protection applies to every delete_directory call, including
-        # the non-recursive (rmdir) path.
-        self._check_not_deleting_allowed_root(target)
-
         before_state = self._fs_state(target)
+        # Intent audit before the destructive call: fail closed (REQ-005)
+        self._write_audit_log(
+            "delete_directory", str(target), before_state, fail_closed=True
+        )
         try:
             if req.recursive:
                 shutil.rmtree(str(target))
@@ -238,8 +273,12 @@ class DeleteFileService(FileSecurityMixin):
 
         self._verify_deleted(target)
 
-        # Audit log written after successful deletion
-        self._write_audit_log("delete_directory", str(target), before_state, "absent")
+        if not self._write_audit_log(
+            "delete_directory", str(target), before_state, "absent"
+        ):
+            return DeleteDirectoryResponse(
+                path=str(target), deleted=True, dir_info=APPLIED_AUDIT_FAILED
+            )
         return DeleteDirectoryResponse(path=str(target), deleted=True, dir_info="")
 
     # ── Dispatch handlers: format service results as plain text for the LLM ──

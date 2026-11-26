@@ -57,9 +57,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-183144 | 20261126-183144 | Removed the server.supported_extensions check block and the docstring paragraph. Files: scripts/mcp_servers/file/write_security_validation.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-183144 | 20261126-183144 | Pins removed: WRITE_CHECK_IDS id, helper parameter, TestSupportedExtensions class. Step 3a correction: the line-394 message test lost its extension argument with the removed field, so the vacuous extension assertion was dropped and the test renamed to test_no_message_names_a_directory. Targeted run 49 passed; test_ids_match_the_frozen_contract fails until seq 13 drops the same id from the contract inventory — expected plan-batch failure owned by seq 13. tests/shared/test_security_posture_contract.py: 60 passed. Files: tests/mcp_servers/file/test_file_security_validation.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/mypy/lint-imports/module-size/mock-patch-targets/reference-table pass; full-suite run deferred to end of plan batch; Step 5/6: N/A: no docs/00_index.md task-scope mapping for scripts/mcp_servers/file/write_security_validation.py End-of-batch full-suite run passed (15774 passed, 5 skipped), resolving the frozen-contract check-set failure owned by seq 13; diff-cover 100% on changed lines; gates pass. Intermittent flaky failures in 3 unrelated tests under -n logical, all pass serially. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

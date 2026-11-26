@@ -14,6 +14,7 @@ import fnmatch
 import logging
 import mimetypes
 import re
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -43,9 +44,11 @@ from mcp_servers.file.read_models import (
     ReadTextFileResponse,
     SearchFilesRequest,
     SearchFilesResponse,
+    TruncationReason,
 )
 from mcp_servers.file.read_security import ReadSecurityGuards
 from mcp_servers.file.read_static_helpers import (
+    TraversalState,
     build_tree,
     slice_lines,
 )
@@ -62,11 +65,19 @@ class ReadFileService(ReadSecurityGuards):
         max_read_bytes: int,
         max_tree_depth: int,
         max_search_results: int,
+        max_tree_nodes: int = 2000,
+        max_scanned_files: int = 5000,
+        max_total_scan_bytes: int = 10485760,
+        traversal_deadline_sec: float = 10.0,
     ) -> None:
         """Initialize the read file service with security guards and operation limits."""
         ReadSecurityGuards.__init__(self, allowed_dirs, max_read_bytes)
         self._max_tree_depth = max_tree_depth
         self._max_search_results = max_search_results
+        self._max_tree_nodes = max_tree_nodes
+        self._max_scanned_files = max_scanned_files
+        self._max_total_scan_bytes = max_total_scan_bytes
+        self._traversal_deadline_sec = traversal_deadline_sec
 
     @property
     def max_tree_depth(self) -> int:
@@ -119,12 +130,19 @@ class ReadFileService(ReadSecurityGuards):
         return ListDirectoryResponse(path=str(target), entries=entries)
 
     def build_directory_tree(self, req: DirectoryTreeRequest) -> DirectoryTreeResponse:
-        """Build a recursive directory tree, clamped to max_tree_depth."""
+        """Build a recursive directory tree, clamped to max_tree_depth and node limit."""
         target = self._resolve_safe(req.path)
         self._require_dir(target, req.path)
         depth = min(req.depth, self._max_tree_depth)
-        tree = build_tree(target, current_depth=0, max_depth=depth)
-        return DirectoryTreeResponse(root=tree)
+        state = TraversalState()
+        tree = build_tree(
+            target,
+            current_depth=0,
+            max_depth=depth,
+            max_tree_nodes=self._max_tree_nodes,
+            state=state,
+        )
+        return DirectoryTreeResponse(root=tree, truncation_reason=state.reason)
 
     def read_text_file(self, req: ReadTextFileRequest) -> ReadTextFileResponse:
         """Return the contents of the specified file as UTF-8 text."""
@@ -178,10 +196,12 @@ class ReadFileService(ReadSecurityGuards):
             return FileResult(path=raw_path, content=None, error=str(e))
         size = target.stat().st_size
         if size > self._max_read_bytes:
+            # FileResult has no truncation_reason field (seq 01 added the field only to
+            # traversal responses), so the structured reason is reported in the error text.
             return FileResult(
                 path=raw_path,
                 content=None,
-                error=f"Size limit exceeded: {size} bytes",
+                error=f"Size limit exceeded: {size} bytes (byte_limit)",
             )
         try:
             content = target.read_text(encoding="utf-8")
@@ -208,21 +228,51 @@ class ReadFileService(ReadSecurityGuards):
         return ReadMultipleFilesResponse(results=results)
 
     def search_files(self, req: SearchFilesRequest) -> SearchFilesResponse:
-        """Recursively search for files matching a glob pattern within a directory."""
+        """Recursively search for files matching a glob pattern within a directory.
+
+        Symlink entries are skipped before any stat() call (REQ-002). The scan is
+        bounded by max_scanned_files, max_total_scan_bytes, and the traversal
+        deadline; whichever limit stops the traversal is reported as the structured
+        truncation reason (REQ-003).
+        """
         base = self._resolve_safe(req.path)
         self._require_dir(base, req.path)
 
         matches: list[str] = []
+        reason: TruncationReason | None = None
+        scanned_files = 0
+        total_bytes = 0
+        deadline = time.monotonic() + self._traversal_deadline_sec
+
         # PermissionError during rglob() traversal is swallowed by glob.py itself
         # (CPython v3.13+ Lib/glob.py: scandir() OSError caught in except OSError: pass).
         # See plans/20260817-161921_plan.md
         for p in base.rglob("*"):
+            if p.is_symlink():
+                continue
             if len(matches) >= self._max_search_results:
                 break
+            if time.monotonic() > deadline:
+                reason = "deadline"
+                break
+            if p.is_file():
+                scanned_files += 1
+                if scanned_files > self._max_scanned_files:
+                    reason = "scanned_file_limit"
+                    break
+                try:
+                    total_bytes += p.stat().st_size
+                except OSError:
+                    continue
+                if total_bytes > self._max_total_scan_bytes:
+                    reason = "byte_limit"
+                    break
             if fnmatch.fnmatch(p.name, req.pattern):
                 matches.append(str(p))
 
-        return SearchFilesResponse(pattern=req.pattern, matches=matches)
+        return SearchFilesResponse(
+            pattern=req.pattern, matches=matches, truncation_reason=reason
+        )
 
     def _collect_grep_matches(
         self,
@@ -230,17 +280,45 @@ class ReadFileService(ReadSecurityGuards):
         compiled: re.Pattern[str],
         file_pattern: str,
         max_matches: int,
-    ) -> tuple[list[GrepMatch], bool]:
-        """Walk base recursively, match lines against compiled."""
+    ) -> tuple[list[GrepMatch], bool, TruncationReason | None]:
+        """Walk base recursively, match lines against compiled.
+
+        Symlink entries are skipped before any stat() call (REQ-002). The scan is
+        bounded by max_scanned_files, max_total_scan_bytes, and the traversal
+        deadline; whichever limit stops the traversal is returned as the structured
+        truncation reason (REQ-003).
+        """
         matches: list[GrepMatch] = []
+        reason: TruncationReason | None = None
+        scanned_files = 0
+        total_bytes = 0
+        deadline = time.monotonic() + self._traversal_deadline_sec
+
         # PermissionError during rglob() traversal is swallowed by glob.py itself
         # (CPython v3.13+ Lib/glob.py: scandir() OSError caught in except OSError: pass).
         # See plans/20260817-161921_plan.md
         for p in sorted(base.rglob("*")):
             if len(matches) >= max_matches:
-                return matches, True
+                return matches, True, reason
+            if p.is_symlink():
+                continue
+            if time.monotonic() > deadline:
+                reason = "deadline"
+                break
             if not p.is_file() or not fnmatch.fnmatch(p.name, file_pattern):
                 continue
+            scanned_files += 1
+            try:
+                size = p.stat().st_size
+            except OSError:
+                continue
+            total_bytes += size
+            if scanned_files > self._max_scanned_files:
+                reason = "scanned_file_limit"
+                break
+            if total_bytes > self._max_total_scan_bytes:
+                reason = "byte_limit"
+                break
             text = self._read_grep_text(p)
             if text is None:
                 continue
@@ -254,8 +332,8 @@ class ReadFileService(ReadSecurityGuards):
                         ),
                     )
                     if len(matches) >= max_matches:
-                        return matches, True
-        return matches, False
+                        return matches, True, reason
+        return matches, False, reason
 
     @staticmethod
     def _read_grep_text(path: Path) -> str | None:
@@ -274,14 +352,17 @@ class ReadFileService(ReadSecurityGuards):
         except re.error as e:
             raise FileValidationError(f"Invalid regular expression: {e}")
 
-        matches, truncated = self._collect_grep_matches(
+        matches, truncated, reason = self._collect_grep_matches(
             base,
             compiled,
             req.file_pattern,
             req.max_matches,
         )
         return GrepFilesResponse(
-            pattern=req.pattern, matches=matches, truncated=truncated
+            pattern=req.pattern,
+            matches=matches,
+            truncated=truncated,
+            truncation_reason=reason,
         )
 
     def get_file_info(self, req: GetFileInfoRequest) -> GetFileInfoResponse:

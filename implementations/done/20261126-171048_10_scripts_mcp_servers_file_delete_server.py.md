@@ -61,9 +61,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-182948 | 20261126-182948 | extract_request_context unpacked fully; logical-call id passed as detail=call=<id> (AuditRecord has no dedicated logical-call field, so detail carries it — Step 3a correction). Audit failure logged with outcome=applied_audit_failed; the counter is kept because the response outcome is already decided before the audit write and cannot be rewritten — Step 3a correction to 'swallow-and-count is replaced'. Files: scripts/mcp_servers/file/delete_server.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-182948 | 20261126-182948 | Helper extended with optional logical_call_id; delete accepted test asserts detail=call=<idempotency key>; new test asserts the applied_audit_failed error line. Step 3a correction: caplog cannot capture the shared Logger (propagate=False), so the error line is read from the captured MagicMock logger. Delete class 4 passed; the 3 write-class failures are the known pending supported_extensions failures owned by seq 12. Files: tests/mcp_servers/file/test_file_server_audit_records.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/mypy/lint-imports/module-size/mock-patch-targets/reference-table pass; full-suite run deferred to end of plan batch; Step 5/6: N/A: no docs/00_index.md task-scope mapping for scripts/mcp_servers/file/delete_server.py End-of-batch full-suite run passed (15774 passed, 5 skipped), resolving the pending supported_extensions failures noted here; diff-cover 100% on changed lines; gates pass. Intermittent flaky failures in 3 unrelated tests under -n logical, all pass serially. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

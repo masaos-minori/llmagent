@@ -58,9 +58,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-175113 | 20261126-175113 | read_models.py: strict-base swap for all 8 read request models (procedure listed 6; completion criterion covers all 8, corrected in 3a), 4 new FileReadConfig fields + from_dict parsing, TruncationReason Literal + truncation_reason on tree/search/grep responses. Files: scripts/mcp_servers/file/read_models.py, tests/mcp_servers/file/test_file_read_mcp_models.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-175113 | 20261126-175113 | test file updated (defaults + dataclass field set); targeted testmon run 5910 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/mypy/lint-imports/module-size/reference-table pass; full-suite run deferred to end of plan batch End-of-batch full-suite run passed (15774 passed, 5 skipped); diff-cover 100% on changed lines (fail-under 90); gates pass (ruff format/check, mypy, lint-imports, ast-grep, bandit, pre-commit, reference-drift, cited-adr-tests). Intermittent flaky failures in 3 unrelated tests under -n logical (eventbus x2, integration session sqlite), all pass serially; baseline has 0 known failures. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

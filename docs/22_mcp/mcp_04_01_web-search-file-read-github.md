@@ -73,6 +73,8 @@ Per-server design specification: purpose, security boundary, failure behavior, a
 
 - No tool requires configuration (`config_dependent: false`), but availability depends on `allowed_dirs`: empty means disabled with reason `"allowed_dirs is empty"`.
 - `max_read_bytes` is a byte count applied unchanged; `max_file_size_kb` belongs to github-mcp only.
+- Symlink entries are excluded from traversal results (`directory_tree`, `search_files`, `grep_files`): symlinks are skipped before any filesystem inspection, so entries outside `allowed_dirs` cannot be reached through a symlink and broken links never raise. There is no opt-in to follow symlinks.
+- Traversal limits report a structured truncation reason in the response's `truncation_reason` field: `max_tree_nodes` (2000) reports `node_limit`, `max_scanned_files` (5000) reports `scanned_file_limit`, `max_total_scan_bytes` (10485760) reports `byte_limit`, and `traversal_deadline_sec` (10.0) reports `deadline`.
 - `read_text_file` rejects simultaneous `head` and `tail` through model validation (422).
 - Error mapping: `FileAuthorizationError` 403, `FileNotFoundError` 404, `FileValidationError` 400 or 422 (as registered by the server's validation-error handler).
 - `/health`: `dependencies.filesystem` reports a workspace root that is not a directory; HTTP 200 when ready, 503 when degraded.

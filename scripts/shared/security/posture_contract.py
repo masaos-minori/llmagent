@@ -79,7 +79,6 @@ REQUIRED_CHECK_IDS: Mapping[str, tuple[str, ...]] = {
         "server.allowed_dirs_exist",
         "server.max_write_bytes",
         "server.write_dirs_writable",
-        "server.supported_extensions",
     ),
     "file_delete": COMMON_CHECK_IDS
     + (

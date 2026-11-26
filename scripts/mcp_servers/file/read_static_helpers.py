@@ -8,22 +8,50 @@ These helpers have no instance state — they operate purely on their arguments.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from pathlib import Path
 
 from shared.formatters import fmt_size
 
-from mcp_servers.file.read_models import FileEntry, TreeNode
+from mcp_servers.file.read_models import FileEntry, TreeNode, TruncationReason
 
 logger = logging.getLogger(__name__)
 
 
-def build_tree(path: Path, current_depth: int, max_depth: int) -> TreeNode:
+@dataclasses.dataclass
+class TraversalState:
+    """Mutable per-run counters for one tree-building traversal.
+
+    `nodes_seen` counts nodes created (the root included); `reason` records
+    which limit stopped the traversal, from the closed vocabulary in
+    read_models.TruncationReason.
+    """
+
+    nodes_seen: int = 0
+    reason: TruncationReason | None = None
+
+
+def build_tree(
+    path: Path,
+    current_depth: int,
+    max_depth: int,
+    max_tree_nodes: int | None = None,
+    state: TraversalState | None = None,
+) -> TreeNode:
     """Recursively build a directory tree.
 
     When current_depth >= max_depth, directories are not expanded and
     depth_limited is set to True if the directory has any contents.
+
+    Symlink entries are skipped before any stat() call, so broken links never
+    raise (REQ-002). When max_tree_nodes is set, node creation is counted
+    against it through `state` and the traversal stops with reason "node_limit"
+    (REQ-003).
     """
+    if state is None:
+        state = TraversalState()
+    state.nodes_seen += 1
     is_dir = path.is_dir()
     size = path.stat().st_size if path.is_file() else 0
     node = TreeNode(
@@ -38,8 +66,15 @@ def build_tree(path: Path, current_depth: int, max_depth: int) -> TreeNode:
     if current_depth < max_depth:
         try:
             for child in sorted(path.iterdir()):
+                if child.is_symlink():
+                    continue
+                if max_tree_nodes is not None and state.nodes_seen >= max_tree_nodes:
+                    state.reason = "node_limit"
+                    break
                 node.children.append(
-                    build_tree(child, current_depth + 1, max_depth),
+                    build_tree(
+                        child, current_depth + 1, max_depth, max_tree_nodes, state
+                    ),
                 )
         except PermissionError as e:
             logger.debug("Permission denied listing directory %s: %s", path, e)
@@ -52,7 +87,11 @@ def build_tree(path: Path, current_depth: int, max_depth: int) -> TreeNode:
 
 
 def count_tree_nodes(node: TreeNode) -> int:
-    """Count the total number of nodes in the tree."""
+    """Count the total number of nodes in the tree.
+
+    The tree exposes only non-symlink entries (build_tree skips symlinks), so
+    this count measures the same set the node limit is enforced against.
+    """
     return 1 + sum(count_tree_nodes(c) for c in node.children)
 
 

@@ -44,7 +44,6 @@ READ_CHECK_IDS = BASE_CHECK_IDS + ("server.max_read_bytes",)
 WRITE_CHECK_IDS = BASE_CHECK_IDS + (
     "server.max_write_bytes",
     "server.write_dirs_writable",
-    "server.supported_extensions",
 )
 DELETE_CHECK_IDS = BASE_CHECK_IDS + (
     "server.allowed_root_protected",
@@ -255,13 +254,11 @@ class TestFileReadMessages:
 def _write_results(
     allowed_dirs: tuple[str, ...],
     max_write_bytes: int,
-    supported_extensions: tuple[str, ...] = (),
 ) -> dict[str, SecurityCheckResult]:
     """The file-write check results keyed by check id."""
     cfg = FileWriteConfig(
         allowed_dirs=list(allowed_dirs),
         max_write_bytes=max_write_bytes,
-        supported_extensions=list(supported_extensions),
     )
     return {result.check_id: result for result in validate_file_write_security(cfg)}
 
@@ -325,22 +322,6 @@ class TestWriteDirsWritable:
         assert str(second) not in result.message
 
 
-class TestSupportedExtensions:
-    """The posture must not claim an enforcement that does not exist (REQ-009)."""
-
-    def test_always_not_applicable_even_when_configured(self, tmp_path: Path) -> None:
-        result = _write_results((str(tmp_path),), 100, (".md", ".txt"))[
-            "server.supported_extensions"
-        ]
-        assert result.status is SecurityCheckStatus.NOT_APPLICABLE
-        assert result.reason_code == REASON_NOT_APPLICABLE
-
-    def test_never_omitted(self) -> None:
-        for allowed_dirs, max_write_bytes in (((), 0), (("dir",), 100)):
-            produced = _write_results(allowed_dirs, max_write_bytes)
-            assert "server.supported_extensions" in produced
-
-
 class TestFileWriteCheckSet:
     """The write validator keeps the shared prefix and appends only write-specific checks."""
 
@@ -382,22 +363,21 @@ class TestFileWriteCheckSet:
 
 
 class TestFileWriteMessages:
-    """Directory paths and extension allowlists stay out of the posture (REQ-002)."""
+    """Directory paths stay out of the posture (REQ-002). The extension allowlist
+    assertion was dropped with the removed field — Step 3a correction."""
 
-    def test_no_message_names_a_directory_or_an_extension(self, tmp_path: Path) -> None:
+    def test_no_message_names_a_directory(self, tmp_path: Path) -> None:
         private = tmp_path / "private_dir"
         private.mkdir()
         produced = validate_file_write_security(
             FileWriteConfig(
                 allowed_dirs=[str(private), str(tmp_path / "gone")],
                 max_write_bytes=0,
-                supported_extensions=[".secretext"],
             )
         )
         for result in produced:
             assert "private_dir" not in result.message
             assert str(tmp_path) not in result.message
-            assert ".secretext" not in result.message
 
 
 def _delete_results(

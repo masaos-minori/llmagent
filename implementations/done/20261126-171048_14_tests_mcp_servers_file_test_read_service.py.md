@@ -55,9 +55,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-183821 | 20261126-183821 | TestTraversalSymlinkExclusion added: external file symlink, external directory symlink, chained symlink, self-referential loop, broken link, grep symlink skip, tree symlink skip — all assert exclusion and completion. Files: tests/mcp_servers/file/test_read_service.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-183821 | 20261126-183821 | TestTraversalLimits added: node limit (count_tree_nodes == max), scanned-file limit, cumulative-byte limit, deadline for both search and grep; deadline uses traversal_deadline_sec=0.0 with a pre-created tree, no sleeps. Helper _limited_service builds the service via FileReadConfig.from_dict with lowered limits. Targeted run 113 passed. Files: tests/mcp_servers/file/test_read_service.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/format/mock-patch-targets/reference-table pass; full-suite run deferred to end of plan batch; Step 5/6: N/A: no docs/00_index.md task-scope mapping for tests/mcp_servers/file/test_read_service.py End-of-batch full-suite run passed (15774 passed, 5 skipped); diff-cover 100% on changed source lines — the added TestTraversalStatRace cases cover the OSError branches in search_files and _collect_grep_matches that the first run left uncovered (265-266, 313-314); targeted run 115 passed; gates pass. Intermittent flaky failures in 3 unrelated tests under -n logical, all pass serially. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -646,13 +646,26 @@ class TestBuildService:
         from mcp_servers.file.write_models import FileWriteConfig
         from mcp_servers.file.write_service import build_service
 
-        cfg = FileWriteConfig(
-            max_write_bytes=1024, allowed_dirs=[], supported_extensions=[]
-        )
+        cfg = FileWriteConfig(max_write_bytes=1024, allowed_dirs=[])
         with caplog.at_level("WARNING"):
             svc = build_service(cfg)
         assert svc._allowed_dirs == []
         assert any("ALLOWED_DIRS is empty" in r.message for r in caplog.records)
+
+
+# ── empty-edit rejection at the model boundary (REQ-007) ──────────────────────
+
+
+class TestEmptyEditRejection:
+    """Empty edit lists and empty old_text are rejected at the model boundary."""
+
+    def test_empty_edit_list_rejected(self) -> None:
+        with pytest.raises(ValueError, match="edits must not be empty"):
+            EditFileRequest(path="/tmp/f.txt", edits=[])
+
+    def test_empty_old_text_rejected(self) -> None:
+        with pytest.raises(ValueError, match="old_text must not be empty"):
+            EditOperation(old_text="", new_text="x")
 
 
 # ── edit_file byte limit and atomic path (REQ-005) ────────────────────────────

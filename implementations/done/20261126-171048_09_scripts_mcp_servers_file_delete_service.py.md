@@ -66,9 +66,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-182308 | 20261126-182308 | allowed-root guard moved before the dry-run branch in delete_directory and applied to delete_file through the same shared path; intent audit written before the destructive call with fail_closed=True (raises FileAuthorizationError); completion-audit failure maps to APPLIED_AUDIT_FAILED via the existing file_info/dir_info fields (no new response fields). Files: scripts/mcp_servers/file/delete_service.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-182308 | 20261126-182308 | TestDryRunAuthorizationParity + TestAuditFaultInjection added (permission, read-only fs, disk-full); TestPostDeleteVerification case renamed to test_verification_failure_writes_no_completion_audit_record — Step 3a correction: with the intent record written before the destructive call the old 'no record at all' premise no longer holds. Targeted run 52 passed. Files: tests/mcp_servers/file/test_delete_service.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/mypy/lint-imports/module-size/mock-patch-targets/reference-table pass; full-suite run deferred to end of plan batch; Step 5/6: N/A: no docs/00_index.md task-scope mapping for scripts/mcp_servers/file/delete_service.py. Note: delete_formatter.py is not a plan target, so the applied_audit_failed outcome is carried in the response field only, not in the formatted text End-of-batch full-suite run passed (15774 passed, 5 skipped); diff-cover 100% on changed lines; gates pass. Intermittent flaky failures in 3 unrelated tests under -n logical, all pass serially. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

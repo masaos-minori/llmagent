@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pytest
 from mcp_servers.file.common import FileAuthorizationError, FileValidationError
+from shared.write_outcome import APPLIED_AUDIT_FAILED
 
 
 @pytest.fixture()
@@ -98,6 +99,180 @@ class TestAuditLog:
         with caplog.at_level(logging.ERROR):
             svc._write_audit_log("delete_file", "/some/path")
         assert "_write_audit_log: failed to write audit log" in caplog.text
+
+
+# ── Dry-run / real-deletion authorization parity (REQ-004) ────────────────────
+
+
+class TestDryRunAuthorizationParity:
+    """The allowed-root guard runs before the dry-run branch, so a dry-run call
+    against an allowed root is refused with the same error as a real delete."""
+
+    def test_dry_run_directory_against_allowed_root_is_refused(self, service: tuple):
+        svc, tmp_path = service
+        with pytest.raises(FileAuthorizationError, match="allowed root"):
+            svc.delete_directory(
+                type(
+                    "R", (), {"path": str(tmp_path), "recursive": True, "dry_run": True}
+                )()
+            )
+
+    def test_real_directory_delete_against_allowed_root_is_refused(
+        self, service: tuple
+    ):
+        svc, tmp_path = service
+        with pytest.raises(FileAuthorizationError, match="allowed root"):
+            svc.delete_directory(
+                type(
+                    "R",
+                    (),
+                    {"path": str(tmp_path), "recursive": True, "dry_run": False},
+                )()
+            )
+
+    def test_dry_run_and_real_file_delete_against_allowed_root_raise_the_same_error(
+        self, tmp_path: Path
+    ):
+        from mcp_servers.file.delete_service import DeleteFileService
+
+        root_file = tmp_path / "root.txt"
+        root_file.write_text("x")
+        svc = DeleteFileService(
+            allowed_dirs=[root_file], audit_log_path=str(tmp_path / "audit.log")
+        )
+        for dry_run in (True, False):
+            with pytest.raises(FileAuthorizationError, match="allowed root"):
+                svc.delete_file(
+                    type("R", (), {"path": str(root_file), "dry_run": dry_run})()
+                )
+        assert root_file.exists()
+
+    def test_dry_run_writes_no_audit_record(self, service: tuple):
+        svc, tmp_path = service
+        fpath = tmp_path / "f.txt"
+        fpath.write_text("x")
+        svc.delete_file(type("R", (), {"path": str(fpath), "dry_run": True})())
+        assert not (tmp_path / "audit.log").exists()
+
+
+# ── Audit fault injection (REQ-005) ───────────────────────────────────────────
+
+
+def _open_that_fails_on_call(n: int, exc: OSError):
+    """Return an open() replacement that raises `exc` on its n-th call."""
+    import builtins
+
+    real_open = builtins.open
+    state = {"n": 0}
+
+    def fake_open(*args, **kwargs):
+        state["n"] += 1
+        if state["n"] == n:
+            raise exc
+        return real_open(*args, **kwargs)
+
+    return fake_open
+
+
+class TestAuditFaultInjection:
+    """An intent-audit failure aborts the operation before the destructive call; a
+    completion-audit failure after an applied delete reports applied_audit_failed
+    without undoing the delete."""
+
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            PermissionError(13, "Permission denied"),
+            OSError(30, "Read-only file system"),
+            OSError(28, "No space left on device"),
+        ],
+    )
+    def test_intent_audit_failure_aborts_delete_file(
+        self, service: tuple, exc: OSError
+    ):
+        svc, tmp_path = service
+        fpath = tmp_path / "f.txt"
+        fpath.write_text("x")
+        with patch("builtins.open", side_effect=_open_that_fails_on_call(1, exc)):
+            with pytest.raises(FileAuthorizationError, match="Intent audit"):
+                svc.delete_file(type("R", (), {"path": str(fpath), "dry_run": False})())
+        assert fpath.exists()
+
+    def test_intent_audit_failure_aborts_delete_directory(self, service: tuple):
+        svc, tmp_path = service
+        dpath = tmp_path / "d"
+        dpath.mkdir()
+        (dpath / "a.txt").write_text("x")
+        with patch(
+            "builtins.open",
+            side_effect=_open_that_fails_on_call(
+                1, PermissionError(13, "Permission denied")
+            ),
+        ):
+            with pytest.raises(FileAuthorizationError, match="Intent audit"):
+                svc.delete_directory(
+                    type(
+                        "R",
+                        (),
+                        {"path": str(dpath), "recursive": True, "dry_run": False},
+                    )()
+                )
+        assert dpath.exists()
+
+    def test_completion_audit_failure_yields_applied_audit_failed_for_file(
+        self, service: tuple
+    ):
+        svc, tmp_path = service
+        fpath = tmp_path / "f.txt"
+        fpath.write_text("x")
+        with patch(
+            "builtins.open",
+            side_effect=_open_that_fails_on_call(
+                2, OSError(28, "No space left on device")
+            ),
+        ):
+            result = svc.delete_file(
+                type("R", (), {"path": str(fpath), "dry_run": False})()
+            )
+        assert result.deleted is True
+        assert not fpath.exists()
+        assert result.file_info == APPLIED_AUDIT_FAILED
+
+    def test_completion_audit_failure_yields_applied_audit_failed_for_directory(
+        self, service: tuple
+    ):
+        svc, tmp_path = service
+        dpath = tmp_path / "d"
+        dpath.mkdir()
+        with patch(
+            "builtins.open",
+            side_effect=_open_that_fails_on_call(
+                2, OSError(30, "Read-only file system")
+            ),
+        ):
+            result = svc.delete_directory(
+                type(
+                    "R", (), {"path": str(dpath), "recursive": True, "dry_run": False}
+                )()
+            )
+        assert result.deleted is True
+        assert not dpath.exists()
+        assert result.dir_info == APPLIED_AUDIT_FAILED
+
+    def test_intent_and_completion_records_are_both_written_on_success(
+        self, service: tuple
+    ):
+        svc, tmp_path = service
+        fpath = tmp_path / "f.txt"
+        fpath.write_text("x")
+        result = svc.delete_file(
+            type("R", (), {"path": str(fpath), "dry_run": False})()
+        )
+        assert result.deleted is True
+        assert result.file_info == ""
+        lines = (tmp_path / "audit.log").read_text(encoding="utf-8").splitlines()
+        assert len(lines) == 2
+        assert "after=absent" in lines[1]
 
 
 # ── delete_file ──
@@ -542,8 +717,12 @@ class TestPostDeleteVerification:
                 )
         assert dpath.exists()
 
-    def test_verification_failure_writes_no_audit_record(self, service: tuple):
-        """Verification runs before the audit write, so a failed delete leaves no record."""
+    def test_verification_failure_writes_no_completion_audit_record(
+        self, service: tuple
+    ):
+        """The intent record is written before the destructive call (REQ-005), so a
+        failed delete keeps that record; the completion record is never written
+        because verification runs before it."""
         svc, tmp_path = service
         fpath = tmp_path / "no_audit_record.txt"
         fpath.write_text("x")
@@ -557,7 +736,9 @@ class TestPostDeleteVerification:
                     type("Request", (), {"path": str(fpath), "dry_run": False})()
                 )
         assert fpath.exists()
-        assert not audit_path.exists()
+        lines = audit_path.read_text(encoding="utf-8").splitlines()
+        assert len(lines) == 1
+        assert "after=absent" not in lines[0]
 
 
 # ── Audit before/after + correlation (REQ-003, REQ-004) ───────────────────────

@@ -2,17 +2,21 @@
 """scripts/mcp_servers/file/read_models.py
 
 Config loading and Pydantic request/response models for file-read-mcp.
+
+Dependency direction: mcp_servers.file.read_models → mcp_servers.request_contract
 """
 
 from __future__ import annotations
 
 import dataclasses
 import logging
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 from shared.config_loader import ConfigLoader
 from shared.config_utils import get_str, get_typed
+
+from mcp_servers.request_contract import StrictRequestModel
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +34,11 @@ class FileReadConfig:
     max_depth: int = 5
     max_files_per_batch: int = 100
 
+    max_tree_nodes: int = 2000
+    max_scanned_files: int = 5000
+    max_total_scan_bytes: int = 10485760
+    traversal_deadline_sec: float = 10.0
+
     auth_token: str = ""
 
     @classmethod
@@ -44,6 +53,18 @@ class FileReadConfig:
             max_files_per_batch=get_typed(
                 d, "max_search_results", int, "an integer", default=100
             ),
+            max_tree_nodes=get_typed(
+                d, "max_tree_nodes", int, "an integer", default=2000
+            ),
+            max_scanned_files=get_typed(
+                d, "max_scanned_files", int, "an integer", default=5000
+            ),
+            max_total_scan_bytes=get_typed(
+                d, "max_total_scan_bytes", int, "an integer", default=10485760
+            ),
+            traversal_deadline_sec=get_typed(
+                d, "traversal_deadline_sec", float, "a float", default=10.0
+            ),
             auth_token=get_str(d, "auth_token"),
         )
 
@@ -57,6 +78,15 @@ class FileReadConfig:
 # Pydantic schema definitions (read-only operations)
 # ──────────────────────────────────────────────────────────────────────────────
 
+# Closed vocabulary for structured traversal-truncation reasons (REQ-003).
+# None means the traversal completed without hitting a limit.
+TruncationReason = Literal[
+    "node_limit",
+    "scanned_file_limit",
+    "byte_limit",
+    "deadline",
+]
+
 
 class FileEntry(BaseModel):
     """A single file or directory entry returned by list_directory."""
@@ -67,7 +97,7 @@ class FileEntry(BaseModel):
     size: int
 
 
-class ListDirectoryRequest(BaseModel):
+class ListDirectoryRequest(StrictRequestModel):
     """Request model for listing directory entries."""
 
     path: str = Field(..., description="Absolute path of the directory to list")
@@ -80,7 +110,7 @@ class ListDirectoryResponse(BaseModel):
     entries: list[FileEntry]
 
 
-class DirectoryTreeRequest(BaseModel):
+class DirectoryTreeRequest(StrictRequestModel):
     """Request model for building a directory tree structure."""
 
     path: str = Field(..., description="Absolute path of the root directory")
@@ -107,9 +137,10 @@ class DirectoryTreeResponse(BaseModel):
     """Response containing a recursive directory tree."""
 
     root: TreeNode
+    truncation_reason: TruncationReason | None = None
 
 
-class ReadTextFileRequest(BaseModel):
+class ReadTextFileRequest(StrictRequestModel):
     """Request model for reading a text file with optional head/tail filtering."""
 
     path: str = Field(..., description="Absolute path of the file to read")
@@ -141,7 +172,7 @@ class ReadTextFileResponse(BaseModel):
     size: int
 
 
-class ReadMediaFileRequest(BaseModel):
+class ReadMediaFileRequest(StrictRequestModel):
     """Request model for reading a binary/media file."""
 
     path: str = Field(..., description="Absolute path of the media file to read")
@@ -156,7 +187,7 @@ class ReadMediaFileResponse(BaseModel):
     size: int
 
 
-class ReadMultipleFilesRequest(BaseModel):
+class ReadMultipleFilesRequest(StrictRequestModel):
     """Request model for batch-reading multiple files."""
 
     paths: list[str] = Field(..., description="List of absolute file paths to read")
@@ -177,7 +208,7 @@ class ReadMultipleFilesResponse(BaseModel):
     results: list[FileResult]
 
 
-class SearchFilesRequest(BaseModel):
+class SearchFilesRequest(StrictRequestModel):
     """Request model for searching files by glob pattern."""
 
     path: str = Field(..., description="Absolute path of the base directory to search")
@@ -189,9 +220,10 @@ class SearchFilesResponse(BaseModel):
 
     pattern: str
     matches: list[str]
+    truncation_reason: TruncationReason | None = None
 
 
-class GrepFilesRequest(BaseModel):
+class GrepFilesRequest(StrictRequestModel):
     """Request model for searching file contents by regex pattern."""
 
     path: str = Field(..., description="Absolute path of the base directory to search")
@@ -222,9 +254,10 @@ class GrepFilesResponse(BaseModel):
     pattern: str
     matches: list[GrepMatch]
     truncated: bool  # true if results were cut off because max_matches was reached
+    truncation_reason: TruncationReason | None = None
 
 
-class GetFileInfoRequest(BaseModel):
+class GetFileInfoRequest(StrictRequestModel):
     """Request model for getting file metadata."""
 
     path: str = Field(

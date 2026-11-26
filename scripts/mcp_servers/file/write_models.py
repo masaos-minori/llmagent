@@ -2,6 +2,8 @@
 """scripts/mcp_servers/file/write_models.py
 
 Config loading and Pydantic request/response models for file-write-mcp.
+
+Dependency direction: mcp_servers.file.write_models → mcp_servers.request_contract
 """
 
 from __future__ import annotations
@@ -10,9 +12,11 @@ import dataclasses
 import logging
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from shared.config_loader import ConfigLoader
 from shared.config_utils import get_str, get_typed
+
+from mcp_servers.request_contract import StrictRequestModel
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +31,6 @@ class FileWriteConfig:
 
     max_write_bytes: int = 1048576
     allowed_dirs: list[str] = dataclasses.field(default_factory=list)
-    supported_extensions: list[str] = dataclasses.field(default_factory=list)
 
     auth_token: str = ""
 
@@ -39,9 +42,6 @@ class FileWriteConfig:
                 d, "max_write_bytes", int, "an integer", default=1048576
             ),
             allowed_dirs=list(get_typed(d, "allowed_dirs", list, "a list", default=[])),
-            supported_extensions=list(
-                get_typed(d, "supported_extensions", list, "a list", default=[])
-            ),
             auth_token=get_str(d, "auth_token"),
         )
 
@@ -56,7 +56,7 @@ class FileWriteConfig:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class WriteFileRequest(BaseModel):
+class WriteFileRequest(StrictRequestModel):
     """Request model for writing or overwriting a file."""
 
     path: str = Field(..., description="Absolute path of the file to write")
@@ -76,14 +76,21 @@ class WriteFileResponse(BaseModel):
     diff: str = ""
 
 
-class EditOperation(BaseModel):
+class EditOperation(StrictRequestModel):
     """A single string replacement operation."""
 
     old_text: str = Field(..., description="String to replace (exact match)")
     new_text: str = Field(..., description="Replacement string")
 
+    @model_validator(mode="after")
+    def _check_old_text_not_empty(self) -> EditOperation:
+        """Reject an empty search string: an empty match is not a replacement."""
+        if not self.old_text:
+            raise ValueError("old_text must not be empty")
+        return self
 
-class EditFileRequest(BaseModel):
+
+class EditFileRequest(StrictRequestModel):
     """Request model for editing a file via string replacements."""
 
     path: str = Field(..., description="Absolute path of the file to edit")
@@ -96,6 +103,13 @@ class EditFileRequest(BaseModel):
         description="When true, return only the diff without writing",
     )
 
+    @model_validator(mode="after")
+    def _check_edits_not_empty(self) -> EditFileRequest:
+        """Reject an empty edit list: there is nothing to apply."""
+        if not self.edits:
+            raise ValueError("edits must not be empty")
+        return self
+
 
 class EditFileResponse(BaseModel):
     """Response containing the diff and result of an edit operation."""
@@ -105,7 +119,7 @@ class EditFileResponse(BaseModel):
     applied: bool  # true if the change was actually written to disk
 
 
-class CreateDirectoryRequest(BaseModel):
+class CreateDirectoryRequest(StrictRequestModel):
     """Request model for creating a directory."""
 
     path: str = Field(
@@ -126,7 +140,7 @@ class CreateDirectoryResponse(BaseModel):
     dry_run_info: str = ""
 
 
-class MoveFileRequest(BaseModel):
+class MoveFileRequest(StrictRequestModel):
     """Request model for moving or renaming a file."""
 
     source: str = Field(..., description="Absolute path of the source")

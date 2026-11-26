@@ -56,9 +56,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-183358 | 20261126-183358 | Removed the id from the file_write tuple. Tool-gate regeneration: registry/manifests/health_contracts.yaml regenerated via generate_reference_table.py --manifests — the manifest carried the same id, so the generated artifact changed in the same change set (Step 3a addition). Files: scripts/shared/security/posture_contract.py, registry/manifests/health_contracts.yaml |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-183358 | 20261126-183358 | Expected file_write id set updated at line 74. Targeted run 110 passed (contract test 60 + seq 11 companion 50); the seq 11 check-set comparison failure is resolved by this cycle. Files: tests/shared/test_security_posture_contract.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/mypy/lint-imports/module-size/mock-patch-targets/reference-table pass after manifest regeneration; full-suite run deferred to end of plan batch; Step 5/6: N/A: no docs/00_index.md task-scope mapping for scripts/shared/security/posture_contract.py End-of-batch full-suite run passed (15774 passed, 5 skipped); diff-cover 100% on changed lines; gates pass including reference-drift after the manifest regeneration. Intermittent flaky failures in 3 unrelated tests under -n logical, all pass serially. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

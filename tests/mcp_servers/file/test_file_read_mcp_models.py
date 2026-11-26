@@ -29,6 +29,10 @@ class TestFileReadConfig:
         assert cfg.allowed_dirs == []
         assert cfg.max_depth == 5
         assert cfg.max_files_per_batch == 100
+        assert cfg.max_tree_nodes == 2000
+        assert cfg.max_scanned_files == 5000
+        assert cfg.max_total_scan_bytes == 10485760
+        assert cfg.traversal_deadline_sec == 10.0
 
     def test_from_dict_custom_values(self) -> None:
         cfg = FileReadConfig.from_dict(
@@ -55,5 +59,9 @@ class TestFileReadConfig:
             "allowed_dirs",
             "max_depth",
             "max_files_per_batch",
+            "max_tree_nodes",
+            "max_scanned_files",
+            "max_total_scan_bytes",
+            "traversal_deadline_sec",
             "auth_token",
         }

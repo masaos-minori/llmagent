@@ -58,9 +58,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-175628 | 20261126-175628 | strict-base swap for the 4 write request models + EditOperation; supported_extensions field and from_dict parsing removed; empty-edits and empty-old_text model validators added. Files: scripts/mcp_servers/file/write_models.py, tests/mcp_servers/file/test_file_write_mcp_service.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-175628 | 20261126-175628 | line 650 keyword dropped; TestEmptyEditRejection added; targeted run 57 passed. Known pending failure: tests/mcp_servers/file/test_file_write_health_posture.py collection error (supported_extensions_count) — owned by seq 12, expected until that procedure lands per plan-batch rule |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/mypy/lint-imports/mock-patch-targets pass; full-suite run deferred to end of plan batch; Step 5/6: N/A: no docs/00_index.md task-scope mapping for scripts/mcp_servers/file/write_models.py End-of-batch full-suite run passed (15774 passed, 5 skipped), which resolves the pending supported_extensions failures noted here; diff-cover 100% on changed lines; gates pass. Intermittent flaky failures in 3 unrelated tests under -n logical, all pass serially. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

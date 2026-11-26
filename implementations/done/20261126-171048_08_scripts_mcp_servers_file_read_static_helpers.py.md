@@ -56,8 +56,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-181716 | 20261126-181716 | build_tree skips symlink entries before any stat() call and enforces max_tree_nodes through a new TraversalState dataclass (stateless-helper contract kept: counters are passed in, not held on the helper). count_tree_nodes needs no code change — the tree already exposes only non-symlink entries, so the count measures the same set the limit is enforced against (Step 3a correction, documented in the docstring). has_depth_limit unchanged. Files: scripts/mcp_servers/file/read_static_helpers.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/mypy/lint-imports/module-size/reference-table pass; targeted run tests/mcp_servers/file/test_read_service.py 99 passed (symlink/limit cases owned by seq 14); full-suite run deferred to end of plan batch; Step 5/6: N/A: no docs/00_index.md task-scope mapping for scripts/mcp_servers/file/read_static_helpers.py End-of-batch full-suite run passed (15774 passed, 5 skipped); diff-cover 100% on changed lines; gates pass. Intermittent flaky failures in 3 unrelated tests under -n logical, all pass serially. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -72,7 +72,6 @@ def _write_security_view(cfg: FileWriteConfig) -> dict[str, object]:
         "own_config_file": FILE_WRITE_OWN_CONFIG_FILE,
         "allowed_dirs_count": len(cfg.allowed_dirs),
         "max_write_bytes": cfg.max_write_bytes,
-        "supported_extensions_count": len(cfg.supported_extensions),
     }
 
 

@@ -29,7 +29,6 @@ _WRITE_CHECK_IDS = {
     "server.allowed_dirs_exist",
     "server.max_write_bytes",
     "server.write_dirs_writable",
-    "server.supported_extensions",
 }
 _FINGERPRINT_RE = re.compile(r"\A[0-9a-f]{64}\Z")
 
@@ -96,13 +95,6 @@ class TestPosturePublication:
     ) -> None:
         assert _WRITE_CHECK_IDS <= set(_published_checks(client))
 
-    def test_unenforced_extension_setting_is_published_as_not_applicable(
-        self, client: TestClient
-    ) -> None:
-        assert (
-            _published_checks(client)["server.supported_extensions"] == "not_applicable"
-        )
-
     def test_shipped_config_produces_a_validated_posture(self) -> None:
         posture = write_server._security_posture
 
@@ -124,9 +116,6 @@ class TestFingerprintView:
         view = write_server._write_security_view(write_server._cfg)
 
         assert view["allowed_dirs_count"] == len(write_server._cfg.allowed_dirs)
-        assert view["supported_extensions_count"] == len(
-            write_server._cfg.supported_extensions
-        )
         assert not any(isinstance(value, list) for value in view.values())
 
     def test_fingerprint_is_64_lowercase_hex(self) -> None:

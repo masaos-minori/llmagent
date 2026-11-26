@@ -57,8 +57,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the docs checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-184730 | 20261126-184730 | File-delete section: audit write failure policy bullet rewritten (intent phase fails closed before the destructive call, completion phase reports applied_audit_failed); Command-specific guard corrected (root guard runs before the dry_run branch, dry-run and real deletion share one validation path); Audit bullet states the three call identifiers per REQ-005. Step 3a correction: the procedure's Step 2 assumed a supported_extensions statement in the file-write section — none exists in this document, so that step is a no-op. Files: docs/22_mcp/mcp_04_02_file-write-file-delete-shell.md |
+| 2 | Run the docs checkers (`rules/tool-gates.md`) | Completed | 20261126-184730 | 20261126-184730 | check_docs_quality.py, check_docs_structure.py, check_docs_content_policy.py, check_docs_consistency.py --domain mcp all pass. Coverage N/A: documentation-only row. Observation for the owner: the high-risk section's file-delete rows (root guard recursive-only, postcondition verification not implemented) are stale against seq 09; left to mcpai012's sweep per this procedure's scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

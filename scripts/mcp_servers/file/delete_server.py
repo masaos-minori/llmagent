@@ -22,6 +22,7 @@ from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
+from shared.write_outcome import APPLIED_AUDIT_FAILED
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
@@ -176,13 +177,22 @@ _audit_failure_count: int = 0
 
 
 def _audit_log_safe(logger: logging.Logger | Logger, **kwargs: Any) -> None:
-    """Wrap _audit_log so its own failure cannot mask the original response."""
+    """Wrap _audit_log so its own failure cannot mask the original response.
+
+    The failure is counted and reported as the `applied_audit_failed` outcome
+    (REQ-005): the record itself cannot be written, so the outcome must stay
+    observable rather than only tallied in the counter.
+    """
     global _audit_failure_count
     try:
         _audit_log(logger, **kwargs)
     except Exception:  # noqa: BLE001 — audit failure must never propagate
         _audit_failure_count += 1
-        logger.error("audit_log failed: %s", kwargs.get("action", "unknown"))
+        logger.error(
+            "audit_log failed: %s outcome=%s",
+            kwargs.get("action", "unknown"),
+            APPLIED_AUDIT_FAILED,
+        )
 
 
 def _emit_call_tool_audit(req: CallToolRequest, request: Request, outcome: str) -> None:
@@ -190,8 +200,10 @@ def _emit_call_tool_audit(req: CallToolRequest, request: Request, outcome: str) 
 
     Canonical path resolution happens in the service layer, so ``target`` and
     ``requested_target`` both reflect the caller's requested resource here.
+    The record carries all three call identifiers — session, request, and the
+    logical-call id (the idempotency key) — per the shared audit-record contract.
     """
-    session_id, request_id = extract_request_context(request)[:2]
+    session_id, request_id, logical_call_id = extract_request_context(request)
     target = (req.args.get("path") or "")[:80]
     _audit_log_safe(
         logger,
@@ -204,6 +216,7 @@ def _emit_call_tool_audit(req: CallToolRequest, request: Request, outcome: str) 
         pre_condition=None,
         post_condition=None,
         requested_target=target,
+        detail=f"call={logical_call_id or '-'}",
     )
 
 

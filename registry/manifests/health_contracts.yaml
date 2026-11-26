@@ -32,7 +32,6 @@ entries:
   - server.allowed_dirs_configured
   - server.allowed_dirs_exist
   - server.max_write_bytes
-  - server.supported_extensions
   - server.write_dirs_writable
   server: file_write
 - checks:

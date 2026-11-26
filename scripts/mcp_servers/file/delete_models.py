@@ -2,6 +2,8 @@
 """scripts/mcp_servers/file/delete_models.py
 
 Config loading and Pydantic request/response models for file-delete-mcp.
+
+Dependency direction: mcp_servers.file.delete_models → mcp_servers.request_contract
 """
 
 from __future__ import annotations
@@ -11,9 +13,11 @@ import logging
 import os
 from typing import Any, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 from shared.config_loader import ConfigLoader
 from shared.config_utils import get_str, get_typed
+
+from mcp_servers.request_contract import StrictRequestModel
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +72,8 @@ class PathMixin(BaseModel):
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class DeleteFileRequest(PathMixin):
+class DeleteFileRequest(PathMixin, StrictRequestModel):
     """Request model for deleting a single file."""
-
-    model_config = ConfigDict(extra="forbid")
 
     dry_run: bool = Field(
         default=False,
@@ -87,10 +89,8 @@ class DeleteFileResponse(BaseModel):
     file_info: str = ""
 
 
-class DeleteDirectoryRequest(PathMixin):
+class DeleteDirectoryRequest(PathMixin, StrictRequestModel):
     """Request model for deleting a directory."""
-
-    model_config = ConfigDict(extra="forbid")
 
     # recursive=True: remove contents recursively
     # False (default): only empty directories can be deleted

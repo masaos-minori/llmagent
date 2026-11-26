@@ -2,6 +2,7 @@
 """Unit tests for mcp_servers.file.read_service.ReadFileService."""
 
 import base64
+import os
 import sys
 from pathlib import Path
 
@@ -937,11 +938,12 @@ class TestGrepFiles:
 
         svc, tmp_workspace = service
 
-        matches, truncated = svc._collect_grep_matches(
+        matches, truncated, reason = svc._collect_grep_matches(
             tmp_workspace, re.compile(".*"), "*.log", 0
         )
         assert matches == []
         assert truncated is True
+        assert reason is None
 
 
 # -- get_file_info tests -----------------------------------------------------
@@ -1210,3 +1212,253 @@ class TestBuildService:
         assert svc.max_read_bytes == 512000
         assert svc.max_tree_depth == 4
         assert svc._max_search_results == 25
+
+
+# -- Traversal symlink exclusion (REQ-002) ------------------------------------
+
+
+def _limited_service(root: Path, **limits: int | float):
+    """ReadFileService built from FileReadConfig.from_dict with lowered limits."""
+    from mcp_servers.file.read_models import FileReadConfig
+    from mcp_servers.file.read_service import build_service
+
+    cfg = FileReadConfig.from_dict(
+        {
+            "allowed_dirs": [str(root)],
+            "max_read_bytes": 1024,
+            "max_tree_depth": 3,
+            "max_search_results": 50,
+            **limits,
+        }
+    )
+    return build_service(cfg)
+
+
+class TestTraversalSymlinkExclusion:
+    """Enumeration skips symlink entries before any stat() call (REQ-002). The
+    authorization symlink cases stay in TestSecurityWrappers; these cover
+    traversal-enumeration behavior."""
+
+    def _setup(self, tmp_path: Path) -> tuple[Path, Path]:
+        root = tmp_path / "workspace"
+        root.mkdir()
+        external = tmp_path / "external"
+        external.mkdir()
+        (external / "secret.txt").write_text("needle", encoding="utf-8")
+        return root, external
+
+    def test_search_skips_symlink_to_external_file(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import SearchFilesRequest
+
+        root, external = self._setup(tmp_path)
+        (root / "link.txt").symlink_to(external / "secret.txt")
+        svc = _limited_service(root)
+        result = svc.search_files(SearchFilesRequest(path=str(root), pattern="*.txt"))
+        assert result.matches == []
+        assert result.truncation_reason is None
+
+    def test_search_skips_symlink_to_external_directory(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import SearchFilesRequest
+
+        root, external = self._setup(tmp_path)
+        (root / "linkdir").symlink_to(external)
+        svc = _limited_service(root)
+        result = svc.search_files(SearchFilesRequest(path=str(root), pattern="*.txt"))
+        assert result.matches == []
+        assert result.truncation_reason is None
+
+    def test_search_skips_chained_symlink_to_outside(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import SearchFilesRequest
+
+        root, external = self._setup(tmp_path)
+        chain = tmp_path / "chain.txt"
+        chain.symlink_to(external / "secret.txt")
+        (root / "link.txt").symlink_to(chain)
+        svc = _limited_service(root)
+        result = svc.search_files(SearchFilesRequest(path=str(root), pattern="*.txt"))
+        assert result.matches == []
+        assert result.truncation_reason is None
+
+    def test_search_completes_with_self_referential_symlink_loop(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp_servers.file.read_models import SearchFilesRequest
+
+        root, _ = self._setup(tmp_path)
+        (root / "loop").symlink_to(root)
+        svc = _limited_service(root)
+        result = svc.search_files(SearchFilesRequest(path=str(root), pattern="*"))
+        assert result.matches == []
+        assert result.truncation_reason is None
+
+    def test_search_skips_broken_symlink_without_raising(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import SearchFilesRequest
+
+        root, _ = self._setup(tmp_path)
+        (root / "broken.txt").symlink_to(tmp_path / "missing.txt")
+        svc = _limited_service(root)
+        result = svc.search_files(SearchFilesRequest(path=str(root), pattern="*.txt"))
+        assert result.matches == []
+        assert result.truncation_reason is None
+
+    def test_grep_skips_symlinked_file(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import GrepFilesRequest
+
+        root, external = self._setup(tmp_path)
+        (root / "link.txt").symlink_to(external / "secret.txt")
+        svc = _limited_service(root)
+        result = svc.grep_files(GrepFilesRequest(path=str(root), pattern="needle"))
+        assert result.matches == []
+        assert result.truncation_reason is None
+
+    def test_tree_skips_symlink_entries(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import DirectoryTreeRequest
+
+        root, external = self._setup(tmp_path)
+        (root / "link.txt").symlink_to(external / "secret.txt")
+        (root / "real.txt").write_text("x", encoding="utf-8")
+        svc = _limited_service(root)
+        result = svc.build_directory_tree(DirectoryTreeRequest(path=str(root), depth=3))
+        assert [child.name for child in result.root.children] == ["real.txt"]
+        assert result.truncation_reason is None
+
+
+# -- Traversal limits with structured truncation reason (REQ-003) -------------
+
+
+class TestTraversalLimits:
+    """Each limit stop reports its structured reason; deadline cases use a fixed
+    small deadline with a pre-created tree, never time-based sleeps."""
+
+    def test_search_scanned_file_limit(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import SearchFilesRequest
+
+        for i in range(6):
+            (tmp_path / f"f{i}.txt").write_text("x", encoding="utf-8")
+        svc = _limited_service(tmp_path, max_scanned_files=3)
+        result = svc.search_files(
+            SearchFilesRequest(path=str(tmp_path), pattern="*.txt")
+        )
+        assert result.truncation_reason == "scanned_file_limit"
+        assert len(result.matches) <= 3
+
+    def test_search_byte_limit(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import SearchFilesRequest
+
+        for i in range(3):
+            (tmp_path / f"f{i}.txt").write_bytes(b"x" * 100)
+        svc = _limited_service(tmp_path, max_total_scan_bytes=250)
+        result = svc.search_files(
+            SearchFilesRequest(path=str(tmp_path), pattern="*.txt")
+        )
+        assert result.truncation_reason == "byte_limit"
+
+    def test_search_deadline(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import SearchFilesRequest
+
+        for i in range(3):
+            (tmp_path / f"f{i}.txt").write_text("x", encoding="utf-8")
+        svc = _limited_service(tmp_path, traversal_deadline_sec=0.0)
+        result = svc.search_files(
+            SearchFilesRequest(path=str(tmp_path), pattern="*.txt")
+        )
+        assert result.truncation_reason == "deadline"
+
+    def test_tree_node_limit(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import DirectoryTreeRequest
+        from mcp_servers.file.read_static_helpers import count_tree_nodes
+
+        for i in range(10):
+            (tmp_path / f"f{i}.txt").write_text("x", encoding="utf-8")
+        svc = _limited_service(tmp_path, max_tree_nodes=5)
+        result = svc.build_directory_tree(
+            DirectoryTreeRequest(path=str(tmp_path), depth=3)
+        )
+        assert result.truncation_reason == "node_limit"
+        assert count_tree_nodes(result.root) == 5
+
+    def test_grep_scanned_file_limit(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import GrepFilesRequest
+
+        for i in range(6):
+            (tmp_path / f"f{i}.txt").write_text("needle\n", encoding="utf-8")
+        svc = _limited_service(tmp_path, max_scanned_files=3)
+        result = svc.grep_files(GrepFilesRequest(path=str(tmp_path), pattern="needle"))
+        assert result.truncation_reason == "scanned_file_limit"
+        assert result.truncated is False
+
+    def test_grep_byte_limit(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import GrepFilesRequest
+
+        for i in range(3):
+            (tmp_path / f"f{i}.txt").write_text("needle" + "x" * 94, encoding="utf-8")
+        svc = _limited_service(tmp_path, max_total_scan_bytes=250)
+        result = svc.grep_files(GrepFilesRequest(path=str(tmp_path), pattern="needle"))
+        assert result.truncation_reason == "byte_limit"
+
+    def test_grep_deadline(self, tmp_path: Path) -> None:
+        from mcp_servers.file.read_models import GrepFilesRequest
+
+        for i in range(3):
+            (tmp_path / f"f{i}.txt").write_text("needle\n", encoding="utf-8")
+        svc = _limited_service(tmp_path, traversal_deadline_sec=0.0)
+        result = svc.grep_files(GrepFilesRequest(path=str(tmp_path), pattern="needle"))
+        assert result.truncation_reason == "deadline"
+        assert result.truncated is False
+
+
+# -- Traversal stat race (OSError during enumeration) -------------------------
+
+
+class TestTraversalStatRace:
+    """The enumeration guards the size check with try/except OSError: a file that
+    disappears between the type check and stat() is skipped, not raised. The
+    symlink cases in TestTraversalSymlinkExclusion skip entries before any stat,
+    so these tests patch Path.stat to reach the except branch."""
+
+    def _raise_on_stat_for(self, monkeypatch: pytest.MonkeyPatch, target: Path) -> None:
+        """Raise on stat() of `target` only, so the directory checks and the
+        type check (is_file()) pass and the explicit size stat() sees the file
+        as vanished."""
+
+        real_stat = Path.stat
+        calls: dict[Path, int] = {}
+
+        def _fail(self: Path, follow_symlinks: bool = True) -> os.stat_result:
+            # Only the follow-symlink stats are counted: resolve() reaches stat()
+            # before the loop, so counting it would fire on the type check. The
+            # first counted call is is_file(), the second is the size stat()
+            # inside the try block.
+            if self == target and follow_symlinks:
+                calls[self] = calls.get(self, 0) + 1
+                if calls[self] > 1:
+                    raise OSError("simulated vanished file")
+            return real_stat(self, follow_symlinks=follow_symlinks)
+
+        monkeypatch.setattr(Path, "stat", _fail)
+
+    def test_search_skips_file_that_vanishes_before_stat(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_servers.file.read_models import SearchFilesRequest
+
+        (tmp_path / "f.txt").write_text("x", encoding="utf-8")
+        self._raise_on_stat_for(monkeypatch, tmp_path / "f.txt")
+        svc = _limited_service(tmp_path)
+        result = svc.search_files(
+            SearchFilesRequest(path=str(tmp_path), pattern="*.txt")
+        )
+        assert result.matches == []
+        assert result.truncation_reason is None
+
+    def test_grep_skips_file_that_vanishes_before_stat(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_servers.file.read_models import GrepFilesRequest
+
+        (tmp_path / "f.txt").write_text("needle\n", encoding="utf-8")
+        self._raise_on_stat_for(monkeypatch, tmp_path / "f.txt")
+        svc = _limited_service(tmp_path)
+        result = svc.grep_files(GrepFilesRequest(path=str(tmp_path), pattern="needle"))
+        assert result.matches == []
+        assert result.truncation_reason is None

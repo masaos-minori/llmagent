@@ -53,8 +53,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-180029 | 20261126-180029 | 2 hand-maintained inputSchema dicts replaced with build_input_schema(model) via tools/replace_hand_maintained_schemas.py; model imports and dependency line added. Files: scripts/mcp_servers/file/delete_tools.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/mypy/lint-imports/module-size/reference-table pass; targeted tests 185 passed (no test change needed); known pending failure in test_file_write_health_posture.py owned by seq 12; full-suite run deferred to end of plan batch; Step 5/6: N/A: no docs/00_index.md task-scope mapping for scripts/mcp_servers/file/delete_tools.py End-of-batch full-suite run passed (15774 passed, 5 skipped), resolving the pending supported_extensions failures; diff-cover 100% on changed lines; gates pass. Intermittent flaky failures in 3 unrelated tests under -n logical, all pass serially. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -3,17 +3,17 @@
 
 MCP tool schema definitions for file-read-mcp server (inputSchema format).
 
-Schemas are derived from the Pydantic request models in read_models.py via
-model_json_schema() so that tool definitions and models stay in sync.
+Schemas are derived from the Pydantic request models in read_models.py via the
+shared `build_input_schema()` generator so that tool definitions and models stay
+in sync.
+
+Dependency direction: mcp_servers.file.read_tools → mcp_servers.request_contract
 
 Imported by mcp/file/read_server.py to keep the server module under 400 lines.
 """
 
 from __future__ import annotations
 
-from typing import Any
-
-from pydantic import BaseModel
 from shared.tool_metadata import TOOL_FIELD_SET_VERSION
 
 from mcp_servers.file.read_models import (
@@ -27,25 +27,7 @@ from mcp_servers.file.read_models import (
     SearchFilesRequest,
 )
 from mcp_servers.models import McpTool
-
-
-def _input_schema(model: type[BaseModel]) -> dict[str, Any]:
-    """Build an MCP inputSchema from a Pydantic model's JSON schema.
-
-    Strips the top-level 'title' and per-property 'title' fields that Pydantic
-    adds but MCP inputSchema does not require.
-    """
-    raw = model.model_json_schema()
-    schema: dict[str, object] = {"type": "object"}
-    if "properties" in raw:
-        schema["properties"] = {
-            k: {ik: iv for ik, iv in v.items() if ik != "title"}
-            for k, v in raw["properties"].items()
-        }
-    if "required" in raw:
-        schema["required"] = raw["required"]
-    return schema
-
+from mcp_servers.request_contract import build_input_schema
 
 # Shared metadata block: every tool in this module is a filesystem read, so these
 # fields are byte-for-byte identical across all TOOL_LIST entries except
@@ -55,7 +37,7 @@ TOOL_LIST: list[McpTool] = [
     {
         "name": "list_directory",
         "description": "Return immediate entries of the specified directory",
-        "inputSchema": _input_schema(ListDirectoryRequest),
+        "inputSchema": build_input_schema(ListDirectoryRequest),
         "status": "production",
         "config_dependent": False,
         "is_write": False,
@@ -73,7 +55,7 @@ TOOL_LIST: list[McpTool] = [
     {
         "name": "list_directory_with_sizes",
         "description": "Return directory entries with sizes including stat size for directories",
-        "inputSchema": _input_schema(ListDirectoryRequest),
+        "inputSchema": build_input_schema(ListDirectoryRequest),
         "status": "production",
         "config_dependent": False,
         "is_write": False,
@@ -91,7 +73,7 @@ TOOL_LIST: list[McpTool] = [
     {
         "name": "directory_tree",
         "description": "Recursively return the tree structure of a directory",
-        "inputSchema": _input_schema(DirectoryTreeRequest),
+        "inputSchema": build_input_schema(DirectoryTreeRequest),
         "status": "production",
         "config_dependent": False,
         "is_write": False,
@@ -109,7 +91,7 @@ TOOL_LIST: list[McpTool] = [
     {
         "name": "read_text_file",
         "description": "Read file contents as UTF-8 text. head/tail options limit the number of lines returned",
-        "inputSchema": _input_schema(ReadTextFileRequest),
+        "inputSchema": build_input_schema(ReadTextFileRequest),
         "status": "production",
         "config_dependent": False,
         "is_write": False,
@@ -127,7 +109,7 @@ TOOL_LIST: list[McpTool] = [
     {
         "name": "read_media_file",
         "description": "Return a media file (image/audio etc.) base64-encoded with its MIME type",
-        "inputSchema": _input_schema(ReadMediaFileRequest),
+        "inputSchema": build_input_schema(ReadMediaFileRequest),
         "status": "production",
         "config_dependent": False,
         "is_write": False,
@@ -145,7 +127,7 @@ TOOL_LIST: list[McpTool] = [
     {
         "name": "read_multiple_files",
         "description": "Retrieve multiple files in a single request. Continues even if individual errors occur",
-        "inputSchema": _input_schema(ReadMultipleFilesRequest),
+        "inputSchema": build_input_schema(ReadMultipleFilesRequest),
         "status": "production",
         "config_dependent": False,
         "is_write": False,
@@ -163,7 +145,7 @@ TOOL_LIST: list[McpTool] = [
     {
         "name": "search_files",
         "description": "Recursively search for files matching a glob pattern within a directory",
-        "inputSchema": _input_schema(SearchFilesRequest),
+        "inputSchema": build_input_schema(SearchFilesRequest),
         "status": "production",
         "config_dependent": False,
         "is_write": False,
@@ -181,7 +163,7 @@ TOOL_LIST: list[McpTool] = [
     {
         "name": "grep_files",
         "description": "Search file contents under a directory using a regex pattern",
-        "inputSchema": _input_schema(GrepFilesRequest),
+        "inputSchema": build_input_schema(GrepFilesRequest),
         "status": "production",
         "config_dependent": False,
         "is_write": False,
@@ -199,7 +181,7 @@ TOOL_LIST: list[McpTool] = [
     {
         "name": "get_file_info",
         "description": "Return metadata (size, timestamps, permissions) for a file or directory",
-        "inputSchema": _input_schema(GetFileInfoRequest),
+        "inputSchema": build_input_schema(GetFileInfoRequest),
         "status": "production",
         "config_dependent": False,
         "is_write": False,

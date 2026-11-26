@@ -37,10 +37,6 @@ def validate_file_write_security(cfg: FileWriteConfig) -> list[SecurityCheckResu
     performs no filesystem mutation: writability is tested with os.access on the configured
     directory instead of by creating a probe file.
 
-    server.supported_extensions is always not_applicable because write_models.py parses the setting
-    while nothing in the write service enforces it. Reporting it as OK would assert an enforcement
-    that does not exist, and omitting it would hide the gap from the check-set comparison.
-
     Messages report counts and setting names only: directory paths and extension patterns are
     sensitive values.
     """
@@ -88,12 +84,4 @@ def validate_file_write_security(cfg: FileWriteConfig) -> list[SecurityCheckResu
         )
     )
 
-    checks.append(
-        SecurityCheckResult(
-            check_id="server.supported_extensions",
-            status=SecurityCheckStatus.NOT_APPLICABLE,
-            reason_code=REASON_NOT_APPLICABLE,
-            message="supported_extensions is parsed but not enforced by the write service",
-        )
-    )
     return checks

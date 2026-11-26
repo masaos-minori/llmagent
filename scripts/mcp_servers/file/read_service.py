@@ -199,4 +199,8 @@ def build_service(cfg: FileReadConfig) -> ReadFileService:
         max_read_bytes=cfg.max_read_bytes,
         max_tree_depth=cfg.max_depth,
         max_search_results=cfg.max_files_per_batch,
+        max_tree_nodes=cfg.max_tree_nodes,
+        max_scanned_files=cfg.max_scanned_files,
+        max_total_scan_bytes=cfg.max_total_scan_bytes,
+        traversal_deadline_sec=cfg.traversal_deadline_sec,
     )

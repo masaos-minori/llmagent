@@ -71,7 +71,6 @@ SERVER_CHECK_IDS: dict[str, tuple[str, ...]] = {
         "server.allowed_dirs_exist",
         "server.max_write_bytes",
         "server.write_dirs_writable",
-        "server.supported_extensions",
     ),
     "file_delete": (
         "server.allowed_dirs_configured",

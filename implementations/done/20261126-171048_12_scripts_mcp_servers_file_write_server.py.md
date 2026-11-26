@@ -56,9 +56,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-183306 | 20261126-183306 | Removed the supported_extensions_count entry from the health view dict. Files: scripts/mcp_servers/file/write_server.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-183306 | 20261126-183306 | Pins removed: expected-check-ids set, view assertion. Step 3a correction: the line-103 pin was the whole body of test_unenforced_extension_setting_is_published_as_not_applicable, so the test was deleted with the check removed by seq 11. Targeted run 34 passed — this cycle resolves the pending supported_extensions failures in test_call_tool_validation.py and test_file_server_audit_records.py owned by this seq. Files: tests/mcp_servers/file/test_file_write_health_posture.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/mypy/lint-imports/module-size/mock-patch-targets/reference-table pass; full-suite run deferred to end of plan batch; Step 5/6: N/A: no docs/00_index.md task-scope mapping for scripts/mcp_servers/file/write_server.py End-of-batch full-suite run passed (15774 passed, 5 skipped); diff-cover 100% on changed lines; gates pass. Intermittent flaky failures in 3 unrelated tests under -n logical, all pass serially. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

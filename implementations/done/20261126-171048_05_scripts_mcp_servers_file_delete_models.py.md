@@ -52,8 +52,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-175917 | 20261126-175917 | PathMixin, StrictRequestModel bases for DeleteFileRequest and DeleteDirectoryRequest; local ConfigDict declarations and import removed; docstring dependency line added. Files: scripts/mcp_servers/file/delete_models.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-201535 | 20261126-201535 | ruff/mypy/lint-imports/module-size/reference-table pass; targeted tests 11 passed, 3 failed with AttributeError on FileWriteConfig.supported_extensions — known pending failure from seq 03's field removal, owned by seq 12 (health view), expected until it lands per plan-batch rule; full-suite run deferred to end of batch; Step 5/6: N/A: no docs/00_index.md task-scope mapping for scripts/mcp_servers/file/delete_models.py End-of-batch full-suite run passed (15774 passed, 5 skipped), resolving the pending supported_extensions failures noted here; diff-cover 100% on changed lines; gates pass. Intermittent flaky failures in 3 unrelated tests under -n logical, all pass serially. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -55,8 +55,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the docs checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-184443 | 20261126-184443 | Two bullets added to the file-read section: symlink-exclusion policy (default exclusion, no opt-in) and the four traversal limits with the structured truncation reason and plan defaults. Step 3a correction: the wording avoids the stat() symbol reference to satisfy check_docs_content_policy.py. Files: docs/22_mcp/mcp_04_01_web-search-file-read-github.md |
+| 2 | Run the docs checkers (`rules/tool-gates.md`) | Completed | 20261126-184443 | 20261126-184443 | check_docs_quality.py, check_docs_structure.py, check_docs_content_policy.py, check_docs_consistency.py --domain mcp all pass. Coverage N/A: documentation-only row. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
