@@ -12,6 +12,18 @@ Medium
 ## Background
 Source: consolidated review backlog (`memo-issue.md`, Issue 10). Step 2 verification against current source: the listed existing tests under `tests/mcp_servers/github/` are present, and the review's two new files do not exist. The `Needs confirmation` claim that endpoint tests use a fake handler is confirmed in part — `tests/mcp_servers/github/test_github_server_endpoints.py` has a `fake_service` fixture (line 108) that bypasses request-model validation, but the same file also has `real_service` (line 244), the real service boundary with only the GitHub layer stubbed; the new fixture generalizes `real_service` at the shared conftest level. The behaviors under test are already implemented: allowlist boundary (`scripts/mcp_servers/github/github_service_security.py:307`), search scoping (`:271-273`), oversized refusal (`:456`), binary refusal via UTF-8 decode failure (`github_service_file.py:57-60`), strict request models (`github_models_file.py:18`, `request_contract.py`), schemas generated from models (`tools_file.py:69`), `dedup_state` in responses (`dispatch.py:236`), and the injection-only dedup store (`conftest.py:111` `isolated_dedup`). The Issue's `Unresolved Question` — how the same-key concurrent test reaches the real dedup store — resolves to the existing `isolated_dedup` fixture, which the new HTTP fixture composes. The conditional documentation row resolves to N/A: the repository has no testing documentation (`Needs confirmation` checked in Step 2).
 
+Step 3a re-verification (20261126, adversarial verification against current source): every
+cited line reference still matches — `conftest.py:111` (`isolated_dedup`, the only non-autouse
+fixture in that file), `pyproject.toml:145-148` (`integration`, `repo_scan`),
+`github_service_security.py:271-273`/`:307`/`:456`, `github_service_file.py:57-60`,
+`github_models_file.py:18`, `tools_file.py:69`, `dispatch.py:236`,
+`test_github_server_endpoints.py` `fake_service` at 108 and `real_service` at 244,
+`tests/mcp_servers/_auth_headers.py`, and
+`tests/mcp_servers/test_mcp_dispatch_concurrency.py`. Two corrections were made: the
+conftest-integrity gate is scoped to the root `tests/conftest.py` (Tests), and `pyproject.toml`'s
+row validation is the marker-selection run rather than that gate. No marker-consistency tool or
+test exists in the repository, and this Plan does not require one.
+
 ## Problem
 Characterization tests built on a fake service can pass while runtime authorization and validation are absent, so they do not prove the security contract. The current HTTP tests mix a validation-bypassing fake handler with the real boundary, and there is no shared convention or fixture that separates characterization tests from authoritative security-contract tests for the MCP servers.
 
@@ -46,7 +58,7 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `tests/mcp_servers/conftest.py` | Modify | Add the reusable HTTP-level MCP fixture (real app boundary, mocked upstream client, auth headers, schema-assertion helpers) composing the existing `isolated_dedup` fixture | REQ-003, AC-5 | `isolated_dedup` fixture at line 111 already injects the dedup store through the dispatch seam; no HTTP fixture exists in this file (checked in Step 2) | `uv run python tools/check_conftest_integrity.py` | Verified |
-| `pyproject.toml` | Modify | Register the `security_contract` marker in the pytest `markers` list | REQ-004, AC-5 | `markers` list at lines 145-148 currently has `integration` and `repo_scan` only (checked in Step 2) | `uv run python tools/check_conftest_integrity.py` | Verified |
+| `pyproject.toml` | Modify | Register the `security_contract` marker in the pytest `markers` list | REQ-004, AC-5 | `markers` list at lines 145-148 currently has `integration` and `repo_scan` only (checked in Step 2) | `uv run pytest tests/mcp_servers/github/ -m security_contract -v` (Step 3a correction, 20261126: `check_conftest_integrity.py` inspects the root `tests/conftest.py` only and does not validate marker registration) | Verified |
 | `tests/mcp_servers/github/test_github_tool_schema.py` | Create | New file: `/v1/tools` schema-publication contract tests — generated strict schemas, `dry_run` present, marked `security_contract` | REQ-001, AC-3 | New file; schemas are generated from models at `scripts/mcp_servers/github/tools_file.py:69` (checked in Step 2) | itself | Verified |
 | `tests/mcp_servers/github/test_github_security_compliance.py` | Create | New file: runtime-enforcement contract tests at `/v1/call_tool` — out-of-allowlist reads, constrained global search, denied/oversized/binary file reads, unknown-argument rejection, `dedup_state`, same-key concurrent write executing once, authenticated and unauthenticated access, marked `security_contract` | REQ-001, REQ-002, AC-1, AC-2, AC-4 | New file; the behaviors under test are implemented (Step 2 evidence in Background) | itself | Verified |
 
@@ -72,7 +84,7 @@ patterns, components, file groups, or vague phrases.
 
 ## Tests
 - The new test files are the deliverable (REQ-001, REQ-002); run ruff, mypy, the full suite, and check the diff-cover threshold per `rules/toolchain.md`.
-- `uv run python tools/check_conftest_integrity.py` after the conftest change (`rules/tool-gates.md`).
+- `uv run python tools/check_conftest_integrity.py` after the conftest change (`rules/tool-gates.md`). Step 3a scope correction (20261126): the gate inspects the root `tests/conftest.py` only, so it confirms the required autouse fixtures are intact; the new fixture itself is validated by the tests that consume it.
 - Run the new tests by marker: `uv run pytest tests/mcp_servers/github/test_github_tool_schema.py tests/mcp_servers/github/test_github_security_compliance.py -v`; the existing GitHub suite and `tests/mcp_servers/test_mcp_dispatch_concurrency.py` must keep passing.
 
 ## Documentation Impact
@@ -97,7 +109,7 @@ separate scope-of-record.
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
 |---|---|---|---|---|---|
 | `tests/mcp_servers/conftest.py` | Modify | Medium (fixture consumed by all MCP server tests; the sibling issues reuse it) | 4 | High (single author) | not applicable (tests not deployed) |
-| `pyproject.toml` | Modify | Medium (pytest configuration for the whole suite) | 6 | High (single author) | not applicable |
+| `pyproject.toml` | Modify | Medium (pytest configuration for the whole suite) | 5 (recounted at the Step 3a revision; 6 at plan creation) | High (single author) | not applicable |
 | `tests/mcp_servers/github/test_github_tool_schema.py` | Create | Low | N/A (new file) | High (single author) | not applicable (tests not deployed) |
 | `tests/mcp_servers/github/test_github_security_compliance.py` | Create | Low | N/A (new file) | High (single author) | not applicable (tests not deployed) |
 
@@ -149,9 +161,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Convention and shared fixture | Pending | — | — | — |
-| 2 | Schema-publication contract tests | Pending | — | — | — |
-| 3 | Runtime-enforcement contract tests | Pending | — | — | — |
+| 1 | Convention and shared fixture | In Progress | — | — | — |
+| 2 | Schema-publication contract tests | In Progress | — | — | — |
+| 3 | Runtime-enforcement contract tests | In Progress | — | — | — |
 | 4 | Validation and reporting | Pending | — | — | — |
 
 ### Blocker Log
@@ -162,7 +174,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261126-205430_01_tests_mcp_servers_conftest.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-205430_02_pyproject.toml.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-205430_03_tests_mcp_servers_github_test_github_tool_schema.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-205430_04_tests_mcp_servers_github_test_github_security_compliance.py.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -172,6 +187,7 @@ Table structure, status/type vocabulary, and general guidance: see
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261126-070112
 - **Related target files**: `tests/mcp_servers/conftest.py`, `pyproject.toml`, `tests/mcp_servers/github/test_github_tool_schema.py`, `tests/mcp_servers/github/test_github_security_compliance.py`
+- **Evidence revision**: `8a84d72536baa442a2154c7b9cf940411b25244d`
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
@@ -183,3 +199,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-003 | Required Changes; `conftest.py:111` `isolated_dedup` | `tests/mcp_servers/conftest.py` | Phase 1 | AC-5 | `check_conftest_integrity.py` | Confirmed by repository evidence |
 | REQ-004 | Required Changes; `pyproject.toml:145-148` markers | `pyproject.toml` | Phase 1 | AC-5 | `uv run pytest -m security_contract` | Confirmed by repository evidence |
 | REQ-005 | AI Implementation Instruction | — (reporting rule, no file) | Phase 4 | — | report against owning issue | Confirmed by issue text |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-205430 -->
