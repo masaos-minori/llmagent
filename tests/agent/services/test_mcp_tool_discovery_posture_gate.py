@@ -11,8 +11,10 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 from agent.services.mcp_health import PostureGate, classify_server_failure
-from agent.services.mcp_tool_discovery import McpToolDiscoveryService
+from agent.services.mcp_tool_discovery import DiscoveryResult, McpToolDiscoveryService
+from agent.shared.health_models import StartupCheckOutcome, StartupCheckStatus
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_health_contract import HealthReport, parse_health_body
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.security.result_dto import REASON_OK, REASON_POSTURE_MISSING
 
@@ -106,6 +108,16 @@ def _gate(
         reason_code=REASON_OK if posture_accepted else REASON_POSTURE_MISSING,
     )
     return replace(gate, failure_class=classify_server_failure(gate))
+
+
+def _report(**body: object) -> HealthReport:
+    """Parse a `/health` body through the shared contract, the shape a gate carries."""
+    return parse_health_body(body)
+
+
+def _catalog(server_key: str, required_capability: str) -> dict[str, object]:
+    """A catalog fixture for one server, so the test does not read config/tool_catalog.toml."""
+    return {"server": {server_key: {"required_capability": required_capability}}}
 
 
 def _tool_names(registry: RuntimeToolRegistry) -> set[str]:
@@ -266,3 +278,187 @@ class TestPostureGateDoesNotProbeHealth:
 
         assert result.unreachable == []
         assert _tool_names(result.registry) == set()
+
+
+class TestRequiredCapabilityProofFromTheGateReport:
+    """T-05 (REQ-005/AC-05): the report the gate carries is the proof and the catalog
+    supplies the identifier. The tool-declaration guard is gone, so the check engages
+    for every required server.
+    """
+
+    @staticmethod
+    def _capability_findings(result: DiscoveryResult) -> list[StartupCheckOutcome]:
+        return [
+            f
+            for f in result.findings
+            if f.source == _SOURCE and "required capability" in f.message
+        ]
+
+    @pytest.mark.asyncio
+    async def test_degraded_required_capability_produces_fatal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        http = _http(
+            {"http://127.0.0.1:9000/v1/tools": _tools_body("github_list_issues")}
+        )
+        ctx = _make_ctx({"github": _server()}, http)
+        report = _report(
+            health_schema_version=1,
+            liveness=True,
+            ready=False,
+            capabilities={
+                "github.operations": {
+                    "state": "degraded",
+                    "reason_code": "server_unavailable",
+                }
+            },
+        )
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: _catalog("github", "github.operations"),
+        )
+        gates = {"github": replace(_gate("github"), report=report)}
+
+        result = await McpToolDiscoveryService(ctx, posture_gates=gates).discover_all()
+
+        fatal = self._capability_findings(result)
+        assert len(fatal) == 1
+        assert fatal[0].status == StartupCheckStatus.FATAL
+        assert "github.operations" in fatal[0].message
+
+    @pytest.mark.asyncio
+    async def test_unavailable_required_capability_produces_fatal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        http = _http(
+            {"http://127.0.0.1:9000/v1/tools": _tools_body("github_list_issues")}
+        )
+        ctx = _make_ctx({"github": _server()}, http)
+        report = _report(
+            health_schema_version=1,
+            liveness=True,
+            ready=False,
+            capabilities={
+                "github.operations": {
+                    "state": "unavailable",
+                    "reason_code": "config_missing",
+                }
+            },
+        )
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: _catalog("github", "github.operations"),
+        )
+        gates = {"github": replace(_gate("github"), report=report)}
+
+        result = await McpToolDiscoveryService(ctx, posture_gates=gates).discover_all()
+
+        fatal = self._capability_findings(result)
+        assert len(fatal) == 1
+        assert fatal[0].status == StartupCheckStatus.FATAL
+
+    @pytest.mark.asyncio
+    async def test_proven_required_capability_reports_nothing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        http = _http(
+            {"http://127.0.0.1:9000/v1/tools": _tools_body("github_list_issues")}
+        )
+        ctx = _make_ctx({"github": _server()}, http)
+        report = _report(
+            health_schema_version=1,
+            liveness=True,
+            ready=False,
+            capabilities={"github.operations": {"state": "ok"}},
+        )
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: _catalog("github", "github.operations"),
+        )
+        gates = {"github": replace(_gate("github"), report=report)}
+
+        result = await McpToolDiscoveryService(ctx, posture_gates=gates).discover_all()
+
+        assert not self._capability_findings(result)
+        assert _tool_names(result.registry) == {"github_list_issues"}
+
+    @pytest.mark.asyncio
+    async def test_legacy_body_falls_back_to_ready(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """D-6: a body with no capability block is read through its `ready` flag."""
+        http = _http(
+            {"http://127.0.0.1:9000/v1/tools": _tools_body("github_list_issues")}
+        )
+        ctx = _make_ctx({"github": _server()}, http)
+        report = _report(health_schema_version=0, liveness=True, ready=True)
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: _catalog("github", "github.operations"),
+        )
+        gates = {"github": replace(_gate("github"), report=report)}
+
+        result = await McpToolDiscoveryService(ctx, posture_gates=gates).discover_all()
+
+        assert not self._capability_findings(result)
+
+    @pytest.mark.asyncio
+    async def test_legacy_body_not_ready_produces_fatal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        http = _http(
+            {"http://127.0.0.1:9000/v1/tools": _tools_body("github_list_issues")}
+        )
+        ctx = _make_ctx({"github": _server()}, http)
+        report = _report(health_schema_version=0, liveness=True, ready=False)
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: _catalog("github", "github.operations"),
+        )
+        gates = {"github": replace(_gate("github"), report=report)}
+
+        result = await McpToolDiscoveryService(ctx, posture_gates=gates).discover_all()
+
+        fatal = self._capability_findings(result)
+        assert len(fatal) == 1
+        assert fatal[0].status == StartupCheckStatus.FATAL
+
+    @pytest.mark.asyncio
+    async def test_optional_degraded_capability_produces_the_map(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """T-05 (REQ-006): the optional loss is collected per server for the registry; the
+        exclusion itself is the registry's decision (seq 13), so the tool is still built here.
+        """
+        http = _http(
+            {"http://127.0.0.1:9000/v1/tools": _tools_body("github_list_issues")}
+        )
+        ctx = _make_ctx({"github": _server()}, http)
+        report = _report(
+            health_schema_version=1,
+            liveness=True,
+            ready=True,
+            capabilities={
+                "github.operations": {"state": "ok"},
+                "github.api": {"state": "degraded", "reason_code": "config_missing"},
+            },
+        )
+        catalog = {
+            "server": {
+                "github": {
+                    "required_capability": "github.operations",
+                    "capabilities": ["github.operations", "github.api"],
+                }
+            }
+        }
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: catalog,
+        )
+        gates = {"github": replace(_gate("github"), report=report)}
+
+        service = McpToolDiscoveryService(ctx, posture_gates=gates)
+        result = await service.discover_all()
+
+        assert not self._capability_findings(result)
+        assert service._degraded_capability_map(catalog) == {"github": ("github.api",)}

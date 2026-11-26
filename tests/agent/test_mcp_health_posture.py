@@ -3,7 +3,8 @@
 Tests for the MCP Security Posture gating in scripts/agent/services/mcp_health.py:
 collect_server_postures() probes every usable HTTP server once and turns the answer into a gate,
 classify_server_failure() separates Availability from Safety and Integrity, allowed_server_keys()
-keeps only fully green gates, check_service_health() routes a required server's failure and any Safety
+keeps only fully green gates, classify_capabilities() reads the parsed report for the server's catalog
+required_capability, check_service_health() routes a required server's failure and any Safety
 or Integrity posture failure into errors, and check_readiness() aborts startup on a Safety or Integrity
 failure without copying a fingerprint or a server-supplied message into the Agent's message.
 """
@@ -20,17 +21,27 @@ from agent.commands.cmd_mcp import _format_availability_display
 from agent.output_tags import OutputTag
 from agent.services.enums import McpAvailability, McpTier
 from agent.services.mcp_health import (
+    CapabilityFinding,
     PostureGate,
     ServerFailureClass,
     allowed_server_keys,
     check_readiness,
     check_service_health,
+    classify_capabilities,
     classify_server_failure,
     collect_server_postures,
 )
 from agent.services.models import McpProbeResult
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.mcp_health import McpServerHealthRegistry, McpServerHealthState
+from shared.mcp_health_contract import (
+    CAPABILITY_STATE_DEGRADED,
+    CAPABILITY_STATE_OK,
+    CAPABILITY_STATE_UNAVAILABLE,
+    LEGACY_HEALTH_SCHEMA_VERSION,
+    HealthReport,
+    parse_health_body,
+)
 from shared.security.posture_contract import (
     REQUIRED_CHECK_IDS,
     SECURITY_CONTRACT_VERSION,
@@ -167,6 +178,13 @@ def _gate(**overrides: Any) -> PostureGate:
     return PostureGate(**data)
 
 
+def _report(**extra: object) -> HealthReport:
+    """A version-1 report, overridden per case."""
+    return parse_health_body(
+        {"health_schema_version": 1, "liveness": True, "ready": True, **extra}
+    )
+
+
 class TestCollectServerPostures:
     """One probe per usable server, and every answer becomes a gate with a reason code."""
 
@@ -206,6 +224,61 @@ class TestCollectServerPostures:
         cfg = _server(auth_token="probe-token")
         await collect_server_postures(_ctx({SERVER_KEY: cfg}, http))
         assert http.calls[0][1]["headers"] == {"Authorization": "Bearer probe-token"}
+
+    async def test_probe_uses_the_servers_effective_timeout(self) -> None:
+        """T-01 (REQ-001): the per-request timeout is the server's own, not a hard-coded 5.0."""
+        http = _http({HEALTH_URL: _response(_body(_security_block()))})
+        cfg = _server()
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url=BASE_URL,
+            startup_mode=StartupMode.PERSISTENT,
+            required=True,
+            auth_token="test-token",
+            health_timeout=7.5,
+        )
+        await collect_server_postures(_ctx({SERVER_KEY: cfg}, http))
+        assert http.calls[0][1]["timeout"] == 7.5
+
+    async def test_gate_carries_the_parsed_report(self) -> None:
+        """REQ-004: the gate holds the body parsed through the shared contract."""
+        body = _body(
+            _security_block(),
+            health_schema_version=1,
+            liveness=True,
+            capabilities={"mdq.corpus": {"state": "ok"}},
+        )
+        http = _http({HEALTH_URL: _response(body)})
+        gate = (await collect_server_postures(_ctx({SERVER_KEY: _server()}, http)))[
+            SERVER_KEY
+        ]
+        assert gate.report is not None
+        assert gate.report.health_schema_version == 1
+        assert gate.report.capabilities["mdq.corpus"].state == CAPABILITY_STATE_OK
+
+    async def test_legacy_body_parses_through_the_legacy_branch(self) -> None:
+        """D-6: a body with no capability block is a legacy report, reported as version 0."""
+        http = _http({HEALTH_URL: _response(_body(_security_block()))})
+        gate = (await collect_server_postures(_ctx({SERVER_KEY: _server()}, http)))[
+            SERVER_KEY
+        ]
+        assert gate.report is not None
+        assert gate.report.is_legacy is True
+        assert gate.report.health_schema_version == LEGACY_HEALTH_SCHEMA_VERSION
+
+    async def test_contract_violating_body_leaves_no_report(self) -> None:
+        """A wrong field type is not proof: the gate keeps its reason code and carries no report."""
+        http = _http(
+            {
+                HEALTH_URL: _response(
+                    _body(_security_block(), liveness="false", ready=True)
+                )
+            }
+        )
+        gate = (await collect_server_postures(_ctx({SERVER_KEY: _server()}, http)))[
+            SERVER_KEY
+        ]
+        assert gate.report is None
 
     async def test_unreachable_server_is_an_availability_gate(self) -> None:
         http = _http({HEALTH_URL: httpx.ConnectError("connection refused")})
@@ -352,6 +425,74 @@ class TestClassifyServerFailure:
         assert classify_server_failure(gate) is ServerFailureClass.AVAILABILITY
 
 
+class TestClassifyCapabilities:
+    """T-04: the parsed report is the proof; required loss and optional loss are different findings."""
+
+    def test_required_capability_ok_proves_readiness(self) -> None:
+        finding = classify_capabilities(
+            _gate(report=_report(capabilities={"mdq.corpus": {"state": "ok"}})),
+            "mdq.corpus",
+        )
+        assert finding == CapabilityFinding("mdq.corpus", True, ())
+
+    def test_required_capability_degraded_is_not_proof(self) -> None:
+        finding = classify_capabilities(
+            _gate(
+                report=_report(
+                    capabilities={"mdq.corpus": {"state": CAPABILITY_STATE_DEGRADED}}
+                )
+            ),
+            "mdq.corpus",
+        )
+        assert finding.required_proven is False
+
+    def test_optional_loss_is_reported_without_affecting_readiness(self) -> None:
+        finding = classify_capabilities(
+            _gate(
+                report=_report(
+                    capabilities={
+                        "mdq.corpus": {"state": "ok"},
+                        "web.search": {"state": CAPABILITY_STATE_UNAVAILABLE},
+                    }
+                )
+            ),
+            "mdq.corpus",
+        )
+        assert finding.required_proven is True
+        assert finding.degraded_optional == ("web.search",)
+
+    def test_legacy_body_falls_back_to_ready(self) -> None:
+        """D-6: no capability block, so the report's own `ready` flag is the proof."""
+        finding = classify_capabilities(_gate(report=_report()), "mdq.corpus")
+        assert finding.required_proven is True
+        finding = classify_capabilities(
+            _gate(report=_report(ready=False)), "mdq.corpus"
+        )
+        assert finding.required_proven is False
+
+    def test_no_declared_capability_is_read_through_ready(self) -> None:
+        finding = classify_capabilities(_gate(report=_report()), None)
+        assert finding.required_proven is True
+        assert finding.degraded_optional == ()
+
+    def test_a_gate_with_no_report_proves_nothing(self) -> None:
+        finding = classify_capabilities(_gate(report=None), "mdq.corpus")
+        assert finding.required_proven is False
+
+    def test_readiness_decision_delegates_to_the_shared_helper(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The accept decision must be `HealthChecker.is_ready`'s, not a copy of it."""
+        from agent.http_lifecycle_health_checker import HealthChecker
+
+        report = _report(capabilities={"mdq.corpus": {"state": "ok"}})
+        with patch.object(HealthChecker, "is_ready", return_value=False):
+            finding = classify_capabilities(_gate(report=report), "mdq.corpus")
+        assert finding.required_proven is False
+        # The optional-loss half is the helper's own contribution, so it is still reported.
+        assert finding.degraded_optional == ()
+
+
 class TestAllowedServerKeys:
     """Only a fully green gate earns a place in the registry."""
 
@@ -448,6 +589,77 @@ class TestCheckServiceHealthPosture:
         ctx = _ctx({SERVER_KEY: _server(required=False)}, http)
         result = await check_service_health(ctx)
         assert result.warnings[0].url == BASE_URL
+
+    async def test_required_capability_not_proven_is_an_error(self) -> None:
+        """T-05 (REQ-005): a green posture gate whose required capability is degraded still blocks."""
+        body = _body(
+            _security_block(),
+            capabilities={"mdq.corpus": {"state": CAPABILITY_STATE_DEGRADED}},
+        )
+        http = _http({HEALTH_URL: _response(body)})
+        with patch(
+            "agent.services.mcp_health.load_tool_catalog",
+            return_value={
+                "server": {SERVER_KEY: {"required_capability": "mdq.corpus"}}
+            },
+        ):
+            result = await check_service_health(_ctx({SERVER_KEY: _server()}, http))
+        assert [w.label for w in result.errors] == [f"mcp:{SERVER_KEY}"]
+        assert "capability failure" in result.errors[0].message
+        assert "required=mdq.corpus not proven" in result.errors[0].message
+        assert result.warnings == []
+
+    async def test_required_capability_not_proven_on_an_optional_server_is_a_warning(
+        self,
+    ) -> None:
+        body = _body(
+            _security_block(),
+            capabilities={"mdq.corpus": {"state": CAPABILITY_STATE_UNAVAILABLE}},
+        )
+        http = _http({HEALTH_URL: _response(body)})
+        with patch(
+            "agent.services.mcp_health.load_tool_catalog",
+            return_value={
+                "server": {SERVER_KEY: {"required_capability": "mdq.corpus"}}
+            },
+        ):
+            result = await check_service_health(
+                _ctx({SERVER_KEY: _server(required=False)}, http)
+            )
+        assert result.errors == []
+        assert result.warnings[0].message.startswith(OutputTag.NON_FATAL)
+        assert "required=mdq.corpus not proven" in result.warnings[0].message
+
+    async def test_optional_capability_loss_is_a_warning_only(self) -> None:
+        """A degraded optional capability never blocks startup, whatever `required` says."""
+        body = _body(
+            _security_block(),
+            capabilities={
+                "mdq.corpus": {"state": "ok"},
+                "web.search": {"state": CAPABILITY_STATE_DEGRADED},
+            },
+        )
+        http = _http({HEALTH_URL: _response(body)})
+        with patch(
+            "agent.services.mcp_health.load_tool_catalog",
+            return_value={
+                "server": {SERVER_KEY: {"required_capability": "mdq.corpus"}}
+            },
+        ):
+            result = await check_service_health(_ctx({SERVER_KEY: _server()}, http))
+        assert result.errors == []
+        assert "degraded_optional=web.search" in result.warnings[0].message
+        assert result.warnings[0].message.startswith(OutputTag.NON_FATAL)
+
+    async def test_unreadable_catalog_falls_back_to_the_legacy_ready_flag(self) -> None:
+        """D-6: a missing catalog does not make this gate fail; the FATAL stays at discovery."""
+        http = _http({HEALTH_URL: _response(_body(_security_block()))})
+        with patch(
+            "agent.services.mcp_health.load_tool_catalog",
+            side_effect=OSError("no catalog"),
+        ):
+            result = await check_service_health(_ctx({SERVER_KEY: _server()}, http))
+        assert not result.has_issues
 
 
 class TestCheckReadinessPosture:

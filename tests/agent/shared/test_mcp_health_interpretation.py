@@ -48,17 +48,40 @@ class TestInterpretHealthBody:
         result = interpret_health_body({"ready": True})
         assert result.self_reported_status == "unknown"
 
-    def test_parse_exception_sets_failure_reason(self) -> None:
-        bad_body: dict[str, object] = {}
-
-        class BadBool:
-            def __bool__(self) -> bool:
-                raise ValueError("broken")
-
-        bad_body["ready"] = BadBool()
-        result = interpret_health_body(bad_body)
+    def test_wrong_field_type_names_the_field_in_the_failure_reason(self) -> None:
+        """REQ-004/AC-04: the contract parser is the strict path and names the offending field."""
+        result = interpret_health_body({"status": "ok", "ready": "true"})
         assert result.parse_failure_reason is not None
-        assert "broken" in result.parse_failure_reason
+        assert "ready" in result.parse_failure_reason
+        assert result.self_reported_status == "unknown"
+
+    def test_dict_dependencies_keep_each_status_text(self) -> None:
+        """T-04 (REQ-004/AC-04): a dict dependencies body keeps each entry's status text."""
+        body = {
+            "status": "degraded",
+            "ready": False,
+            "dependencies": {"github_token": "not_set", "cache": "ok"},
+        }
+        result = interpret_health_body(body)
+        assert result.dependency_summary == ["github_token: not_set"]
+
+    def test_dict_dependency_object_entry_keeps_its_reason(self) -> None:
+        """A dict entry whose value is an object keeps the reason text."""
+        body = {
+            "status": "degraded",
+            "dependencies": {"db": {"status": "down", "reason": "connection refused"}},
+        }
+        result = interpret_health_body(body)
+        assert result.dependency_summary == ["db: connection refused"]
+
+    def test_list_dependency_body_still_works(self) -> None:
+        """T-04: the list shape producers used before is unchanged."""
+        body = {
+            "status": "degraded",
+            "dependencies": [{"name": "db", "status": "down", "reason": "timeout"}],
+        }
+        result = interpret_health_body(body)
+        assert result.dependency_summary == ["db: timeout"]
 
     def test_trusted_source_not_injected_by_interpreter(self) -> None:
         body = {"status": "ok", "ready": True}
@@ -84,6 +107,13 @@ class TestExtractHealthReason:
         }
         reason = extract_health_reason(body)
         assert reason is not None and "Dependency failure" in reason
+
+    def test_priority_3_dict_dependency_keeps_the_status_text(self) -> None:
+        """T-04: the dict shape producers emit keeps the status text in the reason."""
+        body: dict[str, object] = {"dependencies": {"github_token": "not_set"}}
+        assert (
+            extract_health_reason(body) == "Dependency failure: github_token: not_set"
+        )
 
     def test_priority_4_details_when_deps_and_reason_absent(self) -> None:
         body: dict[str, object] = {

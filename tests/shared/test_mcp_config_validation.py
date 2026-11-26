@@ -239,9 +239,9 @@ def test_health_timeout_default_none():
     assert cfg.health_timeout is None
 
 
-def test_health_timeout_zero_is_valid():
-    cfg = _http_cfg(health_timeout=0.0)
-    assert cfg.health_timeout == 0.0
+def test_health_timeout_zero_is_rejected():
+    with pytest.raises(ValueError, match="health_timeout must be > 0"):
+        _http_cfg(health_timeout=0.0)
 
 
 def test_health_timeout_positive_is_valid():
@@ -266,6 +266,15 @@ def test_health_timeout_positive_returns_value():
 
     cfg = _http_cfg(health_timeout=15.0)
     assert get_effective_health_timeout(cfg) == 15.0
+
+
+def test_effective_timeout_is_always_a_positive_float():
+    from shared.mcp_config import get_effective_health_timeout
+
+    for value in (None, 15.0):
+        effective = get_effective_health_timeout(_http_cfg(health_timeout=value))
+        assert isinstance(effective, float)
+        assert effective > 0
 
 
 # --- cliplc006: server-identifier rule, `fields` removal, `credential_env` ---

@@ -13,7 +13,7 @@ import signal
 import sys
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import httpx
 import pytest
@@ -55,10 +55,16 @@ def _permissive_spawn_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LLMAGENT_COMMAND_MODE", "permissive")
 
 
-def _wire_http_client(MockClient, status_code: int = 200):
-    """Wire up AsyncClient mock to return a response with given status code."""
+def _wire_http_client(MockClient, status_code: int = 200, body: dict | None = None):
+    """Wire up AsyncClient mock to return a response with given status code.
+
+    `body` is the parsed /health body the readiness rule reads (REQ-005). It defaults to an
+    unproven body because most call sites here assert a failure path; the tests that assert
+    the poll ends ready pass `{"ready": True}` explicitly.
+    """
     mock_resp = MagicMock()
     mock_resp.status_code = status_code
+    mock_resp.json = Mock(return_value={"ready": False} if body is None else body)
     client_instance = AsyncMock()
     client_instance.get = AsyncMock(return_value=mock_resp)
     MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
@@ -236,7 +242,7 @@ class TestStartHttpSubprocess:
             ),
             patch("os.killpg"),
         ):
-            _wire_http_client(MockClient, status_code=200)
+            _wire_http_client(MockClient, status_code=200, body={"ready": True})
             await mgr.start_http_subprocess("s", cfg)
 
         assert mgr._subprocess_mgr._http_mgr._records["s"].process is mock_proc
@@ -341,8 +347,10 @@ class TestStartHttpSubprocess:
 
         fail_resp = MagicMock()
         fail_resp.status_code = 503
+        fail_resp.json = Mock(return_value={"ready": False})
         ok_resp = MagicMock()
         ok_resp.status_code = 200
+        ok_resp.json = Mock(return_value={"ready": True})
 
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
@@ -369,7 +377,10 @@ class TestStartHttpSubprocess:
         mock_proc = _make_mock_proc()
 
         T = 1000.0
-        monotonic_values = [T, T + 0.1, T + 1.1, T + 1.1]
+        # One request is issued while time remains, then the boundary is crossed before
+        # the next poll: deadline, first check, remaining for the capped request, second
+        # check past the deadline, and the router's failure timestamp.
+        monotonic_values = [T, T + 0.1, T + 0.1, T + 1.1, T + 1.1]
 
         fail_resp = MagicMock()
         fail_resp.status_code = 503
@@ -417,7 +428,9 @@ class TestStartHttpSubprocess:
             ),
             patch("os.killpg"),
         ):
-            client_instance, mock_resp = _wire_http_client(MockClient, status_code=200)
+            client_instance, mock_resp = _wire_http_client(
+                MockClient, status_code=200, body={"ready": True}
+            )
             client_instance.get = AsyncMock(return_value=mock_resp)
             await mgr.start_http_subprocess("s", cfg)
 

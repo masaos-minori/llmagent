@@ -47,6 +47,19 @@ def _make_cfg(**overrides: object) -> McpServerConfig:
     return McpServerConfig(**defaults)  # type: ignore[arg-type]
 
 
+def _unproven_client() -> MagicMock:
+    """A health-check client whose response is a real `httpx.Response`.
+
+    A `MagicMock` response makes `resp.json()` a coroutine that the readiness rule
+    never awaits, so the fixture emits a RuntimeWarning. A real response keeps it
+    silent. Its body proves nothing, so the poll runs to the deadline.
+    """
+    client = MagicMock()
+    client.return_value.__aenter__ = AsyncMock(return_value=client)
+    client.get = AsyncMock(return_value=httpx.Response(503, json={"ready": False}))
+    return client
+
+
 @pytest.fixture(autouse=True)
 def _permissive_spawn_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     """Opt into the documented permissive mode for these lifecycle characterizations.
@@ -1027,6 +1040,9 @@ class TestErrorRecovery:
         from http import HTTPStatus
 
         mock_resp.status_code = HTTPStatus.OK
+        # Readiness is the parsed report, not the status code (REQ-005); the mocked
+        # body must prove it through the legacy `ready` fallback (D-6).
+        mock_resp.json = Mock(return_value={"ready": True})
 
         mock_client = MagicMock()
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
@@ -1088,7 +1104,7 @@ class TestErrorRecovery:
             patch.object(subprocess, "Popen", return_value=proc_mock),
             patch.object(os, "getpgid", return_value=7777),
             patch.object(time, "monotonic", side_effect=fake_monotonic),
-            patch.object(httpx, "AsyncClient"),
+            patch.object(httpx, "AsyncClient", new=_unproven_client()),
             patch.object(asyncio, "sleep", return_value=None),
         ):
             with patch.object(
@@ -1122,6 +1138,9 @@ class TestErrorRecovery:
         from http import HTTPStatus
 
         mock_resp.status_code = HTTPStatus.OK
+        # Readiness is the parsed report, not the status code (REQ-005); the mocked
+        # body must prove it through the legacy `ready` fallback (D-6).
+        mock_resp.json = Mock(return_value={"ready": True})
 
         mock_client = MagicMock()
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
@@ -1147,6 +1166,9 @@ class TestErrorRecovery:
         from http import HTTPStatus
 
         mock_resp.status_code = HTTPStatus.OK
+        # Readiness is the parsed report, not the status code (REQ-005); the mocked
+        # body must prove it through the legacy `ready` fallback (D-6).
+        mock_resp.json = Mock(return_value={"ready": True})
 
         mock_client = MagicMock()
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
@@ -1180,7 +1202,7 @@ class TestErrorRecovery:
             patch.object(subprocess, "Popen", return_value=proc_mock),
             patch.object(os, "getpgid", return_value=9999),
             patch.object(time, "monotonic", side_effect=fake_monotonic),
-            patch.object(httpx, "AsyncClient"),
+            patch.object(httpx, "AsyncClient", new=_unproven_client()),
             patch.object(asyncio, "sleep", return_value=None),
         ):
             with patch.object(
@@ -1210,6 +1232,9 @@ class TestErrorRecovery:
         from http import HTTPStatus
 
         mock_resp.status_code = HTTPStatus.OK
+        # Readiness is the parsed report, not the status code (REQ-005); the mocked
+        # body must prove it through the legacy `ready` fallback (D-6).
+        mock_resp.json = Mock(return_value={"ready": True})
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.get = AsyncMock(return_value=mock_resp)
 
@@ -1284,6 +1309,9 @@ class TestShutdownEventPollInterruption:
 
         mock_resp = MagicMock()
         mock_resp.status_code = HTTPStatus.OK
+        # Readiness is the parsed report, not the status code (REQ-005); the mocked
+        # body must prove it through the legacy `ready` fallback (D-6).
+        mock_resp.json = Mock(return_value={"ready": True})
         mock_client = MagicMock()
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.get = AsyncMock(return_value=mock_resp)
@@ -1365,7 +1393,7 @@ class TestStartupFailureTerminateOrTrack:
                 "read_tail",
                 new=MagicMock(return_value=b""),
             ),
-            patch.object(httpx, "AsyncClient"),
+            patch.object(httpx, "AsyncClient", new=_unproven_client()),
         ):
             with pytest.raises(HttpStartupError) as exc_info:
                 await mgr._health_poll_until_ready(
@@ -1401,7 +1429,7 @@ class TestStartupFailureTerminateOrTrack:
                 "read_tail",
                 new=MagicMock(return_value=b"shutdown stderr"),
             ),
-            patch.object(httpx, "AsyncClient"),
+            patch.object(httpx, "AsyncClient", new=_unproven_client()),
         ):
             with caplog.at_level(logging.ERROR, logger="agent.http_lifecycle"):
                 with pytest.raises(HttpStartupError) as exc_info:

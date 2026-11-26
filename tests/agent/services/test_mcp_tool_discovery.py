@@ -11,11 +11,14 @@ Also includes real-app schema validation tests against each MCP server's
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from dataclasses import replace
 from types import ModuleType
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
+from agent.services.mcp_health import PostureGate
 from agent.services.mcp_tool_discovery import DiscoveryResult, McpToolDiscoveryService
 from agent.services.mcp_tool_discovery_registry import (
     _build_runtime_tools,
@@ -32,6 +35,7 @@ from shared.mcp_config import (
     StartupMode,
     TransportType,
 )
+from shared.mcp_health_contract import parse_health_body
 from shared.tool_registry import (
     ToolDefinition,
     _reset_registry_for_testing,
@@ -103,6 +107,50 @@ def _make_ctx(
     ctx.cfg.mcp.mcp_servers = servers
     ctx.services_required.http = http
     return ctx
+
+
+def _gates_with_reports(
+    servers: Mapping[str, object],
+    reports: Mapping[str, Mapping[str, object]],
+) -> dict[str, PostureGate]:
+    """Green gates carrying the parsed /health body the capability check reads as proof.
+
+    `gates_from` builds a gate with no report, and a gate with no report proves nothing under the
+    report-based rule (REQ-005), so a case that expects a required server to pass must name the body
+    its gate carries. A body without the capability block is read through the legacy `ready`
+    fallback (D-6).
+    """
+    gates = gates_from(servers)
+    for key, body in reports.items():
+        gates[key] = replace(gates[key], report=parse_health_body(body))
+    return gates
+
+
+def _tool_entry(
+    name: str,
+    capabilities: list[str],
+    **overrides: object,
+) -> dict[str, object]:
+    """One schema-2.1 tool entry as the producer declares it, with its capability dependency."""
+    entry: dict[str, object] = {
+        "name": name,
+        "description": "d",
+        "inputSchema": {"type": "object", "properties": {}},
+        "is_write": False,
+        "requires_serial": False,
+        "resource_scope_kind": "",
+        "resource_scope_keys": {},
+        "agent_safety_tier": "READ_ONLY",
+        "side_effect_class": "read_only",
+        "retry_policy": "safe_read_retry",
+        "reconciliation_policy": "not_required",
+        "idempotency_required": False,
+        "preview_capability": "none",
+        "policy_version": "2.1",
+        "capabilities": capabilities,
+    }
+    entry.update(overrides)
+    return entry
 
 
 # ── declared write classification drift (ADR-003 INV-03) ─────────────────────
@@ -1171,11 +1219,18 @@ class TestDiscoverAllServerFilter:
         ctx = _make_ctx({"empty_url_server": cfg}, http)
 
         result = await McpToolDiscoveryService(
-            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers,
+                {"empty_url_server": {"liveness": True, "ready": True}},
+            ),
         ).discover_all()
 
         http.get.assert_not_called()
         assert result.registry.all_tools() == []
+        # The server is skipped from the fetch, but the required-capability check still reads its
+        # gate, so the fixture gate carries a legacy body that proves readiness through `ready`
+        # (D-6): the filter is what is asserted here, not an absent proof.
         assert result.findings == []
         assert result.unreachable == []
 
@@ -1216,11 +1271,17 @@ class TestDiscoverAllServerFilter:
         ctx = _make_ctx({"disabled_srv": srv_cfg}, http)
 
         result = await McpToolDiscoveryService(
-            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers,
+                {"disabled_srv": {"liveness": True, "ready": True}},
+            ),
         ).discover_all()
 
         http.get.assert_not_called()
         assert result.registry.all_tools() == []
+        # The disabled server is not fetched, yet it is still a required server the check reads,
+        # so its gate carries a legacy body that proves readiness through `ready` (D-6).
         mcp_findings = [f for f in result.findings if f.source == "mcp_tool_discovery"]
         assert len(mcp_findings) == 0
         assert result.unreachable == []
@@ -2436,11 +2497,11 @@ class TestRequiredServerMalformedEntryFatalEscalation:
 
 class TestRequiredCapabilityCheck:
     """The required-server check reads a required capability from the
-    tool_catalog.toml manifest (declared per required server) and asserts a
-    discovered tool provides it (REQ-005, AC-3). It engages only when a declared
-    capability exists; until servers populate the capabilities field on
-    /v1/tools the check is inert rather than blocking startup on unverifiable
-    data.
+    tool_catalog.toml manifest (declared per required server) and proves it from the parsed
+    health report (REQ-005, AC-3, AC-5). The check is no longer gated on a tool declaring a
+    capability: required loss must block startup, so a gate whose report does not prove the
+    declared capability produces FATAL. A server with no catalog entry, or a body without the
+    capability block, is read through its `ready` flag (D-6).
     """
 
     @staticmethod
@@ -2472,6 +2533,7 @@ class TestRequiredCapabilityCheck:
             if "required capability" in f.message
             or "absent from tool_catalog" in f.message
             or "does not declare" in f.message
+            or "does not prove readiness" in f.message
         ]
 
     @pytest.mark.asyncio
@@ -2482,7 +2544,7 @@ class TestRequiredCapabilityCheck:
             "agent.services.mcp_tool_discovery._check_tool_definitions",
             AsyncMock(return_value=HealthCheckResult()),
         )
-        # Tool declares the required capability, so the check engages and passes.
+        # The tool declares the required capability, and its server's report proves it `ok`.
         monkeypatch.setattr(
             "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
             lambda self: {
@@ -2509,7 +2571,17 @@ class TestRequiredCapabilityCheck:
         ctx = _make_ctx({"required_srv": srv_cfg}, http)
 
         result = await McpToolDiscoveryService(
-            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers,
+                {
+                    "required_srv": {
+                        "liveness": True,
+                        "ready": True,
+                        "capabilities": {"filesystem.read": {"state": "ok"}},
+                    }
+                },
+            ),
         ).discover_all()
 
         assert result.registry.get("grep") is not None
@@ -2560,9 +2632,15 @@ class TestRequiredCapabilityCheck:
         assert "filesystem.read" in fatal[0].message
 
     @pytest.mark.asyncio
-    async def test_required_server_absent_from_manifest_produces_fatal(
+    async def test_required_server_absent_from_catalog_uses_the_legacy_ready_fallback(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        """A required server with no catalog entry is read through its `ready` flag (D-6).
+
+        The manifest declares nothing for it, so the report is the only proof: a body that does not
+        prove readiness still produces FATAL, which is what keeps the check fail-closed without the
+        removed catalog-absence branch.
+        """
         monkeypatch.setattr(
             "agent.services.mcp_tool_discovery._check_tool_definitions",
             AsyncMock(return_value=HealthCheckResult()),
@@ -2592,20 +2670,28 @@ class TestRequiredCapabilityCheck:
         ctx = _make_ctx({"required_srv": srv_cfg}, http)
 
         result = await McpToolDiscoveryService(
-            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers,
+                {"required_srv": {"liveness": True, "ready": False}},
+            ),
         ).discover_all()
 
         fatal = self._capability_findings(result)
         assert len(fatal) == 1
         assert fatal[0].status == StartupCheckStatus.FATAL
-        assert "absent from tool_catalog" in fatal[0].message
+        assert "legacy ready fallback" in fatal[0].message
 
     @pytest.mark.asyncio
-    async def test_inert_when_no_capability_declared(
+    async def test_tool_declaration_is_not_the_proof_the_report_is(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Until servers populate the capabilities field, the check reports
-        nothing rather than blocking startup on unverifiable data."""
+        """The report is the proof, not the tool's declared capability list (REQ-005).
+
+        The tool declares no capability, yet the server's report proves the catalog's required
+        capability `ok`, so the check engages through the report and produces nothing. The removed
+        inert guard would have reported nothing here for the wrong reason.
+        """
         monkeypatch.setattr(
             "agent.services.mcp_tool_discovery._check_tool_definitions",
             AsyncMock(return_value=HealthCheckResult()),
@@ -2636,7 +2722,17 @@ class TestRequiredCapabilityCheck:
         ctx = _make_ctx({"required_srv": srv_cfg}, http)
 
         result = await McpToolDiscoveryService(
-            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers,
+                {
+                    "required_srv": {
+                        "liveness": True,
+                        "ready": False,
+                        "capabilities": {"filesystem.read": {"state": "ok"}},
+                    }
+                },
+            ),
         ).discover_all()
 
         assert result.registry.get("grep") is not None
@@ -2750,12 +2846,15 @@ class TestRequiredCapabilityCheck:
         assert fatal[0].status == StartupCheckStatus.FATAL
 
     @pytest.mark.asyncio
-    async def test_required_server_without_required_capability_produces_fatal(
+    async def test_required_server_without_declared_capability_uses_the_legacy_ready_fallback(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A required server present in the manifest but without a declared
-        required_capability is a FATAL (AC-3): the manifest must state what the
-        server's tools must provide."""
+        """A required server with no declared required_capability is read through `ready` (D-6).
+
+        The manifest entry exists but declares nothing, so the report's `ready` flag is the proof.
+        A body that does not prove readiness is still FATAL, which is what keeps startup blocked
+        without a separate "the manifest must state it" branch.
+        """
         monkeypatch.setattr(
             "agent.services.mcp_tool_discovery._check_tool_definitions",
             AsyncMock(return_value=HealthCheckResult()),
@@ -2785,13 +2884,411 @@ class TestRequiredCapabilityCheck:
         ctx = _make_ctx({"required_srv": srv_cfg}, http)
 
         result = await McpToolDiscoveryService(
-            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers,
+                {"required_srv": {"liveness": True, "ready": False}},
+            ),
         ).discover_all()
 
         fatal = self._capability_findings(result)
         assert len(fatal) == 1
         assert fatal[0].status == StartupCheckStatus.FATAL
-        assert "does not declare" in fatal[0].message
+        assert "legacy ready fallback" in fatal[0].message
+
+
+class TestRequiredCapabilityProofFromTheReport:
+    """T-05 (REQ-005, AC-05): the parsed report is the proof of the required capability.
+
+    `liveness` alone is never proof, and a legacy body falls back to `ready`.
+    """
+
+    @staticmethod
+    def _ctx(
+        monkeypatch: pytest.MonkeyPatch, catalog: Mapping[str, object]
+    ) -> MagicMock:
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: catalog,
+        )
+        srv_cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
+            required=True,
+            auth_token="test-token",
+        )
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [_tool_entry("grep", ["filesystem.read"])],
+                },
+            )
+        )
+        return _make_ctx({"required_srv": srv_cfg}, http)
+
+    @staticmethod
+    def _fatal(result: DiscoveryResult) -> object:
+        capability_findings = [
+            f
+            for f in result.findings
+            if f.source == "mcp_tool_discovery"
+            and f.status == StartupCheckStatus.FATAL
+            and (
+                "required capability" in f.message
+                or "does not prove readiness" in f.message
+            )
+        ]
+        assert len(capability_findings) == 1
+        return capability_findings[0]
+
+    @pytest.mark.asyncio
+    async def test_liveness_only_report_does_not_prove_readiness(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A body that reports only liveness is not readiness (REQ-005)."""
+        ctx = self._ctx(
+            monkeypatch,
+            {"server": {"required_srv": {"required_capability": "filesystem.read"}}},
+        )
+        result = await McpToolDiscoveryService(
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers,
+                {"required_srv": {"liveness": True, "ready": False}},
+            ),
+        ).discover_all()
+
+        assert self._fatal(result).message.count("filesystem.read") == 1
+
+    @pytest.mark.asyncio
+    async def test_degraded_required_capability_produces_fatal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ctx = self._ctx(
+            monkeypatch,
+            {"server": {"required_srv": {"required_capability": "filesystem.read"}}},
+        )
+        result = await McpToolDiscoveryService(
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers,
+                {
+                    "required_srv": {
+                        "liveness": True,
+                        "ready": False,
+                        "capabilities": {
+                            "filesystem.read": {
+                                "state": "degraded",
+                                "reason_code": "config_missing",
+                            }
+                        },
+                    }
+                },
+            ),
+        ).discover_all()
+
+        fatal = self._fatal(result)
+        assert "filesystem.read" in fatal.message
+
+    @pytest.mark.asyncio
+    async def test_unavailable_required_capability_produces_fatal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ctx = self._ctx(
+            monkeypatch,
+            {"server": {"required_srv": {"required_capability": "filesystem.read"}}},
+        )
+        result = await McpToolDiscoveryService(
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers,
+                {
+                    "required_srv": {
+                        "liveness": True,
+                        "ready": False,
+                        "capabilities": {"filesystem.read": {"state": "unavailable"}},
+                    }
+                },
+            ),
+        ).discover_all()
+
+        fatal = self._fatal(result)
+        assert "filesystem.read" in fatal.message
+
+    @pytest.mark.asyncio
+    async def test_legacy_body_falls_back_to_ready(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A body with no capability block is read through its `ready` flag (D-6)."""
+        ctx = self._ctx(
+            monkeypatch,
+            {"server": {"required_srv": {"required_capability": "filesystem.read"}}},
+        )
+        result = await McpToolDiscoveryService(
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers,
+                {"required_srv": {"liveness": True, "ready": True}},
+            ),
+        ).discover_all()
+
+        assert result.registry.get("grep") is not None
+        assert [
+            f
+            for f in result.findings
+            if f.source == "mcp_tool_discovery"
+            and (
+                "required capability" in f.message
+                or "does not prove readiness" in f.message
+            )
+        ] == []
+
+
+class TestStrictConfigDependentField:
+    """T-07 (REQ-007, AC-07): `config_dependent` is parsed strictly, with no truthy coercion."""
+
+    @staticmethod
+    def _ctx(monkeypatch: pytest.MonkeyPatch, entry: dict[str, object]) -> MagicMock:
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        srv_cfg = _server(startup_mode=StartupMode.PERSISTENT)
+        srv_cfg.required = False
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(200, {"schema_version": "1.0", "tools": [entry]})
+        )
+        return _make_ctx({"srv": srv_cfg}, http)
+
+    @pytest.mark.asyncio
+    async def test_non_bool_config_dependent_rejects_the_entry_with_a_warning(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A truthy value is not a bool: the entry is rejected with a finding (AC-07)."""
+        ctx = self._ctx(monkeypatch, _tool_entry("grep", [], config_dependent="true"))
+
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
+
+        assert result.registry.all_tools() == []
+        field_findings = [
+            f
+            for f in result.findings
+            if f.source == "mcp_tool_discovery" and "config_dependent" in f.message
+        ]
+        assert len(field_findings) == 1
+        assert field_findings[0].status == StartupCheckStatus.WARNING
+
+    @pytest.mark.asyncio
+    async def test_bool_config_dependent_reaches_runtime_tool_with_the_declared_value(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The producer-declared value is carried, not inferred from `status`."""
+        ctx = self._ctx(monkeypatch, _tool_entry("grep", [], config_dependent=True))
+
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
+
+        tool = result.registry.get("grep")
+        assert tool.config_dependent is True
+        assert tool.status == "active"
+
+    @pytest.mark.asyncio
+    async def test_absent_config_dependent_is_not_rejected_and_keeps_the_default(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """REQ-007 rejects a value that is not a bool; an absent field is the field default."""
+        ctx = self._ctx(monkeypatch, _tool_entry("grep", []))
+
+        result = await McpToolDiscoveryService(
+            ctx, posture_gates=gates_from(ctx.cfg.mcp.mcp_servers)
+        ).discover_all()
+
+        assert result.registry.get("grep").config_dependent is False
+
+
+class TestDiscoverAllCapabilityExclusion:
+    """T-06 (REQ-006, AC-06): only the tools that depend on a lost capability are dropped.
+
+    The fixture catalog matches seq 17: `github.operations` required, `github.api` optional.
+    """
+
+    @staticmethod
+    def _catalog() -> dict[str, object]:
+        return {
+            "server": {
+                "github": {
+                    "owned_tools": ["github_create_issue", "github_list_issues"],
+                    "capabilities": ["github.operations", "github.api"],
+                    "required_capability": "github.operations",
+                }
+            }
+        }
+
+    @staticmethod
+    def _ctx(
+        monkeypatch: pytest.MonkeyPatch, report: Mapping[str, object]
+    ) -> MagicMock:
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            lambda self: TestDiscoverAllCapabilityExclusion._catalog(),
+        )
+        srv_cfg = _server("http://127.0.0.1:9000")
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [
+                        _tool_entry("github_create_issue", ["github.api"]),
+                        _tool_entry("github_list_issues", ["github.operations"]),
+                    ],
+                },
+            )
+        )
+        ctx = _make_ctx({"github": srv_cfg}, http)
+        ctx._report = report
+        return ctx
+
+    @pytest.mark.asyncio
+    async def test_tool_dependent_on_a_degraded_capability_is_excluded_with_reason_capability(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ctx = self._ctx(
+            monkeypatch,
+            {
+                "liveness": True,
+                "ready": False,
+                "capabilities": {
+                    "github.operations": {"state": "ok"},
+                    "github.api": {
+                        "state": "degraded",
+                        "reason_code": "config_missing",
+                    },
+                },
+            },
+        )
+
+        result = await McpToolDiscoveryService(
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers, {"github": ctx._report}
+            ),
+        ).discover_all()
+
+        assert result.registry.resolve("github_create_issue") is None
+        assert result.registry.exclusion_reason("github_create_issue") == "capability"
+        # The required capability is proven `ok`, so startup is not blocked (AC-06). Only the
+        # capability findings are read here: the drift check reports its own rows for the fixture's
+        # partial tool list.
+        capability_fatal = [
+            f
+            for f in result.findings
+            if f.source == "mcp_tool_discovery"
+            and f.status == StartupCheckStatus.FATAL
+            and (
+                "required capability" in f.message
+                or "does not prove readiness" in f.message
+            )
+        ]
+        assert capability_fatal == []
+
+    @pytest.mark.asyncio
+    async def test_tool_with_no_capability_dependency_stays_registered(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Only the tools that declare the lost capability are dropped; the rest stay."""
+        ctx = self._ctx(
+            monkeypatch,
+            {
+                "liveness": True,
+                "ready": False,
+                "capabilities": {
+                    "github.operations": {"state": "ok"},
+                    "github.api": {"state": "unavailable"},
+                },
+            },
+        )
+
+        result = await McpToolDiscoveryService(
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers, {"github": ctx._report}
+            ),
+        ).discover_all()
+
+        assert result.registry.get("github_list_issues") is not None
+        assert result.registry.exclusion_reason("github_create_issue") == "capability"
+
+
+class TestCatalogLoadOrderBeforeRegistryConstruction:
+    """D-9: the catalog is read before the registry is built, so the missing-catalog case is
+    observable while no tool row exists yet."""
+
+    @pytest.mark.asyncio
+    async def test_missing_catalog_is_observable_before_any_tool_row_exists(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery._check_tool_definitions",
+            AsyncMock(return_value=HealthCheckResult()),
+        )
+
+        def _boom(self) -> dict[str, object]:
+            raise OSError("manifest missing")
+
+        monkeypatch.setattr(
+            "agent.services.mcp_tool_discovery.McpToolDiscoveryService._load_tool_catalog",
+            _boom,
+        )
+        srv_cfg = _server("http://127.0.0.1:9000")
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [_tool_entry("grep", ["filesystem.read"])],
+                },
+            )
+        )
+        ctx = _make_ctx({"required_srv": srv_cfg}, http)
+
+        result = await McpToolDiscoveryService(
+            ctx,
+            posture_gates=_gates_with_reports(
+                ctx.cfg.mcp.mcp_servers,
+                {"required_srv": {"liveness": True, "ready": True}},
+            ),
+        ).discover_all()
+
+        # The entry was fetched, yet no tool row exists: the catalog was read first and the
+        # registry was published empty, already carrying the fail-closed FATAL.
+        assert result.registry.all_tools() == []
+        assert result.registry.diagnostics() == []
+        fatal = [
+            f
+            for f in result.findings
+            if f.source == "mcp_tool_discovery" and f.status == StartupCheckStatus.FATAL
+        ]
+        assert len(fatal) == 1
+        assert "tool_catalog.toml unavailable" in fatal[0].message
 
 
 # ── auth-header propagation on the /v1/tools probe ────────────────────────────

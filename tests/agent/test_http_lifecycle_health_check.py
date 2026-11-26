@@ -6,7 +6,10 @@ reached through ``HttpServerLifecycleManager._health_poll_until_ready()`` in
 ``scripts/agent/http_lifecycle.py``:
 
 - REQ-002: the ``httpx.AsyncClient`` context is always exited, so no connection
-  leaks remain on the failure / timeout path.
+  leaks remain on the failure / timeout path. Each request timeout is also capped
+  by the time left to the deadline, and no request starts once it has passed.
+- REQ-001: the request timeout is the server's effective ``health_timeout``, not a
+  global constant.
 - REQ-003 (corrected): each health-poll session instantiates a fresh
   ``AsyncClient`` rather than reusing one. This matches the selected Option B
   (document-as-intentional) trade-off in plan
@@ -15,6 +18,9 @@ reached through ``HttpServerLifecycleManager._health_poll_until_ready()`` in
   "connection reuse across retries" wording contradicts Option B, so the
   verifiable intent here is *new client per session*, i.e. the documented
   behavior.
+- REQ-005: readiness is proven by the parsed report through the shared contract;
+  `liveness` alone is not proof and a legacy body falls back to `ready`. The
+  `required_capability` is resolved by the caller from the tool catalog.
 
 These tests live in a dedicated file (not ``tests/agent/test_http_lifecycle.py``)
 because that filename is already owned by an unrelated getpgid-failure test suite.
@@ -22,16 +28,21 @@ because that filename is already owned by an unrelated getpgid-failure test suit
 
 from __future__ import annotations
 
-from types import TracebackType
+from types import SimpleNamespace, TracebackType
 from unittest.mock import AsyncMock, Mock, patch
 
 import agent.http_lifecycle as hl_module
 import agent.http_lifecycle_health_checker as hc_module
+import httpx
 import pytest
 from agent.http_lifecycle import HttpServerLifecycleManager, HttpStartupError
 from agent.http_lifecycle_errors import TerminationOutcome
 from agent.http_lifecycle_health_checker import HealthChecker
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.mcp_health_contract import (
+    HEALTH_SCHEMA_VERSION,
+    LEGACY_HEALTH_SCHEMA_VERSION,
+)
 from starlette.requests import Request
 
 
@@ -68,6 +79,7 @@ class _RecordingAsyncClient:
     """Minimal stand-in for ``httpx.AsyncClient`` recording context-manager exit."""
 
     def __init__(self, **kwargs: object) -> None:
+        self.kwargs = kwargs
         self.exited = False
 
     async def __aenter__(self) -> _RecordingAsyncClient:
@@ -81,6 +93,46 @@ class _RecordingAsyncClient:
     ) -> bool:
         self.exited = True
         return False
+
+
+class _FakeClock:
+    """Deterministic stand-in for ``time.monotonic`` (T-02)."""
+
+    def __init__(self, start: float = 0.0) -> None:
+        self.now = start
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def advance(self, delta: float) -> None:
+        self.now += delta
+
+
+class _RecordingTimeoutClient(_RecordingAsyncClient):
+    """AsyncClient stand-in recording the client default and each request timeout."""
+
+    def __init__(
+        self,
+        recorded: list[object],
+        responses: list[httpx.Response],
+        **kwargs: object,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.recorded = recorded
+        self.responses = responses
+
+    async def get(self, url: str, *, timeout: object = None) -> httpx.Response:
+        self.recorded.append(timeout)
+        if self.responses:
+            return self.responses.pop(0)
+        # A live but unproven server: the poll keeps running until the deadline.
+        return _json_response(503, {"liveness": True})
+
+
+def _json_response(status: int, body: object) -> httpx.Response:
+    return httpx.Response(
+        status, headers={"content-type": "application/json"}, json=body
+    )
 
 
 class TestHealthPollClientLifecycle:
@@ -164,7 +216,8 @@ def _auth_required_route(token: str):
 
     def _handler(request: httpx.Request) -> httpx.Response:
         if request.headers.get("Authorization") == f"Bearer {token}":
-            return httpx.Response(200, json={"status": "ok"})
+            # A legacy body: readiness proof is the `ready` flag (D-6).
+            return httpx.Response(200, json={"status": "ok", "ready": True})
         return httpx.Response(401, json={"error": "Unauthorized"})
 
     return _handler
@@ -236,9 +289,10 @@ def _loopback_health_app(server_token: str) -> tuple[object, list[str]]:
     attach_auth_middleware(app, server_token)
 
     @app.get("/health")
-    async def _health(request: Request) -> dict[str, str]:
+    async def _health(request: Request) -> dict[str, object]:
         seen.append(request.headers.get("Authorization", ""))
-        return {"status": "ok"}
+        # A legacy body: readiness proof is the `ready` flag (D-6).
+        return {"status": "ok", "ready": True}
 
     return app, seen
 
@@ -314,53 +368,91 @@ class TestStartupPollWithDistinctServerToken:
         assert seen == ["Bearer main-secret"]
 
 
-class TestHealthPollDegradedTolerance:
-    """Spawn-phase health poll must accept degraded-but-live servers.
+class TestReportBasedReadiness:
+    """REQ-005: readiness is proven by the parsed report, not by the status code.
 
-    github-mcp and cicd-mcp report HTTP 503 (degraded, liveness=true) when
-    GITHUB_TOKEN is unset. The post-startup verify phase already tolerates
-    this; the spawn phase must agree, else startup aborts a server that is
-    actually alive.
+    The replaced `is_degraded_but_live` predicate accepted `liveness` alone, which
+    started a server that could not prove its required capability. Readiness now
+    requires the catalog `required_capability` to be `ok`; a body with no capability
+    block falls back to its `ready` flag (D-6). An unparseable body is not proof and
+    keeps the poll running rather than raising.
     """
 
-    @pytest.mark.asyncio
-    async def test_tolerates_degraded_but_live(self, mgr) -> None:
-        """A 503 with liveness=true counts as ready and keeps the process alive."""
-        import time
-
-        import httpx
-        import respx
-
-        cfg = _make_cfg()
-        proc = Mock(pid=1234, poll=Mock(return_value=None))
-        with (
-            respx.mock as router,
-            patch.object(mgr, "_cleanup_server_resources", return_value=""),
-            patch.object(
-                mgr._process_terminator,
-                "terminate_with_timeout",
-                AsyncMock(return_value=TerminationOutcome.EXITED),
+    def test_parse_report_returns_none_for_unparseable_bodies(self) -> None:
+        """Non-JSON, non-object, and empty bodies are not proof and do not raise."""
+        bodies = [
+            httpx.Response(
+                503, headers={"content-type": "text/plain"}, text="unavailable"
             ),
-        ):
-            router.get("http://localhost:8080/health").mock(
-                return_value=httpx.Response(
-                    503,
-                    headers={"content-type": "application/json"},
-                    json={"status": "degraded", "ready": False, "liveness": True},
-                )
+            _json_response(503, [1, 2]),
+            _json_response(503, "unavailable"),
+            _json_response(503, 42),
+            httpx.Response(
+                503, headers={"content-type": "application/json"}, content=b"null"
+            ),
+            httpx.Response(503, headers={"content-type": "application/json"}),
+            httpx.Response(
+                503, headers={"content-type": "application/json"}, content=b"{nope"
+            ),
+        ]
+        for resp in bodies:
+            assert HealthChecker.parse_report(resp) is None
+
+    def test_parse_report_rejects_contract_violations(self) -> None:
+        """A wrong-typed field or an unknown capability state is not proof."""
+        assert (
+            HealthChecker.parse_report(_json_response(503, {"liveness": "true"}))
+            is None
+        )
+        assert (
+            HealthChecker.parse_report(
+                _json_response(503, {"capabilities": {"github.api": "broken"}})
             )
-            await mgr._health_poll_until_ready(
-                "srv", cfg, proc, deadline=time.monotonic() + 5, shutdown_event=None
+            is None
+        )
+
+    def test_liveness_only_body_is_not_readiness_proof(self) -> None:
+        """A live server with no capability block does not prove the required capability."""
+        report = HealthChecker.parse_report(_json_response(503, {"liveness": True}))
+        assert report is not None
+        assert report.is_legacy
+        assert HealthChecker.is_ready(report, "github.api") is False
+
+    def test_required_capability_ok_proves_readiness(self) -> None:
+        """The same live body with the required capability `ok` is proof (AC-05)."""
+        report = HealthChecker.parse_report(
+            _json_response(
+                503,
+                {
+                    "health_schema_version": HEALTH_SCHEMA_VERSION,
+                    "liveness": True,
+                    "capabilities": {"github.api": "ok"},
+                },
             )
-            # Degraded-but-live keeps the process running — no termination requested.
-            mgr._process_terminator.terminate_with_timeout.assert_not_called()
+        )
+        assert report is not None
+        assert report.health_schema_version == HEALTH_SCHEMA_VERSION
+        assert not report.is_legacy
+        assert HealthChecker.is_ready(report, "github.api") is True
+
+    def test_legacy_body_falls_back_to_ready(self) -> None:
+        """A body with no capability block is read through `ready` (D-6)."""
+        report = HealthChecker.parse_report(_json_response(200, {"ready": True}))
+        assert report is not None
+        assert report.is_legacy
+        assert report.health_schema_version == LEGACY_HEALTH_SCHEMA_VERSION
+        assert HealthChecker.is_ready(report, None) is True
+        # A legacy body has no capability proof, so `ready` is the only proof it can give.
+        assert HealthChecker.is_ready(report, "github.api") is True
+        unproven = HealthChecker.parse_report(_json_response(503, {"liveness": True}))
+        assert unproven is not None
+        assert HealthChecker.is_ready(unproven, "github.api") is False
 
     @pytest.mark.asyncio
-    async def test_rejects_503_without_liveness_flag(self, mgr) -> None:
-        """A 503 whose body lacks a truthy liveness flag is still rejected."""
+    async def test_liveness_only_503_does_not_end_the_poll(self, mgr) -> None:
+        """A live but unproven server ends the poll in failure, not readiness."""
         import time
 
-        import httpx
         import respx
 
         cfg = _make_cfg()
@@ -377,11 +469,7 @@ class TestHealthPollDegradedTolerance:
             pytest.raises(HttpStartupError),
         ):
             router.get("http://localhost:8080/health").mock(
-                return_value=httpx.Response(
-                    503,
-                    headers={"content-type": "application/json"},
-                    json={"status": "degraded", "ready": False},
-                )
+                return_value=_json_response(503, {"liveness": True})
             )
             await mgr._health_poll_until_ready(
                 "srv", cfg, proc, deadline=time.monotonic() + 0.05, shutdown_event=None
@@ -389,89 +477,42 @@ class TestHealthPollDegradedTolerance:
 
         _assert_no_shutdown_budget(term)
 
-    def test_is_degraded_but_live_branches(self) -> None:
-        """Unit-cover every branch of the degraded-detection helper."""
-        import httpx
-
-        ok = httpx.Response(200, json={"liveness": True})
-        assert HealthChecker.is_degraded_but_live(ok) is False
-
-        server_error = httpx.Response(500, json={"liveness": True})
-        assert HealthChecker.is_degraded_but_live(server_error) is False
-
-        non_json = httpx.Response(
-            503, headers={"content-type": "text/plain"}, text="unavailable"
-        )
-        assert HealthChecker.is_degraded_but_live(non_json) is False
-
-        no_flag = httpx.Response(
-            503,
-            headers={"content-type": "application/json"},
-            json={"status": "degraded"},
-        )
-        assert HealthChecker.is_degraded_but_live(no_flag) is False
-
-        dead = httpx.Response(
-            503,
-            headers={"content-type": "application/json"},
-            json={"liveness": False},
-        )
-        assert HealthChecker.is_degraded_but_live(dead) is False
-
-        broken = httpx.Response(
-            503, headers={"content-type": "application/json"}, content=b"{nope"
-        )
-        assert HealthChecker.is_degraded_but_live(broken) is False
-
-        live = httpx.Response(
-            503,
-            headers={"content-type": "application/json"},
-            json={"liveness": True},
-        )
-        assert HealthChecker.is_degraded_but_live(live) is True
-
-    @pytest.mark.parametrize("body", [[1, 2], "unavailable", 42])
-    def test_is_degraded_but_live_non_object_bodies(self, body: object) -> None:
-        """REQ-001: a non-object 503 body returns false without raising."""
-        import httpx
-
-        resp = httpx.Response(
-            503,
-            headers={"content-type": "application/json"},
-            json=body,
-        )
-        assert HealthChecker.is_degraded_but_live(resp) is False
-
-    def test_is_degraded_but_live_null_and_empty_bodies(self) -> None:
-        """REQ-001: `null` and empty 503 bodies return false without raising."""
-        import httpx
-
-        null_body = httpx.Response(
-            503, headers={"content-type": "application/json"}, content=b"null"
-        )
-        assert HealthChecker.is_degraded_but_live(null_body) is False
-
-        empty = httpx.Response(503, headers={"content-type": "application/json"})
-        assert HealthChecker.is_degraded_but_live(empty) is False
-
-    @pytest.mark.parametrize("liveness", ["false", "0", 0, None])
-    def test_is_degraded_but_live_non_boolean_liveness(self, liveness: object) -> None:
-        """REQ-001: only the boolean true counts as live; other shapes are false."""
-        import httpx
-
-        resp = httpx.Response(
-            503,
-            headers={"content-type": "application/json"},
-            json={"status": "degraded", "liveness": liveness},
-        )
-        assert HealthChecker.is_degraded_but_live(resp) is False
-
     @pytest.mark.asyncio
-    async def test_non_object_503_then_200_ends_ready(self, mgr) -> None:
-        """REQ-003: a non-object 503 keeps the poll alive; a later 200 ends ready."""
+    async def test_required_capability_ok_503_ends_the_poll(self, mgr) -> None:
+        """The proven capability ends the poll ready and keeps the process alive."""
         import time
 
-        import httpx
+        import respx
+
+        cfg = _make_cfg()
+        proc = Mock(pid=1234, poll=Mock(return_value=None))
+        with (
+            respx.mock as router,
+            patch.object(
+                mgr, "_resolve_required_capability", return_value="github.api"
+            ),
+            patch.object(mgr, "_cleanup_server_resources", return_value=""),
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                AsyncMock(return_value=TerminationOutcome.EXITED),
+            ),
+        ):
+            router.get("http://localhost:8080/health").mock(
+                return_value=_json_response(
+                    503, {"liveness": True, "capabilities": {"github.api": "ok"}}
+                )
+            )
+            await mgr._health_poll_until_ready(
+                "srv", cfg, proc, deadline=time.monotonic() + 5, shutdown_event=None
+            )
+            mgr._process_terminator.terminate_with_timeout.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_non_object_503_then_ready_body_ends_the_poll(self, mgr) -> None:
+        """An unparseable body keeps the poll alive; a later proof ends it ready."""
+        import time
+
         import respx
 
         cfg = _make_cfg()
@@ -488,12 +529,8 @@ class TestHealthPollDegradedTolerance:
         ):
             router.get("http://localhost:8080/health").mock(
                 side_effect=[
-                    httpx.Response(
-                        503,
-                        headers={"content-type": "application/json"},
-                        json=["degraded"],
-                    ),
-                    httpx.Response(200, json={"status": "ok"}),
+                    _json_response(503, ["degraded"]),
+                    _json_response(200, {"status": "ok", "ready": True}),
                 ]
             )
             await mgr._health_poll_until_ready(
@@ -503,10 +540,9 @@ class TestHealthPollDegradedTolerance:
 
     @pytest.mark.asyncio
     async def test_permanent_non_object_503_ends_in_timeout(self, mgr) -> None:
-        """REQ-003: a permanent non-object 503 ends in HttpStartupError, not AttributeError."""
+        """A permanent non-object body ends in HttpStartupError, not AttributeError."""
         import time
 
-        import httpx
         import respx
 
         cfg = _make_cfg()
@@ -523,17 +559,214 @@ class TestHealthPollDegradedTolerance:
             pytest.raises(HttpStartupError),
         ):
             router.get("http://localhost:8080/health").mock(
-                return_value=httpx.Response(
-                    503,
-                    headers={"content-type": "application/json"},
-                    json=["degraded"],
-                )
+                return_value=_json_response(503, ["degraded"])
             )
             await mgr._health_poll_until_ready(
                 "srv", cfg, proc, deadline=time.monotonic() + 0.05, shutdown_event=None
             )
 
         _assert_no_shutdown_budget(term)
+
+
+class TestCallerResolvesRequiredCapability:
+    """REQ-005: the caller resolves the catalog capability; the checker does not read it."""
+
+    def test_catalog_entry_reaches_the_poll(self, mgr) -> None:
+        catalog = {"server": {"github": {"required_capability": "github.operations"}}}
+        with patch.object(hl_module, "load_tool_catalog", return_value=catalog):
+            assert mgr._resolve_required_capability("github") == "github.operations"
+
+    def test_server_without_an_entry_resolves_to_none(self, mgr) -> None:
+        with patch.object(hl_module, "load_tool_catalog", return_value={"server": {}}):
+            assert mgr._resolve_required_capability("srv") is None
+
+    def test_missing_catalog_resolves_to_none_with_a_warning(self, mgr, caplog) -> None:
+        """The fail-closed FATAL stays at discovery; here the poll keeps the legacy fallback."""
+        with patch.object(
+            hl_module, "load_tool_catalog", side_effect=FileNotFoundError("no catalog")
+        ):
+            assert mgr._resolve_required_capability("srv") is None
+        assert "tool catalog unavailable" in caplog.text
+
+
+class TestPerServerTimeoutAndDeadlineCap:
+    """REQ-001 / REQ-002: the effective per-server timeout and the remaining-deadline cap."""
+
+    @pytest.mark.asyncio
+    async def test_poll_uses_the_servers_effective_timeout(self, mgr) -> None:
+        """T-01: a distinct non-default value reaches the startup poll."""
+        import time
+
+        import httpx
+
+        cfg = _make_cfg(health_timeout=7.5)
+        proc = Mock(pid=1234, poll=Mock(return_value=None))
+        recorded: list[object] = []
+        clients: list[_RecordingTimeoutClient] = []
+
+        def _factory(*args: object, **kwargs: object) -> _RecordingTimeoutClient:
+            client = _RecordingTimeoutClient(
+                recorded, [_json_response(200, {"ready": True})], **kwargs
+            )
+            clients.append(client)
+            return client
+
+        with (
+            patch.object(hc_module.httpx, "AsyncClient", side_effect=_factory),
+            patch.object(mgr, "_cleanup_server_resources", return_value=""),
+        ):
+            await mgr._health_poll_until_ready(
+                "srv", cfg, proc, deadline=time.monotonic() + 100, shutdown_event=None
+            )
+
+        assert clients[0].kwargs["timeout"] == httpx.Timeout(timeout=7.5)
+        # Plenty of time remains, so the cap does not shrink the effective timeout.
+        assert recorded == [httpx.Timeout(timeout=7.5)]
+        assert clients[0].exited
+
+    @pytest.mark.asyncio
+    async def test_periodic_check_uses_the_effective_timeout(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """T-01: the periodic check no longer relies on the checker default."""
+
+        cfg = _make_cfg(health_timeout=12.0)
+        clients: list[_RecordingAsyncClient] = []
+
+        def _factory(*args: object, **kwargs: object) -> _RecordingAsyncClient:
+            client = _RecordingAsyncClient(**kwargs)
+            clients.append(client)
+            return client
+
+        with (
+            patch.object(hc_module.httpx, "AsyncClient", side_effect=_factory),
+            patch.object(mgr, "verify_running", return_value=True),
+        ):
+            await mgr.verify_running_async("srv", cfg)
+
+        assert clients[0].kwargs["timeout"] == 12.0
+        # REQ-003: the header comes from auth_headers(), not from a second path.
+        assert clients[0].kwargs["headers"] == cfg.auth_headers()
+
+    @pytest.mark.asyncio
+    async def test_request_timeout_is_capped_by_the_remaining_deadline(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """T-02: each request timeout is min(effective, remaining); none starts past the deadline."""
+
+        clock = _FakeClock(0.0)
+        cfg = _make_cfg(health_timeout=7.5)
+        proc = Mock(pid=1234, poll=Mock(return_value=None))
+        recorded: list[object] = []
+        client = _RecordingTimeoutClient(recorded, [])
+
+        async def _advance(delay: float, shutdown_event: object) -> bool:
+            clock.advance(delay)
+            return False
+
+        with (
+            patch.object(hc_module, "time", SimpleNamespace(monotonic=clock.monotonic)),
+            patch.object(hc_module, "_interruptible_poll_sleep", _advance),
+            patch.object(hc_module.httpx, "AsyncClient", lambda *a, **k: client),
+            patch.object(hl_module, "HEALTH_POLL_INTERVAL_SEC", 0.01),
+            patch.object(mgr, "_cleanup_server_resources", return_value=""),
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                AsyncMock(return_value=TerminationOutcome.EXITED),
+            ) as term,
+            pytest.raises(HttpStartupError),
+        ):
+            await mgr._health_poll_until_ready(
+                "srv", cfg, proc, deadline=clock.now + 0.02, shutdown_event=None
+            )
+
+        assert [t.read for t in recorded] == [
+            pytest.approx(0.02),
+            pytest.approx(0.01),
+        ]
+        # The poll stopped at the deadline: no request was issued after it.
+        assert clock.now == pytest.approx(0.02)
+        assert client.exited
+        call = term.await_args
+        assert call is not None
+        assert call.kwargs["timeout"] == hl_module.TERMINATE_TIMEOUT_SEC
+
+
+class TestSingleAuthPath:
+    """REQ-003: `auth_headers()` is the only header path and the token is never logged."""
+
+    @pytest.mark.asyncio
+    async def test_no_header_without_a_token(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        # A server with no token is a disabled one (startup_mode=NONE): validation
+        # requires a token for any server that actually starts.
+        cfg = _make_cfg(
+            health_timeout=6.0, auth_token="", startup_mode=StartupMode.NONE
+        )
+        clients: list[_RecordingAsyncClient] = []
+
+        def _factory(*args: object, **kwargs: object) -> _RecordingAsyncClient:
+            client = _RecordingAsyncClient(**kwargs)
+            clients.append(client)
+            return client
+
+        with (
+            patch.object(hc_module.httpx, "AsyncClient", side_effect=_factory),
+            patch.object(mgr, "verify_running", return_value=True),
+        ):
+            await mgr.verify_running_async("srv", cfg)
+
+        assert clients[0].kwargs["headers"] == {}
+        assert clients[0].kwargs["timeout"] == 6.0
+
+    @pytest.mark.asyncio
+    async def test_header_comes_from_auth_headers(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """The checker owns the header; the periodic call site no longer passes one."""
+
+        cfg = _make_cfg(auth_token="s3cret")
+        clients: list[_RecordingAsyncClient] = []
+
+        def _factory(*args: object, **kwargs: object) -> _RecordingAsyncClient:
+            client = _RecordingAsyncClient(**kwargs)
+            clients.append(client)
+            return client
+
+        with (
+            patch.object(hc_module.httpx, "AsyncClient", side_effect=_factory),
+            patch.object(mgr, "verify_running", return_value=True),
+        ):
+            await mgr.verify_running_async("srv", cfg)
+
+        assert clients[0].kwargs["headers"] == {"Authorization": "Bearer s3cret"}
+
+    @pytest.mark.asyncio
+    async def test_failing_probe_logs_no_token(
+        self, mgr: HttpServerLifecycleManager, caplog
+    ) -> None:
+        """T-03: a failing health probe logs the URL and the error, never the token."""
+        import logging
+
+        caplog.set_level(logging.DEBUG)
+        cfg = _make_cfg(auth_token="s3cret-do-not-log")
+
+        class _FailingClient(_RecordingAsyncClient):
+            async def get(self, url: str, *, timeout: object = None) -> httpx.Response:
+                raise httpx.ConnectError("connection refused")
+
+        with (
+            patch.object(
+                hc_module.httpx, "AsyncClient", lambda *a, **k: _FailingClient(**k)
+            ),
+            patch.object(mgr, "verify_running", return_value=True),
+        ):
+            assert await mgr.verify_running_async("srv", cfg) is False
+
+        assert "s3cret-do-not-log" not in caplog.text
+        assert "http://localhost:8080/health" in caplog.text
 
 
 class TestHealthPathTerminationWindow:

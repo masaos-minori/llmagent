@@ -83,6 +83,37 @@ def _registry_with(*tools: RuntimeTool) -> RuntimeToolRegistry:
     )
 
 
+def _capability_tool(name: str, capability: str, config_dependent: bool) -> RuntimeTool:
+    """One tool carrying the declared capability and the explicit config-dependency flag.
+
+    Both values are the producer-declared ones (REQ-006, REQ-007), so a case can show the
+    registry excluding the tool for its capability while the row still reports the flag.
+    """
+    return build_runtime_tool(
+        name=name,
+        server_key="github",
+        server_url="http://127.0.0.1:8001",
+        description="d",
+        input_schema={"type": "object"},
+        raw_definition={},
+        status="active",
+        is_write=False,
+        requires_serial=False,
+        resource_scope_kind="",
+        resource_scope_keys={},
+        agent_safety_tier="READ_ONLY",
+        policy_version="2.1",
+        preview_capability="none",
+        idempotency_required=False,
+        reconciliation_policy="not_required",
+        retry_policy="safe_read_retry",
+        side_effect_class="read_only",
+        enabled_for_llm=True,
+        capabilities=(capability,),
+        config_dependent=config_dependent,
+    )
+
+
 def _mock_client() -> AsyncMock:
     """Build an AsyncClient stub whose default /health response stays synchronous.
 
@@ -867,6 +898,74 @@ class TestCmdMcpStatusToolDiagnostics:
         assert "1 LLM-visible / 2 disabled / 1 unavailable" in out
         assert "config/tools_definitions.toml" not in out
 
+    @pytest.mark.asyncio
+    async def test_excluded_tool_is_listed_with_the_capability_reason_and_notice(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """T-06/T-08 (AC-06, AC-08): the excluded tool has no row, so the section lists it.
+
+        The registry dropped the tool at construction, so the only place the display can show
+        it is the excluded list with the reason `capability` and the restart notice.
+        """
+        ctx = _Ctx({"github": _http()})
+        registry = RuntimeToolRegistry(
+            {
+                "github_create_issue": _capability_tool(
+                    "github_create_issue", "github.api", True
+                ),
+                "github_list_issues": _capability_tool(
+                    "github_list_issues", "github.operations", False
+                ),
+            },
+            allowed_servers=frozenset(["github"]),
+            degraded_capabilities={"github": ("github.api",)},
+        )
+        ctx.services_required.runtime_tools = registry
+        mcp = _Mcp(ctx)
+
+        resp = MagicMock()
+        resp.status_code = 200
+        mc = _mock_client()
+        mc.get = AsyncMock(return_value=resp)
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "Excluded tools:" in out
+        assert "github_create_issue: capability" in out
+        assert "requires a restart" in out
+        # The excluded tool has no diagnostics row: one occurrence, the excluded list.
+        assert out.count("github_create_issue") == 1
+        assert "github_list_issues" in out
+
+    @pytest.mark.asyncio
+    async def test_no_restart_notice_when_no_tool_is_excluded_for_a_capability(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """The notice is tied to a capability exclusion, not to any exclusion."""
+        ctx = _Ctx({"github": _http()})
+        registry = RuntimeToolRegistry(
+            {
+                "github_list_issues": _capability_tool(
+                    "github_list_issues", "github.operations", False
+                )
+            },
+            allowed_servers=frozenset(["other"]),
+        )
+        ctx.services_required.runtime_tools = registry
+        mcp = _Mcp(ctx)
+
+        resp = MagicMock()
+        resp.status_code = 200
+        mc = _mock_client()
+        mc.get = AsyncMock(return_value=resp)
+        with patch("agent.services.mcp_status.httpx.AsyncClient", return_value=mc):
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "github_list_issues: posture" in out
+        assert "requires a restart" not in out
+
     def test_memory_is_none_when_not_enabled(self) -> None:
         from unittest.mock import MagicMock
 
@@ -1071,6 +1170,8 @@ class TestCmdMcpTools:
             {
                 "name": "read_file",
                 "server_key": "svc",
+                # The pinned shape is the explicit field `diagnostics()` now carries (REQ-007),
+                # not a value derived from `status`.
                 "config_dependent": False,
                 "enabled": True,
                 "disabled_reason": None,
@@ -1085,6 +1186,22 @@ class TestCmdMcpTools:
         out = capsys.readouterr().out
         assert "LLM_VISIBLE" in out
         assert "read_file" in out
+
+    @pytest.mark.asyncio
+    async def test_the_row_shows_the_declared_config_dependent_value(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """T-07 (REQ-007, AC-07): the row is the declared field, not a value read from `status`."""
+        ctx = _Ctx({"svc": _http()})
+        tool = _capability_tool("declared_tool", "github.operations", True)
+        ctx.services_required.runtime_tools = _registry_with(tool)
+        mcp = _Mcp(ctx)
+
+        await mcp._cmd_mcp_tools()
+
+        out = capsys.readouterr().out
+        row_line = next(line for line in out.splitlines() if "declared_tool" in line)
+        assert "True" in row_line
 
     @pytest.mark.asyncio
     async def test_no_registry_prints_the_missing_registry_line(

@@ -49,13 +49,30 @@ class TestProbeMcpHealthDetail:
         resp.json.return_value = {"status": "ok", "ready": True}
         http.get = _async_result(resp)
 
-        result = await _probe_mcp_health_detail(http, "http://localhost:8000")
+        result = await _probe_mcp_health_detail(
+            http, "http://localhost:8000", timeout_sec=7.5
+        )
 
         assert result.reachable is True
         assert result.status_code == 200
         assert result.restart_recommended is False
         assert result.operator_action_required is False
-        http.get.assert_called_once_with("http://localhost:8000/health", timeout=5.0)
+        # T-01 (REQ-001): the per-request timeout is the caller's per-server value,
+        # not a hard-coded 5.0.
+        http.get.assert_called_once_with("http://localhost:8000/health", timeout=7.5)
+
+    @pytest.mark.asyncio
+    async def test_omitted_timeout_keeps_the_clients_own_timeout(self) -> None:
+        """Without an explicit value no per-request timeout is passed, so the client default applies."""
+        http = AsyncMock(spec=httpx.AsyncClient)
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {"status": "ok", "ready": True}
+        http.get = _async_result(resp)
+
+        await _probe_mcp_health_detail(http, "http://localhost:8000")
+
+        assert "timeout" not in http.get.call_args.kwargs
 
     @pytest.mark.asyncio
     async def test_reachable_true_restart_true_when_503_and_restart_recommended(

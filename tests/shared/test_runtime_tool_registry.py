@@ -311,9 +311,49 @@ class TestRuntimeToolRegistry:
         reg = _registry_with(tool)
         row = reg.diagnostics()[0]
         assert row["disabled_reason"] == ""
+        # REQ-007: the row is the declared field, not a value derived from `status`.
         assert row["config_dependent"] is False
         assert row["enabled"] is True
         assert row["server_key"] == "s"
+
+    def test_diagnostics_reads_the_explicit_config_dependent_field(self) -> None:
+        """T-07 (REQ-007): a declared value and a non-active status no longer agree by construction."""
+        declared = build_fixture_runtime_tool(
+            name="declared_tool",
+            server_key="s",
+            status="active",
+            raw_definition={},
+            config_dependent=True,
+        )
+        unflagged = build_fixture_runtime_tool(
+            name="inactive_tool",
+            server_key="s",
+            status="inactive",
+            raw_definition={},
+            config_dependent=False,
+        )
+        reg = _registry_with(declared, unflagged)
+        rows = {row["name"]: row for row in reg.diagnostics()}
+        assert rows["declared_tool"]["config_dependent"] is True
+        assert rows["inactive_tool"]["config_dependent"] is False
+        assert rows["inactive_tool"]["disabled_reason"] == "inactive"
+
+    def test_capability_excluded_tool_has_no_diagnostics_row(self) -> None:
+        """T-06/T-07: the capability dependency is reported as the excluded state, not as a row."""
+        dependent = build_fixture_runtime_tool(
+            name="dependent", server_key="github", capabilities=("github.api",)
+        )
+        kept = build_fixture_runtime_tool(
+            name="kept", server_key="github", capabilities=("github.operations",)
+        )
+        reg = RuntimeToolRegistry(
+            {"dependent": dependent, "kept": kept},
+            allowed_servers=frozenset(["github"]),
+            degraded_capabilities={"github": ("github.api",)},
+        )
+        rows = reg.diagnostics()
+        assert [row["name"] for row in rows] == ["kept"]
+        assert reg.exclusion_reason("dependent") == "capability"
 
     def test_unavailable_servers_excludes_tools_from_unavailable_server(self) -> None:
         tool_a = build_fixture_runtime_tool(
@@ -419,6 +459,98 @@ class TestRuntimeToolRegistry:
             allowed_servers=frozenset(["mdq"]),
         )
         assert reg.exclusion_reason("gated_tool") == "posture"
+
+    def test_capability_exclusion_drops_only_the_dependent_tool(self) -> None:
+        """T-06 (REQ-006/AC-06): only the tool whose declared capability is degraded is dropped."""
+        dependent = build_fixture_runtime_tool(
+            name="github_create_issue",
+            server_key="github",
+            capabilities=("github.api",),
+        )
+        independent = build_fixture_runtime_tool(
+            name="github_list_issues",
+            server_key="github",
+            capabilities=("github.operations",),
+        )
+        other_server = build_fixture_runtime_tool(
+            name="mdq_query", server_key="mdq", capabilities=("mdq.corpus",)
+        )
+        reg = RuntimeToolRegistry(
+            {
+                "github_create_issue": dependent,
+                "github_list_issues": independent,
+                "mdq_query": other_server,
+            },
+            allowed_servers=frozenset(["github", "mdq"]),
+            degraded_capabilities={"github": ("github.api",)},
+        )
+        assert reg.exclusion_reason("github_create_issue") == "capability"
+        assert reg.resolve("github_create_issue") is None
+        assert reg.exclusion_reason("github_list_issues") is None
+        assert reg.resolve("github_list_issues") == "github"
+        assert reg.exclusion_reason("mdq_query") is None
+
+    def test_capability_exclusion_covers_a_tool_with_no_declared_capability(
+        self,
+    ) -> None:
+        """T-06: an entry that declares no capability depends on the owning server's catalog
+        capabilities, which reach this module as the degraded subset of the map."""
+        tool = build_fixture_runtime_tool(name="github_get_issue", server_key="github")
+        reg = RuntimeToolRegistry(
+            {"github_get_issue": tool},
+            allowed_servers=frozenset(["github"]),
+            degraded_capabilities={"github": ("github.api",)},
+        )
+        assert reg.exclusion_reason("github_get_issue") == "capability"
+
+    def test_capability_exclusion_keeps_the_server_level_reason(self) -> None:
+        """A tool from a server already excluded for availability keeps that reason."""
+        tool = build_fixture_runtime_tool(
+            name="down_tool", server_key="down_srv", capabilities=("github.api",)
+        )
+        reg = RuntimeToolRegistry(
+            {"down_tool": tool},
+            unavailable_servers=frozenset(["down_srv"]),
+            allowed_servers=frozenset(["down_srv"]),
+            degraded_capabilities={"down_srv": ("github.api",)},
+        )
+        assert reg.exclusion_reason("down_tool") == "unavailable"
+
+    def test_capability_exclusion_survives_policy_application(self) -> None:
+        """REQ-008: the single rebinding does not re-register a capability-excluded tool."""
+        dependent = build_fixture_runtime_tool(
+            name="dependent", server_key="github", capabilities=("github.api",)
+        )
+        kept = build_fixture_runtime_tool(
+            name="kept", server_key="github", capabilities=("github.operations",)
+        )
+        reg = RuntimeToolRegistry(
+            {"dependent": dependent, "kept": kept},
+            allowed_servers=frozenset(["github"]),
+            degraded_capabilities={"github": ("github.api",)},
+        )
+        reg.apply_policy(allowed_tools=("dependent", "kept"))
+        assert reg.exclusion_reason("dependent") == "capability"
+        assert reg.resolve("dependent") is None
+        assert reg.resolve("kept") == "github"
+
+    def test_excluded_tools_lists_the_dropped_names_and_reasons(self) -> None:
+        """The display path lists the dropped tools; `diagnostics()` has no row for them."""
+        dependent = build_fixture_runtime_tool(
+            name="dependent", server_key="github", capabilities=("github.api",)
+        )
+        kept = build_fixture_runtime_tool(
+            name="kept", server_key="github", capabilities=("github.operations",)
+        )
+        reg = RuntimeToolRegistry(
+            {"dependent": dependent, "kept": kept},
+            allowed_servers=frozenset(["github"]),
+            degraded_capabilities={"github": ("github.api",)},
+        )
+        assert dict(reg.excluded_tools()) == {"dependent": "capability"}
+        # Read-only view (REQ-008): the caller cannot add an entry the registry did not decide.
+        with pytest.raises(TypeError):
+            reg.excluded_tools()["added"] = "capability"
 
     def test_disable_then_re_enable_returns_true(self) -> None:
         tool = build_fixture_runtime_tool(

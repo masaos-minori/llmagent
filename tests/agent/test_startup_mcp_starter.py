@@ -19,10 +19,29 @@ def _auth_handler(token: str):
 
     def _handler(request: httpx.Request) -> httpx.Response:
         if request.headers.get("Authorization") == f"Bearer {token}":
-            return httpx.Response(200, json={"status": "ok"})
+            # Readiness is the parsed report, not the status code (REQ-005), so the
+            # accepted body must prove it through the legacy `ready` fallback (D-6).
+            return httpx.Response(200, json={"status": "ok", "ready": True})
         return httpx.Response(401, json={"error": "Unauthorized"})
 
     return _handler
+
+
+class _RecordingClient:
+    """A health-check client that records the client-level timeout it was constructed with."""
+
+    def __init__(self, kwargs: dict, response: object) -> None:
+        self.kwargs = kwargs
+        self.response = response
+
+    async def __aenter__(self) -> "_RecordingClient":
+        return self
+
+    async def __aexit__(self, *exc: object) -> bool:
+        return False
+
+    async def get(self, url: str) -> object:
+        return self.response
 
 
 def _starter_ctx(token: str):
@@ -73,27 +92,64 @@ async def test_verify_single_health_fails_with_wrong_token():
 
 
 @pytest.mark.asyncio
-async def test_verify_single_health_degraded_but_live_does_not_raise():
-    import httpx
+async def test_verify_single_health_liveness_only_503_raises() -> None:
+    """REQ-005: `liveness` alone is not proof, so a live but unproven server fails here."""
     import respx
     from agent.startup_mcp_starter import McpServerStarter
 
-    ctx, _ = _starter_ctx("s3cret")
+    ctx, cfg = _starter_ctx("s3cret")
     starter = McpServerStarter(ctx, MagicMock())
     with respx.mock as router:
         router.get("http://localhost:9999/health").mock(
-            return_value=httpx.Response(
-                503,
-                json={"liveness": True},
-                headers={"content-type": "application/json"},
-            )
+            return_value=httpx.Response(503, json={"liveness": True})
         )
-        # Must not raise: degraded-but-live is treated as ready.
-        await starter._verify_single_health("srv", ctx.cfg.mcp.mcp_servers["srv"])
+        with pytest.raises(RuntimeError, match="HTTP 503"):
+            await starter._verify_single_health("srv", cfg)
 
 
 @pytest.mark.asyncio
-async def test_verify_single_health_degraded_but_live_false_raises():
+async def test_verify_single_health_required_capability_ok_503_does_not_raise() -> None:
+    """The same live body with the required capability `ok` is proof (AC-05)."""
+    import agent.startup_mcp_starter as starter_module
+    import respx
+    from agent.startup_mcp_starter import McpServerStarter
+
+    ctx, cfg = _starter_ctx("s3cret")
+    starter = McpServerStarter(ctx, MagicMock())
+    with (
+        respx.mock as router,
+        patch.object(
+            starter_module,
+            "load_tool_catalog",
+            return_value={"server": {"srv": {"required_capability": "github.api"}}},
+        ),
+    ):
+        router.get("http://localhost:9999/health").mock(
+            return_value=httpx.Response(
+                503, json={"liveness": True, "capabilities": {"github.api": "ok"}}
+            )
+        )
+        # Must not raise: the catalog capability is proven `ok`.
+        await starter._verify_single_health("srv", cfg)
+
+
+@pytest.mark.asyncio
+async def test_verify_single_health_legacy_body_falls_back_to_ready() -> None:
+    """A body with no capability block is read through `ready` (D-6)."""
+    import respx
+    from agent.startup_mcp_starter import McpServerStarter
+
+    ctx, cfg = _starter_ctx("s3cret")
+    starter = McpServerStarter(ctx, MagicMock())
+    with respx.mock as router:
+        router.get("http://localhost:9999/health").mock(
+            return_value=httpx.Response(503, json={"ready": True})
+        )
+        await starter._verify_single_health("srv", cfg)
+
+
+@pytest.mark.asyncio
+async def test_verify_single_health_unproven_body_raises():
     import httpx
     import respx
     from agent.startup_mcp_starter import McpServerStarter
@@ -128,7 +184,7 @@ async def test_verify_single_health_non_503_non_200_raises():
             await starter._verify_single_health("srv", cfg)
 
 
-# --- verify_health degraded-but-live detection (httpx-level, REQ-005) ---
+# --- verify_health report-based readiness (httpx-level, REQ-005) ---
 
 
 def _verify_ctx():
@@ -153,14 +209,14 @@ def _verify_ctx():
 @pytest.mark.parametrize(
     "body",
     [
-        {"liveness": True},
-        {"liveness": True, "readiness": False},
+        {"ready": True},
+        {"liveness": True, "ready": True, "capabilities": {"github.api": "ok"}},
     ],
 )
-async def test_verify_health_degraded_live_503_object_not_retried(
+async def test_verify_health_proven_readiness_503_object_not_retried(
     monkeypatch: pytest.MonkeyPatch, body: dict
 ) -> None:
-    """A 503 object body with strict boolean liveness true is accepted with one probe."""
+    """A 503 body that proves readiness is accepted with one probe (AC-05)."""
     import respx
     from agent.startup_mcp_starter import McpServerStarter
 
@@ -171,9 +227,30 @@ async def test_verify_health_degraded_live_503_object_not_retried(
         route = router.get("http://localhost:9999/health").mock(
             return_value=httpx.Response(503, json=body)
         )
-        # Must not raise or retry: degraded-but-live is treated as ready.
+        # Must not raise or retry: the body is readiness proof.
         await starter.verify_health()
     assert route.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_verify_health_liveness_only_503_retries_then_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REQ-005: `liveness` true alone is not proof, so the object body now takes the retry path."""
+    import respx
+    from agent.startup_mcp_starter import McpServerStarter
+
+    monkeypatch.setattr("agent.startup_mcp_starter.RETRY_DELAY_SEC", 0.01)
+    ctx, _ = _verify_ctx()
+    starter = McpServerStarter(ctx, MagicMock())
+    with respx.mock as router:
+        route = router.get("http://localhost:9999/health").mock(
+            return_value=httpx.Response(503, json={"liveness": True})
+        )
+        with pytest.raises(RuntimeError, match=r"\[fatal\]"):
+            await starter.verify_health()
+    # main probe + the retry helper's single post-startup probe
+    assert route.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -231,11 +308,11 @@ async def test_verify_health_non_boolean_liveness_retries(
 
 
 @pytest.mark.asyncio
-async def test_verify_health_degraded_decision_delegates_to_predicate(
+async def test_verify_health_readiness_decision_delegates_to_the_shared_helper(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The accept decision must be the shared predicate's: patching it true accepts an
-    array body the inline copy rejected, directly in verify_health with a single probe."""
+    """The accept decision must be the shared helper's: patching `is_ready` true accepts a
+    legacy body whose own `ready` flag is false, directly in verify_health with a single probe."""
     import respx
     from agent.http_lifecycle_health_checker import HealthChecker
     from agent.startup_mcp_starter import McpServerStarter
@@ -245,11 +322,52 @@ async def test_verify_health_degraded_decision_delegates_to_predicate(
     starter = McpServerStarter(ctx, MagicMock())
     with respx.mock as router:
         route = router.get("http://localhost:9999/health").mock(
-            return_value=httpx.Response(503, json=[1, 2])
+            return_value=httpx.Response(503, json={"liveness": True})
         )
-        with patch.object(HealthChecker, "is_degraded_but_live", return_value=True):
+        with patch.object(HealthChecker, "is_ready", return_value=True):
             await starter.verify_health()
     assert route.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_effective_timeout_reaches_both_probes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T-01 (REQ-001): the post-startup probe and the retry probe use the server's value, not 5.0."""
+    import agent.startup_mcp_starter as starter_module
+    from agent.startup_mcp_starter import McpServerStarter
+    from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+
+    monkeypatch.setattr("agent.startup_mcp_starter.RETRY_DELAY_SEC", 0.01)
+    cfg = McpServerConfig(
+        transport=TransportType.HTTP,
+        url="http://localhost:9999",
+        startup_mode=StartupMode.SUBPROCESS,
+        cmd=["python", "server.py"],
+        auth_token="s3cret",
+        health_timeout=7.5,
+    )
+    ctx = MagicMock()
+    ctx.cfg.mcp.mcp_servers = {"srv": cfg}
+    ctx.services_required.tools = MagicMock()
+    ctx.services_required.lifecycle = MagicMock()
+    starter = McpServerStarter(ctx, MagicMock())
+
+    clients: list[_RecordingClient] = []
+
+    def _factory(*args: object, **kwargs: object) -> _RecordingClient:
+        # A live but unproven body keeps the server on the retry path, so both probes run.
+        client = _RecordingClient(kwargs, httpx.Response(503, json={"liveness": True}))
+        clients.append(client)
+        return client
+
+    with patch.object(starter_module.httpx, "AsyncClient", side_effect=_factory):
+        with pytest.raises(RuntimeError, match=r"\[fatal\]"):
+            await starter.verify_health()
+
+    assert [c.kwargs["timeout"] for c in clients] == [7.5, 7.5]
+    # REQ-003: the header comes from auth_headers(), the only health-auth path.
+    assert clients[0].kwargs["headers"] == cfg.auth_headers()
 
 
 # --- startup retry reaches the subprocess layer a second time (real router) ---

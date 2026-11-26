@@ -82,9 +82,15 @@ class _AsyncClientMock:
         return self._get_return
 
 
-def _make_http_mock(resp_status: int) -> MagicMock:
+def _make_http_mock(resp_status: int, body: dict | None = None) -> MagicMock:
+    """Response mock with the parsed /health body the readiness rule reads (REQ-005).
+
+    `body` defaults to an unproven body because most call sites here assert a failing health
+    check; the cases that assert the check passes pass `{"ready": True}` explicitly.
+    """
     resp = MagicMock()
     resp.status_code = resp_status
+    resp.json.return_value = {"ready": False} if body is None else body
     return resp
 
 
@@ -409,7 +415,7 @@ class TestStartupVerifyMcpHealth:
         cfg = _http_subprocess_cfg()
         startup = _make_startup({"web": cfg})
 
-        mock_resp = _make_http_mock(200)
+        mock_resp = _make_http_mock(200, body={"ready": True})
         mock_client = _AsyncClientMock(get_return=mock_resp)
 
         with patch(
@@ -437,7 +443,7 @@ class TestStartupVerifyMcpHealth:
         startup = _make_startup({"web": cfg})
 
         mock_resp_fail = _make_http_mock(503)
-        mock_resp_ok = _make_http_mock(200)
+        mock_resp_ok = _make_http_mock(200, body={"ready": True})
 
         call_count = [0]
 

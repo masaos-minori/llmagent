@@ -179,6 +179,33 @@ class TestRuntimeTool:
         assert replaced.llm_visibility_base is False
         assert replaced.enabled_for_llm is True
 
+    def test_config_dependent_defaults_to_false(self) -> None:
+        tool = build_fixture_runtime_tool(name="t", server_key="s")
+        assert tool.config_dependent is False
+
+    def test_config_dependent_explicit_true_is_honored(self) -> None:
+        tool = build_fixture_runtime_tool(
+            name="t", server_key="s", config_dependent=True
+        )
+        assert tool.config_dependent is True
+
+    def test_builder_passes_config_dependent_through(self) -> None:
+        """T-07 (REQ-007): the declared value is carried, not inferred from `status`."""
+        tool = build_runtime_tool(**_full_kwargs(), config_dependent=True)
+        assert tool.config_dependent is True
+
+        omitted = build_runtime_tool(**_full_kwargs())
+        assert omitted.config_dependent is False
+
+    def test_config_dependent_reflected_in_equality(self) -> None:
+        """T-07: a declared value and the default are not the same tool."""
+        default = build_fixture_runtime_tool(name="t", server_key="s")
+        declared = build_fixture_runtime_tool(
+            name="t", server_key="s", config_dependent=True
+        )
+        assert default != declared
+        assert dataclasses.replace(default, config_dependent=True) == declared
+
 
 _STRICT_FIELDS = (
     "is_write",

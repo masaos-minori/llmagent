@@ -137,21 +137,31 @@ class TestGetHttpStatusSandboxBackend:
         assert sandbox == ""
 
 
-class TestProbeAllHealthTimeoutZero:
+class TestProbeAllHealthTimeout:
+    def test_zero_health_timeout_is_rejected_at_load(self) -> None:
+        """REQ-001/AC-01: health_timeout=0 is rejected at config load, so probe_all never sees it."""
+        with pytest.raises(ValueError, match="health_timeout must be > 0"):
+            McpServerConfig(
+                transport=TransportType.HTTP,
+                url="http://127.0.0.1:8000",
+                startup_mode=StartupMode.PERSISTENT,
+                auth_token="test-token",
+                health_timeout=0,
+            )
+
     @pytest.mark.asyncio
-    async def test_health_timeout_zero_does_not_cause_near_instant_timeout(
-        self,
-    ) -> None:
-        """REQ-006: health_timeout=0 should not cause near-instant timeout at probe_all()."""
+    async def test_probe_all_uses_the_effective_timeout_for_the_request(self) -> None:
+        """T-01 (REQ-001/AC-01): the per-server value reaches the /mcp status request site."""
         cfg = McpServerConfig(
             transport=TransportType.HTTP,
             url="http://127.0.0.1:8000",
             startup_mode=StartupMode.PERSISTENT,
             auth_token="test-token",
-            health_timeout=0,
+            health_timeout=12.0,
         )
 
         captured_kwargs: dict[str, object] = {}
+        captured_request_timeouts: list[object] = []
         captured_headers: list[dict[str, str] | None] = []
 
         class _FakeAsyncClient:
@@ -170,6 +180,7 @@ class TestProbeAllHealthTimeoutZero:
                 timeout: object = None,
                 headers: dict[str, str] | None = None,
             ) -> MagicMock:
+                captured_request_timeouts.append(timeout)
                 captured_headers.append(headers)
                 resp = MagicMock()
                 resp.status_code = 200
@@ -184,11 +195,12 @@ class TestProbeAllHealthTimeoutZero:
             status = McpStatusService(ctx=ctx)
             await status.probe_all()
 
-        # Assert: timeout should be None (no timeout), not 0 (near-instant)
+        # The client is built with the effective timeout and the request uses the same value.
         assert "timeout" in captured_kwargs
         timeout_val = captured_kwargs["timeout"]
         assert isinstance(timeout_val, httpx.Timeout)
-        assert timeout_val.read is None
+        assert timeout_val.read == 12.0
+        assert captured_request_timeouts == [12.0]
         # The health probe authenticates with the server's configured token
         assert captured_headers == [{"Authorization": "Bearer test-token"}]
 

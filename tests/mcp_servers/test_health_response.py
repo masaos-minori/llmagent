@@ -23,6 +23,14 @@ from mcp_servers.health_response import (
     make_health_response,
 )
 from shared.mcp_dedup import DedupStore, DedupStoreConfig
+from shared.mcp_health_contract import (
+    CAPABILITY_STATE_DEGRADED,
+    CAPABILITY_STATE_OK,
+    HEALTH_REASON_CONFIG_MISSING,
+    HEALTH_SCHEMA_VERSION,
+    CapabilityState,
+    parse_health_body,
+)
 from shared.security.posture_contract import SECURITY_CONTRACT_VERSION, SecurityPosture
 from shared.security.result_dto import (
     REASON_ALLOWLIST_EMPTY,
@@ -201,6 +209,73 @@ class TestPosturePublication:
 
         assert "/opt/llm" not in body
         assert "sk-" not in body
+
+
+class TestCapabilityBlock:
+    """The version-1 capability block is additive (REQ-004, T-04).
+
+    A server that supplies it keeps every key it published before; a server that does not stays
+    a legacy body the Agent reads through the contract's legacy branch (D-6).
+    """
+
+    def test_supplying_capabilities_adds_the_new_keys_and_keeps_every_previous_one(
+        self,
+    ) -> None:
+        body = _body(
+            make_health_response(
+                {},
+                {"service": "github-mcp"},
+                capabilities={
+                    "github.operations": CapabilityState(CAPABILITY_STATE_OK)
+                },
+                degraded_reasons=[HEALTH_REASON_CONFIG_MISSING],
+            )
+        )
+
+        assert BASE_KEYS <= set(body)
+        assert body["health_schema_version"] == HEALTH_SCHEMA_VERSION
+        assert body["degraded_reasons"] == [HEALTH_REASON_CONFIG_MISSING]
+        assert body["capabilities"] == {
+            "github.operations": {"state": CAPABILITY_STATE_OK, "reason_code": None}
+        }
+
+    def test_the_emitted_block_is_the_shape_the_contract_parser_reads(self) -> None:
+        body = _body(
+            make_health_response(
+                {},
+                {},
+                capabilities={
+                    "github.api": CapabilityState(
+                        CAPABILITY_STATE_DEGRADED, HEALTH_REASON_CONFIG_MISSING
+                    )
+                },
+            )
+        )
+
+        report = parse_health_body(body)
+        assert report.health_schema_version == HEALTH_SCHEMA_VERSION
+        assert report.capabilities["github.api"].state == CAPABILITY_STATE_DEGRADED
+        assert report.capabilities["github.api"].reason_code == (
+            HEALTH_REASON_CONFIG_MISSING
+        )
+
+    def test_no_capabilities_keeps_the_legacy_shape(self) -> None:
+        body = _body(make_health_response({}, {"service": "shell-mcp"}))
+
+        assert set(body) == BASE_KEYS
+        assert parse_health_body(body).is_legacy is True
+
+    def test_a_reason_code_outside_the_vocabulary_raises(self) -> None:
+        with pytest.raises(ValueError, match="degraded_reasons"):
+            make_health_response(
+                {}, {}, capabilities={}, degraded_reasons=["not_a_code"]
+            )
+
+    def test_an_unknown_capability_state_raises(self) -> None:
+        with pytest.raises(ValueError, match="capabilities"):
+            make_health_response(
+                {}, {}, capabilities={"github.api": CapabilityState("broken")}
+            )
 
 
 class TestDedupHealthDetails:

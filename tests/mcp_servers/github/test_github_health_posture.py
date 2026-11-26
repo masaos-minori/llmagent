@@ -17,6 +17,13 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from mcp_servers.github import github_server
+from shared.mcp_health_contract import (
+    CAPABILITY_STATE_DEGRADED,
+    CAPABILITY_STATE_OK,
+    HEALTH_REASON_CONFIG_MISSING,
+    HEALTH_SCHEMA_VERSION,
+    parse_health_body,
+)
 from shared.security.posture_contract import SECURITY_CONTRACT_VERSION, SecurityPosture
 
 from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
@@ -114,6 +121,62 @@ class TestPosturePublication:
     ) -> None:
         monkeypatch.setattr(github_server, "_GITHUB_TOKEN", _TOKEN_SENTINEL)
         text = json.dumps(_security_block(client), ensure_ascii=False)
+
+        assert _TOKEN_SENTINEL not in text
+
+
+class TestCapabilityBlock:
+    """Token loss is reported as the optional capability `github.api` (REQ-006, T-06).
+
+    The required capability `github.operations` stays `ok`, so a 503 body with no token still
+    proves the required capability and does not block startup.
+    """
+
+    def test_token_loss_degrades_github_api_and_keeps_github_operations_ok(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(github_server, "_GITHUB_TOKEN", "")
+        response = client.get("/health")
+        body = response.json()
+
+        assert response.status_code == 503
+        assert body["capabilities"]["github.api"]["state"] == CAPABILITY_STATE_DEGRADED
+        assert body["capabilities"]["github.api"]["reason_code"] == (
+            HEALTH_REASON_CONFIG_MISSING
+        )
+        assert body["capabilities"]["github.operations"]["state"] == CAPABILITY_STATE_OK
+        assert body["degraded_reasons"] == [HEALTH_REASON_CONFIG_MISSING]
+
+    def test_with_the_token_both_capabilities_are_ok(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(github_server, "_GITHUB_TOKEN", _TOKEN_SENTINEL)
+        response = client.get("/health")
+        body = response.json()
+
+        assert response.status_code == 200
+        assert body["capabilities"]["github.api"]["state"] == CAPABILITY_STATE_OK
+        assert body["capabilities"]["github.operations"]["state"] == CAPABILITY_STATE_OK
+        assert body["degraded_reasons"] == []
+
+    def test_the_existing_dependencies_entry_stays_and_the_block_round_trips(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The block is additive: the `dependencies` signal the tool gate uses is unchanged."""
+        monkeypatch.setattr(github_server, "_GITHUB_TOKEN", "")
+        body = client.get("/health").json()
+
+        assert body["dependencies"]["github_token"] == "not_set"
+        report = parse_health_body(body)
+        assert report.health_schema_version == HEALTH_SCHEMA_VERSION
+        assert report.capabilities["github.api"].state == CAPABILITY_STATE_DEGRADED
+        assert report.capabilities["github.operations"].state == CAPABILITY_STATE_OK
+
+    def test_the_block_names_the_state_and_never_the_token(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(github_server, "_GITHUB_TOKEN", _TOKEN_SENTINEL)
+        text = json.dumps(client.get("/health").json(), ensure_ascii=False)
 
         assert _TOKEN_SENTINEL not in text
 
