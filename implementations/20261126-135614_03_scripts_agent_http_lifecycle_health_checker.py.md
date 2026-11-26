@@ -10,6 +10,7 @@
 ## Assumptions
 - Verified in Step 3a: `compute_health_check_timeout()` caps by `min(mcpserver_health_timeout, startup_timeout)` (`:92-101`), not by the remaining deadline; `verify_running_async` defaults to 5.0 (`:249`) and rebuilds the Bearer header from `cfg.auth_token` (`:267-271`), a second header path; `is_degraded_but_live` (`:104`) accepts a 503 with `liveness=true` (`:199`).
 - Readiness here means: the parsed report proves the server's `required_capability` is `ok`, or the body is legacy and `ready` is true (D-6).
+- UNK-02 (Plan Risk mitigation): before deploy, check the production health samples under `/opt/llm` for a required server that returns a 503 with `ready=false` and no capability block; the report-based readiness rule here is what would block its startup, so start every server in staging first.
 
 ## Design decisions
 - D-4: startup request timeout is `min(effective, remaining time to the deadline)`; no request starts after the deadline.
@@ -58,6 +59,7 @@
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the timeout cap, single auth path, and report-based readiness | Pending | — | — | |
+| 2 | Tests are covered by the test-file procedure (seq 20) | Pending | — | — | |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 
 ### Blocker Log

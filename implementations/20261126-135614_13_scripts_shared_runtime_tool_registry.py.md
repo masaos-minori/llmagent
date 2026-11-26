@@ -42,7 +42,7 @@
 - The pinned status-derived row in the companion test changes; consumers read `diagnostics()` rows by key, unchanged shape.
 
 ## Security considerations
-- N/A.
+- N/A: no credential handling; diagnostics expose tool metadata only.
 
 ## Rollback considerations
 - N/A: revert the commit (high blast radius file — keep this change independently revertable, Plan Risk).

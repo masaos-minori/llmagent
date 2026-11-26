@@ -8,7 +8,7 @@
 - Out of scope: the diagnostics data source (seq 13).
 
 ## Assumptions
-- Verified in Step 3a: `_format_tool_diagnostic_rows()` (`cmd_mcp.py:167-185`) renders `config_dependent` from the diagnostics row, which currently carries the status-derived value (fixed in seq 13); the table headers are pinned by `test_cmd_mcp.py:1006`.
+- Verified in Step 3a: `_format_tool_diagnostic_rows()` (`cmd_mcp.py:167-185`) renders `config_dependent` from the diagnostics row, which currently carries the status-derived value (fixed in seq 13); the table headers are pinned by `test_cmd_mcp.py:1074`.
 - The restart notice states that a change in tool availability requires a restart (D-2), with no live swap.
 
 ## Design decisions
@@ -33,14 +33,14 @@
 
 ### Companion test files
 - `tests/agent/commands/test_cmd_mcp.py`
-  - Procedure: update the pinned table headers and rows (`:1006`) to the explicit values, and assert the restart notice rendering (T-07, T-08).
+  - Procedure: update the pinned table headers and rows (`test_cmd_mcp.py:1074`) to the explicit values, and assert the restart notice rendering (T-07, T-08).
   - Validation: `uv run pytest tests/agent/commands/test_cmd_mcp.py`.
 
 ## Compatibility considerations
 - Header change affects only this display path; the companion test pins the shape.
 
 ## Security considerations
-- N/A.
+- N/A: the display path prints tool metadata, never token values.
 
 ## Rollback considerations
 - N/A: revert the commit.

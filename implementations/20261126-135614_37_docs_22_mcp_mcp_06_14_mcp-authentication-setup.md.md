@@ -26,6 +26,9 @@
 ### Method
 - Point to `auth_headers()` in `scripts/shared/mcp_config.py` as the canonical source; no example may show a token value.
 
+### Details
+- Keep the no-token-in-logs rule as one sentence pointing at the health failure path (seq 03).
+
 ## Compatibility considerations
 - N/A: existing setups that set `auth_token` are unaffected.
 

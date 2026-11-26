@@ -26,11 +26,14 @@
 ### Method
 - Point to `scripts/shared/mcp_config.py` as the canonical source for the validation rule.
 
+### Details
+- The accepted-range wording (greater than 0) must match the load error produced by seq 02.
+
 ## Compatibility considerations
 - N/A: no repository config sets the key, so no documented configuration becomes invalid.
 
 ## Security considerations
-- N/A.
+- N/A: documentation-only; the field is described without any token value.
 
 ## Rollback considerations
 - N/A: revert the commit.

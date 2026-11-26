@@ -37,7 +37,7 @@
 - The catalog fixture for the GitHub case must match seq 17 (`github.api` optional, `github.operations` required).
 
 ## Security considerations
-- N/A.
+- N/A: no credential content in the fixtures.
 
 ## Rollback considerations
 - N/A: revert the commit.
@@ -57,6 +57,7 @@
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the test changes | Pending | — | — | |
+| 2 | Confirm the new cases fail before seq 09-11 and 17 and pass after | Pending | — | — | |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 
 ### Blocker Log

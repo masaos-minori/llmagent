@@ -26,11 +26,14 @@
 ### Method
 - Keep the `enabled` iff `disabled_reason == ""` invariant wording unchanged.
 
+### Details
+- The capability reason `capability` and the restart-required statement must match seq 13 and seq 14.
+
 ## Compatibility considerations
 - N/A: consumers read diagnostics rows by key, unchanged shape.
 
 ## Security considerations
-- N/A.
+- N/A: documentation-only; metadata fields only.
 
 ## Rollback considerations
 - N/A: revert the commit.

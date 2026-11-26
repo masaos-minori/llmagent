@@ -35,13 +35,13 @@
 - The catalog is read at every discovery; adding a capability entry changes only the GitHub server's declared set.
 
 ## Security considerations
-- N/A.
+- N/A: catalog data; capability identifiers only, no credential values.
 
 ## Rollback considerations
 - N/A: revert the commit.
 
 ## Validation plan
-- `uv run pytest tests/agent/services/test_mcp_tool_discovery.py` (catalog-driven cases added by seq 26); no code gate applies to the data file itself.
+- `uv run pytest tests/agent/services/test_mcp_tool_discovery.py` (catalog-driven cases added by seq 26); `uv run python tools/check_config_comment_length.py` (the header comment block must stay within the 5-line threshold); no other code gate applies to the data file itself.
 
 ## Completion criteria
 - The note is removed, `github.api` is declared as optional for GitHub, and the discovery tests that read the catalog pass.
@@ -55,6 +55,7 @@
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the catalog change | Pending | — | — | |
+| 2 | Tests are covered by the test-file procedure (seq 26) | Pending | — | — | |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 
 ### Blocker Log

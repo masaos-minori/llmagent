@@ -55,6 +55,7 @@
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the two call-site changes | Pending | — | — | |
+| 2 | Tests are covered by the test-file procedure (seq 20) | Pending | — | — | |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 
 ### Blocker Log

@@ -10,6 +10,7 @@
 ## Assumptions
 - Verified in Step 3a: `discover_all()` builds the registry at `:107` before loading the catalog at `:112`; `_check_required_tools()` (`:260`) is inert because no tool declares `capabilities` (`:280` guard, `docs/22_mcp/mcp_08...md:86`); the missing-catalog path is already FATAL (`:113-123`).
 - Required-versus-optional rule (D-6): required only when the capability equals the catalog `required_capability` of a `required=true` server; the GitHub server is always `required=true` (`mcp_config.py:208-212`).
+- UNK-02 (Plan Risk mitigation): check the production health samples under `/opt/llm` for a required server with no capability block before the required-capability gate is relied on in production; start every server in staging before deploy.
 
 ## Design decisions
 - D-9: load the catalog first, then build the registry with the degraded-capability map so dependent tools are excluded at construction (one publication, no post-construction mutation).

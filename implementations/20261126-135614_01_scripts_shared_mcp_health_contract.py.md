@@ -10,6 +10,7 @@
 ## Assumptions
 - Verified in Step 3a: no health contract module exists in `scripts/shared/` (`ls scripts/shared`); `mcp_servers` must not import `agent` per the `lint-imports` contract, so the contract lives in the shared leaf.
 - Health schema version is `1` (Plan Design D-5); existing producers emit `status`/`ready`/`liveness` only, so the parser must accept a legacy body without the new fields.
+- UNK-02 (Plan Risk mitigation): during implementation, check the production health samples under `/opt/llm` for a server that returns a 503 with `ready=false` and no capability block while `required=true`; the legacy branch is what would block it, so a migrated capability block is the remedy.
 
 ## Design decisions
 - Module contents: `HealthReport` (new) dataclass (`health_schema_version: int`, `liveness: bool`, `ready: bool`, `degraded_reasons: tuple[str, ...]`, `capabilities: Mapping[str, CapabilityState]`), the closed reason-code vocabulary (aligned with `docs/22_mcp/mcp_06_10_health-reasons-and-error-kinds.md`), the capability states `ok`/`degraded`/`unavailable`, and `parse_health_body()` (new).

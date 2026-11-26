@@ -26,11 +26,14 @@
 ### Method
 - Keep the existing example names unchanged; `github.api` already follows the domain-dot-action form.
 
+### Details
+- Record that `github.operations` is required and `github.api` optional (seq 16, seq 17).
+
 ## Compatibility considerations
 - N/A: the convention stays optional for non-declaring servers.
 
 ## Security considerations
-- N/A.
+- N/A: documentation-only; capability identifiers only.
 
 ## Rollback considerations
 - N/A: revert the commit.

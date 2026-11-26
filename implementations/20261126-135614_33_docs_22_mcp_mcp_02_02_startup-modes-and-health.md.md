@@ -25,11 +25,14 @@
 ### Method
 - Behavior level only; `scripts/shared/mcp_health_contract.py` is the canonical source for field names.
 
+### Details
+- The readiness wording must match the implemented rule (proven required capability, legacy fallback), not the old liveness-only wording (seq 01, seq 03).
+
 ## Compatibility considerations
 - N/A: legacy servers stay described through the legacy branch.
 
 ## Security considerations
-- N/A.
+- N/A: documentation-only; the rule that the token is never logged is stated without a value.
 
 ## Rollback considerations
 - N/A: revert the commit.

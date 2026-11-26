@@ -40,7 +40,7 @@
 - Additive field with default; existing constructions and the 14 test files stay valid.
 
 ## Security considerations
-- N/A.
+- N/A: diagnostic-only field; no credential or secret content.
 
 ## Rollback considerations
 - N/A: revert the commit.

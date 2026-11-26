@@ -36,7 +36,7 @@
 - Only this file's pins change; the implementation rows (seq 03, 04) must land in the same commit group for the tests to pass.
 
 ## Security considerations
-- N/A.
+- N/A: no secret value in the fixtures; the token-not-logged assertion is the check.
 
 ## Rollback considerations
 - N/A: revert the commit.
@@ -56,6 +56,7 @@
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the test changes | Pending | — | — | |
+| 2 | Confirm the new cases fail before seq 03/04 and pass after | Pending | — | — | |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 
 ### Blocker Log

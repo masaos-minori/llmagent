@@ -36,7 +36,7 @@
 - New keyword arguments with existing call sites updated only here; the 14 test files that call `build_runtime_tool` directly keep working through the default (D-7).
 
 ## Security considerations
-- N/A.
+- N/A: no credential handling; the builder carries tool metadata only.
 
 ## Rollback considerations
 - N/A: revert the commit.
@@ -56,6 +56,7 @@
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the field pass-through and map hand-off | Pending | — | — | |
+| 2 | Tests are covered by the test-file procedure (seq 26) | Pending | — | — | |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 
 ### Blocker Log

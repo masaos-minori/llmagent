@@ -34,7 +34,7 @@
 - Producers already emit a bool, so no production entry is rejected; only malformed entries change behavior.
 
 ## Security considerations
-- N/A.
+- N/A: no credential handling here; the token reaches the request only through `auth_headers()`.
 
 ## Rollback considerations
 - N/A: revert the commit.
@@ -54,6 +54,7 @@
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the strict bool check | Pending | — | — | |
+| 2 | Tests are covered by the test-file procedure (seq 26) | Pending | — | — | |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 
 ### Blocker Log

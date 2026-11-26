@@ -26,11 +26,14 @@
 ### Method
 - Names must equal the constants in `scripts/shared/mcp_health_contract.py`.
 
+### Details
+- Do not restate the field names here; the constants in `scripts/shared/mcp_health_contract.py` are canonical (seq 01).
+
 ## Compatibility considerations
 - N/A: existing reason descriptions stay.
 
 ## Security considerations
-- N/A.
+- N/A: documentation-only; reason codes carry no credential content.
 
 ## Rollback considerations
 - N/A: revert the commit.
