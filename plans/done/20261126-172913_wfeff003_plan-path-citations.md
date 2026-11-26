@@ -195,10 +195,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first | Pending | — | — | |
-| 2 | Detector, normalizer, and checker | Pending | — | — | |
-| 3 | Template, workflow, and tool documentation | Pending | — | — | |
-| 4 | Verification | Pending | — | — | |
+| 1 | Tests first | In Progress | — | — |  |
+| 2 | Detector, normalizer, and checker | In Progress | — | — |  |
+| 3 | Template, workflow, and tool documentation | In Progress | — | — |  |
+| 4 | Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -208,7 +208,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261126-173805_01_tools__workitem_citation_check.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261126-173805_03_tools_backtick_plan_related_tests.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261126-173805_05_tools_check_workitem_structure.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261126-173805_07_templates_plan.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-173805_08_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-173805_09_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -227,3 +232,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-003 | Required Changes bullet 3; Constraints bullet 1 | tools/check_workitem_structure.py, tools/_workitem_citation_check.py | Phase 2 | AC-03, AC-05 | T-01, T-03 | Explicit in issue |
 | REQ-004 | Required Changes bullet 4 | skills/issue-to-plan/workflow.md | Phase 3 | AC-06, AC-07 | T-04 | Explicit in issue |
 | REQ-005 | Acceptance Criteria bullet 2; Documentation Impact | tools/backtick_plan_related_tests.py, tools/TOOL_DESCRIPTIONS.md | Phase 2, Phase 3 | AC-04, AC-08 | T-02, T-04 | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-173805 -->
