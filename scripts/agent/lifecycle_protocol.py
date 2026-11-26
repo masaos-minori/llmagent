@@ -33,7 +33,12 @@ class LifecycleManagerProtocol(Protocol):
     """
 
     async def ensure_ready(self, server_key: str) -> None:
-        """Ensure the named MCP server is running; start it if needed."""
+        """Ensure the named MCP server is running; start it if needed.
+
+        Raises:
+            EnsureSuppressedError: When the call is refused because shutdown has
+                begun; the call never returns silently during shutdown (REQ-008).
+        """
         ...
 
     async def shutdown_all(
@@ -51,11 +56,23 @@ class LifecycleManagerProtocol(Protocol):
         Returns:
             One ``(server_key, outcome)`` pair per server whose exit was not
             confirmed; an empty list means every started server was confirmed gone.
+
+        A server whose exit was not confirmed keeps its process record in the
+        manager until a later shutdown confirms the exit (REQ-002, REQ-003); its
+        lifecycle state becomes ``EXIT_UNCONFIRMED`` or ``SIGNAL_NOT_DELIVERED``,
+        never ``STOPPED`` (REQ-006).
         """
         ...
 
     async def restart(self, server_key: str) -> None:
-        """Restart a single MCP server."""
+        """Restart a single MCP server.
+
+        Raises:
+            RestartSuppressedError: When the call is refused because shutdown has
+                begun; the call never returns silently during shutdown (REQ-008).
+            RestartBlockedError: When the old process exit could not be confirmed;
+                the record is retained and no replacement process is started.
+        """
         ...
 
     async def shutdown_idle(self) -> None:
@@ -63,7 +80,12 @@ class LifecycleManagerProtocol(Protocol):
         ...
 
     def get_transport_state(self, server_key: str) -> LifecycleState:
-        """Return the current lifecycle state for a server."""
+        """Return the current lifecycle state for a server.
+
+        After a shutdown the state is per-server and outcome-driven: ``STOPPED``
+        only for servers whose exit was confirmed, ``EXIT_UNCONFIRMED`` or
+        ``SIGNAL_NOT_DELIVERED`` for retained ones (REQ-006).
+        """
         ...
 
     async def start_http_subprocess(

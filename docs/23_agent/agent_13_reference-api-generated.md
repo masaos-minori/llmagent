@@ -83,11 +83,16 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/http_lifecycle_errors.py` | `StartupFailure` | `class StartupFailure` | Records the full stderr output and reason when an HTTP subprocess fails to start. |
 |  | `HttpStartupError` | `class HttpStartupError` | Raised when an HTTP subprocess MCP server fails to start. |
 |  | `TerminationOutcome` | `class TerminationOutcome` | What one MCP server termination attempt proved about the process. |
+|  | `ShutdownSuppressedError` | `class ShutdownSuppressedError` | Base for non-retryable lifecycle refusals issued while shutting down. |
+|  | `EnsureSuppressedError` | `class EnsureSuppressedError` | Non-retryable: ensure_ready() refused because the lifecycle is shutting down. |
+|  | `RestartSuppressedError` | `class RestartSuppressedError` | Non-retryable: restart() refused because the lifecycle is shutting down. |
+|  | `RestartBlockedError` | `class RestartBlockedError` | Non-retryable: restart() refused over an unconfirmed old exit; the record is retained. |
 |  | `termination_step_outcome` | `def termination_step_outcome(outcomes, *, other_failures) -> ShutdownOutcome` | Map MCP termination results onto the shutdown step outcome vocabulary. |
 | `scripts/agent/http_lifecycle_health_checker.py` | `HealthChecker` | `class HealthChecker` | Performs HTTP health checks against a running server. |
 | `scripts/agent/http_lifecycle_launch_spec.py` | `LaunchSpec` | `class LaunchSpec` | Everything one subprocess spawn may use, fixed at one construction site. |
 |  | `build_launch_spec` | `def build_launch_spec(server_key, cfg, resolved_path, expected_identity, stderr_fh) -> LaunchSpec` | Build the one specification a server's spawn may use. |
 |  | `build_child_env` | `def build_child_env(server_key, cfg) -> dict[str, str]` | Build one server's minimal child environment. |
+| `scripts/agent/http_lifecycle_process_record.py` | `ManagedProcessRecord` | `class ManagedProcessRecord` | Per-server process record; outcome and state update in place. |
 | `scripts/agent/http_lifecycle_process_terminator.py` | `ProcessTerminator` | `class ProcessTerminator` | Manages process termination with SIGTERM → SIGKILL escalation. |
 | `scripts/agent/http_lifecycle_shutdown_coordinator.py` | `ShutdownCoordinator` | `class ShutdownCoordinator` | Coordinates shutdown of HTTP server process and associated resources. |
 | `scripts/agent/http_lifecycle_stderr_log_manager.py` | `StderrLogManager` | `class StderrLogManager` | Manages stderr log files for HTTP subprocess MCP servers. |

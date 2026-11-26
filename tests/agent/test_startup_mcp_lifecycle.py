@@ -18,6 +18,8 @@ from agent.http_lifecycle_errors import (
     StartupFailure,
     TerminationOutcome,
 )
+from agent.http_lifecycle_process_record import ManagedProcessRecord
+from agent.lifecycle import LifecycleState
 from agent.shared.retry_helper import retry_once_with_delay
 from agent.startup import (
     StartupInterrupted,
@@ -303,8 +305,15 @@ class TestStartupOrchestratorStartServers:
         async def _fake_create(
             server_key: str, server_cfg: McpServerConfig
         ) -> tuple[subprocess.Popen[bytes], object]:
-            mgr._http_procs[server_key] = fake_proc
-            mgr._http_pgids[server_key] = 99001
+            # Mirror SubprocessLauncher registration (row 5): the launcher is
+            # the registration point, so the fake installs the record.
+            mgr._records[server_key] = ManagedProcessRecord(
+                process=fake_proc,
+                pid=fake_proc.pid,
+                pgid=99001,
+                stderr_log=None,
+                state=LifecycleState.RUNNING,
+            )
             return fake_proc, MagicMock()
 
         async def _fake_health(
@@ -324,7 +333,8 @@ class TestStartupOrchestratorStartServers:
             shutdown_event: asyncio.Event | None = None,
         ) -> object:
             await mgr.start(server_key, server_cfg, shutdown_event=shutdown_event)
-            return mgr._http_procs.get(server_key)
+            record = mgr._records.get(server_key)
+            return record.process if record is not None else None
 
         startup._ctx.services_required.lifecycle.start_http_subprocess = (
             _start_http_subprocess
@@ -350,8 +360,11 @@ class TestStartupOrchestratorStartServers:
         assert isinstance(exc_info.value.failure, StartupFailure)
         assert exc_info.value.failure.server_key == "web"
         assert startup._mcp_starter._spawned_subprocesses == []
-        assert mgr._http_procs.get("web") is fake_proc
-        assert mgr._failed_start_procs.get("web") is fake_proc
+        record = mgr._records.get("web")
+        assert record is not None
+        assert record.process is fake_proc
+        assert record.failed_start is True
+        assert record.last_outcome is TerminationOutcome.EXIT_UNCONFIRMED
         # The startup path owns its own window: the module default, and no budget, which
         # is the call shape a shutdown budget must not change (REQ-010).
         call = term.await_args

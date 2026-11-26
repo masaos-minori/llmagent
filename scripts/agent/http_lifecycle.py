@@ -6,7 +6,11 @@ Two methods delegate with arguments rather than forwarding the call unchanged:
 shutdown_all passes the manager and the shutdown budget to ShutdownCoordinator, and
 _health_poll_until_ready passes the manager and this module's poll timings to
 HealthChecker.poll_until_ready. SubprocessLauncher is instead constructed with this
-class's components and tracking dicts, which it holds by reference.
+class's components and the process-record registry, which it holds by reference.
+
+Process tracking is one ManagedProcessRecord per server key in _records: a record is
+released only when its exit is confirmed (REQ-001, REQ-002); no path pops tracking
+before the exit is proved.
 
 Custom logic retained in this class:
 - MCPSERVER_HEALTH_TIMEOUT: global constant for httpx.AsyncClient timeout
@@ -28,15 +32,22 @@ from typing import IO, TYPE_CHECKING, NoReturn
 import httpx
 from shared.mcp_config import McpServerConfig
 
+from agent.lifecycle import LifecycleState
 from agent.services.models import ProcessInfoSnapshot
 
 from .http_lifecycle_command_validator import CommandValidator
-from .http_lifecycle_errors import HttpStartupError, StartupFailure, TerminationOutcome
+from .http_lifecycle_errors import (
+    HttpStartupError,
+    RestartBlockedError,
+    StartupFailure,
+    TerminationOutcome,
+)
 from .http_lifecycle_health_checker import (
     HEALTH_RECHECK_INTERVAL_SEC,
     HealthChecker,
     _terminate_for_startup_failure,
 )
+from .http_lifecycle_process_record import ManagedProcessRecord
 from .http_lifecycle_process_terminator import ProcessTerminator
 from .http_lifecycle_shutdown_coordinator import ShutdownCoordinator
 from .http_lifecycle_stderr_log_manager import StderrLogManager
@@ -84,25 +95,22 @@ class HttpServerLifecycleManager:
         self._process_terminator = process_terminator or ProcessTerminator()
         self._health_checker = health_checker or HealthChecker()
         self._shutdown_coordinator = shutdown_coordinator or ShutdownCoordinator()
-        self._http_procs: dict[str, subprocess.Popen[bytes]] = {}
-        self._http_pgids: dict[str, int] = {}
+        self._records: dict[str, ManagedProcessRecord] = {}
         self._stderr_files: dict[str, IO[bytes]] = {}
         self._last_health_check: dict[str, float] = {}
-        self._failed_start_procs: dict[str, subprocess.Popen[bytes]] = {}
         self._subprocess_launcher = subprocess_launcher or SubprocessLauncher(
             command_validator=self._command_validator,
             stderr_log_manager=self._stderr_log_manager,
             process_terminator=self._process_terminator,
-            http_procs=self._http_procs,
-            http_pgids=self._http_pgids,
+            records=self._records,
             stderr_files=self._stderr_files,
             terminate_timeout_sec=TERMINATE_TIMEOUT_SEC,
         )
 
     def verify_running(self, server_key: str) -> bool:
         """Return True if the HTTP subprocess server is running, False if missing or exited."""
-        proc = self._http_procs.get(server_key)
-        if proc is None or proc.poll() is not None:
+        record = self._records.get(server_key)
+        if record is None or record.process.poll() is not None:
             logger.warning(
                 "Lifecycle: HTTP subprocess %r is not running; it should have been started at agent init",
                 server_key,
@@ -153,26 +161,23 @@ class HttpServerLifecycleManager:
         return stderr_content
 
     def cleanup_server_key(self, server_key: str) -> None:
-        """Remove process tracking entries for a server key.
+        """Release the process record and remove tracking entries for a server key.
 
-        Called by ShutdownCoordinator after terminating a server process.
-        Removes the process entry, pgid entry, and delegates stderr/log cleanup
-        to _clear_server_tracking_data.
+        Called by ShutdownCoordinator after a confirmed termination. Releases the
+        record and delegates stderr/log cleanup to _clear_server_tracking_data.
         """
-        self._http_procs.pop(server_key, None)
-        self._http_pgids.pop(server_key, None)
-        self._failed_start_procs.pop(server_key, None)
+        self._records.pop(server_key, None)
         self._clear_server_tracking_data(server_key)
 
     def remove_process_entry(self, server_key: str) -> None:
-        """Remove the process entry from tracking.
+        """Release the process record for a server.
 
-        Called before termination to prevent double-shutdown if termination fails.
+        Post-confirmation release helper: the pre-termination call site in
+        ShutdownCoordinator is removed by the record-ownership change (REQ-003).
         Does NOT close file handles or clear other tracking data — those are cleaned
         up after termination via cleanup_server_key().
         """
-        self._http_procs.pop(server_key, None)
-        self._failed_start_procs.pop(server_key, None)
+        self._records.pop(server_key, None)
 
     def clear_all_health_checks(self) -> None:
         """Clear all health check timestamps.
@@ -187,23 +192,30 @@ class HttpServerLifecycleManager:
         return self._process_terminator
 
     def _build_snapshot(self, server_key: str) -> ProcessInfoSnapshot | None:
-        """Return a typed snapshot for a managed subprocess, or None if unknown."""
-        proc = self._http_procs.get(server_key)
-        if proc is None:
+        """Return a typed snapshot for a managed subprocess, or None if unknown.
+
+        A retained record (exit not confirmed) still builds a snapshot: the
+        retained process stays visible to status surfaces until its exit is
+        confirmed (REQ-002, REQ-009).
+        """
+        record = self._records.get(server_key)
+        if record is None:
             return None
-        exit_code = proc.poll()
+        exit_code = record.process.poll()
         running = exit_code is None
         last_exit_code = None if running else exit_code
-        pgid = self._http_pgids.get(server_key)
         stderr_log = self._stderr_log_manager.get_log_path(server_key) or ""
         return ProcessInfoSnapshot(
             server_key=server_key,
             managed=True,
-            pid=proc.pid,
-            pgid=pgid,
+            pid=record.pid,
+            pgid=record.pgid,
             running=running,
             last_exit_code=last_exit_code,
             stderr_log=stderr_log,
+            termination_outcome=(
+                record.last_outcome.value if record.last_outcome is not None else None
+            ),
         )
 
     def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
@@ -221,30 +233,28 @@ class HttpServerLifecycleManager:
         """Return snapshots for all currently managed subprocess servers."""
         return [
             snap
-            for key in list(self._http_procs.keys())
+            for key in list(self._records.keys())
             if (snap := self.get_process_info(key)) is not None
         ]
 
-    def iter_processes(self) -> Iterator[tuple[str, subprocess.Popen[bytes]]]:
-        """Yield (server_key, proc) pairs for all managed HTTP subprocess servers.
+    def iter_records(self) -> Iterator[tuple[str, ManagedProcessRecord]]:
+        """Yield (server_key, record) pairs for all managed HTTP subprocess servers.
 
-        This method provides controlled access to managed processes without
-        exposing the internal `_http_procs` dictionary directly. Callers receive
+        This method provides controlled access to the process records without
+        exposing the internal `_records` dictionary directly. Callers receive
         an iterator and cannot modify the underlying dictionary.
         """
-        yield from self._http_procs.items()
+        yield from self._records.items()
 
     def _raise_startup_failure(
         self, server_key: str, reason: str, stderr_full: str
     ) -> NoReturn:
-        """Drop tracked process/pgid entries and raise HttpStartupError with the given reason.
+        """Release the process record and raise HttpStartupError with the given reason.
 
-        Confirmed path only (tracking already dropped); an exit that could not be
-        confirmed must use _raise_startup_failure_unconfirmed instead.
+        Confirmed path only (the record is already releasable); an exit that could
+        not be confirmed must use _raise_startup_failure_unconfirmed instead.
         """
-        self._http_procs.pop(server_key, None)
-        self._http_pgids.pop(server_key, None)
-        self._failed_start_procs.pop(server_key, None)
+        self._records.pop(server_key, None)
         raise HttpStartupError(
             StartupFailure(
                 server_key=server_key, reason=reason, stderr_full=stderr_full
@@ -252,19 +262,29 @@ class HttpServerLifecycleManager:
         )
 
     def _raise_startup_failure_unconfirmed(
-        self, server_key: str, reason: str, stderr_full: str
+        self,
+        server_key: str,
+        reason: str,
+        stderr_full: str,
+        outcome: TerminationOutcome | None = None,
     ) -> NoReturn:
         """Raise HttpStartupError keeping a not-confirmed process fully tracked.
 
-        Sibling of _raise_startup_failure for the exit-unconfirmed outcome: the live
-        process, its pgid, and its stderr-log tracking are retained so
-        shutdown_all() still names the server for manual cleanup.
+        Sibling of _raise_startup_failure for the exit-unconfirmed outcome: the
+        record (process, pgid, stderr-log handle) is retained and flagged
+        failed_start so shutdown_all() still names the server for manual cleanup.
+        The termination outcome is recorded on the record so status surfaces
+        report why the server is retained (REQ-009); when the caller does not
+        supply one the failure is classified EXIT_UNCONFIRMED.
         """
-        proc = self._http_procs.get(server_key)
-        if proc is not None:
-            self._failed_start_procs[server_key] = proc
-        pid = getattr(proc, "pid", None)
-        pgid = self._http_pgids.get(server_key)
+        record = self._records.get(server_key)
+        if record is not None:
+            record.failed_start = True
+            record.last_outcome = (
+                outcome if outcome is not None else TerminationOutcome.EXIT_UNCONFIRMED
+            )
+        pid = record.pid if record is not None else None
+        pgid = record.pgid if record is not None else None
         logger.error(
             "Lifecycle: %r pid=%s pgid=%s startup failure with exit not confirmed; "
             "process, pgid and stderr-log tracking retained, stop it manually with: "
@@ -329,9 +349,9 @@ class HttpServerLifecycleManager:
         When `shutdown_event` fires mid-poll, aborts within roughly one poll
         interval (0.5s) instead of waiting up to the full startup timeout.
         """
-        existing = self._http_procs.get(server_key)
-        if existing is not None and existing.poll() is None:
-            if self._failed_start_procs.get(server_key) is existing:
+        existing = self._records.get(server_key)
+        if existing is not None and existing.process.poll() is None:
+            if existing.failed_start:
                 await self._reterminate_recorded_failed_start(server_key, existing)
             else:
                 logger.info(
@@ -361,15 +381,15 @@ class HttpServerLifecycleManager:
             )
 
     async def _reterminate_recorded_failed_start(
-        self, server_key: str, proc: subprocess.Popen[bytes]
+        self, server_key: str, record: ManagedProcessRecord
     ) -> None:
         """Re-terminate a tracked process left by an unconfirmed failed start.
 
         Called from start()'s reuse branch when the live process is the one
         recorded by _raise_startup_failure_unconfirmed. On a confirmed exit the
-        tracking (process, pgid, record, stderr and health-check data) is released
-        and start() falls through to a fresh launch; on an unconfirmed exit the
-        tracking and the record are kept and the startup failure is raised again.
+        record (process, pgid, stderr and health-check data) is released and
+        start() falls through to a fresh launch; on an unconfirmed exit the
+        record is kept and the startup failure is raised again.
         A process that is alive but has no matching record is never re-terminated.
         """
         logger.info(
@@ -378,13 +398,12 @@ class HttpServerLifecycleManager:
             server_key,
         )
         outcome = await _terminate_for_startup_failure(
-            self, server_key, proc, TERMINATE_TIMEOUT_SEC
+            self, server_key, record.process, TERMINATE_TIMEOUT_SEC
         )
+        record.last_outcome = outcome
         if outcome.confirmed:
             stderr_full = self._cleanup_server_resources(server_key)
-            self._http_procs.pop(server_key, None)
-            self._http_pgids.pop(server_key, None)
-            self._failed_start_procs.pop(server_key, None)
+            self._records.pop(server_key, None)
         else:
             stderr_full = self._stderr_log_manager.read_tail(server_key).decode(
                 errors="replace"
@@ -394,23 +413,36 @@ class HttpServerLifecycleManager:
             )
 
     async def restart(self, server_key: str, cfg: McpServerConfig) -> None:
-        """Terminate and restart an HTTP subprocess server."""
-        self._clear_server_tracking_data(server_key)
-        proc = self._http_procs.pop(server_key, None)
-        self._failed_start_procs.pop(server_key, None)
-        if proc is not None and proc.poll() is None:
-            logger.info("Lifecycle: terminating %r for restart", server_key)
-            outcome = await self._process_terminator.terminate_with_timeout(
-                proc, server_key, timeout=TERMINATE_TIMEOUT_SEC
-            )
-            if not outcome.confirmed:
-                logger.error(
-                    "Lifecycle: %r pid=%s not confirmed stopped before restart (%s)",
-                    server_key,
-                    proc.pid,
-                    outcome,
+        """Terminate and restart an HTTP subprocess server.
+
+        A replacement is started only after the old process exit is confirmed.
+        On an unconfirmed outcome the record is retained, the record state is set
+        to EXIT_UNCONFIRMED, and RestartBlockedError is raised without starting a
+        second live process (REQ-005, AC-2).
+        """
+        record = self._records.get(server_key)
+        if record is not None:
+            if record.process.poll() is None:
+                logger.info("Lifecycle: terminating %r for restart", server_key)
+                record.state = LifecycleState.STOPPING
+                outcome = await self._process_terminator.terminate_with_timeout(
+                    record.process, server_key, timeout=TERMINATE_TIMEOUT_SEC
                 )
-        self._http_pgids.pop(server_key, None)
+                record.last_outcome = outcome
+                if not outcome.confirmed:
+                    logger.error(
+                        "Lifecycle: %r pid=%s not confirmed stopped before restart (%s)",
+                        server_key,
+                        record.process.pid,
+                        outcome,
+                    )
+                    record.state = LifecycleState.EXIT_UNCONFIRMED
+                    raise RestartBlockedError(
+                        f"Lifecycle: restart of {server_key!r} blocked: exit of "
+                        f"pid={record.process.pid} not confirmed ({outcome})"
+                    )
+            self._records.pop(server_key, None)
+        self._clear_server_tracking_data(server_key)
         await self.start(server_key, cfg)
 
     async def shutdown_all(

@@ -61,6 +61,22 @@ class TerminationOutcome(StrEnum):
         return self in (TerminationOutcome.EXITED, TerminationOutcome.ALREADY_EXITED)
 
 
+class ShutdownSuppressedError(RuntimeError):
+    """Base for non-retryable lifecycle refusals issued while shutting down."""
+
+
+class EnsureSuppressedError(ShutdownSuppressedError):
+    """Non-retryable: ensure_ready() refused because the lifecycle is shutting down."""
+
+
+class RestartSuppressedError(ShutdownSuppressedError):
+    """Non-retryable: restart() refused because the lifecycle is shutting down."""
+
+
+class RestartBlockedError(RuntimeError):
+    """Non-retryable: restart() refused over an unconfirmed old exit; the record is retained."""
+
+
 def termination_step_outcome(
     outcomes: Sequence[TerminationOutcome], *, other_failures: int
 ) -> ShutdownOutcome:

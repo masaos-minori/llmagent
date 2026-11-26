@@ -45,6 +45,7 @@ class ProcessInfoSnapshot:
     running: bool
     last_exit_code: int | None
     stderr_log: str
+    termination_outcome: str | None = None
 
 
 @dataclass(frozen=True)

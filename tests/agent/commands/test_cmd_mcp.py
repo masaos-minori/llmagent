@@ -298,6 +298,74 @@ class TestCmdMcpStatus:
         assert "[UNAVAILABLE] svc:" not in out
 
     @pytest.mark.asyncio
+    async def test_unconfirmed_retained_process_shown_in_status(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """REQ-009, REQ-011: a retained exit-unconfirmed process stays named in status."""
+        ctx = _Ctx({"svc": _http()})
+        ctx.services_required.lifecycle.get_transport_state.return_value = (
+            LifecycleState.EXIT_UNCONFIRMED
+        )
+        ctx.services_required.lifecycle.get_process_snapshot.return_value = {
+            "server_key": "svc",
+            "managed": True,
+            "pid": 4242,
+            "pgid": 4242,
+            "running": True,
+            "last_exit_code": None,
+            "stderr_log": "",
+            "termination_outcome": "exit_unconfirmed",
+        }
+        mcp = _Mcp(ctx)
+
+        with patch(
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
+        ):
+            rows = await McpStatusService(ctx).probe_all()
+            assert rows[0].lifecycle_state == "exit_unconfirmed"
+            assert rows[0].pid == 4242
+            assert rows[0].pgid == 4242
+            assert rows[0].last_shutdown_result == "exit_unconfirmed"
+            assert rows[0].restart_recommended is True
+            assert rows[0].operator_action_required is True
+            assert rows[0].health_reason == "exit_unconfirmed"
+
+            await mcp._cmd_mcp_status()
+
+        out = capsys.readouterr().out
+        assert "exit_unconfirmed" in out
+        assert "4242" in out
+
+    @pytest.mark.asyncio
+    async def test_signal_not_delivered_process_shown_in_status(self) -> None:
+        """REQ-009: a signal-not-delivered outcome maps to its own state and reason."""
+        ctx = _Ctx({"svc": _http()})
+        ctx.services_required.lifecycle.get_transport_state.return_value = (
+            LifecycleState.SIGNAL_NOT_DELIVERED
+        )
+        ctx.services_required.lifecycle.get_process_snapshot.return_value = {
+            "server_key": "svc",
+            "managed": True,
+            "pid": 4343,
+            "pgid": 4343,
+            "running": True,
+            "last_exit_code": None,
+            "stderr_log": "",
+            "termination_outcome": "signal_not_delivered",
+        }
+
+        with patch(
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
+        ):
+            rows = await McpStatusService(ctx).probe_all()
+
+        assert rows[0].lifecycle_state == "signal_not_delivered"
+        assert rows[0].last_shutdown_result == "signal_not_delivered"
+        assert rows[0].restart_recommended is True
+        assert rows[0].operator_action_required is True
+        assert rows[0].health_reason == "signal_not_delivered"
+
+    @pytest.mark.asyncio
     async def test_degraded_server_shown_with_reason(
         self, capsys: pytest.CaptureFixture
     ) -> None:

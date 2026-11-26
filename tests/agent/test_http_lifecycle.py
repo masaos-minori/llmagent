@@ -17,9 +17,30 @@ import httpx
 import pytest
 from agent.http_lifecycle import HttpServerLifecycleManager
 from agent.http_lifecycle_command_validator import CommandValidator
-from agent.http_lifecycle_errors import HttpStartupError, TerminationOutcome
+from agent.http_lifecycle_errors import (
+    HttpStartupError,
+    RestartBlockedError,
+    TerminationOutcome,
+)
+from agent.http_lifecycle_process_record import ManagedProcessRecord
+from agent.lifecycle import LifecycleState
 from agent.shutdown_budget import ShutdownBudget
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+
+
+def _make_record(
+    proc: object,
+    pgid: int | None = None,
+    state: LifecycleState = LifecycleState.RUNNING,
+) -> ManagedProcessRecord:
+    """Build a minimal ownership record for tests that seed the registry."""
+    return ManagedProcessRecord(  # type: ignore[arg-type] — test helper passes Mock process objects
+        process=proc,
+        pid=getattr(proc, "pid", 0),
+        pgid=pgid,
+        stderr_log=None,
+        state=state,
+    )
 
 
 def _make_cfg(**overrides: object) -> McpServerConfig:
@@ -98,15 +119,14 @@ class TestGetPgidFailureTracking:
         _assert_default_termination_window(term)
         # Resource cleanup completed (stderr handle closed once).
         stderr_fh_mock.close.assert_called_once()
-        # Tracking entries were not retained (removed in the success path).
-        assert mgr._http_procs.get("test") is None
-        assert mgr._http_pgids.get("test") is None
+        # The confirmed exit released the ownership record (REQ-002).
+        assert mgr._records.get("test") is None
 
     @pytest.mark.asyncio
-    async def test_unconfirmed_exit_is_logged_with_pid_and_entries_are_released(
+    async def test_unconfirmed_exit_is_logged_with_pid_and_the_record_is_retained(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
-        """The entries are released after the attempt; the unconfirmed exit is named."""
+        """REQ-002: an unconfirmed exit retains the record and names the pid."""
         cfg = _make_cfg()
         proc_mock = Mock(pid=9999, poll=Mock(return_value=None))
         stderr_fh_mock = MagicMock()
@@ -131,8 +151,12 @@ class TestGetPgidFailureTracking:
         assert len(logged) == 1
         assert "9999" in logged[0] and "exit_unconfirmed" in logged[0]
         _assert_default_termination_window(term)
-        assert mgr._http_procs.get("test") is None
-        assert mgr._http_pgids.get("test") is None
+        # No pgid to probe: the exit cannot be observed, so the record stays
+        # retained (pgid None, the honest state) for shutdown_all() to name.
+        record = mgr._records["test"]
+        assert record.last_outcome is TerminationOutcome.EXIT_UNCONFIRMED
+        assert record.pgid is None
+        assert record.state is LifecycleState.EXIT_UNCONFIRMED
         stderr_fh_mock.close.assert_called_once()
 
     @pytest.mark.asyncio
@@ -184,7 +208,7 @@ class TestShutdownAllBudgetForwarding:
         proc = Mock(pid=9999, poll=Mock(return_value=None))
         term = AsyncMock(return_value=TerminationOutcome.EXITED)
 
-        mgr._http_procs["test"] = proc
+        mgr._records["test"] = _make_record(proc)
         with patch.object(mgr._process_terminator, "terminate_with_timeout", term):
             unconfirmed = await mgr.shutdown_all(budget=budget)
 
@@ -292,8 +316,7 @@ class TestStartupFailureCleanupCharacterization:
         assert exit_code_logs, "expected an exit-code info log"
         assert exit_code_logs[0].args[3] == 1
         _assert_default_termination_window(term)
-        assert mgr._http_procs.get("test") is None
-        assert mgr._http_pgids.get("test") is None
+        assert mgr._records.get("test") is None
         stderr_fh.close.assert_called_once()
 
 
@@ -326,8 +349,7 @@ class TestSubprocessSpawnCharacterization:
         mock_popen.assert_not_called()
         stderr_fh.close.assert_called_once()
         assert "test" not in mgr._stderr_files
-        assert "test" not in mgr._http_procs
-        assert "test" not in mgr._http_pgids
+        assert "test" not in mgr._records
 
     @pytest.mark.asyncio
     async def test_popen_options_cannot_be_overridden(
@@ -373,8 +395,9 @@ class TestSubprocessSpawnCharacterization:
             assert forbidden not in kwargs
         assert kwargs["env"]["HOME"] != "/tmp/evil-home"
         assert "PYTHONPATH" not in kwargs["env"]
-        assert mgr._http_procs["test"] is proc_mock
-        assert mgr._http_pgids["test"] == 4242
+        record = mgr._records["test"]
+        assert record.process is proc_mock
+        assert record.pgid == 4242
 
     @pytest.mark.asyncio
     async def test_changed_identity_between_validation_and_spawn_aborts(
@@ -413,7 +436,7 @@ class TestHealthAndRestartTrackingCharacterization:
         self, mgr: HttpServerLifecycleManager
     ) -> None:
         cfg = _make_cfg()
-        mgr._http_procs["test"] = Mock(pid=1, poll=Mock(return_value=None))
+        mgr._records["test"] = _make_record(Mock(pid=1, poll=Mock(return_value=None)))
 
         with patch.object(
             hl_module.HealthChecker,
@@ -442,3 +465,52 @@ class TestHealthAndRestartTrackingCharacterization:
         assert "test" not in mgr._stderr_files
         assert "test" not in mgr._last_health_check
         assert mgr._stderr_log_manager.get_log_path("test") is None
+
+
+class TestRestartRefusal:
+    """REQ-005 / REQ-011: restart over a live process whose exit is not confirmed
+    raises RestartBlockedError and starts no second process on the same port."""
+
+    @pytest.mark.asyncio
+    async def test_unconfirmed_exit_blocks_restart_and_starts_nothing(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """AC-2: no start() call after an unconfirmed outcome (port-conflict prevention)."""
+        cfg = _make_cfg()
+        proc_mock = Mock(pid=9999, poll=Mock(return_value=None))
+        mgr._records["test"] = _make_record(proc_mock)
+        term = AsyncMock(return_value=TerminationOutcome.EXIT_UNCONFIRMED)
+        start = AsyncMock()
+
+        with (
+            patch.object(mgr._process_terminator, "terminate_with_timeout", term),
+            patch.object(mgr, "start", start),
+        ):
+            with pytest.raises(RestartBlockedError, match="not confirmed"):
+                await mgr.restart("test", cfg)
+
+        start.assert_not_awaited()
+        # The record stays retained so status surfaces still name the live process.
+        record = mgr._records["test"]
+        assert record.state is LifecycleState.EXIT_UNCONFIRMED
+        assert record.last_outcome is TerminationOutcome.EXIT_UNCONFIRMED
+
+    @pytest.mark.asyncio
+    async def test_confirmed_exit_releases_record_and_restarts(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """Ownership rule in the restart path: release only on a confirmed exit."""
+        cfg = _make_cfg()
+        proc_mock = Mock(pid=9999, poll=Mock(return_value=None))
+        mgr._records["test"] = _make_record(proc_mock)
+        term = AsyncMock(return_value=TerminationOutcome.EXITED)
+        start = AsyncMock()
+
+        with (
+            patch.object(mgr._process_terminator, "terminate_with_timeout", term),
+            patch.object(mgr, "start", start),
+        ):
+            await mgr.restart("test", cfg)
+
+        start.assert_awaited_once_with("test", cfg)
+        assert "test" not in mgr._records

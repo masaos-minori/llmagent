@@ -446,6 +446,28 @@ entries:
   signature: class TerminationOutcome
   summary: What one MCP server termination attempt proved about the process.
 - file: scripts/agent/http_lifecycle_errors.py
+  kind: class
+  name: ShutdownSuppressedError
+  signature: class ShutdownSuppressedError
+  summary: Base for non-retryable lifecycle refusals issued while shutting down.
+- file: scripts/agent/http_lifecycle_errors.py
+  kind: class
+  name: EnsureSuppressedError
+  signature: class EnsureSuppressedError
+  summary: 'Non-retryable: ensure_ready() refused because the lifecycle is shutting
+    down.'
+- file: scripts/agent/http_lifecycle_errors.py
+  kind: class
+  name: RestartSuppressedError
+  signature: class RestartSuppressedError
+  summary: 'Non-retryable: restart() refused because the lifecycle is shutting down.'
+- file: scripts/agent/http_lifecycle_errors.py
+  kind: class
+  name: RestartBlockedError
+  signature: class RestartBlockedError
+  summary: 'Non-retryable: restart() refused over an unconfirmed old exit; the record
+    is retained.'
+- file: scripts/agent/http_lifecycle_errors.py
   kind: function
   name: termination_step_outcome
   signature: def termination_step_outcome(outcomes, *, other_failures) -> ShutdownOutcome
@@ -471,6 +493,11 @@ entries:
   name: build_child_env
   signature: def build_child_env(server_key, cfg) -> dict[str, str]
   summary: Build one server's minimal child environment.
+- file: scripts/agent/http_lifecycle_process_record.py
+  kind: class
+  name: ManagedProcessRecord
+  signature: class ManagedProcessRecord
+  summary: Per-server process record; outcome and state update in place.
 - file: scripts/agent/http_lifecycle_process_terminator.py
   kind: class
   name: ProcessTerminator

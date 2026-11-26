@@ -8,6 +8,7 @@ import os
 
 os.environ["PYTHONPATH"] = "."
 
+import logging
 import signal
 import sys
 import time
@@ -23,7 +24,13 @@ from agent.http_lifecycle import (
     HttpStartupError,
     StartupFailure,
 )
-from agent.http_lifecycle_errors import TerminationOutcome
+from agent.http_lifecycle_errors import (
+    EnsureSuppressedError,
+    RestartBlockedError,
+    RestartSuppressedError,
+    TerminationOutcome,
+)
+from agent.http_lifecycle_process_record import ManagedProcessRecord
 from agent.http_lifecycle_process_terminator import ProcessTerminator
 from agent.http_lifecycle_stderr_log_manager import StderrLogManager
 from agent.lifecycle import LifecycleState, assert_valid_transition
@@ -70,6 +77,21 @@ def _make_mock_proc(exit_code: int | None = None, pid: int = 999999) -> MagicMoc
     mock_proc.pid = pid
     mock_proc.stderr = None
     return mock_proc
+
+
+def _make_record(
+    proc: MagicMock,
+    pgid: int | None = None,
+    state: LifecycleState = LifecycleState.RUNNING,
+) -> ManagedProcessRecord:
+    """Build a ManagedProcessRecord around a mock process (record-registry fixture)."""
+    return ManagedProcessRecord(
+        process=proc,  # type: ignore[arg-type] — MagicMock stands in for subprocess.Popen
+        pid=proc.pid,
+        pgid=pgid,
+        stderr_log=None,
+        state=state,
+    )
 
 
 def _http_cfg(url: str = _TEST_HTTP_URL) -> McpServerConfig:
@@ -155,7 +177,7 @@ class TestEnsureReadySubprocess:
         cfg = _http_subprocess_cfg()
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"srv": cfg}, ex)
-        mgr._subprocess_mgr._http_mgr._http_procs["srv"] = proc
+        mgr._subprocess_mgr._http_mgr._records["srv"] = _make_record(proc)
 
         with (
             patch(
@@ -180,7 +202,7 @@ class TestEnsureReadySubprocess:
         mgr = _ServerLifecycleRouter({"srv": cfg}, ex)
         mock_mgr = _AsyncMock()
         mock_mgr.verify_running = MagicMock(return_value=False)
-        mock_mgr._http_procs = {}
+        mock_mgr._records = {}
         mgr._subprocess_mgr._http_mgr = mock_mgr
         await mgr.ensure_ready("srv")
         mock_mgr.start.assert_awaited_once()
@@ -217,7 +239,7 @@ class TestStartHttpSubprocess:
             _wire_http_client(MockClient, status_code=200)
             await mgr.start_http_subprocess("s", cfg)
 
-        assert mgr._subprocess_mgr._http_mgr._http_procs["s"] is mock_proc
+        assert mgr._subprocess_mgr._http_mgr._records["s"].process is mock_proc
 
     @pytest.mark.asyncio
     async def test_reuses_alive_proc(self) -> None:
@@ -226,7 +248,7 @@ class TestStartHttpSubprocess:
         mgr = _ServerLifecycleRouter({"s": cfg}, ex)
         existing = MagicMock()
         existing.poll.return_value = None
-        mgr._subprocess_mgr._http_mgr._http_procs["s"] = existing
+        mgr._subprocess_mgr._http_mgr._records["s"] = _make_record(existing)
 
         with patch("agent.http_lifecycle.subprocess.Popen") as mock_popen:
             await mgr.start_http_subprocess("s", cfg)
@@ -463,7 +485,7 @@ class TestStartHttpSubprocess:
                 await mgr.start_http_subprocess("s", cfg)
 
     @pytest.mark.asyncio
-    async def test_getpgid_failure_cleans_up_resources(self) -> None:
+    async def test_getpgid_failure_releases_stderr_and_retains_record(self) -> None:
         cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL)
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex)
@@ -485,24 +507,27 @@ class TestStartHttpSubprocess:
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start_http_subprocess("s", cfg)
 
-        assert "s" not in mgr._subprocess_mgr._http_mgr._http_procs
-        assert "s" not in mgr._subprocess_mgr._http_mgr._http_pgids
+        # No pgid to probe: the no-pgid fallback cannot observe the exit, so the
+        # record stays retained with its outcome while stderr is always released
+        # (REQ-002).
+        record = mgr._subprocess_mgr._http_mgr._records["s"]
+        assert record.last_outcome is TerminationOutcome.EXIT_UNCONFIRMED
         assert "s" not in mgr._subprocess_mgr._http_mgr._stderr_files
         assert (
             mgr._subprocess_mgr._http_mgr._stderr_log_manager.get_log_path("s") is None
         )
         mock_proc.terminate.assert_called_once()
 
-    async def test_getpgid_failure_escalates_to_kill_on_non_exit(self) -> None:
-        """When terminate doesn't cause exit within timeout, kill() should be called."""
+    async def test_getpgid_failure_undeliverable_signal_retains_record(self) -> None:
+        """No pgid and terminate() itself fails: SIGNAL_NOT_DELIVERED, record retained."""
         cfg = _http_subprocess_cfg(url=_TEST_HTTP_URL)
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter({"s": cfg}, ex)
 
         mock_proc = _make_mock_proc()
-        # poll() always returns None — process never exits, forcing kill escalation
+        # poll() always returns None — process never exits; terminate() fails outright.
         mock_proc.poll.return_value = None
-        mock_proc.kill.return_value = None
+        mock_proc.terminate.side_effect = OSError("cannot terminate")
 
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
@@ -515,8 +540,8 @@ class TestStartHttpSubprocess:
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start_http_subprocess("s", cfg)
 
-        assert "s" not in mgr._subprocess_mgr._http_mgr._http_procs
-        assert "s" not in mgr._subprocess_mgr._http_mgr._http_pgids
+        record = mgr._subprocess_mgr._http_mgr._records["s"]
+        assert record.last_outcome is TerminationOutcome.SIGNAL_NOT_DELIVERED
         assert "s" not in mgr._subprocess_mgr._http_mgr._stderr_files
         assert (
             mgr._subprocess_mgr._http_mgr._stderr_log_manager.get_log_path("s") is None
@@ -535,12 +560,13 @@ class TestRestart:
 
 
 class TestHttpManagerRestart:
-    """HttpServerLifecycleManager.restart() must keep the pgid available to
-    _process_terminator.terminate_with_timeout — popping it first would force a proc.pid fallback
-    even when the recorded pgid differs (e.g. start_new_session failed)."""
+    """HttpServerLifecycleManager.restart() keeps the process record intact until
+    the termination attempt completes: the record (with its recorded pgid) is
+    released only after a confirmed exit, and an unconfirmed exit blocks the
+    restart instead of starting a second live process (REQ-005)."""
 
     @pytest.mark.asyncio
-    async def test_restart_pgid_still_present_during_terminate(
+    async def test_restart_record_still_present_during_terminate(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
 
@@ -550,17 +576,17 @@ class TestHttpManagerRestart:
 
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=42)
-        mgr._http_procs["srv"] = proc
-        mgr._http_pgids["srv"] = 7777  # deliberately different from proc.pid
+        mgr._records["srv"] = _make_record(
+            proc, pgid=7777
+        )  # pgid differs from proc.pid
 
         seen_pgid: dict[str, int] = {}
         seen_timeout: dict[str, float] = {}
-        orig_get = mgr._http_pgids.get
 
         async def fake_terminate(
             p: object, key: str, timeout: float
         ) -> TerminationOutcome:
-            seen_pgid[key] = orig_get(key, -1)
+            seen_pgid[key] = mgr._records[key].pgid or -1
             seen_timeout[key] = timeout
             return TerminationOutcome.EXITED
 
@@ -578,15 +604,16 @@ class TestHttpManagerRestart:
 
         assert seen_pgid["srv"] == 7777
         assert seen_timeout["srv"] == TERMINATE_TIMEOUT_SEC  # stated, not defaulted
-        assert "srv" not in mgr._http_pgids  # popped only after terminate completes
+        assert "srv" not in mgr._records  # released only after terminate completes
 
     @pytest.mark.asyncio
-    async def test_restart_logs_an_unconfirmed_exit_and_still_restarts(
+    async def test_restart_unconfirmed_exit_blocks_restart(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog
     ) -> None:
+        """REQ-005, AC-2: an unconfirmed exit retains the record and blocks the restart."""
         _patch_open_to_tmp(monkeypatch, tmp_path)
         mgr = HttpServerLifecycleManager()
-        mgr._http_procs["srv"] = _make_running_proc(pid=42)
+        mgr._records["srv"] = _make_record(_make_running_proc(pid=42))
         monkeypatch.setattr(
             mgr._process_terminator,
             "terminate_with_timeout",
@@ -595,22 +622,26 @@ class TestHttpManagerRestart:
         start = AsyncMock()
         monkeypatch.setattr(mgr, "start", start)
 
-        await mgr.restart("srv", _make_test_cfg(cmd=["python", "-c", "pass"]))
+        with pytest.raises(RestartBlockedError):
+            await mgr.restart("srv", _make_test_cfg(cmd=["python", "-c", "pass"]))
 
         assert "not confirmed stopped before restart" in caplog.text
         assert "pid=42" in caplog.text
-        start.assert_awaited_once()
+        start.assert_not_awaited()
+        record = mgr._records["srv"]
+        assert record.state is LifecycleState.EXIT_UNCONFIRMED
+        assert record.last_outcome is TerminationOutcome.EXIT_UNCONFIRMED
 
 
 class TestShutdownAll:
     @pytest.mark.asyncio
-    async def test_shutdown_terminates_http_procs(self) -> None:
+    async def test_shutdown_terminates_managed_process(self) -> None:
         proc = MagicMock()
         proc.poll.return_value = None  # running
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex)
-        mgr._subprocess_mgr._http_mgr._http_procs["srv"] = proc
+        mgr._subprocess_mgr._http_mgr._records["srv"] = _make_record(proc)
         await mgr.shutdown_all()
         proc.terminate.assert_called_once()
         proc.wait.assert_not_called()
@@ -622,7 +653,7 @@ class TestShutdownAll:
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex)
-        mgr._subprocess_mgr._http_mgr._http_procs["srv"] = proc
+        mgr._subprocess_mgr._http_mgr._records["srv"] = _make_record(proc)
         await mgr.shutdown_all()
         proc.terminate.assert_not_called()
 
@@ -645,7 +676,7 @@ class TestShutdownAll:
         configs: dict[str, McpServerConfig] = {}
         ex = _mock_tool_executor()
         mgr = _ServerLifecycleRouter(configs, ex)
-        mgr._subprocess_mgr._http_mgr._http_procs["srv"] = proc
+        mgr._subprocess_mgr._http_mgr._records["srv"] = _make_record(proc)
         # Must not propagate the exception
         await mgr.shutdown_all()
 
@@ -681,6 +712,11 @@ class TestLifecycleState:
         assert LifecycleState.STOPPED.value == "stopped"
         assert LifecycleState.FAILED.value == "failed"
         assert LifecycleState.UNKNOWN.value == "unknown"
+
+    def test_shutdown_outcome_state_values(self) -> None:
+        assert LifecycleState.STOPPING.value == "stopping"
+        assert LifecycleState.EXIT_UNCONFIRMED.value == "exit_unconfirmed"
+        assert LifecycleState.SIGNAL_NOT_DELIVERED.value == "signal_not_delivered"
 
     def test_get_transport_state_unknown_server(self) -> None:
         mgr = _ServerLifecycleRouter({}, _mock_tool_executor())
@@ -718,6 +754,42 @@ class TestAssertValidTransition:
         assert_valid_transition(LifecycleState.FAILED, LifecycleState.STARTING)
         assert_valid_transition(LifecycleState.STOPPED, LifecycleState.FAILED)
         assert_valid_transition(LifecycleState.RUNNING, LifecycleState.STOPPED)
+
+    def test_shutdown_outcome_transitions_are_valid(self) -> None:
+        assert_valid_transition(LifecycleState.RUNNING, LifecycleState.STOPPING)
+        assert_valid_transition(LifecycleState.STOPPING, LifecycleState.STOPPED)
+        assert_valid_transition(
+            LifecycleState.STOPPING, LifecycleState.EXIT_UNCONFIRMED
+        )
+        assert_valid_transition(
+            LifecycleState.STOPPING, LifecycleState.SIGNAL_NOT_DELIVERED
+        )
+        assert_valid_transition(
+            LifecycleState.EXIT_UNCONFIRMED, LifecycleState.STARTING
+        )
+        assert_valid_transition(LifecycleState.EXIT_UNCONFIRMED, LifecycleState.STOPPED)
+        assert_valid_transition(
+            LifecycleState.SIGNAL_NOT_DELIVERED, LifecycleState.STARTING
+        )
+        assert_valid_transition(
+            LifecycleState.SIGNAL_NOT_DELIVERED, LifecycleState.STOPPED
+        )
+
+    def test_shutdown_outcome_invalid_transitions_raise(self) -> None:
+        invalid_pairs = [
+            (LifecycleState.STOPPED, LifecycleState.STOPPING),
+            (LifecycleState.STARTING, LifecycleState.STOPPING),
+            (LifecycleState.STOPPING, LifecycleState.RUNNING),
+            (LifecycleState.STOPPING, LifecycleState.STARTING),
+            (LifecycleState.STOPPING, LifecycleState.FAILED),
+            (LifecycleState.EXIT_UNCONFIRMED, LifecycleState.RUNNING),
+            (LifecycleState.EXIT_UNCONFIRMED, LifecycleState.STOPPING),
+            (LifecycleState.SIGNAL_NOT_DELIVERED, LifecycleState.RUNNING),
+            (LifecycleState.SIGNAL_NOT_DELIVERED, LifecycleState.STOPPING),
+        ]
+        for from_state, to_state in invalid_pairs:
+            with pytest.raises(ValueError):
+                assert_valid_transition(from_state, to_state)
 
     def test_transition_from_unknown_never_raises(self) -> None:
         for target in LifecycleState:
@@ -882,7 +954,7 @@ class TestHttpLifecycleStderrLog:
         _patch_open_to_tmp(monkeypatch, tmp_path)
         mgr = HttpServerLifecycleManager()
         mock_proc = _make_mock_proc(exit_code=None)
-        mgr._http_procs["srv"] = mock_proc
+        mgr._records["srv"] = _make_record(mock_proc)
         fh = (tmp_path / "srv.stderr.log").open("ab")
         mgr._stderr_files["srv"] = fh
         mgr._stderr_log_manager._log_paths["srv"] = str(tmp_path / "srv.stderr.log")
@@ -892,47 +964,52 @@ class TestHttpLifecycleStderrLog:
 
         monkeypatch.setattr(mgr, "start", fake_start)
         monkeypatch.setattr(
-            mgr._process_terminator, "terminate_with_timeout", AsyncMock()
+            mgr._process_terminator,
+            "terminate_with_timeout",
+            AsyncMock(return_value=TerminationOutcome.EXITED),
         )
         await mgr.restart("srv", _make_test_cfg())
         assert fh.closed
         assert "srv" not in mgr._stderr_files
+        assert "srv" not in mgr._records
 
 
 # ── H-7: shutdown_all() cleanup ──────────────────────────────────────────────
 
 
 class TestShutdownAllCleanup:
-    """shutdown_all() pops all _http_procs entries and handles edge cases."""
+    """shutdown_all() releases process records only when their exit is confirmed."""
 
     @pytest.mark.asyncio
-    async def test_shutdown_all_clears_http_procs(self) -> None:
+    async def test_shutdown_all_releases_confirmed_records(self) -> None:
         mgr = HttpServerLifecycleManager()
-        mgr._http_procs["srv1"] = _make_mock_proc(exit_code=None)
-        mgr._http_procs["srv2"] = _make_mock_proc(exit_code=None)
-        mgr._process_terminator.terminate_with_timeout = AsyncMock()
+        mgr._records["srv1"] = _make_record(_make_mock_proc(exit_code=None))
+        mgr._records["srv2"] = _make_record(_make_mock_proc(exit_code=None))
+        mgr._process_terminator.terminate_with_timeout = AsyncMock(
+            return_value=TerminationOutcome.EXITED
+        )
 
         await mgr.shutdown_all()
 
-        assert len(mgr._http_procs) == 0
+        assert len(mgr._records) == 0
         assert len(mgr._stderr_files) == 0
 
     @pytest.mark.asyncio
     async def test_shutdown_all_removes_exited_proc_without_terminate(self) -> None:
         mgr = HttpServerLifecycleManager()
-        mgr._http_procs["exited"] = _make_mock_proc(exit_code=0)
+        mgr._records["exited"] = _make_record(_make_mock_proc(exit_code=0))
         mgr._process_terminator.terminate_with_timeout = AsyncMock()
 
         await mgr.shutdown_all()
 
-        assert len(mgr._http_procs) == 0
+        assert len(mgr._records) == 0
         mgr._process_terminator.terminate_with_timeout.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_shutdown_all_continues_after_terminate_error(self) -> None:
         mgr = HttpServerLifecycleManager()
-        mgr._http_procs["srv1"] = _make_mock_proc(exit_code=None)
-        mgr._http_procs["srv2"] = _make_mock_proc(exit_code=None)
+        mgr._records["srv1"] = _make_record(_make_mock_proc(exit_code=None))
+        mgr._records["srv2"] = _make_record(_make_mock_proc(exit_code=None))
 
         call_count = 0
 
@@ -952,7 +1029,10 @@ class TestShutdownAllCleanup:
         ):
             unconfirmed = await mgr.shutdown_all()
 
-        assert len(mgr._http_procs) == 0
+        # srv1's exit was never proved: its record stays retained (REQ-002, REQ-003).
+        assert "srv1" in mgr._records
+        assert mgr._records["srv1"].last_outcome is TerminationOutcome.EXIT_UNCONFIRMED
+        assert "srv2" not in mgr._records
         assert call_count == 2
         assert unconfirmed == [("srv1", TerminationOutcome.EXIT_UNCONFIRMED)]
 
@@ -962,7 +1042,7 @@ class TestShutdownAllCleanup:
         from agent.shutdown_budget import ShutdownBudget
 
         mgr = HttpServerLifecycleManager()
-        mgr._http_procs["srv"] = _make_mock_proc(exit_code=None)
+        mgr._records["srv"] = _make_record(_make_mock_proc(exit_code=None))
         budget = ShutdownBudget(total_seconds=15.0)
         budget.arm()
         term = AsyncMock(return_value=TerminationOutcome.EXITED)
@@ -979,19 +1059,21 @@ class TestShutdownAllCleanup:
     @pytest.mark.asyncio
     async def test_shutdown_all_twice_is_safe(self) -> None:
         mgr = HttpServerLifecycleManager()
-        mgr._http_procs["srv"] = _make_mock_proc(exit_code=None)
-        mgr._process_terminator.terminate_with_timeout = AsyncMock()
+        mgr._records["srv"] = _make_record(_make_mock_proc(exit_code=None))
+        mgr._process_terminator.terminate_with_timeout = AsyncMock(
+            return_value=TerminationOutcome.EXITED
+        )
 
         await mgr.shutdown_all()
         await mgr.shutdown_all()
 
-        assert len(mgr._http_procs) == 0
+        assert len(mgr._records) == 0
 
     @pytest.mark.asyncio
     async def test_shutdown_all_survives_second_sigint(self) -> None:
         mgr = HttpServerLifecycleManager()
-        mgr._http_procs["srv1"] = _make_mock_proc(exit_code=None)
-        mgr._http_procs["srv2"] = _make_mock_proc(exit_code=None)
+        mgr._records["srv1"] = _make_record(_make_mock_proc(exit_code=None))
+        mgr._records["srv2"] = _make_record(_make_mock_proc(exit_code=None))
 
         original_handler = signal.getsignal(signal.SIGINT)
         call_count = 0
@@ -1019,7 +1101,7 @@ class TestShutdownAllCleanup:
         assert (
             call_count == 2
         )  # both servers still processed despite the mid-loop "interrupt"
-        assert len(mgr._http_procs) == 0
+        assert len(mgr._records) == 0
         assert signal.getsignal(signal.SIGINT) is original_handler
 
 
@@ -1053,7 +1135,6 @@ class TestProcessGroupShutdown:
         # ProcessTerminator's wait loop probes os.killpg(pgid, 0), which this
         # stub never reports as gone, so the loop runs the given timeout out.
         proc.poll = MagicMock(side_effect=lambda: 0 if killed else None)
-        mgr._http_pgids["srv"] = 42
         mgr._process_terminator = ProcessTerminator(kill_confirm_timeout_sec=0.02)
 
         outcome = await mgr._process_terminator.terminate_with_timeout(
@@ -1081,7 +1162,6 @@ class TestProcessGroupShutdown:
         # Still running until proc.terminate() (the killpg fallback) has been
         # called, then reports exited — same rationale as the test above.
         proc.poll = MagicMock(side_effect=lambda: 0 if proc.terminate.called else None)
-        mgr._http_pgids["srv"] = 42
 
         outcome = await mgr._process_terminator.terminate_with_timeout(
             proc, "srv", timeout=1.0
@@ -1110,7 +1190,6 @@ class TestProcessGroupShutdown:
                 0 if any(sig == _signal.SIGKILL for _, sig in killed) else None
             )
         )
-        mgr._http_pgids["srv"] = 55
         mgr._process_terminator = ProcessTerminator(kill_confirm_timeout_sec=0.02)
 
         outcome = await mgr._process_terminator.terminate_with_timeout(
@@ -1144,7 +1223,6 @@ class TestProcessGroupShutdown:
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=77)
         proc.poll = MagicMock(return_value=None)  # never exits
-        mgr._http_pgids["srv"] = 77
         mgr._process_terminator = ProcessTerminator(kill_confirm_timeout_sec=0.02)
 
         # Small real timeouts so this test costs ~tens of ms, not the 5.0s production default.
@@ -1172,7 +1250,6 @@ class TestProcessGroupShutdown:
 
         mgr = HttpServerLifecycleManager()
         proc = _make_mock_proc(exit_code=0)  # already exited
-        mgr._http_pgids["srv"] = 42
 
         outcome = await mgr._process_terminator.terminate_with_timeout(
             proc, "srv", timeout=1.0
@@ -1184,10 +1261,10 @@ class TestProcessGroupShutdown:
         proc.wait.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_start_populates_http_pgids(
+    async def test_start_records_pgid_in_record_before_health_poll(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """start() must record the pgid before the health poll begins.
+        """start() must record the pgid in the process record before the health poll begins.
 
         subprocess.Popen is mocked (not spawned for real): the health poll always
         times out here (no real server), and with os.killpg mocked to a no-op, a
@@ -1212,23 +1289,32 @@ class TestProcessGroupShutdown:
             side_effect=lambda: 0 if killpg_mock.called else None
         )
         mgr = HttpServerLifecycleManager()
-        cfg = _make_test_cfg(cmd=["true"], startup_timeout_sec=1)
+        cfg = _make_test_cfg(cmd=["python", "-c", "pass"], startup_timeout_sec=1)
 
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             pytest.raises(HttpStartupError),
         ):
+            seen_pgid: dict[str, object] = {}
+
+            async def _get(*args: object, **kwargs: object) -> None:
+                record = mgr._records.get("srv")
+                seen_pgid["pgid"] = record.pgid if record is not None else None
+                raise httpx.ConnectError("connect refused")
+
             client_instance = AsyncMock()
-            client_instance.get = AsyncMock(
-                side_effect=httpx.ConnectError("connect refused")
-            )
+            client_instance.get = AsyncMock(side_effect=_get)
             MockClient.return_value.__aenter__ = AsyncMock(return_value=client_instance)
             MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             await mgr.start("srv", cfg)
 
-        assert mgr._http_pgids.get("srv") is None
-        assert "srv" not in mgr._http_procs
+        assert seen_pgid["pgid"] == 9999  # the record carried the pgid during the poll
+        # The stub's killpg probe never reports the group gone: the termination is
+        # not confirmed, so the record stays retained and flagged failed_start
+        # for shutdown_all() and the next start() to re-terminate (REQ-002).
+        record = mgr._records["srv"]
+        assert record.failed_start is True
 
     @pytest.mark.asyncio
     async def test_shutdown_all_restores_sigint_handler_when_signal_signal_fails(
@@ -1261,7 +1347,9 @@ class TestProcessGroupShutdown:
             patch.object(signal, "signal", side_effect=mock_sigsig),
         ):
             mgr = HttpServerLifecycleManager()
-            mgr._http_procs["srv"] = MagicMock(poll=MagicMock(return_value=0))
+            mgr._records["srv"] = _make_record(
+                MagicMock(poll=MagicMock(return_value=0))
+            )
 
             await mgr.shutdown_all()
 
@@ -1590,3 +1678,66 @@ class TestRouterObservabilityDelegation:
         mgr._subprocess_mgr.list_processes = MagicMock(return_value=expected)
 
         assert mgr.list_processes() is expected
+
+
+# ── cliplc007: state-machine rejection and shutdown suppression ───────────────
+
+
+class TestRouterSetStateNoMutation:
+    """_set_state logs and leaves the state unchanged on a rejected transition
+    (REQ-007, AC-3): a rejected transition never mutates the tracked state."""
+
+    def _mgr(self) -> _ServerLifecycleRouter:
+        return _ServerLifecycleRouter(
+            {"s": _http_subprocess_cfg()}, _mock_tool_executor()
+        )
+
+    def test_invalid_transition_is_rejected_without_mutation(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        mgr = self._mgr()
+        mgr._states["s"] = LifecycleState.STOPPED
+
+        with caplog.at_level(logging.WARNING, logger="agent.lifecycle_router"):
+            mgr._set_state("s", LifecycleState.STOPPING)
+
+        assert any("invalid state transition" in r.message for r in caplog.records)
+        assert mgr._states["s"] is LifecycleState.STOPPED
+
+    def test_valid_transition_stores_and_logs_nothing(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        mgr = self._mgr()
+        mgr._states["s"] = LifecycleState.STOPPED
+
+        with caplog.at_level(logging.WARNING, logger="agent.lifecycle_router"):
+            mgr._set_state("s", LifecycleState.STARTING)
+
+        assert not any("invalid state transition" in r.message for r in caplog.records)
+        assert mgr._states["s"] is LifecycleState.STARTING
+
+
+class TestRouterShutdownSuppression:
+    """Shutdown guards raise typed suppression errors instead of returning
+    silently (REQ-008, AC-4)."""
+
+    def _mgr(self) -> _ServerLifecycleRouter:
+        return _ServerLifecycleRouter(
+            {"s": _http_subprocess_cfg()}, _mock_tool_executor()
+        )
+
+    @pytest.mark.asyncio
+    async def test_ensure_ready_raises_ensure_suppressed_error(self) -> None:
+        mgr = self._mgr()
+        await mgr.shutdown_all()
+
+        with pytest.raises(EnsureSuppressedError):
+            await mgr.ensure_ready("s")
+
+    @pytest.mark.asyncio
+    async def test_restart_raises_restart_suppressed_error(self) -> None:
+        mgr = self._mgr()
+        await mgr.shutdown_all()
+
+        with pytest.raises(RestartSuppressedError):
+            await mgr.restart("s")

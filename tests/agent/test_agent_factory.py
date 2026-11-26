@@ -20,6 +20,7 @@ from agent.factory import (
     build_agent_context,
     init_tracer,
 )
+from agent.http_lifecycle_errors import EnsureSuppressedError, RestartSuppressedError
 from agent.http_lifecycle_process_terminator import ProcessTerminator
 from agent.lifecycle import LifecycleState
 from agent.lifecycle_protocol import LifecycleManagerProtocol
@@ -430,7 +431,8 @@ def _make_router(
     )
     router._subprocess_mgr = subprocess_mgr
     subprocess_mgr._http_mgr = AsyncMock()
-    subprocess_mgr._http_mgr._http_procs = {}
+    subprocess_mgr._http_mgr._records = {}
+    subprocess_mgr._http_mgr.shutdown_all = AsyncMock(return_value=[])
     return router, subprocess_mgr
 
 
@@ -439,14 +441,16 @@ class TestShutdownGuard:
     async def test_shutdown_guard_blocks_restart(self) -> None:
         router, _ = _make_router()
         await router.shutdown_all()
-        await router.restart("srv")
+        with pytest.raises(RestartSuppressedError):
+            await router.restart("srv")
         router._subprocess_mgr._http_mgr.restart.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_shutdown_guard_blocks_ensure_ready(self) -> None:
         router, _ = _make_router()
         await router.shutdown_all()
-        await router.ensure_ready("srv")
+        with pytest.raises(EnsureSuppressedError):
+            await router.ensure_ready("srv")
         router._subprocess_mgr._http_mgr.start.assert_not_called()
 
     @pytest.mark.asyncio
@@ -461,7 +465,10 @@ class TestShutdownGuard:
     ) -> None:
         router, _ = _make_router()
         await router.shutdown_all()
-        with caplog.at_level(logging.WARNING, logger="agent.lifecycle_router"):
+        with (
+            caplog.at_level(logging.WARNING, logger="agent.lifecycle_router"),
+            pytest.raises(RestartSuppressedError),
+        ):
             await router.restart("srv")
         assert any("shutting down" in r.message for r in caplog.records)
         assert any(r.levelno == logging.WARNING for r in caplog.records)
@@ -487,7 +494,7 @@ def _make_router_with_mock_mgr(
     )
     mock_mgr = AsyncMock()
     mock_mgr.verify_running = MagicMock(return_value=verify_running_result)
-    mock_mgr._http_procs = {}
+    mock_mgr._records = {}
     router._subprocess_mgr._http_mgr = mock_mgr
     return router, mock_mgr
 
@@ -584,7 +591,8 @@ class TestEnsureReadyAutoStart:
     async def test_ensure_ready_respects_shutdown_guard(self) -> None:
         router, mock_mgr = _make_router_with_mock_mgr(verify_running_result=False)
         router._shutting_down = True
-        await router.ensure_ready("srv")
+        with pytest.raises(EnsureSuppressedError):
+            await router.ensure_ready("srv")
         mock_mgr.start.assert_not_called()
 
 
@@ -736,19 +744,19 @@ class TestGetSubprocessServerConfigs:
 
 
 class TestRouterInvalidTransitionLogging:
-    """_set_state logs and still stores a transition rejected by the state machine."""
+    """_set_state logs and leaves the state unchanged on a rejected transition."""
 
-    def test_set_state_logs_warning_and_stores_invalid_transition(
+    def test_set_state_logs_warning_and_keeps_state_on_invalid_transition(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
         router, _ = _make_router()
-        router._states["srv"] = LifecycleState.RUNNING
+        router._states["srv"] = LifecycleState.STOPPED
 
         with caplog.at_level(logging.WARNING, logger="agent.lifecycle_router"):
-            router._set_state("srv", LifecycleState.RUNNING)
+            router._set_state("srv", LifecycleState.STOPPING)
 
         assert any("invalid state transition" in r.message for r in caplog.records)
-        assert router._states["srv"] == LifecycleState.RUNNING
+        assert router._states["srv"] == LifecycleState.STOPPED
 
 
 class TestRouterAppUnhealthyPath:

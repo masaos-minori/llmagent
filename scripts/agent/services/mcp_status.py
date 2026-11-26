@@ -146,11 +146,23 @@ class McpStatusService:
         lifecycle_state = lifecycle.get_transport_state(key).value
         snapshot_fn = getattr(lifecycle, "get_process_snapshot", None)
         snapshot = snapshot_fn(key) if snapshot_fn is not None else None
+        # A retained record (exit not confirmed) names a live process: the row
+        # shows its outcome and asks for operator action (REQ-009, AC-1).
+        unconfirmed_state = lifecycle_state in (
+            LifecycleState.EXIT_UNCONFIRMED.value,
+            LifecycleState.SIGNAL_NOT_DELIVERED.value,
+        )
+        termination_outcome = (
+            snapshot.get("termination_outcome") if snapshot is not None else None
+        )
         restart_recommended = (
-            lifecycle_state == LifecycleState.FAILED.value
+            lifecycle_state == LifecycleState.FAILED.value or unconfirmed_state
         ) or restart_rec_http
+        operator_action_required = op_action_http or unconfirmed_state
         health_reason = body_reason
-        if not health_reason and op_action_http:
+        if not health_reason and unconfirmed_state:
+            health_reason = lifecycle_state
+        elif not health_reason and op_action_http:
             health_reason = "operator_action_required"
         elif not health_reason and restart_rec_http:
             health_reason = "restart_recommended"
@@ -187,7 +199,8 @@ class McpStatusService:
             last_exit_code=snapshot.get("last_exit_code") if snapshot else None,
             lifecycle_state=lifecycle_state,
             restart_recommended=restart_recommended,
-            operator_action_required=op_action_http,
+            operator_action_required=operator_action_required,
+            last_shutdown_result=termination_outcome or "",
             health_reason=health_reason,
             reachable=reachable,
             body=raw_body,

@@ -5,6 +5,11 @@ Shutdown coordinator for graceful HTTP server lifecycle management.
 Delegates cleanup operations back to HttpServerLifecycleManager via its public
 methods (cleanup_server_key, clear_all_health_checks, process_terminator).
 
+A server record is released only when its exit is confirmed (REQ-002, REQ-003):
+nothing is removed before the termination attempt, an unconfirmed server keeps
+its record, and the next shutdown_all() re-terminates the retained records
+inside the same budget semantics (REQ-010).
+
 When a shutdown budget is supplied (REQ-010):
 
   - every per-server wait is clamped to ``budget.remaining()``, so the lifecycle
@@ -20,11 +25,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import signal
-import subprocess
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
+
+from agent.lifecycle import LifecycleState
 
 from .http_lifecycle_errors import TerminationOutcome
 from .http_lifecycle_process_terminator import ProcessTerminator
@@ -33,25 +38,13 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from agent.http_lifecycle import HttpServerLifecycleManager
+    from agent.http_lifecycle_process_record import ManagedProcessRecord
     from agent.shutdown_budget import ShutdownBudget
 
 # Fallback bound on the SIGTERM wait of the shutdown path (shutdown_all) when no
 # budget is supplied; the post-SIGKILL confirmation window is owned by
 # ProcessTerminator. With a budget the bound is min(this, budget.remaining()).
 _SHUTDOWN_TIMEOUT_SEC = 30.0
-
-
-def _get_pgid(proc: subprocess.Popen[bytes]) -> int | None:
-    """Return the process-group ID of *proc*, or ``None``."""
-    pgid: int | None = getattr(proc, "pgid", None)
-    if pgid is not None:
-        return pgid
-    try:
-        pgid = os.getpgid(proc.pid)
-        assert isinstance(pgid, int)
-        return pgid
-    except OSError:
-        return None
 
 
 def _absorb_sigint_during_shutdown(signum: int, frame: object) -> None:
@@ -107,20 +100,23 @@ class ShutdownCoordinator:
         manager: HttpServerLifecycleManager,
         terminator: ProcessTerminator,
         server_key: str,
-        proc: subprocess.Popen[bytes],
+        record: ManagedProcessRecord,
         terminate_kwargs: dict[str, Any],
     ) -> TerminationOutcome:
-        """Terminate one server and settle its tracking; return what was proved.
+        """Terminate one server and settle its record; return what was proved.
 
-        The process entry was already removed by shutdown_all so the same shutdown is
-        never attempted twice. Only a confirmed exit clears the remaining tracking; an
-        unconfirmed one keeps the pgid and stderr-log tracking for manual cleanup.
+        The record stays in the registry until its exit is confirmed: nothing is
+        removed before the attempt, so a retained record stays visible to status
+        surfaces and is re-terminated by the next shutdown_all(). Only a
+        confirmed outcome releases the record; an unconfirmed one keeps the pgid
+        and stderr-log tracking for manual cleanup.
         """
         logger.info("Shutting down %s...", server_key)
-        pid = getattr(proc, "pid", None)
+        record.state = LifecycleState.STOPPING
+        pid = record.pid
         try:
             outcome = await terminator.terminate_with_timeout(
-                proc, server_key, **terminate_kwargs
+                record.process, server_key, **terminate_kwargs
             )
         except OSError as e:
             logger.error(
@@ -130,11 +126,12 @@ class ShutdownCoordinator:
                 pid,
                 e,
             )
+            record.settle(TerminationOutcome.EXIT_UNCONFIRMED)
             return TerminationOutcome.EXIT_UNCONFIRMED
-        if outcome.confirmed:
+        if record.settle(outcome):
             manager.cleanup_server_key(server_key)
             return outcome
-        pgid = _get_pgid(proc)
+        pgid = record.pgid
         logger.error(
             "Lifecycle: %r pid=%s pgid=%s not confirmed stopped (%s); pgid and "
             "stderr-log tracking retained, stop it manually with: kill -TERM -%s",
@@ -156,9 +153,12 @@ class ShutdownCoordinator:
     ) -> list[tuple[str, TerminationOutcome]]:
         """Gracefully shut down every managed server.
 
-        Iterates over all entries in ``manager._http_procs``, delegates termination
-        to ``ProcessTerminator.terminate_with_timeout`` for each process, then
-        delegates cleanup back to the manager's public methods.
+        Iterates over all records from ``manager.iter_records()`` — including
+        records retained by an earlier unconfirmed shutdown — delegates
+        termination to ``ProcessTerminator.terminate_with_timeout`` for each
+        process, and releases a record only when its exit is confirmed. A
+        repeated shutdown_all() therefore re-terminates the retained records
+        within the same budget and interrupt semantics (REQ-010).
 
         Args:
             manager: The lifecycle manager owning the processes.
@@ -203,27 +203,24 @@ class ShutdownCoordinator:
             }
             if fields:
                 terminate_kwargs.update(fields)
-            running: list[tuple[str, subprocess.Popen[bytes]]] = []
-            for server_key, proc in list(manager.iter_processes()):
-                if proc is None:
-                    continue
-                # Pop before termination to avoid double-shutdown if terminated fails
-                manager.remove_process_entry(server_key)
-                if proc.poll() is not None:
+            running: list[tuple[str, ManagedProcessRecord]] = []
+            for server_key, record in list(manager.iter_records()):
+                if record.process.poll() is not None:
                     logger.debug(
                         "Lifecycle: %r already exited; removing entry", server_key
                     )
+                    record.settle(TerminationOutcome.ALREADY_EXITED)
                     manager.cleanup_server_key(server_key)
                     continue
-                running.append((server_key, proc))
+                running.append((server_key, record))
             # Terminate together so total time is bounded by one timeout and every
             # server is signalled before any wait begins.
             outcomes = await asyncio.gather(
                 *(
                     ShutdownCoordinator._terminate_one(
-                        manager, terminator, server_key, proc, terminate_kwargs
+                        manager, terminator, server_key, record, terminate_kwargs
                     )
-                    for server_key, proc in running
+                    for server_key, record in running
                 )
             )
             manager.clear_all_health_checks()

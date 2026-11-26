@@ -138,9 +138,9 @@ Dispatches built-in commands.
 
 ##### LifecycleState (`agent/lifecycle.py`)
 
-An enum representing transport state (`STARTING`, `RUNNING`, `STOPPED`, `FAILED`, `UNKNOWN`) shared among lifecycle managers.
+An enum representing transport state (`STARTING`, `RUNNING`, `STOPPING`, `STOPPED`, `EXIT_UNCONFIRMED`, `SIGNAL_NOT_DELIVERED`, `FAILED`, `UNKNOWN`) shared among lifecycle managers. `STOPPING` marks a termination in progress; `EXIT_UNCONFIRMED` and `SIGNAL_NOT_DELIVERED` mark an attempt that proved no exit and keep the process tracked.
 
-Valid transitions: `STOPPED → STARTING/FAILED`, `STARTING → RUNNING/FAILED/STOPPED`, `RUNNING → STOPPED/FAILED/STARTING`, `FAILED → STARTING/STOPPED`, `UNKNOWN → any`.
+Valid transitions: `STOPPED → STARTING/FAILED/STOPPED`, `STARTING → RUNNING/FAILED/STOPPED/EXIT_UNCONFIRMED/SIGNAL_NOT_DELIVERED`, `RUNNING → STOPPED/FAILED/STARTING/STOPPING`, `STOPPING → STOPPED/EXIT_UNCONFIRMED/SIGNAL_NOT_DELIVERED`, `EXIT_UNCONFIRMED → STARTING/STOPPED`, `SIGNAL_NOT_DELIVERED → STARTING/STOPPED`, `FAILED → STARTING/STOPPED`, `UNKNOWN → any`. An invalid transition is rejected by the router with a log line and no state mutation.
 
 ##### AgentSession (`agent/session.py`)
 
@@ -170,7 +170,9 @@ Service checks accumulate results in `StartupValidationResult`, and startup is a
 
 `LifecycleManagerProtocol` (structural subtyping) is the lifecycle contract. The production implementation is `_ServerLifecycleRouter` in `agent/lifecycle_router.py` (constructed by `agent/factory.py`); HTTP subprocess startup, health polling, restart, and termination are delegated to `agent/http_lifecycle.py`.
 
-Once shutdown has started, `ensure_ready` and `restart` are ignored, and `start_http_subprocess` raises a typed suppression error instead of returning silently.
+Each managed HTTP subprocess is owned by exactly one `ManagedProcessRecord` (`agent/http_lifecycle_process_record.py`): process handle, pid, pgid, stderr log, lifecycle state, last termination outcome, and a failed-start flag. A record is released only when the exit is confirmed; shutdown and restart follow per-server outcomes — an unconfirmed server keeps its record, is re-terminated by the next shutdown pass, and refuses restart until its exit is confirmed. See [Process Ownership](../22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md) for the full state semantics and the manual-cleanup path.
+
+Once shutdown has started, `ensure_ready` and `restart` raise typed suppression errors (`EnsureSuppressedError`, `RestartSuppressedError`), and `start_http_subprocess` raises `StartSuppressedError` instead of returning silently.
 
 A failed HTTP subprocess start is recorded in router state per server key. While the cooldown window after that failure is open, `ensure_ready` raises `ServerCooldownError` reporting the remaining cooldown, and a manual `restart` is ignored until the window elapses; a successful start clears the recorded failure. Rejections are surfaced in operations: [agent_10_05](agent_10_05_operations-and-observability-monitoring.md) Troubleshooting.
 

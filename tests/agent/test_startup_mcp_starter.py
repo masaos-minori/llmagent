@@ -265,6 +265,8 @@ def _real_router_ctx(failures):
     import subprocess
     from unittest.mock import AsyncMock, MagicMock
 
+    from agent.http_lifecycle_process_record import ManagedProcessRecord
+    from agent.lifecycle import LifecycleState
     from agent.lifecycle_router import _ServerLifecycleRouter
     from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
@@ -277,9 +279,16 @@ def _real_router_ctx(failures):
     )
     router = _ServerLifecycleRouter({"srv": cfg}, MagicMock())
     fake_http_mgr = AsyncMock()
-    fake_http_mgr._http_procs = {}
+    fake_http_mgr._records = {}
     proc = MagicMock(spec=subprocess.Popen)
-    fake_http_mgr._http_procs["srv"] = proc
+    record = ManagedProcessRecord(
+        process=proc,
+        pid=12345,
+        pgid=12345,
+        stderr_log=None,
+        state=LifecycleState.RUNNING,
+    )
+    fake_http_mgr._records["srv"] = record
     router._subprocess_mgr._http_mgr = fake_http_mgr
 
     state = {"n": 0}
@@ -288,7 +297,7 @@ def _real_router_ctx(failures):
         state["n"] += 1
         if state["n"] <= len(failures):
             raise failures[state["n"] - 1]
-        fake_http_mgr._http_procs[server_key] = proc
+        fake_http_mgr._records[server_key] = record
         return None
 
     fake_http_mgr.start = AsyncMock(side_effect=_start)

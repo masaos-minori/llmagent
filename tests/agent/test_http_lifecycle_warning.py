@@ -85,16 +85,17 @@ async def test_terminate_warning_when_no_pgid():
 
 @pytest.mark.asyncio
 async def test_terminate_warning_when_killpg_fails():
-    """Unit test: Verify warning is logged when os.killpg fails and terminate succeeds."""
+    """Unit test: Verify the SIGTERM-group failure warning and the proc.terminate() fallback."""
     mgr = HttpServerLifecycleManager()
     proc_mock = Mock(spec=subprocess.Popen)
     proc_mock.poll.return_value = None
+    proc_mock.pid = 4242
 
     capture = _attach()
 
     try:
         with (
-            patch.object(mgr, "_http_pgids", {"test-server": 1234}),
+            patch.object(os, "getpgid", return_value=1234),
             patch.object(os, "killpg", side_effect=OSError("No such process")),
         ):
             outcome = await mgr._process_terminator.terminate_with_timeout(
@@ -102,7 +103,11 @@ async def test_terminate_warning_when_killpg_fails():
             )
 
         assert outcome is TerminationOutcome.EXIT_UNCONFIRMED
-        _assert_unconfirmed_termination_line(capture, "test-server")
+        matched = [w for w in capture.warnings() if "os.killpg(SIGTERM) failed" in w]
+        assert len(matched) == 1, "expected exactly one killpg-failure warning"
+        assert "pid=4242" in matched[0]
+        assert "pgid=1234" in matched[0]
+        assert not capture.at_error_or_worse(), "the cleanup line must stay non-fatal"
     finally:
         logging.getLogger(_TERMINATOR_LOGGER).removeHandler(capture)
 

@@ -20,7 +20,12 @@ from shared.tool_executor import ToolExecutor
 from shared.tool_lifecycle import ServerCooldownError
 
 from agent.http_lifecycle import HttpServerLifecycleManager
-from agent.http_lifecycle_errors import TerminationOutcome
+from agent.http_lifecycle_errors import (
+    EnsureSuppressedError,
+    RestartBlockedError,
+    RestartSuppressedError,
+    TerminationOutcome,
+)
 from agent.http_lifecycle_process_terminator import ProcessTerminator
 from agent.lifecycle import LifecycleState, assert_valid_transition
 from agent.lifecycle_protocol import LifecycleManagerProtocol
@@ -40,6 +45,20 @@ def _is_http_subprocess_server(cfg: McpServerConfig) -> bool:
     return cfg.transport == TransportType.HTTP and (
         cfg.startup_mode == StartupMode.SUBPROCESS
     )
+
+
+def _shutdown_state_for_outcome(outcome: TerminationOutcome | None) -> LifecycleState:
+    """Map one shutdown outcome to the post-shutdown lifecycle state (REQ-006).
+
+    ``None`` means the coordinator confirmed the exit (it reports only
+    unconfirmed servers): the state is STOPPED. An unconfirmed outcome names
+    the retained process.
+    """
+    if outcome is TerminationOutcome.SIGNAL_NOT_DELIVERED:
+        return LifecycleState.SIGNAL_NOT_DELIVERED
+    if outcome is TerminationOutcome.EXIT_UNCONFIRMED:
+        return LifecycleState.EXIT_UNCONFIRMED
+    return LifecycleState.STOPPED
 
 
 class StartSuppressedError(RuntimeError):
@@ -118,7 +137,8 @@ class _SubprocessLifecycleManager(LifecycleManagerProtocol):
     ) -> subprocess.Popen[bytes] | None:
         """Start a single HTTP subprocess MCP server; returns the Popen object or None."""
         await self._http_mgr.start(server_key, cfg, shutdown_event=shutdown_event)
-        return self._http_mgr._http_procs.get(server_key)
+        record = self._http_mgr._records.get(server_key)
+        return record.process if record is not None else None
 
     def get_process_snapshot(self, server_key: str) -> dict | None:
         """Return process snapshot dict for a managed subprocess server, or None."""
@@ -187,12 +207,15 @@ class _ServerLifecycleRouter:
         try:
             assert_valid_transition(current, new_state)
         except ValueError:
+            # Reject without mutating: the state stays at *current* and the warning
+            # is the observable signal (REQ-007, AC-3).
             _logger.warning(
-                "Lifecycle: invalid state transition %r -> %r for %r",
+                "Lifecycle: invalid state transition %r -> %r for %r; state unchanged",
                 current,
                 new_state,
                 server_key,
             )
+            return
         self._states[server_key] = new_state
 
     async def _run_lifecycle_transition(
@@ -206,6 +229,13 @@ class _ServerLifecycleRouter:
             await op()
             self._failed_starts.pop(server_key, None)
             self._set_state(server_key, LifecycleState.RUNNING)
+        except RestartBlockedError:
+            # Restart refusal: the old process is still live with its exit
+            # unconfirmed (manager retained the record). Map to EXIT_UNCONFIRMED;
+            # cooldown handling is the same as any other failed start (Plan Design).
+            self._failed_starts[server_key] = time.monotonic()
+            self._set_state(server_key, LifecycleState.EXIT_UNCONFIRMED)
+            raise
         except Exception:
             self._failed_starts[server_key] = time.monotonic()
             self._set_state(server_key, LifecycleState.FAILED)
@@ -241,7 +271,9 @@ class _ServerLifecycleRouter:
             _logger.debug(
                 "Lifecycle: ensure_ready(%r) ignored — shutting down", server_key
             )
-            return
+            raise EnsureSuppressedError(
+                f"ensure_ready of MCP server {server_key!r} suppressed: shutting down"
+            )
         cfg = self._server_configs.get(server_key)
         if cfg is None or not _is_http_subprocess_server(cfg):
             return
@@ -275,11 +307,25 @@ class _ServerLifecycleRouter:
     async def shutdown_all(
         self, *, budget: ShutdownBudget | None = None
     ) -> list[tuple[str, TerminationOutcome]]:
-        """Shut down all managed HTTP subprocess servers within the budget."""
+        """Shut down all managed HTTP subprocess servers within the budget.
+
+        Post-shutdown state is per-server and outcome-driven (REQ-006, AC-5):
+        STOPPED only for servers whose exit was confirmed, EXIT_UNCONFIRMED or
+        SIGNAL_NOT_DELIVERED for the retained ones. STOPPED is never set globally.
+        """
         self._shutting_down = True
-        unconfirmed = await self._subprocess_mgr.shutdown_all(budget=budget)
         for key in self._server_configs:
-            self._set_state(key, LifecycleState.STOPPED)
+            if self._states.get(key) is LifecycleState.RUNNING:
+                self._set_state(key, LifecycleState.STOPPING)
+        unconfirmed = await self._subprocess_mgr.shutdown_all(budget=budget)
+        outcomes = dict(unconfirmed)
+        for key in self._server_configs:
+            target = _shutdown_state_for_outcome(outcomes.get(key))
+            if self._states.get(key) is target:
+                # Repeated shutdown with a still-unconfirmed outcome: the state
+                # already names the retained server; re-setting it is a no-op.
+                continue
+            self._set_state(key, target)
         return unconfirmed
 
     async def start_http_subprocess(
@@ -315,7 +361,9 @@ class _ServerLifecycleRouter:
             _logger.warning(
                 "Lifecycle: restart(%r) ignored — shutting down", server_key
             )
-            return
+            raise RestartSuppressedError(
+                f"restart of MCP server {server_key!r} suppressed: shutting down"
+            )
         cfg = self._server_configs.get(server_key)
         if cfg is None or cfg.startup_mode != StartupMode.SUBPROCESS:
             _logger.warning(

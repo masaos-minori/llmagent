@@ -219,7 +219,10 @@ class HealthChecker:
                             server_key
                         ).decode(errors="replace")
                         manager._raise_startup_failure_unconfirmed(
-                            server_key, "shutdown requested", stderr_full
+                            server_key,
+                            "shutdown requested",
+                            stderr_full,
+                            outcome,
                         )
 
             outcome = await _terminate_for_startup_failure(
@@ -234,7 +237,7 @@ class HealthChecker:
                     errors="replace"
                 )
                 manager._raise_startup_failure_unconfirmed(
-                    server_key, timeout_reason, stderr_full
+                    server_key, timeout_reason, stderr_full, outcome
                 )
 
     @staticmethod

@@ -5,15 +5,48 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from agent.http_lifecycle_errors import TerminationOutcome
+from agent.http_lifecycle_process_record import ManagedProcessRecord
 from agent.http_lifecycle_shutdown_coordinator import (
     _SHUTDOWN_TIMEOUT_SEC,
     ShutdownCoordinator,
 )
+from agent.lifecycle import LifecycleState
 from agent.shutdown_budget import ShutdownBudget
 
 
+def _records_manager(keys, terminate):
+    """Build a mock manager with one running record per key and a live records dict.
+
+    cleanup_server_key pops from the dict so record retention and release are
+    observable through the same dict the coordinator iterates.
+    """
+    records: dict[str, ManagedProcessRecord] = {}
+    for i, key in enumerate(keys):
+        proc = MagicMock()
+        proc.poll.return_value = None  # Process still running
+        proc.pid = 1000 + i
+        records[key] = ManagedProcessRecord(
+            process=proc,
+            pid=proc.pid,
+            pgid=proc.pid,
+            stderr_log=None,
+            state=LifecycleState.RUNNING,
+        )
+    manager = MagicMock()
+    manager.process_terminator = MagicMock()
+    manager.process_terminator.terminate_with_timeout = terminate
+    manager.cleanup_server_key = MagicMock(
+        side_effect=lambda key: records.pop(key, None)
+    )
+    manager.remove_process_entry = MagicMock()
+    manager.iter_records = MagicMock(return_value=records.items())
+    manager.clear_all_health_checks = MagicMock()
+    manager.records = records
+    return manager
+
+
 class TestShutdownCoordinatorFailureScenarios:
-    """Tests for REQ-003, REQ-004: Verify tracking entry handling on shutdown failure."""
+    """REQ-002, REQ-003: a record is released only when its exit is confirmed."""
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -23,19 +56,27 @@ class TestShutdownCoordinatorFailureScenarios:
             TerminationOutcome.SIGNAL_NOT_DELIVERED,
         ],
     )
-    async def test_unconfirmed_exit_removes_process_entry_but_keeps_other_tracking(
+    async def test_unconfirmed_exit_retains_record_and_keeps_other_tracking(
         self, outcome, caplog
     ):
-        """The process entry goes before the attempt; the rest survives a failure."""
+        """Nothing goes before the attempt; the record survives an unconfirmed one."""
         coordinator = ShutdownCoordinator()
         server_key = "test-server-key"
-        mock_manager = _multi_manager([server_key], AsyncMock(return_value=outcome))
+        manager = _records_manager([server_key], AsyncMock(return_value=outcome))
 
-        failures = await coordinator.shutdown_all(mock_manager)
+        failures = await coordinator.shutdown_all(manager)
 
-        mock_manager.remove_process_entry.assert_called_once_with(server_key)
-        mock_manager.cleanup_server_key.assert_not_called()
+        manager.remove_process_entry.assert_not_called()
+        manager.cleanup_server_key.assert_not_called()
         assert failures == [(server_key, outcome)]
+        record = manager.records[server_key]  # retained in the registry
+        expected_state = (
+            LifecycleState.SIGNAL_NOT_DELIVERED
+            if outcome is TerminationOutcome.SIGNAL_NOT_DELIVERED
+            else LifecycleState.EXIT_UNCONFIRMED
+        )
+        assert record.state is expected_state
+        assert record.last_outcome is outcome
         assert "kill -TERM -" in caplog.text
         assert "pgid and stderr-log tracking retained" in caplog.text
         assert "tracking entry" not in caplog.text
@@ -44,57 +85,123 @@ class TestShutdownCoordinatorFailureScenarios:
     async def test_termination_exception_is_reported_as_unconfirmed(self):
         """An OSError out of the terminator is an unconfirmed exit, not a success."""
         coordinator = ShutdownCoordinator()
-        mock_manager = _multi_manager(
+        manager = _records_manager(
             ["srv"], AsyncMock(side_effect=OSError("Connection refused"))
         )
 
-        failures = await coordinator.shutdown_all(mock_manager)
+        failures = await coordinator.shutdown_all(manager)
 
-        mock_manager.cleanup_server_key.assert_not_called()
+        manager.cleanup_server_key.assert_not_called()
         assert failures == [("srv", TerminationOutcome.EXIT_UNCONFIRMED)]
+        assert manager.records["srv"].state is LifecycleState.EXIT_UNCONFIRMED
 
     @pytest.mark.asyncio
-    async def test_tracking_entry_removed_on_success(self):
-        """REQ-001: Tracking entry is removed after confirmed termination."""
+    async def test_confirmed_termination_releases_the_record(self):
+        """REQ-001, REQ-002: the record is released only after a confirmed exit."""
         coordinator = ShutdownCoordinator()
         server_key = "test-server-key"
-
-        # Setup mock manager
-        mock_manager = MagicMock()
-        mock_manager.process_terminator = MagicMock()
-        mock_manager.process_terminator.terminate_with_timeout = AsyncMock(
-            return_value=TerminationOutcome.EXITED
+        manager = _records_manager(
+            [server_key], AsyncMock(return_value=TerminationOutcome.EXITED)
         )
-        mock_manager.cleanup_server_key = MagicMock()
-        mock_manager.remove_process_entry = MagicMock()
-        mock_proc = MagicMock()
-        mock_proc.poll.return_value = None  # Process still running
-        mock_manager.iter_processes = MagicMock(return_value=[(server_key, mock_proc)])
-        mock_manager.clear_all_health_checks = MagicMock()
 
-        # Attempt shutdown
-        failures = await coordinator.shutdown_all(mock_manager)
+        failures = await coordinator.shutdown_all(manager)
 
-        # Verify cleanup_server_key WAS called and nothing is reported as failed
-        mock_manager.cleanup_server_key.assert_called_once_with(server_key)
+        manager.cleanup_server_key.assert_called_once_with(server_key)
+        manager.remove_process_entry.assert_not_called()
+        assert server_key not in manager.records
+        assert failures == []
+
+    @pytest.mark.asyncio
+    async def test_no_removal_before_termination(self):
+        """REQ-003 defect pin: the record is still in the registry when termination runs."""
+        manager = _records_manager(
+            ["a"], AsyncMock(return_value=TerminationOutcome.EXITED)
+        )
+        seen_in_registry: list[bool] = []
+
+        async def terminate(proc, key, **kwargs):
+            seen_in_registry.append(key in manager.records)
+            return TerminationOutcome.EXITED
+
+        manager.process_terminator.terminate_with_timeout = terminate
+
+        await ShutdownCoordinator().shutdown_all(manager)
+
+        assert seen_in_registry == [True]
+        manager.remove_process_entry.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_already_exited_record_is_released_without_termination(self):
+        """A record whose process already exited is settled and released directly."""
+        manager = _records_manager(
+            ["a"], AsyncMock(return_value=TerminationOutcome.EXITED)
+        )
+        manager.records["a"].process.poll.return_value = 0
+
+        failures = await ShutdownCoordinator().shutdown_all(manager)
+
+        manager.process_terminator.terminate_with_timeout.assert_not_called()
+        manager.cleanup_server_key.assert_called_once_with("a")
         assert failures == []
 
 
+class TestShutdownCoordinatorRepeatedShutdown:
+    """REQ-010, AC-5: a second shutdown_all re-terminates the retained records."""
+
+    @pytest.mark.asyncio
+    async def test_repeated_shutdown_reterminates_retained_records(self):
+        """A retained unconfirmed record is terminated again by the next shutdown."""
+        coordinator = ShutdownCoordinator()
+        manager = _records_manager(
+            ["a", "b"], AsyncMock(return_value=TerminationOutcome.EXITED)
+        )
+        manager.process_terminator.terminate_with_timeout = AsyncMock(
+            side_effect=[
+                TerminationOutcome.EXITED,  # a: confirmed, released
+                TerminationOutcome.EXIT_UNCONFIRMED,  # b: unconfirmed, retained
+                TerminationOutcome.EXIT_UNCONFIRMED,  # b again: still unconfirmed
+            ]
+        )
+
+        failures = await coordinator.shutdown_all(manager)
+
+        assert failures == [("b", TerminationOutcome.EXIT_UNCONFIRMED)]
+        assert "b" in manager.records and "a" not in manager.records
+
+        second = await coordinator.shutdown_all(manager)
+
+        terminated_keys = [
+            c.args[1]
+            for c in manager.process_terminator.terminate_with_timeout.call_args_list
+        ]
+        assert terminated_keys.count("b") == 2  # re-terminated, not skipped
+        assert second == [("b", TerminationOutcome.EXIT_UNCONFIRMED)]
+        assert manager.records["b"].state is LifecycleState.EXIT_UNCONFIRMED
+
+    @pytest.mark.asyncio
+    async def test_repeated_shutdown_releases_record_on_confirmed_retermination(self):
+        """The retained record leaves the registry once the re-termination confirms."""
+        coordinator = ShutdownCoordinator()
+        manager = _records_manager(
+            ["b"], AsyncMock(return_value=TerminationOutcome.EXIT_UNCONFIRMED)
+        )
+
+        first = await coordinator.shutdown_all(manager)
+        assert first == [("b", TerminationOutcome.EXIT_UNCONFIRMED)]
+
+        manager.process_terminator.terminate_with_timeout = AsyncMock(
+            return_value=TerminationOutcome.EXITED
+        )
+        second = await coordinator.shutdown_all(manager)
+
+        assert second == []
+        assert "b" not in manager.records
+        manager.cleanup_server_key.assert_called_once_with("b")
+
+
 def _multi_manager(keys, terminate):
-    """Build a mock manager with one running mock process per key."""
-    manager = MagicMock()
-    manager.process_terminator = MagicMock()
-    manager.process_terminator.terminate_with_timeout = terminate
-    manager.cleanup_server_key = MagicMock()
-    manager.remove_process_entry = MagicMock()
-    procs = []
-    for key in keys:
-        proc = MagicMock()
-        proc.poll.return_value = None  # Process still running
-        procs.append((key, proc))
-    manager.iter_processes = MagicMock(return_value=procs)
-    manager.clear_all_health_checks = MagicMock()
-    return manager
+    """Build a mock manager with one running record per key."""
+    return _records_manager(keys, terminate)
 
 
 class TestShutdownCoordinatorBudget:
@@ -168,6 +275,8 @@ class TestShutdownCoordinatorBudget:
 
         assert windows == [0.0, 0.0, 0.0]
         assert [key for key, _ in failures] == ["a", "b", "c"]
+        # A spent budget reports every server and never waits: all records retained.
+        assert sorted(manager.records) == ["a", "b", "c"]
 
     @pytest.mark.asyncio
     async def test_sigint_during_cleanup_requests_the_budget_interrupt(self) -> None:
@@ -267,7 +376,7 @@ class TestShutdownCoordinatorConcurrency:
         assert sorted(signalled) == ["a", "b", "c"]
 
     @pytest.mark.asyncio
-    async def test_one_failing_server_keeps_only_its_own_entry(self):
+    async def test_one_failing_server_keeps_only_its_own_record(self):
         """REQ-004: a termination failure does not affect the other servers."""
 
         async def terminate(proc, key, **kwargs):
@@ -282,5 +391,5 @@ class TestShutdownCoordinatorConcurrency:
         cleaned = sorted(c.args[0] for c in manager.cleanup_server_key.call_args_list)
         assert cleaned == ["a", "c"]
         assert failures == [("b", TerminationOutcome.EXIT_UNCONFIRMED)]
-        removed = sorted(c.args[0] for c in manager.remove_process_entry.call_args_list)
-        assert removed == ["a", "b", "c"]
+        # Only the failing server keeps its record; the others are released.
+        assert sorted(manager.records) == ["b"]

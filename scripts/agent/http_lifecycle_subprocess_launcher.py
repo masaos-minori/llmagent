@@ -5,9 +5,10 @@ validation, stderr-log wiring, `Popen` construction from the immutable launch
 specification, process-group id capture, and the failure paths that release resources
 before a startup error is raised.
 
-`HttpServerLifecycleManager` keeps ownership of the tracking dicts and of the
-collaborator components; they are injected here by reference, so the extracted
-code mutates the same objects and startup behavior is unchanged.
+`HttpServerLifecycleManager` keeps ownership of the process-record registry and of the
+collaborator components; they are injected here by reference, so the extracted code
+mutates the same objects and startup behavior is unchanged. A record is inserted on a
+successful launch and released only when its exit is confirmed (REQ-001, REQ-002).
 """
 
 from __future__ import annotations
@@ -19,9 +20,12 @@ from typing import IO, NoReturn, cast
 
 from shared.mcp_config import McpServerConfig
 
+from agent.lifecycle import LifecycleState
+
 from .http_lifecycle_command_validator import CommandValidator
-from .http_lifecycle_errors import HttpStartupError, StartupFailure
+from .http_lifecycle_errors import HttpStartupError, StartupFailure, TerminationOutcome
 from .http_lifecycle_launch_spec import build_launch_spec
+from .http_lifecycle_process_record import ManagedProcessRecord
 from .http_lifecycle_process_terminator import ProcessTerminator
 from .http_lifecycle_stderr_log_manager import StderrLogManager
 
@@ -37,17 +41,15 @@ class SubprocessLauncher:
         command_validator: CommandValidator,
         stderr_log_manager: StderrLogManager,
         process_terminator: ProcessTerminator,
-        http_procs: dict[str, subprocess.Popen[bytes]],
-        http_pgids: dict[str, int],
+        records: dict[str, ManagedProcessRecord],
         stderr_files: dict[str, IO[bytes]],
         terminate_timeout_sec: float,
     ) -> None:
-        """Initialize with the manager's components and tracking dicts, held by reference."""
+        """Initialize with the manager's components and registries, held by reference."""
         self._command_validator = command_validator
         self._stderr_log_manager = stderr_log_manager
         self._process_terminator = process_terminator
-        self._http_procs = http_procs
-        self._http_pgids = http_pgids
+        self._records = records
         self._stderr_files = stderr_files
         self._terminate_timeout_sec = terminate_timeout_sec
 
@@ -125,10 +127,16 @@ class SubprocessLauncher:
             self.close_stderr_log(server_key, stderr_fh)
             raise
         try:
-            self._http_pgids[server_key] = os.getpgid(proc.pid)
+            pgid = os.getpgid(proc.pid)
         except OSError as e:
             await self.handle_getpgid_failure(server_key, proc, stderr_fh, e)
-        self._http_procs[server_key] = proc
+        self._records[server_key] = ManagedProcessRecord(
+            process=proc,
+            pid=proc.pid,
+            pgid=pgid,
+            stderr_log=stderr_fh,
+            state=LifecycleState.RUNNING,
+        )
         return proc, stderr_fh
 
     def close_stderr_log(self, server_key: str, stderr_fh: IO[bytes]) -> None:
@@ -146,26 +154,35 @@ class SubprocessLauncher:
     ) -> NoReturn:
         """Terminate a process whose pgid could not be resolved, then re-raise *error*.
 
-        The process and pgid tracking entries are removed after the termination
-        attempt whatever it proved; an exit that was not confirmed is logged as an
-        error with the pid and pgid so it can be stopped manually. Stderr resources
-        are always released regardless of the termination outcome.
+        The record (pgid None, the honest state) is registered before the termination
+        attempt and released only when the exit is confirmed; an unconfirmed outcome
+        retains the record and logs the pid so the process can be stopped manually.
+        Stderr resources are always released regardless of the termination outcome.
         """
         logger.warning(
             "Lifecycle: getpgid() failed for %r pid=%d; cleaning up",
             server_key,
             proc.pid,
         )
+        record = ManagedProcessRecord(
+            process=proc,
+            pid=proc.pid,
+            pgid=None,
+            stderr_log=stderr_fh,
+            state=LifecycleState.RUNNING,
+        )
+        self._records[server_key] = record
         try:
             outcome = await self._process_terminator.terminate_with_timeout(
                 proc, server_key, timeout=self._terminate_timeout_sec
             )
+            record.settle(outcome)
             if not outcome.confirmed:
                 logger.error(
-                    "Lifecycle: %r pid=%d pgid=%s not confirmed stopped after getpgid() failure (%s)",
+                    "Lifecycle: %r pid=%d not confirmed stopped after getpgid() failure (%s); "
+                    "process record retained",
                     server_key,
                     proc.pid,
-                    self._http_pgids.get(server_key),
                     outcome,
                 )
             poll_result = proc.poll()
@@ -176,9 +193,10 @@ class SubprocessLauncher:
                     proc.pid,
                     poll_result,
                 )
-            self._http_procs.pop(server_key, None)
-            self._http_pgids.pop(server_key, None)
+            if outcome.confirmed:
+                self._records.pop(server_key, None)
         except Exception as term_err:
+            record.settle(TerminationOutcome.EXIT_UNCONFIRMED)
             logger.error(
                 "Lifecycle: getpgid() failed AND termination raised for %r (pid=%d): %s.",
                 server_key,
