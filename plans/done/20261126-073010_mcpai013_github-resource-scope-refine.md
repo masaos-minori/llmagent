@@ -10,7 +10,7 @@ Low
 - **Dependencies**: mcpai002 and mcpai010 are closed (mcpai010's plan is frozen in this batch); mcpai011 is closed. Keep last per the Issue.
 
 ## Background
-Source: consolidated review backlog (`memo-issue.md`, Issue 13). Step 2 verification against current source: the scope key naming convention `<kind>:<identity>` is already defined in `scripts/shared/resource_scope.py` (`resolve_resource_scopes()` docstring, line 81: `f"{tool.resource_scope_kind}:{normalized_value}"`), so the Issue's Required-Changes item 2 is a confirm-and-document requirement, not a new definition; mdqmcp008 remains open and reuses it. `_scopes_conflict()` (line 117) conflicts on exact equality plus `filesystem:` ancestor/descendant only — repository scope does not currently conflict with a finer scope of a different kind, so the ancestor semantics must be added for the composed GitHub kinds. `RESOURCE_KEY_KIND_VALUES` is `{path, branch, repo, non_escalating}` (`scripts/shared/tool_metadata.py:62-64`); `issue` and `pull_request` key kinds do not exist and are added here. All GitHub write tools currently declare `github_repo` scope (`tools_file.py:58-59` shared tail). Write tools: file — `github_create_or_update_file`, `github_push_files`, `github_delete_repo_file`; issues — `github_create_issue` (line 115), `github_add_issue_comment` (line 150); PRs — `github_create_pull_request` (117), `github_update_pull_request` (150), `github_merge_pull_request` (166). The archived related work `issues/done/20261027-104324_mcpcompat003_align-legacy-resource-scope.md` is confirmed present.
+Source: consolidated review backlog (`memo-issue.md`, Issue 13). Step 2 verification against current source: the scope key naming convention `<kind>:<identity>` is already defined in `scripts/shared/resource_scope.py` (`resolve_resource_scopes()` docstring, line 81: `f"{tool.resource_scope_kind}:{normalized_value}"`), so the Issue's Required-Changes item 2 is a confirm-and-document requirement, not a new definition; mdqmcp008 remains open and reuses it. `_scopes_conflict()` (line 117) conflicts on exact equality plus `filesystem:` ancestor/descendant only — repository scope does not currently conflict with a finer scope of a different kind, so the ancestor semantics must be added for the composed GitHub kinds. `RESOURCE_KEY_KIND_VALUES` is `{path, branch, repo, non_escalating}` (`scripts/shared/tool_metadata.py:62-64`); `issue` and `pull_request` key kinds do not exist and are added here. All GitHub write tools currently declare `github_repo` scope (`tools_file.py:58-59` shared tail). Write tools: file — `github_create_or_update_file`, `github_push_files`, `github_delete_file`; issues — `github_create_issue` (line 115), `github_add_issue_comment` (line 150); PRs — `github_create_pull_request` (117), `github_update_pull_request` (150), `github_merge_pull_request` (166). The archived related work `issues/done/20261027-104324_mcpcompat003_align-legacy-resource-scope.md` is confirmed present.
 
 ## Problem
 Repository-level scopes serialize unrelated writes within one repository and reduce throughput. This is not a correctness defect. The independence of finer scopes against the GitHub API's server-side behavior was an open question; per the owner decision of 20261126 this Plan proceeds with stated independence arguments per tool group and tests that lock them.
@@ -26,9 +26,9 @@ Improve concurrency without weakening read/write conflict protection or reposito
   - Branch/file writes: two writes to different branches of the same repository touch disjoint refs on the GitHub server side; no shared mutable state is affected by the API call itself. Scope: `github_branch:<owner>/<repo>/<branch>`.
   - Issue/comment writes: an issue and its comments are a self-contained resource; writes to different issues cannot interleave on shared state. Scope: `github_issue:<owner>/<repo>/<issue>`.
   - Pull request writes: a PR is a self-contained resource for update; scope `github_pull_request:<owner>/<repo>/<pr>`.
-  - Kept at repository scope: `github_merge_pull_request` (merge mutates the target branch — shared repository state), `github_push_files` (multi-file push commits to a branch and can create it — kept at branch scope only when the single declared branch argument resolves; the fail-closed fallback keeps repo scope otherwise), and every operation whose scope keys do not resolve (existing fail-closed fallback, `resource_scope.py` `_FALLBACK_WRITE_SCOPE`).
+  - Kept at repository scope: `github_merge_pull_request` (merge mutates the target branch — shared repository state), `github_create_issue` and `github_create_pull_request` (owner decision 20261126, Step 3a: their request models have no `issue_number`/`pull_request_number`, so the resource identity does not exist at call time and `validate_tool_schema_v2()` would reject the key as not in `inputSchema.properties`, `resource_scope.py:157-161`), and every operation whose scope keys do not resolve. Correction 20261126 (Step 3a): the fail-closed fallback is the synthetic `global:write` scope (`resource_scope.py:62`), which is stricter than repo scope, not repo scope; the Plan previously stated the fallback "keeps repo scope". A file-write call that omits `branch` therefore lands on `global:write`, not on `github_repo:` — no safety weakening, but the wording is corrected here.
 - **Conflict predicate extension**: composed GitHub kinds gain ancestor semantics — `github_repo:<owner>/<repo>` conflicts with any `github_branch:`/`github_issue:`/`github_pull_request:` scope whose identity begins with `<owner>/<repo>/` (AC-3). Implemented in `_scopes_conflict()` alongside the existing `filesystem:` ancestor rule; the scheduler is unchanged because it consumes the predicate as a black box.
-- **Key-kind vocabulary**: add `issue` and `pull_request` to `RESOURCE_KEY_KIND_VALUES`; `branch` already exists. Identity normalization reuses the existing composed-kind separator handling.
+- **Key-kind vocabulary**: add `issue` and `pull_request` to `ResourceKeyKind` and `RESOURCE_KEY_KIND_VALUES` (`tool_metadata.py:61-64`); `branch` already exists. `tests/shared/test_tool_metadata.py:51-52` pins the set by exact equality, so that test is a target row (amended 20261126, class `scope`, owner-approved). Identity normalization reuses the existing composed-kind separator handling — the three finer GitHub kinds must be added to `_COMPOSED_KIND_SEPARATORS` (`resource_scope.py:66-69`), otherwise `resolve_resource_scopes()` emits one scope string per key instead of the single composed `github_branch:<owner>/<repo>/<branch>` string the Design decisions state; they must not be added to `_FILESYSTEM_LIKE_KINDS` (identities are not paths).
 - **Convention**: the `<kind>:<identity>` convention is confirmed as already defined; the documentation note records it and the cross-scope conflict rule.
 
 ## Requirements
@@ -42,6 +42,7 @@ Improve concurrency without weakening read/write conflict protection or reposito
 **Freeze status**: Frozen — `issue-to-plan` Step 8's Implementation Target Files
 Validation passed for every row on 20261126; see `rules/workflow-lifecycle.md`
 Implementation Target Files Validation (Plan Freeze).
+Amended 2026-11-26 (scope): added tests/shared/test_tool_metadata.py — Update the exact-equality pin of RESOURCE_KEY_KIND_VALUES to include the new key kinds
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -49,14 +50,15 @@ This table is the canonical, frozen source of implementation scope for this Plan
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/shared/resource_scope.py` | Modify | Add `github_branch`, `github_issue`, `github_pull_request` to `_KNOWN_SCOPE_KINDS`; add ancestor semantics so a `github_repo:` scope conflicts with finer GitHub scopes of the same repository | REQ-002, AC-3 | `_KNOWN_SCOPE_KINDS` at lines 40-49 lacks the finer kinds; `_scopes_conflict()` at line 117 conflicts on exact equality and `filesystem:` ancestry only (checked in Step 2) | `tests/shared/test_resource_scope.py` | Verified |
-| `scripts/shared/tool_metadata.py` | Modify | Add `issue` and `pull_request` to `RESOURCE_KEY_KIND_VALUES` | REQ-001 | `RESOURCE_KEY_KIND_VALUES` at lines 62-64 is `{path, branch, repo, non_escalating}` (checked in Step 2) | `tests/shared/test_tool_metadata.py` — no such file; the values are pinned through `tests/shared/test_resource_scope.py` and the schema validator tests | Verified |
-| `scripts/mcp_servers/github/tools_file.py` | Modify | Declare branch scope for the three file write tools (branch key resolves to `github_branch:<owner>/<repo>/<branch>`); read tool keeps `github_repo` | REQ-001, AC-2 | Shared github_repo tail at lines 58-59 used by all 4 entries; write entries at lines 87, 104, 120 (checked in Step 2) | `tests/mcp_servers/github/test_github_tool_schema.py` (mcpai010 plan row), `tests/shared/test_resource_scope.py` | Verified |
-| `scripts/mcp_servers/github/tools_issues.py` | Modify | Declare issue scope for `github_create_issue` and `github_add_issue_comment`; read and search entries unchanged | REQ-001, AC-2 | Shared github_repo tail; write entries at lines 115, 150 (checked in Step 2) | `tests/shared/test_resource_scope.py` | Verified |
-| `scripts/mcp_servers/github/tools_pull_requests.py` | Modify | Declare pull request scope for `github_create_pull_request` and `github_update_pull_request`; `github_merge_pull_request` keeps `github_repo` (shared repository state per the independence argument) | REQ-001, AC-1, AC-2 | Write entries at lines 117, 150, 166 (checked in Step 2) | `tests/shared/test_resource_scope.py` | Verified |
+| `scripts/shared/resource_scope.py` | Modify | Add `github_branch`, `github_issue`, `github_pull_request` to `_KNOWN_SCOPE_KINDS` and to `_COMPOSED_KIND_SEPARATORS` (separator `/`); add ancestor semantics so a `github_repo:` scope conflicts with finer GitHub scopes of the same repository | REQ-002, AC-3 | `_KNOWN_SCOPE_KINDS` at lines 41-52 lacks the finer kinds; `_COMPOSED_KIND_SEPARATORS` at lines 66-69 has only `github_repo` and `cicd_workflow`; `_scopes_conflict()` at line 117 conflicts on exact equality and `filesystem:` ancestry only (re-verified 20261126, Step 3a) | `tests/shared/test_resource_scope.py` | Verified |
+| `scripts/shared/tool_metadata.py` | Modify | Add `issue` and `pull_request` to `ResourceKeyKind` and `RESOURCE_KEY_KIND_VALUES` | REQ-001 | `ResourceKeyKind` and `RESOURCE_KEY_KIND_VALUES` at lines 61-64 are `{path, branch, repo, non_escalating}` (re-verified 20261126, Step 3a) | `tests/shared/test_tool_metadata.py` (target row, amended 20261126) | Verified |
+| `scripts/mcp_servers/github/tools_file.py` | Modify | Declare branch scope for the three file write tools (branch key resolves to `github_branch:<owner>/<repo>/<branch>`); read tool keeps `github_repo` — the shared tail is used by all 4 entries including the read tool, so the write entries need their own tail constant | REQ-001, AC-2 | Shared github_repo tail at lines 56-60 used by all 4 entries; write entries at lines 81, 97, 114 (re-verified 20261126, Step 3a) | `tests/mcp_servers/github/test_github_tool_schema.py` (not yet created — created by the mcpai010 procedure `implementations/20261126-205430_03_tests_mcp_servers_github_test_github_tool_schema.py.md`), `tests/shared/test_resource_scope.py` | Verified |
+| `scripts/mcp_servers/github/tools_issues.py` | Modify | Declare issue scope for `github_add_issue_comment` only; `github_create_issue` keeps `github_repo` (its request model has no `issue_number`, so the resource identity does not exist at call time — owner decision 20261126); read and search entries unchanged | REQ-001, AC-2, REQ-005 | Shared github_repo tail is used by the read entries too (90, 106, 122), so the write entries need their own tail constant; write entries at 109 and 142, tails spread at 122 and 156 (re-verified 20261126, Step 3a) | `tests/shared/test_resource_scope.py` | Verified |
+| `scripts/mcp_servers/github/tools_pull_requests.py` | Modify | Declare pull request scope for `github_update_pull_request` only; `github_create_pull_request` keeps `github_repo` (no `pull_request_number` in its request model — owner decision 20261126); `github_merge_pull_request` keeps `github_repo` (shared repository state per the independence argument) | REQ-001, AC-1, AC-2 | Shared github_repo tail is used by the read entries too (92, 108), so the write entries need their own tail constant; write entries at 111, 144, 160, tails spread at 124, 157, 173 (re-verified 20261126, Step 3a) | `tests/shared/test_resource_scope.py` | Verified |
 | `tests/shared/test_resource_scope.py` | Modify | Add tests: finer-kind resolution, repository-versus-finer ancestor conflict, non-conflict between independent resources, fail-closed fallback unchanged | REQ-002, REQ-003, REQ-005, AC-2, AC-3 | Existing file covers `github_repo` composition (line 86) and `filesystem:` ancestry (line 40) only (checked in Step 2) | itself | Verified |
 | `tests/agent/test_tool_scheduler.py` | Modify | Add conflict-graph tests: same branch write/write, same issue comment, same PR update/merge serialization; independent branches and issues concurrent; repository-wide operation conflicts with finer scopes | REQ-003, REQ-005, AC-1, AC-2, AC-3 | `TestResourceScopeGrouping` at line 157 groups by exact scope overlap only (checked in Step 2) | itself | Verified |
-| `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Modify | Document cross-scope conflicts (boundaries and constraints) and the confirmed `<kind>:<identity>` convention | REQ-004, AC-4 | Scheduler section at lines 110-167 describes the conflict graph without cross-kind ancestor rules (checked in Step 2) | `uv run python tools/check_docs_quality.py` | Verified |
+| `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Modify | Document cross-scope conflicts (boundaries and constraints) and the confirmed `<kind>:<identity>` convention | REQ-004, AC-4 | Scheduler section at lines 108-167 describes the conflict graph without cross-kind ancestor rules (the predicate bullet is line 116; re-verified 20261126, Step 3a) | `uv run python tools/check_docs_quality.py` | Verified |
+| `tests/shared/test_tool_metadata.py` | Modify | Update the exact-equality pin of RESOURCE_KEY_KIND_VALUES to include the new key kinds | REQ-001 / AC-2 | tests/shared/test_tool_metadata.py:51-52 pins RESOURCE_KEY_KIND_VALUES by exact equality (re-verified 20261126, Step 3a) | itself | Verified |
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified. Same
@@ -65,7 +67,7 @@ patterns, components, file groups, or vague phrases.
 
 | File Path | Why It Must Be Read | Related Target File or Requirement |
 |---|---|---|
-| `scripts/agent/tool_scheduler.py` | The conflict-graph consumer (`_scopes_conflict`, line 37; synthetic `global:write` scope, lines 42-44); Step 2 confirms it needs no change — recorded as a reference row per the Issue's Target Areas | REQ-003 |
+| `scripts/agent/tool_scheduler.py` | The conflict-graph consumer (`_scopes_conflict`, line 37; synthetic `global:write` scope, line 49); Step 2 confirms it needs no change — recorded as a reference row per the Issue's Target Areas | REQ-003 |
 | `tests/agent/test_tool_scheduler_comprehensive.py` | Existing scheduler coverage that must keep passing with the predicate change | REQ-003 |
 | `tests/agent/test_tool_scheduler_serialization.py` | Existing serialization coverage that must keep passing | REQ-005 |
 | `issues/20261119-142130_mdqmcp008_mdq-schema-scope-consistency.md` | The open issue that reuses the `<kind>:<identity>` convention; the documentation note must not contradict it | REQ-004 |
@@ -112,6 +114,7 @@ separate scope-of-record.
 | `tests/shared/test_resource_scope.py` | Modify | Low | 3 | High (single author) | not applicable (tests not deployed) |
 | `tests/agent/test_tool_scheduler.py` | Modify | Low | 1 | Medium (same 4-variant history as the scheduler) | not applicable (tests not deployed) |
 | `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Modify | Medium (shared with mcpai012, judged compatible) | 7 | High (single author) | not applicable (docs not deployed) |
+| `tests/shared/test_tool_metadata.py` | Modify | Not assessed (amendment 2026-11-26) | N/A | N/A | Not assessed (amendment 2026-11-26) |
 
 ## Design
 - **Predicate, not scheduler**: the change is confined to `_scopes_conflict()` — composed GitHub kinds gain ancestor semantics keyed on `<owner>/<repo>`; the scheduler's grouping, the synthetic `global:write` scope, and the fail-closed fallback are untouched, so existing safety properties hold by construction (REQ-005).
@@ -128,8 +131,9 @@ independently of that frozen table.
    - [ ] Write the predicate tests first: finer-kind resolution, repository-versus-finer ancestor conflict, independent-resource non-conflict, unchanged fail-closed fallback (REQ-002, REQ-003, REQ-005, AC-2, AC-3; `tests/shared/test_resource_scope.py`)
    - [ ] Add the finer scope kinds and the GitHub ancestor rule (REQ-002, AC-3; `scripts/shared/resource_scope.py`)
    - [ ] Add `issue` and `pull_request` to `RESOURCE_KEY_KIND_VALUES` (REQ-001; `scripts/shared/tool_metadata.py`)
+   - [ ] Modify (REQ-001; `tests/shared/test_tool_metadata.py`) — amendment 2026-11-26
 2. **Phase 2: Tool metadata declarations**
-   - [ ] Declare branch scope for the file write tools, issue scope for the issue and comment write tools, pull request scope for the PR create/update write tools; keep `github_repo` for merge and for unresolved-branch pushes (REQ-001, AC-2, AC-5; `scripts/mcp_servers/github/tools_file.py`, `scripts/mcp_servers/github/tools_issues.py`, `scripts/mcp_servers/github/tools_pull_requests.py`)
+   - [ ] Declare branch scope for the file write tools, issue scope for the comment write tool, pull request scope for the PR update write tool; keep `github_repo` for the create tools (no resource identity exists at call time — owner decision 20261126), for merge, and for unresolved-branch pushes (REQ-001, AC-2, AC-5; `scripts/mcp_servers/github/tools_file.py`, `scripts/mcp_servers/github/tools_issues.py`, `scripts/mcp_servers/github/tools_pull_requests.py`)
 3. **Phase 3: Scheduler conflict-graph tests**
    - [ ] Write the serialization and concurrency tests: same branch write/write, same issue comment, same PR update/merge, independent branches and issues concurrent, repository-wide operation conflicts with finer scopes (REQ-003, REQ-005, AC-1, AC-2, AC-3; `tests/agent/test_tool_scheduler.py`)
 4. **Phase 4: Documentation and validation**
@@ -165,10 +169,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Conflict predicate and vocabulary tests first | Pending | — | — | — |
-| 2 | Tool metadata declarations | Pending | — | — | — |
-| 3 | Scheduler conflict-graph tests | Pending | — | — | — |
-| 4 | Documentation and validation | Pending | — | — | — |
+| 1 | Conflict predicate and vocabulary tests first | In Progress | — | — | — |
+| 2 | Tool metadata declarations | In Progress | — | — | — |
+| 3 | Scheduler conflict-graph tests | In Progress | — | — | — |
+| 4 | Documentation and validation | In Progress | — | — | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -178,7 +182,14 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261126-215042_01_scripts_shared_resource_scope.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-215042_02_scripts_shared_tool_metadata.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-215042_03_scripts_mcp_servers_github_tools_file.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-215042_04_scripts_mcp_servers_github_tools_issues.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-215042_05_scripts_mcp_servers_github_tools_pull_requests.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-215042_06_tests_shared_test_resource_scope.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-215042_07_tests_agent_test_tool_scheduler.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-215042_08_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -187,7 +198,7 @@ Table structure, status/type vocabulary, and general guidance: see
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261126-073010
-- **Related target files**: `scripts/shared/resource_scope.py`, `scripts/shared/tool_metadata.py`, `scripts/mcp_servers/github/tools_file.py`, `scripts/mcp_servers/github/tools_issues.py`, `scripts/mcp_servers/github/tools_pull_requests.py`, `tests/shared/test_resource_scope.py`, `tests/agent/test_tool_scheduler.py`, `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`
+- **Related target files**: `scripts/shared/resource_scope.py`, `scripts/shared/tool_metadata.py`, `scripts/mcp_servers/github/tools_file.py`, `scripts/mcp_servers/github/tools_issues.py`, `scripts/mcp_servers/github/tools_pull_requests.py`, `tests/shared/test_resource_scope.py`, `tests/agent/test_tool_scheduler.py`, `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`, `tests/shared/test_tool_metadata.py`
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
@@ -199,3 +210,6 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-003 | Acceptance Criteria 1-2; `tool_scheduler.py:37` consumer | `tests/agent/test_tool_scheduler.py` | Phase 3 | AC-1, AC-2 | itself | Confirmed by repository evidence |
 | REQ-004 | Required Changes item 2; `resource_scope.py:81` convention already defined | `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Phase 4 | AC-4 | docs checkers | Confirmed by repository evidence |
 | REQ-005 | Constraints; fail-closed fallback in `resource_scope.py` | `tests/shared/test_resource_scope.py`, `tests/agent/test_tool_scheduler.py` | Phase 1, Phase 3 | AC-5 | itself | Confirmed by repository evidence |
+| REQ-001 | Amendment 2026-11-26: Update the exact-equality pin of RESOURCE_KEY_KIND_VALUES to include the new key kinds | tests/shared/test_tool_metadata.py | Phase 1 | AC-2 | itself | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-215042 -->
