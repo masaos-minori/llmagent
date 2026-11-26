@@ -64,22 +64,22 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| config/cicd_mcp_server.toml | Modify: add `pending_timeout_minutes = 10` to `[dedup]` | Implicit today | REQ-003; AC-03 | `[dedup]` at line 34 sets `retention_days`, `lease_seconds`, `max_attempts` only (checked in Step 3) | tests/mcp_servers/test_shipped_dedup_config.py | Verified |
-| config/file_delete_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `[dedup]` table without the key (`rg`, checked in Step 3) | tests/mcp_servers/test_shipped_dedup_config.py | Verified |
-| config/file_read_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `[dedup]` at line 24 without the key (checked in Step 3) | tests/mcp_servers/test_shipped_dedup_config.py | Verified |
-| config/file_write_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `[dedup]` table without the key (checked in Step 3) | tests/mcp_servers/test_shipped_dedup_config.py | Verified |
-| config/git_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `[dedup]` at line 46 without the key (checked in Step 3) | tests/mcp_servers/test_shipped_dedup_config.py | Verified |
-| config/github_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `[dedup]` at line 62 without the key (checked in Step 3) | tests/mcp_servers/test_shipped_dedup_config.py | Verified |
-| config/mdq_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `[dedup]` at line 66 without the key (checked in Step 3) | tests/mcp_servers/test_shipped_dedup_config.py | Verified |
-| config/rag_pipeline_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `rg -l "^\[dedup\]" config` lists it (checked in Step 3) | tests/mcp_servers/test_shipped_dedup_config.py | Verified |
-| config/shell_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `rg -l "^\[dedup\]" config` lists it (checked in Step 3) | tests/mcp_servers/test_shipped_dedup_config.py | Verified |
-| config/web_search_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `rg -l "^\[dedup\]" config` lists it (checked in Step 3) | tests/mcp_servers/test_shipped_dedup_config.py | Verified |
-| scripts/mcp_servers/server.py | Modify: docstring of `_idempotency_key_middleware` only | States the boundary is inert until the set is defined, but the set is non-empty | REQ-006; AC-06 | `server.py:150-177` docstring; `tool_constants.py:218-228` (checked in Step 2) | tests/mcp_servers/test_server_idempotency_boundary.py | Verified |
-| tests/mcp_servers/test_shipped_dedup_config.py | Create: real shipped `[dedup]` load, explicit-key, and fingerprint test | No test reads the real shipped tables | REQ-003, REQ-005; AC-03, AC-05 | `rg load_dedup_section tests` shows only tmp-file and inline uses; `tests/mcp_servers/` exists (checked in Step 3) | tests/mcp_servers/test_shipped_dedup_config.py | Verified |
-| tests/mcp_servers/test_mcp_dispatch.py | Modify: sweep keyless, empty, and whitespace keys over `ALL_SIDE_EFFECTING_TOOLS` | Existing test covers `write_file` only | REQ-001; AC-01 | `test_mcp_dispatch.py:168-187` (checked in Step 3) | tests/mcp_servers/test_mcp_dispatch.py | Verified |
-| tests/mcp_servers/test_server_idempotency_boundary.py | Modify: sweep the real set through the HTTP boundary; assert the set is non-empty; update the stale module docstring | Existing tests inject a synthetic set and use `shell_run` | REQ-001, REQ-006; AC-01, AC-06 | `test_server_idempotency_boundary.py:1-14,34,253-262` (checked in Step 3) | tests/mcp_servers/test_server_idempotency_boundary.py | Verified |
-| tests/shared/test_tool_constants.py | Modify: pin `trigger_workflow` classification | No assertion names `trigger_workflow` | REQ-002; AC-02 | `rg trigger_workflow tests/shared/test_tool_constants.py` found no match; drift test at `:105-151` (checked in Step 3) | tests/shared/test_tool_constants.py | Verified |
-| tests/shared/test_mcp_dedup.py | Modify: bound tests for `retention_days` and `pending_timeout_minutes` | Existing bound tests stop at zero for three keys | REQ-004; AC-04 | `test_mcp_dedup.py:805-815` (checked in Step 3) | tests/shared/test_mcp_dedup.py | Verified |
+| tests/mcp_servers/test_mcp_dispatch.py | Modify: sweep keyless, empty, and whitespace keys over `ALL_SIDE_EFFECTING_TOOLS` | Existing test covers `write_file` only | REQ-001; AC-01 | `test_mcp_dispatch.py:168-187` (checked in Step 3) | `tests/mcp_servers/test_mcp_dispatch.py` | Verified |
+| tests/mcp_servers/test_server_idempotency_boundary.py | Modify: sweep the real set through the HTTP boundary; assert the set is non-empty; update the stale module docstring | Existing tests inject a synthetic set and use `shell_run` | REQ-001, REQ-006; AC-01, AC-06 | `test_server_idempotency_boundary.py:1-14,34,253-262` (checked in Step 3) | `tests/mcp_servers/test_server_idempotency_boundary.py` | Verified |
+| tests/shared/test_tool_constants.py | Modify: pin `trigger_workflow` classification | No assertion names `trigger_workflow` | REQ-002; AC-02 | `rg trigger_workflow tests/shared/test_tool_constants.py` found no match; drift test at `:105-151` (checked in Step 3) | `tests/shared/test_tool_constants.py` | Verified |
+| tests/shared/test_mcp_dedup.py | Modify: bound tests for `retention_days` and `pending_timeout_minutes` | Existing bound tests stop at zero for three keys | REQ-004; AC-04 | `test_mcp_dedup.py:805-815` (checked in Step 3) | `tests/shared/test_mcp_dedup.py` | Verified |
+| tests/mcp_servers/test_shipped_dedup_config.py | Create: real shipped `[dedup]` load, explicit-key, and fingerprint test | No test reads the real shipped tables | REQ-003, REQ-005; AC-03, AC-05 | `rg load_dedup_section tests` shows only tmp-file and inline uses; `tests/mcp_servers/` exists (checked in Step 3) | `tests/mcp_servers/test_shipped_dedup_config.py` | Verified |
+| config/cicd_mcp_server.toml | Modify: add `pending_timeout_minutes = 10` to `[dedup]` | Implicit today | REQ-003; AC-03 | `[dedup]` at line 34 sets `retention_days`, `lease_seconds`, `max_attempts` only (checked in Step 3) | `tests/mcp_servers/test_shipped_dedup_config.py` | Verified |
+| config/file_delete_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `[dedup]` table without the key (`rg`, checked in Step 3) | `tests/mcp_servers/test_shipped_dedup_config.py` | Verified |
+| config/file_read_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `[dedup]` at line 24 without the key (checked in Step 3) | `tests/mcp_servers/test_shipped_dedup_config.py` | Verified |
+| config/file_write_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `[dedup]` table without the key (checked in Step 3) | `tests/mcp_servers/test_shipped_dedup_config.py` | Verified |
+| config/git_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `[dedup]` at line 46 without the key (checked in Step 3) | `tests/mcp_servers/test_shipped_dedup_config.py` | Verified |
+| config/github_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `[dedup]` at line 62 without the key (checked in Step 3) | `tests/mcp_servers/test_shipped_dedup_config.py` | Verified |
+| config/mdq_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `[dedup]` at line 66 without the key (checked in Step 3) | `tests/mcp_servers/test_shipped_dedup_config.py` | Verified |
+| config/rag_pipeline_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `rg -l "^\[dedup\]" config` lists it (checked in Step 3) | `tests/mcp_servers/test_shipped_dedup_config.py` | Verified |
+| config/shell_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `rg -l "^\[dedup\]" config` lists it (checked in Step 3) | `tests/mcp_servers/test_shipped_dedup_config.py` | Verified |
+| config/web_search_mcp_server.toml | Modify: same | Implicit today | REQ-003; AC-03 | `rg -l "^\[dedup\]" config` lists it (checked in Step 3) | `tests/mcp_servers/test_shipped_dedup_config.py` | Verified |
+| scripts/mcp_servers/server.py | Modify: docstring of `_idempotency_key_middleware` only | States the boundary is inert until the set is defined, but the set is non-empty | REQ-006; AC-06 | `server.py:150-177` docstring; `tool_constants.py:218-228` (checked in Step 2) | `tests/mcp_servers/test_server_idempotency_boundary.py` | Verified |
 | docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md | Modify: `[dedup]` key list with ranges; resolve the `pending_timeout_minutes` contradiction | Lines 134-138 list three keys and say Agent-side; line 178 names `dedup.pending_timeout_minutes` | REQ-006; AC-06 | `db_03_07...md:134-138,178` (checked in Step 3) | `uv run python tools/run_validation_gates.py` | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
@@ -226,10 +226,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests that pin existing behavior | Pending | — | — | |
-| 2 | Explicit configuration and its real-file test | Pending | — | — | |
-| 3 | Stale statements | Pending | — | — | |
-| 4 | Deployment & Verification | Pending | — | — | |
+| 1 | Tests that pin existing behavior | In Progress | — | — |  |
+| 2 | Explicit configuration and its real-file test | In Progress | — | — |  |
+| 3 | Stale statements | In Progress | — | — |  |
+| 4 | Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -239,7 +239,22 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261126-124822_01_tests_mcp_servers_test_mcp_dispatch.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261126-124822_03_tests_shared_test_tool_constants.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261126-124822_04_tests_shared_test_mcp_dedup.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261126-124822_05_tests_mcp_servers_test_shipped_dedup_config.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-124822_06_config_cicd_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-124822_07_config_file_delete_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-124822_08_config_file_read_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-124822_09_config_file_write_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-124822_10_config_git_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-124822_11_config_github_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-124822_12_config_mdq_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-124822_13_config_rag_pipeline_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-124822_14_config_shell_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-124822_15_config_web_search_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-124822_16_scripts_mcp_servers_server.py.md | 1, 3 | Procedure | Pending | — | — |
+| implementations/20261126-124822_17_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -272,3 +287,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-006 | Documentation Impact; `server.py:150-177` stale docstring | scripts/mcp_servers/server.py | Phase 3 | AC-06 | T-05 | Confirmed by repository evidence |
 | REQ-006 | Documentation Impact; `server.py` docstring cited by the boundary test module docstring | tests/mcp_servers/test_server_idempotency_boundary.py | Phase 1 | AC-06 | T-05 | Confirmed by repository evidence |
 | REQ-006 | Documentation Impact; `db_03_07...md:134-138,178` | docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md | Phase 3 | AC-06 | T-05 | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-124822 -->
