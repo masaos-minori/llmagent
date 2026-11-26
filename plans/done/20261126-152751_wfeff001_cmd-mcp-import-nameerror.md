@@ -158,8 +158,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Guard test first | In Progress | — | — |  |
-| 2 | Fix the import | In Progress | — | — |  |
+| 1 | Guard test first | Completed | — | 2026-11-26 |  |
+| 2 | Fix the import | Completed | — | 2026-11-26 |  |
 | 3 | Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -170,7 +170,7 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261126-153439_01_scripts_agent_commands_cmd_mcp.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261126-153439_01_scripts_agent_commands_cmd_mcp.py.md | 1, 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -9,6 +9,8 @@ Thin dispatcher that delegates to:
 Formatting (table, next-steps) is handled in this module — not in the services.
 """
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
