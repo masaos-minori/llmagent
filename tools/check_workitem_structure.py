@@ -46,13 +46,9 @@ Usage:
     python tools/check_workitem_structure.py --file plans/20260908-073509_plan.md
     python tools/check_workitem_structure.py --file issues/a.md issues/b.md
 
-`--file` checks one or more documents (each kind is inferred from which
-top-level directory the path lives under) and ignores `--kind`/`--include-done`
-— use it from a workflow step that just produced or is about to consume
-specific documents, so a repository-wide scan's legacy-template findings
-(documents predating the current template revision, which this tool has no
-way to distinguish from a genuinely incomplete document) never block a
-`--file` check.
+`--file` checks the given documents (kind inferred from the top-level directory)
+and ignores `--kind`/`--include-done`, so a repository-wide scan's legacy-template
+findings never block a check of the documents a workflow step just produced.
 
 `--archived-status [--baseline PATH]` checks a different property: no procedure under
 `implementations/done/` keeps an unfinished (`Pending`, `In Progress`, `Blocked`)
@@ -84,6 +80,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if __package__ in (None, ""):
     sys.path.insert(0, str(ROOT_DIR))
 
+from tools._workitem_citation_check import find_plan_citation_findings
 from tools._workitem_companion_kinds import COMPANION_TEMPLATES, companion_kind
 from tools._workitem_leftover_rules import (
     find_issue_leftover_findings,
@@ -437,6 +434,7 @@ def collect_single_file_findings(doc_path: Path) -> list[dict[str, str]]:
         findings.extend(_status_value_findings(doc_path))
         if kind == "plan":
             findings.extend(find_plan_leftover_findings(doc_path, ROOT_DIR))
+            findings.extend(find_plan_citation_findings(doc_path, ROOT_DIR))
         else:
             findings.extend(find_procedure_leftover_findings(doc_path, ROOT_DIR))
             findings.extend(_length_findings(doc_path))
@@ -465,6 +463,7 @@ def collect_findings(kinds: set[str], include_done: bool) -> list[dict[str, str]
                 findings.extend(
                     find_plan_leftover_findings(doc_path, ROOT_DIR, plan_brackets)
                 )
+                findings.extend(find_plan_citation_findings(doc_path, ROOT_DIR))
             else:
                 findings.extend(find_procedure_leftover_findings(doc_path, ROOT_DIR))
                 findings.extend(_length_findings(doc_path))

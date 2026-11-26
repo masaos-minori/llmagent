@@ -64,9 +64,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add the companion test file(s) first, then confirm they fail before and pass after | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-175437 | 20261126-175437 | wfeff003: full suite 15763 passed, 3 failed (known tests/mcp_servers/git failures; unrelated) |
+| 2 | Add the companion test file(s) first, then confirm they fail before and pass after | Completed | 20261126-175437 | 20261126-175437 | wfeff003: full suite 15763 passed, 3 failed (known tests/mcp_servers/git failures; unrelated) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-175437 | 20261126-175437 | wfeff003: full suite 15763 passed, 3 failed (known tests/mcp_servers/git failures; unrelated) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

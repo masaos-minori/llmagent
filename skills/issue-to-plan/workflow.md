@@ -504,8 +504,8 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 
 ## Step 8: Validate Information Completeness
 
-This step has three sub-steps, applied in order: verify completeness and traceability
-(8a), validate and freeze the target-file inventory (8b), then report the outcome (8c).
+Three sub-steps in order: verify completeness and traceability (8a), validate and freeze
+the target-file inventory (8b), report the outcome (8c).
 
 ### Step 8a: Verify information completeness and traceability
 
@@ -514,9 +514,8 @@ change, implementation intent, implementation instructions, acceptance criteria,
 documentation impact, constraints/out-of-scope items, dependencies, assumptions,
 unknowns, risks/mitigations, and Source Issue traceability.
 
-Verify the Requirement Traceability subsection has at least one row per Requirement ID
-(one per target file it affects) with all columns filled, including a Status entry
-from Step 2.
+Verify the Requirement Traceability subsection has one row per Requirement ID and target
+file it affects, all columns filled, including the Status entry from Step 2.
 
 Verify every Requirement ID is traceable to its Issue source/evidence, an implementation
 step, an acceptance criterion, and a test/validation item.
@@ -529,13 +528,14 @@ marked `N/A`.
 Verify the `Risks` section: every Risk entry has a corresponding Mitigation.
 
 A section collapsed to `N/A: {reason}` satisfies the preserved-information check only
-when Step 4's Path A collapse condition holds; otherwise it fails this check. Repeat the
-Path A sizing check from Step 5: more than 3 `Implementation Target Files` rows in a Plan
-classified Path A is reclassified or split before the Plan is frozen.
+when Step 4's Path A collapse condition holds; otherwise it fails this check. Repeat Step 5's
+Path A sizing check: more than 3 target rows in a Path A Plan means reclassify or split it
+before freezing.
 
-Run `uv run python tools/check_workitem_structure.py --file plans/{filename}.md` on the
-filled Plan (per `rules/tool-gates.md` "When to run which tool"). It checks only that every
-required `## ` section is present; the content checks above still apply.
+Run `uv run python tools/backtick_plan_related_tests.py plans/{filename}.md`, then
+`uv run python tools/check_workitem_structure.py --file plans/{filename}.md` on the filled
+Plan (per `rules/tool-gates.md` "When to run which tool"). It checks the required `## `
+sections and plain path citations; the content checks above still apply.
 
 **Completed when**: every item in the preserved-information list above is present in the
 Plan, and every Requirement ID is traceable to all four of its required links. The

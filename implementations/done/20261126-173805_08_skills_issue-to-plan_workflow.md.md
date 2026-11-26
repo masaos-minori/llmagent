@@ -58,8 +58,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-175437 | 20261126-175437 | wfeff003: full suite 15763 passed, 3 failed (known tests/mcp_servers/git failures; unrelated) |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` "When to run which tool" | Completed | 20261126-175437 | 20261126-175437 | wfeff003: full suite 15763 passed, 3 failed (known tests/mcp_servers/git failures; unrelated) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

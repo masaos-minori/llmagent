@@ -59,6 +59,11 @@ Freeze) for the full validation procedure):
   source file it accompanies.
 - `Validation Status` is `Verified` or `Needs confirmation` per row; every row must be
   `Verified` before this section may be marked `Frozen`.
+- Write every `File Path` cell, every `tests/...py` path in `Related Tests`, and every path in
+  `Implementation steps` in backticks: `tools/close_procedures_batch.py` and the companion check read
+  only backticked paths. `uv run python tools/backtick_plan_related_tests.py plans/{filename}.md`
+  normalizes a Plan, and `tools/check_workitem_structure.py` reports a plain path
+  (`plain-path-citation`).
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified. Same
@@ -106,7 +111,7 @@ separate scope-of-record.
 ## Implementation steps
 Each step description MUST cite the exact file path(s) it touches by referencing rows
 of `Implementation Target Files` above — do not restate file-level detail
-independently of that frozen table. A step is a top-level numbered item (a Phase); its
+independently of that frozen table. Write each cited path in backticks. A step is a top-level numbered item (a Phase); its
 checklist items are sub-tasks, and the Execution Status table has one row per step.
 Declare a release unit (see `### Release units` below) when a phase breaks existing callers or
 tests until another phase lands (for example a `NOT NULL` column added before its write path):

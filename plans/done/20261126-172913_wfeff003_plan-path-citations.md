@@ -195,10 +195,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first | In Progress | — | — |  |
-| 2 | Detector, normalizer, and checker | In Progress | — | — |  |
-| 3 | Template, workflow, and tool documentation | In Progress | — | — |  |
-| 4 | Verification | Pending | — | — |  |
+| 1 | Tests first | Completed | — | 2026-11-26 |  |
+| 2 | Detector, normalizer, and checker | Completed | — | 2026-11-26 |  |
+| 3 | Template, workflow, and tool documentation | Completed | — | 2026-11-26 |  |
+| 4 | Verification | Completed | — | 2026-11-26 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -208,12 +208,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261126-173805_01_tools__workitem_citation_check.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261126-173805_03_tools_backtick_plan_related_tests.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261126-173805_05_tools_check_workitem_structure.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261126-173805_07_templates_plan.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-173805_08_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-173805_09_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-173805_01_tools__workitem_citation_check.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261126-173805_03_tools_backtick_plan_related_tests.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261126-173805_05_tools_check_workitem_structure.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261126-173805_07_templates_plan.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-173805_08_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-173805_09_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

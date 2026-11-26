@@ -1165,3 +1165,87 @@ def test_live_repository_companion_documents_have_no_missing_section(
     monkeypatch.setattr(cwis, "ROOT_DIR", _SRC_ROOT)
     findings = cwis.collect_findings({"unknowns", "risks"}, include_done=False)
     assert [f for f in findings if f["category"] == "missing-section"] == []
+
+
+def _citation_plan(path: str) -> str:
+    spec = cwis.load_template_specs()["plan"]
+    table = (
+        "| File Path | Change Responsibility | Reason | Related Requirement | Evidence | Related Tests | Validation Status |\n"
+        "|---|---|---|---|---|---|---|\n"
+        f"| {path} | Create | why | REQ-001 | ev | N/A: none | Verified |\n"
+    )
+    steps = f"1. **Phase 1**\n   - [ ] Do it (REQ-001; {path})\n"
+    parts = []
+    for heading in spec.required_headings:
+        body = {
+            "Implementation Target Files": table,
+            "Implementation steps": steps,
+        }.get(heading, "body\n")
+        parts.append(f"## {heading}\n\n{body}")
+    return "\n".join(parts)
+
+
+def _citation_findings(findings: list[dict[str, str]]) -> list[dict[str, str]]:
+    return [f for f in findings if f["category"] == "plain-path-citation"]
+
+
+def test_a_plain_path_in_an_active_plan_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _install_templates(tmp_path)
+    monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
+    plan = _write(
+        tmp_path / "plans", "20260101-000000_plan.md", _citation_plan("tools/a.py")
+    )
+
+    single = _citation_findings(cwis.collect_single_file_findings(plan))
+    scan = _citation_findings(cwis.collect_findings({"plan"}, include_done=False))
+
+    assert single == scan
+    assert [f["file"] for f in single] == ["plans/20260101-000000_plan.md"] * 2
+    assert "File Path: tools/a.py is not in backticks" in single[0]["detail"]
+    assert "Implementation steps: tools/a.py is not in backticks" in single[1]["detail"]
+    assert (
+        "tools/backtick_plan_related_tests.py plans/20260101-000000_plan.md"
+        in single[0]["detail"]
+    )
+
+
+def test_a_normalized_plan_has_no_citation_finding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _install_templates(tmp_path)
+    monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
+    plan = _write(
+        tmp_path / "plans", "20260101-000000_plan.md", _citation_plan("`tools/a.py`")
+    )
+
+    assert _citation_findings(cwis.collect_single_file_findings(plan)) == []
+
+
+def test_an_archived_plan_is_not_checked_for_plain_citations(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _install_templates(tmp_path)
+    monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
+    plan = _write(
+        tmp_path / "plans" / "done",
+        "20260101-000000_plan.md",
+        _citation_plan("tools/a.py"),
+    )
+
+    assert _citation_findings(cwis.collect_single_file_findings(plan)) == []
+    assert _citation_findings(cwis.collect_findings({"plan"}, include_done=True)) == []
+
+
+def test_a_plain_citation_makes_the_exit_code_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _install_templates(tmp_path)
+    monkeypatch.setattr(cwis, "ROOT_DIR", tmp_path)
+    plan = _write(
+        tmp_path / "plans", "20260101-000000_plan.md", _citation_plan("tools/a.py")
+    )
+
+    assert cwis.main(["--file", str(plan)]) == 1
+    assert "is not in backticks" in capsys.readouterr().out
