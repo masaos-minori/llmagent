@@ -81,9 +81,41 @@ Requirement examples:
 - `process.execute`
 - `search.web`
 
+## Required And Optional Capabilities
+
+A capability is required when the server's catalog entry declares it as `required_capability` and the
+server itself is `required`; the loss of that capability is FATAL at startup. Every other capability a
+server declares is optional: its loss is reported as a warning and drops only the tools that depend on
+it, so an optional dependency does not block startup.
+
+Required-ness is not something the server declares. The server declares the set of capabilities its
+tools provide, and the Agent derives which one is required from the catalog entry. A server that
+declares no capabilities at all keeps the reading rule for bodies without a capability block: its
+`ready` flag is the proof of readiness.
+
+## Capability Health States
+
+Each entry of the capability block carries one of three states, a closed vocabulary:
+
+| State | Meaning |
+|-------|---------|
+| `ok` | The capability is available |
+| `degraded` | The server answers, but a prerequisite the capability needs is missing |
+| `unavailable` | The capability cannot be served |
+
+- Only `ok` proves readiness for a required capability; `degraded` and `unavailable` do not.
+- A capability entry also carries a reason code from the health reason vocabulary, which is what makes
+  a degraded capability explainable without naming the missing credential. See
+  [mcp_06_10_health-reasons-and-error-kinds.md](mcp_06_10_health-reasons-and-error-kinds.md).
+- A tool depends on the capability names its entry declares; a tool that declares none depends on the
+  capabilities of the owning server. See
+  [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md).
+
 ## Status
 
-This naming convention is optional. No production MCP server currently declares `capabilities` using it.
+This naming convention is optional for servers that do not declare capabilities. The GitHub server is
+the production server that declares it: `github.operations` as its required capability and
+`github.api` as an optional one, degraded when the GitHub token is not configured.
 
 ## Keywords
 
@@ -91,4 +123,6 @@ This naming convention is optional. No production MCP server currently declares 
 - tool-schema
 - capabilities
 - naming-convention
+- required capability
+- capability state
 - policy

@@ -17,15 +17,42 @@ related:
 
 Both modes use the same wire contract (POST `/v1/call_tool`, `X-Session-Id` header, `GET /v1/tools` for the tool list check, `GET /health`). They differ only in process ownership: `persistent` connects to an externally managed server, while `subprocess` makes the agent start uvicorn and poll `/health` until ready at startup.
 
+### Startup Readiness Rule
+
+Readiness is decided from the parsed `/health` report, not from the HTTP status code:
+
+- The proof is the server's catalog `required_capability` reported `ok`.
+- A body with no capability block, or a server with no declared `required_capability`, is read through its `ready` flag.
+- `liveness` alone is never proof.
+- A body that is not JSON, is not an object, or violates the contract is not proof: the poll keeps running instead of failing startup on an unreadable response.
+
+### Health Check Timeout Rules
+
+- Each request timeout is the server's effective health timeout capped by the time left to the startup deadline, so a single check cannot outlive the deadline.
+- No request starts once the deadline has passed.
+- The effective health timeout is always a positive value, so the cap needs no unlimited branch; the field rule is stated in [mcp_06_02](mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md).
+
 ---
 
 ### Standard `/health` Response Semantics
 
 All MCP server `/health` endpoints follow consistent semantics for response fields.
 
+The body shape is defined once by the shared health contract (`scripts/shared/mcp_health_contract.py`), the single definition both sides read: the servers produce it and the Agent parses it. The Agent parses it with strict typing and no truthy coercion — a present field of the wrong type, a reason code outside the closed vocabulary, or an unknown capability state is a contract violation, not a value. An absent field is not a violation: it parses as its default, which is what keeps a legacy body readable.
+
+**Contract fields**: `health_schema_version`, `liveness`, `ready`, `degraded_reasons`, and `capabilities`. The semantics of `liveness` and `ready` are stated below; the fields the contract added are:
+
+| Field | Meaning |
+|---|---|
+| `health_schema_version` | Contract version the body conforms to; a body that predates the capability block is read as a legacy report |
+| `degraded_reasons` | Reason codes for the degraded state, from the closed vocabulary defined in [mcp_06_10](mcp_06_10_health-reasons-and-error-kinds.md) |
+| `capabilities` | Capability name to state, each entry `ok`, `degraded`, or `unavailable` with an optional `reason_code` from the same vocabulary |
+
+Legacy-body rule: a body with no `capabilities` block is a legacy report, and readiness for it is its `ready` flag. A server that does not declare capabilities stays correct through this branch.
+
 **`status`**: `"ok"` if fully healthy, `"degraded"` if dependency failures are detected.
 
-**`ready`**: `true` if there are no dependency failures, `false` otherwise.
+**`ready`**: `true` if there are no dependency failures, `false` otherwise. At startup this field is the readiness proof only for a legacy body or a server with no declared `required_capability`; see the Startup Readiness Rule above.
 
 **`liveness`**: Defaults to `true` (base class); subclasses can override it to indicate critical internal states where the process cannot accept requests.
 

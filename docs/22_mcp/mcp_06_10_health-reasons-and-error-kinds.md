@@ -42,11 +42,26 @@ The `/health` body reason is used for display only; `record_failure()` takes no 
 
 `McpServerHealthRegistry` does not store a degraded reason. A server's state changes only through `record_failure()` (`DEGRADED` below the failure threshold, `UNAVAILABLE` at or above it) and `record_success()` (back to `HEALTHY`, clearing the failure count).
 
+#### Degraded Reason-Code Vocabulary
+
+The reason codes a `/health` body reports are a closed vocabulary defined once by the shared health contract (`scripts/shared/mcp_health_contract.py`), the single definition both sides read:
+
+| Code | Meaning |
+|------|---------|
+| `config_missing` | A prerequisite the server needs is not configured |
+| `server_unavailable` | Availability hint: the server is in the `UNAVAILABLE` circuit state |
+| `half_open_trial_in_progress` | Availability hint: a recovery trial is in progress |
+
+- Producers may emit only these codes, and the same set is the vocabulary for a capability entry's reason.
+- A code outside the set is not accepted as an unknown value: the strict parser rejects the body as a contract violation, so a mistyped name fails at parse time rather than at comparison.
+- The canonical constants are owned outside the contract module: `config_missing` by `result_dto.py` and the two availability hints by `mcp_health.py`. The contract references them instead of redefining them, which is what makes a mistyped name fail at import.
+- The vocabulary is a parse-time rule for the body. It does not store a reason per server, consistent with "Degraded Reasons Are Not Stored" above.
+
 ---
 
 ## Availability Hint Reason Codes
 
-When a tool call is rejected by the circuit breaker, the structured tool result may carry a dynamic availability hint whose reason is one of a closed set of two codes:
+When a tool call is rejected by the circuit breaker, the structured tool result may carry a dynamic availability hint whose reason is one of the two availability-hint codes of the closed vocabulary above:
 
 | Code | Circuit state at rejection | `retry_after_seconds` |
 |------|---------------------------|----------------------|
@@ -114,6 +129,7 @@ Do not change `requires_serial` or `resource_scope_kind`/`resource_scope_keys` v
 - health-reasons
 - scheduling
 - availability hint
+- config_missing
 - server_unavailable
 - half_open_trial_in_progress
 - retry_after_seconds

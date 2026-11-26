@@ -46,8 +46,8 @@ credentials, and merges the configured `env` on top of it.
   server's configured `PATH` and the environment supplied in the request.
 
 **Timing, logging and policy fields:** timeout, startup-stagger, and stderr-rotation fields are
-defined with their constraints in `McpServerConfig`; a `0` timeout means no timeout. The fields
-with design meaning are:
+defined with their constraints in `McpServerConfig`; a `0` timeout means no timeout for the
+per-call and startup fields. The fields with design meaning are:
 
 - `required`: startup criticality (ADR-004). An unavailable required server aborts startup; a non-required
   server unreachable at tool discovery is disabled (its tools are excluded) and startup continues with a
@@ -69,6 +69,12 @@ with design meaning are:
   refused when it matches the `env` denylist or names a protected variable, so a wildcard or a
   protected name is a startup error rather than a silently widened grant. Only the servers that
   read a credential declare it.
+- `health_timeout`: the per-server health-check timeout. It must be greater than 0: a zero or a
+  negative value is rejected at config load and at direct construction, so there is no unlimited
+  branch for it and every consumer receives a positive value, the configured one when set and the
+  default when unset. The rule is defined by `scripts/shared/mcp_config.py`, the canonical source
+  for this field. A single health-check request timeout is this value capped by the time left to
+  the startup deadline (see [mcp_02_02](mcp_02_02_startup-modes-and-health.md)).
 
 **About `tool_names`:** Not used for routing decisions. It is metadata for drift validation (see `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`), used by `validate_tool_names_match()` in `scripts/shared/tool_routing_validation.py`. An empty or omitted list skips validation.
 
@@ -92,3 +98,4 @@ with design meaning are:
 - env
 - credential_env
 - control_auth_token
+- health_timeout

@@ -22,11 +22,13 @@ related:
 
 # Tool Runtime Availability Metadata: `config_dependent`, `enabled`, `disabled_reason`
 
-> `config_dependent` is `true` for every tool of `git`, `github`, `cicd`, and `shell`, and for `browser_fetch` of `web_search`; it is `false` for the file servers, `mdq`, and `rag_pipeline` tools. `enabled`/`disabled_reason` are carried into `RuntimeToolRegistry` by `_dedupe_and_build()` in `mcp_tool_discovery_registry.py`. See `mcp_03_01_dispatch-and-routing.md` for details.
+> `config_dependent` is the value the producer declares on the tool entry and is carried to `RuntimeTool` unchanged; it is never derived from `status`. It is `true` for every tool of `git`, `github`, `cicd`, and `shell`, and for `browser_fetch` of `web_search`; it is `false` for the file servers, `mdq`, and `rag_pipeline` tools. `enabled`/`disabled_reason` are carried into `RuntimeToolRegistry` by `_dedupe_and_build()` in `mcp_tool_discovery_registry.py`. See `mcp_03_01_dispatch-and-routing.md` for details.
 
 ## 1. `config_dependent` (static)
 
 Each server's `TOOL_LIST` includes a per-tool boolean field `config_dependent` (a boolean flag marking tools whose availability depends on configuration). `web_search-mcp`'s `browser_fetch` tool sets `config_dependent: True`.
+
+The value is carried, not inferred: the fetch layer rejects a declared value that is not an actual boolean with a warning, and an absent field keeps the field default. The diagnostics row reads the explicit `RuntimeTool` field, so a truthy string such as `"true"` never becomes `True`.
 
 ## 2. `enabled` / `disabled_reason` (runtime, request-time-computed)
 
@@ -56,6 +58,22 @@ By default (`include_disabled=false`) disabled tools (`enabled=False`) are omitt
 
 `enabled` maps to `RuntimeTool.enabled_for_llm` (both indicate LLM visibility; values should match). `disabled_reason` is **not** a first-class `RuntimeTool` field: the reason a tool is disabled is determined by the source of truth (config, health status, etc.) rather than carried forward.
 
+`config_dependent` **is** a first-class `RuntimeTool` field carrying the producer-declared value, and `diagnostics()` reads that field rather than deriving it from `status`. `capabilities` carries the capability names the entry declared, which is what makes a tool dependent on a capability.
+
+## Exclusion Reasons and Capability Dependency
+
+`RuntimeToolRegistry` decides exclusions once, at construction, and records the reason for each dropped tool. The reasons are `unavailable` (the server is unreachable), `disabled` (`startup_mode=none`), `posture` (the server is absent from the Security Posture gate), and `capability` (the tool depends on a capability reported `degraded` or `unavailable`). `exclusion_reason()` returns the reason for a dropped tool and `None` for a registered or unknown name.
+
+- A capability exclusion drops only the tools that depend on the lost capability. A tool whose entry declares `capabilities` depends on those names; a tool that declares none depends on the owning server's catalog capabilities, so it is excluded when its server has a degraded capability. A server with a degraded capability that no tool depends on keeps every tool it has.
+- Server-level reasons take precedence: a tool from a server already excluded for availability, disabled state, or posture keeps that reason.
+- A capability-excluded tool has no `diagnostics()` row, because that method lists registered tools only. Its state is read through `exclusion_reason()`, and `/mcp status` lists the excluded tools with their reason.
+
+## Registry Immutability and Restart Requirement
+
+Availability is decided once at construction. Apart from `apply_policy()`, the single rebinding of the tool mapping, the registry is immutable, so a reader sees either the complete old mapping or the complete new mapping, never a mixed state. A change in tool availability therefore requires a restart; there is no live swap. `/mcp status` prints the restart-required notice when a tool was excluded for a capability.
+
+The degraded-capability map and the posture gate reach this module as plain names and keys, because `shared` is a leaf and cannot read the Agent's posture DTOs; the decision that a capability is degraded is made from the health report upstream.
+
 ## 5. Dispatch rule
 
 Every server except `mdq` rejects disabled tools at `/v1/call_tool` before reaching the dispatch table (server-side gate). The response shape is `CallToolResponse(result="Tool disabled: <reason>", is_error=True)`. `mdq` only reports `enabled`/`disabled_reason` in `/v1/tools`; its `/v1/call_tool` has no such gate and relies on the per-path `allowed_dirs` authorization (`MdqAuthorizationError`) instead.
@@ -84,3 +102,6 @@ All MCP servers' `list_tools()` handlers accept `include_disabled` and `disabled
 - routing
 - tool-registry
 - runtime-tool-registry
+- config_dependent
+- capability dependency
+- exclusion reason

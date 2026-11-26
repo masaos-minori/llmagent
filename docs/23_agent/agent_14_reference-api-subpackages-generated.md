@@ -185,6 +185,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 | `scripts/agent/services/mcp_health.py` | `ServerFailureClass` | `class ServerFailureClass` | Kind of MCP server failure. Availability is reachability; Safety and Integrity are posture. |
 |  | `PostureGate` | `class PostureGate` | One server's permission to serve tools, decided from the posture it published. |
 |  | `classify_server_failure` | `def classify_server_failure(gate) -> ServerFailureClass \| None` | Return the failure kind of one gate, or None when the gate is green. |
+|  | `CapabilityFinding` | `class CapabilityFinding` | What one gate's parsed report proves about its capabilities. |
+|  | `classify_capabilities` | `def classify_capabilities(gate, required_capability) -> CapabilityFinding` | Classify one gate's report for its required capability and its optional losses. |
 |  | `collect_server_postures` | `async def collect_server_postures(ctx) -> dict[str, PostureGate]` | Probe every usable HTTP MCP server once and gate it on the posture it publishes. |
 |  | `allowed_server_keys` | `def allowed_server_keys(gates) -> set[str]` | Server keys whose gate is fully green, for RuntimeToolRegistry(allowed_servers=...). |
 |  | `check_service_health` | `async def check_service_health(ctx, *, gates) -> HealthCheckResult` | Probe LLM and Embed service health, then every MCP server posture, at startup. |

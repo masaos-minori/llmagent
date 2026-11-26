@@ -38,6 +38,17 @@ the deployment document.
   - Verify there are no errors regarding authentication failure during startup.
   - For servers that now require authentication, check transport layer errors in `<log_dir>/agent.log`.
 
+### Health Requests Use the Same Token
+
+Health requests use the same `auth_token` as every other MCP request for that server: there is no
+separate health credential and no second configuration key. `auth_headers()` in
+`scripts/shared/mcp_config.py` is the single header path, and both the startup health poll and the
+health probe read the header through it.
+
+The token value never appears in a health log line or an error message: the health failure path
+reports the server key and the failure, and any captured text such as child stderr is masked before
+it is written.
+
 ### Troubleshooting
 
 #### `auth_token` is empty
@@ -82,3 +93,5 @@ the deployment document.
 ## Keywords
 
 - configuration
+- auth_token
+- health requests
