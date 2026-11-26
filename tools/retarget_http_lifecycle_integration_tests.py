@@ -22,24 +22,24 @@ REPLACEMENTS: list[tuple[str, str]] = [
     ),
     # fixture helper
     (
-        '@pytest.fixture\ndef mgr() -> HttpServerLifecycleManager:\n    return HttpServerLifecycleManager()\n',
-        '@pytest.fixture\ndef mgr() -> HttpServerLifecycleManager:\n'
-        '    return HttpServerLifecycleManager()\n\n\n'
-        'def _make_record(\n'
-        '    proc: object,\n'
-        '    pgid: int | None = None,\n'
-        '    state: LifecycleState = LifecycleState.RUNNING,\n'
-        '    failed_start: bool = False,\n'
-        ') -> ManagedProcessRecord:\n'
+        "@pytest.fixture\ndef mgr() -> HttpServerLifecycleManager:\n    return HttpServerLifecycleManager()\n",
+        "@pytest.fixture\ndef mgr() -> HttpServerLifecycleManager:\n"
+        "    return HttpServerLifecycleManager()\n\n\n"
+        "def _make_record(\n"
+        "    proc: object,\n"
+        "    pgid: int | None = None,\n"
+        "    state: LifecycleState = LifecycleState.RUNNING,\n"
+        "    failed_start: bool = False,\n"
+        ") -> ManagedProcessRecord:\n"
         '    """Build a minimal ownership record for tests that seed the registry."""\n'
-        '    return ManagedProcessRecord(  # type: ignore[arg-type] — test helper passes Mock process objects\n'
-        '        process=proc,\n'
+        "    return ManagedProcessRecord(  # type: ignore[arg-type] — test helper passes Mock process objects\n"
+        "        process=proc,\n"
         '        pid=getattr(proc, "pid", 0),\n'
-        '        pgid=pgid,\n'
-        '        stderr_log=None,\n'
-        '        state=state,\n'
-        '        failed_start=failed_start,\n'
-        '    )\n',
+        "        pgid=pgid,\n"
+        "        stderr_log=None,\n"
+        "        state=state,\n"
+        "        failed_start=failed_start,\n"
+        "    )\n",
     ),
     # failed_start seeding (before generic proc fixtures)
     (
@@ -81,8 +81,8 @@ REPLACEMENTS: list[tuple[str, str]] = [
         'assert mgr._records.get("test") is None',
     ),
     (
-        'assert len(mgr._http_procs) == 0\n        assert len(mgr._http_pgids) == 0',
-        'assert len(mgr._records) == 0',
+        "assert len(mgr._http_procs) == 0\n        assert len(mgr._http_pgids) == 0",
+        "assert len(mgr._records) == 0",
     ),
     # generic fixtures
     (
@@ -122,15 +122,36 @@ REPLACEMENTS: list[tuple[str, str]] = [
         'mgr._records["test"] = _make_record(old_proc)',
     ),
     # single-line assertions
-    ('assert mgr._http_procs.get("test") is None', 'assert mgr._records.get("test") is None'),
-    ('assert len(manager._http_procs) == 0', 'assert len(manager._records) == 0'),
-    ('assert len(manager._http_pgids) == 0', 'assert len(manager._records) == 0'),
-    ('assert mgr._http_procs.get("test") is proc_mock', 'assert mgr._records["test"].process is proc_mock'),
-    ('assert mgr._http_pgids.get("test") == 7777', 'assert mgr._records["test"].pgid == 7777'),
-    ('assert mgr._http_procs.get("test") is second_proc', 'assert mgr._records["test"].process is second_proc'),
-    ('assert mgr._http_procs.get("test") is new_proc', 'assert mgr._records["test"].process is new_proc'),
-    ('assert mgr._http_procs.get("test") is fresh_proc', 'assert mgr._records["test"].process is fresh_proc'),
-    ('assert mgr._http_procs.get("test") is live_proc', 'assert mgr._records["test"].process is live_proc'),
+    (
+        'assert mgr._http_procs.get("test") is None',
+        'assert mgr._records.get("test") is None',
+    ),
+    ("assert len(manager._http_procs) == 0", "assert len(manager._records) == 0"),
+    ("assert len(manager._http_pgids) == 0", "assert len(manager._records) == 0"),
+    (
+        'assert mgr._http_procs.get("test") is proc_mock',
+        'assert mgr._records["test"].process is proc_mock',
+    ),
+    (
+        'assert mgr._http_pgids.get("test") == 7777',
+        'assert mgr._records["test"].pgid == 7777',
+    ),
+    (
+        'assert mgr._http_procs.get("test") is second_proc',
+        'assert mgr._records["test"].process is second_proc',
+    ),
+    (
+        'assert mgr._http_procs.get("test") is new_proc',
+        'assert mgr._records["test"].process is new_proc',
+    ),
+    (
+        'assert mgr._http_procs.get("test") is fresh_proc',
+        'assert mgr._records["test"].process is fresh_proc',
+    ),
+    (
+        'assert mgr._http_procs.get("test") is live_proc',
+        'assert mgr._records["test"].process is live_proc',
+    ),
 ]
 
 
