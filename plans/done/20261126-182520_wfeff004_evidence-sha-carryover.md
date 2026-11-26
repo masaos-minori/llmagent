@@ -201,10 +201,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first | In Progress | — | — |  |
-| 2 | The tool | In Progress | — | — |  |
-| 3 | Template, rule, and workflows | In Progress | — | — |  |
-| 4 | Documentation and verification | In Progress | — | — |  |
+| 1 | Tests first | Completed | — | 2026-11-26 |  |
+| 2 | The tool | Completed | — | 2026-11-26 |  |
+| 3 | Template, rule, and workflows | Completed | — | 2026-11-26 |  |
+| 4 | Documentation and verification | Completed | — | 2026-11-26 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -214,13 +214,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261126-183845_01_tools_check_evidence_freshness.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261126-183845_03_templates_plan.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-183845_04_rules_ai-execution.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-183845_05_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-183845_06_skills_plan-to-implementation-procedure_workflow.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-183845_07_skills_code-implementation_workflow.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-183845_08_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261126-183845_01_tools_check_evidence_freshness.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261126-183845_03_templates_plan.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-183845_04_rules_ai-execution.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-183845_05_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-183845_06_skills_plan-to-implementation-procedure_workflow.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-183845_07_skills_code-implementation_workflow.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-183845_08_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

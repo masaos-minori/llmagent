@@ -22,20 +22,20 @@
 
 ### Procedure
 1. Record `wc -c skills/code-implementation/workflow.md` (42113 expected).
-2. Apply each edit below: replace the old text (copied exactly, line breaks as in the file) with the new text.
-3. Run `wc -c` again: the size MUST be at most 42118 B (the ceiling; about 42113 B is expected); if it is larger, tighten another repeated phrase in the same file without changing a rule, or stop and report (do not raise the ceiling).
+2. Apply Edit 2 first, then Edit 1 (Edit 1's old text starts inside the tail that Edit 2 rewrites), then Edit 3; apply each edit below: replace the old text (copied exactly, line breaks as in the file) with the new text.
+3. Run `wc -c` again: the size MUST be at most 42118 B (the ceiling; about 42112 B is expected); if it is larger, tighten another repeated phrase in the same file without changing a rule, or stop and report (do not raise the ceiling).
 4. Re-read the changed section once to confirm every rule is intact.
 
 Edit 1, old text:
 
 ```text
-inconsistent with a sibling procedure document or the source Plan. See `rules/ai-execution.md`, section "Tool Usage".
+procedure or the source Plan. See `rules/ai-execution.md`, section "Tool Usage".
 ```
 
 new text:
 
 ```text
-inconsistent with a sibling procedure or the source Plan. See `rules/ai-execution.md`, section "Tool Usage". Apply its unchanged-since skip: `uv run python tools/check_evidence_freshness.py check {procedure_path}`.
+procedure or the source Plan. See `rules/ai-execution.md`, section "Tool Usage". Unchanged-since skip: `uv run python tools/check_evidence_freshness.py check {procedure_path}`.
 ```
 
 Edit 2, old text:
@@ -114,8 +114,8 @@ same Plan until the user decides).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-185118 | 20261126-185118 | wfeff004: full suite 15778 passed, 3 failed (known tests/mcp_servers/git failures); dry run on a scratch copy of the wfeff003 Plan at revision 27a17cb51: unchanged 15, changed 9 |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` "When to run which tool" | Completed | 20261126-185118 | 20261126-185118 | wfeff004: full suite 15778 passed, 3 failed (known tests/mcp_servers/git failures); dry run on a scratch copy of the wfeff003 Plan at revision 27a17cb51: unchanged 15, changed 9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -136,3 +136,4 @@ same Plan until the user decides).
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261126-183845
 - **Related target files**: `skills/code-implementation/workflow.md`
+

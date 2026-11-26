@@ -184,14 +184,14 @@ and 3d (record progress), in that order.
 
 ### Step 3a: Verify the Plan's claims (adversarial verification)
 
-Treat the Plan's descriptions of current source-code behavior as claims (it may have gone stale since approval). Apply
-`rules/ai-execution.md` Adversarial Verification (Base) before writing
-Procedure/Method/Details for a row: look for reasons the Plan's claims about the
+Treat the Plan's descriptions of current source-code behavior as claims (they may have gone
+stale since approval). Apply `rules/ai-execution.md` Adversarial Verification (Base) before
+writing Procedure/Method/Details for a row: look for reasons the Plan's claims about the
 target file, symbol, call path, or test might be wrong — shifted line numbers, an
 already renamed/removed symbol, a dependency the Plan did not account for, a
 Requirement duplicating/contradicting another Plan, or a code path the Plan's
 Background never checked — verifying each via `rg`/Read. See `rules/ai-execution.md`,
-section "Tool Usage".
+section "Tool Usage". Apply its unchanged-since skip: `uv run python tools/check_evidence_freshness.py check {plan_path}`.
 
 If adversarial verification finds an unconfirmed item or an inconsistency (a stale
 claim, a missing Requirement, a newly discovered dead-code reference, a duplicate or
@@ -209,18 +209,16 @@ Apply `rules/workflow-lifecycle.md` Correction-and-Recheck Cycle Bound (re-runni
 Step 3a against the corrected Plan); the `{artifact}` in that bound's `Blocked`
 message is "Plan ... for {row}".
 
-If this correction requires reverting a prior edit to `plans/{filename}.md`, see
-`rules/workflow-lifecycle.md` Plan-Document Correction Handling for whether `AGENTS.md`
-Rollback Directive applies (it does not) — and, if a revert is nonetheless performed,
-see the timestamp-marker preservation requirement in Step 3b.
+To revert a prior edit to `plans/{filename}.md`, see `rules/workflow-lifecycle.md`
+Plan-Document Correction Handling (`AGENTS.md` Rollback Directive does not apply) and, if a
+revert is performed, the timestamp-marker preservation requirement in Step 3b.
 
-If this correction is made while processing row K (K > 1), check whether any
-already-generated document for rows 1..K-1 relied on the now-corrected claim. If one
-does: amend that earlier document in the same cycle when the fix is bounded and does
-not require re-investigating that row's dependencies or tests; otherwise, flag it in
-the progress report and the Plan's Execution Status as needing re-verification before
-Step 4's move — MUST NOT silently leave a stale earlier document unflagged. Scope this
-check to the corrected claim only, not a full re-verification of every prior row.
+If this correction is made while processing row K (K > 1), check whether any document
+already generated for rows 1..K-1 relied on the corrected claim. If one did: amend it in
+the same cycle when the fix is bounded and needs no re-investigation of that row's
+dependencies or tests; otherwise flag it in the progress report and the Plan's Execution
+Status as needing re-verification before Step 4's move — MUST NOT silently leave it stale.
+Scope this check to the corrected claim, not a full re-verification of every prior row.
 
 **Completed when**: for the current row, the target file, its direct dependencies, and its
 related tests have each been checked once against the Plan's claim about them, and any

@@ -290,11 +290,11 @@ correct the procedure on a finding (3b), check for cross-file conflicts (3c), im
 
 Before implementing, apply `rules/ai-execution.md` Adversarial Verification (Base) to
 the procedure's claims about current source: MUST NOT assume its Procedure/Method/Details
-are still accurate. Step 2's stale detector already aborted on a missing symbol, import,
-or cited line range, so this step covers what pattern matching cannot — check via
-`rg`/Read whether the behavior, call path, and dependencies the procedure describes still
-match current source, and whether any stated assumption or scope boundary is stale or
-inconsistent with a sibling procedure document or the source Plan. See `rules/ai-execution.md`, section "Tool Usage".
+are still accurate. Step 2's stale detector already aborted on a missing symbol, import, or cited line range,
+so this step covers what pattern matching cannot — check via `rg`/Read whether the
+behavior, call path, and dependencies the procedure describes still match current source,
+and whether any assumption or scope boundary is stale or inconsistent with a sibling
+procedure or the source Plan. See `rules/ai-execution.md`, section "Tool Usage". Unchanged-since skip: `uv run python tools/check_evidence_freshness.py check {procedure_path}`.
 
 **Completed when**: the target file, its specific symbol/line/call-path claims, and its
 stated dependencies have each been checked once against current source.
@@ -315,15 +315,14 @@ unaddressed in the procedure document (or Step 3a found none).
 
 ### Step 3c: Check for cross-file conflicts
 
-If adversarial verification, or the implementation itself, reveals that the current
-file's required change conflicts with, or invalidates an assumption of, an
-already-processed file's change in the same Multi-file-processing batch, stop and
-report `Blocked: cross-file conflict with {earlier file} — {description}` rather than
-proceeding. MUST NOT implement around the conflict silently. This is a per-file `Blocked`
-outcome, not a batch-wide stop — the current file's cycle ends here, its Execution
-Status row for this Step is marked `Blocked`, and Multi-file processing continues per
-its Dependency order rule (it does not stop the whole batch, but it does stop the
-remaining procedures of the same Plan until the user decides).
+If adversarial verification, or the implementation itself, shows that the current file's
+change conflicts with, or invalidates an assumption of, an already-processed file's change
+in the same Multi-file-processing batch, stop and report `Blocked: cross-file conflict
+with {earlier file} — {description}`; MUST NOT implement around it silently. This is a
+per-file `Blocked` outcome, not a batch-wide stop — the current file's cycle ends here,
+its Execution Status row for this Step is marked `Blocked`, and Multi-file processing
+continues per its Dependency order rule (it stops only the remaining procedures of the
+same Plan until the user decides).
 
 **Completed when**: no unresolved conflict with an already-processed file in this batch
 is outstanding.

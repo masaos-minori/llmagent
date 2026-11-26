@@ -132,8 +132,8 @@ new text:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-185118 | 20261126-185118 | wfeff004: full suite 15778 passed, 3 failed (known tests/mcp_servers/git failures); dry run on a scratch copy of the wfeff003 Plan at revision 27a17cb51: unchanged 15, changed 9 |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` "When to run which tool" | Completed | 20261126-185118 | 20261126-185118 | wfeff004: full suite 15778 passed, 3 failed (known tests/mcp_servers/git failures); dry run on a scratch copy of the wfeff003 Plan at revision 27a17cb51: unchanged 15, changed 9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

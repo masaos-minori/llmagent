@@ -8,15 +8,14 @@ Accuracy, completeness, and validation MUST take priority over context reduction
 not reduce context when doing so may cause missing evidence, incorrect conclusions,
 incomplete plans, or insufficient validation.
 
-A workflow that applies this section states so with a short reference and adds only
-its own workflow-specific bullets — it does not restate the paragraph above.
+A workflow that applies this section references it and adds only its own bullets.
 
 ## Context Reading
 
 - Read shared files once per session in Step 0; do not re-read them for later cycles.
 - A file already read in the current session MUST NOT be re-read unless it changed since the read.
 - Read the current target file in full when its complete meaning or structure is needed.
-- Read other files only in relevant sections, unless a full read is needed to understand behavior, dependencies, lifecycle, ownership, side effects, error handling, configuration, tests, or document consistency.
+- Read other files only in relevant sections, unless a full read is needed to understand behavior, dependencies, ownership, side effects, error handling, configuration, tests, or document consistency.
 - Do not omit necessary evidence to save context.
 - Reuse a verified fact only while its source file is unchanged. Store the source path and evidence location with each cached fact, and recheck it after the source changes.
 - Do not summarize shared rules or template content in chat — reference them by file name instead.
@@ -81,18 +80,19 @@ Applies to any workflow step that must verify an upstream document's claims abou
 current source (code, config, tests) before acting on them or generating a downstream
 document from them.
 
-- Treat the upstream document's factual claims as unverified, not confirmed —
-  actively search for evidence that would refute or narrow them (a claim that is
-  already stale, a symbol that no longer exists, a dependency the document did not
-  account for, a contradiction with another document), rather than merely confirming
-  what it already asserts.
-- Investigate in this order: the target file itself, its direct dependencies
-  (immediate imports/importers), then related tests — expand beyond this order only
-  when evidence remains insufficient.
-- Stop investigating a specific claim once it has been checked once against a
-  concrete source; a disconfirming finding ends investigation for that finding (correct
-  the upstream document, per the workflow's own correction procedure) rather than
-  researching further to double-confirm it.
+- Treat the upstream document's factual claims as unverified, not confirmed: search
+  for evidence that would refute or narrow them (a stale claim, a missing symbol, an
+  unaccounted dependency, a contradiction with another document) instead of merely
+  confirming what it asserts.
+- Investigate in this order: the target file, its direct dependencies (immediate
+  imports/importers), then related tests; expand only when evidence remains insufficient.
+- Stop investigating a claim once it has been checked once against a concrete source; a
+  disconfirming finding ends investigation of it (correct the upstream document per the
+  workflow's own correction procedure) instead of researching further.
+- A claim whose files `uv run python tools/check_evidence_freshness.py check <document>`
+  reports unchanged since the Plan's `Evidence revision` is cited as verified at that
+  revision without re-reading; a new, changed, uncommitted, unrecorded, or tree-wide-search
+  claim is verified in full.
 - A workflow that applies this section states so with a short reference — it does not
   restate this procedure inline.
 
@@ -121,17 +121,16 @@ record-and-continue) has been taken.
 - Use verbose, debug, or trace output only when diagnosing a problem.
 - Do not repeat a command when neither its input nor the environment has changed.
   This applies across separate target-file cycles in a Multi-file-processing workflow,
-  not only within a single cycle — a side-effect-free, read-only command against a file
-  confirmed unchanged (same file path, same content — git blob hash or byte-for-byte
-  match — and same command string) MAY be skipped rather than re-run. A Read call, or a
+  not only within one cycle — a side-effect-free, read-only command against a file
+  confirmed unchanged (same path, same content by git blob hash or byte match, same
+  command string) MAY be skipped rather than re-run. A Read call, or a
   read-only `git status`/`git diff`/`git log`/`git show` command, whose underlying state
   cannot have changed since the last call MUST NOT be re-issued; a re-run needed as
   independent evidence per Repository Tool Usage item 8 stays allowed. This does not permit
-  reusing the *conclusion* drawn from a prior cycle across cycles where a workflow's own
-  cycle-isolation rule forbids it (e.g. `skills/issue-to-plan/workflow.md` Multi-file
-  processing) — only the command execution itself may be skipped; its output MUST still be
-  independently re-verified as evidence per Repository Tool Usage item 8, not silently
-  trusted from a stale cache.
+  reusing the *conclusion* of a prior cycle where a workflow's own cycle-isolation rule
+  forbids it (e.g. `skills/issue-to-plan/workflow.md` Multi-file processing) — only the
+  command execution may be skipped; its output MUST still be re-verified as evidence per
+  Repository Tool Usage item 8, not trusted from a stale cache.
 
 **Completed when**: no available information already answers the question, calls
 have been batched where independent, and no unchanged command was re-run against the

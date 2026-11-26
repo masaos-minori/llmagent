@@ -166,6 +166,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: {timestamp}
+- **Evidence revision**: {sha} — the 40-hex HEAD at which the evidence was verified; print it with tools/check_evidence_freshness.py record
 - **Related target files**: {paths} — the full list of `File Path` values from
   `Implementation Target Files` above, once `Frozen`
 
@@ -236,3 +237,8 @@ Audit basis (2026-10-24): for each section name, `rg -F` over
   (`plan-to-implementation-procedure` Step 4, `tools/manage_workitem_stage.py`).
 - `Traceability` and `Requirement Traceability`: `Source issue` and requirement links
   (`tools/check_workitem_traceability.py`).
+
+Name every file a claim relies on in its `Repository Evidence` cell, in backticks:
+`tools/check_evidence_freshness.py` derives the files the `Evidence revision` covers from the
+backticked paths of the Plan, and a claim that relies on an unnamed file is verified in full by a
+later phase.

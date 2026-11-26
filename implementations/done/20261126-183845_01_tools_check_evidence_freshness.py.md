@@ -70,9 +70,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add the companion test file first, then confirm it fails before and passes after | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-185118 | 20261126-185118 | wfeff004: full suite 15778 passed, 3 failed (known tests/mcp_servers/git failures); dry run on a scratch copy of the wfeff003 Plan at revision 27a17cb51: unchanged 15, changed 9 |
+| 2 | Add the companion test file first, then confirm it fails before and passes after | Completed | 20261126-185118 | 20261126-185118 | wfeff004: full suite 15778 passed, 3 failed (known tests/mcp_servers/git failures); dry run on a scratch copy of the wfeff003 Plan at revision 27a17cb51: unchanged 15, changed 9 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-185118 | 20261126-185118 | wfeff004: full suite 15778 passed, 3 failed (known tests/mcp_servers/git failures); dry run on a scratch copy of the wfeff003 Plan at revision 27a17cb51: unchanged 15, changed 9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

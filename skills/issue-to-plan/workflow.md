@@ -138,23 +138,22 @@ duplicate plans when multiple agents process the same Issue concurrently.
   files/symbols/line numbers still exist as stated, whether a claimed dependency or
   side effect is missing or overstated, and whether two claims within the same Issue
   (or against a related `plans/`/`implementations/` document) contradict each other.
-  Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: MUST NOT re-run a
-  check already performed against the same file/claim at its current content within
-  this cycle.
-  Stop once every field extracted per `templates/issue.md` (extraction list below) has been checked against at least one concrete source (a file, test, or existing
-  Plan/Implementation document) and the last full pass over that list found no new disconfirming evidence. This does not replace
-  `rules/workflow-lifecycle.md`'s Completion Criteria, which gate the whole cycle.
+  Per `rules/ai-execution.md` Tool Usage's idempotent-command rule, MUST NOT re-run a check
+  already performed against the same file/claim at its current content within this cycle.
+  Stop once every field extracted per `templates/issue.md` (list below) has been checked
+  against at least one concrete source (a file, test, or existing Plan/Implementation
+  document) and the last full pass found no new disconfirming evidence. This does not
+  replace `rules/workflow-lifecycle.md`'s Completion Criteria, which gate the whole cycle.
 - **Same-cycle dedup** (Steps 2, 3, and 8b): a claim, target file, or Implementation
   Target Files row already verified in this cycle MUST NOT be verified again unless
   (a) a command in this cycle modified that file, (b) a path-scoped `git status --short
   -- <path>` or `git log -1 --format=%H -- <path>` shows a change since the check, or
   (c) the earlier check was inconclusive (`Needs confirmation`).
 - **Depth ceiling** (Steps 2, 3, and 8b): stay within the base order of
-  `rules/ai-execution.md` Adversarial Verification (Base). Expand beyond it only when
-  (a) a disconfirming finding produced inside that order points outside it, or (b) an
-  Implementation Target Files row cannot meet one of the four Freeze criteria inside the
-  order. Any other item that cannot be settled inside the order is classified
-  `Needs confirmation` instead of being researched further.
+  `rules/ai-execution.md` Adversarial Verification (Base). Expand beyond it only when (a) a
+  disconfirming finding inside that order points outside it, or (b) a target row cannot meet
+  one of the four Freeze criteria inside it. Anything else unsettled inside the order is
+  `Needs confirmation`, not researched further.
 - Extract the fields defined in `templates/issue.md` (the canonical Issue shape shared
   with `skills/issue-creator`), by that template's own names: title, Priority, Summary,
   Background, Problem, Reason for Change, Implementation Intent, Target Files or Areas,
@@ -493,12 +492,12 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
   `N/A: no standalone requirement document is generated`; Source plan =
   `N/A: this document is the generated plan`; Source implementation procedure =
   `N/A: not applicable in this phase`; Generated at = the Step 5 timestamp; Related
-  target files = the affected paths.
-- Add the "Requirement Traceability" subsection immediately after those fields, using
-  `templates/requirement-traceability.md`'s column format (Requirement ID, Source Issue
-  section or evidence, Target file, Implementation step, Acceptance criterion, Test or
-  validation item, Status). Status is the Step 2 evidence classification for that
-  Requirement.
+  target files = the affected paths; Evidence revision = the line `uv run python
+  tools/check_evidence_freshness.py record plans/{filename}.md` prints.
+- Add the "Requirement Traceability" subsection right after those fields, in the column
+  format of `templates/requirement-traceability.md` (Requirement ID, Source Issue section
+  or evidence, Target file, Implementation step, Acceptance criterion, Test or validation
+  item, Status); Status is the Step 2 evidence classification of the Requirement.
 
 ---
 
