@@ -26,7 +26,8 @@ Verified against current source at `9ad65ba903373406c0f2c8809428e3e751f3facc`:
 - `scripts/agent/http_lifecycle_health_checker.py` logs full URLs at debug level.
 - `ProcessInfoSnapshot.stderr_log` carries the internal absolute log path (`scripts/agent/http_lifecycle.py` line 212).
 - Memory display writes entry content unmasked (`scripts/agent/commands/memory_data_ops.py` line 357).
-- `scripts/agent/wal_checkpoint_manager.py` (lines 196, 230) and `scripts/agent/session_persister.py` (lines 204-205, 333) log raw `sqlite3.Error` messages.
+- `scripts/agent/secrets_masker.py` already masks URL userinfo (`user:password@host`) via the pattern at lines 39-43; the Plan's earlier "keyed secrets only" claim was stale. What is missing is query/fragment stripping and path redaction.
+- `scripts/agent/wal_checkpoint_manager.py` (logging at lines 200-203 and 242-245, reached from the `sqlite3.Error` handlers at 196 and 230) and `scripts/agent/session_persister.py` (lines 204-205, 333) log raw `sqlite3.Error` messages.
 - `/mcp status` shows the raw configured endpoint URL (`scripts/agent/services/mcp_status.py` line 199); `/config` shows `llm_url` and approval protected paths (`scripts/agent/commands/cmd_config_display.py` lines 43, 88-89).
 - Documentation drift: `docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md` line 73 documents the stderr log location as `<log_dir>/scripts/mcp_servers/{server_key}.stderr.log`, which does not match the actual location.
 
@@ -56,7 +57,7 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/agent/secrets_masker.py` | Add `redact_url` and `redact_path` helpers; keep existing masking behavior unchanged | Common redaction model needs URL and path forms | REQ-001; AC-1, AC-2 | Current module masks keyed secrets only (`scripts/agent/secrets_masker.py` lines 14-24) | `tests/agent/test_secrets_masker.py` | Verified |
+| `scripts/agent/secrets_masker.py` | Add `redact_url` (query/fragment stripping) and `redact_path` helpers; keep existing masking behavior unchanged | Common redaction model needs URL and path forms | REQ-001; AC-1, AC-2 | Corrected by Step 3a: URL userinfo masking already exists at `scripts/agent/secrets_masker.py` lines 39-43, so only query/fragment stripping and path redaction are new; keyed-secret patterns are lines 14-38 | `tests/agent/test_secrets_masker.py` | Verified |
 | `scripts/agent/http_lifecycle_errors.py` | Safe public summaries and stable error codes; strip absolute paths from `reason` | `reason` can embed the absolute log dir path | REQ-002; AC-1 | `scripts/agent/http_lifecycle_stderr_log_manager.py` line 76 builds `Cannot create log directory '{log_dir}'`; `__str__` already masks the tail | `tests/agent/test_http_lifecycle.py` | Verified |
 | `scripts/agent/http_lifecycle_health_checker.py` | Redact URLs before logging; redact before truncating | Full URLs logged at debug level | REQ-003; AC-2 | `scripts/agent/http_lifecycle_health_checker.py` debug lines log `%s` URLs | `tests/agent/test_http_lifecycle_health_check.py` | Verified |
 | `scripts/agent/http_lifecycle_stderr_log_manager.py` | File mode `0o600`; enforce configured size and generation limits with purge; writer-compatible copy-and-truncate rotation; consistent writer and tail-reader paths | Rename rotation breaks the active writer fd; no mode or retention enforcement | REQ-006; AC-3 | `scripts/agent/http_lifecycle_stderr_log_manager.py` lines 67-83 (dir `0o700`, `open(path, "ab")`), 111-135 (`os.rename`), no purge | `tests/agent/test_http_lifecycle_stderr_log_manager.py` | Verified |
@@ -251,11 +252,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Common redaction helper | Pending | — | — | |
-| 2 | Phase 2: Error and internal-log redaction | Pending | — | — | |
-| 3 | Phase 3: Stderr log management | Pending | — | — | |
-| 4 | Phase 4: Display surfaces and snapshot policy | Pending | — | — | |
-| 5 | Phase 5: Documentation, deployment check, and full validation | Pending | — | — | Deploy is the user's decision |
+| 1 | Phase 1: Common redaction helper | In Progress | — | — |  |
+| 2 | Phase 2: Error and internal-log redaction | In Progress | — | — |  |
+| 3 | Phase 3: Stderr log management | In Progress | — | — |  |
+| 4 | Phase 4: Display surfaces and snapshot policy | In Progress | — | — |  |
+| 5 | Phase 5: Documentation, deployment check, and full validation | In Progress | — | — | Deploy is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -265,7 +266,22 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261126-225455_01_scripts_agent_secrets_masker.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_02_scripts_agent_http_lifecycle_errors.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_03_scripts_agent_http_lifecycle_health_checker.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_04_scripts_agent_http_lifecycle_stderr_log_manager.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_05_scripts_agent_http_lifecycle.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_06_scripts_agent_services_models.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_07_scripts_agent_services_mcp_status.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_08_scripts_agent_commands_cmd_mcp.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_09_scripts_agent_commands_cmd_config_display.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_10_scripts_agent_commands_memory_data_ops.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_11_scripts_agent_wal_checkpoint_manager.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_12_scripts_agent_session_persister.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_14_tests_agent_test_http_lifecycle.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_24_docs_22_mcp_mcp_03_04_tool-call-tracing-and-lifecycle.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_25_docs_23_agent_agent_02_runtime-architecture.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_26_docs_23_agent_agent_13_reference-api-generated.md.md` | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -274,7 +290,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261126-210258
-- **Evidence revision**: 9ad65ba903373406c0f2c8809428e3e751f3facc — the 40-hex HEAD at which the evidence was verified; print it with tools/check_evidence_freshness.py record
+- **Evidence revision**: 9ad65ba903373406c0f2c8809428e3e751f3facc
 - **Related target files**: `scripts/agent/secrets_masker.py`, `scripts/agent/http_lifecycle_errors.py`, `scripts/agent/http_lifecycle_health_checker.py`, `scripts/agent/http_lifecycle_stderr_log_manager.py`, `scripts/agent/http_lifecycle.py`, `scripts/agent/services/models.py`, `scripts/agent/services/mcp_status.py`, `scripts/agent/commands/cmd_mcp.py`, `scripts/agent/commands/cmd_config_display.py`, `scripts/agent/commands/memory_data_ops.py`, `scripts/agent/wal_checkpoint_manager.py`, `scripts/agent/session_persister.py`, `tests/agent/test_secrets_masker.py`, `tests/agent/test_http_lifecycle.py`, `tests/agent/test_lifecycle.py`, `tests/agent/test_http_lifecycle_health_check.py`, `tests/agent/test_http_lifecycle_stderr_log_manager.py`, `tests/agent/test_wal_checkpoint_manager.py`, `tests/agent/test_session_persister.py`, `tests/agent/services/test_agent_mcp_status.py`, `tests/agent/commands/test_cmd_mcp.py`, `tests/agent/commands/test_agent_cmd_config.py`, `tests/agent/commands/test_memory_data_ops.py`, `docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md`, `docs/23_agent/agent_02_runtime-architecture.md`, `docs/23_agent/agent_13_reference-api-generated.md`
 
 ### Requirement Traceability
@@ -282,7 +298,7 @@ See `templates/requirement-traceability.md` for the canonical column format.
 
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
 |---|---|---|---|---|---|---|
-| REQ-001 | Required Changes; `scripts/agent/secrets_masker.py` current patterns | `scripts/agent/secrets_masker.py` | Phase 1 | AC-1, AC-2 | `tests/agent/test_secrets_masker.py` | Confirmed by repository evidence |
+| REQ-001 | Required Changes; `scripts/agent/secrets_masker.py` current patterns (keyed secrets lines 14-38, URL userinfo lines 39-43) | `scripts/agent/secrets_masker.py` | Phase 1 | AC-1, AC-2 | `tests/agent/test_secrets_masker.py` | Confirmed by repository evidence |
 | REQ-002 | Required Changes; `scripts/agent/http_lifecycle_stderr_log_manager.py` line 76 reason path | `scripts/agent/http_lifecycle_errors.py` | Phase 2 | AC-1 | `tests/agent/test_http_lifecycle.py` | Confirmed by repository evidence |
 | REQ-003 | Required Changes; full-URL debug logging | `scripts/agent/http_lifecycle_health_checker.py` | Phase 2 | AC-2 | `tests/agent/test_http_lifecycle_health_check.py` | Confirmed by repository evidence |
 | REQ-004 | Required Changes; raw SQLite error logging | `scripts/agent/wal_checkpoint_manager.py` | Phase 2 | AC-2 | `tests/agent/test_wal_checkpoint_manager.py` | Confirmed by repository evidence |

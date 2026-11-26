@@ -93,6 +93,15 @@ Yes. Corrected docstrings and field descriptions (REQ-002, REQ-003). Target doc 
 - `McpServerConfig.tool_names` is already removed (agentcfg002); this Plan must not reintroduce it.
 - Documented pass-through facades are intentional design, not duplicates to consolidate.
 - `scripts/` files are rsynced by deploy.sh; no `cp` line change.
+- Step 3a findings (2026-11-26, adversarial verification): all Problem and Requirements claims reconfirmed against
+  current source — the four properties are defined at `scripts/shared/mcp_config.py:99,109,150,166` with no call
+  site in `scripts/` or `tests/`; the rotation fields are validated at `:275-282` and `rotate_log` has no
+  production caller; the docstring path at `scripts/agent/http_lifecycle.py:71-72` does not match the actual path
+  built at `scripts/agent/http_lifecycle_stderr_log_manager.py:67`; `scripts/agent/session_persister.py` has no
+  module-level constant besides `logger` (`:47`). REQ-002's clause "align field descriptions in
+  `scripts/shared/mcp_config.py`" resolves to no change: the field comments at `:140-141` already match runtime
+  behavior, so the actionable part of REQ-002 is the docstring in `scripts/agent/http_lifecycle.py`. No stale
+  claim found in this Plan.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -149,10 +158,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Remove confirmed unused public properties (`scripts/shared/mcp_config.py`) | Pending | — | — | |
-| 2 | Phase 2: Correct stale docstrings (`scripts/agent/http_lifecycle.py`) | Pending | — | — | |
-| 3 | Phase 3: Keep the stderr rotation fields, confirm AC-3 after the open plan lands (`scripts/shared/mcp_config.py`) | Pending | — | — | Decision resolved to keep; confirmation waits for the open plan's enforcement |
-| 4 | Phase 4: Validation and deployment hand-off | Pending | — | — | Deploy is the user's decision |
+| 1 | Phase 1: Remove confirmed unused public properties (`scripts/shared/mcp_config.py`) | In Progress | — | — |  |
+| 2 | Phase 2: Correct stale docstrings (`scripts/agent/http_lifecycle.py`) | In Progress | — | — |  |
+| 3 | Phase 3: Keep the stderr rotation fields, confirm AC-3 after the open plan lands (`scripts/shared/mcp_config.py`) | In Progress | — | — | Decision resolved to keep; confirmation waits for the open plan's enforcement |
+| 4 | Phase 4: Validation and deployment hand-off | In Progress | — | — | Deploy is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -163,7 +172,8 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261126-235847_01_scripts_shared_mcp_config.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-235847_02_scripts_agent_http_lifecycle.py.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -183,3 +193,5 @@ N/A: no release unit
 | REQ-002 | Required Changes; docstring vs actual log path this cycle | `scripts/agent/http_lifecycle.py` | Phase 2 | AC-2 | `tests/agent/test_http_lifecycle.py` | Confirmed by repository evidence |
 | REQ-003 | Required Changes; fields exist but unenforced; decision resolved to keep via the frozen plan's REQ-006 | `scripts/shared/mcp_config.py` | Phase 3 | AC-3 | `tests/shared/test_mcp_config_validation.py` (unchanged) | Confirmed by repository evidence |
 | REQ-004 | Required Changes; resolved this cycle — no concrete constant found in `scripts/agent/session_persister.py` (full read + `tools/scan_change_consumers.py`) | N/A: no target file (moved to Reference Files) | N/A: REQ resolved to N/A | AC-4 (N/A) | `tests/agent/test_session_persister.py` (unchanged) | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-235847 -->

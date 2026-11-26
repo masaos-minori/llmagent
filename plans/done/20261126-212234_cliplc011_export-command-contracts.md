@@ -45,6 +45,7 @@ Export is valid for arbitrary content; each command has one implementation owner
 
 ## Implementation Target Files
 **Freeze status**: Frozen (Step 8 validation passed — see this Plan's Step 8 report in the workflow run).
+Amended 2026-11-26 (fallout): added tests/agent/commands/test_command_registry_consistency.py — Pinned-count test discovered during Step 3c: the module removal changes both counts
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -73,6 +74,7 @@ table — no other file may be treated as a modification target.
 | `docs/23_agent/agent_05_llm-and-streaming.md` | Remove the `/set` reference; point to `/reload` | Documentation drift: `/set` is not implemented | REQ-007 | `docs/23_agent/agent_05_llm-and-streaming.md` line 50 | N/A: documentation gate per `rules/tool-gates.md` | Verified |
 | `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md` | Canonical command specification: `/stats` aggregate-counts scope, bare `/mcp` alias, `/compact` owner | Documentation Impact | REQ-007 | `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md` line 48 (`/stats` "not yet implemented, SHARED-003") | N/A: documentation gate per `rules/tool-gates.md` | Verified |
 | `docs/23_agent/agent_14_reference-api-subpackages-generated.md` | Regenerate the reference table after the formatter docstring change | Generated-reference domain hit by the predictable fallout check | REQ-001, REQ-007 | `docs/23_agent/agent_14_reference-api-subpackages-generated.md` line 170 lists `render_history_md` with its docstring first line | N/A: `generate_reference_table.py --check` | Verified |
+| `tests/agent/commands/test_command_registry_consistency.py` | Update the pinned mixin counts (10 MRO, 8 direct bases) after the _RagExportMixin wiring removal | Pinned-count test discovered during Step 3c: the module removal changes both counts | REQ-003 / AC-2 | tests/agent/commands/test_command_registry_consistency.py lines 181-197 assert 10 Mixin classes in the MRO and 8 direct Mixin bases | itself | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) for the full validation procedure):
@@ -144,6 +146,7 @@ separate scope-of-record.
 | `scripts/agent/commands/cmd_mcp.py` | Bare `/mcp` alias contract | `/mcp` display path | 5 | N/A: `git-fame` unavailable | N/A: no deploy change |
 | `scripts/agent/commands/command_defs_list.py` | Export `ArgSpec` update | Help, completion, dispatch definitions | 4 | N/A: `git-fame` unavailable | N/A: no deploy change |
 | `scripts/agent/repl_input_loop.py` | Token-only unknown-command display | REPL dispatch-miss path | 3 | N/A: `git-fame` unavailable | N/A: no deploy change |
+| `tests/agent/commands/test_command_registry_consistency.py` | Modify | Not assessed (amendment 2026-11-26) | N/A | N/A | Not assessed (amendment 2026-11-26) |
 
 ## Design
 Grounded in the Path B analyses at HEAD `901bea2549a2314ad612a233a5e4e16d3e9d52d3`.
@@ -192,6 +195,7 @@ Design decisions (Path B):
    - [ ] Bare `/mcp` alias contract in `scripts/agent/commands/cmd_mcp.py` (REQ-005; AC-2)
    - [ ] Token-only unknown-command display in `scripts/agent/repl_input_loop.py` (REQ-006; AC-3)
    - [ ] Tests in `tests/agent/commands/test_cmd_debug.py`, `tests/agent/commands/test_cmd_mcp.py`, `tests/agent/test_repl.py`
+   - [ ] Update the pinned mixin counts (10 MRO, 8 direct bases) after the _RagExportMixin wiring removal (REQ-003; `tests/agent/commands/test_command_registry_consistency.py`) — amendment 2026-11-26
 4. **Phase 4: CI check, documentation, regeneration, and full validation**
    - [ ] Documentation-set and completion-set equality check in `tests/agent/commands/test_command_def_sync.py` (REQ-007; AC-2)
    - [ ] Remove `/set` in `docs/23_agent/agent_05_llm-and-streaming.md` (REQ-007)
@@ -227,10 +231,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Export formatter (tests first) | Pending | — | — | |
-| 2 | Phase 2: Export argument parser | Pending | — | — | |
-| 3 | Phase 3: Command ownership and error contract | Pending | — | — | |
-| 4 | Phase 4: CI check, documentation, regeneration, and full validation | Pending | — | — | Deploy is the user's decision |
+| 1 | Phase 1: Export formatter (tests first) | In Progress | — | — |  |
+| 2 | Phase 2: Export argument parser | In Progress | — | — |  |
+| 3 | Phase 3: Command ownership and error contract | In Progress | — | — |  |
+| 4 | Phase 4: CI check, documentation, regeneration, and full validation | In Progress | — | — | Deploy is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -240,7 +244,20 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261126-230743_01_scripts_agent_services_export_formatter.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_02_scripts_agent_commands_cmd_session.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_03_scripts_agent_commands_cmd_context.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_04_scripts_agent_commands_cmd_rag_export.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_05_scripts_agent_commands_registry.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_06_scripts_agent_commands_cmd_debug.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_07_scripts_agent_commands_cmd_mcp.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_08_scripts_agent_commands_command_defs_list.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_09_scripts_agent_repl_input_loop.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_11_tests_agent_services_test_commands_utils.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_15_tests_agent_commands_test_command_def_sync.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_18_docs_23_agent_agent_05_llm-and-streaming.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_19_docs_23_agent_agent_07_03_cli-and-commands-command-registry.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_20_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -249,8 +266,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261126-212234
-- **Evidence revision**: 901bea2549a2314ad612a233a5e4e16d3e9d52d3 — the 40-hex HEAD at which the evidence was verified; print it with tools/check_evidence_freshness.py record
-- **Related target files**: `scripts/agent/services/export_formatter.py`, `scripts/agent/commands/cmd_session.py`, `scripts/agent/commands/cmd_context.py`, `scripts/agent/commands/cmd_rag_export.py`, `scripts/agent/commands/registry.py`, `scripts/agent/commands/cmd_debug.py`, `scripts/agent/commands/cmd_mcp.py`, `scripts/agent/commands/command_defs_list.py`, `scripts/agent/repl_input_loop.py`, `tests/test_export_formatter.py`, `tests/agent/services/test_commands_utils.py`, `tests/agent/commands/test_command_arg_parsing.py`, `tests/agent/commands/test_cmd_debug.py`, `tests/agent/commands/test_cmd_mcp.py`, `tests/agent/commands/test_command_def_sync.py`, `tests/agent/test_repl.py`, `tests/agent/test_history_compression_consistency.py`, `docs/23_agent/agent_05_llm-and-streaming.md`, `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md`, `docs/23_agent/agent_14_reference-api-subpackages-generated.md`
+- **Evidence revision**: 901bea2549a2314ad612a233a5e4e16d3e9d52d3
+- **Related target files**: `scripts/agent/services/export_formatter.py`, `scripts/agent/commands/cmd_session.py`, `scripts/agent/commands/cmd_context.py`, `scripts/agent/commands/cmd_rag_export.py`, `scripts/agent/commands/registry.py`, `scripts/agent/commands/cmd_debug.py`, `scripts/agent/commands/cmd_mcp.py`, `scripts/agent/commands/command_defs_list.py`, `scripts/agent/repl_input_loop.py`, `tests/test_export_formatter.py`, `tests/agent/services/test_commands_utils.py`, `tests/agent/commands/test_command_arg_parsing.py`, `tests/agent/commands/test_cmd_debug.py`, `tests/agent/commands/test_cmd_mcp.py`, `tests/agent/commands/test_command_def_sync.py`, `tests/agent/test_repl.py`, `tests/agent/test_history_compression_consistency.py`, `docs/23_agent/agent_05_llm-and-streaming.md`, `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md`, `docs/23_agent/agent_14_reference-api-subpackages-generated.md`, `tests/agent/commands/test_command_registry_consistency.py`
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
@@ -272,3 +289,4 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-007 | Required Changes; `docs/23_agent/agent_05_llm-and-streaming.md` line 50 | `docs/23_agent/agent_05_llm-and-streaming.md` | Phase 4 | N/A: documentation gate per `rules/tool-gates.md` | N/A: documentation gate | Confirmed by repository evidence |
 | REQ-007 | Required Changes; `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md` line 48 | `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md` | Phase 4 | N/A: documentation gate per `rules/tool-gates.md` | N/A: documentation gate | Confirmed by repository evidence |
 | REQ-007 | Documentation Impact; generated reference row | `docs/23_agent/agent_14_reference-api-subpackages-generated.md` | Phase 4 | N/A: documentation gate per `rules/tool-gates.md` | `generate_reference_table.py --check` | Confirmed by repository evidence |
+| REQ-003 | Amendment 2026-11-26: Pinned-count test discovered during Step 3c: the module removal changes both counts | tests/agent/commands/test_command_registry_consistency.py | Phase 3 | AC-2 | itself | Confirmed by repository evidence |

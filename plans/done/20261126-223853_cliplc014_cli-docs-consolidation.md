@@ -14,13 +14,13 @@ Low
 Source: consolidated CLI REPL and MCP lifecycle backlog (`memo-issue.md`, Issue 14), filed as `issues/20261119-145312_cliplc014_cli-docs-consolidation.md`. The chapter-07 documents exist under `docs/23_agent/` as `agent_07_01` through `agent_07_10`; the backlog's paths without the `23_agent/` directory do not exist. The backlog's defect list (duplicate command definitions, misleading filenames, empty sections, punctuation errors, contradictory shutdown guarantees, obsolete delayed-input behavior) was `Needs confirmation` at filing time. Step 2 resolved that list against current source: three of the six claims do not reproduce, and the MCP lifecycle document was identified as `docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md`.
 
 ## Problem
-Seven statements in the documentation set contradict current source or each other:
+Six statements in the documentation set contradict current source or each other:
 
 - `docs/23_agent/agent_07_06_cli-and-commands-hot-reload.md:73` documents `/config show`; `/config` has no subcommand in `scripts/agent/commands/command_defs_list.py:40-45`.
 - `docs/23_agent/agent_07_05_cli-and-commands-repl-io.md:57` states that Ctrl-C never ends the REPL by itself, which contradicts line 39 of the same file and `scripts/agent/signal_handler.py:102-138` (force-exit path when `shutdown_force_exit_on_second_sigint` is true).
 - `docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md:21` states that shutdown removes the process entry before signalling; `scripts/agent/http_lifecycle_shutdown_coordinator.py` (lines 9 and 109) and `docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md:101` state that nothing is removed before the termination attempt and a record is released only on a confirmed exit. `tests/agent/test_http_lifecycle_shutdown_coordinator.py::test_no_removal_before_termination` proves the code behavior.
-- `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md:106` carries a stale `not yet implemented, SHARED-003` parenthetical for the `/stats` aggregate state; `scripts/agent/commands/cmd_config_stats.py:106-136` implements the aggregate counts.
-- `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md:51` has an empty `## Known Limitations` section, the only genuinely empty section in the chapter.
+- `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md:106` enumerates `RAG hits` in the `/stats` output; no RAG hits counter exists in the stats model (`scripts/agent/commands/models.py:30-47`; `rag_db_configured` only gates a hint line at `scripts/agent/commands/cmd_config_stats.py:141-143`). The `not yet implemented, SHARED-003` parenthetical is accurate for the aggregate-state clause: `cmd_config_stats.py:130-136` prints memory aggregate counters but no Repository Context aggregate state, and SHARED-003 is still `open` in `docs/00_governance/governance_03_issue-and-uncertainty-management.md`. The stale part of the row is the `RAG hits` enumeration, not the parenthetical.
+- `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md:57` has an empty `## Known Limitations` section, the only genuinely empty section in the chapter.
 - `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md:30-40` lists the chapter files in a non-numeric order (04, 05, 02, 03, 07, 08, 09, 10, 06).
 
 Claims that do not reproduce against current source: duplicate authoritative command specifications (`agent_07_03` is an index that explicitly delegates subcommand and argument detail to the per-command chapters, line 42); punctuation, spacing, and indentation errors (none found in the chapter); obsolete delayed-input behavior (`agent_07_05` already documents the current input-handoff behavior implemented by cliplc001). `## Design Intent` headings followed directly by `###` subsections are not empty-content defects.
@@ -35,7 +35,7 @@ One authoritative statement per command and lifecycle concept, verified against 
 - `REQ-001`: Every documented command usage must exist in the registered command surface; remove the unregistered `/config show` usage from the pending-restart display text.
 - `REQ-002`: The REPL interrupt contract must be stated without internal contradiction: the absolute Ctrl-C claim must be qualified by the configured force-exit opt-in that the same document already states.
 - `REQ-003`: The MCP lifecycle document must state process-record ownership during shutdown the way the coordinator implements it (record released only on a confirmed exit).
-- `REQ-004`: A stale `not yet implemented` claim must be removed where the implementation exists; the privacy scope of the `/stats` aggregate reporting stays.
+- `REQ-004`: A stale claim must be removed where the implementation contradicts it: the unprovable `RAG hits` enumeration in the `/stats` row is removed, while the `not yet implemented, SHARED-003` parenthetical stays because the aggregate-state reporting it names is still unimplemented. The privacy scope of the `/stats` aggregate reporting stays.
 - `REQ-005`: An empty section must be completed — either with the actual limitation or with the `Not applicable.` convention used by the sibling chapter documents.
 - `REQ-006`: The chapter index navigation must list the chapter files in the chapter's own numbering order.
 - `REQ-007`: Every statement written must be verified against current source and a test before writing; a statement no test proves is reported, not written (the Issue's AI Implementation Instruction).
@@ -54,8 +54,8 @@ table — no other file may be treated as a modification target.
 | `docs/23_agent/agent_07_06_cli-and-commands-hot-reload.md` | Modify: replace the unregistered `/config show` usage with the registered `/config` form | Documented command does not exist in the registered surface | REQ-001; AC-1 | `docs/23_agent/agent_07_06_cli-and-commands-hot-reload.md:73` vs `scripts/agent/commands/command_defs_list.py:40-45` (`/config`, no subcommands) (checked in Step 2) | `tests/tools/test_check_command_contracts.py` (usage-line contract), docs gate `uv run python tools/check_docs_consistency.py --domain agent` | Verified |
 | `docs/23_agent/agent_07_05_cli-and-commands-repl-io.md` | Modify: qualify the absolute Ctrl-C statement so it matches the force-exit opt-in stated earlier in the same file | Internally contradictory shutdown guarantee | REQ-002; AC-2 | `docs/23_agent/agent_07_05_cli-and-commands-repl-io.md:57` vs line 39 of the same file and `scripts/agent/signal_handler.py:102-138` (checked in Step 2) | `tests/agent/test_signal_handler.py` (`TestInterruptByState`, `test_configured_force_exit_is_read_once_at_construction`) | Verified |
 | `docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md` | Modify: restate process-record removal during shutdown to match the coordinator's record-ownership rule | Contradicts the coordinator and the sibling lifecycle document | REQ-003; AC-2 | `docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md:21` vs `scripts/agent/http_lifecycle_shutdown_coordinator.py:9,109` and `docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md:101` (checked in Step 2) | `tests/agent/test_http_lifecycle_shutdown_coordinator.py::test_no_removal_before_termination` | Verified |
-| `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md` | Modify: remove the stale `not yet implemented, SHARED-003` parenthetical from the `/stats` row | The aggregate reporting it calls unimplemented is implemented | REQ-004; AC-2 | `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md:106` vs `scripts/agent/commands/cmd_config_stats.py:106-136` (checked in Step 2) | `tests/agent/commands/test_agent_cmd_config.py` (`_cmd_stats`) | Verified |
-| `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md` | Modify: complete the empty `## Known Limitations` section | Empty section | REQ-005; AC-3 | `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md:51` empty; convention `Not applicable.` at `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md:91` (checked in Step 2) | docs gate `uv run python tools/check_docs_quality.py` | Verified |
+| `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md` | Modify: remove the unprovable `RAG hits` enumeration from the `/stats` row; keep the `not yet implemented, SHARED-003` parenthetical (verified accurate) | The documented output line has no implementing counter | REQ-004; AC-2 | `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md:106` vs `scripts/agent/commands/models.py:30-47` and `scripts/agent/commands/cmd_config_stats.py:141-143` (checked in Step 3a) | `tests/agent/commands/test_agent_cmd_config.py` (`_cmd_stats`) | Verified |
+| `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md` | Modify: complete the empty `## Known Limitations` section | Empty section | REQ-005; AC-3 | `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md:57` empty; convention `Not applicable.` at `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md:91` (checked in Step 3a) | docs gate `uv run python tools/check_docs_quality.py` | Verified |
 | `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md` | Modify: order the chapter index table by chapter file number | Navigation order does not match the chapter numbering | REQ-006; AC-3 | `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md:30-40` table order 04, 05, 02, 03, 07, 08, 09, 10, 06 (checked in Step 2) | `tests/docs/test_command_docs_sync.py` (reads the chapter-07 file set) | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
@@ -95,6 +95,23 @@ glob patterns, components, file groups, or vague phrases.
 | `tests/docs/test_command_docs_sync.py` | Hardcodes the chapter-07 filenames; confirms a rename is out of scope and that the index change does not break it | REQ-006 |
 | `tools/check_docs_consistency.py` | Existing command-reference and broken-link checks; shows the coverage gap recorded as UNK-01 | REQ-001, REQ-008 |
 
+Step 3a findings (2026-11-26, adversarial verification): all Problem claims reconfirmed against current source —
+`/config show` at `docs/23_agent/agent_07_06_cli-and-commands-hot-reload.md:73` against the registered `/config`
+with no subcommands (`scripts/agent/commands/command_defs_list.py:40-45`); the Ctrl-C contradiction between
+`docs/23_agent/agent_07_05_cli-and-commands-repl-io.md:57` and line 39 of the same file with the force-exit path at
+`scripts/agent/signal_handler.py:102-138`; the shutdown record-ownership contradiction at
+`docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md:21` against `scripts/agent/http_lifecycle_shutdown_coordinator.py:9,109`
+and `docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md:101`; the empty `## Known Limitations` section; the
+non-numeric chapter index order at `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md:30-40`; and the
+`Not applicable.` convention at `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md:91`. Two corrections:
+the empty section heading is at line 57, not 51 (line 51 is the RAG-search paragraph), and the Problem section's
+statement count is six, not seven. REQ-004's premise is narrowed: the `not yet implemented, SHARED-003` parenthetical
+is accurate, so the actionable change is the unprovable `RAG hits` enumeration. Statements no test proves are
+reported, not written: the memory aggregate lines (`scripts/agent/commands/cmd_config_stats.py:130-136`) and the
+`Debug mode` line have no asserting test, so no new statement about them is written; the existing wording that is
+accurate against source is left unchanged. UNK-02 is resolved by the maintainer's confirmation of the chapter-numbering
+convention (2026-11-26).
+
 ## Acceptance Criteria
 - AC-1 (REQ-001): no documented command or subcommand usage in the changed files that is absent from `scripts/agent/commands/command_defs_list.py`.
 - AC-2 (REQ-002, REQ-003, REQ-004): each corrected statement matches the implementation and is provable by the test named in its target row.
@@ -124,7 +141,7 @@ This Plan is the documentation change itself. Per `docs/00_index.md`'s "Document
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
 | UNK-01 | `tools/check_docs_consistency.py`'s command-contract check scans only `agent_07_07` to `agent_07_10` (`_COMMAND_CHAPTER_DOCS`, line 222), so the unregistered `/config show` usage in `agent_07_06` is not caught by any automated check; the fix cannot be validated by the existing checker | No rule or test covers usage lines outside the four command chapters | Maintainer decides whether to extend the checker's chapter set; out of scope for this Plan per the user decision, so REQ-001 is validated by manual comparison against `scripts/agent/commands/command_defs_list.py` | False |
-| UNK-02 | No governance rule states the ordering convention for a chapter index table; REQ-006 is a navigation normalization, not a rule violation | `docs/00_governance/governance_00_document-guide.md` and `governance_01_documentation-policy.md` contain no index-ordering rule | Maintainer confirms the convention; if not confirmed, Step 6 is skipped and the file is left unchanged | False |
+| UNK-02 | No governance rule states the ordering convention for a chapter index table; REQ-006 is a navigation normalization, not a rule violation | `docs/00_governance/governance_00_document-guide.md` and `governance_01_documentation-policy.md` contain no index-ordering rule | Resolved: the maintainer confirmed the chapter-numbering convention on 2026-11-26, so Phase 6 proceeds | False (resolved) |
 | UNK-03 | Whether the SHARED-003 registry entry in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` needs a scope note once the `/stats` aggregate claim is corrected | The registry entry covers the memory model, not the `/stats` reporting scope | Report to the maintainer; `governance_03` is out of scope for this Plan | False |
 
 ## Affected areas
@@ -163,7 +180,7 @@ analyses were run at the documentation scale.
 3. **Phase 3: MCP lifecycle record ownership**
    - [ ] Restate process-record removal during shutdown to match the coordinator's confirmed-exit rule (REQ-003; `docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md`)
 4. **Phase 4: Stale implementation-status claim**
-   - [ ] Remove the stale `not yet implemented, SHARED-003` parenthetical from the `/stats` row while keeping the aggregate-state privacy scope (REQ-004; `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md`)
+   - [ ] Remove the unprovable `RAG hits` enumeration from the `/stats` row; keep the `not yet implemented, SHARED-003` parenthetical and the aggregate-state privacy scope (REQ-004; `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md`)
 5. **Phase 5: Section completeness**
    - [ ] Complete the empty `## Known Limitations` section with the chapter convention (REQ-005; `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md`)
 6. **Phase 6: Navigation normalization**
@@ -202,13 +219,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Command-surface correction in `docs/23_agent/agent_07_06_cli-and-commands-hot-reload.md` | Pending | — | — | |
-| 2 | Interrupt contract consistency in `docs/23_agent/agent_07_05_cli-and-commands-repl-io.md` | Pending | — | — | |
-| 3 | MCP lifecycle record ownership in `docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md` | Pending | — | — | |
-| 4 | Stale implementation-status claim in `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md` | Pending | — | — | |
-| 5 | Section completeness in `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md` | Pending | — | — | |
-| 6 | Navigation normalization in `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md` | Pending | — | — | Conditional on UNK-02 |
-| 7 | Validation and reporting across the six target files | Pending | — | — | |
+| 1 | Command-surface correction in `docs/23_agent/agent_07_06_cli-and-commands-hot-reload.md` | In Progress | — | — |  |
+| 2 | Interrupt contract consistency in `docs/23_agent/agent_07_05_cli-and-commands-repl-io.md` | In Progress | — | — |  |
+| 3 | MCP lifecycle record ownership in `docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md` | In Progress | — | — |  |
+| 4 | Unprovable `RAG hits` enumeration in the `/stats` row of `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md` | In Progress | — | — | Parenthetical kept (Step 3a) |
+| 5 | Section completeness in `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md` | In Progress | — | — |  |
+| 6 | Navigation normalization in `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md` | In Progress | — | — | UNK-02 resolved (convention confirmed 2026-11-26) |
+| 7 | Validation and reporting across the six target files | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -218,7 +235,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261127-001124_01_docs_23_agent_agent_07_06_cli-and-commands-hot-reload.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261127-001124_02_docs_23_agent_agent_07_05_cli-and-commands-repl-io.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-001124_03_docs_22_mcp_mcp_03_05_lifecycle-and-new-server.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261127-001124_04_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-001124_05_docs_23_agent_agent_07_09_cli-and-commands-slash-commands-workflow-debug.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261127-001124_06_docs_23_agent_agent_07_01_cli-and-commands-cli-reference.md.md` | 6 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -237,8 +259,10 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-001 | Required Changes + `docs/23_agent/agent_07_06_cli-and-commands-hot-reload.md:73` vs `scripts/agent/commands/command_defs_list.py:40-45` | `docs/23_agent/agent_07_06_cli-and-commands-hot-reload.md` | 1 | AC-1 | `uv run python tools/check_docs_consistency.py --domain agent` | Confirmed by repository evidence |
 | REQ-002 | Required Changes (contradictory shutdown guarantees) + `agent_07_05:57` vs line 39 and `scripts/agent/signal_handler.py:102-138` | `docs/23_agent/agent_07_05_cli-and-commands-repl-io.md` | 2 | AC-2 | `tests/agent/test_signal_handler.py` | Confirmed by repository evidence |
 | REQ-003 | Required Changes (contradictory shutdown guarantees) + `mcp_03_05:21` vs `scripts/agent/http_lifecycle_shutdown_coordinator.py:9,109` | `docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md` | 3 | AC-2 | `tests/agent/test_http_lifecycle_shutdown_coordinator.py::test_no_removal_before_termination` | Confirmed by repository evidence |
-| REQ-004 | Required Changes + `agent_07_07:106` vs `scripts/agent/commands/cmd_config_stats.py:106-136` | `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md` | 4 | AC-2 | `tests/agent/commands/test_agent_cmd_config.py` | Confirmed by repository evidence |
-| REQ-005 | Required Changes (empty sections) + `agent_07_09:51` | `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md` | 5 | AC-3 | `uv run python tools/check_docs_quality.py` | Confirmed by repository evidence |
-| REQ-006 | Required Changes (navigation) + `agent_07_01:30-40` | `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md` | 6 | AC-3 | `uv run python tools/check_docs_structure.py 'docs/23_agent/agent_07_*.md'` | Needs confirmation (UNK-02: no ordering rule) |
+| REQ-004 | Required Changes + `agent_07_07:106` vs `scripts/agent/commands/models.py:30-47` and `scripts/agent/commands/cmd_config_stats.py:141-143` | `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md` | 4 | AC-2 | `tests/agent/commands/test_agent_cmd_config.py` | Confirmed by repository evidence (scope narrowed in Step 3a: `RAG hits` only) |
+| REQ-005 | Required Changes (empty sections) + `agent_07_09:57` | `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md` | 5 | AC-3 | `uv run python tools/check_docs_quality.py` | Confirmed by repository evidence |
+| REQ-006 | Required Changes (navigation) + `agent_07_01:30-40` | `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md` | 6 | AC-3 | `uv run python tools/check_docs_structure.py 'docs/23_agent/agent_07_*.md'` | Confirmed (convention confirmed by the maintainer, 2026-11-26) |
 | REQ-007 | AI Implementation Instruction | N/A: no single target file — applies to all six rows | 7 | AC-5 | Verification record against the Reference Files | Explicit in issue |
 | REQ-008 | Constraints + Testing Expectations | N/A: no single target file — applies to all six rows | 7 | AC-4 | Docs gate set in the Validation plan | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261127-001124 -->

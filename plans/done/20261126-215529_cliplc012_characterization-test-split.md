@@ -9,7 +9,7 @@ Medium
 ## Scope
 - **In-Scope**: two pytest markers registered in `pyproject.toml`; a written classification rule grounded in the documentation authority model; a read-only checker that enforces the rule for classified modules and tracks the rest in a baseline; the first tranche of test modules named by the Issue (HTTP lifecycle, CLI input, approval, reload, persistence) classified and their contradictory docstrings corrected; CI reporting the two suites separately from a single run; the tool inventory, gate, and toolchain entries for the new checker.
 - **Out-of-Scope**: fixing the underlying behavior (owned by the other issues of this backlog); classifying the 90 currently unclassified modules in `tests/agent` and `tests/shared` in one pass — they are classified incrementally as each contract changes, per the Issue's Implementation Intent; test modules outside the Issue's named areas except the single verified contradiction row; the final documentation rewrite (issue `20261119-145312_cliplc014_cli-docs-consolidation.md`, still active).
-- **Dependencies**: the consolidated backlog issues (cliplc001 through cliplc011) are all closed — their plans are archived under `plans/done/` and their issues under `issues/done/` — so this Plan has no open ordering dependency. `N/A: none open`.
+- **Dependencies**: the consolidated backlog issues (cliplc001 through cliplc011) are all closed under `issues/done/`; their plans are archived under `plans/done/` except cliplc010, whose plan is still open (gated by its blocking Unknown). This Plan changes no file that cliplc010's plan targets (`tools/check_plan_target_overlaps.py`: no findings), so it has no open ordering dependency. `N/A: none open`.
 
 ## Background
 The Issue is Issue 12 of the consolidated CLI REPL and MCP lifecycle backlog. Its eight legacy-behavior claims (delayed-input handoff, process-record deletion before confirmed exit, restart after unconfirmed termination, permissive command confinement, shared credential inheritance, `filter_env(None)`, SIGINT absorption, rename-only log rotation) were recorded as backlog claims needing confirmation. Step 2 verified each against current source: seven are already corrected in the implementation, so the tests that assert them are not legacy locks but current contracts. Only the environment-filter pass-through is still a live contradiction between a test and a documented contract. The Issue's remaining substance is therefore the taxonomy itself: which tests are authoritative and which record history, and how CI reports them.
@@ -25,7 +25,7 @@ Make the classification explicit at the test-module level with pytest markers, d
 
 ## Requirements
 - `REQ-001`: Register the `characterization` and `contract` markers in `pyproject.toml`'s `[tool.pytest.ini_options] markers`, selectable with `-m` under the existing parallel run (`-n logical`) and the `tests/conftest.py` autouse fixtures.
-- `REQ-002`: Define the classification rule in the documentation authority model: a test module is `contract` when its assertions are traceable to a requirement source (an Accepted ADR or a Canonical Source Registry entry) and carries that citation; otherwise it is `characterization`, asserting observed behavior with no requirement source. A characterization module MUST NOT present its assertions as normative.
+- `REQ-002`: Define the classification rule in the documentation authority model: a test module is `contract` when its assertions are traceable to a requirement source (an Accepted ADR, a Canonical Source Registry entry, or the recorded requirement of an archived backlog issue under `issues/done/`, consistent with the Resolution Matrix's `verification-contract` row, whose canonical source kind is `tests/` plus the requirement source) and carries that citation; otherwise it is `characterization`, asserting observed behavior with no requirement source. A characterization module MUST NOT present its assertions as normative. (Requirement source definition extended 2026-11-26 in Step 3a: rows 13 and 14 have no ADR or Registry entry for their contract, so the archived issue's recorded requirement is the only available source; owner decision.)
 - `REQ-003`: Every test module in the classified areas carries exactly one taxonomy marker through `pytestmark`; a module that mixes both kinds marks individual tests; a module that is not yet classified is tracked in a baseline and must be classified when it is next modified.
 - `REQ-004`: A read-only checker enforces the rule — a marker is present, a `contract` marker is justified by a requirement citation, no module claims both kinds at module level, and no module outside the baseline is unclassified — and runs as a local fast gate and a CI lint step, registered in the tool inventory.
 - `REQ-005`: CI reports the characterization suite and the contract suite separately from one pytest run, using JUnit XML grouped by module, with the existing coverage measurement and `diff-cover` step unchanged.
@@ -38,7 +38,7 @@ Make the classification explicit at the test-module level with pytest markers, d
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `pyproject.toml` | Modify | Add `characterization` and `contract` to the `markers` list | REQ-001 / AC-1 | `pyproject.toml:144-147` registers only `integration` and `repo_scan` (checked in Step 3) | `tests/tools/test_check_test_taxonomy.py` | Verified |
+| `pyproject.toml` | Modify | Add `characterization` and `contract` to the `markers` list | REQ-001 / AC-1 | `pyproject.toml:145-148` registers only `integration` and `repo_scan` (checked in Step 3) | `tests/tools/test_check_test_taxonomy.py` | Verified |
 | `tools/check_test_taxonomy.py` | Create (new file) | Read-only checker for the classification rule and the per-suite report mode | REQ-003, REQ-004, REQ-005 / AC-2, AC-4 | No checker reads pytest markers: `grep -rln "tool.pytest.ini_options" tools/ tests/` returns no match (checked in Step 3); `tools/check_conftest_integrity.py:1-30` is the narrow read-only precedent | `tests/tools/test_check_test_taxonomy.py` | Verified |
 | `tools/test_taxonomy_baseline.txt` | Create (new file) | Baseline of the modules that are not yet classified | REQ-003 / AC-3 | 90 unclassified modules under `tests/agent` and `tests/shared` counted in Step 3; header format precedent `tools/known_test_failures_baseline.txt` | `tests/tools/test_check_test_taxonomy.py` | Verified |
 | `tools/TOOL_DESCRIPTIONS.md` | Modify | Register the new checker in the tool inventory | REQ-004 / AC-2 | `rules/tool-gates.md` requires every `tools/` script to be registered in `tools/TOOL_DESCRIPTIONS.md`; the file is the tool inventory (checked in Step 3) | `tests/tools/test_check_test_taxonomy.py` | Verified |
@@ -50,19 +50,19 @@ Make the classification explicit at the test-module level with pytest markers, d
 | `docs/00_index.md` | Modify | Add the test-taxonomy task-scope row that the Documentation Impact section must name | REQ-002 / AC-6 | `docs/00_index.md:117-126` has no test-taxonomy row (checked in Step 3) | `tests/tools/test_check_docs_structure.py` | Verified |
 | `skills/python-test-and-fix/workflow.md` | Modify | Record the classification rule in the Test structure section | REQ-002, REQ-003 / AC-6 | `skills/python-test-and-fix/workflow.md:24-26` is where the `tests/` mirrors `scripts/` convention is documented (checked in Step 3) | `tests/tools/test_check_skill_size.py` | Verified |
 | `tests/agent/test_stdin_reader.py` | Modify | Add `pytestmark = pytest.mark.characterization` | REQ-003 / AC-3 | No `pytestmark` and no requirement citation; asserts post-cancellation delivery is discarded (`tests/agent/test_stdin_reader.py:89,124,136`) matching `scripts/agent/stdin_reader.py:39-43` (checked in Step 3) | itself | Verified |
-| `tests/agent/test_repl_input_controller.py` | Modify | Add `pytestmark = pytest.mark.contract` | REQ-003, REQ-008 / AC-3, AC-7 | No `pytestmark` and no citation; its contract is the archived cliplc001 acceptance tests (checked in Step 3) | itself | Verified |
-| `tests/agent/test_repl_shutdown_machine.py` | Modify | Add `pytestmark = pytest.mark.contract` | REQ-003, REQ-008 / AC-3, AC-7 | No `pytestmark` and no citation; its contract is the archived cliplc004 acceptance tests (checked in Step 3) | itself | Verified |
+| `tests/agent/test_repl_input_controller.py` | Modify | Add `pytestmark = pytest.mark.contract` and the requirement-source citation the checker requires | REQ-003, REQ-008 / AC-3, AC-7 | No `pytestmark` and no citation; its contract is the archived cliplc001 acceptance tests, so the citation must name `issues/done/20261119-145259_cliplc001_repl-input-controller.md` as the requirement source (Step 3a, per the extended REQ-002) | itself | Verified |
+| `tests/agent/test_repl_shutdown_machine.py` | Modify | Add `pytestmark = pytest.mark.contract` and the requirement-source citation the checker requires | REQ-003, REQ-008 / AC-3, AC-7 | No `pytestmark` and no citation; its contract is the archived cliplc004 acceptance tests, so the citation must name `issues/done/20261119-145302_cliplc004_bounded-shutdown-machine.md` as the requirement source (Step 3a, per the extended REQ-002) | itself | Verified |
 | `tests/agent/test_http_lifecycle.py` | Modify | Per-test markers: the module mixes requirement-cited assertions with a characterization section | REQ-003 / AC-3 | Module docstring cites REQ-001/REQ-002; characterization section begins at `tests/agent/test_http_lifecycle.py:223` (checked in Step 3) | itself | Verified |
 | `tests/agent/test_http_lifecycle_command_validator.py` | Modify | Add `pytestmark = pytest.mark.contract` | REQ-003, REQ-008 / AC-3, AC-7 | `tests/agent/test_http_lifecycle_command_validator.py:5-6` states trusted-directory confinement is the default and permissive is an explicit `LLMAGENT_COMMAND_MODE=permissive` opt-in; `:463`, `:534` assert REQ-004 (checked in Step 3) | itself | Verified |
 | `tests/agent/test_http_lifecycle_launch_spec.py` | Modify | Add `pytestmark = pytest.mark.contract` | REQ-003, REQ-008 / AC-3, AC-7 | Asserts the REQ-006 fixed inheritable environment set; secrets are stripped in `scripts/mcp_servers/shell/shell_service_static_helpers.py:266-283` (checked in Step 3) | itself | Verified |
-| `tests/agent/test_http_lifecycle_env_allowlist_integration.py` | Modify | Add `pytestmark = pytest.mark.contract` | REQ-003, REQ-008 / AC-3, AC-7 | Asserts the REQ-008 allowlist boundary (`tests/agent/test_http_lifecycle_env_allowlist_integration.py:128-138`) (checked in Step 3) | itself | Verified |
-| `tests/agent/test_http_lifecycle_stderr_log_manager.py` | Modify | Add `pytestmark = pytest.mark.characterization` | REQ-003 / AC-3 | Asserts rename-only rotation (`tests/agent/test_http_lifecycle_stderr_log_manager.py:145-160`) matching `scripts/agent/http_lifecycle_stderr_log_manager.py:111-129`; no requirement source defines rotation semantics (checked in Step 3) | itself | Verified |
+| `tests/agent/test_http_lifecycle_env_allowlist_integration.py` | Modify | Add `pytestmark = pytest.mark.contract` | REQ-003, REQ-008 / AC-3, AC-7 | Its module docstring cites cliplc006 REQ-006/REQ-007 (`tests/agent/test_http_lifecycle_env_allowlist_integration.py:3`) and the gates at `:262-464` assert the per-server environment boundary; `:128-138` are helpers, not assertions (reverified in Step 3a) | itself | Verified |
+| `tests/agent/test_http_lifecycle_stderr_log_manager.py` | Modify | Per-test markers: module-level `contract` for the requirement-cited assertion, `characterization` for the rotation tests | REQ-003 / AC-3 | Asserts rename-only rotation (`tests/agent/test_http_lifecycle_stderr_log_manager.py:145-160`) matching `scripts/agent/http_lifecycle_stderr_log_manager.py:111-129`; no requirement source defines rotation semantics, while `:221` cites REQ-005 for `open_log` key validation, so the module mixes kinds (reverified in Step 3a) | itself | Verified |
 | `tests/agent/test_signal_handler.py` | Modify | Add `pytestmark = pytest.mark.contract` | REQ-003, REQ-008 / AC-3, AC-7 | Asserts SIGINT acts through the REPL input state (`tests/agent/test_signal_handler.py:171,235,246`), not absorption (checked in Step 3) | itself | Verified |
 | `tests/agent/test_config_builders.py` | Modify | Per-test markers: requirement-cited assertions plus a characterization section | REQ-003 / AC-3 | Characterization section at `tests/agent/test_config_builders.py:658-737` alongside REQ-cited assertions (checked in Step 3) | itself | Verified |
 | `tests/agent/memory/test_memory_store.py` | Modify | Per-test markers: requirement-cited assertions plus a characterization section | REQ-003 / AC-3 | Characterization section at `tests/agent/memory/test_memory_store.py:598` (checked in Step 3) | itself | Verified |
 | `tests/agent/workflow/test_workflow_state_store.py` | Modify | Per-test markers: requirement-cited assertions plus a characterization section | REQ-003 / AC-3 | Characterization section at `tests/agent/workflow/test_workflow_state_store.py:323` (checked in Step 3) | itself | Verified |
-| `tests/shared/test_llm_client_characterization.py` | Modify | Add `pytestmark = pytest.mark.characterization` and correct the stale module docstring | REQ-003, REQ-007 / AC-3, AC-5 | `tests/shared/test_llm_client_characterization.py:1-8` cites the removed `LLMClient.build_payload` and `request_with_retry` wrappers and carries an unclosed parenthetical (checked in Step 3) | itself | Verified |
-| `tests/mcp_servers/shell/test_shell_mcp_service.py` | Modify | Add `pytestmark = pytest.mark.characterization` for the pass-through case and correct the header that presents it as a guard contract | REQ-003, REQ-007 / AC-3, AC-5 | `tests/mcp_servers/shell/test_shell_mcp_service.py:93-96` locks the empty-allowlist/empty-denylist pass-through in `scripts/mcp_servers/shell/shell_service.py:342-350`, contradicting the documented default-deny filter at `docs/22_mcp/mcp_04_02_file-write-file-delete-shell.md:67` (checked in Step 3) | itself | Verified |
+| `tests/shared/test_llm_client_characterization.py` | Modify | Add `pytestmark = pytest.mark.characterization` and correct the stale module docstring | REQ-003, REQ-007 / AC-3, AC-5 | `tests/shared/test_llm_client_characterization.py:1-8` cites the removed `LLMClient.build_payload` and `request_with_retry` wrappers and carries a truncated sentence (line 4 ends with a dangling clause continued by the parenthetical at line 5) (reverified in Step 3a) | itself | Verified |
+| `tests/mcp_servers/shell/test_shell_mcp_service.py` | Modify | Per-test markers: module-level `contract` for the requirement-cited assertions, `characterization` for the pass-through case; correct the header that presents the pass-through as a guard contract | REQ-003, REQ-007 / AC-3, AC-5 | `tests/mcp_servers/shell/test_shell_mcp_service.py:93-96` locks the empty-allowlist/empty-denylist pass-through in `scripts/mcp_servers/shell/shell_service.py:342-350`, contradicting the documented default-deny filter at `docs/22_mcp/mcp_04_02_file-write-file-delete-shell.md:67`; the module's only requirement citation is REQ-004 at `:318` (audit record), so it mixes kinds (reverified in Step 3a) | itself | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -112,12 +112,14 @@ Yes. `docs/00_governance/governance_01_documentation-policy.md` carries the taxo
 - `tests/mcp_servers/shell/test_shell_mcp_service.py` is outside the Issue's stated areas (`tests/agent`, `tests/shared`) but is the only verified test that locks a behavior contradicting a documented contract; its row is a scope extension and needs approval per `rules/workflow-lifecycle.md` Plan Amendment Approval Classes.
 - The Issue's "maintenance tests" area is not in the target rows: maintenance tests live under `tests/db/` (`tests/db/test_db_maintenance.py`), not under `tests/agent/`.
 - Markers are registered only in `pyproject.toml`; `tests/conftest.py`'s `pytest_configure` is left unchanged to avoid two registration sources.
+- Step 3a corrections (2026-11-26, adversarial verification): `pyproject.toml`'s `markers` list is at `:145-148`, not `:144-147`; the env-allowlist row's cited lines `:128-138` are helpers, not assertions, and its requirement citation is at `:3` with gates at `:262-464`; the llm-client docstring defect is a truncated sentence at `:4-5`, not an unclosed parenthetical; cliplc010's plan is still open (only its issue is archived); REQ-002's requirement-source definition was extended to include an archived backlog issue's recorded requirement (owner decision), which is the source that makes rows 13 and 14 `contract` and requires a citation to be added in those modules; rows 19 and 25 carry one requirement-cited assertion each, so they mix kinds and take per-test markers under REQ-003.
+- Phase 2's "record the seven disconfirmed legacy claims as corrected findings in the plan's Problem section" names this Plan file, which is not a row of the `Implementation Target Files` table, so no procedure document covers it; the seven claims are recorded in Background and the Problem-section record stays an implementation-phase action on the Plan itself.
 - Step 8b overlap judgement: `tests/agent/test_http_lifecycle.py` and `tests/agent/test_http_lifecycle_stderr_log_manager.py` are also targeted by the cliplc009 plan — judged compatible, because that plan changes assertions there while this Plan adds markers and corrects docstrings only. The characterization classification of the rotation tests holds until cliplc009's copy-and-truncate rotation lands; after that the module becomes `contract` under the incremental rule.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Marker versus directory for the characterization suite | None — resolved by repository evidence | Markers: `pyproject.toml:144-147` already registers markers, `skills/python-test-and-fix/workflow.md:26` requires `tests/` to mirror `scripts/`, and `tools/check_adr_invariant_matrix.py` fails when a test path cited by `docs/10_adr/adr_01_index.md` (46 lines) moves. A directory split breaks all three. | False |
+| UNK-01 | Marker versus directory for the characterization suite | None — resolved by repository evidence | Markers: `pyproject.toml:145-148` already registers markers, `skills/python-test-and-fix/workflow.md:26` requires `tests/` to mirror `scripts/`, and `tools/check_adr_invariant_matrix.py` fails when a test path cited by `docs/10_adr/adr_01_index.md` (46 lines) moves. A directory split breaks all three. | False |
 | UNK-02 | Whether the CI job may treat a characterization failure as non-blocking | Governance approval for weakening the CI gate | The Issue's acceptance criterion states it; the plan limits the exemption to the characterization marker and keeps the baseline entry naming the owning issue. Confirm with the governance owner before the CI step is written. | False |
 
 ## Affected areas
@@ -208,11 +210,11 @@ Validation quality baseline (Step 5): `vulture scripts/ --min-confidence 80` rep
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: markers, checker, baseline, tool inventory, gate | Pending | — | — | Release unit with Phase 3 |
-| 2 | Phase 2: first tranche classification and docstring corrections | Pending | — | — | No assertion changes |
-| 3 | Phase 3: CI reporting and failure policy | Pending | — | — | Needs governance approval (UNK-02) |
-| 4 | Phase 4: documentation and convention updates | Pending | — | — | Docs checkers required |
-| 5 | Phase 5: validation and hand-off | Pending | — | — | No deploy step; no `scripts/` target |
+| 1 | Phase 1: markers, checker, baseline, tool inventory, gate | In Progress | — | — | Release unit with Phase 3 |
+| 2 | Phase 2: first tranche classification and docstring corrections | In Progress | — | — | No assertion changes |
+| 3 | Phase 3: CI reporting and failure policy | In Progress | — | — | Needs governance approval (UNK-02) |
+| 4 | Phase 4: documentation and convention updates | In Progress | — | — | Docs checkers required |
+| 5 | Phase 5: validation and hand-off | In Progress | — | — | No deploy step; no `scripts/` target |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -222,7 +224,31 @@ Validation quality baseline (Step 5): `vulture scripts/ --min-confidence 80` rep
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261126-232726_01_pyproject.toml.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_02_tools_check_test_taxonomy.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_03_tools_test_taxonomy_baseline.txt.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_04_tools_TOOL_DESCRIPTIONS.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_05_tools__validation_gate_defs.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_06_rules_toolchain.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_07_.github_workflows_ci.yml.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_08_tests_tools_test_check_test_taxonomy.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_09_docs_00_governance_governance_01_documentation-policy.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_10_docs_00_index.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_11_skills_python-test-and-fix_workflow.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_12_tests_agent_test_stdin_reader.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_13_tests_agent_test_repl_input_controller.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_14_tests_agent_test_repl_shutdown_machine.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_15_tests_agent_test_http_lifecycle.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_16_tests_agent_test_http_lifecycle_command_validator.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_17_tests_agent_test_http_lifecycle_launch_spec.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_18_tests_agent_test_http_lifecycle_env_allowlist_integration.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_19_tests_agent_test_http_lifecycle_stderr_log_manager.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_20_tests_agent_test_signal_handler.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_21_tests_agent_test_config_builders.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_22_tests_agent_memory_test_memory_store.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_23_tests_agent_workflow_test_workflow_state_store.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_24_tests_shared_test_llm_client_characterization.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_25_tests_mcp_servers_shell_test_shell_mcp_service.py.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -231,13 +257,13 @@ Validation quality baseline (Step 5): `vulture scripts/ --min-confidence 80` rep
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261126-215529
-- **Evidence revision**: 72c08b1c2ab9fe5c789c5cb539661d75e8073f2b — the 40-hex HEAD at which the evidence was verified; print it with tools/check_evidence_freshness.py record
+- **Evidence revision**: 72c08b1c2ab9fe5c789c5cb539661d75e8073f2b
 - **Related target files**: `pyproject.toml`, `tools/check_test_taxonomy.py`, `tools/test_taxonomy_baseline.txt`, `tools/TOOL_DESCRIPTIONS.md`, `tools/_validation_gate_defs.py`, `rules/toolchain.md`, `.github/workflows/ci.yml`, `tests/tools/test_check_test_taxonomy.py`, `docs/00_governance/governance_01_documentation-policy.md`, `docs/00_index.md`, `skills/python-test-and-fix/workflow.md`, `tests/agent/test_stdin_reader.py`, `tests/agent/test_repl_input_controller.py`, `tests/agent/test_repl_shutdown_machine.py`, `tests/agent/test_http_lifecycle.py`, `tests/agent/test_http_lifecycle_command_validator.py`, `tests/agent/test_http_lifecycle_launch_spec.py`, `tests/agent/test_http_lifecycle_env_allowlist_integration.py`, `tests/agent/test_http_lifecycle_stderr_log_manager.py`, `tests/agent/test_signal_handler.py`, `tests/agent/test_config_builders.py`, `tests/agent/memory/test_memory_store.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/shared/test_llm_client_characterization.py`, `tests/mcp_servers/shell/test_shell_mcp_service.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
 |---|---|---|---|---|---|---|
-| REQ-001 | Required Changes; `pyproject.toml:144-147` | `pyproject.toml` | Phase 1 | AC-1 | T-1 | Confirmed by repository evidence |
+| REQ-001 | Required Changes; `pyproject.toml:145-148` | `pyproject.toml` | Phase 1 | AC-1 | T-1 | Confirmed by repository evidence |
 | REQ-002 | Problem; `docs/00_governance/governance_01_documentation-policy.md:125` | `docs/00_governance/governance_01_documentation-policy.md` | Phase 4 | AC-6 | T-6 | Confirmed by repository evidence |
 | REQ-002 | `docs/00_index.md:117-126` has no test-taxonomy row | `docs/00_index.md` | Phase 4 | AC-6 | T-6 | Confirmed by repository evidence |
 | REQ-002 | `skills/python-test-and-fix/workflow.md:24-26` | `skills/python-test-and-fix/workflow.md` | Phase 4 | AC-6 | T-6 | Confirmed by repository evidence |
@@ -264,7 +290,9 @@ Validation quality baseline (Step 5): `vulture scripts/ --min-confidence 80` rep
 | REQ-007 | `docs/22_mcp/mcp_04_02_file-write-file-delete-shell.md:67` vs `scripts/mcp_servers/shell/shell_service.py:342-350` | `tests/mcp_servers/shell/test_shell_mcp_service.py` | Phase 2 | AC-5 | T-7 | Confirmed by repository evidence |
 | REQ-008 | Acceptance Criteria; seven legacy claims disconfirmed in Step 2 | `tests/agent/test_http_lifecycle_command_validator.py` | Phase 2 | AC-7 | T-7 | Confirmed by repository evidence |
 | REQ-008 | `scripts/agent/http_lifecycle.py:411-444` | `tests/agent/test_http_lifecycle_launch_spec.py` | Phase 2 | AC-7 | T-7 | Confirmed by repository evidence |
-| REQ-008 | `tests/agent/test_http_lifecycle_env_allowlist_integration.py:128-138` | `tests/agent/test_http_lifecycle_env_allowlist_integration.py` | Phase 2 | AC-7 | T-7 | Confirmed by repository evidence |
+| REQ-008 | `tests/agent/test_http_lifecycle_env_allowlist_integration.py:3` (docstring citation) and `:262-464` (gates) | `tests/agent/test_http_lifecycle_env_allowlist_integration.py` | Phase 2 | AC-7 | T-7 | Confirmed by repository evidence |
 | REQ-008 | `tests/agent/test_signal_handler.py:171,235,246` | `tests/agent/test_signal_handler.py` | Phase 2 | AC-7 | T-7 | Confirmed by repository evidence |
 | REQ-008 | Step 2 findings recorded as corrected findings | `plans/20261126-215529_cliplc012_characterization-test-split.md` | Phase 2 | AC-7 | N/A: documentation record, no test | Confirmed by repository evidence |
 | REQ-003 | Test module for the checker | `tests/tools/test_check_test_taxonomy.py` | Phase 1 | AC-2, AC-3 | T-2 | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-232726 -->
