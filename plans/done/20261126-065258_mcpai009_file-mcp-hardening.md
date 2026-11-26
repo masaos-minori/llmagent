@@ -50,15 +50,15 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/mcp_servers/file/read_models.py` | Modify | Inherit the shared strict base; add the traversal-limit config fields with the plan defaults; add the structured truncation-reason field to traversal responses | REQ-001, REQ-003, AC-1, AC-2 | No `ConfigDict` in the file; models at lines 70, 83, 112 are plain `BaseModel` (checked in Step 2) | `tests/mcp_servers/file/test_file_read_mcp_models.py` | Verified |
-| `scripts/mcp_servers/file/read_tools.py` | Modify | Replace the local `_input_schema` helper with the shared `build_input_schema()` generator | REQ-001, AC-1 | Local helper at line 33 builds schemas from models (checked in Step 2) | `tests/mcp_servers/file/test_file_schema_consistency.py` | Verified |
+| `scripts/mcp_servers/file/read_tools.py` | Modify | Replace the local `_input_schema` helper with the shared `build_input_schema()` generator | REQ-001, AC-1 | Local helper at line 32 builds schemas from models (corrected in Step 3a: line 33 was stale) | `tests/mcp_servers/file/test_file_schema_consistency.py` | Verified |
 | `scripts/mcp_servers/file/write_models.py` | Modify | Inherit the shared strict base; remove the `supported_extensions` field; reject empty edit lists and empty `old_text` | REQ-001, REQ-006, REQ-007, AC-1, AC-5 | Field at line 30 parsed with empty default, no `ConfigDict`, no empty-list validation (checked in Step 2) | `tests/mcp_servers/file/test_file_write_mcp_service.py` | Verified |
 | `scripts/mcp_servers/file/write_tools.py` | Modify | Generate tool schemas from the strict models with the shared generator instead of hand-maintained dictionaries | REQ-001, AC-1 | Hand-maintained `inputSchema` dicts at lines 17, 52, 101, 132 (checked in Step 2) | `tests/mcp_servers/file/test_file_schema_consistency.py` | Verified |
 | `scripts/mcp_servers/file/delete_models.py` | Modify | Inherit the shared strict base (already `extra="forbid"`; align with the shared model) | REQ-001, AC-1 | `ConfigDict(extra="forbid")` at lines 74, 93 consistent with the archived sibling issue; base swap only (checked in Step 2) | `tests/mcp_servers/file/test_call_tool_validation.py` | Verified |
 | `scripts/mcp_servers/file/delete_tools.py` | Modify | Generate tool schemas from the strict models with the shared generator | REQ-001, AC-1 | Hand-maintained `inputSchema` dicts at lines 20, 51 (checked in Step 2) | `tests/mcp_servers/file/test_file_schema_consistency.py` | Verified |
 | `scripts/mcp_servers/file/read_business.py` | Modify | Exclude symlinks during `rglob` traversal; enforce node, scanned-file, cumulative-byte, per-file-byte, and deadline limits; return the structured truncation reason | REQ-002, REQ-003, AC-2 | `rglob("*")` at lines 219, 239 with no symlink handling; verified behavior: `rglob` lists symlink entries, `os.walk` counts symlinked files without descending directory symlinks (checked in Step 2) | `tests/mcp_servers/file/test_read_service.py` | Verified |
-| `scripts/mcp_servers/file/read_static_helpers.py` | Modify | Make the traversal helpers (`count_tree_nodes`, `has_depth_limit`, the dry-run scan walk) symlink-excluding and limit-aware | REQ-002, REQ-003, AC-2 | Helpers at lines 54, 96 count nodes without symlink exclusion (checked in Step 2) | `tests/mcp_servers/file/test_read_service.py` | Verified |
+| `scripts/mcp_servers/file/read_static_helpers.py` | Modify | Make the traversal helpers (`build_tree`, `count_tree_nodes`, `has_depth_limit`) symlink-excluding and limit-aware | REQ-002, REQ-003, AC-2 | Helpers at lines 21, 54, 96; `build_tree` enumerates entries via `iterdir()` without symlink exclusion (corrected in Step 3a: the dry-run scan walk is `_scan_directory_for_dry_run` in `delete_service.py`, not in this file) | `tests/mcp_servers/file/test_read_service.py` | Verified |
 | `scripts/mcp_servers/file/delete_service.py` | Modify | Move the allowed-root guard before the dry-run branch and share validation between dry-run and real deletion; write the intent audit before the destructive call (fail closed); report `applied_audit_failed` when the completion audit fails after an applied delete | REQ-004, REQ-005, AC-3, AC-4 | Dry-run return at lines 219-220 precedes `_check_not_deleting_allowed_root` at line 224; audit written only after deletion at line 152; audit-write errors logged but never propagated (checked in Step 2) | `tests/mcp_servers/file/test_delete_service.py` | Verified |
-| `scripts/mcp_servers/file/delete_server.py` | Modify | Include session, request, and logical-call identifiers in delete audit records via the shared audit-record contract | REQ-005, AC-4 | `extract_request_context(request)[:2]` drops the third element (the logical-call id) at line 196; `_audit_log_safe` swallows failures at lines 178-185 (checked in Step 2) | `tests/mcp_servers/file/test_file_server_audit_records.py` | Verified |
+| `scripts/mcp_servers/file/delete_server.py` | Modify | Include session, request, and logical-call identifiers in delete audit records via the shared audit-record contract | REQ-005, AC-4 | `extract_request_context(request)[:2]` drops the third element (the logical-call id) at line 194 (corrected in Step 3a: line 196 was stale); `_audit_log_safe` swallows failures at lines 178-185 (checked in Step 2) | `tests/mcp_servers/file/test_file_server_audit_records.py` | Verified |
 | `scripts/mcp_servers/file/write_security_validation.py` | Modify | Remove the `server.supported_extensions` posture check | REQ-006, AC-5 | Check at lines 93-96 reports `not_applicable` "parsed but not enforced" (checked in Step 2) | `tests/mcp_servers/file/test_file_security_validation.py` | Verified |
 | `scripts/mcp_servers/file/write_server.py` | Modify | Remove `supported_extensions_count` from the health view | REQ-006, AC-5 | Health view line 75 reads `cfg.supported_extensions` (checked in Step 2 via consumer scan) | `tests/mcp_servers/file/test_file_write_health_posture.py` | Verified |
 | `scripts/shared/security/posture_contract.py` | Modify | Remove `server.supported_extensions` from the `file_write` check inventory | REQ-006, AC-5 | Check id present in the `file_write` inventory at line 82 (checked in Step 2 via consumer scan) | `tests/shared/test_security_posture_contract.py` | Verified |
@@ -81,7 +81,7 @@ patterns, components, file groups, or vague phrases.
 |---|---|---|
 | `scripts/mcp_servers/request_contract.py` | The shared strict base (`StrictRequestModel`, line 34) and generator (`build_input_schema`, line 44) the file models and tools must use | REQ-001 |
 | `scripts/shared/write_outcome.py` | The shared write-audit vocabulary (`applied_audit_failed`) and field builder the delete audit path applies | REQ-005 |
-| `scripts/mcp_servers/server.py` | `extract_request_context()` (line 262) returns the logical-call identifier as its third element | REQ-005 |
+| `scripts/mcp_servers/server.py` | `extract_request_context()` (line 263, corrected in Step 3a) returns the logical-call identifier as its third element | REQ-005 |
 | `scripts/mcp_servers/file/common.py` | `FileSecurityMixin._resolve_safe()` and `validate_file_security_base()` are the authorization base the traversal and delete paths share; consumer scan found no change needed here — recorded as a reference row, not a target | REQ-004 |
 | `tests/mcp_servers/file/test_file_common.py` | Existing authorization tests that must keep passing with the shared validation path | REQ-004 |
 
@@ -110,6 +110,7 @@ Yes. `docs/22_mcp/mcp_04_01_web-search-file-read-github.md` and `docs/22_mcp/mcp
 - mcpai012's documentation plan is compatible with this Plan on the two File MCP documents: this Plan writes the facts it establishes, mcpai012 performs the final consistency sweep afterward.
 - `config/file_write_mcp_server.toml` is not a target: the `supported_extensions` key is absent from the file (corrected in Step 2); removal touches only code, posture, and tests.
 - The consumer scan for `supported_extensions` (11 test candidates plus `posture_contract.py` and `write_server.py`) is fully recorded as target rows; no candidate is left unaccounted.
+- Step 3a correction (20261126): the row-8 phrase "the dry-run scan walk" was a misattribution — the dry-run scan (`_scan_directory_for_dry_run`) lives in `delete_service.py`, not in `read_static_helpers.py`; row 8's symlink-exclusion target is `build_tree` (line 21). The delete dry-run scan is not a symlink-exclusion target: `os.walk` does not descend directory symlinks and the scan only counts, so the escape vector remains the read traversal path per the Problem analysis; REQ-002's test scope (`test_read_service.py`) is unchanged.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -214,12 +215,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Schema tests first, then strict base and shared generator | Pending | — | — | — |
-| 2 | Symlink exclusion and traversal limits | Pending | — | — | — |
-| 3 | Delete dry-run parity | Pending | — | — | — |
-| 4 | Audit order and identifiers | Pending | — | — | — |
-| 5 | `supported_extensions` removal and empty-edit rejection | Pending | — | — | — |
-| 6 | Documentation, validation, and deploy hand-off | Pending | — | — | deploy is the user's decision |
+| 1 | Schema tests first, then strict base and shared generator | In Progress | — | — | — |
+| 2 | Symlink exclusion and traversal limits | In Progress | — | — | — |
+| 3 | Delete dry-run parity | In Progress | — | — | — |
+| 4 | Audit order and identifiers | In Progress | — | — | — |
+| 5 | `supported_extensions` removal and empty-edit rejection | In Progress | — | — | — |
+| 6 | Documentation, validation, and deploy hand-off | In Progress | — | — | deploy is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -229,7 +230,23 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261126-171048_01_scripts_mcp_servers_file_read_models.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_02_scripts_mcp_servers_file_read_tools.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_03_scripts_mcp_servers_file_write_models.py.md` | 1, 5 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_04_scripts_mcp_servers_file_write_tools.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_05_scripts_mcp_servers_file_delete_models.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_06_scripts_mcp_servers_file_delete_tools.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_07_scripts_mcp_servers_file_read_business.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_08_scripts_mcp_servers_file_read_static_helpers.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_09_scripts_mcp_servers_file_delete_service.py.md` | 3, 4 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_10_scripts_mcp_servers_file_delete_server.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_11_scripts_mcp_servers_file_write_security_validation.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_12_scripts_mcp_servers_file_write_server.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_13_scripts_shared_security_posture_contract.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_14_tests_mcp_servers_file_test_read_service.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_20_tests_mcp_servers_file_test_file_schema_consistency.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_21_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261126-171048_22_docs_22_mcp_mcp_04_02_file-write-file-delete-shell.md.md` | 6 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -249,7 +266,9 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-002 | Required Changes; `read_business.py:219,239`; verified `rglob` symlink behavior (Step 2) | `scripts/mcp_servers/file/read_business.py`, `read_static_helpers.py` | Phase 2 | AC-2 | `tests/mcp_servers/file/test_read_service.py` | Confirmed by repository evidence |
 | REQ-003 | Required Changes; no node/cumulative-byte/deadline limits found in Step 2 | `scripts/mcp_servers/file/read_models.py`, `read_business.py`, `read_static_helpers.py` | Phase 2 | AC-2 | `tests/mcp_servers/file/test_read_service.py` | Confirmed by repository evidence |
 | REQ-004 | Problem; `delete_service.py:219-224` | `scripts/mcp_servers/file/delete_service.py` | Phase 3 | AC-3 | `tests/mcp_servers/file/test_delete_service.py` | Confirmed by repository evidence |
-| REQ-005 | Required Changes; `delete_service.py:152`, `delete_server.py:178-185,196` | `scripts/mcp_servers/file/delete_service.py`, `delete_server.py` | Phase 4 | AC-4 | `tests/mcp_servers/file/test_delete_service.py`, `tests/mcp_servers/file/test_file_server_audit_records.py` | Confirmed by repository evidence |
+| REQ-005 | Required Changes; `delete_service.py:152`, `delete_server.py:178-185,194` | `scripts/mcp_servers/file/delete_service.py`, `delete_server.py` | Phase 4 | AC-4 | `tests/mcp_servers/file/test_delete_service.py`, `tests/mcp_servers/file/test_file_server_audit_records.py` | Confirmed by repository evidence |
 | REQ-006 | Required Changes; `write_models.py:30`, `write_security_validation.py:93-96`, `posture_contract.py:82` | `scripts/mcp_servers/file/write_models.py`, `write_security_validation.py`, `write_server.py`, `scripts/shared/security/posture_contract.py` | Phase 5 | AC-5 | `tests/mcp_servers/file/test_file_security_validation.py`, `tests/mcp_servers/file/test_file_write_health_posture.py`, `tests/shared/test_security_posture_contract.py` | Confirmed by repository evidence |
 | REQ-007 | Required Changes; no empty-edit validation found in Step 2 | `scripts/mcp_servers/file/write_models.py` | Phase 5 | AC-5 | `tests/mcp_servers/file/test_file_write_mcp_service.py` | Confirmed by repository evidence |
 | REQ-008 | Documentation Impact | `docs/22_mcp/mcp_04_01_web-search-file-read-github.md`, `docs/22_mcp/mcp_04_02_file-write-file-delete-shell.md` | Phase 6 | AC-6 | `uv run python tools/check_docs_consistency.py --domain mcp` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-171048 -->
