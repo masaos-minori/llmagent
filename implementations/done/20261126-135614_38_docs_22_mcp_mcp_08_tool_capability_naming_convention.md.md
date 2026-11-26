@@ -12,6 +12,13 @@
 ## Design decisions
 - Required-ness is derived by the Agent from the catalog `required_capability` of a `required=true` server (D-6); servers that declare no capabilities keep the legacy reading rule.
 
+### Corrected in Step 3b
+- Re-checked in this cycle: GitHub is the only production server that declares a capability block, so the Status section names it alone. The Overview's optional statement is unchanged; the Status section now scopes optionality to servers that do not declare capabilities, which is what makes the two sections agree.
+- Two sections were added before Status: Required And Optional Capabilities (required versus optional, FATAL versus warning, required-ness derived from the catalog rather than declared by the server, the no-declaration reading rule) and Capability Health States (the three-state closed vocabulary, only `ok` proves readiness, the reason code, and the tool dependency rule).
+- Requirement IDs are not written into the document, per `check_docs_quality.py` Current-Specification-Only Policy.
+- The existing example names are unchanged, per Method; `github.api` already follows the domain-dot-action form.
+- `required capability` and `capability state` were added to Keywords.
+
 ## Alternatives considered
 - N/A: documentation-only change.
 
@@ -52,7 +59,7 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the document and run the docs gates (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the document and run the docs gates (`rules/tool-gates.md`) | Completed | 20261126-195752 | 20261126-195752 | Changed file: docs/22_mcp/mcp_08_tool_capability_naming_convention.md. Added Required And Optional Capabilities and Capability Health States sections, and replaced the stale Status claim with the declaring server (GitHub: github.operations required, github.api optional). Docs gates pass: quality, structure, content policy, consistency --domain mcp, japanese. Full suite pending at end of batch. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

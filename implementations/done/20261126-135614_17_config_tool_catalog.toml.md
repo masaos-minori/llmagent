@@ -14,6 +14,10 @@
 ## Design decisions
 - The catalog declares the optional capability list per server; required-ness is derived by the Agent from `required_capability` on a `required=true` server (D-6), so no new key is added.
 
+### Corrections made in Step 3b
+- Corrected in Step 3b: the header note replacement is written as three lines. `tools/check_config_comment_length.py` grandfathered the block at line 1 with 23 consecutive comment lines, and an entry whose length or position no longer matches is error-level, so the replacement cannot change the block's length.
+- Corrected in Step 3b: no consumer reads the catalog `capabilities` list at runtime. The drift check reads `owned_tools`, and the capability classification reads the live `/health` block while the catalog supplies only `required_capability` through `shared.tool_catalog.required_capability_for()`. The added entry is the declared canonical set for GitHub, so it changes no behavior; the reconciliation is recorded in the docs update (seq 38).
+
 ## Alternatives considered
 - N/A: data-only change.
 
@@ -42,6 +46,7 @@
 
 ## Validation plan
 - `uv run pytest tests/agent/services/test_mcp_tool_discovery.py` (catalog-driven cases added by seq 26); `uv run python tools/check_config_comment_length.py` (the header comment block must stay within the 5-line threshold); no other code gate applies to the data file itself.
+- Ran: `check_config_comment_length.py` reports 0 errors and the catalog block is still the grandfathered one (line 1, 23 consecutive comment lines), so the replacement kept the block's recorded length. `tests/agent/services/test_mcp_tool_discovery.py` 96 passed with 6 failures, all the seq 09 report-based-proof fallout cases that seq 26 repairs; `tests/integration/test_standard_config_integration.py` passes, including the test that every catalog entry still declares `required_capability` and `owned_tools`. Full suite pending at end of batch.
 
 ## Completion criteria
 - The note is removed, `github.api` is declared as optional for GitHub, and the discovery tests that read the catalog pass.
@@ -54,9 +59,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the catalog change | Pending | — | — | |
-| 2 | Tests are covered by the test-file procedure (seq 26) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the catalog change | Completed | 20261126-192857 | 20261126-192857 | Changed file: config/tool_catalog.toml. The header note is replaced by the canonical capability model statement written as three lines, so the grandfathered block (line 1, 23 consecutive comment lines) keeps its recorded length and position. github.api added to the GitHub server's capabilities; required_capability stays github.operations. No code path reads the catalog capabilities list, so behavior is unchanged. |
+| 2 | Tests are covered by the test-file procedure (seq 26) | Completed | 20261126-192857 | 20261126-192857 | No test file in this row; the catalog-driven cases are seq 26. Ran tests/agent/services/test_mcp_tool_discovery.py: 96 passed, 6 failures are the seq 09 report-based-proof fallout cases seq 26 repairs. tests/integration/test_standard_config_integration.py passes, including the test that every catalog entry declares required_capability and owned_tools. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-192857 | 20261126-192857 | check_config_comment_length.py: 0 errors, the catalog block still matches its grandfathered entry. Reference table no drift; 75 cited ADR tests pass. Full suite pending at end of batch. Docs: N/A, the docs rows for this module are seq 33-38; seq 38 records the identifier reconciliation. Deploy: the file must be synced by deploy.sh (Plan Phase 6). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

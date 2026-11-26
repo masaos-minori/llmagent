@@ -10,6 +10,10 @@
 ## Assumptions
 - Verified in Step 3a: `RuntimeTool` (`runtime_tool.py:44-105`) has no `config_dependent` field; `build_runtime_tool` (`:108-198`) does not accept it; 14 test files call `build_runtime_tool` directly.
 - D-7: the field is optional with default `False`; the default applies only to non-discovery construction, since the field is diagnostic-only.
+- Corrected in Step 3b (owner decision, 2026-11-26): this procedure runs before seq 11. Seq 11's `build_runtime_tool(config_dependent=...)` call site cannot pass mypy until this keyword exists, so the batch
+  runs 12 → 13 → 11 in dependency order rather than filename order.
+- Corrected in Step 3b: the builder keyword follows the existing optional-field style (`config_dependent: bool | None = None` resolved through `_or_default(..., False)`), so an explicit `None` keeps the
+  documented default rather than raising. The field is placed after `llm_visibility_base` and documented in the class field list.
 
 ## Design decisions
 - Frozen dataclass field with default `False` and an optional keyword in the builder, keeping all 14 direct-construction test call sites valid.
@@ -34,7 +38,8 @@
 ### Companion test files
 - `tests/shared/test_runtime_tool.py`
   - Procedure: assert the field defaults to `False`, the builder passes it through, and equality reflects the value (T-07).
-  - Validation: `uv run pytest tests/shared/test_runtime_tool.py`.
+  - Validation: `uv run pytest tests/shared/test_runtime_tool.py` (46 passed; 4 cases added in `TestRuntimeTool`: default `False`, explicit `True` honored, builder pass-through against the required-field
+    kwargs, and equality distinguishing a declared value from the default).
 
 ## Compatibility considerations
 - Additive field with default; existing constructions and the 14 test files stay valid.
@@ -59,9 +64,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the field and builder keyword | Pending | — | — | |
-| 2 | Update the companion tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the field and builder keyword | Completed | 20261126-183214 | 20261126-183214 | config_dependent: bool = False added to RuntimeTool (after llm_visibility_base) and documented in the class field list; build_runtime_tool gained the optional keyword resolved through _or_default(..., False) and passes it through. Executed before seq 11 in dependency order (owner decision). File size 9595 B < 24576. Blast radius measured: 14 test files call build_runtime_tool directly, all keep working through the default. |
+| 2 | Update the companion tests | Completed | 20261126-183214 | 20261126-183214 | tests/shared/test_runtime_tool.py: 4 T-07 cases added in TestRuntimeTool (default False, explicit True honored, builder pass-through, equality reflects the value). 46 tests passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-183214 | 20261126-183214 | ruff format/check pass; mypy clean; lint-imports 6 contracts kept; bandit pass; check_docstrings, check_mock_patch_targets, check_module_size pass; reference table no drift; 75 cited ADR tests pass. Full suite pending at end of batch. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

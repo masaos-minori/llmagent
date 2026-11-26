@@ -14,6 +14,9 @@
 ## Design decisions
 - `PostureGate` gains the parsed `HealthReport` from seq 01 as an additive field; existing gate consumers keep reading the posture fields unchanged.
 - Classification helper (new): given a gate and the server's catalog `required_capability`, returns whether the required capability is proven `ok` and which optional capabilities are degraded/unavailable.
+- The classification result is a value (`CapabilityFinding`), not a side effect, so seq 09 can read the same shape from the gate.
+- The readiness half of the classification delegates to `HealthChecker.is_ready()` (seq 03); this file does not re-implement the predicate.
+- `required_capability` is resolved through the shared leaf reader `scripts/shared/tool_catalog.py` (`load_tool_catalog()` + `required_capability_for()`), the same reader seq 04 and seq 09 use. The catalog is loaded once for the gate loop; an unreadable catalog resolves to `None` with a warning, which keeps the legacy `ready` fallback (D-6); the fail-closed FATAL stays at discovery.
 
 ## Alternatives considered
 - Keep the per-request 5.0 override (rejected by REQ-001: it defeats the per-server timeout).
@@ -29,9 +32,12 @@
 
 ### Method
 - The probe already builds headers through `cfg.auth_headers()` (`:52`); keep that single path (REQ-003).
+- Corrected in Step 3b: the probe takes the effective timeout as an optional keyword (`timeout_sec`) rather than a required argument, so the out-of-table consumer `scripts/agent/services/mcp_status.py` keeps its client-level per-server timeout and is not touched here. Omitting the keyword passes no per-request timeout, which is httpx's client-default path; passing `http.timeout` explicitly would break the fake-client fixtures in `tests/agent/services/test_agent_mcp_status.py`.
 
 ### Details
 - The classification result feeds seq 09 (discovery passes degraded optional capabilities to the registry); expose it as a function, not a side effect.
+- Corrected in Step 3b: the classification is a frozen dataclass (`CapabilityFinding`) plus `classify_capabilities()`, and the readiness half delegates to `HealthChecker.is_ready()` instead of re-implementing the predicate.
+- Corrected in Step 3b: the new public symbols are recorded by the reference-table gate, so `registry/manifests/agent_api.yaml` and the generated index `docs/23_agent/agent_14_reference-api-subpackages-generated.md` were regenerated; the generated index grew past its recorded size ceiling (37198 -> 37507) and `tools/check_docs_structure.py`'s baseline was re-accepted at the new size.
 
 ### Companion test files
 - `tests/agent/test_repl_health.py`
@@ -64,9 +70,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the probe, gate, and classification changes | Pending | — | — | |
-| 2 | Update the companion tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the probe, gate, and classification changes | Completed | 20261126-173555 | 20261126-173555 | Changed: _probe_mcp_health_detail takes the effective timeout as an optional keyword (timeout_sec) so the out-of-table consumer mcp_status.py keeps its client-level timeout; PostureGate gained the parsed report field; CapabilityFinding + classify_capabilities() added, delegating the readiness half to HealthChecker.is_ready(); check_service_health() routes required-capability loss to FATAL and optional loss to a warning. File size 21423 B < 24576. |
+| 2 | Update the companion tests | Completed | 20261126-173555 | 20261126-173555 | tests/agent/test_repl_health.py: the hard-coded 5.0 assertion replaced by the per-server timeout (T-01) plus the omitted-timeout case. tests/agent/test_mcp_health_posture.py: gate carries the parsed report (legacy branch, contract-violating body), classification cases (T-04), and the FATAL/warning routing incl. the unreadable-catalog fallback (T-05). 115 tests passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-173555 | 20261126-173555 | ruff format/check, mypy (no issues), lint-imports (6 contracts kept), bandit pass, check_docstrings, check_mock_patch_targets, check_module_size pass. Reference gate: registry/manifests/agent_api.yaml + docs/23_agent/agent_14 regenerated for the two new public symbols; tools/check_docs_structure.py baseline re-accepted at 37507. Full suite pending at end of batch. Docs: only the generated index changed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

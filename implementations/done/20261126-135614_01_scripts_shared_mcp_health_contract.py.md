@@ -10,7 +10,11 @@
 ## Assumptions
 - Verified in Step 3a: no health contract module exists in `scripts/shared/` (`ls scripts/shared`); `mcp_servers` must not import `agent` per the `lint-imports` contract, so the contract lives in the shared leaf.
 - Health schema version is `1` (Plan Design D-5); existing producers emit `status`/`ready`/`liveness` only, so the parser must accept a legacy body without the new fields.
-- UNK-02 (Plan Risk mitigation): during implementation, check the production health samples under `/opt/llm` for a server that returns a 503 with `ready=false` and no capability block while `required=true`; the legacy branch is what would block it, so a migrated capability block is the remedy.
+- UNK-02 (Plan Risk mitigation): during implementation, check the production health samples under `/opt/llm` for a server that returns a 503 with `ready=false` and no capability block while `required=true`; the legacy branch is what would block it, so a migrated capability block is the remedy. Checked in this cycle: `/opt/llm/logs/` holds no `/health` body sample (no `ready": false` line in any server log), so no deployed server is known to hit the legacy branch; the check stays open until staging.
+- Corrected in Step 3b: the closed reason-code vocabulary is `{config_missing, server_unavailable, half_open_trial_in_progress}` (owner decision, 2026-11-26). `config_missing` matches the canonical `REASON_CONFIG_MISSING` in `scripts/shared/security/result_dto.py`; the two hint codes are imported from their canonical owner `scripts/shared/mcp_health.py` rather than re-declared here.
+- Corrected in Step 3b: a legacy body has no `health_schema_version`, so the parser reports `LEGACY_HEALTH_SCHEMA_VERSION = 0` for it; version 1 is the current contract. Absent fields parse as defaults (empty reasons, empty capabilities); a present field with the wrong type still raises.
+- Corrected in Step 3b: `HealthReport` exposes `is_legacy` (true when the body carries no capability block), the shape the readiness helpers of seq 03, 05 and 09 read for the D-6 fallback.
+- Post-cycle fix: the module comment describing a body without a capability block was reworded, because `tools/check_compat_shims.py` flags the leftover phrase "predates" under `scripts/`. The comment now states the shape directly.
 
 ## Design decisions
 - Module contents: `HealthReport` (new) dataclass (`health_schema_version: int`, `liveness: bool`, `ready: bool`, `degraded_reasons: tuple[str, ...]`, `capabilities: Mapping[str, CapabilityState]`), the closed reason-code vocabulary (aligned with `docs/22_mcp/mcp_06_10_health-reasons-and-error-kinds.md`), the capability states `ok`/`degraded`/`unavailable`, and `parse_health_body()` (new).
@@ -64,9 +68,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the contract module | Pending | — | — | |
-| 2 | Add the companion tests first, then confirm they pass | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `lint-imports` | Pending | — | — | |
+| 1 | Implement the contract module | Completed | 20261126-154558 | 20261126-154558 | Changed: scripts/shared/mcp_health_contract.py. Step 3b corrections: closed vocabulary = {config_missing, server_unavailable, half_open_trial_in_progress}; legacy body reports version 0; HealthReport.is_legacy added. UNK-02 check: no /health body sample in /opt/llm/logs. Changed: scripts/shared/mcp_health_contract.py. Step 3b corrections: closed vocabulary = {config_missing, server_unavailable, half_open_trial_in_progress}; legacy body reports version 0; HealthReport.is_legacy added. UNK-02 check: no /health body sample in /opt/llm/logs. |
+| 2 | Add the companion tests first, then confirm they pass | Completed | 20261126-154558 | 20261126-154558 | tests/shared/test_mcp_health_contract.py created (12 tests, T-04); targeted run passes. tests/shared/test_mcp_health_contract.py created (12 tests, T-04); targeted run passes. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `lint-imports` | Completed | 20261126-154613 | 20261126-154613 | ruff/mypy/lint-imports/bandit pass. Full suite pending at end of batch. Docs: N/A, no docs/00_index.md task-scope row names the new contract module; the contract docs are seq 33/34 target rows. ruff/mypy/lint-imports/bandit pass. Full suite pending at end of batch. Docs: N/A, no docs/00_index.md task-scope row names the new contract module; the contract docs are seq 33/34 target rows. ruff/mypy/lint-imports/bandit pass; targeted tests 12 passed. Full suite pending at end of batch. Docs: N/A, no docs/00_index.md task-scope row names the new contract module; the contract docs are seq 33/34 target rows. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

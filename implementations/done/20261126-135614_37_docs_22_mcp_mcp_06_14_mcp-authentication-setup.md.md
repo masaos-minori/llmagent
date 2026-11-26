@@ -12,6 +12,12 @@
 ## Design decisions
 - `auth_token` is the health credential, `auth_headers()` is the only header path, and the token never appears in a health log line or error message (D-1, REQ-003).
 
+### Corrected in Step 3b
+- Verified against the code: every health caller reads the header through `auth_headers()` (the startup poll, the health probe, and the tool-definition check), so the single-header-path statement is accurate as written.
+- The no-token-in-logs rule was written as behavior plus the masking of captured text such as child stderr, because the health failure path logs the server key and the failure and passes captured text through the secrets masker; a bare "not the credential" wording would have hidden that mechanism.
+- The section was placed as a subsection under "Setting up MCP authentication", after Setup Requirements and before Troubleshooting, which is where the model statement belongs.
+- `auth_token` and `health requests` were added to Keywords.
+
 ## Alternatives considered
 - N/A: documentation-only change.
 
@@ -52,7 +58,7 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the document and run the docs gates (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the document and run the docs gates (`rules/tool-gates.md`) | Completed | 20261126-195544 | 20261126-195544 | Changed file: docs/22_mcp/mcp_06_14_mcp-authentication-setup.md. Added the Health Requests Use the Same Token subsection: same auth_token as every other MCP request, no separate health credential or second config key, auth_headers() as the single header path used by the startup poll and the health probe, and the no-token-in-logs rule stated with the masking of captured text. Added keywords. Docs gates pass: quality, structure, content policy, consistency --domain mcp, japanese. Full suite pending at end of batch. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

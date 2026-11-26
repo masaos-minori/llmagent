@@ -10,6 +10,11 @@
 ## Assumptions
 - Verified in Step 3a: existing tests pin the `is_degraded_but_live` branches (`test_http_lifecycle_health_check.py:392-467`); those pins change with the replaced predicate.
 - The implementation is in seq 03 (checker) and seq 04 (call sites); write the failing tests first.
+- Corrected in Step 3b: because readiness is no longer gated by the status code, every fixture that
+  stubs only `status_code` needs a body proof. The two token tests' fixtures gained
+  `ready: true`; the same fallout in `tests/agent/test_http_lifecycle_integration.py` (five fixtures)
+  is handled by the fallout amendment procedure `20261126-135614_39_tests_agent_test_http_lifecycle_integration.py.md`,
+  which is not a row of the Plan's frozen target table.
 
 ## Design decisions
 - Use a fake clock for the deadline-cap test so the assertion is deterministic (T-02).
@@ -55,9 +60,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the test changes | Pending | — | — | |
-| 2 | Confirm the new cases fail before seq 03/04 and pass after | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the test changes | Completed | 20261126-170920 | 20261126-170920 | Changed: TestHealthPollDegradedTolerance replaced by TestReportBasedReadiness (unparseable bodies, contract violations, liveness-only not proof, required capability ok proves, legacy ready fallback, poll-level cases), plus TestCallerResolvesRequiredCapability and TestPerServerTimeoutAndDeadlineCap (T-01 effective timeout at both call sites, T-02 fake-clock min(effective, remaining) cap and no request after the deadline) and the T-03 token-not-logged caplog assertion. |
+| 2 | Confirm the new cases fail before seq 03/04 and pass after | Completed | 20261126-170920 | 20261126-170920 | The pre-implementation red state was observed as 13 failing pins against the replaced predicate before the rewrite; after seq 03/04 landed the rewritten file passes 26/26. The same readiness rule made five fixtures in tests/agent/test_http_lifecycle_integration.py fail; handled by the fallout procedure seq 39. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-170920 | 20261126-170920 | ruff format/check and mypy pass on this file; 26 tests passed. Full suite pending at end of batch. Docs: N/A, test-only change. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

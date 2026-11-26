@@ -8,9 +8,17 @@
 
 ## Assumptions
 - Verified in Step 3a: the current wording allows 0 as unlimited, which seq 02 removes.
+- Re-checked in this cycle: the wording is a blanket statement over the timeout fields, not a `health_timeout` statement, and the other timeout fields still accept 0, so the statement was scoped rather than replaced. `health_timeout` was not named anywhere in the document before this change.
 
 ## Design decisions
 - The value must be greater than 0, the default when unset stays 5.0, and the resolver always returns a positive float (D-3).
+
+### Corrected in Step 3b
+- The document never named `health_timeout`; the zero-means-unlimited wording was a blanket statement over the timeout fields. The rule was applied by scoping that statement to the per-call and startup fields, which still accept 0 (`call_timeout_sec >= 0`, `startup_timeout_sec >= 0`), and adding a `health_timeout` bullet for the greater-than-0 rule.
+- The concrete default is not written into the document, per `skills/DESIGN.md` No concrete configuration values; the document states that the resolver returns the configured value when set and the default when unset, and points to `scripts/shared/mcp_config.py` as the canonical source.
+- "Keep the field table shape" has no table to keep: this document has no field table, and the generated-table check covers `config/agent.toml`, which is unaffected.
+- Rejection at direct construction was verified against `McpServerConfig._validate_timeouts()`, which is what both the config-load path and a direct construction run.
+- `health_timeout` was added to Keywords.
 
 ## Alternatives considered
 - N/A: documentation-only change.
@@ -52,7 +60,7 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the document and run the docs gates (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the document and run the docs gates (`rules/tool-gates.md`) | Completed | 20261126-195433 | 20261126-195433 | Changed file: docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md. Scoped the blanket zero-means-unlimited statement to the per-call and startup fields, which still accept 0, and added the health_timeout bullet stating the greater-than-0 rule rejected at config load and direct construction, always a positive value, with the canonical source named and the cap rule linked to seq 33's document. Added the keyword. Docs gates pass: quality, structure, content policy, consistency --domain mcp, japanese, generate_reference_table --check. Full suite pending at end of batch. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

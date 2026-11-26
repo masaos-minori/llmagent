@@ -13,6 +13,10 @@
 
 ## Design decisions
 - Reuse the readiness helper introduced by seq 03 rather than duplicating the predicate here.
+- Resolve `required_capability` through the shared leaf reader `scripts/shared/tool_catalog.py`
+  (`load_tool_catalog()` + `required_capability_for()`), the same reader seq 04 and seq 09 use, so the
+  catalog path and entry shape are defined once. A missing catalog resolves to `None` here with a
+  warning, which keeps the legacy `ready` fallback (D-6); the fail-closed FATAL stays at discovery.
 
 ## Alternatives considered
 - N/A: confined to two call sites, no public-contract change.
@@ -26,10 +30,18 @@
 2. Replace the `liveness`-only acceptance with the report-based readiness check from seq 03.
 
 ### Method
-- Parse the body through `shared.mcp_health_contract.parse_health_body()` and evaluate the server's `required_capability` from `config/tool_catalog.toml` (catalog load stays in seq 09; here only the readiness decision changes).
+- Parse the body through `shared.mcp_health_contract.parse_health_body()` (via `HealthChecker.parse_report`)
+  and evaluate the server's `required_capability` through the shared catalog reader. Corrected in Step 3b:
+  the reader is `scripts/shared/tool_catalog.py`, shared with seq 04 and seq 09, so this file does not read
+  the catalog itself.
+- Both call sites share one private helper, `_readiness_failure(server_key, resp)`, which returns the
+  failure reason or None; `_verify_single_health` and the `verify_health` loop raise `RuntimeError(reason)`.
 
 ### Details
 - The startup failure message should name the capability that was not proven when a 503 body fails readiness.
+- Corrected in Step 3b: the status code is no longer the proof, so the companion test's 200 fixture body
+  must carry `ready: true` (`_auth_handler`), and the capability-ok case needs a catalog entry for the test
+  server key, which has none and would otherwise take the legacy fallback.
 
 ### Companion test files
 - `tests/agent/test_startup_mcp_starter.py`
@@ -59,9 +71,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the timeout and readiness changes | Pending | — | — | |
-| 2 | Update the companion tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the timeout and readiness changes | Completed | 20261126-171605 | 20261126-171605 | Changed: both health requests use get_effective_health_timeout(cfg); the liveness-only acceptance is replaced by _readiness_failure() (parse_report + is_ready) and _resolve_required_capability() through the shared reader scripts/shared/tool_catalog.py. File size 11671 B < 24576. |
+| 2 | Update the companion tests | Completed | 20261126-171605 | 20261126-171605 | tests/agent/test_startup_mcp_starter.py: the is_degraded_but_live patch replaced by report-based cases (liveness-only 503 fails, required-capability-ok 503 passes with a catalog entry, legacy body falls back to ready), plus the T-01 test that the effective timeout reaches both the post-startup and the retry probe and that the header comes from auth_headers(). 20 tests passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-171605 | 20261126-171605 | ruff format/check, mypy (repo-wide: no issues in 622 files), lint-imports (6 contracts kept), bandit pass. Targeted tests 20 passed. Full suite pending at end of batch. Docs: N/A, docs update is seq 33/37's target row. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -61,9 +61,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the validation, resolver, and docstring change | Pending | — | — | |
-| 2 | Update the companion tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the validation, resolver, and docstring change | Completed | 20261126-154613 | 20261126-154613 | Changed: scripts/shared/mcp_config.py (validation rejects <=0, resolver returns float, auth_headers docstring states the single auth path). File size 19677 B < 24576. |
+| 2 | Update the companion tests | Completed | 20261126-154613 | 20261126-154613 | tests/shared/test_mcp_config_validation.py: zero-rejection test replaced the zero-is-valid test; added positive-float invariant test (T-01). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-154613 | 20261126-154613 | ruff/mypy pass; targeted tests 138 passed. Full suite pending at end of batch. Docs: N/A, docs update is seq 36's target row. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -10,6 +10,12 @@
 ## Assumptions
 - Verified in Step 3a: `health_models.py:180` casts `dependencies` to a list, so a dict body iterates keys and loses the status text; servers emit a dict (`github_server.py:185-186`); `summarize_dependencies()` (`:255`) takes a list of dict-or-str entries.
 - The contract parser (seq 01) is the single strict-parse path; this file consumes its result and keeps its existing summary shape.
+- Corrected in Step 3b: the same `dependencies` cast also exists in `extract_health_reason()` (`:236`),
+  so both paths read through one new private helper, `_dependency_entries()`.
+- Corrected in Step 3b: the strict parser names the offending field, so the companion case that pinned
+  the truthy-coercion exception message (`BadBool.__bool__`) no longer applies — `bool()` is not called
+  on a wrong-typed field. It was replaced by a wrong-type case asserting the field name in
+  `parse_failure_reason`.
 
 ## Design decisions
 - `HealthInterpretation` keeps its existing fields; the dict path is normalized into the same summary list (one summary per key-value pair) so downstream consumers are unchanged.
@@ -26,14 +32,19 @@
 2. Read `dependencies` as a dict (or list, for producers that still send a list) and summarize each entry's status text.
 
 ### Method
-- Dict normalization: each `key -> value` entry becomes the existing summary form `key: value`; list entries keep the current behavior.
+- Dict normalization (new private helper `_dependency_entries()`): each `key -> value` entry becomes the
+  existing summary form `key: value`; a dict value that is itself an object keeps its fields with the key
+  as the name; list entries keep the current behavior.
 
 ### Details
 - The `details` and `security` handling stays unchanged; only the `dependencies` cast is corrected.
 
 ### Companion test files
 - `tests/agent/shared/test_mcp_health_interpretation.py`
-  - Procedure: add a dict-`dependencies` case asserting each dependency's status text survives; keep the existing list-body cases (T-04).
+  - Procedure: add a dict-`dependencies` case asserting each dependency's status text survives (plain
+    value and object value), keep the existing list-body cases, add the dict case for
+    `extract_health_reason()`, and replace the truthy-coercion parse-failure case with a wrong-type case
+    asserting the field name (T-04).
   - Validation: `uv run pytest tests/agent/shared/test_mcp_health_interpretation.py`.
 
 ## Compatibility considerations
@@ -59,9 +70,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the contract-based parse and dict dependency read | Pending | — | — | |
-| 2 | Update the companion tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the contract-based parse and dict dependency read | Completed | 20261126-175251 | 20261126-175251 | interpret_health_body() reads the contract fields through shared.mcp_health_contract.parse_health_body(); display fields (status, details, restart_recommended, operator_action_required) still read from the raw body. New private helper _dependency_entries() normalizes a dict dependencies field into the existing summary shape, used by both interpret_health_body() and extract_health_reason(). File size 11515 B < 24576. |
+| 2 | Update the companion tests | Completed | 20261126-175251 | 20261126-175251 | tests/agent/shared/test_mcp_health_interpretation.py: dict-dependency cases (plain value, object value with reason), the dict case for extract_health_reason(), list-body cases kept, and the truthy-coercion parse-failure case replaced by a wrong-type case asserting the field name. 31 tests passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-175251 | 20261126-175251 | ruff format/check pass; mypy clean on the target file; lint-imports 6 contracts kept; bandit pass; check_docstrings, check_mock_patch_targets, check_module_size pass. tests/agent/shared and tests/agent/services/test_agent_mcp_status.py pass (75). Full suite pending at end of batch. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

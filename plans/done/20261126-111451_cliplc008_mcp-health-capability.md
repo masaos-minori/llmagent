@@ -317,31 +317,31 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261126-135614_01_scripts_shared_mcp_health_contract.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261126-135614_02_scripts_shared_mcp_config.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-135614_03_scripts_agent_http_lifecycle_health_checker.py.md | 2, 3 | Procedure | Pending | — | — |
-| implementations/20261126-135614_04_scripts_agent_http_lifecycle.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-135614_05_scripts_agent_startup_mcp_starter.py.md | 2, 3 | Procedure | Pending | — | — |
-| implementations/20261126-135614_06_scripts_agent_services_mcp_health.py.md | 2, 3 | Procedure | Pending | — | — |
-| implementations/20261126-135614_07_scripts_agent_services_mcp_status.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-135614_08_scripts_agent_shared_health_models.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261126-135614_09_scripts_agent_services_mcp_tool_discovery.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-135614_10_scripts_agent_services_mcp_tool_discovery_fetch.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261126-135614_11_scripts_agent_services_mcp_tool_discovery_registry.py.md | 3, 4 | Procedure | Pending | — | — |
-| implementations/20261126-135614_12_scripts_shared_runtime_tool.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261126-135614_13_scripts_shared_runtime_tool_registry.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261126-135614_14_scripts_agent_commands_cmd_mcp.py.md | 4 | Procedure | Pending | — | — |
-| implementations/20261126-135614_15_scripts_mcp_servers_health_response.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261126-135614_16_scripts_mcp_servers_github_github_server.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-135614_17_config_tool_catalog.toml.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-135614_20_tests_agent_test_http_lifecycle_health_check.py.md | 2, 3 | Procedure | Pending | — | — |
-| implementations/20261126-135614_26_tests_agent_services_test_mcp_tool_discovery.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-135614_33_docs_22_mcp_mcp_02_02_startup-modes-and-health.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261126-135614_34_docs_22_mcp_mcp_06_10_health-reasons-and-error-kinds.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261126-135614_35_docs_22_mcp_mcp_03_06_tool-runtime-availability-metadata.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261126-135614_36_docs_22_mcp_mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261126-135614_37_docs_22_mcp_mcp_06_14_mcp-authentication-setup.md.md | 5 | Procedure | Pending | — | — |
-| implementations/20261126-135614_38_docs_22_mcp_mcp_08_tool_capability_naming_convention.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261126-135614_01_scripts_shared_mcp_health_contract.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261126-135614_02_scripts_shared_mcp_config.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-135614_03_scripts_agent_http_lifecycle_health_checker.py.md | 2, 3 | Procedure | Completed | — | — |
+| implementations/20261126-135614_04_scripts_agent_http_lifecycle.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-135614_05_scripts_agent_startup_mcp_starter.py.md | 2, 3 | Procedure | Completed | — | — |
+| implementations/20261126-135614_06_scripts_agent_services_mcp_health.py.md | 2, 3 | Procedure | Completed | — | — |
+| implementations/20261126-135614_07_scripts_agent_services_mcp_status.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-135614_08_scripts_agent_shared_health_models.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261126-135614_09_scripts_agent_services_mcp_tool_discovery.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-135614_10_scripts_agent_services_mcp_tool_discovery_fetch.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261126-135614_11_scripts_agent_services_mcp_tool_discovery_registry.py.md | 3, 4 | Procedure | Completed | — | — |
+| implementations/20261126-135614_12_scripts_shared_runtime_tool.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261126-135614_13_scripts_shared_runtime_tool_registry.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261126-135614_14_scripts_agent_commands_cmd_mcp.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261126-135614_15_scripts_mcp_servers_health_response.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261126-135614_16_scripts_mcp_servers_github_github_server.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-135614_17_config_tool_catalog.toml.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-135614_20_tests_agent_test_http_lifecycle_health_check.py.md | 2, 3 | Procedure | Completed | — | — |
+| implementations/20261126-135614_26_tests_agent_services_test_mcp_tool_discovery.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-135614_33_docs_22_mcp_mcp_02_02_startup-modes-and-health.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261126-135614_34_docs_22_mcp_mcp_06_10_health-reasons-and-error-kinds.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261126-135614_35_docs_22_mcp_mcp_03_06_tool-runtime-availability-metadata.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261126-135614_36_docs_22_mcp_mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261126-135614_37_docs_22_mcp_mcp_06_14_mcp-authentication-setup.md.md | 5 | Procedure | Completed | — | — |
+| implementations/20261126-135614_38_docs_22_mcp_mcp_08_tool_capability_naming_convention.md.md | 5 | Procedure | Completed | — | — |
 
 Companion test rows (18, 19, 21, 22, 23, 24, 25, 27, 28, 29, 30, 31, 32) have no work item of their own; each is covered by the document of its code row, recorded in that document's `### Companion test files` section. Step 6 (Deployment & Verification) is unmapped: it runs gates and the deploy handoff and modifies no file.
 
