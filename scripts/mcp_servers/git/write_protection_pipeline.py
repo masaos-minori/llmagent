@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
 """scripts/mcp_servers/git/write_protection_pipeline.py — 9-stage write-protection pipeline orchestrator.
 
-Runs the guard stages around one mutating Git call using the single RepositoryState
-snapshot captured by mcp_servers/git/repository_state.py, serializes concurrent
-writes to the same canonical repository path, and re-checks the live HEAD identity
-immediately before the mutating call.
+Runs the guard stages around one mutating Git call using the pre-operation
+RepositoryState snapshot captured by mcp_servers/git/repository_state.py, captures a
+fresh post-operation snapshot after the mutating call so Stage 7 compares two distinct
+states, serializes concurrent writes to the same canonical repository path, and
+re-checks the live HEAD identity immediately before the mutating call.
 """
 
 from __future__ import annotations
 
 import logging
+import subprocess  # nosec B404 — Stage 6 propagates the write path's subprocess.TimeoutExpired unchanged
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 
 import git
 import git.exc
+from shared.write_outcome import CONFIRMED_NOT_APPLIED, OUTCOME_UNKNOWN, WriteOutcome
 
 from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.repository_state import RepositoryState
@@ -75,6 +78,7 @@ class PipelineResult:
     repository_state: RepositoryState | None = None
     post_state: RepositoryState | None = None
     audit_record: dict[str, object] | None = None
+    outcome: WriteOutcome | None = None
 
     @classmethod
     def reject(
@@ -83,6 +87,7 @@ class PipelineResult:
         stage_name: str,
         message: str,
         post_state: RepositoryState | None = None,
+        outcome: WriteOutcome | None = None,
     ) -> PipelineResult:
         return cls(
             ok=False,
@@ -91,6 +96,7 @@ class PipelineResult:
             repository_state=state,
             post_state=post_state,
             audit_record=state.audit(),
+            outcome=outcome,
         )
 
     @classmethod
@@ -99,6 +105,7 @@ class PipelineResult:
         state: RepositoryState,
         output: str,
         post_state: RepositoryState | None = None,
+        outcome: WriteOutcome | None = None,
     ) -> PipelineResult:
         return cls(
             ok=True,
@@ -106,6 +113,7 @@ class PipelineResult:
             repository_state=state,
             post_state=post_state,
             audit_record=state.audit(),
+            outcome=outcome,
         )
 
 
@@ -204,21 +212,55 @@ class WriteProtectionPipeline:
             )
 
             # Stage 6: Execute the operation
-            output = self._execute(tool_name, op)
+            try:
+                output = self._execute(tool_name, op)
+            except subprocess.TimeoutExpired:
+                # The write may or may not have landed: the outcome cannot be
+                # confirmed, so it is reported as unknown. Stage 6 is not recorded
+                # because `stages` holds only stages that ran.
+                with RepositoryState.snapshot(
+                    self._state.path,
+                    protected_branches=protected_branches,
+                    active_ref=requested_branch or "",
+                ) as post_state:
+                    return PipelineResult.reject(
+                        self._state,
+                        "Stage 6",
+                        f"{tool_name} timed out before the write could be confirmed",
+                        post_state=post_state,
+                        outcome=OUTCOME_UNKNOWN,
+                    )
 
-            # Stage 7: Verify postcondition against the single shared snapshot
-            # No separate post-state snapshot is taken — the pipeline
-            # captures exactly one snapshot per request.
-            rejected = self._record_or_reject(
-                "Stage 7",
-                7,
-                self._state.verify_postcondition(self._state, tool_name),
-                post_state=self._state,
-            )
-            if rejected is not None:
-                return rejected
+            # A dry run performs no write, so there is no postcondition to verify:
+            # the pre-operation snapshot is the only state this path has.
+            if dry_run:
+                return PipelineResult.ok_result(
+                    self._state, output, post_state=self._state
+                )
 
-            return PipelineResult.ok_result(self._state, output, post_state=self._state)
+            # Stage 7: Verify postcondition against the fresh post-operation
+            # snapshot. The pipeline captures two snapshots per write request: the
+            # pre-operation one held by self._state and this post-operation one.
+            with RepositoryState.snapshot(
+                self._state.path,
+                protected_branches=protected_branches,
+                active_ref=requested_branch or "",
+            ) as post_state:
+                rejected = self._record_or_reject(
+                    "Stage 7",
+                    7,
+                    self._state.verify_postcondition(
+                        post_state, tool_name, requested_branch or ""
+                    ),
+                    post_state=post_state,
+                    outcome=CONFIRMED_NOT_APPLIED,
+                )
+                if rejected is not None:
+                    return rejected
+
+                return PipelineResult.ok_result(
+                    self._state, output, post_state=post_state
+                )
 
     def _record_or_reject(
         self,
@@ -226,6 +268,7 @@ class WriteProtectionPipeline:
         index: int,
         result: tuple[bool, str],
         post_state: RepositoryState | None = None,
+        outcome: WriteOutcome | None = None,
     ) -> PipelineResult | None:
         """Record a passed stage, or return the rejection result when it failed.
 
@@ -236,7 +279,11 @@ class WriteProtectionPipeline:
         ok, message = result
         if not ok:
             return PipelineResult.reject(
-                self._state, stage_name, message, post_state=post_state
+                self._state,
+                stage_name,
+                message,
+                post_state=post_state,
+                outcome=outcome,
             )
         self.record_stage(
             PipelineStage(name=stage_name, index=index, result=(True, ""))
@@ -259,12 +306,14 @@ class WriteProtectionPipeline:
         """Stage 6: run the operation, translating unexpected failures.
 
         A `GitServiceError` raised by the operation already carries its own
-        rejection message and propagates unchanged; any other failure is logged
-        and re-raised as `GitServiceError`.
+        rejection message and propagates unchanged, as does
+        `subprocess.TimeoutExpired`: the caller classifies a timeout as an unknown
+        outcome, so it must not be translated into a generic rejection message. Any
+        other failure is logged and re-raised as `GitServiceError`.
         """
         try:
             return op()
-        except GitServiceError:
+        except (GitServiceError, subprocess.TimeoutExpired):
             raise
         except Exception as e:
             logger.error("%s execution error: %s", tool_name, e)

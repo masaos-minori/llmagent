@@ -54,7 +54,7 @@ from mcp_servers.git.git_security import (
     is_within_allowed_paths,
     validate_git_security,
 )
-from mcp_servers.git.git_service import build_service
+from mcp_servers.git.git_service import WriteOutcomeError, build_service
 from mcp_servers.git.git_tools import TOOL_LIST
 from mcp_servers.git.repository_state import RepositoryState
 from mcp_servers.health_response import dedup_health_details, make_health_response
@@ -335,45 +335,58 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         )
         return CallToolResponse(result=err, is_error=True)
     active_ref = cast(str, req.args.get("branch", "")) or ""
-    pre_state = RepositoryState.snapshot(
-        resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref
-    )
     result: DispatchResult | None = None
     outcome: str = ""
     policy_exc: GitPolicyError | None = None
-    try:
-        result = await dispatch_tool(
-            _service.get_dispatch_table(),
-            req.name,
-            req.args,
-            context=exec_ctx,
-        )
-    except GitPolicyError as exc:
-        policy_exc = exc
-        outcome = "rejected"
-    except GitServiceError:
-        outcome = "error"
-        raise
-    else:
-        outcome = "rejected" if result.is_error else "ok"
-    post_state = RepositoryState.snapshot(
+    outcome_exc: WriteOutcomeError | None = None
+    service_exc: GitServiceError | None = None
+    # Both snapshots this file opens are released through the context-manager form.
+    with RepositoryState.snapshot(
         resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref
-    )
-    ms = (time.perf_counter() - t0) * 1000
-    logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
-    _audit_log_safe(
-        logger,
-        session_id=session_id,
-        request_id=request_id,
-        action=req.name,
-        target=resolved,
-        outcome=outcome,
-        server_key="git",
-        pre_condition=_serialize_state(pre_state),
-        post_condition=_serialize_state(post_state),
-        requested_target=_sanitize_for_audit(repo_path),
-        canonical_target=resolved,
-    )
+    ) as pre_state:
+        try:
+            result = await dispatch_tool(
+                _service.get_dispatch_table(),
+                req.name,
+                req.args,
+                context=exec_ctx,
+            )
+        except WriteOutcomeError as exc:
+            outcome_exc = exc
+            outcome = exc.outcome
+        except GitPolicyError as exc:
+            policy_exc = exc
+            outcome = "rejected"
+        except GitServiceError as exc:
+            service_exc = exc
+            outcome = "error"
+        else:
+            outcome = "rejected" if result.is_error else "ok"
+        post_state = RepositoryState.snapshot(
+            resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref
+        )
+        with post_state:
+            ms = (time.perf_counter() - t0) * 1000
+            logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
+            # The audit is written before an exception is re-raised, so a write whose
+            # outcome cannot be confirmed still produces a record (AC-4).
+            _audit_log_safe(
+                logger,
+                session_id=session_id,
+                request_id=request_id,
+                action=req.name,
+                target=resolved,
+                outcome=outcome,
+                server_key="git",
+                pre_condition=_serialize_state(pre_state),
+                post_condition=_serialize_state(post_state),
+                requested_target=_sanitize_for_audit(repo_path),
+                canonical_target=resolved,
+            )
+    if service_exc is not None:
+        raise service_exc
+    if outcome_exc is not None:
+        raise outcome_exc
     if policy_exc is not None:
         return CallToolResponse(result=str(policy_exc), is_error=True)
     assert result is not None

@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 import git
+from git.refs.remote import RemoteReference
+from git.remote import Remote
 from pydantic import GetCoreSchemaHandler
 from pydantic_core.core_schema import is_instance_schema
 
@@ -45,6 +47,10 @@ class RepositoryState:
     untracked_file_count: int
     protected_branch: bool
     ref_valid: bool
+    # HEAD commit captured at snapshot time. Reading HEAD through ``_repo`` later
+    # would return the live repository state, so a Stage 7 comparison against the
+    # pre-operation snapshot needs the value frozen here.
+    head_commit_hexsha: str | None = None
     _repo: git.Repo | None = field(default=None, repr=False, compare=False)
 
     @classmethod
@@ -88,6 +94,7 @@ class RepositoryState:
             untracked_file_count=untracked,
             protected_branch=_is_protected_branch(repo, protected_branches),
             ref_valid=_validate_ref(active_ref, branch_name),
+            head_commit_hexsha=_query_or_default(lambda: repo.head.commit.hexsha, None),
             _repo=repo,
         )
 
@@ -178,24 +185,114 @@ class RepositoryState:
         self,
         post_state: RepositoryState,
         tool_name: str,
+        requested_branch: str = "",
     ) -> tuple[bool, str]:
         """Stage 7: Postcondition verification — operation-specific checks.
 
-        git_checkout is intentionally NOT branch-checked here: the real
-        postcondition (that the checkout landed on the requested branch) is
-        enforced inside ``format_checkout`` (which refreshes its own snapshot
-        after the mutating Git call). With the single shared snapshot
-        this method only holds the *pre*-checkout state, so comparing
-        ``post_state.active_branch`` against the requested branch would falsely
-        reject every successful checkout. pull/push have no such in-op check, so
-        pull is verified here.
+        *post_state* is the fresh snapshot captured after the mutating Git call,
+        so every branch compares the pre-operation snapshot (``self``) with the
+        post-operation one. Request-model fields (message, path list, remote name)
+        are not available here, so each branch verifies the state effect only.
+
+        The ``git_commit`` branch compares HEAD with ``self.head_commit_hexsha``, the
+        value frozen at snapshot time: reading HEAD through ``self._repo`` here would
+        return the live post-operation repository and could never detect an unchanged
+        HEAD.
+
+        git_checkout is checked against ``requested_branch``, the branch the
+        operation targeted; the exact branch-name match is also enforced inside
+        ``format_checkout``, which holds the request. A detached post-state is not
+        rejected here: ``allow_detached_head`` is not available at this stage, and a
+        no-op checkout onto the branch already checked out is legitimate.
+
+        Every branch reads through ``post_state._repo`` and passes when the snapshot
+        holds no repository reference (a test double, or a snapshot whose handle was
+        closed), as the ``git_pull`` branch has always done.
         """
+        repo = post_state._repo
+        if repo is None:
+            return True, ""
+
         if tool_name == "git_pull":
-            if post_state._repo is not None and post_state._repo.index.unmerged_blobs():
+            if repo.index.unmerged_blobs():
                 return (
                     False,
                     "pull postcondition failed: unresolved merge conflicts remain",
                 )
+            return True, ""
+
+        if tool_name == "git_add":
+            if not post_state.is_dirty and not self.is_dirty:
+                return False, "git_add postcondition failed: nothing was staged"
+            return True, ""
+
+        if tool_name == "git_commit":
+            post_commit = _query_or_default(lambda: repo.head.commit, None)
+            if post_commit is None:
+                return (
+                    False,
+                    "git_commit postcondition failed: HEAD commit is unreadable",
+                )
+            if self.head_commit_hexsha is not None and (
+                post_commit.hexsha == self.head_commit_hexsha
+            ):
+                return (
+                    False,
+                    "git_commit postcondition failed: HEAD still points at the commit made before the call",
+                )
+            configured = _query_or_default(
+                lambda: str(repo.config_reader().get_value("user", "name")), None
+            )
+            if configured is not None:
+                author = _query_or_default(lambda: post_commit.author.name, None)
+                if author != configured:
+                    return (
+                        False,
+                        f"git_commit postcondition failed: commit author {author!r} is not the configured author {configured!r}",
+                    )
+            return True, ""
+
+        if tool_name == "git_checkout":
+            if requested_branch:
+                target = _normalize_branch_name(requested_branch)
+                actual = _normalize_branch_name(post_state.active_branch or "")
+                if actual != target:
+                    return (
+                        False,
+                        f"git_checkout postcondition failed: HEAD is on {post_state.active_branch!r}, not {requested_branch!r}",
+                    )
+            return True, ""
+
+        if tool_name == "git_push":
+            branch = requested_branch or post_state.active_branch
+            if not branch:
+                return (
+                    False,
+                    "git_push postcondition failed: cannot determine the pushed branch",
+                )
+            head_commit = _query_or_default(lambda: repo.head.commit.hexsha, None)
+            if head_commit is None:
+                return False, "git_push postcondition failed: HEAD commit is unreadable"
+            target = _normalize_branch_name(branch)
+            suffix = target[len("refs/heads/") :]
+            remotes: list[Remote] = _query_or_default(lambda: list(repo.remotes), [])
+            for remote in remotes:
+                refs: list[RemoteReference] = _query_or_default(
+                    lambda: list(remote.refs), []
+                )
+                for ref in refs:
+                    name = _normalize_branch_name(ref.name)
+                    if name == target or name.endswith(f"/{suffix}"):
+                        if (
+                            _query_or_default(lambda: ref.commit.hexsha, None)
+                            == head_commit
+                        ):
+                            return True, ""
+            return (
+                False,
+                f"git_push postcondition failed: no remote-tracking ref for {branch!r} matches HEAD",
+            )
+
         return True, ""
 
     def audit(self) -> dict[str, object]:

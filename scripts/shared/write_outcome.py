@@ -1,11 +1,12 @@
 """scripts/shared/write_outcome.py — Write-outcome vocabulary and write-audit field contract.
 
-The vocabulary names the outcomes that a write can end in when its effect on the
-remote side is not known: an ambiguous transport failure leaves the caller unable to
-tell whether the write was applied, and a completion audit that cannot be written
-after an applied write leaves the audit record missing although the write landed.
-Neither outcome is retried automatically, so the no-retry rule is stated once here
-and read by every server that performs writes.
+The vocabulary names the outcomes that a write can end in: an ambiguous transport
+failure leaves the caller unable to tell whether the write was applied, a completion
+audit that cannot be written after an applied write leaves the audit record missing
+although the write landed, and a postcondition can confirm that the write did not land
+at all. The first two are never retried automatically; a confirmed non-application is
+safe to retry, so the no-retry rule is stated once here and read by every server that
+performs writes.
 
 The field builder is the shared audit-record contract: every server writes the same
 identifiers in the same order, so a record from one server is comparable with a
@@ -17,14 +18,18 @@ from __future__ import annotations
 
 from typing import Literal
 
-WriteOutcome = Literal["outcome_unknown", "applied_audit_failed"]
+WriteOutcome = Literal[
+    "outcome_unknown", "applied_audit_failed", "confirmed-not-applied"
+]
 
-OUTCOME_UNKNOWN: str = "outcome_unknown"
-APPLIED_AUDIT_FAILED: str = "applied_audit_failed"
+OUTCOME_UNKNOWN: WriteOutcome = "outcome_unknown"
+APPLIED_AUDIT_FAILED: WriteOutcome = "applied_audit_failed"
+CONFIRMED_NOT_APPLIED: WriteOutcome = "confirmed-not-applied"
 
-# Neither outcome is retried automatically: an unknown outcome may already have been
-# applied remotely, and an applied write with a missing audit record must be resolved
-# by a human rather than replayed.
+# Neither of these two outcomes is retried automatically: an unknown outcome may
+# already have been applied remotely, and an applied write with a missing audit record
+# must be resolved by a human rather than replayed. CONFIRMED_NOT_APPLIED is not in the
+# set because a write proven not to have landed is safe to replay.
 NO_AUTO_RETRY_OUTCOMES: frozenset[str] = frozenset(
     {OUTCOME_UNKNOWN, APPLIED_AUDIT_FAILED}
 )

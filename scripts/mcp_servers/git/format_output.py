@@ -9,8 +9,14 @@ Import from here:  from mcp_servers.git.format_output import format_status, form
 
 from __future__ import annotations
 
+import os
+import signal
+import subprocess  # nosec B404 — the write path runs the git CLI in its own process group
+
 import git
 import git.exc
+from git.refs.remote import RemoteReference
+from git.remote import Remote
 
 from mcp_servers.git.errors import GitPolicyError, GitServiceError
 from mcp_servers.git.git_models import (
@@ -26,6 +32,8 @@ from mcp_servers.git.git_models import (
 )
 from mcp_servers.git.repository_state import (
     RepositoryState,
+    _normalize_branch_name,
+    _query_or_default,
     _redact_remote_url,
     _resolve_remote_url,
 )
@@ -122,6 +130,20 @@ def format_commit(repo: git.Repo, req: GitCommitRequest) -> str:
     return f"Committed: {commit.hexsha[:8]} {req.message!r}"
 
 
+def _reject_wrong_branch(
+    refreshed: RepositoryState, branch: str, allow_detached_head: bool
+) -> None:
+    """Raise when the refreshed state does not match the branch the checkout targeted."""
+    if refreshed.active_branch != branch or (
+        not allow_detached_head and refreshed.head_type == "detached"
+    ):
+        raise GitServiceError(
+            f"checkout postcondition failed: state already changed; "
+            f"expected branch {branch!r}, got "
+            f"{'<detached HEAD>' if refreshed.head_type == 'detached' else refreshed.active_branch!r}"
+        )
+
+
 def format_checkout(
     state: RepositoryState,
     req: GitCheckoutRequest,
@@ -145,21 +167,14 @@ def format_checkout(
         assert state._repo is not None
         state._repo.git.checkout(req.branch, "--")
     # Refresh state after checkout; git.Repo does not auto-update HEAD reference.
-    # If the repo path is unavailable (e.g., mocked in tests), fall back to
-    # checking the pre-snapshot state which reflects the mock's behavior.
-    refreshed = state
+    # The refreshed snapshot is released through the context-manager form. If the
+    # repo path is unavailable (e.g., mocked in tests), fall back to checking the
+    # pre-snapshot state, which reflects the mock's behavior.
     try:
-        refreshed = RepositoryState.snapshot(state.path)
+        with RepositoryState.snapshot(state.path) as refreshed:
+            _reject_wrong_branch(refreshed, req.branch, allow_detached_head)
     except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError):
-        pass
-    if refreshed.active_branch != req.branch or (
-        not allow_detached_head and refreshed.head_type == "detached"
-    ):
-        raise GitServiceError(
-            f"checkout postcondition failed: state already changed; "
-            f"expected branch {req.branch!r}, got "
-            f"{'<detached HEAD>' if refreshed.head_type == 'detached' else refreshed.active_branch!r}"
-        )
+        _reject_wrong_branch(state, req.branch, allow_detached_head)
     return f"Switched to branch '{req.branch}'"
 
 
@@ -176,6 +191,79 @@ def _authorize_remote(state: RepositoryState, remote_name: str, cfg: GitConfig) 
         )
 
 
+def _run_git_write(
+    state: RepositoryState,
+    tool: str,
+    argv: list[str],
+    timeout: float | None,
+) -> str:
+    """Run one mutating `git` CLI call in its own process group and return stdout.
+
+    The deadline is applied here, inside Stage 6's op, rather than at the async
+    boundary: a synchronous GitPython call has no cancellation point, so stopping a
+    network write at the deadline means terminating the process group. `Popen` +
+    `communicate()` is used rather than `subprocess.run` because `run()` kills only
+    the child on timeout, not the group.
+
+    `subprocess.TimeoutExpired` propagates to the pipeline, which classifies the
+    outcome as unknown; the formatter does not encode an outcome in its result text,
+    because message text is not a contract.
+    """
+    # `git` is resolved from PATH and argv is a fixed list built from the validated
+    # remote and branch names; shell=False, so no shell interpretation of the arguments
+    # happens.
+    proc = subprocess.Popen(  # nosec B603, B607 — fixed argv list, shell=False, no untrusted input
+        ["git", *argv],
+        cwd=state.path,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        shell=False,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # The child is the group leader (start_new_session), so its pid is the group id.
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except OSError:
+            pass
+        proc.wait()
+        raise
+    if proc.returncode != 0:
+        raise GitServiceError(f"{tool} failed: {(stderr or '').strip()}")
+    return stdout
+
+
+def _remote_ref_matches(post: RepositoryState, remote_name: str, branch: str) -> bool:
+    """Return True when *remote_name*'s tracking ref for *branch* equals the post-state HEAD commit.
+
+    A missing remote, a missing tracking ref, or an unreadable HEAD is a failure, not
+    a pass. A snapshot with no repository handle (a test double, or a closed handle)
+    cannot be checked and passes.
+    """
+    repo = post._repo
+    if repo is None:
+        return True
+    remotes: list[Remote] = _query_or_default(lambda: list(repo.remotes), [])
+    remote = next((r for r in remotes if r.name == remote_name), None)
+    if remote is None:
+        return False
+    head = _query_or_default(lambda: repo.head.commit.hexsha, None)
+    if head is None:
+        return False
+    target = _normalize_branch_name(branch)
+    refs: list[RemoteReference] = _query_or_default(lambda: list(remote.refs), [])
+    for ref in refs:
+        name = ref.name
+        tail = name.split("/", 1)[1] if "/" in name else name
+        if _normalize_branch_name(tail) == target:
+            return _query_or_default(lambda: ref.commit.hexsha, None) == head
+    return False
+
+
 def format_pull(
     state: RepositoryState,
     req: GitPullRequest,
@@ -184,11 +272,10 @@ def format_pull(
 ) -> str:
     """Format output for fetching and merging remote changes.
 
-    ``timeout`` (seconds) is accepted for configuration parity with the caller.
-    Actual enforcement happens at the async boundary in ``GitService``: the
-    blocking call runs on a worker thread via ``asyncio.to_thread`` and is
-    wrapped in ``asyncio.wait_for(timeout)``, so this synchronous helper cannot
-    apply the deadline itself. ``None`` (the default) means no enforcement.
+    ``timeout`` (seconds) is the deadline applied inside this call: the write runs as
+    a `git` CLI subprocess in its own process group, so a timeout terminates the
+    process group instead of leaving a worker thread running past the deadline.
+    ``None`` (the default) means no deadline.
     """
     _authorize_remote(state, req.remote, cfg)
     if req.dry_run:
@@ -197,17 +284,18 @@ def format_pull(
         return (
             f"[DRY RUN] fetch --dry-run result:\n{fetch_info or '(nothing to commit)'}"
         )
-    pull_args = [req.remote]
+    pull_args = ["pull", req.remote]
     if req.branch:
         pull_args.extend(["--", req.branch])
-    assert state._repo is not None
-    result = state._repo.git.pull(*pull_args)
-    assert state._repo is not None
-    if state._repo.index.unmerged_blobs():
-        raise GitServiceError(
-            "pull postcondition failed: unresolved merge conflicts remain"
-        )
-    return result or "Already up to date."
+    output = _run_git_write(state, "pull", pull_args, timeout)
+    # Re-read the state for the postcondition: the subprocess changed the repository,
+    # so the pre-operation snapshot cannot show what the write did.
+    with RepositoryState.snapshot(state.path) as post:
+        if post._repo is not None and post._repo.index.unmerged_blobs():
+            raise GitServiceError(
+                "pull postcondition failed: unresolved merge conflicts remain"
+            )
+    return output or "Already up to date."
 
 
 def format_push(
@@ -218,16 +306,23 @@ def format_push(
 ) -> str:
     """Format output for pushing local commits to a remote.
 
-    ``timeout`` (seconds) is accepted for configuration parity with the caller.
-    Actual enforcement happens at the async boundary in ``GitService``: the
-    blocking call runs on a worker thread via ``asyncio.to_thread`` and is
-    wrapped in ``asyncio.wait_for(timeout)``, so this synchronous helper cannot
-    apply the deadline itself. ``None`` (the default) means no enforcement.
+    ``timeout`` (seconds) is the deadline applied inside this call: the write runs as
+    a `git` CLI subprocess in its own process group, so a timeout terminates the
+    process group instead of leaving a worker thread running past the deadline.
+    ``None`` (the default) means no deadline.
     """
     _authorize_remote(state, req.remote, cfg)
     branch = req.branch
     if req.dry_run:
         return f"[DRY RUN] Would push branch '{branch}' to '{req.remote}'"
-    assert state._repo is not None
-    result = state._repo.git.push(req.remote, "--", branch)
-    return result or f"Pushed '{branch}' to '{req.remote}'"
+    output = _run_git_write(state, "push", ["push", req.remote, "--", branch], timeout)
+    # The remote name is in scope here but not at Stage 7, so the remote-ref part of
+    # the postcondition is checked against the requested remote; Stage 7 makes the
+    # same comparison from the snapshot side.
+    with RepositoryState.snapshot(state.path) as post:
+        if not _remote_ref_matches(post, req.remote, branch):
+            raise GitServiceError(
+                f"push postcondition failed: remote {req.remote!r} does not have "
+                f"{branch!r} at the local HEAD commit"
+            )
+    return output or f"Pushed '{branch}' to '{req.remote}'"

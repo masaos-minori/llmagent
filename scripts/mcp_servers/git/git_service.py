@@ -19,6 +19,7 @@ from collections.abc import Awaitable, Callable
 import git
 import git.exc
 from shared.tool_constants import GIT_READ_TOOLS
+from shared.write_outcome import WriteOutcome
 
 from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.git_models import (
@@ -68,6 +69,22 @@ logger = logging.getLogger(__name__)
 _WRITE_TOOLS: frozenset[str] = frozenset(
     {"git_add", "git_commit", "git_checkout", "git_pull", "git_push"},
 )
+
+
+class WriteOutcomeError(GitServiceError):
+    """A dispatch rejection that carries the write outcome for the audit record.
+
+    `dispatch_tool()` classifies it as a dispatch error, and `git_server.py` catches
+    it before the generic `GitServiceError` handler to read `outcome`. It stays here
+    rather than in `errors.py`: `format_output.py` cannot import this module (the
+    dependency direction is `git_service -> format_output`), and `errors.py` is not a
+    row of the Plan's frozen Implementation Target Files table. The pipeline
+    classifies the outcome; this file raises it from `PipelineResult.outcome`.
+    """
+
+    def __init__(self, message: str, outcome: WriteOutcome) -> None:
+        super().__init__(message)
+        self.outcome = outcome
 
 
 class GitService:
@@ -141,43 +158,46 @@ class GitService:
         Raises ValueError for a policy/validation rejection (read by dispatch_tool()
         to set is_error=True) rather than returning the rejection message as a
         plain string, which dispatch_tool() cannot distinguish from a successful
-        result.
+        result. When the pipeline classified a write outcome, raises
+        WriteOutcomeError instead so the outcome reaches the audit record.
+        The snapshot is held through the context-manager form, so the handle is
+        released on the read path, the write path, a policy rejection, and a timeout.
         """
         ok, err = await self._validate_repo(repo_path, tool_name)
         if not ok:
             raise ValueError(err)
-        state = RepositoryState.snapshot(
+        with RepositoryState.snapshot(
             repo_path,
             protected_branches=self._protected_branches,
             active_ref=active_ref,
-        )
-        if tool_name in GIT_READ_TOOLS:
-            return self._wrap_git_op(tool_name, lambda: op(state.repo, state))
-        pipeline = WriteProtectionPipeline(state)
-        # run the write pipeline on a worker thread so the blocking
-        # GitPython call (and the per-repo lock it acquires) never blocks the
-        # event loop; /health and read tools stay responsive during a push/pull.
-        # enforce a per-operation timeout at this async boundary via
-        # asyncio.wait_for. The blocking call is synchronous, so the deadline
-        # cannot be applied inside format_pull/format_push (see their docstrings).
-        timeout = self._write_timeout(tool_name)
-        dispatch = asyncio.to_thread(
-            pipeline.run,
-            tool_name,
-            lambda: op(state.repo, state),
-            dry_run,
-            self._allow_detached_head,
-            requested_branch=requested_branch,
-            protected_branches=self._protected_branches,
-        )
-        pipeline_result = (
-            await asyncio.wait_for(dispatch, timeout)
-            if timeout is not None
-            else await dispatch
-        )
-        if pipeline_result.ok:
-            return pipeline_result.output
-        raise ValueError(pipeline_result.rejection_message)
+        ) as state:
+            if tool_name in GIT_READ_TOOLS:
+                return self._wrap_git_op(tool_name, lambda: op(state.repo, state))
+            pipeline = WriteProtectionPipeline(state)
+            # run the write pipeline on a worker thread so the blocking
+            # GitPython call (and the per-repo lock it acquires) never blocks the
+            # event loop; /health and read tools stay responsive during a push/pull.
+            # The per-operation deadline is enforced inside the subprocess call Stage 6
+            # runs (see format_pull/format_push), not at this async boundary: the call
+            # is synchronous, so a wait_for timeout here would leave the worker thread
+            # continuing the operation past the deadline, while the subprocess path
+            # terminates the process group.
+            pipeline_result = await asyncio.to_thread(
+                pipeline.run,
+                tool_name,
+                lambda: op(state.repo, state),
+                dry_run,
+                self._allow_detached_head,
+                requested_branch=requested_branch,
+                protected_branches=self._protected_branches,
+            )
+            if pipeline_result.ok:
+                return pipeline_result.output
+            if pipeline_result.outcome is not None:
+                raise WriteOutcomeError(
+                    pipeline_result.rejection_message, pipeline_result.outcome
+                )
+            raise ValueError(pipeline_result.rejection_message)
 
     def _require_config(self, tool_name: str) -> GitConfig:
         """Return the server config a network-write tool needs, or raise.
@@ -323,7 +343,12 @@ class GitService:
         require_ok(validate_remote(req.remote))
 
         def _pull_op(repo: git.Repo, state: RepositoryState) -> str:
-            return format_pull(state, req, self._require_config("git_pull"))
+            return format_pull(
+                state,
+                req,
+                self._require_config("git_pull"),
+                timeout=self._write_timeout("git_pull"),
+            )
 
         return await self._run_tool(
             "git_pull",
@@ -346,7 +371,12 @@ class GitService:
         require_ok(validate_remote(req.remote))
 
         def _push_op(repo: git.Repo, state: RepositoryState) -> str:
-            return format_push(state, req, self._require_config("git_push"))
+            return format_push(
+                state,
+                req,
+                self._require_config("git_push"),
+                timeout=self._write_timeout("git_push"),
+            )
 
         return await self._run_tool(
             "git_push",
