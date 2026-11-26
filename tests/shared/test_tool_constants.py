@@ -6,6 +6,7 @@ cross-source drift detection.
 from __future__ import annotations
 
 from shared.tool_constants import (
+    ALL_SIDE_EFFECTING_TOOLS,
     CICD_TOOLS,
     DELETE_TOOLS,
     GIT_READ_TOOLS,
@@ -151,3 +152,13 @@ class TestRetryClassDriftConsistency:
             if not retry_policy_is_retryable(policy) and name in RETRYABLE_TOOLS
         }
         assert not contradicted, f"contradicted names: {contradicted}"
+
+    def test_trigger_workflow_is_explicitly_non_retryable(self) -> None:
+        """`trigger_workflow` dispatches an external workflow: its declaration is
+        the authority and the reference sets must agree with it."""
+        policies = self._declared_policies()
+
+        assert "trigger_workflow" in policies
+        assert not retry_policy_is_retryable(policies["trigger_workflow"])
+        assert "trigger_workflow" not in RETRYABLE_TOOLS
+        assert "trigger_workflow" in ALL_SIDE_EFFECTING_TOOLS

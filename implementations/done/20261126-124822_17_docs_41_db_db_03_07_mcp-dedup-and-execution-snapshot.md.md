@@ -56,8 +56,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the document described in Implementation > Procedure | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the document described in Implementation > Procedure | Completed | 20261126-131011 | 20261126-131011 | Changed: docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261126-131011 | 20261126-131011 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_consistency --domain db, gates passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

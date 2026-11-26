@@ -1,17 +1,16 @@
 ## Goal
-- Make `pending_timeout_minutes` explicit in the `[dedup]` table of `config/web_search_mcp_server.toml` with the validator default (REQ-003).
+- Make `pending_timeout_minutes` explicit in the `[dedup]` table of `config/file_write_mcp_server.toml` with the validator default (REQ-003).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- In scope: one added key in the `[dedup]` table of `config/web_search_mcp_server.toml`.
+- In scope: one added key in the `[dedup]` table of `config/file_write_mcp_server.toml`.
 - Out of scope: any other key, the validator, and the store identity (unchanged by design).
 
 ## Assumptions
 - Verified in Step 3a: the table sets `db_path`, `retention_days`, `lease_seconds`, and `max_attempts` only, and no shipped `config/*_mcp_server.toml` sets `pending_timeout_minutes` (`rg pending_timeout_minutes config` found no match).
 - The value 10 equals `DEFAULT_PENDING_TIMEOUT_MINUTES` (`scripts/shared/mcp_dedup_config.py`), so the config fingerprint and the dedup store identity do not change; the key is validated (range 1..1440) and has no server-side runtime consumer (the stale-pending sweep is Agent-side), see the Plan's UNK-01.
 - The file is already copied by `deploy/deploy.sh`; modifying an existing file needs no deploy script change.
-- Overlap judgment (Plan overlap check): the web search configuration and audit Plan, now archived with its procedures pending, edits only the comment above `browser_allowed_domains` in this file; this document edits only the `[dedup]` table. Different lines; compatible.
 
 ## Design decisions
 - Insert the key right after `retention_days` and keep the existing order of the other keys.
@@ -21,7 +20,7 @@
 
 ## Implementation
 ### Target file
-`config/web_search_mcp_server.toml`
+`config/file_write_mcp_server.toml`
 
 ### Procedure
 1. In the `[dedup]` table, add `pending_timeout_minutes = 10` on the line after `retention_days`.
@@ -55,8 +54,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the key described in Implementation > Procedure | Pending | — | — | |
-| 2 | Run the validation commands named in Validation plan | Pending | — | — | |
+| 1 | Add the key described in Implementation > Procedure | Completed | 20261126-131011 | 20261126-131011 | Changed: config/file_write_mcp_server.toml |
+| 2 | Run the validation commands named in Validation plan | Completed | 20261126-131011 | 20261126-131011 | ruff format/check, mypy (CI invocation), lint-imports, bandit, module size, gates passed; full suite (parallel, coverage): 27 failed and 88 errors in tests/agent/* from a pre-existing NameError in scripts/agent/commands/cmd_mcp.py (RuntimeToolRegistry annotation), unrelated to this change; no failing test touches a changed file; targeted tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -76,4 +75,4 @@
 - **Source plan**: plans/20261126-113156_mcpdd001_dedup-keyless-config-gate.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261126-124822
-- **Related target files**: `config/web_search_mcp_server.toml`
+- **Related target files**: `config/file_write_mcp_server.toml`

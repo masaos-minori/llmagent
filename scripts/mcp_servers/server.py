@@ -170,8 +170,9 @@ def attach_auth_middleware(
         outermost middleware and runs first; this boundary runs after auth,
         before dispatch. Only governs POST /v1/call_tool. Resolves the
         idempotency key from the same headers/state as extract_request_context().
-        Consults the canonical side-effect set from shared.tool_constants; until
-        sideeffect001 defines ALL_SIDE_EFFECTING_TOOLS the boundary is inert.
+        Consults the canonical side-effect set from shared.tool_constants, which is
+        non-empty; the empty-set short-circuit below is only a fast path, since an
+        empty set could match no tool name.
         """
         if request.method != "POST" or request.url.path != "/v1/call_tool":
             return await call_next(request)

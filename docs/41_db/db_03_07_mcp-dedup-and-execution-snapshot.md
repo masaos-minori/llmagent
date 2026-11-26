@@ -131,11 +131,15 @@ is the public facade):
   call is rejected as `idempotency_key_reused` before any dispatch.
 
 Config keys (in the `[dedup]` table of each `config/{server}_mcp_server.toml`): `db_path`
-(pinned to the dedup database directory contract above), `retention_days` (14), `lease_seconds`
-(30, accepted range 1..3600), and `max_attempts` (3, accepted range 1..10). The table is read
-once per process at bootstrap and injected as an immutable `DedupStoreConfig`. The
-stale-pending timeout is Agent-side only: `pending_timeout_minutes` (10) in
-`config/agent.toml` via `AgentConfig.pending_timeout_minutes`.
+(pinned to the dedup database directory contract above), `retention_days` (14, accepted range
+1..365), `pending_timeout_minutes` (10, accepted range 1..1440), `lease_seconds` (30, accepted
+range 1..3600), and `max_attempts` (3, accepted range 1..10). Zero, negative, boolean, and
+non-integer values are rejected. Every shipped `[dedup]` table sets `pending_timeout_minutes`
+explicitly to the default; the key is validated and part of the config fingerprint, and no
+server-side code reads it. The table is read once per process at bootstrap and injected as an
+immutable `DedupStoreConfig`. The stale-pending timeout that drives classification is
+Agent-side only: `pending_timeout_minutes` (10) in `config/agent.toml` via
+`AgentConfig.pending_timeout_minutes`.
 
 ## `tool_call_state` (workflow.sqlite); `execution_snapshots` retired
 
@@ -175,7 +179,7 @@ Operational notes:
 - The `idempotency_key` column holds the same logical call id the transport carries, so an
   agent row and a dedup-store row for one call can be matched.
 - Stale-pending classification: `classify_stale_pending` transitions this task's `pending`
-  rows older than `dedup.pending_timeout_minutes` to `interrupted` inside a WHERE-guarded
+  rows older than the Agent-side `AgentConfig.pending_timeout_minutes` to `interrupted` inside a WHERE-guarded
   UPDATE (idempotent on re-run, same discipline as `recover_stale_attempts`). The rows it
   transitions are surfaced to the next LLM turn as a control message
   (see [agent_04_03](../23_agent/agent_04_03_state-and-persistence-platform-databases.md)).

@@ -60,9 +60,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the docstring described in Implementation > Procedure | Pending | — | — | |
-| 2 | Add the companion tests, then confirm they pass | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Correct the docstring described in Implementation > Procedure | Completed | 20261126-131011 | 20261126-131011 | Changed: scripts/mcp_servers/server.py (docstring only) |
+| 2 | Add the companion tests, then confirm they pass | Completed | 20261126-131011 | 20261126-131011 | Changed: tests/mcp_servers/test_server_idempotency_boundary.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-131011 | 20261126-131011 | ruff format/check, mypy (CI invocation), lint-imports, bandit, module size, gates passed; full suite (parallel, coverage): 27 failed and 88 errors in tests/agent/* from a pre-existing NameError in scripts/agent/commands/cmd_mcp.py (RuntimeToolRegistry annotation), unrelated to this change; no failing test touches a changed file; targeted tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

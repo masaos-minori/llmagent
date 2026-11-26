@@ -1,10 +1,10 @@
 ## Goal
-- Make `pending_timeout_minutes` explicit in the `[dedup]` table of `config/file_delete_mcp_server.toml` with the validator default (REQ-003).
+- Make `pending_timeout_minutes` explicit in the `[dedup]` table of `config/rag_pipeline_mcp_server.toml` with the validator default (REQ-003).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- In scope: one added key in the `[dedup]` table of `config/file_delete_mcp_server.toml`.
+- In scope: one added key in the `[dedup]` table of `config/rag_pipeline_mcp_server.toml`.
 - Out of scope: any other key, the validator, and the store identity (unchanged by design).
 
 ## Assumptions
@@ -20,7 +20,7 @@
 
 ## Implementation
 ### Target file
-`config/file_delete_mcp_server.toml`
+`config/rag_pipeline_mcp_server.toml`
 
 ### Procedure
 1. In the `[dedup]` table, add `pending_timeout_minutes = 10` on the line after `retention_days`.
@@ -54,8 +54,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the key described in Implementation > Procedure | Pending | — | — | |
-| 2 | Run the validation commands named in Validation plan | Pending | — | — | |
+| 1 | Add the key described in Implementation > Procedure | Completed | 20261126-131011 | 20261126-131011 | Changed: config/rag_pipeline_mcp_server.toml |
+| 2 | Run the validation commands named in Validation plan | Completed | 20261126-131011 | 20261126-131011 | ruff format/check, mypy (CI invocation), lint-imports, bandit, module size, gates passed; full suite (parallel, coverage): 27 failed and 88 errors in tests/agent/* from a pre-existing NameError in scripts/agent/commands/cmd_mcp.py (RuntimeToolRegistry annotation), unrelated to this change; no failing test touches a changed file; targeted tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -75,4 +75,4 @@
 - **Source plan**: plans/20261126-113156_mcpdd001_dedup-keyless-config-gate.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261126-124822
-- **Related target files**: `config/file_delete_mcp_server.toml`
+- **Related target files**: `config/rag_pipeline_mcp_server.toml`

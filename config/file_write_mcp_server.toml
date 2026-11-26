@@ -18,6 +18,7 @@ auth_token = "${ENV:MCP_FILE_WRITE_AUTH_TOKEN}"
 [dedup]
 db_path = "/opt/llm/db/mcp_dedup.sqlite"
 retention_days = 14
+pending_timeout_minutes = 10
 lease_seconds = 30
 max_attempts = 3
 

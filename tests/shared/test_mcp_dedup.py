@@ -860,6 +860,65 @@ class TestDedupSectionValidation:
         store.close()
 
 
+class TestTimingBounds:
+    """`retention_days` and `pending_timeout_minutes` accept exactly their range.
+
+    The bounds are read from the validator's own table, so a range change
+    updates these cases instead of leaving a stale copy here.
+    """
+
+    _KEYS = ("retention_days", "pending_timeout_minutes")
+
+    @staticmethod
+    def _bounds(key: str) -> tuple[int, int]:
+        from shared.mcp_dedup_config import _DEDUP_INT_KEYS
+
+        _default, low, high = _DEDUP_INT_KEYS[key]
+        return low, high
+
+    @pytest.mark.parametrize("key", _KEYS)
+    @pytest.mark.parametrize("value", [0, -1, -365])
+    def test_zero_and_negative_are_rejected(self, key, value):
+        with pytest.raises(ConfigParseError, match=f"dedup.{key}"):
+            load_dedup_section({key: value}, "x_mcp_server.toml")
+
+    @pytest.mark.parametrize("key", _KEYS)
+    @pytest.mark.parametrize("value", [True, False])
+    def test_boolean_is_rejected(self, key, value):
+        with pytest.raises(ConfigParseError, match=f"dedup.{key} must be an integer"):
+            load_dedup_section({key: value}, "x_mcp_server.toml")
+
+    @pytest.mark.parametrize("key", _KEYS)
+    @pytest.mark.parametrize("value", [1.0, "5", None, [5]])
+    def test_non_integer_is_rejected(self, key, value):
+        with pytest.raises(ConfigParseError, match=f"dedup.{key} must be an integer"):
+            load_dedup_section({key: value}, "x_mcp_server.toml")
+
+    @pytest.mark.parametrize("key", _KEYS)
+    def test_one_above_the_maximum_and_oversized_are_rejected(self, key):
+        high = self._bounds(key)[1]
+        for value in (high + 1, high * 100):
+            with pytest.raises(ConfigParseError, match=f"dedup.{key} out of range"):
+                load_dedup_section({key: value}, "x_mcp_server.toml")
+
+    @pytest.mark.parametrize("key", _KEYS)
+    def test_minimum_and_maximum_are_accepted(self, key):
+        low, high = self._bounds(key)
+        for value in (low, high):
+            cfg = load_dedup_section({key: value}, "x_mcp_server.toml")
+            assert getattr(cfg, key) == value
+
+    def test_defaults_give_the_default_fingerprint(self):
+        from shared.mcp_dedup_config import _config_fingerprint
+
+        explicit = load_dedup_section(
+            {"retention_days": 14, "pending_timeout_minutes": 10},
+            "x_mcp_server.toml",
+        )
+        implicit = load_dedup_section({}, "x_mcp_server.toml")
+        assert _config_fingerprint(explicit) == _config_fingerprint(implicit)
+
+
 class TestDedupDbDirContract:
     def test_default_dir_is_db_path_parent(self, monkeypatch):
         monkeypatch.delenv("LLMAGENT_DB_DIR", raising=False)

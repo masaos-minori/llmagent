@@ -58,9 +58,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the test module described in Implementation > Procedure | Pending | — | — | |
-| 2 | Confirm the explicit-key case fails before the config edits and passes after | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create the test module described in Implementation > Procedure | Completed | 20261126-131011 | 20261126-131011 | Changed: tests/mcp_servers/test_shipped_dedup_config.py (new) |
+| 2 | Confirm the explicit-key case fails before the config edits and passes after | Completed | 20261126-131011 | 20261126-131011 | 10 explicit-key cases failed before the config edits and passed after |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-131011 | 20261126-131011 | ruff format/check, mypy (CI invocation), lint-imports, bandit, module size, gates passed; full suite (parallel, coverage): 27 failed and 88 errors in tests/agent/* from a pre-existing NameError in scripts/agent/commands/cmd_mcp.py (RuntimeToolRegistry annotation), unrelated to this change; no failing test touches a changed file; targeted tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

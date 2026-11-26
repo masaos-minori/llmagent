@@ -226,9 +226,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests that pin existing behavior | In Progress | — | — |  |
-| 2 | Explicit configuration and its real-file test | In Progress | — | — |  |
-| 3 | Stale statements | In Progress | — | — |  |
+| 1 | Tests that pin existing behavior | Completed | — | 20261126-131049 |  |
+| 2 | Explicit configuration and its real-file test | Completed | — | 20261126-131049 |  |
+| 3 | Stale statements | Completed | — | 20261126-131049 |  |
 | 4 | Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -239,22 +239,22 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261126-124822_01_tests_mcp_servers_test_mcp_dispatch.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261126-124822_03_tests_shared_test_tool_constants.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261126-124822_04_tests_shared_test_mcp_dedup.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261126-124822_05_tests_mcp_servers_test_shipped_dedup_config.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-124822_06_config_cicd_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-124822_07_config_file_delete_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-124822_08_config_file_read_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-124822_09_config_file_write_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-124822_10_config_git_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-124822_11_config_github_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-124822_12_config_mdq_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-124822_13_config_rag_pipeline_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-124822_14_config_shell_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-124822_15_config_web_search_mcp_server.toml.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-124822_16_scripts_mcp_servers_server.py.md | 1, 3 | Procedure | Pending | — | — |
-| implementations/20261126-124822_17_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-124822_01_tests_mcp_servers_test_mcp_dispatch.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261126-124822_03_tests_shared_test_tool_constants.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261126-124822_04_tests_shared_test_mcp_dedup.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261126-124822_05_tests_mcp_servers_test_shipped_dedup_config.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-124822_06_config_cicd_mcp_server.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-124822_07_config_file_delete_mcp_server.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-124822_08_config_file_read_mcp_server.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-124822_09_config_file_write_mcp_server.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-124822_10_config_git_mcp_server.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-124822_11_config_github_mcp_server.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-124822_12_config_mdq_mcp_server.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-124822_13_config_rag_pipeline_mcp_server.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-124822_14_config_shell_mcp_server.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-124822_15_config_web_search_mcp_server.toml.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-124822_16_scripts_mcp_servers_server.py.md | 1, 3 | Procedure | Completed | — | — |
+| implementations/20261126-124822_17_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -20,6 +20,7 @@ from mcp_servers.dispatch import (
 from mcp_servers.execution_context import ExecutionContext
 from shared.execution_mode import ExecutionMode
 from shared.mcp_dedup import DedupStoreError
+from shared.tool_constants import ALL_SIDE_EFFECTING_TOOLS
 
 
 def _ctx(key: str = "", mode: ExecutionMode = "applied") -> ExecutionContext:
@@ -1327,6 +1328,91 @@ class TestDurableDedupDryRunClear:
         assert (
             row is not None and row.status == "pending"
         )  # the row stays for reconciliation
+
+
+class TestKeylessRejectionOverRealSideEffectingSet:
+    """Every tool of the real ALL_SIDE_EFFECTING_TOOLS is refused without a key.
+
+    The tools come from the live set, so a tool added to it is covered without
+    editing this class.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _isolated_cache(self) -> Iterator[None]:
+        _duplicate_cache.clear()
+        yield
+        _duplicate_cache.clear()
+
+    def test_the_real_set_is_not_empty(self) -> None:
+        assert ALL_SIDE_EFFECTING_TOOLS
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("tool", sorted(ALL_SIDE_EFFECTING_TOOLS))
+    @pytest.mark.parametrize("key", ["", "   ", "\t\n"])
+    async def test_missing_empty_or_whitespace_key_is_refused(
+        self, tool: str, key: str
+    ) -> None:
+        calls: list[int] = []
+
+        async def handler(args: dict) -> str:
+            calls.append(1)
+            return "ran"
+
+        r = await dispatch_tool({tool: handler}, tool, {"p": "a"}, context=_ctx(key))
+
+        assert r.is_error
+        assert r.error_type == "idempotency_key_required"
+        assert r.execution_mode == "no_op"
+        assert r.side_effect_applied is False
+        assert calls == []
+        assert len(_duplicate_cache) == 0
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("tool", sorted(ALL_SIDE_EFFECTING_TOOLS))
+    async def test_programmatic_call_without_a_context_is_refused(
+        self, tool: str
+    ) -> None:
+        calls: list[int] = []
+
+        async def handler(args: dict) -> str:
+            calls.append(1)
+            return "ran"
+
+        r = await dispatch_tool({tool: handler}, tool, {"p": "a"})
+
+        assert r.is_error
+        assert r.error_type == "idempotency_key_required"
+        assert calls == []
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("tool", sorted(ALL_SIDE_EFFECTING_TOOLS))
+    async def test_a_valid_key_reaches_the_handler(
+        self, tool: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Control: the same call with a key runs, so the sweep above proves the
+        key requirement and not a handler that never runs."""
+        import mcp_servers.dispatch as dispatch_mod
+
+        monkeypatch.setattr(dispatch_mod, "_dedup_store", None)
+        monkeypatch.setattr(dispatch_mod, "_dedup_config", None)
+        monkeypatch.setattr(dispatch_mod, "_dedup_disabled", True)
+        monkeypatch.setattr(
+            dispatch_mod,
+            "_tool_retry_policies",
+            dict.fromkeys(ALL_SIDE_EFFECTING_TOOLS, "same_logical_call_only"),
+        )
+        calls: list[int] = []
+
+        async def handler(args: dict) -> str:
+            calls.append(1)
+            return "ran"
+
+        r = await dispatch_tool(
+            {tool: handler}, tool, {"p": "a"}, context=_ctx("k-control")
+        )
+
+        assert not r.is_error
+        assert calls == [1]
 
 
 if __name__ == "__main__":

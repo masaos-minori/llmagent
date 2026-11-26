@@ -5,9 +5,9 @@ Characterization tests for the REQ-004 idempotency-key boundary middleware that
 
 The boundary rejects a keyless side-effecting ``POST /v1/call_tool`` before
 dispatch. The canonical side-effect set (``ALL_SIDE_EFFECTING_TOOLS`` from
-``shared.tool_constants``, defined by ``sideeffect001``) is not present yet, so
-each test injects a controlled set via ``monkeypatch`` to exercise the mechanism;
-one test locks the inert (deferred) behavior until the canonical set lands.
+``shared.tool_constants``) is non-empty. Most tests inject a controlled set via
+``monkeypatch`` to exercise the mechanism, ``TestRealSideEffectingSetRejected``
+sweeps the real, unpatched set, and one test locks the empty-set fast path.
 ``TestBoundaryRegisteredOnEveryApp`` repeats the rejection and auth-first checks
 against every real production app to prove per-app registration.
 """
@@ -80,6 +80,55 @@ class TestKeylessSideEffectRejected:
             headers={"X-Idempotency-Key": key},
         )
         assert response.status_code == 422
+
+
+class TestRealSideEffectingSetRejected:
+    """Every tool of the real, unpatched `ALL_SIDE_EFFECTING_TOOLS` needs a key."""
+
+    @staticmethod
+    def _real_set() -> frozenset[str]:
+        return frozenset(server_module.ALL_SIDE_EFFECTING_TOOLS)
+
+    def test_the_real_set_is_not_empty(self) -> None:
+        assert self._real_set()
+
+    @pytest.mark.parametrize("tool", sorted(server_module.ALL_SIDE_EFFECTING_TOOLS))
+    def test_a_keyless_call_is_rejected_422(self, tool: str) -> None:
+        client = _client(_build_app())
+        response = client.post("/v1/call_tool", json={"name": tool})
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize("tool", sorted(server_module.ALL_SIDE_EFFECTING_TOOLS))
+    def test_a_whitespace_key_is_rejected_422(self, tool: str) -> None:
+        client = _client(_build_app())
+        response = client.post(
+            "/v1/call_tool",
+            json={"name": tool},
+            headers={"X-Idempotency-Key": "  \t"},
+        )
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize("tool", sorted(server_module.ALL_SIDE_EFFECTING_TOOLS))
+    def test_a_keyed_call_passes_the_boundary(self, tool: str) -> None:
+        """Control: with a key the same call is not stopped by the boundary."""
+        client = _client(_build_app())
+        response = client.post(
+            "/v1/call_tool",
+            json={"name": tool},
+            headers={"X-Idempotency-Key": "k-control"},
+        )
+        assert response.status_code == 200
+
+    def test_a_real_app_rejects_a_keyless_call_for_every_tool(self) -> None:
+        import importlib
+
+        module = importlib.import_module("mcp_servers.shell.shell_server")
+        client = TestClient(module.app, headers=MCP_TEST_AUTH_HEADERS)
+        statuses = {
+            tool: client.post("/v1/call_tool", json={"name": tool}).status_code
+            for tool in sorted(self._real_set())
+        }
+        assert set(statuses.values()) == {422}
 
 
 class TestKeyedSideEffectDispatched:
