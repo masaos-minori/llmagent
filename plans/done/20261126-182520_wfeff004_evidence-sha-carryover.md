@@ -201,10 +201,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first | Pending | — | — | |
-| 2 | The tool | Pending | — | — | |
-| 3 | Template, rule, and workflows | Pending | — | — | |
-| 4 | Documentation and verification | Pending | — | — | |
+| 1 | Tests first | In Progress | — | — |  |
+| 2 | The tool | In Progress | — | — |  |
+| 3 | Template, rule, and workflows | In Progress | — | — |  |
+| 4 | Documentation and verification | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -214,7 +214,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261126-183845_01_tools_check_evidence_freshness.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261126-183845_03_templates_plan.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-183845_04_rules_ai-execution.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-183845_05_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-183845_06_skills_plan-to-implementation-procedure_workflow.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-183845_07_skills_code-implementation_workflow.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-183845_08_tools_TOOL_DESCRIPTIONS.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -234,3 +240,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Required Changes bullet 3; Constraints bullets 1 and 3 | `rules/ai-execution.md` | Phase 3 | AC-07 | T-03 | Explicit in issue |
 | REQ-005 | Required Changes bullet 3; Documentation Impact | `skills/issue-to-plan/workflow.md`, `skills/plan-to-implementation-procedure/workflow.md`, `skills/code-implementation/workflow.md`, `templates/plan.md` | Phase 3 | AC-06, AC-08 | T-03 | Explicit in issue |
 | REQ-006 | Testing Expectations; Documentation Impact | `tools/TOOL_DESCRIPTIONS.md` | Phase 4 | AC-09 | T-04 | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-183845 -->
