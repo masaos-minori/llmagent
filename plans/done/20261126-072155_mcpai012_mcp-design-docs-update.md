@@ -10,10 +10,10 @@ Low
 - **Dependencies**: all 17 dependency issues are closed (mcpai001–mcpai011 in `issues/done/` except mcpai012/mcpai013, mcpdl001–mcpdl006 in `issues/done/`). Three of their Plans have Pending implementation rows (mcpai008, mcpai009, mcpai010 — this Plan's siblings in the memo1 batch): the sweep must run after those implementations land, per the Issue's Constraint "do not merge before the behavior it documents".
 
 ## Background
-Source: consolidated review backlog (`memo-issue.md`, Issue 12). Step 2 verification against current source: the document-map files all exist under `docs/22_mcp/` and the combined `22_mcp_all.md` is not a tracked file (the Issue's `不明` on map completeness is confirmed as a scope note, not a gap). The logical-key/transport-key separation claim is confirmed at `docs/22_mcp/mcp_03_01_dispatch-and-routing.md:61`; the second half of the claim — that comments imply the LLM controls replay identity — was not found in the agent code or docs and is recorded as unconfirmed (replay is documented as Agent-managed: `scripts/agent/tool_preparation.py` `ReplayDirective`, mcpai004). The governance claims are confirmed in part: MCP-001, MCP-002, NC-001, NC-002 are all `open` in `docs/00_governance/governance_03_issue-and-uncertainty-management.md`; SHARED-002 no longer exists (confirmed); but the "pending ledger entries" claim is stale — AAL-002 is recorded in ADR-004's Approval Record, and AAL-024, AAL-025, AAL-039 are recorded in ADR-008's Approval Record (approved 2026-11-24); the pending entries are AAL-003, AAL-019 (ADR-004) and AAL-028 (ADR-008). `mcp_dedup.toml` appears only as a historical removal note in `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md:88`; no deployment manifest requires it. The runbook locations the Issue lists as `Unknown` are tracked: `docs/90_deployment/deployment_01_deployment.md:345` links the Workflow Deployment Runbook in `docs/23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, and the dedup operator-runbook content lives in `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` (store migration, identity initialization, legacy handling, rollback, operator resolution already landed by mcpdl002/mcpdl005).
+Source: consolidated review backlog (`memo-issue.md`, Issue 12). Step 2 verification against current source: the document-map files all exist under `docs/22_mcp/` and the combined `22_mcp_all.md` is not a tracked file (the Issue's `不明` on map completeness is confirmed as a scope note, not a gap). The logical-key/transport-key separation claim is confirmed at `docs/22_mcp/mcp_03_01_dispatch-and-routing.md:61`; the second half of the claim — that comments imply the LLM controls replay identity — was not found in the agent code or docs and is recorded as unconfirmed (replay is documented as Agent-managed: `scripts/agent/tool_preparation.py` `ReplayDirective`, mcpai004). Re-verified 20261126 (Step 3a): the runbook link is at `docs/90_deployment/deployment_01_deployment.md:351`, not 345. The governance claims are confirmed in part: MCP-001, MCP-002, NC-001, NC-002 are all `open` in `docs/00_governance/governance_03_issue-and-uncertainty-management.md`; SHARED-002 no longer exists (confirmed); but the "pending ledger entries" claim is stale — AAL-002 is recorded in ADR-004's Approval Record, and AAL-024, AAL-025, AAL-039 are recorded in ADR-008's Approval Record (approved 2026-11-24); the pending entries are AAL-003, AAL-019 (ADR-004) and AAL-028 (ADR-008). `mcp_dedup.toml` appears only as a historical removal note in `docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md:88`; no deployment manifest requires it. The runbook locations the Issue lists as `Unknown` are tracked: `docs/90_deployment/deployment_01_deployment.md:345` links the Workflow Deployment Runbook in `docs/23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, and the dedup operator-runbook content lives in `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` (store migration, identity initialization, legacy handling, rollback, operator resolution already landed by mcpdl002/mcpdl005).
 
 ## Problem
-The design documents contain pre-fix and post-fix descriptions that contradict each other (confirmed in part: the id table in `mcp_06_06` lacks the workflow, session, request, and call ids and the idempotency key as a single table; invariant-to-test references are missing in `mcp_03_01` and `db_03_07`). Claims that name an enforcement point, failure behavior, and proving test are absent for the contracts the dependency issues landed, and the ADRs' ownership descriptions predate the implemented contracts.
+The design documents contain pre-fix and post-fix descriptions that contradict each other (confirmed in part: the id table in `mcp_06_06` lacks the workflow, session, request, and call ids — the idempotency key, `turn_id`, `task_id`, and `task_linkage` are already in it as of 20261126; invariant-to-test references are missing in `db_03_07`, while `mcp_03_01` already cites the layer-consistency tests at line 141 but has no proving-test reference for its dedup ownership claims). Claims that name an enforcement point, failure behavior, and proving test are absent for the contracts the dependency issues landed, and the ADRs' ownership descriptions predate the implemented contracts.
 
 ## Reason for Change
 Documenting before implementation is complete risks another round of drift, so this is last in order; no urgency otherwise.
@@ -24,7 +24,7 @@ Produce one implementation-aligned description in which every security or reliab
 ## Design decisions (Path B)
 - **ADR alignment scope** (owner decision, 20261126): align ADR-002, ADR-004, ADR-008 with the implemented ownership and failure contracts by describing implemented behavior only; do not resolve MCP-001, MCP-002, NC-001, NC-002 and do not write approvals for AAL-003, AAL-019, AAL-028 — reference them as open items.
 - **Document map location**: recorded in `docs/22_mcp/mcp_00_document-guide.md` (the MCP document guide, the file-index document); the Issue's map is taken as the assignment basis, confirmed against content during implementation.
-- **Id table**: completed in `docs/22_mcp/mcp_06_06_end-to-end-tool-call-tracing.md`, which already holds the Identity Fields table; the single-table definition extends it with workflow, task, turn, call, session, request ids and the idempotency key.
+- **Id table**: completed in `docs/22_mcp/mcp_06_06_end-to-end-tool-call-tracing.md`, which already holds the Identity Fields table; the single-table definition extends it with the workflow, session, request, and call ids (the idempotency key, `turn_id`, and `task_id` rows are already present — corrected in Step 3a on 20261126).
 - **Size ceilings**: `check_docs_structure.py`'s `SIZE_EXCEPTIONS` pins ADR-004 at 36992 B (current size) and ADR-008 at 54865 B (current size), so ADR edits must be size-neutral replacements; if growth is unavoidable, the ceiling is re-recorded in the checker per its recorded convention.
 - **Proving-test references**: required for claims this sweep changes, not retroactively for every claim in the tree.
 
@@ -50,9 +50,9 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `docs/22_mcp/mcp_00_document-guide.md` | Modify | Record the document map (assignment by file title, confirmed against content) | REQ-007, AC-5 | File exists (9179 B); contains a file index and related list, no document map (checked in Step 2) | `uv run python tools/check_docs_structure.py` | Verified |
-| `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Modify | Complete the single id-definition table; state Agent-managed replay; add proving-test references for the dedup ownership claims | REQ-001, REQ-003, AC-1, AC-2, AC-4 | Key-separation paragraph at line 61 confirmed; no test citations in the file (checked in Step 2) | `tests/mcp_servers/test_mcp_dispatch.py`, `tests/mcp_servers/test_mcp_dispatch_concurrency.py` | Verified |
+| `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Modify | Complete the single id-definition table; state Agent-managed replay; add proving-test references for the dedup ownership claims | REQ-001, REQ-003, AC-1, AC-2, AC-4 | Key-separation paragraph at line 61 confirmed; test citations exist at line 141 (layer-consistency tests), but no proving-test reference for the dedup ownership claims (re-verified 20261126, Step 3a) | `tests/mcp_servers/test_mcp_dispatch.py`, `tests/mcp_servers/test_mcp_dispatch_concurrency.py` | Verified |
 | `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md` | Modify | Name audit log types and authoritative locations consistently | REQ-002, AC-1 | Audit-log-types section at lines 20-48; consistency against the per-server audit code pending the mcpai009 audit-order landing | `tests/mcp_servers/file/test_file_server_audit_records.py` | Verified |
-| `docs/22_mcp/mcp_04_01_web-search-file-read-github.md` | Modify | GitHub read authorization, search scope, file-read controls; symlink policy and traversal limits as failure behavior after mcpai009 lands | REQ-002, AC-1 | Timeout and retry-policy sections already landed (lines 39, 101, 111); no symlink/traversal-limit policy (checked in Step 2) | `tests/mcp_servers/github/test_github_security_compliance.py` (mcpai010), `tests/mcp_servers/file/test_read_service.py` | Verified |
+| `docs/22_mcp/mcp_04_01_web-search-file-read-github.md` | Modify | GitHub read authorization, search scope, file-read controls; symlink policy and traversal limits as failure behavior after mcpai009 lands | REQ-002, AC-1 | Timeout and retry-policy sections already landed (lines 39, 101, 111); symlink policy and traversal-limit reporting already present at lines 76-77 (re-verified 20261126, Step 3a — the Step 2 claim "no symlink/traversal-limit policy" is stale; the row's work is confirming these against current source, not adding them) | `tests/mcp_servers/github/test_github_security_compliance.py` (mcpai010), `tests/mcp_servers/file/test_read_service.py` | Verified |（re-verified 20261126, Step 3a: the mcpai010 test files do not exist yet — they are pending outputs of procedures `implementations/20261126-205430_03` and `_04`; the claim's proving test must cite them at execution time, after they land）
 | `docs/22_mcp/mcp_04_02_file-write-file-delete-shell.md` | Modify | Correct file-write and file-delete statements; record dry-run parity and audit order after mcpai009 lands | REQ-002, AC-1 | Postcondition and root-protection sections at lines 28-32 without dry-run parity and audit order (checked in Step 2) | `tests/mcp_servers/file/test_delete_service.py` | Verified |
 | `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md` | Modify | CI/CD section consistency sweep | REQ-002, REQ-008, AC-1, AC-5 | File exists (6610 B); sweep scope per the document map | `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py` | Verified |
 | `docs/22_mcp/mcp_04_04_mdq.md` | Modify | MDQ section consistency sweep | REQ-002, REQ-008, AC-1, AC-5 | File exists (10105 B); sweep scope per the document map | `tests/mcp_servers/mdq/test_mdq_tool_layer_consistency.py` | Verified |
@@ -186,11 +186,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document map | Pending | — | — | — |
-| 2 | Identity, replay, and dedup ownership | Pending | — | — | — |
-| 3 | Server-section corrections | Pending | — | — | — |
-| 4 | ADR alignment | Pending | — | — | — |
-| 5 | Invariant links, mcp_dedup.toml sweep, terminology | Pending | — | — | — |
+| 1 | Document map | In Progress | — | — | — |
+| 2 | Identity, replay, and dedup ownership | In Progress | — | — | — |
+| 3 | Server-section corrections | In Progress | — | — | — |
+| 4 | ADR alignment | In Progress | — | — | — |
+| 5 | Invariant links, mcp_dedup.toml sweep, terminology | In Progress | — | — | — |
 | 6 | Validation | Pending | — | — | — |
 
 ### Blocker Log
@@ -201,7 +201,22 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261126-212443_01_docs_22_mcp_mcp_00_document-guide.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_02_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_03_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_04_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_05_docs_22_mcp_mcp_04_02_file-write-file-delete-shell.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_06_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_07_docs_22_mcp_mcp_04_04_mdq.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_08_docs_22_mcp_mcp_04_05_git.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_09_docs_22_mcp_mcp_05_03_fail-open-fail-closed-and-risk-tiers.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_10_docs_22_mcp_mcp_05_04_mdq-rag-boundary.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_11_docs_22_mcp_mcp_05_05_mdq-enforcement-and-lockdown.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_12_docs_22_mcp_mcp_06_06_end-to-end-tool-call-tracing.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_13_docs_10_adr_adr_02_01_002_platform-config-isolation.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_14_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_15_docs_10_adr_adr_02_05_008_db-six-sqlite-store-separation.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-212443_16_docs_41_db_db_03_07_mcp-dedup-and-execution-snapshot.md.md` | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -210,6 +225,7 @@ Table structure, status/type vocabulary, and general guidance: see
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261126-072155
+- **Evidence revision**: 41bb4d281ec6e078581aab78b52dd7a3264ce248
 - **Related target files**: `docs/22_mcp/mcp_00_document-guide.md`, `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`, `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md`, `docs/22_mcp/mcp_04_01_web-search-file-read-github.md`, `docs/22_mcp/mcp_04_02_file-write-file-delete-shell.md`, `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`, `docs/22_mcp/mcp_04_04_mdq.md`, `docs/22_mcp/mcp_04_05_git.md`, `docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`, `docs/22_mcp/mcp_05_04_mdq-rag-boundary.md`, `docs/22_mcp/mcp_05_05_mdq-enforcement-and-lockdown.md`, `docs/22_mcp/mcp_06_06_end-to-end-tool-call-tracing.md`, `docs/10_adr/adr_02_01_002_platform-config-isolation.md`, `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md`, `docs/10_adr/adr_02_05_008_db-six-sqlite-store-separation.md`, `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md`
 
 ### Requirement Traceability
@@ -225,3 +241,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-006 | Required Changes item 6 | `docs/41_db/db_03_07_mcp-dedup-and-execution-snapshot.md` | Phase 5 | AC-4 | `tests/mcp_servers/test_mcp_dispatch_concurrency.py`, `tests/shared/test_mcp_dedup.py` | Confirmed by repository evidence |
 | REQ-007 | Required Changes item 7 | `docs/22_mcp/mcp_00_document-guide.md` | Phase 1 | AC-5 | `check_docs_structure.py` | Confirmed by repository evidence |
 | REQ-008 | Required Changes item 7 (terminology) | all target docs | Phase 3, Phase 4, Phase 5 | AC-1 | docs checkers | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-212443 -->
