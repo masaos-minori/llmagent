@@ -1299,6 +1299,17 @@ entries:
   signature: def classify_server_failure(gate) -> ServerFailureClass | None
   summary: Return the failure kind of one gate, or None when the gate is green.
 - file: scripts/agent/services/mcp_health.py
+  kind: class
+  name: CapabilityFinding
+  signature: class CapabilityFinding
+  summary: What one gate's parsed report proves about its capabilities.
+- file: scripts/agent/services/mcp_health.py
+  kind: function
+  name: classify_capabilities
+  signature: def classify_capabilities(gate, required_capability) -> CapabilityFinding
+  summary: Classify one gate's report for its required capability and its optional
+    losses.
+- file: scripts/agent/services/mcp_health.py
   kind: async function
   name: collect_server_postures
   signature: async def collect_server_postures(ctx) -> dict[str, PostureGate]
