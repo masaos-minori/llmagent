@@ -8,15 +8,16 @@ Low
 - **In-Scope**:
   - Remove the four unused public properties of `scripts/shared/mcp_config.py` (`StartupMode.is_persistent`, `StartupMode.requires_subprocess`, `McpServerConfig.needs_health_check`, `McpServerConfig.requires_cmd`), each confirmed to have zero callers.
   - Correct the stale docstring in `scripts/agent/http_lifecycle.py` (documented stderr log location does not match the actual location).
-  - Decide keep-or-remove for `max_stderr_log_size_mb` / `max_stderr_log_files` only after the open stderr plan lands (see Dependencies).
+  - Keep `max_stderr_log_size_mb` / `max_stderr_log_files`; the decision is resolved to keep because the open stderr plan's REQ-006 gives each field documented runtime effect (see Dependencies).
 - **Out-of-Scope**:
   - New features and the behavior changes of the earlier backlog issues.
   - Stderr rotation enforcement: already assigned to the open stderr plan (REQ-006 there); this Plan must not duplicate it.
   - `scripts/shared/runtime_tool_registry.py`: no confirmed unused surface (see Reference Files); the Issue's claim is disconfirmed.
+  - `scripts/agent/session_persister.py`: resolved this cycle — no storage/display constant exists; REQ-004 is N/A and the file is a reference row, not a target.
   - Pass-through facades (`scripts/agent/workflow/state_store.py`, `scripts/agent/services/config_reload.py`): documented as intentional, not duplicate implementations.
 - **Dependencies**:
   - Depends on the cliplc005, cliplc006, cliplc007, cliplc008 plans: implementation rows all `Completed` (only deploy hand-offs remain, the user's decision) — closed for implementation purposes.
-  - Depends on the cliplc009 plan (open, every Execution Status row `Pending`): this Plan cannot finalize the stderr rotation field decision before its REQ-006 enforcement lands.
+  - Depends on the cliplc009 plan (open, every Execution Status row `Pending`): its REQ-006 enforcement defines the runtime effect of the stderr rotation fields; the keep decision here is resolved from that plan's frozen design, and only the post-landing AC-3 confirmation waits for it.
   - Related: the agentcfg002 plan removed `McpServerConfig.tool_names`; the current dataclass has no `tool_names` field, so this Plan must not reintroduce it.
   - **Depends on**: `plans/20261126-210258_cliplc009_redaction-stderr-diagnostics.md` | phase 3 | the stderr rotation fields' runtime effect is defined by that Plan's REQ-006 enforcement; the keep-or-remove decision here cannot precede it.
 
@@ -48,17 +49,16 @@ Every public field and parameter has one documented effect; confirmed-unused sur
 ## Requirements
 - `REQ-001`: Remove the four unused public properties of `scripts/shared/mcp_config.py` (`StartupMode.is_persistent`, `StartupMode.requires_subprocess`, `McpServerConfig.needs_health_check`, `McpServerConfig.requires_cmd`).
 - `REQ-002`: Correct the stale docstring in `scripts/agent/http_lifecycle.py` so the documented stderr log location matches the actual location, and align field descriptions in `scripts/shared/mcp_config.py`.
-- `REQ-003`: Decide keep-or-remove for `max_stderr_log_size_mb` and `max_stderr_log_files` in `scripts/shared/mcp_config.py` after the open stderr plan's enforcement lands; keep them only if the enforcement gives each one documented runtime effect.
-- `REQ-004`: Separate storage and display constants in `scripts/agent/session_persister.py` where evidence identifies a concrete constant; no symbol is confirmed yet.
+- `REQ-003`: Keep `max_stderr_log_size_mb` and `max_stderr_log_files` in `scripts/shared/mcp_config.py`; the decision is resolved to keep because the frozen stderr plan's REQ-006 gives each field documented runtime effect (configured size and generation limits). Confirm at implementation time that the enforcement landed before AC-3 is evaluated.
+- `REQ-004`: N/A: resolved this cycle — no concrete storage or display constant exists in `scripts/agent/session_persister.py` (module-level names: `logger` only; every symbol has production callers). No modification target.
 
 ## Implementation Target Files
-**Freeze status**: Draft (not frozen: rows remain `Needs confirmation` and a blocking Unknown is unresolved — see the Unknowns section and Step 8 report).
+**Freeze status**: Frozen (Step 8 validation passed on the re-entry — all rows `Verified`, no blocking Unknown remains; see this Plan's Step 8 report in the workflow run).
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/shared/mcp_config.py` | Modify | Remove four unused public properties; field decision for the stderr rotation pair pending the open plan | REQ-001; REQ-003 | Zero callers for the four properties in `scripts/` and `tests/` (checked in Step 2/3); rotation fields read only by tests (checked in Step 2) | `tests/shared/test_mcp_config_validation.py` | Needs confirmation |
+| `scripts/shared/mcp_config.py` | Modify | Remove four unused public properties; keep the stderr rotation pair (decision resolved: the frozen stderr plan's REQ-006 gives each field documented runtime effect) | REQ-001; REQ-003 | Zero callers for the four properties in `scripts/` and `tests/` (checked in Step 2/3, re-confirmed by `tools/scan_change_consumers.py` this cycle); rotation fields read only by tests until the open plan's enforcement lands (checked in Step 2) | `tests/shared/test_mcp_config_validation.py` | Verified |
 | `scripts/agent/http_lifecycle.py` | Modify | Correct stale docstring: documented stderr log path does not match the actual location | REQ-002; AC-2 | Docstring vs `scripts/agent/http_lifecycle_stderr_log_manager.py` log path (checked in Step 2) | `tests/agent/test_http_lifecycle.py` | Verified |
-| `scripts/agent/session_persister.py` | Modify (conditional) | Storage/display constant separation only if a concrete constant is identified | REQ-004; AC-4 | No concrete constant confirmed; vulture findings have production callers (checked in Step 2) | `tests/agent/test_session_persister.py` | Needs confirmation |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -69,18 +69,20 @@ Every public field and parameter has one documented effect; confirmed-unused sur
 | `scripts/agent/workflow/tool_call_state_ops.py` | The implementation behind the `classify_stale_pending` facade | Out-of-Scope |
 | `scripts/agent/services/config_reload.py` | The pass-through wrapper `_detect_diagnostics_live_fields`; disconfirms the duplicate-helper claim | Out-of-Scope |
 | `scripts/shared/runtime_tool_registry.py` | Confirms every flagged method has production callers; no modification target | Out-of-Scope |
+| `scripts/agent/session_persister.py` | Confirms REQ-004 is N/A: no module-level constant besides `logger`; every symbol has production callers (full read + `tools/scan_change_consumers.py` this cycle) | REQ-004 (N/A) |
 | `tests/agent/services/test_mcp_tool_discovery_posture_gate.py` | Shows `posture_excluded_servers` is test-facing, not dead surface | Out-of-Scope |
 
 ## Acceptance Criteria
 - AC-1 (REQ-001): `uv run vulture scripts/shared/mcp_config.py --min-confidence 60` reports no unused public property in the file after removal.
 - AC-2 (REQ-002): the `scripts/agent/http_lifecycle.py` docstring states the actual stderr log location; docstrings and field descriptions match runtime behavior.
-- AC-3 (REQ-003): every retained public configuration field changes documented runtime behavior — evaluated only after the open stderr plan lands.
-- AC-4 (REQ-004): N/A: no concrete constant confirmed yet; the criterion activates only if UNK-02 resolves to a modification.
+- AC-3 (REQ-003): every retained public configuration field changes documented runtime behavior — the decision is `keep`; evaluated when the open stderr plan's enforcement lands.
+- AC-4 (REQ-004): N/A: resolved — no concrete storage/display constant exists in `scripts/agent/session_persister.py`; no modification, no acceptance criterion.
 
 ## Tests
 - REQ-001: no test changes expected — no test references the removed properties (verified by search this cycle); the full suite must still pass.
 - REQ-002: docstring check per `rules/tool-gates.md` documentation gate.
-- REQ-003, REQ-004: N/A until the blocking Unknowns resolve.
+- REQ-003: no test changes; AC-3 is evaluated after the open plan's enforcement lands.
+- REQ-004: N/A: resolved — no modification; `tests/agent/test_session_persister.py` must still pass unchanged.
 - Whole Issue Testing Expectations: vulture, ruff, mypy, and the full test suite.
 
 ## Documentation Impact
@@ -95,9 +97,9 @@ Yes. Corrected docstrings and field descriptions (REQ-002, REQ-003). Target doc 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Which of the Issue's listed unused items still exist after the earlier issues land (the Issue's own Unresolved Question). Resolved for `fields`, the health helper, constructor arguments, and duplicate helpers; unresolved for the session_persister storage/display constants. | No concrete constant identified in `scripts/agent/session_persister.py`; all vulture findings there have production callers | Owner decision or a targeted symbol scan at implementation time | True |
-| UNK-02 | The stderr rotation field decision (`max_stderr_log_size_mb`, `max_stderr_log_files`) depends on the open stderr plan's REQ-006 enforcement landing | The open plan's Execution Status rows are all `Pending` | Complete the open plan's Phase 3, then re-derive the field decision | True |
-| UNK-03 | Whether the documented pass-through facades count as "duplicate helpers" to consolidate | Evidence shows intentional documented facades, not duplicate implementations | Owner decision | True |
+| UNK-01 | Which of the Issue's listed unused items still exist after the earlier issues land (the Issue's own Unresolved Question). Resolved for `fields`, the health helper, constructor arguments, and duplicate helpers; resolved this cycle for the session_persister constants: none exist, so REQ-004 is N/A. | None remaining — resolved by a full read of `scripts/agent/session_persister.py` plus `tools/scan_change_consumers.py` (no module-level constant besides `logger`; no direct consumers of the four properties) | Resolved this cycle | False |
+| UNK-02 | The stderr rotation field decision (`max_stderr_log_size_mb`, `max_stderr_log_files`). Resolved this cycle to **keep**: the frozen stderr plan's REQ-006 defines the documented runtime effect for both fields (configured size and generation limits with purge). Only the post-landing confirmation of AC-3 remains, which is execution sequencing, not an open question. | None remaining for the decision itself — resolved from the frozen plan's REQ-006; the enforcement landing is tracked in Execution Status, not as an Unknown | Enforcement lands with the open plan's Phase 3; confirm AC-3 then | False |
+| UNK-03 | Whether the documented pass-through facades count as "duplicate helpers" to consolidate. Resolved this cycle on repository evidence: they are documented as intentional pass-throughs, so no consolidation; recorded as Out-of-Scope. If the owner later decides to consolidate, that is a new issue, not this Plan. | None remaining for this Plan — evidence-based decision; an owner override would open a new issue | Resolved this cycle (evidence-based); owner may override | False |
 
 ## Affected areas
 Per `rules/skill-runtime.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor` (Path B, from the historical analysis; `git-fame` not installed, bus factor from author counts).
@@ -106,7 +108,6 @@ Per `rules/skill-runtime.md` Change-impact table, extended with `Churn (30d)` an
 |---|---|---|---|---|---|
 | `scripts/shared/mcp_config.py` | Modify | Medium (12 importing modules) | 11 | High (single author) | not applicable (rsynced) |
 | `scripts/agent/http_lifecycle.py` | Modify | Medium (lifecycle callers and tests) | 6 | High (single author) | not applicable (rsynced) |
-| `scripts/agent/session_persister.py` | Modify (conditional) | Low | 5 | High (single author) | not applicable (rsynced) |
 
 ## Design
 Path B analysis (this cycle):
@@ -121,11 +122,9 @@ Path B analysis (this cycle):
    - [ ] Remove `StartupMode.is_persistent`, `StartupMode.requires_subprocess`, `McpServerConfig.needs_health_check`, `McpServerConfig.requires_cmd` from `scripts/shared/mcp_config.py` (REQ-001); run vulture to confirm no remaining unused public property (AC-1).
 2. **Phase 2: Correct stale docstrings**
    - [ ] Fix the stderr log location docstring in `scripts/agent/http_lifecycle.py` to state the actual location (REQ-002; AC-2).
-3. **Phase 3: Blocked — stderr rotation field decision**
-   - [ ] After the open stderr plan's Phase 3 lands, re-derive the keep-or-remove decision for `max_stderr_log_size_mb` / `max_stderr_log_files` in `scripts/shared/mcp_config.py` (REQ-003; AC-3). Blocked by UNK-02.
-4. **Phase 4: Blocked — storage/display constants**
-   - [ ] Only if UNK-01 resolves to a concrete constant, separate storage and display constants in `scripts/agent/session_persister.py` (REQ-004; AC-4). Blocked by UNK-01.
-5. **Phase 5: Validation and deployment hand-off**
+3. **Phase 3: Keep the stderr rotation fields (decision resolved)**
+   - [ ] Keep `max_stderr_log_size_mb` / `max_stderr_log_files` in `scripts/shared/mcp_config.py` (REQ-003; AC-3). No code change in this Plan; confirm AC-3 after the open stderr plan's enforcement lands.
+4. **Phase 4: Validation and deployment hand-off**
    - [ ] Run the full validation sequence (`rules/toolchain.md`): format, lint, type, arch, security, test, coverage (REQ-001, REQ-002).
    - [ ] Deploy hand-off to `skills/deploy/SKILL.md`: the change must be committed and pushed first; deploying is the user's decision (approval gate).
 
@@ -137,12 +136,12 @@ N/A: no release unit
 |---|---|---|---|
 | `scripts/shared/mcp_config.py` | Static analysis + full suite | `uv run vulture scripts/shared/mcp_config.py --min-confidence 60`; `uv run pytest tests/shared/test_mcp_config_validation.py` | No unused public property; tests pass unchanged |
 | `scripts/agent/http_lifecycle.py` | Docstring check + targeted tests | `uv run pytest tests/agent/test_http_lifecycle.py`; `rules/tool-gates.md` doc gate | Docstring matches actual log path |
-| `scripts/agent/session_persister.py` | Conditional, pending UNK-01 | `uv run pytest tests/agent/test_session_persister.py` | Pass; no change if no constant is confirmed |
 | Whole suite | Regression | `uv run pytest` | No failures |
 
 ## Risks
 - **Risk**: Removing a public property that a dynamic-dispatch or external consumer uses → **Mitigation**: zero callers confirmed by search across `scripts/` and `tests/`; stop and report if any consumer appears (the Issue's AI Implementation Instruction).
 - **Risk**: Scope overlap with the open stderr plan on stderr log management → **Mitigation**: that file is excluded from this Plan's targets; recorded as a sequencing dependency.
+- **Risk**: `scripts/agent/http_lifecycle.py` is targeted by two Frozen Plans at once (`check_plan_target_overlaps.py`) → **Mitigation**: verified this cycle — the designs do not contradict each other. The open plan changes the snapshot builder to emit a logical identifier; this Plan only corrects the module docstring's stderr log location, and both state the same actual location (`tempfile.gettempdir()/mcp_server_logs/{server_key}/stderr.log`).
 - **Risk**: High bus factor (single author) on all target files → **Mitigation**: each phase is independently revertable; targeted tests before removal.
 
 ## Execution Status
@@ -152,15 +151,14 @@ N/A: no release unit
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Phase 1: Remove confirmed unused public properties (`scripts/shared/mcp_config.py`) | Pending | — | — | |
 | 2 | Phase 2: Correct stale docstrings (`scripts/agent/http_lifecycle.py`) | Pending | — | — | |
-| 3 | Phase 3: Blocked — stderr rotation field decision (`scripts/shared/mcp_config.py`) | Pending | — | — | Blocked by UNK-02 |
-| 4 | Phase 4: Blocked — storage/display constants (`scripts/agent/session_persister.py`) | Pending | — | — | Blocked by UNK-01 |
-| 5 | Phase 5: Validation and deployment hand-off | Pending | — | — | Deploy is the user's decision |
+| 3 | Phase 3: Keep the stderr rotation fields, confirm AC-3 after the open plan lands (`scripts/shared/mcp_config.py`) | Pending | — | — | Decision resolved to keep; confirmation waits for the open plan's enforcement |
+| 4 | Phase 4: Validation and deployment hand-off | Pending | — | — | Deploy is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 3 | Open stderr plan (UNK-02): all its Execution Status rows are Pending; the field decision cannot precede its REQ-006 enforcement | No | — |
-| 4 | No concrete storage/display constant confirmed in `scripts/agent/session_persister.py` (UNK-01) | No | — |
+| 3 | Open stderr plan (UNK-02): the field decision was blocking; resolved this cycle to keep per the frozen plan's REQ-006. Only the post-landing AC-3 confirmation remains (sequencing, not a blocker) | Yes | 20261126 |
+| 4 | No concrete storage/display constant confirmed in `scripts/agent/session_persister.py` (UNK-01): resolved this cycle — none exist; REQ-004 is N/A and the row was removed from the targets | Yes | 20261126 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
@@ -175,7 +173,7 @@ N/A: no release unit
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261126-221206
 - **Evidence revision**: ade9a2c378a43c9210f9ff2de9373440ad685345
-- **Related target files**: `scripts/shared/mcp_config.py`, `scripts/agent/http_lifecycle.py`, `scripts/agent/session_persister.py`
+- **Related target files**: `scripts/shared/mcp_config.py`, `scripts/agent/http_lifecycle.py`
 
 ### Requirement Traceability
 
@@ -183,5 +181,5 @@ N/A: no release unit
 |---|---|---|---|---|---|---|
 | REQ-001 | Required Changes; zero-caller search this cycle | `scripts/shared/mcp_config.py` | Phase 1 | AC-1 | `tests/shared/test_mcp_config_validation.py` | Confirmed by repository evidence |
 | REQ-002 | Required Changes; docstring vs actual log path this cycle | `scripts/agent/http_lifecycle.py` | Phase 2 | AC-2 | `tests/agent/test_http_lifecycle.py` | Confirmed by repository evidence |
-| REQ-003 | Required Changes; fields exist but unenforced | `scripts/shared/mcp_config.py` | Phase 3 | AC-3 | N/A: pending UNK-02 | Needs confirmation |
-| REQ-004 | Required Changes; no concrete constant found | `scripts/agent/session_persister.py` | Phase 4 | AC-4 | `tests/agent/test_session_persister.py` | Needs confirmation |
+| REQ-003 | Required Changes; fields exist but unenforced; decision resolved to keep via the frozen plan's REQ-006 | `scripts/shared/mcp_config.py` | Phase 3 | AC-3 | `tests/shared/test_mcp_config_validation.py` (unchanged) | Confirmed by repository evidence |
+| REQ-004 | Required Changes; resolved this cycle — no concrete constant found in `scripts/agent/session_persister.py` (full read + `tools/scan_change_consumers.py`) | N/A: no target file (moved to Reference Files) | N/A: REQ resolved to N/A | AC-4 (N/A) | `tests/agent/test_session_persister.py` (unchanged) | Confirmed by repository evidence |
