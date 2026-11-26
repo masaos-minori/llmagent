@@ -192,10 +192,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first | Pending | — | — | |
-| 2 | The tool and its baseline | Pending | — | — | |
-| 3 | Registration | Pending | — | — | |
-| 4 | Verification | Pending | — | — | |
+| 1 | Tests first | In Progress | — | — |  |
+| 2 | The tool and its baseline | In Progress | — | — |  |
+| 3 | Registration | In Progress | — | — |  |
+| 4 | Verification | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -205,7 +205,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261126-164413_01_tools_compare_test_baseline.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261126-164413_02_tools_known_test_failures_baseline.txt.md | 2 | Procedure | Pending | — | — |
+| implementations/20261126-164413_04_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-164413_05_rules_tool-gates.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-164413_06_skills_code-implementation_workflow.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -225,3 +229,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Required Changes bullet 4 | tools/compare_test_baseline.py | Phase 2 | AC-06 | T-04 | Explicit in issue |
 | REQ-005 | Required Changes bullet 5; Documentation Impact; size ceilings (Step 3) | tools/TOOL_DESCRIPTIONS.md, rules/tool-gates.md, skills/code-implementation/workflow.md | Phase 3 | AC-07, AC-08 | T-05 | Derived from confirmed evidence |
 | REQ-006 | Constraints bullets 1 and 3; Implementation Intent | tools/compare_test_baseline.py | Phase 2 | AC-05, AC-06 | T-02, T-04 | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-164413 -->
