@@ -1,0 +1,101 @@
+## Goal
+
+Stage 7 compares two distinct snapshots: the pipeline captures a fresh post-operation `RepositoryState` after Stage 6 and reports it as `PipelineResult.post_state` (REQ-001, fresh post-operation snapshot).
+
+## Scope
+**Release unit**: postcondition-tests-and-implementation
+
+## Assumptions
+
+- The post-state is captured inside the per-repository lock, so it reflects the state immediately after the mutating call.
+- `PipelineResult.post_state` keeps the object after `close()`; only its `git.Repo` reference is released, so the audit serialization in `scripts/mcp_servers/git/git_server.py` still reads the captured fields.
+- The post-state's `ref_valid` is derived from `requested_branch`, which is the requested ref for `git_pull`/`git_push`/`git_checkout` and empty for `git_add`/`git_commit`.
+
+## Design decisions
+
+- The pipeline, not the caller, owns the post-operation snapshot (`Plan > Design`, Post-state ownership).
+- The post-state handle is released through the context-manager form of `RepositoryState` after Stage 7 has read it (REQ-005, handle release).
+
+## Alternatives considered
+
+- Refresh the fields of the pre-state object in place — rejected: `RepositoryState` is a frozen dataclass, and Stage 7 could still not distinguish pre from post.
+
+## Implementation
+### Target file
+`scripts/mcp_servers/git/write_protection_pipeline.py`
+
+### Procedure
+- In `run()`, after Stage 6 (`output = self._execute(tool_name, op)`), capture a second snapshot as `post_state`.
+- Call `self._state.verify_postcondition(post_state, tool_name)` instead of passing `self._state` as both arguments.
+- Pass `post_state` to `PipelineResult.ok_result()` and to the Stage 7 rejection result.
+
+### Method
+- Capture with `RepositoryState.snapshot(self._state.path, protected_branches=protected_branches, active_ref=requested_branch or "")` inside the `with _get_repo_lock(self._state.path)` block.
+- Wrap the capture in `with ... as post_state:` so the handle is released on the success path, the Stage 7 rejection path, and an exception raised by Stage 6.
+- Update the Stage 7 comment: the pipeline now captures two snapshots per write request.
+
+### Details
+- `run()`'s signature is unchanged; `protected_branches` and `requested_branch` are already parameters.
+- Results rejected before Stage 6 keep `post_state=None`, matching current behavior.
+- `PipelineResult` fields are unchanged; only the value of `post_state` becomes a distinct object.
+
+## Compatibility considerations
+
+- `tests/mcp_servers/git/test_repository_state.py:371` (`test_pipeline_result_ok_has_post_state`) must assert the stored post-state is a distinct object from `repository_state`.
+- Consumers that read `PipelineResult.post_state` for audit serialization see the same field types.
+
+## Security considerations
+
+- Stage order is unchanged; ADR-012 INV-09 (Stage 6 before Stage 7) is preserved.
+
+## Rollback considerations
+
+- Revert the commit; the change is confined to `run()`.
+
+## Validation plan
+
+| Check | Command | Expected |
+|---|---|---|
+| Post-state is a distinct object | `uv run pytest tests/mcp_servers/git/test_git_write_postconditions.py -v` | Stage 7 receives a different `RepositoryState` |
+| Static sequence | `uv run ruff check scripts/`, `uv run mypy --no-namespace-packages scripts/ tests/eventbus tools`, `PYTHONPATH=scripts uv run lint-imports`, `uv run bandit -r scripts/ -c pyproject.toml -ll` | No new findings |
+| Changed-line coverage | `uv run diff-cover coverage.xml --compare-branch=master` | >= 90% |
+
+## Completion criteria
+
+- For a write that reaches Stage 7, `PipelineResult.post_state` is a different object from `PipelineResult.repository_state`.
+- The post-state handle is closed on every path.
+
+## Out of Scope
+
+- The operation-specific postcondition branches (`scripts/mcp_servers/git/repository_state.py`, procedure 02).
+- The subprocess execution path (`scripts/mcp_servers/git/format_output.py`, procedure 04).
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 2 | Add or update tests per Validation plan | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation is procedure 11 |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+- **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: `REQ-001` (fresh post-operation snapshot in the write pipeline)
+- **Source issue**: issues/20261119-140515_mcpai008_git-postcondition-lifecycle.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20261126-004921_mcpai008_git-postcondition-lifecycle.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20261126-111533
+- **Related target files**: `scripts/mcp_servers/git/write_protection_pipeline.py`
