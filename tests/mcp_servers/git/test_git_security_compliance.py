@@ -198,6 +198,8 @@ class TestGitSecurityCompliance:
     @pytest.mark.asyncio
     async def test_git_checkout_dirty_worktree_denied(self, svc: GitService) -> None:
         snap = MagicMock(spec=RepositoryState)
+        # RepositoryState is used through its context-manager form in the code under test.
+        snap.__enter__.return_value = snap
         snap.is_dirty = True
         snap.is_detached_head = False
         snap.verify_authorization.return_value = (True, "")
@@ -218,6 +220,7 @@ class TestGitSecurityCompliance:
     @pytest.mark.asyncio
     async def test_git_pull_dirty_worktree_denied(self, svc: GitService) -> None:
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.is_dirty = True
         snap.is_detached_head = False
         snap.verify_authorization.return_value = (True, "")
@@ -238,6 +241,7 @@ class TestGitSecurityCompliance:
     @pytest.mark.asyncio
     async def test_git_checkout_detached_head_denied(self, svc: GitService) -> None:
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.is_dirty = False
         snap.is_detached_head = True
         snap.verify_authorization.return_value = (True, "")
@@ -258,6 +262,7 @@ class TestGitSecurityCompliance:
     @pytest.mark.asyncio
     async def test_git_pull_detached_head_denied(self, svc: GitService) -> None:
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.is_dirty = False
         snap.is_detached_head = True
         snap.verify_authorization.return_value = (True, "")
@@ -280,6 +285,7 @@ class TestGitSecurityCompliance:
         self, svc_allow_detached: GitService
     ) -> None:
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.is_dirty = False
         snap.is_detached_head = True
@@ -304,6 +310,7 @@ class TestGitSecurityCompliance:
         self, svc_allow_detached: GitService
     ) -> None:
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.is_dirty = False
         snap.is_detached_head = True
@@ -321,8 +328,12 @@ class TestGitSecurityCompliance:
         svc_allow_detached._config.allowed_remote_urls = [
             "https://example.com/repo.git"
         ]
+        proc = MagicMock()
+        proc.communicate.return_value = ("Already up to date.", "")
+        proc.returncode = 0
         with (
             patch.object(RepositoryState, "snapshot", return_value=snap),
+            patch("subprocess.Popen", return_value=proc),
         ):
             args = {
                 "repo_path": "/tmp/repo",
@@ -339,6 +350,7 @@ class TestGitSecurityCompliance:
         self, svc: GitService
     ) -> None:
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.is_dirty = True
         snap.is_detached_head = True
@@ -363,6 +375,7 @@ class TestGitSecurityCompliance:
         self, svc: GitService
     ) -> None:
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.is_dirty = True
         snap.is_detached_head = True
@@ -465,6 +478,7 @@ class TestAuditTargetResolution:
             max_log_entries=50,
         )
         snap = MagicMock()
+        snap.__enter__.return_value = snap
         snap.repo = MagicMock()
         snap.repo.active_branch.name = "main"
         snap.repo.is_dirty.return_value = False
@@ -529,6 +543,7 @@ class TestEmittedAuditLogContent:
             max_log_entries=50,
         )
         snap = MagicMock()
+        snap.__enter__.return_value = snap
         snap.repo = MagicMock()
         snap.repo.active_branch.name = "main"
         snap.repo.is_dirty.return_value = False
@@ -774,6 +789,7 @@ class TestPostConditionBypassPrevention:
         from mcp_servers.git.repository_state import RepositoryState
 
         snap = MagicMock()
+        snap.__enter__.return_value = snap
         snap.repo = MagicMock()
         snap.repo.active_branch.name = "main"
         snap.repo.is_dirty.return_value = False
@@ -805,6 +821,7 @@ class TestPostConditionBypassPrevention:
         from mcp_servers.git.repository_state import RepositoryState
 
         snap = MagicMock()
+        snap.__enter__.return_value = snap
         snap.repo = MagicMock()
         snap.repo.active_branch.name = "main"
         snap.repo.is_dirty.return_value = False
@@ -843,6 +860,7 @@ class TestPostConditionBypassPrevention:
         from mcp_servers.git.repository_state import RepositoryState
 
         snap = MagicMock()
+        snap.__enter__.return_value = snap
         snap.repo = MagicMock()
         snap.repo.active_branch.name = "main"
         snap.repo.is_dirty.return_value = False
@@ -898,6 +916,7 @@ class TestCompletePipelineCoverage:
         monkeypatch.setattr(WriteProtectionPipeline, "record_stage", track_record)
 
         snap = MagicMock()
+        snap.__enter__.return_value = snap
         snap.repo = MagicMock()
         snap.repo.active_branch.name = "main"
         snap.repo.is_dirty.return_value = False
@@ -937,6 +956,7 @@ class TestCompletePipelineCoverage:
         monkeypatch.setattr(WriteProtectionPipeline, "record_stage", track_record)
 
         snap = MagicMock()
+        snap.__enter__.return_value = snap
         snap.repo = MagicMock()
         snap.repo.active_branch.name = "main"
         snap.repo.is_dirty.return_value = False
@@ -980,6 +1000,7 @@ class TestCompletePipelineCoverage:
         monkeypatch.setattr(WriteProtectionPipeline, "record_stage", track_record)
 
         snap = MagicMock()
+        snap.__enter__.return_value = snap
         snap.repo = MagicMock()
         snap.repo.active_branch.name = "main"
         snap.repo.is_dirty.return_value = False
@@ -1036,6 +1057,7 @@ class TestLiveCallToolAuthorization:
         from mcp_servers.git.repository_state import RepositoryState
 
         fake_state = MagicMock(spec=RepositoryState)
+        fake_state.__enter__.return_value = fake_state
         fake_state.path = "/tmp/allowed/repo"
         fake_state.is_dirty = False
         fake_state.head_type = "branch"
@@ -1070,6 +1092,7 @@ class TestLiveCallToolAuthorization:
 
         def make_fake_state(*args, protected_branches=None, active_ref="", **kw):
             fake_state = MagicMock(spec=RepositoryState)
+            fake_state.__enter__.return_value = fake_state
             fake_state.path = "/tmp/allowed/repo"
             fake_state.is_dirty = False
             fake_state.head_type = "branch"
@@ -2268,6 +2291,7 @@ class TestGitServiceErrorHandlerIdentity:
         from mcp_servers.git.repository_state import RepositoryState
 
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/allowed/repo"
         snap.is_dirty = False
         snap.head_type = "branch"
@@ -2323,6 +2347,7 @@ class TestGitServiceErrorHandlerIdentity:
         from mcp_servers.git.repository_state import RepositoryState
 
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/allowed/repo"
         snap.is_dirty = False
         snap.head_type = "branch"
@@ -2415,6 +2440,7 @@ class TestGitServiceErrorHandlerIdentity:
             git_server._audit_failure_count = 0
 
             snap = MagicMock(spec=RepositoryState)
+            snap.__enter__.return_value = snap
             snap.path = "/tmp/allowed/repo"
             snap.is_dirty = False
             snap.head_type = "branch"

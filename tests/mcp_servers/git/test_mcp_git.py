@@ -118,6 +118,8 @@ class TestAuditTargetResolution:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        # RepositoryState is used through its context-manager form in the code under test.
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -178,6 +180,7 @@ class TestGitStatus:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -209,6 +212,7 @@ class TestGitAdd:
         mock_repo.untracked_files = ["a.py"]
         mock_repo.index.diff.return_value = []
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -243,6 +247,7 @@ class TestGitCommit:
         mock_repo = MagicMock()
         mock_repo.index.diff.return_value = [staged]
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -279,6 +284,7 @@ class TestGitCheckout:
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         mock_repo = MagicMock()
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -299,6 +305,7 @@ class TestGitCheckout:
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         mock_repo = MagicMock()
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -345,6 +352,7 @@ class TestGitPush:
         origin.url = "https://example.com/repo.git"
         mock_repo.remotes = [origin]
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap._repo = mock_repo
         snap.repo = mock_repo

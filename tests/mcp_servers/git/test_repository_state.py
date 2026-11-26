@@ -9,6 +9,7 @@ integration with GitService handlers.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Literal
@@ -22,6 +23,7 @@ from mcp_servers.git.repository_state import (
     _validate_ref,
 )
 from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
+from shared.write_outcome import CONFIRMED_NOT_APPLIED
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -47,6 +49,16 @@ def working_repo(tmp_path: Path) -> str:
     repo.index.add([str(f)])
     repo.index.commit("initial")
     return str(repo_dir)
+
+
+@pytest.fixture()
+def push_remote(working_repo: str) -> str:
+    """Create a bare repository and register it as 'origin' for `working_repo`."""
+    remote_dir = Path(working_repo).parent / "push_remote"
+    remote_dir.mkdir()
+    git.Repo.init(str(remote_dir), bare=True)
+    git.Repo(working_repo).create_remote("origin", str(remote_dir))
+    return str(remote_dir)
 
 
 # ── Snapshot capture tests ──────────────────────────────────────────────────
@@ -76,6 +88,17 @@ class TestSnapshotCapture:
     def test_snapshot_protected_branch_none(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
         assert state.protected_branch is False
+
+    def test_snapshot_freezes_head_commit(self, working_repo: str) -> None:
+        """The captured HEAD commit does not follow the repository after the snapshot."""
+        state = RepositoryState.snapshot(working_repo)
+        captured = state.head_commit_hexsha
+        repo = git.Repo(working_repo)
+        (Path(working_repo) / "next.txt").write_text("x")
+        repo.index.add(["next.txt"])
+        repo.index.commit("second")
+        assert state.head_commit_hexsha == captured
+        assert repo.head.commit.hexsha != captured
 
     def test_snapshot_ref_valid_true(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
@@ -168,13 +191,57 @@ class TestGuardDelegation:
         assert ok is True
         assert err == ""
 
-    def test_verify_postcondition_passes_for_any_push_result(
-        self, working_repo: str
+    def test_push_postcondition_passes_for_a_real_push(
+        self, working_repo: str, push_remote: str
     ) -> None:
-        state = RepositoryState.snapshot(working_repo)
-        ok, err = state.verify_postcondition(state, "git_push")
+        """AC-2: after a real push the remote-tracking ref equals the local commit."""
+        repo = git.Repo(working_repo)
+        branch = repo.active_branch.name
+        pipeline = WriteProtectionPipeline(RepositoryState.snapshot(working_repo))
+        result = pipeline.run(
+            "git_push",
+            lambda: repo.git.push("origin", branch),
+            requested_branch=branch,
+        )
+        assert result.ok is True
+        ok, err = result.repository_state.verify_postcondition(
+            result.post_state, "git_push", branch
+        )
         assert ok is True
         assert err == ""
+
+    def test_push_postcondition_fails_when_remote_ref_differs(
+        self, working_repo: str, push_remote: str
+    ) -> None:
+        """The designed failure case: local HEAD advances past the pushed ref."""
+        repo = git.Repo(working_repo)
+        branch = repo.active_branch.name
+        repo.git.push("origin", branch)
+        (Path(working_repo) / "next.txt").write_text("x")
+        repo.index.add(["next.txt"])
+        repo.index.commit("second")
+        pipeline = WriteProtectionPipeline(RepositoryState.snapshot(working_repo))
+        result = pipeline.run("git_push", lambda: "ok", requested_branch=branch)
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 7"
+        assert result.outcome == CONFIRMED_NOT_APPLIED
+
+    def test_push_postcondition_fails_when_the_branch_cannot_be_determined(
+        self, working_repo: str, push_remote: str
+    ) -> None:
+        """A detached post-state with no requested branch has nothing to compare.
+
+        Stage 5 rejects a detached HEAD before Stage 7 on the normal path, so the
+        branch is reached by calling the postcondition directly on a real detached
+        snapshot.
+        """
+        repo = git.Repo(working_repo)
+        repo.git.checkout(repo.head.commit.hexsha)
+        assert repo.head.is_detached is True
+        post_state = RepositoryState.snapshot(working_repo)
+        ok, err = post_state.verify_postcondition(post_state, "git_push", "")
+        assert ok is False
+        assert "cannot determine the pushed branch" in err
 
     def test_audit_delegates_to_state(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
@@ -296,6 +363,8 @@ class TestGuardIntegration:
     def test_protected_branch_rejected(self) -> None:
         """Protected branch is rejected by verify_authorization (Stage 3)."""
         snap = MagicMock(spec=RepositoryState)
+        # RepositoryState is used through its context-manager form in the code under test.
+        snap.__enter__.return_value = snap
         snap.protected_branch = True
         snap.ref_valid = True
         snap.verify_authorization.return_value = (
@@ -525,24 +594,15 @@ class TestHeadIdentityRecheck:
         assert result.rejected_at_stage == "Stage 5b"
         assert op_called is False
 
-    def test_mocked_repo_never_denies_at_stage_5b(self) -> None:
-        """A snapshot whose repository object is not a real git.Repo skips the live
-        re-read, so test doubles cannot be denied by Stage 5b."""
-        from unittest.mock import MagicMock
+    def test_real_repo_without_drift_is_not_denied_at_stage_5b(
+        self, working_repo: str
+    ) -> None:
+        """Stage 5b passes when the live HEAD identity equals the Stage 3 snapshot.
 
-        from mcp_servers.git.repository_state import RepositoryState
-        from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
-
-        state = RepositoryState(
-            path="/tmp/stage5b-mocked-repo",
-            is_dirty=False,
-            head_type="branch",
-            active_branch="develop",
-            untracked_file_count=0,
-            protected_branch=False,
-            ref_valid=True,
-            _repo=MagicMock(),
-        )
+        The case used a test double, which cannot show drift; it now runs against a
+        real repository so the Stage 5b re-read is exercised.
+        """
+        state = RepositoryState.snapshot(working_repo)
         result = WriteProtectionPipeline(state).run("git_status", lambda: "ok")
         assert result.ok is True
         assert result.output == "ok"
@@ -654,6 +714,7 @@ class TestStage3Authorization:
 
     def _make_mock_state(self, protected_branch=False, ref_valid=True, **kwargs):
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.protected_branch = protected_branch
         snap.ref_valid = ref_valid
         snap.active_branch = kwargs.get("active_branch", "main")
@@ -700,15 +761,24 @@ class TestStage3Authorization:
         assert result.ok is False
         assert len(called) == 0
 
-    def test_pipeline_run_proceeds_to_stage_5_when_auth_passes(self):
-        """When auth passes, pipeline continues to Stage 5 preconditions."""
-        snap = self._make_mock_state(protected_branch=False, ref_valid=True)
-        snap.is_detached_head = False
-        pipeline = WriteProtectionPipeline(snap)
-        # REQ-006: single shared snapshot — run() no longer calls
-        # RepositoryState.snapshot() in-pipeline, so no patch is needed.
+    def test_pipeline_run_proceeds_to_stage_5_when_auth_passes(
+        self, working_repo: str
+    ) -> None:
+        """When auth passes, pipeline continues to Stage 5 preconditions.
+
+        Converted from a test double: Stage 7 captures a fresh post-operation
+        snapshot, so the pipeline needs a real repository path.
+        """
+        state = RepositoryState.snapshot(working_repo)
+        pipeline = WriteProtectionPipeline(state)
         result = pipeline.run("git_status", lambda: "ok")
         assert result.ok is True
+        assert [stage.name for stage in pipeline.stages] == [
+            "Stage 3",
+            "Stage 5",
+            "Stage 5b",
+            "Stage 7",
+        ]
 
     def test_pipeline_run_rejects_invalid_ref(self):
         """Stage 3 blocks execution when ref_valid is False."""
@@ -778,11 +848,13 @@ class TestStage3DestinationProtection:
     def test_unprotected_destination_allowed(self, working_repo: str) -> None:
         from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
+        repo = git.Repo(working_repo)
+        repo.git.branch("develop")
         state = RepositoryState.snapshot(working_repo, protected_branches=["main"])
         pipeline = WriteProtectionPipeline(state)
         result = pipeline.run(
             "git_checkout",
-            lambda: "ok",
+            lambda: str(repo.git.checkout("develop")),
             requested_branch="develop",
             protected_branches=["main"],
         )
@@ -941,38 +1013,181 @@ class TestVerifyAuthorizationRefGuardCharacterization:
 class TestStage7RejectionCharacterization:
     """Characterization: a failed Stage 7 postcondition rejects after the operation."""
 
-    def test_postcondition_failure_rejects_and_is_not_recorded(self) -> None:
-        state = MagicMock(spec=RepositoryState)
-        state.path = "/tmp/stage7"
-        state.head_type = "branch"
-        state.active_branch = "main"
-        state.verify_authorization.return_value = (True, "")
-        state.verify_preconditions.return_value = (True, "")
-        state.verify_postcondition.return_value = (
-            False,
-            "[DENIED] unmerged blobs remain",
-        )
+    def test_postcondition_failure_rejects_and_is_not_recorded(
+        self, working_repo: str
+    ) -> None:
+        """The operation runs, then Stage 7 rejects against the fresh snapshot.
 
-        op_ran = False
+        `git_checkout` is the failing tool here: the operation performs no branch
+        switch, so the post-operation snapshot still shows the pre-operation branch.
+        """
+        state = RepositoryState.snapshot(working_repo)
 
         def _op() -> str:
-            nonlocal op_ran
-            op_ran = True
             return "ok"
 
         pipeline = WriteProtectionPipeline(state)
-        result = pipeline.run("git_pull", _op)
+        result = pipeline.run("git_checkout", _op, requested_branch="develop")
 
-        assert op_ran is True
         assert result.ok is False
         assert result.rejected_at_stage == "Stage 7"
-        assert result.rejection_message == "[DENIED] unmerged blobs remain"
-        assert result.post_state is state
+        assert result.outcome == CONFIRMED_NOT_APPLIED
+        # Stage 7 reads the snapshot captured after the operation, not the caller's.
+        assert result.post_state is not result.repository_state
         assert [stage.name for stage in pipeline.stages] == [
             "Stage 3",
             "Stage 5",
             "Stage 5b",
         ]
+
+
+class TestPerOperationPostconditions:
+    """REQ-006: each tool's Stage 7 branch is verified against a real repository effect."""
+
+    def _run(
+        self,
+        working_repo: str,
+        tool: str,
+        op: Callable[[], str],
+        requested_branch: str = "",
+    ):
+        state = RepositoryState.snapshot(working_repo)
+        return WriteProtectionPipeline(state).run(
+            tool, op, requested_branch=requested_branch
+        )
+
+    def test_add_postcondition_passes_when_a_file_is_staged(
+        self, working_repo: str
+    ) -> None:
+        repo = git.Repo(working_repo)
+
+        def _op() -> str:
+            (Path(working_repo) / "staged.txt").write_text("x")
+            repo.index.add(["staged.txt"])
+            return "staged"
+
+        result = self._run(working_repo, "git_add", _op)
+        assert result.ok is True
+
+    def test_add_postcondition_fails_when_nothing_is_staged(
+        self, working_repo: str
+    ) -> None:
+        result = self._run(working_repo, "git_add", lambda: "ok")
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 7"
+        assert result.outcome == CONFIRMED_NOT_APPLIED
+
+    def test_commit_postcondition_passes_when_head_advances(
+        self, working_repo: str
+    ) -> None:
+        repo = git.Repo(working_repo)
+
+        def _op() -> str:
+            (Path(working_repo) / "c.txt").write_text("x")
+            repo.index.add(["c.txt"])
+            repo.index.commit("second")
+            return "committed"
+
+        result = self._run(working_repo, "git_commit", _op)
+        assert result.ok is True
+
+    def test_commit_postcondition_fails_when_head_is_unchanged(
+        self, working_repo: str
+    ) -> None:
+        result = self._run(working_repo, "git_commit", lambda: "ok")
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 7"
+        assert result.outcome == CONFIRMED_NOT_APPLIED
+
+    def test_commit_postcondition_fails_when_the_author_is_not_the_configured_one(
+        self, working_repo: str
+    ) -> None:
+        """The designed failure case: HEAD advances, but the commit author differs."""
+        repo = git.Repo(working_repo)
+        with repo.config_writer("repository") as writer:
+            writer.set_value("user", "name", "Configured Author")
+
+        def _op() -> str:
+            (Path(working_repo) / "c.txt").write_text("x")
+            repo.index.add(["c.txt"])
+            repo.git.commit(
+                "--author=Someone Else <someone@example.com>", "-m", "second"
+            )
+            return "committed"
+
+        result = self._run(working_repo, "git_commit", _op)
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 7"
+        assert result.outcome == CONFIRMED_NOT_APPLIED
+
+    def test_checkout_postcondition_passes_when_branch_switches(
+        self, working_repo: str
+    ) -> None:
+        repo = git.Repo(working_repo)
+        repo.git.branch("develop")
+
+        def _op() -> str:
+            repo.git.checkout("develop")
+            return "switched"
+
+        result = self._run(
+            working_repo, "git_checkout", _op, requested_branch="develop"
+        )
+        assert result.ok is True
+
+    def test_checkout_postcondition_fails_when_head_stays_on_the_original_branch(
+        self, working_repo: str
+    ) -> None:
+        repo = git.Repo(working_repo)
+        repo.git.branch("develop")
+
+        def _op() -> str:
+            return "no switch"
+
+        result = self._run(
+            working_repo, "git_checkout", _op, requested_branch="develop"
+        )
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 7"
+        assert result.outcome == CONFIRMED_NOT_APPLIED
+
+    def test_pull_postcondition_passes_without_conflicts(
+        self, working_repo: str
+    ) -> None:
+        result = self._run(working_repo, "git_pull", lambda: "up to date")
+        assert result.ok is True
+
+    def test_pull_postcondition_fails_on_unresolved_conflict(
+        self, working_repo: str
+    ) -> None:
+        """Two diverged histories that conflict on the same file leave unmerged blobs."""
+        repo = git.Repo(working_repo)
+        master = repo.active_branch.name
+        path = Path(working_repo) / "conflict.txt"
+        path.write_text("base")
+        repo.index.add(["conflict.txt"])
+        repo.index.commit("base")
+        repo.git.branch("conflicting")
+        path.write_text("ours")
+        repo.index.add(["conflict.txt"])
+        repo.index.commit("ours")
+        repo.git.checkout("conflicting")
+        path.write_text("theirs")
+        repo.index.add(["conflict.txt"])
+        repo.index.commit("theirs")
+        repo.git.checkout(master)
+
+        def _op() -> str:
+            try:
+                repo.git.merge("--no-commit", "conflicting")
+            except git.exc.GitCommandError:
+                pass
+            return "merge conflicted"
+
+        result = self._run(working_repo, "git_pull", _op)
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 7"
+        assert result.outcome == CONFIRMED_NOT_APPLIED
 
 
 _HEAD_DESTINATION_TOOLS = ("git_add", "git_commit")

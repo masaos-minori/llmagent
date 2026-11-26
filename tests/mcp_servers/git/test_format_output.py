@@ -9,10 +9,11 @@ refactor of this module can be verified not to change behavior.
 
 from __future__ import annotations
 
+import signal
+import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-import git
 import pytest
 from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.format_output import (
@@ -56,6 +57,32 @@ def _mock_remote(mock_repo: MagicMock, name: str, url: str = REMOTE_URL) -> None
     remote.name = name
     remote.url = url
     mock_repo.remotes = [remote]
+
+
+def _mock_remote_ref(mock_repo: MagicMock, name: str, branch: str, hexsha: str) -> None:
+    """Configure mock_repo so the push postcondition sees `branch` at `hexsha`."""
+    remote = MagicMock()
+    remote.name = name
+    remote.url = REMOTE_URL
+    ref = MagicMock()
+    ref.name = f"{name}/{branch}"
+    ref.commit.hexsha = hexsha
+    remote.refs = [ref]
+    mock_repo.remotes = [remote]
+    mock_repo.head.commit.hexsha = hexsha
+
+
+def _fake_process(stdout: str = "", stderr: str = "", returncode: int = 0) -> MagicMock:
+    """A stand-in for the process object `subprocess.Popen` returns."""
+    proc = MagicMock()
+    proc.communicate.return_value = (stdout, stderr)
+    proc.returncode = returncode
+    return proc
+
+
+def _snapshot_returns(state: RepositoryState):
+    """Patch the post-operation snapshot so it hands back `state`."""
+    return patch.object(RepositoryState, "snapshot", return_value=state)
 
 
 def _make_state(
@@ -425,39 +452,98 @@ class TestFormatPull:
     def test_real_pull_without_branch(self) -> None:
         mock_repo = MagicMock()
         mock_repo.index.unmerged_blobs.return_value = []
-        mock_repo.git.pull.return_value = "pull output"
         _mock_remote(mock_repo, "origin")
         state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
         )
-        result = format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
-        mock_repo.git.pull.assert_called_once_with("origin")
+        proc = _fake_process(stdout="pull output")
+        with (
+            patch("subprocess.Popen", return_value=proc) as popen,
+            _snapshot_returns(state),
+        ):
+            result = format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        assert list(popen.call_args.args[0]) == ["git", "pull", "origin"]
+        assert popen.call_args.kwargs["cwd"] == REPO_PATH
         assert result == "pull output"
 
     def test_real_pull_with_branch(self) -> None:
         mock_repo = MagicMock()
         mock_repo.index.unmerged_blobs.return_value = []
-        mock_repo.git.pull.return_value = "pull output"
         _mock_remote(mock_repo, "origin")
         state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="develop", dry_run=False
         )
-        format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
-        mock_repo.git.pull.assert_called_once_with("origin", "--", "develop")
+        proc = _fake_process(stdout="pull output")
+        with (
+            patch("subprocess.Popen", return_value=proc) as popen,
+            _snapshot_returns(state),
+        ):
+            format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        # `--` keeps a branch name that starts with '-' from being read as an option.
+        assert list(popen.call_args.args[0]) == [
+            "git",
+            "pull",
+            "origin",
+            "--",
+            "develop",
+        ]
 
     def test_empty_pull_result_reports_up_to_date(self) -> None:
         mock_repo = MagicMock()
         mock_repo.index.unmerged_blobs.return_value = []
-        mock_repo.git.pull.return_value = ""
         _mock_remote(mock_repo, "origin")
         state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
         )
-        result = format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        proc = _fake_process(stdout="")
+        with patch("subprocess.Popen", return_value=proc), _snapshot_returns(state):
+            result = format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
         assert result == "Already up to date."
+
+    def test_pull_timeout_terminates_the_process_group(self) -> None:
+        """AC-3: the deadline kills the group, not only the child process."""
+        mock_repo = MagicMock()
+        mock_repo.index.unmerged_blobs.return_value = []
+        _mock_remote(mock_repo, "origin")
+        state = _make_state(_repo=mock_repo)
+        req = GitPullRequest(
+            repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
+        )
+        proc = _fake_process()
+        proc.communicate.side_effect = subprocess.TimeoutExpired(
+            cmd="git pull", timeout=1
+        )
+        with (
+            patch("subprocess.Popen", return_value=proc) as popen,
+            patch("os.killpg") as killpg,
+        ):
+            with pytest.raises(subprocess.TimeoutExpired):
+                format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL), timeout=1)
+        assert popen.call_args.kwargs["start_new_session"] is True
+        killpg.assert_called_once_with(proc.pid, signal.SIGTERM)
+
+    def test_pull_timeout_survives_a_failed_group_termination(self) -> None:
+        """A group that is already gone must not hide the deadline: the error propagates."""
+        mock_repo = MagicMock()
+        mock_repo.index.unmerged_blobs.return_value = []
+        _mock_remote(mock_repo, "origin")
+        state = _make_state(_repo=mock_repo)
+        req = GitPullRequest(
+            repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
+        )
+        proc = _fake_process()
+        proc.communicate.side_effect = subprocess.TimeoutExpired(
+            cmd="git pull", timeout=1
+        )
+        with (
+            patch("subprocess.Popen", return_value=proc),
+            patch("os.killpg", side_effect=OSError(3, "No such process")),
+        ):
+            with pytest.raises(subprocess.TimeoutExpired):
+                format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL), timeout=1)
 
 
 class TestFormatPostconditionFailures:
@@ -494,17 +580,107 @@ class TestFormatPostconditionFailures:
     def test_pull_postcondition_failure_unresolved_conflicts(self) -> None:
         mock_repo = MagicMock()
         mock_repo.index.unmerged_blobs.return_value = ["conflicted_file.py"]
-        mock_repo.git.pull.return_value = "pull output"
         _mock_remote(mock_repo, "origin")
         state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
         )
-        with pytest.raises(
-            GitServiceError,
-            match=r"pull postcondition failed: unresolved merge conflicts remain",
+        proc = _fake_process(stdout="pull output")
+        with patch("subprocess.Popen", return_value=proc), _snapshot_returns(state):
+            with pytest.raises(
+                GitServiceError,
+                match=r"pull postcondition failed: unresolved merge conflicts remain",
+            ):
+                format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
+
+    def test_push_postcondition_failure_when_the_remote_is_missing(self) -> None:
+        """A post-state that no longer has the pushed remote is a failure, not a pass."""
+        pre_state = _make_state()
+        post_repo = MagicMock()
+        post_repo.remotes = []
+        post_repo.head.commit.hexsha = "abc123"
+        post_state = _make_state(_repo=post_repo)
+        req = GitPushRequest(
+            repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
+        )
+        proc = _fake_process(stdout="push output")
+        with (
+            patch("subprocess.Popen", return_value=proc),
+            _snapshot_returns(post_state),
         ):
-            format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
+            with pytest.raises(
+                GitServiceError,
+                match=r"push postcondition failed",
+            ):
+                format_push(pre_state, req, cfg=_authorized_cfg(REMOTE_URL))
+
+    def test_push_postcondition_failure_when_head_is_unreadable(self) -> None:
+        """An unreadable post-state HEAD is a failure, not a pass."""
+        pre_state = _make_state()
+        post_repo = MagicMock()
+        _mock_remote(post_repo, "origin")
+        post_repo.head.commit.hexsha = None
+        post_state = _make_state(_repo=post_repo)
+        req = GitPushRequest(
+            repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
+        )
+        proc = _fake_process(stdout="push output")
+        with (
+            patch("subprocess.Popen", return_value=proc),
+            _snapshot_returns(post_state),
+        ):
+            with pytest.raises(GitServiceError, match=r"push postcondition failed"):
+                format_push(pre_state, req, cfg=_authorized_cfg(REMOTE_URL))
+
+    def test_push_postcondition_failure_when_no_ref_matches_the_branch(self) -> None:
+        """A remote whose refs do not include the pushed branch is a failure."""
+        pre_state = _make_state()
+        post_repo = MagicMock()
+        remote = MagicMock()
+        remote.name = "origin"
+        remote.url = REMOTE_URL
+        ref = MagicMock()
+        ref.name = "origin/other"
+        ref.commit.hexsha = "abc123"
+        remote.refs = [ref]
+        post_repo.remotes = [remote]
+        post_repo.head.commit.hexsha = "abc123"
+        post_state = _make_state(_repo=post_repo)
+        req = GitPushRequest(
+            repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
+        )
+        proc = _fake_process(stdout="push output")
+        with (
+            patch("subprocess.Popen", return_value=proc),
+            _snapshot_returns(post_state),
+        ):
+            with pytest.raises(GitServiceError, match=r"push postcondition failed"):
+                format_push(pre_state, req, cfg=_authorized_cfg(REMOTE_URL))
+
+    def test_push_postcondition_passes_when_the_post_state_has_no_handle(self) -> None:
+        """A closed snapshot handle cannot be checked, so the branch passes."""
+        pre_state = _make_state()
+        post_state = RepositoryState(
+            path=REPO_PATH,
+            is_dirty=False,
+            head_type="branch",
+            active_branch="main",
+            untracked_file_count=0,
+            protected_branch=False,
+            ref_valid=True,
+            _repo=None,
+        )
+        req = GitPushRequest(
+            repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
+        )
+        proc = _fake_process(stdout="push output")
+        with (
+            patch("subprocess.Popen", return_value=proc),
+            _snapshot_returns(post_state),
+        ):
+            assert format_push(pre_state, req, cfg=_authorized_cfg(REMOTE_URL)) == (
+                "push output"
+            )
 
 
 # ── format_push ────────────────────────────────────────────────────────────────
@@ -521,52 +697,64 @@ class TestFormatPush:
 
     def test_real_push_with_result(self) -> None:
         mock_repo = MagicMock()
-        mock_repo.git.push.return_value = "push output"
-        _mock_remote(mock_repo, "origin")
+        _mock_remote_ref(mock_repo, "origin", "main", "abc123")
         state = _make_state(_repo=mock_repo)
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
         )
-        result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
-        mock_repo.git.push.assert_called_once_with("origin", "--", "main")
+        proc = _fake_process(stdout="push output")
+        with (
+            patch("subprocess.Popen", return_value=proc) as popen,
+            _snapshot_returns(state),
+        ):
+            result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        assert list(popen.call_args.args[0]) == ["git", "push", "origin", "--", "main"]
         assert result == "push output"
 
     def test_empty_push_result_reports_default_message(self) -> None:
         mock_repo = MagicMock()
-        mock_repo.active_branch.name = "main"
-        mock_repo.git.push.return_value = ""
-        _mock_remote(mock_repo, "origin")
+        _mock_remote_ref(mock_repo, "origin", "main", "abc123")
         state = _make_state(active_branch="main", _repo=mock_repo)
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
         )
-        result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        proc = _fake_process(stdout="")
+        with patch("subprocess.Popen", return_value=proc), _snapshot_returns(state):
+            result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
         assert result == "Pushed 'main' to 'origin'"
 
-    def test_push_command_error_propagates(self) -> None:
-        """REQ-001: git.push failure propagates unchanged out of format_push."""
+    def test_push_nonzero_exit_raises_service_error(self) -> None:
+        """A rejected push exits non-zero; the stderr text becomes the rejection message."""
         mock_repo = MagicMock()
-        mock_repo.git.push.side_effect = git.exc.GitCommandError(["git", "push"], 1)
-        _mock_remote(mock_repo, "origin")
+        _mock_remote_ref(mock_repo, "origin", "main", "abc123")
         state = _make_state(_repo=mock_repo)
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
         )
-        with pytest.raises(git.exc.GitCommandError):
-            format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        proc = _fake_process(
+            stderr="remote: ![rejected] 'main' -> 'main' (non-fast-forward)",
+            returncode=1,
+        )
+        with patch("subprocess.Popen", return_value=proc), _snapshot_returns(state):
+            with pytest.raises(GitServiceError, match="non-fast-forward"):
+                format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
 
-    def test_push_rejection_text_returned_unchanged(self) -> None:
-        """REQ-002: rejection-looking push output is returned unchanged."""
-        rejection = "remote: ![rejected] 'main' -> 'main' (non-fast-forward)"
+    def test_push_postcondition_rejects_when_remote_ref_differs(self) -> None:
+        """AC-2: a successful exit is not enough; the remote ref must equal local HEAD."""
         mock_repo = MagicMock()
-        mock_repo.git.push.return_value = rejection
-        _mock_remote(mock_repo, "origin")
+        _mock_remote_ref(mock_repo, "origin", "main", "different-commit")
+        mock_repo.head.commit.hexsha = "abc123"
         state = _make_state(_repo=mock_repo)
         req = GitPushRequest(
             repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
         )
-        result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
-        assert result == rejection
+        proc = _fake_process(stdout="push output")
+        with patch("subprocess.Popen", return_value=proc), _snapshot_returns(state):
+            with pytest.raises(
+                GitServiceError,
+                match=r"push postcondition failed: remote 'origin' does not have 'main'",
+            ):
+                format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
 
 
 # ── Regression tests with real git.Repo ────────────────────────────────────────
@@ -682,11 +870,12 @@ class TestRemoteAuthorization:
     def test_authorized_remote_proceeds(self) -> None:
         mock_repo = MagicMock()
         mock_repo.index.unmerged_blobs.return_value = []
-        mock_repo.git.pull.return_value = "pull output"
-        _mock_remote(mock_repo, "origin", REMOTE_URL)
+        _mock_remote(mock_repo, "origin")
         state = _make_state(_repo=mock_repo)
         req = GitPullRequest(
             repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
         )
-        result = format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        proc = _fake_process(stdout="pull output")
+        with patch("subprocess.Popen", return_value=proc), _snapshot_returns(state):
+            result = format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
         assert result == "pull output"

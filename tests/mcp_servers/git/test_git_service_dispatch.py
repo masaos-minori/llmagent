@@ -13,7 +13,12 @@ validate->open->wrap pattern); they must pass unchanged before and after.
 from __future__ import annotations
 
 import asyncio
+import os
+import shutil
+import sys
 import threading
+import time
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import git
@@ -21,11 +26,20 @@ import pytest
 from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.git_models import GitConfig, GitPullRequest, GitPushRequest
 from mcp_servers.git.git_ref_validation import validate_ref_allowlist, validate_remote
-from mcp_servers.git.git_service import GitService, build_service
+from mcp_servers.git.git_service import GitService, WriteOutcomeError, build_service
 from mcp_servers.git.repository_state import RepositoryState
 from pydantic import ValidationError
+from shared.write_outcome import OUTCOME_UNKNOWN
 
 REMOTE_URL = "https://example.com/repo.git"
+
+
+def _fake_process(stdout: str = "", stderr: str = "", returncode: int = 0) -> MagicMock:
+    """A stand-in for the process object `subprocess.Popen` returns."""
+    proc = MagicMock()
+    proc.communicate.return_value = (stdout, stderr)
+    proc.returncode = returncode
+    return proc
 
 
 def _svc(
@@ -64,6 +78,8 @@ class TestGitLog:
         mock_repo = MagicMock()
         mock_repo.iter_commits.return_value = []
         snap = MagicMock(spec=RepositoryState)
+        # RepositoryState is used through its context-manager form in the code under test.
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -83,6 +99,7 @@ class TestGitLog:
         mock_repo = MagicMock()
         mock_repo.iter_commits.return_value = []
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = True
@@ -115,6 +132,7 @@ class TestGitDiff:
         mock_repo = MagicMock()
         mock_repo.git.diff.return_value = ""
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -134,6 +152,7 @@ class TestGitDiff:
         mock_repo = MagicMock()
         mock_repo.git.diff.return_value = ""
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = True
@@ -167,6 +186,7 @@ class TestGitBranch:
         mock_repo.active_branch.name = "main"
         mock_repo.branches = []
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.active_branch = "main"
@@ -188,6 +208,7 @@ class TestGitBranch:
         mock_repo.active_branch.name = "main"
         mock_repo.branches = []
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.active_branch = "main"
@@ -221,6 +242,7 @@ class TestGitShow:
         mock_repo = MagicMock()
         mock_repo.git.show.return_value = "commit abc123\n\ndiff --git a b"
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -240,6 +262,7 @@ class TestGitShow:
         mock_repo = MagicMock()
         mock_repo.git.show.return_value = "commit abc123\n\ndiff --git a b"
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = True
@@ -280,6 +303,7 @@ class TestGitPull:
         origin.url = "https://example.com/repo.git"
         mock_repo.remotes = [origin]
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap._repo = mock_repo
         snap.is_dirty = False
@@ -307,13 +331,13 @@ class TestGitPull:
         mock_repo = MagicMock()
         mock_repo.is_dirty.return_value = False
         mock_repo.head.is_detached = False
-        mock_repo.git.pull.return_value = "Already up to date."
         mock_repo.index.unmerged_blobs.return_value = []
         origin = MagicMock()
         origin.name = "origin"
         origin.url = "https://example.com/repo.git"
         mock_repo.remotes = [origin]
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap._repo = mock_repo
         snap.is_dirty = False
@@ -322,8 +346,10 @@ class TestGitPull:
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
+        proc = _fake_process(stdout="Already up to date.")
         with (
             patch.object(RepositoryState, "snapshot", return_value=snap),
+            patch("subprocess.Popen", return_value=proc),
         ):
             result = await svc.git_pull(
                 {"repo_path": "/opt/repos/proj", "branch": "main"}
@@ -337,6 +363,7 @@ class TestNetworkWriteToolsRequireConfig:
     @staticmethod
     def _snap(mock_repo: MagicMock) -> MagicMock:
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap._repo = mock_repo
         snap.is_dirty = False
@@ -393,6 +420,7 @@ class TestGitStatus:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -413,6 +441,7 @@ class TestGitStatus:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = True
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = True
@@ -465,6 +494,7 @@ class TestSiblingPathRejection:
         mock_repo = MagicMock()
         mock_repo.iter_commits.return_value = []
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/opt/repos"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -483,6 +513,7 @@ class TestSiblingPathRejection:
         mock_repo = MagicMock()
         mock_repo.iter_commits.return_value = []
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/opt/repos/proj"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -502,6 +533,7 @@ class TestSiblingPathRejection:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -521,6 +553,7 @@ class TestSiblingPathRejection:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -562,6 +595,7 @@ class TestGitCheckoutDenied:
         HEAD conditions a read tool bypasses must still be denied."""
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.is_dirty = True
         snap.is_detached_head = True
@@ -635,6 +669,7 @@ class TestAuditRecordFields:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -654,6 +689,7 @@ class TestAuditRecordFields:
         mock_repo.active_branch.name = "main"
         mock_repo.is_dirty.return_value = False
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.repo = mock_repo
         snap.is_dirty = False
@@ -737,11 +773,10 @@ class TestGitPushRefRejectionBeforeGit:
 class TestGitPushServiceError:
     @pytest.mark.asyncio
     async def test_push_command_error_becomes_service_error(self, tmp_path) -> None:
-        """REQ-003: push error surfaces as GitServiceError naming the tool."""
+        """REQ-003: a non-zero push exit surfaces as GitServiceError naming the tool."""
         repo_dir = tmp_path / "push_repo"
         repo_dir.mkdir()
         mock_repo = MagicMock()
-        mock_repo.git.push.side_effect = git.exc.GitCommandError(["git", "push"], 1)
         origin = MagicMock()
         origin.name = "origin"
         origin.url = REMOTE_URL
@@ -764,9 +799,14 @@ class TestGitPushServiceError:
             allow_detached_head=True,
         )
         svc = build_service(cfg)
+        proc = _fake_process(
+            stderr="fatal: not a git repository (or any of the parent directories): .git",
+            returncode=1,
+        )
         with (
             patch.object(RepositoryState, "snapshot", return_value=state),
-            pytest.raises(GitServiceError, match="git_push failed"),
+            patch("subprocess.Popen", return_value=proc),
+            pytest.raises(GitServiceError, match="push failed"),
         ):
             await svc.git_push(
                 {
@@ -780,6 +820,7 @@ class TestGitPushServiceError:
 def _pull_snap(mock_repo: MagicMock) -> MagicMock:
     """Build a mocked RepositoryState that routes through mock_repo."""
     snap = MagicMock(spec=RepositoryState)
+    snap.__enter__.return_value = snap
     snap.path = "/tmp/repo-offload"
     snap._repo = mock_repo
     snap.is_dirty = False
@@ -791,6 +832,110 @@ def _pull_snap(mock_repo: MagicMock) -> MagicMock:
     return snap
 
 
+def _timeout_svc(cfg: GitConfig) -> GitService:
+    """A GitService built from a config that carries the per-operation timeout."""
+    return GitService(
+        allowed_repo_paths=cfg.allowed_repo_paths,
+        read_only=cfg.read_only,
+        max_log_entries=cfg.max_log_entries,
+        _config=cfg,
+    )
+
+
+def _stub_git(
+    tmp_path: Path, *, apply_marker: bool
+) -> tuple[Path, Path, Path, Path, Path]:
+    """Create a real repository and a blocking stub `git` executable.
+
+    Only `pull` and `push` are stubbed; every other `git` call is handed to the real
+    binary, because GitPython also invokes `git` when it takes the post-operation
+    snapshot. For a stubbed call the script records its own pid — the process-group
+    leader, since the write path starts the child with `start_new_session=True` —
+    optionally applies a marker commit and records that it did, then blocks until
+    `release` appears. The deadline therefore fires while the process is alive, so
+    `os.killpg()` runs against a real process group. Returns
+    `(repo_dir, stub, pid_file, release, applied)`.
+
+    The stub's startup and marker commit must complete before the deadline, so the
+    cases that need the marker to land use a deadline comfortably larger than the
+    stub's setup cost; a short deadline turns the ordering into a race under parallel
+    test execution.
+    """
+    repo_dir = tmp_path / "repo"
+    repo = git.Repo.init(repo_dir)
+    (repo_dir / "f.txt").write_text("x")
+    repo.index.add(["f.txt"])
+    repo.index.commit("init")
+    repo.create_remote("origin", REMOTE_URL)
+    real_git = shutil.which("git")
+    pid_file = tmp_path / "pid"
+    release = tmp_path / "release"
+    applied = tmp_path / "applied"
+    apply_line = (
+        f'    "{real_git}" -C "{repo_dir}" commit -m marker --allow-empty '
+        f"&& touch {applied}\n"
+        if apply_marker
+        else ""
+    )
+    stub = tmp_path / "git"
+    stub.write_text(
+        "#!/bin/sh\n"
+        f'REAL_GIT="{real_git}"\n'
+        'case "$1" in\n'
+        "  pull|push)\n"
+        f"    echo $$ > {pid_file}\n"
+        f"{apply_line}"
+        f"    while [ ! -f {release} ]; do sleep 0.05; done\n"
+        '    echo "stub output"\n'
+        "    ;;\n"
+        "  *)\n"
+        '    exec "$REAL_GIT" "$@"\n'
+        "    ;;\n"
+        "esac\n"
+    )
+    stub.chmod(0o755)
+    return repo_dir, stub, pid_file, release, applied
+
+
+def _stub_path(stub: Path):
+    """Prepend the stub executable's directory to PATH for the duration of a test."""
+    return patch.dict(
+        os.environ, {"PATH": f"{stub.parent}{os.pathsep}{os.environ['PATH']}"}
+    )
+
+
+def _assert_process_group_gone(pid_file: Path) -> None:
+    """Fail unless the stub's recorded process-group pid no longer exists."""
+    for _ in range(50):
+        if pid_file.exists() and pid_file.read_text().strip():
+            break
+        time.sleep(0.02)
+    else:
+        pytest.fail("the stub git never recorded its process-group pid")
+    pid = int(pid_file.read_text().strip())
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return
+    pytest.fail(f"process group {pid} is still alive after the timeout")
+
+
+def _assert_no_thread_still_running_the_write() -> None:
+    """Fail if any alive thread is still inside the subprocess write call.
+
+    The deadline is only real if the thread that started the write is gone: a thread
+    left inside `communicate()` would continue the operation past the deadline.
+    """
+    for thread, frame in sys._current_frames().items():
+        names: list[str] = []
+        current = frame
+        while current is not None:
+            names.append(current.f_code.co_name)
+            current = current.f_back
+        if "communicate" in names or "_run_git_write" in names:
+            pytest.fail(f"thread {thread.name} is still running the write")
+
+
 class TestWriteOffloadAndTimeout:
     """REQ-001 (event-loop offload) + REQ-003 (per-operation timeout)."""
 
@@ -800,24 +945,24 @@ class TestWriteOffloadAndTimeout:
         event-loop thread.
 
         This asserts thread identity directly (the robust discriminator): the
-        slow Git call records the thread it runs on, and that thread must differ
-        from the thread running the event loop. Removing the ``to_thread``
-        dispatch would run the write on the loop thread and fail this assertion.
-        A concurrent health-style coroutine additionally proves the loop stays
-        responsive while the write is blocked in the worker thread.
+        slow `git` subprocess call records the thread its `communicate()` runs
+        on, and that thread must differ from the thread running the event loop.
+        Removing the ``to_thread`` dispatch would run the write on the loop
+        thread and fail this assertion. A concurrent health-style coroutine
+        additionally proves the loop stays responsive while the write is blocked
+        in the worker thread.
         """
         started = threading.Event()
         release = threading.Event()
         seen_threads: list[threading.Thread] = []
 
-        def slow_pull(*_a, **_k) -> str:
+        def slow_communicate(*_a, **_k) -> tuple[str, str]:
             seen_threads.append(threading.current_thread())
             started.set()
             release.wait(timeout=5)
-            return "up to date"
+            return ("up to date", "")
 
         mock_repo = MagicMock()
-        mock_repo.git.pull.side_effect = slow_pull
         mock_repo.index.unmerged_blobs.return_value = []
         origin = MagicMock()
         origin.name = "origin"
@@ -825,13 +970,19 @@ class TestWriteOffloadAndTimeout:
         mock_repo.remotes = [origin]
         snap = _pull_snap(mock_repo)
 
+        proc = _fake_process()
+        proc.communicate.side_effect = slow_communicate
+
         svc = _svc(
             allowed=["/opt/repos"],
             read_only=False,
             allowed_remote_urls=["https://example.com/repo.git"],
         )
 
-        with patch.object(RepositoryState, "snapshot", return_value=snap):
+        with (
+            patch.object(RepositoryState, "snapshot", return_value=snap),
+            patch("subprocess.Popen", return_value=proc),
+        ):
             loop_thread = threading.current_thread()
             task = asyncio.create_task(
                 svc.git_pull({"repo_path": "/opt/repos/proj", "branch": "main"})
@@ -864,42 +1015,122 @@ class TestWriteOffloadAndTimeout:
             await asyncio.wait_for(task, timeout=2.0)
 
     @pytest.mark.asyncio
-    async def test_slow_pull_raises_timeout(self) -> None:
-        release = threading.Event()
-
-        def slow_pull(*_a, **_k) -> str:
-            release.wait(timeout=5)
-            return "up to date"
-
-        mock_repo = MagicMock()
-        mock_repo.git.pull.side_effect = slow_pull
-        mock_repo.index.unmerged_blobs.return_value = []
-        origin = MagicMock()
-        origin.name = "origin"
-        origin.url = "https://example.com/repo.git"
-        mock_repo.remotes = [origin]
-        snap = _pull_snap(mock_repo)
-
+    async def test_pull_timeout_terminates_process_group(self, tmp_path: Path) -> None:
+        """AC-3: the deadline terminates the process group; nothing was applied."""
+        repo_dir, stub, pid_file, release, applied = _stub_git(
+            tmp_path, apply_marker=False
+        )
         cfg = GitConfig(
-            allowed_repo_paths=["/opt/repos"],
+            allowed_repo_paths=[str(repo_dir)],
             read_only=False,
-            allowed_remote_urls=["https://example.com/repo.git"],
-            pull_timeout=0.1,
+            allowed_remote_urls=[REMOTE_URL],
+            pull_timeout=1.0,
         )
-        svc = GitService(
-            allowed_repo_paths=cfg.allowed_repo_paths,
-            read_only=cfg.read_only,
-            max_log_entries=cfg.max_log_entries,
-            _config=cfg,
-        )
+        svc = _timeout_svc(cfg)
 
         with (
-            patch.object(RepositoryState, "snapshot", return_value=snap),
-            pytest.raises(asyncio.TimeoutError),
+            _stub_path(stub),
+            pytest.raises(WriteOutcomeError) as exc_info,
         ):
-            await svc.git_pull({"repo_path": "/opt/repos/proj", "branch": "main"})
-        # Unblock the orphaned worker thread so it does not leak.
-        release.set()
+            await svc.git_pull({"repo_path": str(repo_dir), "branch": "main"})
+
+        assert exc_info.value.outcome == OUTCOME_UNKNOWN
+        # The stub was stopped before it wrote anything: no repository effect.
+        assert not applied.exists()
+        assert git.Repo(str(repo_dir)).head.commit.message.strip() != "marker"
+        _assert_process_group_gone(pid_file)
+        _assert_no_thread_still_running_the_write()
+        release.touch()
+
+    @pytest.mark.asyncio
+    async def test_pull_timeout_near_success_reports_outcome_unknown(
+        self, tmp_path: Path
+    ) -> None:
+        """REQ-003: a timeout after the write landed is still an unknown outcome."""
+        repo_dir, stub, pid_file, release, applied = _stub_git(
+            tmp_path, apply_marker=True
+        )
+        cfg = GitConfig(
+            allowed_repo_paths=[str(repo_dir)],
+            read_only=False,
+            allowed_remote_urls=[REMOTE_URL],
+            pull_timeout=1.0,
+        )
+        svc = _timeout_svc(cfg)
+
+        with (
+            _stub_path(stub),
+            pytest.raises(WriteOutcomeError) as exc_info,
+        ):
+            await svc.git_pull({"repo_path": str(repo_dir), "branch": "main"})
+
+        assert exc_info.value.outcome == OUTCOME_UNKNOWN
+        # The stub applied the marker commit before blocking, so the effect is present.
+        assert applied.exists()
+        assert git.Repo(str(repo_dir)).head.commit.message.strip() == "marker"
+        _assert_process_group_gone(pid_file)
+        _assert_no_thread_still_running_the_write()
+        release.touch()
+
+    @pytest.mark.asyncio
+    async def test_push_timeout_terminates_process_group(self, tmp_path: Path) -> None:
+        """AC-3: the same deadline behavior applies to the push path."""
+        repo_dir, stub, pid_file, release, applied = _stub_git(
+            tmp_path, apply_marker=False
+        )
+        cfg = GitConfig(
+            allowed_repo_paths=[str(repo_dir)],
+            read_only=False,
+            allowed_remote_urls=[REMOTE_URL],
+            push_timeout=1.0,
+        )
+        svc = _timeout_svc(cfg)
+
+        with (
+            _stub_path(stub),
+            pytest.raises(WriteOutcomeError) as exc_info,
+        ):
+            await svc.git_push(
+                {"repo_path": str(repo_dir), "remote": "origin", "branch": "main"}
+            )
+
+        assert exc_info.value.outcome == OUTCOME_UNKNOWN
+        assert not applied.exists()
+        assert git.Repo(str(repo_dir)).head.commit.message.strip() != "marker"
+        _assert_process_group_gone(pid_file)
+        _assert_no_thread_still_running_the_write()
+        release.touch()
+
+    @pytest.mark.asyncio
+    async def test_push_timeout_near_success_reports_outcome_unknown(
+        self, tmp_path: Path
+    ) -> None:
+        """REQ-003: a push that lands then blocks reports an unknown outcome."""
+        repo_dir, stub, pid_file, release, applied = _stub_git(
+            tmp_path, apply_marker=True
+        )
+        cfg = GitConfig(
+            allowed_repo_paths=[str(repo_dir)],
+            read_only=False,
+            allowed_remote_urls=[REMOTE_URL],
+            push_timeout=1.0,
+        )
+        svc = _timeout_svc(cfg)
+
+        with (
+            _stub_path(stub),
+            pytest.raises(WriteOutcomeError) as exc_info,
+        ):
+            await svc.git_push(
+                {"repo_path": str(repo_dir), "remote": "origin", "branch": "main"}
+            )
+
+        assert exc_info.value.outcome == OUTCOME_UNKNOWN
+        assert applied.exists()
+        assert git.Repo(str(repo_dir)).head.commit.message.strip() == "marker"
+        _assert_process_group_gone(pid_file)
+        _assert_no_thread_still_running_the_write()
+        release.touch()
 
 
 class TestDestinationBasedProtection:
@@ -988,6 +1219,7 @@ class TestGitPullPushBranchRequired:
         """REQ-006: checkout postcondition failure message includes resulting state."""
         svc = _svc(allowed=["/opt/repos"], read_only=False)
         snap = MagicMock(spec=RepositoryState)
+        snap.__enter__.return_value = snap
         snap.path = "/tmp/repo"
         snap.is_dirty = False
         snap.head_type = "detached"
@@ -1026,6 +1258,7 @@ class TestGitPullPushBranchRequired:
         mock_cfg.allowed_remote_urls = ["https://example.com/repo.git"]
 
         mock_state = MagicMock()
+        mock_state.__enter__.return_value = mock_state
         mock_state._repo = MagicMock()
         mock_state._repo.git.pull.return_value = "Already up to date."
         mock_state._repo.index.unmerged_blobs.return_value = []
@@ -1038,7 +1271,12 @@ class TestGitPullPushBranchRequired:
             repo_path="/opt/repos/proj", remote="origin", branch="main"
         )
 
-        result = format_pull(mock_state, req, mock_cfg)
+        proc = _fake_process(stdout="Already up to date.")
+        with (
+            patch("subprocess.Popen", return_value=proc),
+            patch.object(RepositoryState, "snapshot", return_value=mock_state),
+        ):
+            result = format_pull(mock_state, req, mock_cfg)
         assert result == "Already up to date."
         # Verify the mock_cfg was used (not GitConfig.load())
         assert mock_cfg.allowed_remote_urls == ["https://example.com/repo.git"]
@@ -1052,18 +1290,28 @@ class TestGitPullPushBranchRequired:
         mock_cfg.allowed_remote_urls = ["https://example.com/repo.git"]
 
         mock_state = MagicMock()
+        mock_state.__enter__.return_value = mock_state
         mock_state._repo = MagicMock()
-        mock_state._repo.git.push.return_value = "Pushed 'main' to 'origin'"
         origin = MagicMock()
         origin.name = "origin"
         origin.url = "https://example.com/repo.git"
+        ref = MagicMock()
+        ref.name = "origin/main"
+        ref.commit.hexsha = "abc123"
+        origin.refs = [ref]
         mock_state._repo.remotes = [origin]
+        mock_state._repo.head.commit.hexsha = "abc123"
 
         req = GitPushRequest(
             repo_path="/opt/repos/proj", remote="origin", branch="main"
         )
 
-        result = format_push(mock_state, req, mock_cfg)
+        proc = _fake_process(stdout="Pushed 'main' to 'origin'")
+        with (
+            patch("subprocess.Popen", return_value=proc),
+            patch.object(RepositoryState, "snapshot", return_value=mock_state),
+        ):
+            result = format_push(mock_state, req, mock_cfg)
         assert result == "Pushed 'main' to 'origin'"
         # Verify the mock_cfg was used (not GitConfig.load())
         assert mock_cfg.allowed_remote_urls == ["https://example.com/repo.git"]

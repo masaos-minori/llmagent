@@ -6,11 +6,15 @@ set, and the write-audit field contract.
 
 from __future__ import annotations
 
+from typing import get_args
+
 import pytest
 from shared.write_outcome import (
     APPLIED_AUDIT_FAILED,
+    CONFIRMED_NOT_APPLIED,
     NO_AUTO_RETRY_OUTCOMES,
     OUTCOME_UNKNOWN,
+    WriteOutcome,
     build_write_audit_fields,
 )
 
@@ -18,6 +22,12 @@ from shared.write_outcome import (
 def test_constants_match_the_vocabulary() -> None:
     assert OUTCOME_UNKNOWN == "outcome_unknown"
     assert APPLIED_AUDIT_FAILED == "applied_audit_failed"
+    assert CONFIRMED_NOT_APPLIED == "confirmed-not-applied"
+
+
+def test_confirmed_not_applied_is_a_vocabulary_member_and_is_retryable() -> None:
+    assert CONFIRMED_NOT_APPLIED in get_args(WriteOutcome)
+    assert CONFIRMED_NOT_APPLIED not in NO_AUTO_RETRY_OUTCOMES
 
 
 def test_no_auto_retry_set_contains_both_outcomes() -> None:
