@@ -24,6 +24,7 @@ Derive per-server post-shutdown state from termination outcomes, reject invalid 
 - `_set_state` (`:174`): on `assert_valid_transition` failure, log and return without the assignment at `:196`.
 - `shutdown_all` (`:275`): replace the global `STOPPED` loop (`:281-282`) with per-server states from the returned outcomes (`STOPPED` confirmed, `EXIT_UNCONFIRMED`, `SIGNAL_NOT_DELIVERED`).
 - `ensure_ready` (`:238`, silent return at `:240-244`) and `restart` (`:312`, silent return at `:314-318`): raise `EnsureSuppressedError` (new) / `RestartSuppressedError` (new) after the existing log.
+- `start_http_subprocess` (`:114`): rewire the `_http_mgr._http_procs.get(server_key)` return (`:121`, verified 2026-11-26) to the record registry — return `record.process` from `_records`, or None when no record exists (row 03 removed the dicts).
 
 ### Method
 Three localized changes in the router; the state mapping reads the coordinator's per-server outcomes (row 04) through the record (row 02).
@@ -60,10 +61,10 @@ Three localized changes in the router; the state mapping reads the coordinator's
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion row 16; test_lifecycle.py is its own row (11) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs rows 19-23 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-134500 | 20261126-140500 | Changed files: scripts/agent/lifecycle_router.py; scripts/agent/lifecycle.py (verification correction: STARTING -> EXIT_UNCONFIRMED/SIGNAL_NOT_DELIVERED added to _VALID_TRANSITIONS, required by the restart-refusal mapping in this row's Details; recorded in row 01 Notes too); tests/agent/test_startup_mcp_starter.py (fallout fix: _real_router_ctx retargeted to _records because this row rewires start_http_subprocess) |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-140500 | 20261126-141000 | Companion row 16; test_lifecycle.py is its own row (11) Companion row 16: tests/agent/test_agent_factory.py updated - TestRouterInvalidTransitionLogging asserts no mutation (STOPPED->STOPPING stays STOPPED); shutdown-guard tests assert EnsureSuppressedError/RestartSuppressedError; fixtures retargeted to _records with shutdown_all return_value=[]; 57 passed; test_startup_mcp_starter.py 16 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-141100 | 20261126-133051 | Fast gates pass (ruff/format/mypy/lint-imports/bandit -ll/check_module_size/check_docstrings). Allowed red (Failure Log, unchanged set): dict-pinned tests test_http_lifecycle.py (row 12), test_http_lifecycle_integration.py (row 14), test_lifecycle.py (row 11), test_startup_mcp_lifecycle.py (amended 22), test_http_lifecycle_warning.py (amended 23). Full-suite run at end of batch End-of-batch full-suite run: 15103 passed, 5 skipped; coverage xml + diff-cover --compare-branch=master --fail-under=90: 93% (99 new lines, 6 missing). Allowed-red set fully retired |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Docs rows 19-23 N/A: docs covered by rows 19-23 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

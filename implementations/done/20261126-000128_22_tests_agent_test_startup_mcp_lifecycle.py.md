@@ -7,14 +7,14 @@ Keep the startup-orchestrator regression test driving a real `HttpServerLifecycl
 
 ## Assumptions
 
-- `_records` (new) and `set_termination_outcome` (new) come from row 3; `ManagedProcessRecord` with `failed_start` and `last_outcome` (new) from row 2.
+- `_records` (new) comes from row 3; `ManagedProcessRecord` with `failed_start` and `last_outcome` (new) from row 2. (Corrected 2026-11-26 during execution: there is no `set_termination_outcome` API; the outcome lives on `record.last_outcome`, set via `settle()` or `_raise_startup_failure_unconfirmed`.)
 - The test's intent is unchanged: `test_unconfirmed_first_failure_raises_not_records_spawn` (`:281-361`) pins that an unconfirmed first attempt ends in `HttpStartupError` and a retained process, not in a recorded spawn.
 - `startup._mcp_starter._spawned_subprocesses == []` (`:352`) and the terminator-window assertions (`:356-360`) are unrelated to the dicts and stay as they are.
 
 ## Design decisions
 
 - Simulate the launcher by installing a record, not by patching the manager's internals: `_fake_create` (`:304-308`) stands in for `create_and_validate_proc`, which row 5 makes the registration point, so the fake must produce the same object the real launcher produces.
-- Assert retention through one record (`record.proc`, `record.failed_start`, `record.last_outcome`) instead of two dict lookups, which is the point of REQ-001.
+- Assert retention through one record (`record.process`, `record.failed_start`, `record.last_outcome`) instead of two dict lookups, which is the point of REQ-001.
 
 ## Alternatives considered
 
@@ -32,15 +32,15 @@ Three edits inside one test function plus two new imports; the other 20 tests in
 
 ### Details
 
-- `_fake_create` becomes: `mgr._records[server_key] = ManagedProcessRecord(server_key=server_key, proc=fake_proc, pid=fake_proc.pid, pgid=99001, state=LifecycleState.RUNNING)` and still returns `(fake_proc, MagicMock())` for the stderr handle.
-- `_start_http_subprocess` returns `record.proc if (record := mgr._records.get(server_key)) is not None else None`, keeping the "no process returned" contract the starter already handles (`test_no_process_returned_does_not_append` at `:158`).
-- Retention assertions become: `record = mgr._records.get("web")`; `record is not None`; `record.proc is fake_proc`; `record.failed_start is True`; `record.last_outcome is TerminationOutcome.EXIT_UNCONFIRMED` — the last one holds because `_fake_health` calls `_raise_startup_failure_unconfirmed` (`:318-321`) with the terminator patched to `EXIT_UNCONFIRMED` (`:344-346`).
+- `_fake_create` becomes: `mgr._records[server_key] = ManagedProcessRecord(process=fake_proc, pid=fake_proc.pid, pgid=99001, stderr_log=None, state=LifecycleState.RUNNING)` and still returns `(fake_proc, MagicMock())` for the stderr handle. (Corrected 2026-11-26: the dataclass has no `server_key`/`proc` fields; the process field is `process`.)
+- `_start_http_subprocess` returns `record.process if (record := mgr._records.get(server_key)) is not None else None`, keeping the "no process returned" contract the starter already handles (`test_no_process_returned_does_not_append` at `:158`).
+- Retention assertions become: `record = mgr._records.get("web")`; `record is not None`; `record.process is fake_proc`; `record.failed_start is True`; `record.last_outcome is TerminationOutcome.EXIT_UNCONFIRMED` — the last one holds because `_raise_startup_failure_unconfirmed` records the outcome on the retained record (default `EXIT_UNCONFIRMED` when the caller passes none), as called from `_fake_health` (`:318-321`) and the retry's re-termination path.
 - Add `from agent.http_lifecycle_process_record import ManagedProcessRecord` and `from agent.lifecycle import LifecycleState` to the import block (`:15-27`); `TerminationOutcome` is already imported (`:16-20`).
 
 ## Compatibility considerations
 
 - Phase-coupled with row 3: this file must be retargeted in the same phase that removes the dicts, otherwise the suite breaks between the two commits. Rows 5 and 6 drive the same startup path, so their validation runs must stay green alongside it.
-- The starter-side private-dict assignments in `tests/agent/test_startup_mcp_starter.py:280-291` and `tests/agent/test_agent_factory.py:433,490` are on mock objects and stay untouched (Plan Design, Predictable fallout).
+- Corrected 2026-11-26 (row 06 verification): the starter-side private-dict assignments are NOT inert — `tests/agent/test_startup_mcp_starter.py` `_real_router_ctx` drives the real router, whose `start_http_subprocess` now reads `_records` (row 06), so its fake manager was retargeted to `_records` with a `ManagedProcessRecord` during row 06's cycle; `tests/agent/test_agent_factory.py:433,490` fixtures were likewise retargeted to `_records = {}` because AsyncMock's auto-created `_records.get` returned a coroutine against the rewired router.
 
 ## Security considerations
 
@@ -70,10 +70,10 @@ Revert this row together with rows 2 and 3: the record type and registry are wha
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-132000 | 20261126-132049 | _fake_create installs a ManagedProcessRecord; _start_http_subprocess reads record.process; retention asserted through one record; stale API refs corrected in this doc |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-132000 | 20261126-132049 | Existing test rewritten in place; no new tests required by the procedure |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-132100 | 20261126-132049 | pytest 21 passed; ruff check/format clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Test-only row; docs covered by rows 19-23 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

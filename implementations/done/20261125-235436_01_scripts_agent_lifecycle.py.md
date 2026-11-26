@@ -7,7 +7,7 @@ Add the outcome states `STOPPING` (new), `EXIT_UNCONFIRMED` (new), `SIGNAL_NOT_D
 
 ## Assumptions
 - No test pins the `LifecycleState` member count (verified in the Plan's Step 5 predictable-fallout check), so adding members is additive.
-- The invalid pairs pinned by `tests/agent/test_lifecycle.py:685-696` (`FAILED -> RUNNING`, `STOPPED -> RUNNING`) stay invalid.
+- The invalid pairs pinned by `tests/agent/test_lifecycle.py:698-713` (`FAILED -> RUNNING`, `STOPPED -> RUNNING`) stay invalid.
 
 ## Design decisions
 - The new members are transport-layer outcome states mirroring the existing `TerminationOutcome` vocabulary (`scripts/agent/http_lifecycle_errors.py:46`); the enum itself does not import the errors module.
@@ -29,9 +29,10 @@ Literal enum extension plus dict-literal entries; no behavior change in `assert_
 ### Details
 - Keep the existing entries unchanged; add `RUNNING` -> `STOPPING` (new) to the `RUNNING` entry, add a `STOPPING` (new) entry, and add entries for the three unconfirmed states.
 - Do not add self-transitions for the unconfirmed states beyond the re-termination path (`EXIT_UNCONFIRMED -> STARTING`), which the coordinator's repeated shutdown uses.
+- Update the `LifecycleState` class docstring transition list (`:18-24`) to include the new states and transitions (verification finding: the docstring enumerates the valid transitions and would go stale otherwise).
 
 ## Compatibility considerations
-- Additive enum members: consumers that switch on state values (`scripts/agent/services/mcp_status.py:146`) get new branches in Phase 5; no existing value changes.
+- Additive enum members: consumers that switch on state values (`scripts/agent/services/mcp_status.py:149`) get new branches in Phase 5; no existing value changes.
 
 ## Security considerations
 - N/A: no security-sensitive behavior in a state enum.
@@ -54,10 +55,10 @@ Literal enum extension plus dict-literal entries; no behavior change in `assert_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests written first in Phase 1 (REQ-011) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs rows cover the state-machine description |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-113956 | 20261126-114500 | Changed files: scripts/agent/lifecycle.py, tests/agent/test_lifecycle.py Correction 20261126 (row 06 verification): _VALID_TRANSITIONS additionally allows STARTING -> EXIT_UNCONFIRMED/SIGNAL_NOT_DELIVERED; the restart-refusal mapping required by row 06 has no other legal entry path into the outcome states |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-114100 | 20261126-115200 | Tests written first in Phase 1 (REQ-011) targeted testmon run: 134 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-114400 | 20261126-133051 | Fast gates pass (ruff/mypy/lint-imports/bandit/run_validation_gates); full-suite run at end of plan batch End-of-batch full-suite run: 15103 passed, 5 skipped; coverage xml + diff-cover --compare-branch=master --fail-under=90: 93% (99 new lines, 6 missing). Allowed-red set fully retired |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Docs rows cover the state-machine description N/A: docs updates handled by Phase 6 procedures 19-23 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -24,7 +24,7 @@ Stop deleting the process entry before termination; settle cleanup and state per
 Remove the pre-termination `remove_process_entry` call at `:210-211`; after termination, release the record only when `outcome.confirmed` (`:134-147` already gates `cleanup_server_key` on confirmation); on unconfirmed outcomes retain the record and keep the manual-cleanup log (`:138-146`). Add the repeated-shutdown pass that re-terminates retained records.
 
 ### Method
-Call-path change: the coordinator operates on `manager._records` entries instead of `manager._http_procs`; the per-server outcome-to-state mapping is delegated to the record settling helper (row 02).
+Call-path change: the coordinator operates on `manager._records` entries instead of `manager._http_procs`; the per-server outcome-to-state mapping is delegated to the record settling helper (row 02). Verified 2026-11-26: the record module (`scripts/agent/http_lifecycle_process_record.py`) has no settling helper yet; this procedure adds `settle(outcome)` to it (unit-internal companion edit, recorded in this row's Notes): it sets `last_outcome`, maps a confirmed outcome to `STOPPED` and an unconfirmed one to `EXIT_UNCONFIRMED`, and returns whether the record may be released.
 
 ### Details
 - `shutdown_all` (`:149`) iterates records, not configured-server dicts, so retained unconfirmed servers are visible and re-terminatable.
@@ -59,10 +59,10 @@ Call-path change: the coordinator operates on `manager._records` entries instead
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion row 13 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs rows 19-23 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-125500 | 20261126-131000 | Changed files: scripts/agent/http_lifecycle_shutdown_coordinator.py; companion unit-internal edit: scripts/agent/http_lifecycle_process_record.py (settle helper added per this row's Method) |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-131000 | 20261126-131500 | Companion row 13 Companion row 13: tests/agent/test_http_lifecycle_shutdown_coordinator.py rewritten on records; no-pre-termination-removal, per-server outcome, repeated-shutdown, spent-budget pins added; 17 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-131600 | 20261126-133051 | Fast gates pass (ruff/format/mypy/lint-imports/bandit -ll/check_module_size/check_docstrings); companion tests 17 passed. Allowed red (Failure Log, unchanged set from row 03): launcher records= kwarg TypeError (row 05), dict-pinned tests in test_lifecycle.py (row 11), test_http_lifecycle.py (row 12), test_http_lifecycle_integration.py (row 14), test_startup_mcp_lifecycle.py (amended 22), test_http_lifecycle_warning.py (amended 23). Full-suite run at end of batch End-of-batch full-suite run: 15103 passed, 5 skipped; coverage xml + diff-cover --compare-branch=master --fail-under=90: 93% (99 new lines, 6 missing). Allowed-red set fully retired |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Docs rows 19-23 N/A: docs covered by rows 19-23 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

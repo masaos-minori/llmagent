@@ -72,10 +72,10 @@ Revert this row together with row 3: the patch removal only makes sense once `_h
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-132200 | 20261126-132142 | _http_pgids patch removed; killpg branch driven via proc_mock.pid=4242 + os.getpgid patch; killpg-failure warning line asserted |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-132200 | 20261126-132142 | Existing test rewritten in place; other three tests untouched |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-132300 | 20261126-132142 | pytest 3 passed; ruff check/format clean; check_mock_patch_targets: no findings |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Test-only row; docs covered by rows 19-23 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -50,8 +50,8 @@ One field; the value is the `TerminationOutcome` enum value string, set by `_bui
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-122500 | 20261126-122700 | Changed files: scripts/agent/services/models.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-122800 | 20261126-133051 | Fast gates pass; Validation-plan tests 102 passed; testmon 7 passed; full-suite run at end of batch End-of-batch full-suite run: 15103 passed, 5 skipped; coverage xml + diff-cover --compare-branch=master --fail-under=90: 93% (99 new lines, 6 missing). Allowed-red set fully retired |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

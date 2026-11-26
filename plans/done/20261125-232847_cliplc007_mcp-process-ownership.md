@@ -275,13 +275,13 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first pinning every confirmed defect | In Progress | — | — | Expected to fail until Phases 3-4 land (release unit R3-ownership) |
-| 2 | Phase 2: state vocabulary and transition enforcement | In Progress | — | — | scripts/agent/lifecycle.py, scripts/agent/lifecycle_router.py |
-| 3 | Phase 3: record ownership across shutdown, PGID failure, repeated shutdown | In Progress | — | — | scripts/agent/http_lifecycle_process_record.py, scripts/agent/http_lifecycle.py, scripts/agent/http_lifecycle_shutdown_coordinator.py, scripts/agent/http_lifecycle_subprocess_launcher.py, scripts/agent/lifecycle_router.py |
-| 4 | Phase 4: restart confirmation and shutdown suppression | In Progress | — | — | scripts/agent/http_lifecycle_errors.py, scripts/agent/http_lifecycle.py, scripts/agent/lifecycle_router.py, scripts/agent/lifecycle_protocol.py |
-| 5 | Phase 5: observability (snapshot field, /mcp status mapping) | In Progress | — | — | scripts/agent/services/models.py, scripts/agent/services/mcp_status.py |
-| 6 | Phase 6: documentation and generated artifacts | In Progress | — | — | docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md, docs/23_agent/agent_02_runtime-architecture.md, docs/23_agent/agent_13_reference-api-generated.md, docs/23_agent/agent_14_reference-api-subpackages-generated.md, registry/manifests/agent_api.yaml |
-| 7 | Phase 7: Deployment & Verification | Pending | — | — | Hand-off to `skills/deploy/SKILL.md` after commit+push; deploying is the user's decision |
+| 1 | Phase 1: tests first pinning every confirmed defect | Completed | — | 20261126-133608 | Expected to fail until Phases 3-4 land (release unit R3-ownership) Procedures 11,12,14,22(20261126),23(20261126) landed; tests-first pins green after R3-ownership |
+| 2 | Phase 2: state vocabulary and transition enforcement | Completed | — | 20261126-133608 | scripts/agent/lifecycle.py, scripts/agent/lifecycle_router.py Procedures 01,06 landed (states, transition enforcement) |
+| 3 | Phase 3: record ownership across shutdown, PGID failure, repeated shutdown | Completed | — | 20261126-133608 | scripts/agent/http_lifecycle_process_record.py, scripts/agent/http_lifecycle.py, scripts/agent/http_lifecycle_shutdown_coordinator.py, scripts/agent/http_lifecycle_subprocess_launcher.py, scripts/agent/lifecycle_router.py Procedures 02,03,04,05,06,22(20261126),23(20261126) landed (record ownership) |
+| 4 | Phase 4: restart confirmation and shutdown suppression | Completed | — | 20261126-133608 | scripts/agent/http_lifecycle_errors.py, scripts/agent/http_lifecycle.py, scripts/agent/lifecycle_router.py, scripts/agent/lifecycle_protocol.py Procedures 03,06,07,08 landed (restart refusal, suppression errors, protocol) |
+| 5 | Phase 5: observability (snapshot field, /mcp status mapping) | Completed | — | 20261126-133608 | scripts/agent/services/models.py, scripts/agent/services/mcp_status.py Procedures 09,10 landed (snapshot field, /mcp status mapping) |
+| 6 | Phase 6: documentation and generated artifacts | Completed | — | 20261126-133608 | docs/22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md, docs/23_agent/agent_02_runtime-architecture.md, docs/23_agent/agent_13_reference-api-generated.md, docs/23_agent/agent_14_reference-api-subpackages-generated.md, registry/manifests/agent_api.yaml Procedures 19-23 landed; generated artifacts regenerated, --check no drift |
+| 7 | Phase 7: Deployment & Verification | Pending | — | 20261126-133608 | Hand-off to `skills/deploy/SKILL.md` after commit+push; deploying is the user's decision Full validation run: ruff/mypy/gates clean, full suite 15103 passed, diff-cover 93% >= 90. Deploy hand-off remains the user's decision Validation commands already run green (full suite 15103 passed, diff-cover 93%). Deploy hand-off after commit+push remains the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -292,26 +292,26 @@ with the Plan's actual steps once Implementation steps are broken down):
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
-| 20261125-235436_01_scripts_agent_lifecycle.py.md | 2 | Procedure | Pending | — | — |
-| 20261125-235436_02_scripts_agent_http_lifecycle_process_record.py.md | 3 | Procedure | Pending | — | — |
-| 20261125-235436_03_scripts_agent_http_lifecycle.py.md | 3, 4 | Procedure | Pending | — | — |
-| 20261125-235436_04_scripts_agent_http_lifecycle_shutdown_coordinator.py.md | 3 | Procedure | Pending | — | — |
-| 20261125-235436_05_scripts_agent_http_lifecycle_subprocess_launcher.py.md | 3 | Procedure | Pending | — | — |
-| 20261125-235436_06_scripts_agent_lifecycle_router.py.md | 2, 3, 4 | Procedure | Pending | — | — |
-| 20261125-235436_07_scripts_agent_lifecycle_protocol.py.md | 4 | Procedure | Pending | — | — |
-| 20261125-235436_08_scripts_agent_http_lifecycle_errors.py.md | 4 | Procedure | Pending | — | — |
-| 20261125-235436_09_scripts_agent_services_models.py.md | 5 | Procedure | Pending | — | — |
-| 20261125-235436_10_scripts_agent_services_mcp_status.py.md | 5 | Procedure | Pending | — | — |
-| 20261125-235436_11_tests_agent_test_lifecycle.py.md | 1 | Procedure | Pending | — | — |
-| 20261125-235436_12_tests_agent_test_http_lifecycle.py.md | 1 | Procedure | Pending | — | — |
-| 20261125-235436_14_tests_agent_test_http_lifecycle_integration.py.md | 1 | Procedure | Pending | — | — |
-| 20261125-235436_19_docs_22_mcp_mcp_03_04_tool-call-tracing-and-lifecycle.md.md | 6 | Procedure | Pending | — | — |
-| 20261125-235436_20_docs_23_agent_agent_02_runtime-architecture.md.md | 6 | Procedure | Pending | — | — |
-| 20261125-235436_21_docs_23_agent_agent_13_reference-api-generated.md.md | 6 | Procedure | Pending | — | — |
-| 20261125-235436_22_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 6 | Procedure | Pending | — | — |
-| 20261125-235436_23_registry_manifests_agent_api.yaml.md | 6 | Procedure | Pending | — | — |
-| 20261126-000128_22_tests_agent_test_startup_mcp_lifecycle.py.md | 3 | Procedure | Pending | — | — |
-| 20261126-000128_23_tests_agent_test_http_lifecycle_warning.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261125-235436_01_scripts_agent_lifecycle.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261125-235436_02_scripts_agent_http_lifecycle_process_record.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-235436_03_scripts_agent_http_lifecycle.py.md | 3, 4 | Procedure | Completed | — | — |
+| implementations/20261125-235436_04_scripts_agent_http_lifecycle_shutdown_coordinator.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-235436_05_scripts_agent_http_lifecycle_subprocess_launcher.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261125-235436_06_scripts_agent_lifecycle_router.py.md | 2, 3, 4 | Procedure | Completed | — | — |
+| implementations/20261125-235436_07_scripts_agent_lifecycle_protocol.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-235436_08_scripts_agent_http_lifecycle_errors.py.md | 4 | Procedure | Completed | — | — |
+| implementations/20261125-235436_09_scripts_agent_services_models.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-235436_10_scripts_agent_services_mcp_status.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261125-235436_11_tests_agent_test_lifecycle.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-235436_12_tests_agent_test_http_lifecycle.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-235436_14_tests_agent_test_http_lifecycle_integration.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261125-235436_19_docs_22_mcp_mcp_03_04_tool-call-tracing-and-lifecycle.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-235436_20_docs_23_agent_agent_02_runtime-architecture.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-235436_21_docs_23_agent_agent_13_reference-api-generated.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-235436_22_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261125-235436_23_registry_manifests_agent_api.yaml.md | 6 | Procedure | Completed | — | — |
+| implementations/20261126-000128_22_tests_agent_test_startup_mcp_lifecycle.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-000128_23_tests_agent_test_http_lifecycle_warning.py.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -50,8 +50,8 @@ Generator run, not an edit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Generator run, not a hand edit |
-| 3 | Run the validation sequence (`rules/tool-gates.md` generated-block check) | Pending | — | — | `generate_reference_table.py --check` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-133000 | 20261126-132632 | Generator run, not a hand edit generate_reference_table.py --manifests --type agent regenerated agent_api.yaml: ShutdownSuppressedError/EnsureSuppressedError/RestartSuppressedError/RestartBlockedError and ManagedProcessRecord added |
+| 3 | Run the validation sequence (`rules/tool-gates.md` generated-block check) | Completed | 20261126-133100 | 20261126-132632 | `generate_reference_table.py --check` generate_reference_table.py --check: No drift found (exit 0) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -30,6 +30,7 @@ Mechanical dict-to-record substitution plus one new refusal branch; the terminat
 - `restart()` currently clears tracking at `:398`, pops at `:399-400`, logs only on unconfirmed exit (`:406-412`), pops pgid at `:413`, then starts at `:414`; the new branch raises after the unconfirmed log and skips `start()`.
 - `_build_snapshot` returns None once the entry is popped (`:191-193`); with retained records it must build the snapshot from the record, including the outcome field added by row 09.
 - `remove_process_entry` (`:174-175`) loses its pre-termination callers (row 04); keep it only as the post-confirmation release helper or fold it into the record release, per row 04's procedure.
+- Verified 2026-11-26: `iter_processes` (`:228`, yields `(key, proc)`) has exactly one scripts consumer (`ShutdownCoordinator.shutdown_all` `:207`); this row renames it to `iter_records` yielding `(key, ManagedProcessRecord)`, and the coordinator call site is rewired by row 04. `lifecycle_router.py:121` (`_http_mgr._http_procs.get`) is the only other scripts consumer of the removed dicts; its rewiring is recorded in row 06's procedure.
 
 ## Compatibility considerations
 - `ProcessInfoSnapshot` gains the outcome field in row 09 (defaulted, 19 importers unaffected); `_build_snapshot` sets it.
@@ -57,10 +58,10 @@ Mechanical dict-to-record substitution plus one new refusal branch; the terminat
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion rows 12, 14 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs rows 19-23 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-123500 | 20261126-124500 | Changed files: scripts/agent/http_lifecycle.py |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Companion rows 12, 14 N/A: companion rows 12, 14 write the record-ownership and retained-visibility tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-124600 | 20261126-133051 | Fast gates pass (ruff/format/lint-imports/bandit -ll/check_module_size/check_docstrings). Allowed red (Failure Log): mypy call-arg records= at :101 and 41 TypeError + 27 test errors from SubprocessLauncher.__init__ (symbol created by row 05); test_lifecycle.py 11 failures pin removed dicts (retargeted by row 11); test_http_lifecycle.py (row 12), test_http_lifecycle_integration.py (row 14), test_startup_mcp_lifecycle.py (amended 22), test_http_lifecycle_warning.py (amended 23) pin the dicts; coordinator iter_processes call site (row 04 rewires); router :121 (row 06 rewires). Plan Release units: suite expected red until R3-ownership lands. Full-suite run at end of batch End-of-batch full-suite run: 15103 passed, 5 skipped; coverage xml + diff-cover --compare-branch=master --fail-under=90: 93% (99 new lines, 6 missing). Allowed-red set fully retired |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Docs rows 19-23 N/A: docs covered by rows 19-23 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -20,17 +20,17 @@ Retain the process record after a `getpgid()` failure unless the exit is confirm
 `scripts/agent/http_lifecycle_subprocess_launcher.py`
 
 ### Procedure
-In `handle_getpgid_failure` (`:126`), replace the unconditional pops at `:165-166` with the record release gated on `outcome.confirmed`; change the unconfirmed log (`:151`) to name the pid from the record and state that the record is retained.
+In `handle_getpgid_failure` (verified 2026-11-26: `:142`), replace the unconditional pops at `:181-182` with the record release gated on `outcome.confirmed`; change the unconfirmed log (`:166-172`) to name the pid from the record and state that the record is retained. Register the record (pgid `None`) before the termination attempt so the retained path has an entry to keep.
 
 ### Method
 Condition-flip on the existing termination branch; the stderr release stays unconditional (docstring at `:134-136` already releases stderr regardless of outcome — keep it, stderr is not process ownership).
 
 ### Details
-- `pgid` population stays at `:114` on the success path; on failure the record's `pgid` remains `None` and the log must not print a stale dict value.
+- `pgid` population stays on the success path (verified 2026-11-26: `:130`); on failure the record's `pgid` remains `None` and the log must not print a stale dict value.
 - The manual-cleanup sentence keeps the `kill -TERM -<pgid>` form only when a pgid exists; otherwise it names the pid alone (maintainer decision 2026-11-25: no new command).
 
 ## Compatibility considerations
-- The launcher's public signature is unchanged; only the tracking side effect changes.
+- The launcher's `create_and_validate_proc` signature is unchanged; `__init__` changes: `http_procs`/`http_pgids` kwargs are replaced by `records: dict[str, ManagedProcessRecord]` (verified 2026-11-26: the manager injects `records=self._records` per row 03, so the dict kwargs cannot survive). Only the tracking side effect changes otherwise.
 
 ## Security considerations
 - N/A: no change to signal delivery, only to tracking retention and logging.
@@ -52,10 +52,10 @@ Condition-flip on the existing termination branch; the stderr release stays unco
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Apply after cliplc006's launcher procedure (UNK-04) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion row 12 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Docs rows 19-23 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-132500 | 20261126-133500 | Apply after cliplc006's launcher procedure (UNK-04) Changed files: scripts/agent/http_lifecycle_subprocess_launcher.py; __init__ takes records kwarg (Compatibility corrected during verification); getpgid-failure record registered before the attempt, released only on confirmed outcome |
+| 2 | Add or update tests per Validation plan | N/A | — | — | Companion row 12 N/A: companion row 12 writes the unconfirmed-retention tests (tests/agent/test_http_lifecycle.py) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-133600 | 20261126-133051 | Fast gates pass (ruff/format/mypy/lint-imports/bandit -ll/check_module_size/check_docstrings); launcher records= mypy call-arg error from row 03 resolved. Allowed red (Failure Log): 45 testmon failures all pin removed dicts (test_http_lifecycle.py row 12, test_http_lifecycle_integration.py row 14, test_lifecycle.py row 11, test_startup_mcp_lifecycle.py amended 22, test_http_lifecycle_warning.py amended 23). Full-suite run at end of batch End-of-batch full-suite run: 15103 passed, 5 skipped; coverage xml + diff-cover --compare-branch=master --fail-under=90: 93% (99 new lines, 6 missing). Allowed-red set fully retired |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Docs rows 19-23 N/A: docs covered by rows 19-23 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

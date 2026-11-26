@@ -51,8 +51,8 @@ Plain exception classes with one-line docstrings stating non-retryable semantics
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-121500 | 20261126-121800 | Changed files: scripts/agent/http_lifecycle_errors.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-121900 | 20261126-133051 | Fast gates pass; testmon 23 passed; typed-error tests land with procedure 11; full-suite run at end of batch End-of-batch full-suite run: 15103 passed, 5 skipped; coverage xml + diff-cover --compare-branch=master --fail-under=90: 93% (99 new lines, 6 missing). Allowed-red set fully retired |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

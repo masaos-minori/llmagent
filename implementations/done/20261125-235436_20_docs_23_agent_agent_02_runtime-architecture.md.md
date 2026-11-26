@@ -50,8 +50,8 @@ Prose update in the existing lifecycle section; keep the doc's structure and Key
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docs row: `check_docs_quality.py` and `check_docs_structure.py` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-132800 | 20261126-132447 | LifecycleState enum/transition list updated to the landed table; ownership paragraph added in Lifecycle Implementation with cross-reference to mcp_03_04; shutdown-guard sentence corrected (suppression errors now raised) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-132900 | 20261126-132447 | Docs row: `check_docs_quality.py` and `check_docs_structure.py` check_docs_quality: no issues; check_docs_structure: all checks passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

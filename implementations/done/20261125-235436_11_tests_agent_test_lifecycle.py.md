@@ -7,7 +7,7 @@ Add new-state transition-table tests, invalid-transition no-mutation tests, and 
 
 ## Assumptions
 - Phase 1 tests are written first and are expected to fail until Phases 2-4 land (Plan Phase 1, release unit R3-ownership note).
-- `_records` (new) and `set_termination_outcome` (new) come from row 3 (`scripts/agent/http_lifecycle.py`); `ManagedProcessRecord` (new) from row 2.
+- Corrected 2026-11-26 (row 11 execution): `ManagedProcessRecord` (row 02) exposes the outcome as the `last_outcome` field plus `settle()`; there is no `set_termination_outcome` method on the manager. `_records` (row 03) is the registry.
 - Two kinds of change live in one file: new defect-pinning tests (Phase 1) and a mechanical accessor swap at the existing private-dict sites (Phase 3), kept in separate test classes so intentional failures stay visible.
 
 ## Design decisions
@@ -57,8 +57,8 @@ Extend the existing transition-table test class and the router test class; impor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Tests first, expected to fail until Phases 2-4 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Test row: validation is the pytest run |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-145500 | 20261126-152000 | Tests first, expected to fail until Phases 2-4 Changed files: tests/agent/test_lifecycle.py. Retargeted all private-dict sites to _records/ManagedProcessRecord (_make_record fixture helper); TestHttpManagerRestart rewritten to record semantics (record present during terminate, RestartBlockedError on unconfirmed); TestShutdownAllCleanup pins retention (srv1 retained EXIT_UNCONFIRMED after terminate error); getpgid-failure tests rewritten to the terminator's no-pgid fallback outcomes (EXIT_UNCONFIRMED / SIGNAL_NOT_DELIVERED retention); test_start_populates_http_pgids renamed+fixed: it was vacuously green at HEAD (validator rejected 'true' before the poll), now uses python cmd and pins pgid-in-record during the poll plus failed_start retention. New classes: TestRouterSetStateNoMutation (AC-3), TestRouterShutdownSuppression (AC-4). New-state transition tests already added by row 01 in this file. Assumptions corrected: no set_termination_outcome exists; record.last_outcome/settle() is the API |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-152100 | 20261126-133051 | Test row: validation is the pytest run pytest tests/agent/test_lifecycle.py: 90 passed. ruff/format/lint-imports/check_module_size/check_docstrings clean. Allowed red (Failure Log, reduced set): test_http_lifecycle.py (row 12), test_http_lifecycle_integration.py (row 14), test_http_lifecycle_warning.py (row 23), test_startup_mcp_lifecycle.py (row 22). Full-suite run at end of batch End-of-batch full-suite run: 15103 passed, 5 skipped; coverage xml + diff-cover --compare-branch=master --fail-under=90: 93% (99 new lines, 6 missing). Allowed-red set fully retired |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

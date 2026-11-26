@@ -51,8 +51,8 @@ Extend the existing manager test module; imports already cover the manager, laun
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Tests first, expected to fail until Phases 3-4 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Test row: validation is the pytest run |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-152500 | 20261126-153500 | Tests first, expected to fail until Phases 3-4 Changed files: tests/agent/test_http_lifecycle.py. Retargeted all private-dict sites to _records/ManagedProcessRecord (_make_record helper); TestGetPgidFailureTracking unconfirmed test renamed+rewritten to record retention (pgid None, EXIT_UNCONFIRMED state/outcome); TestRestartRefusal added: unconfirmed exit raises RestartBlockedError with start() never awaited (AC-2 port-conflict prevention) and record retained; confirmed-exit release path pinned. cliplc006 row-10 prerequisite confirmed already implemented and archived (done/) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-153600 | 20261126-133051 | Test row: validation is the pytest run pytest tests/agent/test_http_lifecycle.py: 15 passed. ruff/format clean. Full-suite run at end of batch End-of-batch full-suite run: 15103 passed, 5 skipped; coverage xml + diff-cover --compare-branch=master --fail-under=90: 93% (99 new lines, 6 missing). Allowed-red set fully retired |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

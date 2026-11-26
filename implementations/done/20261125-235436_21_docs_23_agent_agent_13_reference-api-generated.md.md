@@ -1,12 +1,12 @@
 ## Goal
 
-Regenerate the subpackages reference block for the `ProcessInfoSnapshot` and `services` symbol changes (REQ-012).
+Regenerate the top-level reference API block for the new public symbols in `scripts/agent/` (REQ-012).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit (Phase 6 is outside R3-ownership)
 
 ## Assumptions
-- Guarded block generated from `registry/manifests/agent_api.yaml` (row 23); never hand-edit (ADR-015 INV-01).
+- Guarded block generated from `registry/manifests/agent_api.yaml` (row 23); never hand-edit (ADR-015 INV-01 generated-reference domain).
 
 ## Design decisions
 - N/A: regeneration only.
@@ -16,13 +16,13 @@ Regenerate the subpackages reference block for the `ProcessInfoSnapshot` and `se
 
 ## Implementation
 ### Target file
-`docs/23_agent/agent_14_reference-api-subpackages-generated.md`
+`docs/23_agent/agent_13_reference-api-generated.md`
 
 ### Procedure
-Run `uv run python tools/generate_reference_table.py` after row 09 lands; the `termination_outcome` (new, row 09) field appears on `ProcessInfoSnapshot` (already listed at `:196`).
+Run `uv run python tools/generate_reference_table.py` after rows 01-10 land; the new `ManagedProcessRecord` (new) and error classes appear in the block.
 
 ### Method
-Generator run, not an edit.
+Generator run, not an edit; the file content changes only through the tool.
 
 ### Details
 - The `--check` gate must pass afterward (AC-6).
@@ -40,18 +40,18 @@ Generator run, not an edit.
 - `uv run python tools/generate_reference_table.py --check` — no drift (AC-6).
 
 ## Completion criteria
-- The regenerated block shows the new field and the check gate passes.
+- The regenerated block lists the new symbols and the check gate passes.
 
 ## Out of Scope
-- The field addition (row 09).
+- The source changes that create the symbols (rows 01-10).
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Generator run, not a hand edit |
-| 3 | Run the validation sequence (`rules/tool-gates.md` generated-block check) | Pending | — | — | `generate_reference_table.py --check` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-133000 | 20261126-132632 | Generator run, not a hand edit Block re-rendered from the regenerated manifest by the same generator run; new error family + ManagedProcessRecord rows present |
+| 3 | Run the validation sequence (`rules/tool-gates.md` generated-block check) | Completed | 20261126-133100 | 20261126-132632 | `generate_reference_table.py --check` generate_reference_table.py --check: No drift found (AC-6) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -71,4 +71,4 @@ Generator run, not an edit.
 - **Source plan**: plans/20261125-232847_cliplc007_mcp-process-ownership.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261125-235436
-- **Related target files**: `docs/23_agent/agent_14_reference-api-subpackages-generated.md`
+- **Related target files**: `docs/23_agent/agent_13_reference-api-generated.md`

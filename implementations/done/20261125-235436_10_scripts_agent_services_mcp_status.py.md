@@ -55,8 +55,8 @@ Add state branches to the existing mapping; no new service or API.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-143500 | 20261126-144500 | Changed files: scripts/agent/services/mcp_status.py (unconfirmed-state branches: restart_recommended, operator_action_required, health_reason names the state, last_shutdown_result reads snapshot termination_outcome); companion row 15: tests/agent/commands/test_cmd_mcp.py gained exit-unconfirmed and signal-not-delivered display tests (42 passed, pinned stopped-state rows green) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-144600 | 20261126-133051 | Fast gates pass (ruff/format/mypy/lint-imports/bandit -ll/check_module_size/check_docstrings). Validation plan second file tests/agent/test_http_lifecycle_integration.py stays allowed-red until row 14 retargets it. Full-suite run at end of batch End-of-batch full-suite run: 15103 passed, 5 skipped; coverage xml + diff-cover --compare-branch=master --fail-under=90: 93% (99 new lines, 6 missing). Allowed-red set fully retired |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

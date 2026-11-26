@@ -50,8 +50,8 @@ One-line docstring additions naming `EnsureSuppressedError` (new), `RestartSuppr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docstring-only row: ruff/mypy plus the protocol tests |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-142000 | 20261126-142500 | Changed files: scripts/agent/lifecycle_protocol.py (ensure_ready/shutdown_all/restart/get_transport_state docstrings); also fixed check_docstrings separator violation in scripts/agent/http_lifecycle_process_record.py found by this row's gate run |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-142600 | 20261126-133051 | Docstring-only row: ruff/mypy plus the protocol tests Fast gates pass (ruff/format/mypy/lint-imports/bandit -ll/check_docstrings clean). Protocol conformance covered by tests/agent/test_agent_factory.py (57 passed). Allowed red (Failure Log, unchanged set): dict-pinned test files retargeted by rows 11/12/14/22/23. Full-suite run at end of batch End-of-batch full-suite run: 15103 passed, 5 skipped; coverage xml + diff-cover --compare-branch=master --fail-under=90: 93% (99 new lines, 6 missing). Allowed-red set fully retired |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
