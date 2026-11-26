@@ -357,17 +357,34 @@ class _McpMixin(MixinBase):
     def _write_tool_diagnostics(
         self, tool_registry: RuntimeToolRegistry | None
     ) -> None:
-        """Write the RuntimeToolRegistry diagnostics table under the status table."""
+        """Write the RuntimeToolRegistry diagnostics table under the status table.
+
+        A tool dropped at construction has no diagnostic row, so the excluded tools are
+        listed separately with the reason the registry recorded (REQ-006). When the reason is
+        `capability` the section states that the mapping is fixed at construction and a change
+        in tool availability needs a restart (REQ-008, AC-08): there is no live swap.
+        """
         if tool_registry is None:
             return
         diag_rows = tool_registry.diagnostics()
-        if not diag_rows:
+        excluded = tool_registry.excluded_tools()
+        if not diag_rows and not excluded:
             return
         self._out.write("")
         self._out.write("  Tools (RuntimeToolRegistry):")
-        self._out.write_table(
-            _TOOL_DIAGNOSTIC_HEADERS, _format_tool_diagnostic_rows(diag_rows)
-        )
+        if diag_rows:
+            self._out.write_table(
+                _TOOL_DIAGNOSTIC_HEADERS, _format_tool_diagnostic_rows(diag_rows)
+            )
+        if excluded:
+            self._out.write("    Excluded tools:")
+            for name, reason in sorted(excluded.items()):
+                self._out.write(f"      {name}: {reason}")
+            if any(reason == "capability" for reason in excluded.values()):
+                self._out.write(
+                    "      [!] Availability is fixed at construction: "
+                    "a capability change requires a restart"
+                )
 
     def _write_pending_mcp_section(self) -> None:
         """Write the pending MCP definition rows, separate from the live probe rows.

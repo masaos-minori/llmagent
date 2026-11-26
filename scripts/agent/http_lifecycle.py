@@ -13,7 +13,8 @@ released only when its exit is confirmed (REQ-001, REQ-002); no path pops tracki
 before the exit is proved.
 
 Custom logic retained in this class:
-- MCPSERVER_HEALTH_TIMEOUT: global constant for httpx.AsyncClient timeout
+- per-server health request values resolved at the call site: the effective health
+  timeout and the catalog `required_capability` passed to the poll
 - process info snapshots: _build_snapshot and the snapshot accessors
 - startup failure reporting: _raise_startup_failure and the start() orchestration
   that combines SubprocessLauncher with the health poll
@@ -25,12 +26,14 @@ import asyncio
 import logging
 import subprocess  # nosec B404 — used to launch admin-controlled MCP server processes
 import time
+import tomllib
 from collections.abc import Iterator
 from dataclasses import asdict
 from typing import IO, TYPE_CHECKING, NoReturn
 
 import httpx
-from shared.mcp_config import McpServerConfig
+from shared.mcp_config import McpServerConfig, get_effective_health_timeout
+from shared.tool_catalog import load_tool_catalog, required_capability_for
 
 from agent.lifecycle import LifecycleState
 from agent.services.models import ProcessInfoSnapshot
@@ -58,7 +61,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-MCPSERVER_HEALTH_TIMEOUT: float = 5.0
 HEALTH_POLL_INTERVAL_SEC: float = 0.5
 TERMINATE_TIMEOUT_SEC: float = 5.0
 
@@ -128,7 +130,10 @@ class HttpServerLifecycleManager:
         url = cfg.url.rstrip("/") + "/health"
         try:
             result = await HealthChecker.verify_running_async(
-                server_key, cfg, url=url, headers=cfg.auth_headers()
+                server_key,
+                cfg,
+                url=url,
+                timeout=get_effective_health_timeout(cfg),
             )
             self._mark_health_checked(server_key)
             return result
@@ -311,7 +316,9 @@ class HttpServerLifecycleManager:
         """Delegate the /health readiness poll loop to HealthChecker.poll_until_ready.
 
         Supplies this module's poll timings so the health checker does not import
-        them from http_lifecycle.py.
+        them from http_lifecycle.py, the server's effective health timeout (REQ-001),
+        and the catalog `required_capability` the readiness rule needs (the checker
+        does not read the catalog itself).
 
         Args:
             server_key: Server identifier key.
@@ -331,9 +338,27 @@ class HttpServerLifecycleManager:
             deadline,
             shutdown_event,
             poll_interval_sec=HEALTH_POLL_INTERVAL_SEC,
-            request_timeout_sec=MCPSERVER_HEALTH_TIMEOUT,
+            request_timeout_sec=get_effective_health_timeout(cfg),
             terminate_timeout_sec=TERMINATE_TIMEOUT_SEC,
+            required_capability=self._resolve_required_capability(server_key),
         )
+
+    def _resolve_required_capability(self, server_key: str) -> str | None:
+        """Resolve the catalog `required_capability` for *server_key*.
+
+        A missing or unreadable catalog resolves to None with a warning here, so the
+        poll reads the body through the legacy `ready` fallback (D-6). The fail-closed
+        FATAL for a missing catalog stays at discovery, which is the enforcement point
+        for REQ-005.
+        """
+        try:
+            catalog = load_tool_catalog()
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            logger.warning(
+                "Lifecycle: tool catalog unavailable for %r: %s", server_key, exc
+            )
+            return None
+        return required_capability_for(catalog, server_key)
 
     async def start(
         self,

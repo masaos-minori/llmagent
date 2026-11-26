@@ -5,9 +5,12 @@ DTOs for service health check results.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import cast
+
+from shared.mcp_health_contract import parse_health_body
 
 
 @dataclass(frozen=True)
@@ -161,8 +164,36 @@ class HealthInterpretation:
     parse_failure_reason: str | None = None
 
 
+def _dependency_entries(raw: object) -> list[dict[str, object] | str]:
+    """Normalize a `dependencies` body field into the summarizer's input shape.
+
+    Producers emit a dict of `name -> status` (`scripts/mcp_servers/health_response.py`), which the
+    summarizer would otherwise iterate as bare keys and lose the status text. Each dict entry becomes
+    the structured form `{"name": key, "status": value}`; a dict value that is itself an object keeps
+    its own fields with the key as the name. A list body is returned unchanged.
+    """
+    if isinstance(raw, Mapping):
+        entries: list[dict[str, object] | str] = []
+        for key, value in raw.items():
+            if isinstance(value, Mapping):
+                entry = dict(value)
+                entry.setdefault("name", key)
+                entries.append(entry)
+            else:
+                entries.append({"name": key, "status": value})
+        return entries
+    return cast(list[dict[str, object] | str], raw or [])
+
+
 def interpret_health_body(body: dict[str, object]) -> HealthInterpretation:
-    """Interpret a raw /health JSON body into structured fields."""
+    """Interpret a raw /health JSON body into structured fields.
+
+    The contract-guaranteed fields are read through `shared.mcp_health_contract.parse_health_body()`,
+    the single strict-parse path. `status`, `dependencies`, `details`, `restart_recommended` and
+    `operator_action_required` are display fields the contract does not define, so they are read from
+    the raw body. A contract violation keeps the existing unknown-status fallback and reports the field
+    the parser named as `parse_failure_reason`.
+    """
     if not body:
         return HealthInterpretation(
             self_reported_status="unknown",
@@ -174,10 +205,10 @@ def interpret_health_body(body: dict[str, object]) -> HealthInterpretation:
         )
 
     try:
+        report = parse_health_body(body)
         status_val = body.get("status")
         status = str(status_val) if status_val else "unknown"
-        ready = bool(body.get("ready"))
-        deps_raw = cast(list[dict[str, object] | str], body.get("dependencies") or [])
+        deps_raw = _dependency_entries(body.get("dependencies"))
         details_raw = cast(list[dict[str, object]], body.get("details") or [])
         restart_rec = bool(body.get("restart_recommended"))
         op_action = bool(body.get("operator_action_required"))
@@ -197,7 +228,7 @@ def interpret_health_body(body: dict[str, object]) -> HealthInterpretation:
 
     return HealthInterpretation(
         self_reported_status=status,
-        ready=ready,
+        ready=report.ready,
         dependency_summary=dep_summaries,
         details_summary=detail_summaries,
         restart_recommended=restart_rec,
@@ -230,7 +261,7 @@ def extract_health_reason(body: dict[str, object]) -> str | None:
         return str(msg)
 
     # Priority 3: dependencies
-    deps_raw = cast(list[dict[str, object] | str], body.get("dependencies") or [])
+    deps_raw = _dependency_entries(body.get("dependencies"))
     dep_summaries = summarize_dependencies(deps_raw)
     if dep_summaries:
         return "Dependency failure: " + "; ".join(dep_summaries)

@@ -5,8 +5,8 @@ Registry-building layer for agent/services/mcp_tool_discovery.py. Once the raw
 turn them into a registry:
   _detect_duplicates: separate unique entries and emit the FATAL finding for a tool name
     reported by more than one server
-  _build_runtime_tools: build each RuntimeTool and apply the unavailable-server and
-    Security Posture allowlist filters
+  _build_runtime_tools: build each RuntimeTool and apply the unavailable-server,
+    Security Posture allowlist and degraded-capability filters
   _dedupe_and_build: the pair above in order, returning `(registry, dedup_findings)`
 
 Fetching, severity escalation, drift findings and required-tool checks stay on the service
@@ -14,6 +14,8 @@ side. Nothing here contacts a server or reads configuration.
 """
 
 from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 
 from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
@@ -60,11 +62,17 @@ def _build_runtime_tools(
     unique_entries: list[_RawEntry],
     unavailable_servers: frozenset[str],
     allowed_servers: frozenset[str],
+    degraded_capabilities: Mapping[str, Sequence[str]] | None = None,
 ) -> RuntimeToolRegistry:
-    """Build RuntimeToolRegistry from unique entries with unavailable and posture filtering.
+    """Build RuntimeToolRegistry from unique entries with unavailable, posture and capability filtering.
 
     `allowed_servers` is the posture-derived allowlist (row `19`): a `frozenset` lets only its
     members through, and an empty `frozenset` registers nothing.
+
+    `degraded_capabilities` is the per-server map of capability names reported `degraded` or
+    `unavailable`, produced by the service from the health report. It travels to the registry
+    unchanged: this module records the capability dependency (the entry's `capabilities`, which
+    reach `RuntimeTool` as a field) and hands the map, it does not decide which tool is excluded.
     """
     built: dict[str, RuntimeTool] = {}
     for server_key, server_url, entry in unique_entries:
@@ -99,14 +107,22 @@ def _build_runtime_tools(
             policy_version=str(entry["policy_version"]),
             enabled_for_llm=bool(entry.get("enabled", True)),
             capabilities=tuple(entry.get("capabilities", []) or []),  # type: ignore[arg-type]  # — list when present, verified by _entry_optional_field_error()
+            # REQ-007: the producer-declared value is carried, not inferred. An entry that omits
+            # the field is not rejected by the fetch layer, so it is read with the RuntimeTool default.
+            config_dependent=entry.get("config_dependent", False),  # type: ignore[arg-type]  # — bool when present, verified by _entry_optional_field_error()
         )
-    return RuntimeToolRegistry(tools=built, allowed_servers=allowed_servers)
+    return RuntimeToolRegistry(
+        tools=built,
+        allowed_servers=allowed_servers,
+        degraded_capabilities=degraded_capabilities,
+    )
 
 
 def _dedupe_and_build(
     entries: list[_RawEntry],
     unavailable_servers: frozenset[str],
     allowed_servers: frozenset[str],
+    degraded_capabilities: Mapping[str, Sequence[str]] | None = None,
 ) -> tuple[RuntimeToolRegistry, list[StartupCheckOutcome]]:
     """Group entries by tool name, build RuntimeTools, and exclude duplicates.
 
@@ -119,13 +135,18 @@ def _dedupe_and_build(
     schema-2.1 requirement, so the required field set — `is_write`, `requires_serial`,
     `resource_scope_kind`, `resource_scope_keys` and the declared policy fields — is
     guaranteed present; they are indexed directly (`entry[...]`), not defaulted via
-    `.get()`.
+    `.get()`. `config_dependent` is the exception: the fetch layer verifies its type when
+    the entry carries it but does not require the field, so it is read with a default.
 
     `allowed_servers` travels exactly like `unavailable_servers` and reaches the registry unchanged:
-    this module transports the gate, it does not decide it.
+    this module transports the gate, it does not decide it. `degraded_capabilities` travels the same
+    way, and the capability exclusion decision lives in `RuntimeToolRegistry`.
     """
     unique_entries, dedup_findings = _detect_duplicates(entries)
     registry = _build_runtime_tools(
-        unique_entries, unavailable_servers, allowed_servers=allowed_servers
+        unique_entries,
+        unavailable_servers,
+        allowed_servers=allowed_servers,
+        degraded_capabilities=degraded_capabilities,
     )
     return registry, dedup_findings

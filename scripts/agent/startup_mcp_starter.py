@@ -1,6 +1,10 @@
 """scripts/agent/startup_mcp_starter.py
 
 MCP server starter: subprocess startup, health verification, and retry-once-with-delay.
+
+Readiness is decided from the parsed `/health` report through the shared contract, not
+from the status code (REQ-005), and each request uses the server's effective
+`health_timeout` (REQ-001).
 """
 
 from __future__ import annotations
@@ -8,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import subprocess
 import time
+import tomllib
 from typing import TYPE_CHECKING
 
 import httpx
@@ -16,7 +21,9 @@ from shared.mcp_config import (
     McpServerConfig,
     StartupMode,
     TransportType,
+    get_effective_health_timeout,
 )
+from shared.tool_catalog import load_tool_catalog, required_capability_for
 
 from agent.context import AgentContext
 from agent.http_lifecycle_health_checker import HealthChecker
@@ -146,17 +153,13 @@ class McpServerStarter:
             url = cfg.url.rstrip("/") + "/health"
             try:
                 async with httpx.AsyncClient(
-                    timeout=5.0, headers=cfg.auth_headers()
+                    timeout=get_effective_health_timeout(cfg),
+                    headers=cfg.auth_headers(),
                 ) as client:
                     resp = await client.get(url)
-                    if resp.status_code != httpx.codes.OK:
-                        if HealthChecker.is_degraded_but_live(resp):
-                            logger.info(
-                                "Post-startup health check: %r is degraded but live",
-                                server_key,
-                            )
-                            continue
-                        raise RuntimeError(f"HTTP {resp.status_code}")
+                    reason = self._readiness_failure(server_key, resp)
+                    if reason is not None:
+                        raise RuntimeError(reason)
                     logger.info("Post-startup health check passed for %r", server_key)
             except Exception:  # noqa: BLE001 — any health-check failure triggers retry rather than aborting startup
                 # Use retry helper instead of inline retry
@@ -199,28 +202,58 @@ class McpServerStarter:
     ) -> None:
         """Verify health of a single MCP subprocess server.
 
-        A non-200 /health response whose body indicates liveness == true is
-        degraded-but-live (the server started but an optional dependency is
-        unavailable) and is tolerated: this returns normally so the retry
-        helper treats the retry as success. Any other non-200 still raises
-        RuntimeError.
+        Readiness is the parsed report, not the status code (REQ-005): the server's
+        catalog `required_capability` must be `ok`, or a legacy body must report
+        `ready` (D-6). A body that does not prove readiness raises RuntimeError, which
+        is what the retry helper treats as a failed attempt.
         """
         url = cfg.url.rstrip("/") + "/health"
-        async with httpx.AsyncClient(timeout=5.0, headers=cfg.auth_headers()) as client:
+        async with httpx.AsyncClient(
+            timeout=get_effective_health_timeout(cfg), headers=cfg.auth_headers()
+        ) as client:
             resp = await client.get(url)
-            if resp.status_code != httpx.codes.OK:
-                if HealthChecker.is_degraded_but_live(resp):
-                    logger.warning(
-                        "Post-startup health check degraded-but-live for %r "
-                        "(after retry); treating as ready",
-                        server_key,
-                    )
-                    return
-                raise RuntimeError(f"HTTP {resp.status_code}")
+            reason = self._readiness_failure(server_key, resp)
+            if reason is not None:
+                raise RuntimeError(reason)
             logger.info(
                 "Post-startup health check passed for %r (after retry)",
                 server_key,
             )
+
+    def _readiness_failure(self, server_key: str, resp: httpx.Response) -> str | None:
+        """Return None when *resp* proves readiness, otherwise the reason it does not.
+
+        The status code is not the proof: an unparseable or contract-violating body is
+        not proof either, so both are reported as a failure here, where a failed probe
+        goes through the retry helper rather than ending startup.
+        """
+        report = HealthChecker.parse_report(resp)
+        if report is None:
+            return f"HTTP {resp.status_code}: no parseable /health body"
+        required = self._resolve_required_capability(server_key)
+        if HealthChecker.is_ready(report, required):
+            return None
+        proof = required or "ready"
+        return f"HTTP {resp.status_code}: {proof} not proven"
+
+    def _resolve_required_capability(self, server_key: str) -> str | None:
+        """Resolve the catalog `required_capability` for *server_key*.
+
+        A missing or unreadable catalog resolves to None with a warning here, so the
+        post-startup check reads the body through the legacy `ready` fallback (D-6).
+        The fail-closed FATAL for a missing catalog stays at tool discovery, which is
+        the enforcement point for REQ-005.
+        """
+        try:
+            catalog = load_tool_catalog()
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            logger.warning(
+                "Post-startup health check: tool catalog unavailable for %r: %s",
+                server_key,
+                exc,
+            )
+            return None
+        return required_capability_for(catalog, server_key)
 
     async def _interruptible_sleep(self, delay: float) -> bool:
         """Sleep for `delay` seconds, racing against `_shutdown_event`.

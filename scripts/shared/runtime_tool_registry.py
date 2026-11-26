@@ -18,14 +18,22 @@ Import-layer design decisions (do not "fix" these by adding the imports back):
   - The Security Posture gate arrives as `allowed_servers`, a plain set of server
     keys, for the same `shared-is-leaf` reason: `shared` cannot read the Agent's
     posture DTOs, and `agent.services.mcp_health` already reduces a posture to a
-    gate decision before handing the keys here.
+    gate decision before handing the keys here. The degraded-capability map arrives
+    the same way, as plain `server_key` to capability-name entries.
+
+Immutability (REQ-008): the registry is immutable after construction apart from
+`apply_policy()`, the single rebinding of `self._tools`, so a reader sees either the
+complete old mapping or the complete new one, never a mixed state. Because availability is
+decided once at construction, a change in tool availability requires a restart; there is no
+live swap.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from types import MappingProxyType
 from typing import Any
 
 from shared.config_undo import ServiceSnapshot
@@ -41,6 +49,10 @@ class RuntimeToolRegistry:
 
     Plain mutable class wrapping a `dict[str, RuntimeTool]`. No `Protocol`/`ABC`
     — single concrete implementation, no polymorphism need identified yet.
+
+    Immutable after construction apart from `apply_policy()`'s single rebinding
+    (REQ-008): every exclusion is decided during construction, so the published
+    mapping never changes afterwards except through that one swap.
     """
 
     def __init__(
@@ -50,13 +62,20 @@ class RuntimeToolRegistry:
         server_configs: dict[str, Any] | None = None,
         *,
         allowed_servers: frozenset[str],
+        degraded_capabilities: Mapping[str, Sequence[str]] | None = None,
     ) -> None:
-        """Register `tools`, dropping every tool whose server is excluded.
+        """Register `tools`, dropping every tool whose server or capability is excluded.
 
         `allowed_servers` is the Security Posture gate and is mandatory: omitting it (or passing
         `None`) raises `TypeError`. A provided set is authoritative and a `server_key` absent from it
         is excluded, and an empty set registers nothing. It arrives as plain keys because `shared` is a
         leaf and cannot read the Agent's posture DTOs.
+
+        `degraded_capabilities` is the per-server map of capability names reported `degraded` or
+        `unavailable`, produced by Tool Discovery. It arrives as plain names for the same
+        `shared-is-leaf` reason, and this module only applies it: the decision that a capability is
+        degraded is made from the health report upstream. Only the tools that depend on one of these
+        capabilities are dropped, with reason `capability` (REQ-006).
         """
         if allowed_servers is None:
             raise TypeError(
@@ -66,12 +85,15 @@ class RuntimeToolRegistry:
         self._unavailable_servers = unavailable_servers or frozenset()
         self._server_configs = server_configs or {}
         self._allowed_servers = allowed_servers
+        self._degraded_capabilities = degraded_capabilities or {}
         self._posture_excluded: set[str] = set()
         self._tools: dict[str, RuntimeTool] = {}
         self._excluded_tools: dict[str, str] = {}
         if tools:
             for name, tool in tools.items():
                 reason = self._exclusion_reason(tool.server_key)
+                if reason is None:
+                    reason = self._capability_exclusion_reason(tool)
                 if reason is not None:
                     self._excluded_tools[name] = reason
                     continue
@@ -100,6 +122,29 @@ class RuntimeToolRegistry:
             return "posture"
         return None
 
+    def _capability_exclusion_reason(self, tool: RuntimeTool) -> str | None:
+        """Return `"capability"` when `tool` depends on a degraded capability, else `None`.
+
+        The dependency is the capability the tool's entry declared (`tool.capabilities`). An entry
+        that declares none depends on the owning server's catalog capabilities, which reach this
+        module as the degraded subset of the map, so such a tool is excluded when its server has a
+        degraded capability. Only the dependent tools are dropped (REQ-006): a server with a degraded
+        capability that no tool depends on keeps every tool it has.
+
+        The server-level reasons in `_exclusion_reason()` are checked first, so a tool from a
+        server already excluded for availability or posture keeps that reason.
+        """
+        degraded = self._degraded_capabilities.get(tool.server_key)
+        if not degraded:
+            return None
+        if tool.capabilities:
+            return (
+                "capability"
+                if any(cap in degraded for cap in tool.capabilities)
+                else None
+            )
+        return "capability"
+
     @property
     def unavailable_servers(self) -> frozenset[str]:
         """Return the set of server keys excluded due to being unavailable."""
@@ -117,12 +162,22 @@ class RuntimeToolRegistry:
     def exclusion_reason(self, tool_name: str) -> str | None:
         """Return why `tool_name` was dropped at construction, or `None`.
 
-        Returns one of `"unavailable"`, `"disabled"`, `"posture"` for a tool the
+        Returns one of `"unavailable"`, `"disabled"`, `"posture"`, `"capability"` for a tool the
         registry dropped, and `None` for a registered or unknown name. Lets the
         resolver distinguish posture-excluded and unavailable tools from ones
         that were never discovered.
         """
         return self._excluded_tools.get(tool_name)
+
+    def excluded_tools(self) -> Mapping[str, str]:
+        """Return the read-only `{name: exclusion reason}` map decided at construction.
+
+        The display path needs the dropped tools listed, and `diagnostics()` has no row for
+        them: an excluded tool has no row by design, so its state is only readable here and
+        through `exclusion_reason()`. The map is complete at construction and never changes
+        afterwards (REQ-008), so this is a read-only view rather than a copy.
+        """
+        return MappingProxyType(self._excluded_tools)
 
     def resolve(self, tool_name: str) -> str | None:
         """Return the `server_key` that owns `tool_name`, or `None` if unknown.
@@ -272,13 +327,18 @@ class RuntimeToolRegistry:
         /v1/tools entry (`raw_definition["disabled_reason"]`), falling back to a
         status-derived value for tools whose entry never carried that key.
 
+        `config_dependent` is the value the producer declared on the entry (REQ-007), read from the
+        explicit `RuntimeTool` field rather than derived from `status`. A tool excluded at
+        construction for a degraded capability has no row here: its capability dependency is reported
+        through `exclusion_reason()`, which is the excluded-or-registered state.
+
         `enabled` is derived from `disabled_reason` to preserve the invariant
         documented in docs/04_mcp_03_06_tool-runtime-availability-metadata.md:
         `enabled=True` iff `disabled_reason == ""`.
         """
         rows: list[dict[str, Any]] = []
         for tool in sorted(self._tools.values(), key=lambda t: t.name):
-            config_dep = tool.status != "active"
+            config_dep = tool.config_dependent
             raw_reason = tool.raw_definition.get("disabled_reason")
             disabled_reason = (
                 str(raw_reason)

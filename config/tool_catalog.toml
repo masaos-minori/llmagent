@@ -15,9 +15,9 @@
 # This is DATA, not code: it crosses no import boundary (shared is a leaf per
 # .importlinter) and is loaded with the stdlib tomllib reader at startup.
 #
-# NOTE: required_capability values below are the inferred per-server domain marker
-# (see issue agentcfg002). cliplc008 defines the canonical required-capability
-# schema; reconcile these identifiers with that schema before wiring the check.
+# These identifiers are the canonical capability model per cliplc008: required_capability
+# is the capability whose loss is FATAL for a required server, and capabilities is the
+# optional set the server declares; the Agent compares both against the live /health block.
 # browser_fetch is CONFIG_GATED (web-search-mcp withholds it while
 # browser_allowed_domains is empty); it stays in owned_tools so ownership facts
 # match the static seed, but its live absence is not reported as drift.
@@ -134,7 +134,7 @@ owned_tools = [
     "github_search_repositories",
     "github_update_pull_request",
 ]
-capabilities = ["github.operations"]
+capabilities = ["github.operations", "github.api"]
 required_capability = "github.operations"
 
 [server.web_search]

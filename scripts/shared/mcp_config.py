@@ -152,7 +152,12 @@ class McpServerConfig:
         return self.startup_mode.has_health_check
 
     def auth_headers(self) -> dict[str, str]:
-        """Return the Bearer Authorization header for this server, or {} when no token is set."""
+        """Return the Bearer Authorization header for this server, or {} when no token is set.
+
+        This is the only health-auth header path: `auth_token` is the health
+        credential (D-1), so health callers must use this method rather than
+        rebuilding the header from the token themselves.
+        """
         if not self.auth_token:
             return {}
         return {"Authorization": f"Bearer {self.auth_token}"}
@@ -217,9 +222,9 @@ class McpServerConfig:
             raise ValueError(
                 f"{key_prefix}: call_timeout_sec must be >= 0, got {self.call_timeout_sec}"
             )
-        if self.health_timeout is not None and self.health_timeout < 0:
+        if self.health_timeout is not None and self.health_timeout <= 0:
             raise ValueError(
-                f"{key_prefix}: health_timeout must be >= 0, got {self.health_timeout}"
+                f"{key_prefix}: health_timeout must be > 0, got {self.health_timeout}"
             )
         if self.startup_timeout_sec < 0:
             raise ValueError(
@@ -278,23 +283,20 @@ class McpServerConfig:
             )
 
 
-def get_effective_health_timeout(cfg: McpServerConfig) -> float | None:
+def get_effective_health_timeout(cfg: McpServerConfig) -> float:
     """Return the effective health timeout for a given server config.
 
-    Returns None (no timeout) when health_timeout is 0, consistent with
-    call_timeout_sec's "0 = no timeout" convention. Returns the configured
-    health_timeout if set to a positive value, otherwise falls back to
-    the global default of 5.0 seconds.
+    Always a positive float: returns the configured `health_timeout` when set,
+    otherwise falls back to the global default of 5.0 seconds. Zero no longer
+    means unlimited (D-3), so consumers need no `None` branch.
 
     Raises:
-        ValueError: If ``health_timeout`` is set to a negative value.
+        ValueError: If ``health_timeout`` is set to zero or a negative value.
     """
     if cfg.health_timeout is None:
         return 5.0
-    if cfg.health_timeout == 0:
-        return None  # No timeout, consistent with call_timeout_sec=0 convention
-    if cfg.health_timeout < 0:
-        raise ValueError(f"health_timeout must be >= 0, got {cfg.health_timeout}")
+    if cfg.health_timeout <= 0:
+        raise ValueError(f"health_timeout must be > 0, got {cfg.health_timeout}")
     return cfg.health_timeout
 
 

@@ -74,6 +74,9 @@ class RuntimeTool:
                             tolerated instead of rejected by validate_tool_arguments().
         llm_visibility_base: Immutable base visibility flag set once at discovery time.
                              Defaults to mirroring ``enabled_for_llm`` when unset.
+        config_dependent:    True when the tool's operation depends on configuration declared by
+                             the producer. Carried from the declaration, never inferred (REQ-007);
+                             diagnostic-only, so it defaults to False outside the discovery path.
     """
 
     name: str
@@ -98,6 +101,7 @@ class RuntimeTool:
     capabilities: tuple[str, ...]
     allow_extra_fields: bool = False
     llm_visibility_base: bool | None = None
+    config_dependent: bool = False
 
     def __post_init__(self) -> None:
         """Resolve the immutable base visibility when not explicitly provided."""
@@ -129,6 +133,7 @@ def build_runtime_tool(
     capabilities: tuple[str, ...] | None = None,
     allow_extra_fields: bool | None = None,
     llm_visibility_base: bool | None = None,
+    config_dependent: bool | None = None,
 ) -> RuntimeTool:
     """Build a `RuntimeTool`, requiring the full execution-metadata field set.
 
@@ -147,6 +152,9 @@ def build_runtime_tool(
           unless a tool explicitly opts in.
         - `llm_visibility_base` defaults to mirroring ``enabled_for_llm`` when not
           explicitly supplied.
+        - `config_dependent` defaults to `False`. The default serves non-discovery
+          construction only (D-7): the discovery path passes the producer-declared
+          value, and the field is diagnostic-only.
     """
     for field, value in (
         ("is_write", is_write),
@@ -171,6 +179,7 @@ def build_runtime_tool(
     resolved_llm_visibility_base = _or_default(
         llm_visibility_base, resolved_enabled_for_llm
     )
+    resolved_config_dependent = _or_default(config_dependent, False)
 
     return RuntimeTool(
         name=name,
@@ -195,4 +204,5 @@ def build_runtime_tool(
         capabilities=resolved_capabilities,
         allow_extra_fields=resolved_allow_extra_fields,
         llm_visibility_base=resolved_llm_visibility_base,
+        config_dependent=resolved_config_dependent,
     )

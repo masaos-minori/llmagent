@@ -106,7 +106,7 @@ class McpStatusService:
                 timeout=httpx.Timeout(timeout=effective_timeout)
             ) as probe:
                 result = await self._probe_single_server_with_interpretation(
-                    probe, ctx, key, cfg
+                    probe, ctx, key, cfg, timeout_sec=effective_timeout
                 )
                 results.append(result)
         return results
@@ -117,8 +117,14 @@ class McpStatusService:
         ctx: AgentContext,
         key: str,
         cfg: Any,
+        *,
+        timeout_sec: float | None = None,
     ) -> McpProbeResult:
-        """Probe a single MCP server and return its status result with interpretation fields."""
+        """Probe a single MCP server and return its status result with interpretation fields.
+
+        `timeout_sec` is the server's effective `health_timeout` (REQ-001) passed through to the
+        request; the client's own timeout applies when it is not supplied.
+        """
         auth = bool(cfg.auth_token)
         _reg = ctx.services_required.runtime_tools
         _server_tool_tiers = [
@@ -139,7 +145,7 @@ class McpStatusService:
             parse_failure_reason,
             probe_result,
         ) = await self._get_http_status_with_interpretation(
-            probe, cfg.url, cfg.auth_headers()
+            probe, cfg.url, cfg.auth_headers(), timeout_sec=timeout_sec
         )
         health = _resolve_health_state(ctx, key).value.upper()
         lifecycle = ctx.services_required.lifecycle
@@ -217,11 +223,19 @@ class McpStatusService:
         probe: httpx.AsyncClient,
         url: str,
         headers: dict[str, str] | None = None,
+        *,
+        timeout_sec: float | None = None,
     ) -> tuple[McpAvailability, str, bool, bool, str]:
-        """Probe the MCP server health endpoint and return availability with details."""
+        """Probe the MCP server health endpoint and return availability with details.
+
+        `timeout_sec` is the server's effective `health_timeout` (REQ-001); the client's own
+        timeout applies when it is not supplied.
+        """
         if not url:
             return McpAvailability.NO_URL, "", False, False, ""
-        probe_result = await _probe_mcp_health_detail(probe, url, headers)
+        probe_result = await _probe_mcp_health_detail(
+            probe, url, headers, timeout_sec=timeout_sec
+        )
         sandbox = ""
         reason = ""
         if probe_result.body and isinstance(probe_result.body, dict):
@@ -258,6 +272,8 @@ class McpStatusService:
         probe: httpx.AsyncClient,
         url: str,
         headers: dict[str, str] | None = None,
+        *,
+        timeout_sec: float | None = None,
     ) -> tuple[
         McpAvailability,
         str,
@@ -271,6 +287,9 @@ class McpStatusService:
         McpHealthProbeResult,
     ]:
         """Probe the MCP server health endpoint and return availability with interpretation.
+
+        `timeout_sec` is the server's effective `health_timeout` (REQ-001); the client's own
+        timeout applies when it is not supplied.
 
         Returns (availability, sandbox, restart_rec, op_action, reason,
                  self_reported_status, dep_summary, detail_summary, parse_failure_reason,
@@ -297,7 +316,9 @@ class McpStatusService:
                     body={},
                 ),
             )
-        probe_result = await _probe_mcp_health_detail(probe, url, headers)
+        probe_result = await _probe_mcp_health_detail(
+            probe, url, headers, timeout_sec=timeout_sec
+        )
         sandbox = ""
         reason = ""
         self_reported_status = ""

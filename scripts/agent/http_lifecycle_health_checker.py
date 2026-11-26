@@ -6,11 +6,16 @@ HttpServerLifecycleManager delegates all health check operations to this module.
 Timeout values are passed as parameters rather than imported from
 http_lifecycle.py to avoid circular imports.
 
-Owns the startup readiness poll loop (`poll_until_ready`), the degraded-but-live
-predicate (`is_degraded_but_live`), and the shutdown-aware poll sleep
+Owns the startup readiness poll loop (`poll_until_ready`), the report-based
+readiness helpers (`parse_report`, `is_ready`), and the shutdown-aware poll sleep
 (`_interruptible_poll_sleep`). The poll loop delegates tracking cleanup, health
 observation, startup-failure raising, and termination back to the manager it is
 given, mirroring how ShutdownCoordinator delegates cleanup.
+
+Readiness is decided from the parsed `/health` report, not from the status code:
+the caller supplies the server's catalog `required_capability` (this module does not
+read `config/tool_catalog.toml`), and each request timeout is capped by the time
+left to the deadline (REQ-002).
 """
 
 from __future__ import annotations
@@ -19,11 +24,15 @@ import asyncio
 import logging
 import subprocess
 import time
-from http import HTTPStatus
 from typing import TYPE_CHECKING, Any
 
 import httpx
-from shared.mcp_config import McpServerConfig
+from shared.mcp_config import McpServerConfig, get_effective_health_timeout
+from shared.mcp_health_contract import (
+    CAPABILITY_STATE_OK,
+    HealthReport,
+    parse_health_body,
+)
 
 from agent.http_lifecycle_errors import TerminationOutcome
 from agent.secrets_masker import _mask_secrets
@@ -35,7 +44,6 @@ logger = logging.getLogger(__name__)
 
 HEALTH_RECHECK_INTERVAL_SEC = 10.0
 _DEFAULT_HEALTH_URL = "http://localhost:8080/health"
-_DEFAULT_TIMEOUT = 5.0
 
 
 async def _interruptible_poll_sleep(
@@ -89,41 +97,35 @@ class HealthChecker:
     """Performs HTTP health checks against a running server."""
 
     @staticmethod
-    def compute_health_check_timeout(
-        startup_timeout: float, mcpserver_health_timeout: float = 5.0
-    ) -> float:
-        """Compute the timeout for a single health-check request.
+    def parse_report(resp: httpx.Response) -> HealthReport | None:
+        """Parse a `/health` body through the shared contract.
 
-        Uses the smaller of *mcpserver_health_timeout* and the configured
-        *startup_timeout* so that no individual request can block longer than
-        the shorter interval.
+        Returns None when the body is not JSON, is not an object, or violates the
+        contract: an unparseable body is not readiness proof, so the poll keeps
+        running instead of crashing startup.
         """
-        return min(mcpserver_health_timeout, startup_timeout)
-
-    @staticmethod
-    def is_degraded_but_live(resp: httpx.Response) -> bool:
-        """Return True iff a 503 /health response is a JSON object with a
-        strict-boolean `liveness` of true.
-
-        The single implementation of the degraded-but-live rule, used by both
-        the spawn-phase poll (`poll_until_ready`) and the post-startup retry
-        (`McpServerStarter.verify_health` via `_verify_single_health`): a 503
-        whose object body carries the boolean `true` means the server started
-        but an optional dependency (e.g. GITHUB_TOKEN) is unavailable. Such a
-        server is alive and must count as ready at startup rather than abort
-        it. Any other body shape (non-object, malformed, non-boolean
-        `liveness`) returns false without raising, so a broken or hostile
-        body keeps the poll running instead of crashing startup.
-        """
-        if resp.status_code != HTTPStatus(503):
-            return False
-        if "application/json" not in resp.headers.get("content-type", ""):
-            return False
         try:
             body = resp.json()
         except (ValueError, httpx.DecodingError):
-            return False
-        return isinstance(body, dict) and body.get("liveness") is True
+            return None
+        try:
+            return parse_health_body(body)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def is_ready(report: HealthReport, required_capability: str | None) -> bool:
+        """Return True iff the report proves readiness for this server (REQ-005, D-6).
+
+        The proof is the server's catalog `required_capability` reported `ok`. A legacy
+        body (no capability block) falls back to its `ready` flag, and a server with no
+        declared `required_capability` is read the same way. `liveness` alone is never
+        proof.
+        """
+        if required_capability is None or report.is_legacy:
+            return report.ready
+        state = report.capabilities.get(required_capability)
+        return state is not None and state.state == CAPABILITY_STATE_OK
 
     @staticmethod
     async def poll_until_ready(
@@ -137,12 +139,18 @@ class HealthChecker:
         poll_interval_sec: float,
         request_timeout_sec: float,
         terminate_timeout_sec: float,
+        required_capability: str | None = None,
     ) -> None:
         """Poll /health endpoint until the server becomes healthy or timeout expires.
 
         Polls the health endpoint in a loop, checking for early exit and shutdown
         events between polls. Raises HttpStartupError on early exit, shutdown,
         or timeout.
+
+        Each request timeout is `min(request_timeout_sec, remaining time to the
+        deadline)` (REQ-002); no request starts once the deadline has passed.
+        Readiness is the parsed report proving `required_capability` is `ok`, or a
+        legacy body with `ready` true (REQ-005, D-6).
 
         On a live-child failure (shutdown or timeout) the child is terminated
         first and tracking is dropped only when the termination confirms the exit;
@@ -162,18 +170,19 @@ class HealthChecker:
             deadline: Monotonic time at which to abort polling.
             shutdown_event: Optional event to race against poll sleep.
             poll_interval_sec: Delay between polls.
-            request_timeout_sec: Upper bound for a single health-check request.
+            request_timeout_sec: Upper bound for a single health-check request, the
+                server's effective health timeout supplied by the caller (seq 04).
             terminate_timeout_sec: Termination timeout applied on poll timeout.
+            required_capability: The server's catalog capability identifier resolved
+                by the caller; None reads the body through the legacy `ready` fallback.
 
         Raises:
             HttpStartupError: On early exit, shutdown, or timeout.
         """
         health_url = cfg.url.rstrip("/") + "/health"
-        hc_timeout = HealthChecker.compute_health_check_timeout(
-            cfg.startup_timeout_sec, request_timeout_sec
-        )
         async with httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout=hc_timeout), headers=cfg.auth_headers()
+            timeout=httpx.Timeout(timeout=request_timeout_sec),
+            headers=cfg.auth_headers(),
         ) as client:
             while time.monotonic() < deadline:
                 if proc.poll() is not None:
@@ -187,19 +196,23 @@ class HealthChecker:
                     manager._raise_startup_failure(
                         server_key, "exited early", stderr_full
                     )
+                remaining_sec = deadline - time.monotonic()
+                if remaining_sec <= 0:
+                    break
                 try:
-                    resp = await client.get(health_url)
-                    if resp.status_code == HTTPStatus.OK:
+                    resp = await client.get(
+                        health_url,
+                        timeout=httpx.Timeout(
+                            timeout=min(request_timeout_sec, remaining_sec)
+                        ),
+                    )
+                    report = HealthChecker.parse_report(resp)
+                    if report is not None and HealthChecker.is_ready(
+                        report, required_capability
+                    ):
                         manager._mark_health_checked(server_key)
                         logger.info(
                             "Lifecycle: HTTP subprocess %r ready",
-                            server_key,
-                        )
-                        return
-                    if HealthChecker.is_degraded_but_live(resp):
-                        manager._mark_health_checked(server_key)
-                        logger.info(
-                            "Lifecycle: HTTP subprocess %r ready (degraded but live)",
                             server_key,
                         )
                         return
@@ -243,10 +256,10 @@ class HealthChecker:
     @staticmethod
     async def verify_running_async(
         server_key: str,
-        cfg: object,
+        cfg: McpServerConfig,
         *,
         url: str | None = None,
-        timeout: float = _DEFAULT_TIMEOUT,
+        timeout: float | None = None,
         **client_kwargs: Any,
     ) -> bool:
         """Verify that the server identified by *server_key* is reachable.
@@ -254,24 +267,31 @@ class HealthChecker:
         Uses the ``health_url`` attribute on *cfg* when available; falls back
         to ``_DEFAULT_HEALTH_URL``.
 
+        The request timeout is the server's effective health timeout
+        (`get_effective_health_timeout(cfg)`) unless the caller supplies one, and the
+        Authorization header comes from `cfg.auth_headers()` only — the single auth
+        path (REQ-003). Callers MUST NOT pass `headers` in *client_kwargs*. The token
+        is never interpolated into a log line.
+
         Args:
             server_key: Unique identifier for the server.
-            cfg: Configuration object with health_url attribute.
+            cfg: Server configuration.
             url: Optional override URL for the health check endpoint.
-            timeout: Timeout for individual health check requests.
+            timeout: Optional per-request timeout override; the effective per-server
+                health timeout is used when it is not supplied.
             **client_kwargs: Additional keyword arguments passed to httpx.AsyncClient().
         """
         target_url = url or getattr(cfg, "health_url", _DEFAULT_HEALTH_URL)
         if target_url is None:
             target_url = _DEFAULT_HEALTH_URL
-        # Build headers — add Bearer token if cfg has auth_token
-        headers: dict[str, str] = {}
-        auth_token = getattr(cfg, "auth_token", "")
-        if auth_token:
-            headers["Authorization"] = f"Bearer {auth_token}"
+        request_timeout = (
+            timeout if timeout is not None else get_effective_health_timeout(cfg)
+        )
         try:
-            async with httpx.AsyncClient(timeout=timeout, **client_kwargs) as client:
-                response = await client.get(target_url, headers=headers)
+            async with httpx.AsyncClient(
+                timeout=request_timeout, headers=cfg.auth_headers(), **client_kwargs
+            ) as client:
+                response = await client.get(target_url)
                 if response.status_code == 200:
                     logger.debug("Health check passed at %s", target_url)
                     return True

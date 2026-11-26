@@ -2,10 +2,14 @@
 
 MCP service health checks — LLM and embed health plus Security Posture gating: collect_server_postures()
 probes every usable MCP server's /health once, classifies each result as an Availability, Safety, or
-Integrity failure, and allowed_server_keys() hands the fully green gates to Tool Discovery."""
+Integrity failure, and hands the fully green gates to Tool Discovery. Each gate also carries the body
+parsed through the shared health contract, and classify_capabilities() reads that report for the server's
+catalog required_capability: required loss is a FATAL finding, optional loss is a warning (REQ-005).
+"""
 
 from __future__ import annotations
 
+import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
@@ -14,7 +18,12 @@ from urllib.parse import urlparse
 
 import httpx
 from shared.logger import Logger
-from shared.mcp_config import TransportType
+from shared.mcp_config import TransportType, get_effective_health_timeout
+from shared.mcp_health_contract import (
+    CAPABILITY_STATE_OK,
+    HealthReport,
+    parse_health_body,
+)
 from shared.security.result_dto import (
     REASON_CHECK_SET_MISMATCH,
     REASON_CONFIG_INVALID,
@@ -24,8 +33,10 @@ from shared.security.result_dto import (
     REASON_POSTURE_MISSING,
     REASON_SERVER_KEY_MISMATCH,
 )
+from shared.tool_catalog import load_tool_catalog, required_capability_for
 
 from agent.context import AgentContext
+from agent.http_lifecycle_health_checker import HealthChecker
 from agent.output_tags import OutputTag
 from agent.services.posture_validator import parse_posture
 from agent.shared.health_models import (
@@ -41,17 +52,22 @@ async def _probe_mcp_health_detail(
     http: httpx.AsyncClient,
     base_url: str,
     headers: dict[str, str] | None = None,
+    timeout_sec: float | None = None,
 ) -> McpHealthProbeResult:
     """Probe /health and return a structured McpHealthProbeResult.
 
+    `timeout_sec` is the server's effective `health_timeout` (REQ-001); when omitted the request
+    keeps the client's own timeout, which is the per-server value the `/mcp status` path builds.
     Never raises. On network failure returns reachable=False with status_code=None.
     On JSON parse failure falls back to restart_recommended=False, operator_action_required=False.
     """
+    kwargs: dict[str, object] = {}
+    if timeout_sec is not None:
+        kwargs["timeout"] = timeout_sec
+    if headers:
+        kwargs["headers"] = headers
     try:
-        if headers:
-            resp = await http.get(f"{base_url}/health", timeout=5.0, headers=headers)
-        else:
-            resp = await http.get(f"{base_url}/health", timeout=5.0)
+        resp = await http.get(f"{base_url}/health", **kwargs)
     except (httpx.HTTPError, OSError, TimeoutError):
         return McpHealthProbeResult(
             reachable=False,
@@ -104,6 +120,9 @@ class PostureGate:
         validated:        The posture's own validated flag; False when the posture was rejected.
         reason_code:      Shared reason vocabulary entry explaining a non-green gate.
         parse_failed:     The server answered, but not with a body the Agent could read.
+        report:           The body parsed through the shared health contract (seq 01); None when
+                          the body was unreadable or violated the contract. Readiness proof for
+                          REQ-005 comes from this, not from the status code.
         failure_class:    None when the gate is green.
     """
 
@@ -115,6 +134,7 @@ class PostureGate:
     validated: bool
     reason_code: str
     parse_failed: bool = False
+    report: HealthReport | None = None
     failure_class: ServerFailureClass | None = None
 
 
@@ -175,6 +195,73 @@ def _decide(gate: PostureGate) -> PostureGate:
     return replace(gate, failure_class=classify_server_failure(gate))
 
 
+@dataclass(frozen=True)
+class CapabilityFinding:
+    """What one gate's parsed report proves about its capabilities.
+
+    Fields:
+        required_capability: The catalog identifier the gate is measured against; None when the
+                             server declares none, which puts the decision on the legacy `ready` flag.
+        required_proven:     True when the report proves that capability `ok`; a legacy body, or a
+                             server with no declared capability, is read through its `ready` flag (D-6).
+        degraded_optional:   Every other capability reported `degraded` or `unavailable`, sorted.
+                             This is the map Tool Discovery hands to the registry (seq 09).
+    """
+
+    required_capability: str | None
+    required_proven: bool
+    degraded_optional: tuple[str, ...]
+
+
+def classify_capabilities(
+    gate: PostureGate, required_capability: str | None
+) -> CapabilityFinding:
+    """Classify one gate's report for its required capability and its optional losses.
+
+    The readiness decision is the shared predicate's (`HealthChecker.is_ready`), not a copy of it.
+    A gate with no parsed report proves nothing, so its required capability is not proven.
+    """
+    report = gate.report
+    if report is None:
+        return CapabilityFinding(required_capability, False, ())
+    degraded = tuple(
+        sorted(
+            name
+            for name, state in report.capabilities.items()
+            if name != required_capability and state.state != CAPABILITY_STATE_OK
+        )
+    )
+    return CapabilityFinding(
+        required_capability,
+        HealthChecker.is_ready(report, required_capability),
+        degraded,
+    )
+
+
+def _parse_report(body: Mapping[str, object]) -> HealthReport | None:
+    """Parse a body through the shared contract; a contract-violating body yields no report."""
+    try:
+        return parse_health_body(body)
+    except ValueError:
+        # Not proof, and not a parse failure the gate already reports: the gate keeps its own
+        # reason code and the classification reads it as unproven.
+        return None
+
+
+def _load_catalog_for_gates() -> Mapping[str, object] | None:
+    """Load the catalog once for the gate loop.
+
+    An unreadable catalog resolves to None with a warning here, so gates are read through the
+    legacy `ready` fallback (D-6). The fail-closed FATAL for a missing catalog stays at tool
+    discovery, which is the enforcement point for REQ-005.
+    """
+    try:
+        return load_tool_catalog()
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        logger.warning("Posture gate: tool catalog unavailable: %s", exc)
+        return None
+
+
 def _gate_from_probe(
     server_key: str,
     required: bool,
@@ -213,6 +300,7 @@ def _gate_from_probe(
         ready=bool(posture and posture.ready),
         validated=bool(posture and posture.validated),
         reason_code=verdict.reason_code,
+        report=_parse_report(probe.body),
     )
 
 
@@ -230,7 +318,12 @@ async def collect_server_postures(ctx: AgentContext) -> dict[str, PostureGate]:
     for server_key, cfg in ctx.cfg.mcp.mcp_servers.items():
         if cfg.transport != TransportType.HTTP or not cfg.url or cfg.is_disabled:
             continue
-        probe = await _probe_mcp_health_detail(http, cfg.url, cfg.auth_headers())
+        probe = await _probe_mcp_health_detail(
+            http,
+            cfg.url,
+            cfg.auth_headers(),
+            timeout_sec=get_effective_health_timeout(cfg),
+        )
         gates[server_key] = _decide(
             _gate_from_probe(server_key, bool(cfg.required), probe)
         )
@@ -248,6 +341,38 @@ def allowed_server_keys(gates: Mapping[str, PostureGate]) -> set[str]:
         for server_key, gate in gates.items()
         if gate.reachable and gate.posture_accepted and gate.ready and gate.validated
     }
+
+
+def _is_fatal_capability_finding(gate: PostureGate, finding: CapabilityFinding) -> bool:
+    """Whether a capability finding on an otherwise green gate blocks startup (REQ-005).
+
+    Only the required capability of a `required=true` server blocks; an optional capability that
+    is degraded or unavailable is a warning whatever the flag says, which is the partial
+    availability ADR-004 permits.
+    """
+    return gate.required and not finding.required_proven
+
+
+def _capability_warning(
+    gate: PostureGate, finding: CapabilityFinding, url: str
+) -> ServiceWarning:
+    """Build the ServiceWarning for a capability finding: the capability names only.
+
+    No server-supplied message or reason text reaches the Agent's message here, matching
+    `_posture_warning()`.
+    """
+    label = f"{_POSTURE_LABEL_PREFIX}{gate.server_key}"
+    if not finding.required_proven:
+        message = (
+            f"{label} capability failure "
+            f"(required={finding.required_capability or 'ready'} not proven)"
+        )
+    else:
+        degraded = ", ".join(finding.degraded_optional)
+        message = f"{label} capability failure (degraded_optional={degraded})"
+    if not _is_fatal_capability_finding(gate, finding):
+        message = f"{OutputTag.NON_FATAL} {message}"
+    return ServiceWarning(label=label, url=url, message=message)
 
 
 def _posture_warning(gate: PostureGate, url: str) -> ServiceWarning:
@@ -297,6 +422,10 @@ async def check_service_health(
     Pass the gates this startup run already collected (from the same
     collect_server_postures() call) to avoid probing twice; omit gates to probe
     by yourself, which is what every caller did before this argument existed.
+
+    A gate that is green on posture is still read through its parsed report: a required server
+    whose catalog required_capability is not proven `ok` lands in errors (REQ-005), while a
+    degraded optional capability is a warning.
     """
     if ctx.services_required.http is None:
         raise RuntimeError("http service not initialized")
@@ -329,11 +458,27 @@ async def check_service_health(
                 warnings.append(entry)
     if gates is None:
         gates = await collect_server_postures(ctx)
+    catalog = _load_catalog_for_gates()
     for server_key in sorted(gates):
         gate = gates[server_key]
+        url = ctx.cfg.mcp.mcp_servers[server_key].url
+        required_capability = (
+            required_capability_for(catalog, server_key)
+            if catalog is not None
+            else None
+        )
+        finding = classify_capabilities(gate, required_capability)
         if gate.failure_class is None:
+            if finding.required_proven and not finding.degraded_optional:
+                continue
+            entry = _capability_warning(gate, finding, url)
+            if _is_fatal_capability_finding(gate, finding):
+                errors.append(entry)
+            else:
+                logger.warning("%s", entry.message)
+                warnings.append(entry)
             continue
-        entry = _posture_warning(gate, ctx.cfg.mcp.mcp_servers[server_key].url)
+        entry = _posture_warning(gate, url)
         if _is_fatal_gate(gate):
             errors.append(entry)
         else:
@@ -348,7 +493,8 @@ async def check_readiness(
     """Probe required services at startup; raise RuntimeError on required-service failure.
 
     Required services block startup, and so does any MCP server whose posture gate reports a
-    Safety or Integrity failure. Optional services degrade only on an availability failure: the
+    Safety or Integrity failure, or whose catalog required_capability is not proven `ok` (REQ-005).
+    Optional services degrade only on an availability failure: the
     embed-llm and an MCP server configured required=false whose gate failure is Availability
     surface as non-fatal warnings instead of raising.
 

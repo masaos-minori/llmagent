@@ -224,10 +224,17 @@ def _entry_schema_error(
 def _entry_optional_field_error(
     server_key: str, server_url: str, name: str, entry: dict[str, object]
 ) -> str | None:
-    """Return the first error for the entry's optional typed fields and capabilities."""
+    """Return the first error for the entry's optional typed fields and capabilities.
+
+    `config_dependent` is Required in the producer's entry shape (`scripts/mcp_servers/models.py`),
+    yet an absent field is not rejected here: REQ-007 rejects a value that is not an actual `bool`,
+    and the runtime schema gate (`shared.resource_scope.validate_tool_schema_v2`) does not check the
+    field at all. A present value must match its declared type, with no truthy coercion.
+    """
     for field_name, expected_type in (
         ("status", str),
         ("enabled", bool),
+        ("config_dependent", bool),
     ):
         if field_name in entry and not isinstance(entry[field_name], expected_type):
             return (

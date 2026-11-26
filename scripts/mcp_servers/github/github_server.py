@@ -42,6 +42,12 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.logger import Logger
+from shared.mcp_health_contract import (
+    CAPABILITY_STATE_DEGRADED,
+    CAPABILITY_STATE_OK,
+    HEALTH_REASON_CONFIG_MISSING,
+    CapabilityState,
+)
 from shared.repo_identity import normalize_repo_key
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
@@ -140,6 +146,26 @@ def _github_tool_availability(tool_name: str) -> tuple[bool, str]:
     return True, ""
 
 
+def _github_capabilities() -> dict[str, CapabilityState]:
+    """Build the /health capability block (REQ-006).
+
+    `github.operations` is the server's required capability and is proven `ok` while the server
+    answers: reaching this endpoint is the proof. `github.api` is the optional capability that
+    depends on the token, so token loss degrades it without turning the required capability into a
+    failure, which is what keeps startup unblocked for an optional dependency. The block names the
+    state and the reason code, never the token value.
+    """
+    api_state = CapabilityState(CAPABILITY_STATE_OK)
+    if not _GITHUB_TOKEN:
+        api_state = CapabilityState(
+            CAPABILITY_STATE_DEGRADED, HEALTH_REASON_CONFIG_MISSING
+        )
+    return {
+        "github.operations": CapabilityState(CAPABILITY_STATE_OK),
+        "github.api": api_state,
+    }
+
+
 app = FastAPI(
     title="github-mcp",
     version="1.0.0",
@@ -189,8 +215,18 @@ async def health() -> JSONResponse:
         "audit_failure_count": _service.audit_failure_count,
     }
     details.update(dedup_health_details())
+    capabilities = _github_capabilities()
+    reasons = [
+        state.reason_code
+        for state in capabilities.values()
+        if state.reason_code is not None
+    ]
     result: JSONResponse = make_health_response(
-        deps, details, security=_security_posture
+        deps,
+        details,
+        security=_security_posture,
+        capabilities=capabilities,
+        degraded_reasons=reasons,
     )
     return result
 

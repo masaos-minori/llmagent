@@ -18,9 +18,15 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from collections.abc import Mapping, Sequence
 
 from fastapi.responses import JSONResponse
 from shared.mcp_dedup import collect_dedup_metrics
+from shared.mcp_health_contract import (
+    HEALTH_SCHEMA_VERSION,
+    CapabilityState,
+    parse_health_body,
+)
 from shared.security.posture_contract import SecurityPosture
 
 logger = logging.getLogger(__name__)
@@ -33,6 +39,8 @@ def make_health_response(
     deps: dict[str, str],
     details: dict[str, object] | None = None,
     security: SecurityPosture | None = None,
+    capabilities: Mapping[str, CapabilityState] | None = None,
+    degraded_reasons: Sequence[str] | None = None,
 ) -> JSONResponse:
     """Build a standard MCP /health JSONResponse.
 
@@ -42,9 +50,17 @@ def make_health_response(
         security: Optional Security Posture the server produced at startup. When supplied, ready
             requires its validated flag and the body carries a security block; when omitted the
             security key is absent, which is how an un-migrated server stays unchanged.
+        capabilities: Optional capability name to contract state map. When supplied the body
+            carries the version-1 capability block; when omitted no new key is written, so the
+            body stays a legacy body the Agent reads through the contract's legacy branch (D-6).
+        degraded_reasons: Optional reason codes from the contract's closed vocabulary. Read only
+            alongside `capabilities`: a legacy body has no reason field.
 
     Returns:
         A JSONResponse with status 200 (healthy) or 503 (degraded).
+
+    Raises:
+        ValueError: A capability state or a reason code is outside the contract vocabulary.
     """
     ready = len(deps) == 0 and (security is None or security.validated)
     status = HEALTH_STATUS_OK if ready else HEALTH_STATUS_DEGRADED
@@ -60,6 +76,27 @@ def make_health_response(
     }
     if security is not None:
         payload["security"] = security.to_dict()
+    if capabilities is not None:
+        # The new fields are written through the contract parser, so the shape this producer
+        # emits is the shape the Agent reads and an out-of-vocabulary value fails here rather
+        # than at comparison time. Every existing key above is left as it is (REQ-004).
+        block = {
+            name: {"state": state.state, "reason_code": state.reason_code}
+            for name, state in capabilities.items()
+        }
+        report = parse_health_body(
+            {
+                "health_schema_version": HEALTH_SCHEMA_VERSION,
+                "degraded_reasons": list(degraded_reasons or ()),
+                "capabilities": block,
+            }
+        )
+        payload["health_schema_version"] = report.health_schema_version
+        payload["degraded_reasons"] = list(report.degraded_reasons)
+        payload["capabilities"] = {
+            name: {"state": state.state, "reason_code": state.reason_code}
+            for name, state in report.capabilities.items()
+        }
     return JSONResponse(payload, status_code=status_code)
 
 

@@ -43,21 +43,31 @@ reduces them to a server-key allowlist with
 tool. An empty gate mapping allows no server and adds no MCP tool to the registry.
 This module never probes `/health` and never
 decides a gate itself.
+
+Required-capability proof (REQ-005): `config/tool_catalog.toml` is read through
+`shared.tool_catalog` before the registry is built, and each `required` server's declared
+capability is proven from the report its gate carries — a body without the capability block
+falls back to `ready` (D-6). Optional capabilities reported `degraded` or `unavailable` are
+collected per server into the map handed to the registry builder, so only the tools that
+depend on them are excluded (REQ-006). Reading a gate's report is not deciding a gate.
 """
 
 from __future__ import annotations
 
-import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from shared.mcp_config import TransportType
-from shared.runtime_paths import resolve_config_dir
 from shared.runtime_tool_registry import RuntimeToolRegistry
+from shared.tool_catalog import load_tool_catalog, required_capability_for
 from shared.tool_routing_validation import validate_routing_against_live
 
-from agent.services.mcp_health import PostureGate, allowed_server_keys
+from agent.services.mcp_health import (
+    PostureGate,
+    allowed_server_keys,
+    classify_capabilities,
+)
 from agent.services.mcp_tool_discovery_fetch import (
     _SOURCE,
     _fetch_server_tools,
@@ -104,11 +114,10 @@ class McpToolDiscoveryService:
         entries, findings, unreachable = await self._fetch_all_server_entries()
         unavailable_keys = frozenset(unreachable)
         allowed_servers = frozenset(allowed_server_keys(self._posture_gates))
-        registry, dedup_findings = _dedupe_and_build(
-            entries, unavailable_keys, allowed_servers=allowed_servers
-        )
-        findings.extend(dedup_findings)
         try:
+            # The catalog is read before the registry is built (D-9): the required-capability
+            # proof and the degraded-capability map are both decided from it, so the registry
+            # is published once, already excluding the tools of a degraded optional capability.
             tool_catalog = self._load_tool_catalog()
         except OSError as exc:
             # Fail-closed (REQ-005): a missing/unreadable manifest means no
@@ -122,11 +131,21 @@ class McpToolDiscoveryService:
                 )
             )
             return DiscoveryResult(
-                registry=registry,
+                registry=RuntimeToolRegistry(allowed_servers=allowed_servers),
                 findings=findings,
                 unreachable=unreachable,
             )
-        findings = self._check_required_tools(findings, registry, tool_catalog)
+        findings = self._check_required_tools(findings, tool_catalog)
+        # The map is produced here and transported unchanged (REQ-006): the exclusion decision is
+        # the registry's, so the registry is published once with the dependent tools already dropped.
+        degraded = self._degraded_capability_map(tool_catalog)
+        registry, dedup_findings = _dedupe_and_build(
+            entries,
+            unavailable_keys,
+            allowed_servers=allowed_servers,
+            degraded_capabilities=degraded,
+        )
+        findings.extend(dedup_findings)
         findings.extend(self._build_drift_findings(entries))
         findings.extend(self._build_write_classification_findings(registry))
         tool_defs_finding = await self._check_tool_definitions_finding()
@@ -141,15 +160,13 @@ class McpToolDiscoveryService:
     def _load_tool_catalog(self) -> dict[str, Any]:
         """Load config/tool_catalog.toml once per discovery (fail-closed).
 
-        Resolves the config directory the same way every other config-directory
-        reader does and parses the manifest with the stdlib TOML reader. The
-        manifest is DATA (it crosses no import boundary), so it is loaded here at
+        Reads through `shared.tool_catalog`, the one reader both Tool Discovery and the
+        lifecycle readiness helpers use, so the file path and the entry shape are defined
+        once. The manifest is DATA (it crosses no import boundary), so it is loaded at
         runtime rather than imported as a module. Raises ``OSError`` if the file
         is missing or unreadable so the caller can fail closed.
         """
-        path = resolve_config_dir() / "tool_catalog.toml"
-        raw = path.read_text(encoding="utf-8")
-        return tomllib.loads(raw)
+        return load_tool_catalog()
 
     async def _fetch_all_server_entries(
         self,
@@ -260,69 +277,78 @@ class McpToolDiscoveryService:
     def _check_required_tools(
         self,
         findings: list[StartupCheckOutcome],
-        registry: RuntimeToolRegistry,
         tool_catalog: Mapping[str, Any],
     ) -> list[StartupCheckOutcome]:
         """Check that every required server proves its declared required capability.
 
         Required-capability model (REQ-005, AC-3): the manifest
-        (config/tool_catalog.toml) declares, per required server, the capability a
-        surfaced tool must provide. For each required server, if no discovered tool
-        declares that capability the finding is FATAL.
-
-        The check is inert until the capability model is in use. It engages only
-        when at least one discovered tool declares a capability; until servers
-        populate the ``capabilities`` field on their ``/v1/tools`` payloads no
-        capability can be proven or disproven, so the check reports nothing
-        rather than blocking startup on unverifiable data.
+        (config/tool_catalog.toml) declares, per required server, the capability its tools
+        must provide, and the parsed health report is the proof of it. A required server
+        whose report does not prove that capability `ok` is FATAL. A server with no catalog
+        entry, or a body without the capability block, is read through its `ready` flag
+        (D-6), so the legacy shape still proves readiness. The check is no longer gated on a
+        tool declaring a capability: required loss must block startup (REQ-005), so the
+        earlier inert-until-declared guard was removed.
         """
-        all_tools = list(registry.all_tools())
-        if not any(tool.capabilities for tool in all_tools):
-            return findings
-
-        caps_by_server: dict[str, set[str]] = {}
-        for tool in all_tools:
-            caps_by_server.setdefault(tool.server_key, set()).update(tool.capabilities)
-
         for srv_key, srv_cfg in self._ctx.cfg.mcp.mcp_servers.items():
             if not srv_cfg.required:
                 continue
-            server_entry = tool_catalog.get("server", {}).get(srv_key)
-            if not isinstance(server_entry, Mapping):
-                findings.append(
-                    StartupCheckOutcome(
-                        source=_SOURCE,
-                        status=StartupCheckStatus.FATAL,
-                        message=f"{srv_key}: required server absent from tool_catalog.toml",
-                        remediation="Add a [server.<key>] table with a required_capability.",
-                    )
-                )
-                continue
-            required_cap = server_entry.get("required_capability")
-            if not required_cap:
+            required_cap = required_capability_for(tool_catalog, srv_key)
+            gate = self._posture_gates.get(srv_key)
+            if gate is None:
                 findings.append(
                     StartupCheckOutcome(
                         source=_SOURCE,
                         status=StartupCheckStatus.FATAL,
                         message=(
-                            f"{srv_key}: tool_catalog.toml does not declare a "
-                            "required_capability"
+                            f"{srv_key}: required server has no health gate, so its "
+                            "required capability cannot be proven"
                         ),
-                        remediation="Set required_capability for this server.",
+                        remediation="Probe the server at readiness so its report is available.",
                     )
                 )
                 continue
-            provided = caps_by_server.get(srv_key, set())
-            if required_cap not in provided:
-                findings.append(
-                    StartupCheckOutcome(
-                        source=_SOURCE,
-                        status=StartupCheckStatus.FATAL,
-                        message=(
-                            f"{srv_key}: required capability {required_cap!r} not "
-                            "provided by any discovered tool"
-                        ),
-                        remediation="Verify the server's /v1/tools response declares this capability.",
-                    )
+            finding = classify_capabilities(gate, required_cap)
+            if finding.required_proven:
+                continue
+            if required_cap:
+                message = (
+                    f"{srv_key}: required capability {required_cap!r} not proven "
+                    "by the health report"
                 )
+            else:
+                message = (
+                    f"{srv_key}: required server's health report does not prove "
+                    "readiness (no declared capability, legacy ready fallback)"
+                )
+            findings.append(
+                StartupCheckOutcome(
+                    source=_SOURCE,
+                    status=StartupCheckStatus.FATAL,
+                    message=message,
+                    remediation=(
+                        "Verify the server's /health report proves its declared "
+                        "capability."
+                    ),
+                )
+            )
         return findings
+
+    def _degraded_capability_map(
+        self, tool_catalog: Mapping[str, Any]
+    ) -> dict[str, tuple[str, ...]]:
+        """Per-server degraded or unavailable optional capabilities (REQ-006).
+
+        Producer of the map Tool Discovery hands to the registry so only the tools that
+        depend on the lost capability are excluded with reason `capability` (seq 11 wires
+        the call site, seq 13 the exclusion itself). The required capability is not part of
+        the map: its loss blocks startup instead of disabling tools.
+        """
+        degraded: dict[str, tuple[str, ...]] = {}
+        for srv_key, gate in self._posture_gates.items():
+            finding = classify_capabilities(
+                gate, required_capability_for(tool_catalog, srv_key)
+            )
+            if finding.degraded_optional:
+                degraded[srv_key] = finding.degraded_optional
+        return degraded
