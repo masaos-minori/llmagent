@@ -59,7 +59,7 @@ class _RecordingAudit:
 @pytest.fixture
 def audit_stub(monkeypatch: pytest.MonkeyPatch) -> _RecordingAudit:
     stub = _RecordingAudit()
-    monkeypatch.setattr(web_search_server, "_audit_log", stub)
+    monkeypatch.setattr("mcp_servers.audit._audit_log", stub)
     return stub
 
 
@@ -124,17 +124,14 @@ class TestAuditAlwaysFires:
         assert audit_stub.calls[0]["request_id"] == resp.headers["x-request-id"]
         assert audit_stub.calls[0]["request_id"] != "hdr-req-id"
 
-    def test_audit_success_detail_includes_query_preview_and_hash(
+    def test_audit_success_target_is_a_hash_and_detail_has_no_query_text(
         self,
         monkeypatch: pytest.MonkeyPatch,
         audit_stub: _RecordingAudit,
         client: TestClient,
     ) -> None:
-        """Locks the exact search_web detail-string format built by
-        `web_search_server._build_audit_target_and_detail` — target is the
-        raw query, detail carries max_results/latency/query_preview/
-        query_hash (previously only exercised, never asserted, by
-        test_audit_emitted_on_success above)."""
+        """The search_web target is a normalized query hash and the detail carries
+        max_results, latency, and the query length — never the query text."""
 
         async def _fake(*args: object, **kwargs: object) -> list[SearchResult]:
             return [SearchResult(title="t", url="u", body="b", provider="duckduckgo")]
@@ -150,12 +147,13 @@ class TestAuditAlwaysFires:
 
         assert resp.status_code == 200
         call = audit_stub.calls[0]
-        assert call["target"] == "Python "
-        assert "max_results=3" in call["detail"]
-        assert "query_preview='Python '" in call["detail"]
-        # query_hash is sha256(query.strip().lower()) truncated to 16 hex chars.
+        # The hash is sha256(query.strip().lower()) truncated to 16 hex characters.
         expected_hash = hashlib.sha256(b"python").hexdigest()[:16]
-        assert f"query_hash={expected_hash}" in call["detail"]
+        assert call["target"] == f"sha256:{expected_hash}"
+        assert "max_results=3" in call["detail"]
+        assert "query_len=7" in call["detail"]
+        assert "query_preview" not in call["detail"]
+        assert "Python" not in str(call)
 
     def test_audit_emitted_on_zero_result(
         self,
@@ -265,7 +263,7 @@ class TestAuditBrowserFetch:
             web_search_server._cfg, "browser_allowed_domains", ["example.com"]
         )
 
-    def test_audit_emitted_on_success_with_url_preview(
+    def test_audit_emitted_on_success_with_a_redacted_url(
         self,
         monkeypatch: pytest.MonkeyPatch,
         audit_stub: _RecordingAudit,
@@ -296,9 +294,10 @@ class TestAuditBrowserFetch:
         assert call["error_type"] == ""
         assert call["server_key"] == "web_search"
         assert call["target"] == "https://example.com/page"
-        assert "url_preview=" in call["detail"]
+        assert "host=example.com" in call["detail"]
+        assert "url_preview" not in call["detail"]
         # search_web's query-specific detail fields must not leak in.
-        assert "query_hash=" not in call["detail"]
+        assert "query_len=" not in call["detail"]
 
     def test_audit_emitted_on_authorization_error(
         self, audit_stub: _RecordingAudit, client: TestClient
@@ -315,7 +314,7 @@ class TestAuditBrowserFetch:
         assert len(audit_stub.calls) == 1
         assert audit_stub.calls[0]["outcome"] == "error"
         assert audit_stub.calls[0]["error_type"] == "authorization_error"
-        assert audit_stub.calls[0]["target"] == "https://not-allowed.example/"
+        assert audit_stub.calls[0]["target"] == "https://not-allowed.example"
 
     def test_audit_emitted_on_validation_error(
         self, audit_stub: _RecordingAudit, client: TestClient
@@ -396,27 +395,25 @@ class TestClassifyUpstreamError:
 
 
 class TestBuildAuditTargetAndDetail:
-    """Direct unit tests for `_build_audit_target_and_detail`, extracted from
-    `call_tool()`'s `finally` block during the web_search_server.py
-    structural refactor — pins the pre-extraction behavior exactly."""
+    """Direct unit tests for `_build_audit_target_and_detail`: no raw query or URL
+    reaches the audit target or detail."""
 
-    def test_search_web_target_is_raw_query(self) -> None:
+    def test_search_web_target_is_the_query_hash(self) -> None:
         target, _detail = web_search_server._build_audit_target_and_detail(
             "search_web", {"query": "python asyncio"}, 12.5
         )
-        assert target == "python asyncio"
+        expected = hashlib.sha256(b"python asyncio").hexdigest()[:16]
+        assert target == f"sha256:{expected}"
 
-    def test_search_web_detail_contains_max_results_latency_preview_hash(
-        self,
-    ) -> None:
-        _target, detail = web_search_server._build_audit_target_and_detail(
+    def test_search_web_detail_contains_max_results_latency_and_length(self) -> None:
+        target, detail = web_search_server._build_audit_target_and_detail(
             "search_web", {"query": "Python ", "max_results": 3}, 12.5
         )
-        expected_hash = hashlib.sha256(b"python").hexdigest()[:16]
         assert "max_results=3" in detail
         assert "latency_ms=12" in detail
-        assert "query_preview='Python '" in detail
-        assert f"query_hash={expected_hash}" in detail
+        assert "query_len=7" in detail
+        assert "query_preview" not in detail
+        assert "Python" not in detail and "Python" not in target
 
     def test_search_web_missing_max_results_defaults_to_empty_string(self) -> None:
         _target, detail = web_search_server._build_audit_target_and_detail(
@@ -424,17 +421,111 @@ class TestBuildAuditTargetAndDetail:
         )
         assert "max_results= " in detail
 
-    def test_browser_fetch_target_is_raw_url(self) -> None:
+    def test_browser_fetch_target_is_a_redacted_url(self) -> None:
         target, _detail = web_search_server._build_audit_target_and_detail(
-            "browser_fetch", {"url": "https://example.com/page"}, 5.0
+            "browser_fetch",
+            {
+                "url": "https://user:pw@example.com:8443/docs/page"
+                "?token=SECRET&sig=abc#frag"
+            },
+            5.0,
         )
-        assert target == "https://example.com/page"
+        assert target == "https://example.com/docs/page"
 
-    def test_browser_fetch_detail_contains_latency_and_url_preview_only(self) -> None:
+    def test_browser_fetch_detail_has_latency_and_host_only(self) -> None:
         _target, detail = web_search_server._build_audit_target_and_detail(
-            "browser_fetch", {"url": "https://example.com/page"}, 5.0
+            "browser_fetch", {"url": "https://Example.COM/page?token=SECRET"}, 5.0
         )
         assert "latency_ms=5" in detail
-        assert "url_preview='https://example.com/page'" in detail
-        assert "query_hash=" not in detail
-        assert "query_preview=" not in detail
+        assert "host=example.com" in detail
+        assert "SECRET" not in detail
+        assert "url_preview" not in detail
+        assert "query_len=" not in detail
+
+    def test_browser_fetch_host_is_a_dash_for_an_unparseable_url(self) -> None:
+        target, detail = web_search_server._build_audit_target_and_detail(
+            "browser_fetch", {"url": "not a url"}, 1.0
+        )
+        assert target == "invalid-url"
+        assert "host=-" in detail
+
+    def test_an_unknown_tool_reports_a_dash_target(self) -> None:
+        target, detail = web_search_server._build_audit_target_and_detail(
+            "other_tool", {"url": "https://secret.example/?t=1", "query": "secret"}, 2.0
+        )
+        assert target == "-"
+        assert "secret" not in detail
+
+
+class TestAuditRedaction:
+    """Signed URLs, tokens, OAuth parameters, and personal data never reach a record."""
+
+    _URL = (
+        "https://alice:hunter2@files.example.com/users/alice@corp.example/"
+        "4f9d8c7b6a5e4d3c2b1a0f9e8d7c6b5a/report.pdf"
+        "?X-Amz-Signature=SIGVALUE&access_token=TOKENVALUE&code=OAUTHCODE"
+        "&email=alice@corp.example#FRAGVALUE"
+    )
+    _SECRETS = (
+        "hunter2",
+        "alice",
+        "corp.example",
+        "4f9d8c7b6a5e4d3c2b1a0f9e8d7c6b5a",
+        "SIGVALUE",
+        "TOKENVALUE",
+        "OAUTHCODE",
+        "FRAGVALUE",
+    )
+
+    def test_a_browser_fetch_record_contains_no_secret(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        audit_stub: _RecordingAudit,
+        client: TestClient,
+    ) -> None:
+        monkeypatch.setattr(
+            web_search_server._cfg, "browser_allowed_domains", ["files.example.com"]
+        )
+
+        async def _fake(args: dict[str, Any]) -> BrowserFetchResponse:
+            return BrowserFetchResponse(
+                text="ok", truncated=False, url="u", status_code=200, elapsed_sec=0.0
+            )
+
+        monkeypatch.setattr(service, "fetch_browser", _fake)
+
+        client.post(
+            "/v1/call_tool", json={"name": "browser_fetch", "args": {"url": self._URL}}
+        )
+
+        serialized = str(audit_stub.calls)
+        for secret in self._SECRETS:
+            assert secret not in serialized, secret
+        assert audit_stub.calls[0]["target"] == (
+            "https://files.example.com/users/*/*/report.pdf"
+        )
+
+    def test_a_search_web_record_contains_no_query_text(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        audit_stub: _RecordingAudit,
+        client: TestClient,
+    ) -> None:
+        async def _fake(*args: object, **kwargs: object) -> list[SearchResult]:
+            return []
+
+        monkeypatch.setattr(
+            "mcp_servers.web_search.web_search_service.search_duckduckgo", _fake
+        )
+
+        client.post(
+            "/v1/call_tool",
+            json={
+                "name": "search_web",
+                "args": {"query": "my password is hunter2 for bob@corp.example"},
+            },
+        )
+
+        serialized = str(audit_stub.calls)
+        for text in ("hunter2", "bob@corp.example", "password"):
+            assert text not in serialized

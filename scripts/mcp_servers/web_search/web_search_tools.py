@@ -9,7 +9,11 @@ from __future__ import annotations
 from shared.tool_metadata import TOOL_FIELD_SET_VERSION
 
 from mcp_servers.models import McpTool
-from mcp_servers.web_search.web_search_models import get_max_results_limit
+from mcp_servers.request_contract import build_input_schema
+from mcp_servers.web_search.web_search_models import (
+    BrowserFetchRequest,
+    SearchRequest,
+)
 
 TOOL_LIST: list[McpTool] = [
     {
@@ -17,24 +21,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "Search the web for the latest information. Use when the local DB does not contain the needed information"
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Search query string",
-                    "minLength": 1,
-                    "maxLength": 500,
-                },
-                "max_results": {
-                    "type": "integer",
-                    "description": "Maximum number of results (default: configured)",
-                    "minimum": 1,
-                    "maximum": get_max_results_limit(),
-                },
-            },
-            "required": ["query"],
-        },
+        "inputSchema": build_input_schema(SearchRequest),
         "status": "production",
         "config_dependent": False,
         "is_write": False,
@@ -56,23 +43,7 @@ TOOL_LIST: list[McpTool] = [
             "execution, no interactive actions). Host must be in the configured domain "
             "allowlist."
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "url": {
-                    "type": "string",
-                    "description": "Absolute http(s) URL to fetch (host must be allowlisted)",
-                },
-                "max_response_kb": {
-                    "type": "integer",
-                    "description": (
-                        "Output size limit in KB (default: server-configured; caller "
-                        "value is clamped to server maximum)"
-                    ),
-                },
-            },
-            "required": ["url"],
-        },
+        "inputSchema": build_input_schema(BrowserFetchRequest),
         "status": "production",
         "config_dependent": True,
         "is_write": False,

@@ -25,14 +25,21 @@ key=value pairs when present. Never emit an empty string — omit the field enti
 when there is nothing to report. Examples::
 
     detail="duration_ms=42 result_count=5"
-    detail="latency_ms=120 query_preview='search term'"
+    detail="latency_ms=120 query_len=12 host='example.com'"
+
+Audit records must not contain raw query text or raw URLs: use ``hash_query_value``
+for query-like values and ``redact_url`` for URLs, and emit through ``AuditEmission``
+so every authenticated call produces exactly one record.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import re
 import time
 from typing import NotRequired, TypedDict
+from urllib.parse import urlsplit
 
 import orjson
 from shared.logger import Logger as _SharedLogger
@@ -170,3 +177,120 @@ def _audit_log(
         canonical_target=canonical_target,
     )
     server_logger.info(orjson.dumps(record, option=orjson.OPT_SORT_KEYS).decode())
+
+
+_logger = logging.getLogger(__name__)
+
+# URL path redaction: at most this many segments are kept; a segment is kept only
+# when it is short, plain, and not token-shaped, and every other segment is "*".
+_MAX_PATH_SEGMENTS = 8
+_PLAIN_SEGMENT_RE = re.compile(r"^[A-Za-z0-9._~-]{1,24}$")
+_HEX_TOKEN_RE = re.compile(r"^[0-9a-fA-F]{16,}$")
+_ALNUM_TOKEN_RE = re.compile(r"^(?=.*\d)[A-Za-z0-9]{16,}$")
+_INVALID_URL = "invalid-url"
+
+
+def hash_query_value(value: str) -> str:
+    """Return a short stable hash of a query-like value for audit correlation.
+
+    The value is trimmed and lowercased first, so the same query hashes equally
+    whatever its casing or surrounding whitespace. The output is the first 16 hex
+    characters of its SHA-256 and does not contain the value.
+    """
+    return hashlib.sha256(value.strip().lower().encode()).hexdigest()[:16]
+
+
+def _redact_segment(segment: str) -> str:
+    """Keep a short plain path segment and replace anything else with `*`."""
+    if (
+        _PLAIN_SEGMENT_RE.match(segment)
+        and not _HEX_TOKEN_RE.match(segment)
+        and not _ALNUM_TOKEN_RE.match(segment)
+    ):
+        return segment
+    return "*"
+
+
+def redact_url(url: str) -> str:
+    """Return `scheme://host` plus a redacted path, or `invalid-url`.
+
+    The port, user information, query, and fragment are dropped. At most eight path
+    segments are kept (a longer path ends in `...`), and a segment is kept only when
+    it is short, made of plain characters, and not token-shaped; every other segment
+    becomes `*`. A URL without a scheme or host is returned as `invalid-url`.
+    """
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname
+    except ValueError:
+        return _INVALID_URL
+    if not parts.scheme or not host:
+        return _INVALID_URL
+    shown_host = f"[{host}]" if ":" in host else host
+    segments = [s for s in parts.path.split("/") if s]
+    kept = [_redact_segment(s) for s in segments[:_MAX_PATH_SEGMENTS]]
+    if len(segments) > _MAX_PATH_SEGMENTS:
+        kept.append("...")
+    path = "".join(f"/{s}" for s in kept)
+    return f"{parts.scheme}://{shown_host}{path}"
+
+
+class AuditEmission:
+    """Per-call guard that lets one authenticated call write exactly one record.
+
+    Create one at the start of a handler and emit from its single `finally` block.
+    `emit()` writes through `_audit_log` the first time and returns True; a later
+    call writes nothing, logs a warning, and returns False, so a `finally` block can
+    never raise over an in-flight exception.
+    """
+
+    def __init__(
+        self,
+        server_logger: logging.Logger | _SharedLogger,
+        *,
+        session_id: str,
+        request_id: str,
+        action: str,
+        server_key: str,
+    ) -> None:
+        self._logger = server_logger
+        self._session_id = session_id
+        self._request_id = request_id
+        self._action = action
+        self._server_key = server_key
+        self._emitted = False
+
+    @property
+    def emitted(self) -> bool:
+        """Whether this call's record has been written."""
+        return self._emitted
+
+    def emit(
+        self,
+        *,
+        target: str,
+        outcome: str,
+        error_type: str = "",
+        detail: str = "",
+    ) -> bool:
+        """Write the record once; return whether this call wrote it."""
+        if self._emitted:
+            _logger.warning(
+                "second audit emission ignored: tool=%s request_id=%s",
+                self._action,
+                self._request_id,
+            )
+            return False
+        self._emitted = True
+        _audit_log(
+            self._logger,
+            session_id=self._session_id,
+            request_id=self._request_id,
+            action=self._action,
+            target=target,
+            outcome=outcome,
+            detail=detail,
+            server_key=self._server_key,
+            error_type=error_type,
+        )
+        return True

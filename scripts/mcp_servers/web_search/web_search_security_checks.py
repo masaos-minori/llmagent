@@ -4,8 +4,7 @@
 Self-validation layer for the Web Search MCP server. This module owns every
 SecurityCheckResult the server reports about its own configuration:
   _numeric_checks: the four numeric invariants, in posture order
-  _allowlist_check: browser_allowed_domains as NOT_APPLICABLE, WARNING, or OK
-  _is_hostname_shape: the posture-time mirror of search_provider._check_domain()
+  _allowlist_check: browser_allowed_domains as NOT_APPLICABLE, FAILED, or OK
   _result / _invariant_result: SecurityCheckResult construction
   validate_web_search_security: the ordered five-element list server.py reports
 """
@@ -21,6 +20,10 @@ from shared.security.result_dto import (
     SecurityCheckStatus,
 )
 
+from mcp_servers.web_search.host_normalization import (
+    HostNormalizationError,
+    validate_allowlist,
+)
 from mcp_servers.web_search.web_search_models import (
     HARD_BROWSER_MAX_RESPONSE_KB,
     HARD_BROWSER_TIMEOUT_SEC_LIMIT,
@@ -43,21 +46,6 @@ def _result(
         reason_code=reason_code,
         message=message,
     )
-
-
-def _is_hostname_shape(value: str) -> bool:
-    """Return True when *value* can match the hostname search_provider._check_domain() compares against.
-
-    _check_domain() lowercases the URL hostname and compares it verbatim to the allowlist
-    set, so an entry that keeps a scheme, a path, a port, whitespace, or an uppercase
-    character can never match. This is a posture-time shape test only: _check_domain()
-    stays the runtime authority.
-    """
-    if not value:
-        return False
-    if value != value.lower():
-        return False
-    return not any(char in value for char in " \t:/")
 
 
 def _invariant_result(
@@ -120,8 +108,10 @@ def _allowlist_check(cfg: WebSearchConfig) -> SecurityCheckResult:
 
     An empty allowlist is NOT_APPLICABLE rather than FAILED: it removes the
     browser_fetch capability instead of widening a boundary, so the shipped deny-all
-    configuration stays startable. A malformed entry is WARNING because the runtime
-    already denies everything it cannot match.
+    configuration stays startable. A malformed or duplicate entry is FAILED through
+    the same `validate_allowlist` the config loader uses, so the two cannot
+    disagree; the loader rejects such a list first, which leaves this path for a
+    directly constructed config.
     """
     entries = cfg.browser_allowed_domains
     if not entries:
@@ -131,20 +121,20 @@ def _allowlist_check(cfg: WebSearchConfig) -> SecurityCheckResult:
             REASON_NOT_APPLICABLE,
             "browser_allowed_domains is empty so browser_fetch is disabled for every domain",
         )
-    malformed = sum(1 for entry in entries if not _is_hostname_shape(entry))
-    if malformed:
+    try:
+        validate_allowlist(entries)
+    except HostNormalizationError as exc:
         return _result(
             "server.browser_allowlist",
-            SecurityCheckStatus.WARNING,
+            SecurityCheckStatus.FAILED,
             REASON_ALLOWLIST_INVALID,
-            f"browser_allowed_domains contains {malformed} of "
-            f"{len(entries)} entries that cannot match a hostname",
+            f"browser_allowed_domains is invalid ({len(entries)} entries): {exc}",
         )
     return _result(
         "server.browser_allowlist",
         SecurityCheckStatus.OK,
         REASON_OK,
-        f"browser_allowed_domains holds {len(entries)} hostname-shaped entries",
+        f"browser_allowed_domains holds {len(entries)} valid hostname entries",
     )
 
 
@@ -158,7 +148,7 @@ def validate_web_search_security(cfg: WebSearchConfig) -> list[SecurityCheckResu
     server.browser_allowlist is the one id that is not FAILED on an empty list: an empty
     browser_allowed_domains removes the browser_fetch capability rather than widening a
     boundary, so the shipped deny-all configuration stays startable. A malformed entry is
-    WARNING because the runtime already denies everything it cannot match.
+    FAILED, as in the config loader.
 
     Messages name the setting and its state: allowlist entries are reported by count only.
     """

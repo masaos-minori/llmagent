@@ -30,6 +30,10 @@ from mcp_servers.bounded_fetch import (
     FetchUnsupportedEncodingError,
     fetch_bounded,
 )
+from mcp_servers.web_search.host_normalization import (
+    HostNormalizationError,
+    normalize_host,
+)
 from mcp_servers.web_search.web_search_models import (
     BrowserAuthorizationError,
     BrowserConfig,
@@ -110,38 +114,61 @@ def _build_search_results(raw: list[dict[str, str]]) -> list[SearchResult]:
     ]
 
 
-def _check_domain(url: str, allowed_domains: set[str]) -> str:
-    """Validate URL scheme and hostname; return the validated hostname.
+def _host_in_allowlist(hostname: str, allowed_domains: set[str]) -> bool:
+    """Return True when the normalized `hostname` matches a normalized member.
 
-    Raises BrowserValidationError for a malformed URL (bad scheme or
-    missing hostname). Raises BrowserAuthorizationError when the hostname
+    A member that cannot be normalized never matches, so a bad entry fails closed.
+    """
+    for entry in allowed_domains:
+        try:
+            if normalize_host(entry) == hostname:
+                return True
+        except HostNormalizationError:
+            continue
+    return False
+
+
+def _reject_prohibited_ip_literal(host: str) -> None:
+    """Raise BrowserAuthorizationError for a loopback/link-local/private/reserved/
+    multicast IP-literal host; a non-IP host and a public IP pass."""
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return
+    if (
+        ip.is_loopback
+        or ip.is_link_local
+        or ip.is_private
+        or ip.is_reserved
+        or ip.is_multicast
+    ):
+        raise BrowserAuthorizationError(f"IP-literal target not allowed: {host!r}")
+
+
+def _check_domain(url: str, allowed_domains: set[str]) -> str:
+    """Validate URL scheme and hostname; return the normalized hostname.
+
+    Raises BrowserValidationError for a malformed URL (bad scheme, missing or
+    invalid hostname). Raises BrowserAuthorizationError when the hostname
     is an IP literal in a loopback/link-local/private/reserved/multicast
     range (checked unconditionally, regardless of the allowlist — defense
     in depth) or when it does not match allowed_domains (fail-closed: an
-    empty allowlist denies everything).
+    empty allowlist denies everything). Matching is on the normalized form
+    (lowercase, IDNA ASCII, one trailing dot removed) of both the URL host and
+    each allowlist member.
     """
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https"):
         raise BrowserValidationError(f"Unsupported URL scheme: {parts.scheme!r}")
-    hostname = (parts.hostname or "").lower()
-    if not hostname:
+    raw_host = (parts.hostname or "").lower()
+    if not raw_host:
         raise BrowserValidationError("URL is missing a hostname")
+    _reject_prohibited_ip_literal(raw_host)
     try:
-        ip = ipaddress.ip_address(hostname)
-    except ValueError:
-        pass
-    else:
-        if (
-            ip.is_loopback
-            or ip.is_link_local
-            or ip.is_private
-            or ip.is_reserved
-            or ip.is_multicast
-        ):
-            raise BrowserAuthorizationError(
-                f"IP-literal target not allowed: {hostname!r}"
-            )
-    if hostname not in allowed_domains:
+        hostname = normalize_host(raw_host)
+    except HostNormalizationError as exc:
+        raise BrowserValidationError("URL has an invalid hostname") from exc
+    if not _host_in_allowlist(hostname, allowed_domains):
         raise BrowserAuthorizationError(f"Domain not in allowlist: {hostname!r}")
     return hostname
 

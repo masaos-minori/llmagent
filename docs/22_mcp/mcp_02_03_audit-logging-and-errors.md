@@ -30,7 +30,7 @@ Each `POST /v1/call_tool` invocation on a server that writes the shared audit lo
 | `session_id` | `X-Session-Id` request header | Yes | `"-"` |
 | `request_id` | `X-Request-Id` (UUID injected by middleware) | Yes | `"-"` |
 | `tool` | `req.name` (tool name) | Yes | — |
-| `target` | Server-specific: repository slug / truncated command / truncated query / requested file path (truncation length defined per server, e.g. `scripts/mcp_servers/shell/shell_server.py`, `scripts/mcp_servers/mdq/audit_target.py`). file-write-mcp and file-delete-mcp record the caller-supplied path truncated to 80 characters rather than a resolved canonical path. | Yes | — |
+| `target` | Server-specific: repository slug / truncated command / a query hash (`sha256:<16 hex>`) for web-search-mcp `search_web` and a redacted URL (scheme, host, redacted path) for `browser_fetch`, never the raw query or URL / requested file path (truncation length defined per server, e.g. `scripts/mcp_servers/shell/shell_server.py`, `scripts/mcp_servers/mdq/audit_target.py`). file-write-mcp and file-delete-mcp record the caller-supplied path truncated to 80 characters rather than a resolved canonical path. | Yes | — |
 | `outcome` | `"ok"`, `"error"`, or `"rejected"` (the call was rejected by a policy guard before or instead of execution; emitted by git-mcp, file-write-mcp, and file-delete-mcp) | Yes | — |
 | `detail` | Optional supplementary info | No | Omitted |
 | `server_key` | Server identifier (e.g., `"web_search"`, `"cicd"`, `"mdq"`, `"shell"`, `"github"`) | Yes | `""` |
@@ -42,6 +42,12 @@ Each `POST /v1/call_tool` invocation on a server that writes the shared audit lo
 
 
 **Note:** github-mcp, shell-mcp, and file-delete-mcp write to both the shared and a dedicated audit log; file-write-mcp and rag-pipeline-mcp write only the shared audit log. file-read-mcp does not write audit logs. Dedicated audit logs for github-mcp, shell-mcp, and file-delete-mcp use ISO8601 timestamps + op=<operation> + path/repo/command. These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
+
+### Redaction and exactly-once rule
+
+Audit records must not contain raw sensitive content. `scripts/mcp_servers/audit.py` provides the shared helpers: `hash_query_value()` returns the first 16 hex characters of the SHA-256 of a trimmed, lowercased value, `redact_url()` keeps only the scheme, the host, and a redacted path (it drops the port, user information, query, and fragment, keeps at most 8 path segments, keeps a segment only when it is short, made of plain characters, and not token-shaped, and replaces every other segment with `*`; a URL without scheme or host becomes `invalid-url`), and `AuditEmission` lets one call write exactly one record (a second emission is ignored with a warning). web-search-mcp no longer records the fields `query_preview` and `url_preview`; its `search_web` detail carries `max_results`, `latency_ms`, and `query_len`, and its `browser_fetch` detail carries `latency_ms` and the normalized `host`. CI/CD and MDQ servers may reuse the helpers.
+
+Every authenticated `POST /v1/call_tool` call produces exactly one record in web-search-mcp: a success, a disabled tool (`outcome` `"rejected"`, `error_type` `"tool_disabled"`), an unknown tool, a validation error, an authorization error, a malformed request envelope (`outcome` `"rejected"`, `error_type` `"validation_error"`, `target` `"-"`), and an unexpected failure. A rejected call does not change provider health counts.
 
 ### Approval correlation
 

@@ -65,9 +65,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the helpers and the docstring change | Pending | — | — | |
-| 2 | Add the companion tests first, then confirm they pass | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the helpers and the docstring change | Completed | 20261126-141323 | 20261126-141323 | Changed: scripts/mcp_servers/audit.py |
+| 2 | Add the companion tests first, then confirm they pass | Completed | 20261126-141323 | 20261126-141323 | Changed: tests/mcp_servers/test_audit_redaction.py (new) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-141323 | 20261126-141323 | ruff format/check, mypy (CI invocation), lint-imports, bandit, module size, docstring, reference table, validation gates passed; full suite (parallel, coverage): 26 failed and 88 errors in tests/agent/* and tests/docs/test_command_docs_sync.py from a pre-existing NameError in scripts/agent/commands/cmd_mcp.py, unrelated to this change; diff-cover 100% on the changed tracked files; targeted tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

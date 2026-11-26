@@ -14,8 +14,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from mcp_servers.web_search.web_search_models import SearchRequest
+import pytest
+from mcp_servers.request_contract import build_input_schema
+from mcp_servers.web_search.web_search_models import (
+    HARD_BROWSER_MAX_RESPONSE_KB,
+    BrowserFetchRequest,
+    SearchRequest,
+)
 from mcp_servers.web_search.web_search_tools import TOOL_LIST
+from pydantic import BaseModel, ValidationError
 
 
 def _search_web_schema() -> dict[str, Any]:
@@ -78,3 +85,77 @@ class TestSearchWebSchemaDrift:
         assert schema["properties"]["max_results"][
             "maximum"
         ] == _max_results_constraint("le")
+
+
+def _tool_schema(name: str) -> dict[str, Any]:
+    matches = [tool for tool in TOOL_LIST if tool["name"] == name]
+    assert len(matches) == 1
+    schema: dict[str, Any] = matches[0]["inputSchema"]
+    return schema
+
+
+class TestSchemasAreGeneratedFromTheModels:
+    """Both published schemas are exactly what the runtime models enforce."""
+
+    @pytest.mark.parametrize(
+        ("name", "model"),
+        [("search_web", SearchRequest), ("browser_fetch", BrowserFetchRequest)],
+    )
+    def test_the_published_schema_equals_the_generated_schema(
+        self, name: str, model: type[BaseModel]
+    ) -> None:
+        assert _tool_schema(name) == build_input_schema(model)
+
+    @pytest.mark.parametrize("name", ["search_web", "browser_fetch"])
+    def test_unknown_arguments_are_declared_forbidden(self, name: str) -> None:
+        assert _tool_schema(name)["additionalProperties"] is False
+
+    @pytest.mark.parametrize(
+        ("model", "payload"),
+        [
+            (SearchRequest, {"query": "q", "extra": 1}),
+            (BrowserFetchRequest, {"url": "https://example.com/", "extra": 1}),
+        ],
+    )
+    def test_each_model_rejects_an_unknown_argument(
+        self, model: type[BaseModel], payload: dict[str, Any]
+    ) -> None:
+        with pytest.raises(ValidationError):
+            model(**payload)
+
+
+class TestBrowserFetchSchemaDrift:
+    def test_url_is_required_and_non_empty(self) -> None:
+        schema = _tool_schema("browser_fetch")
+
+        assert schema["required"] == ["url"]
+        assert schema["properties"]["url"]["minLength"] == 1
+        with pytest.raises(ValidationError):
+            BrowserFetchRequest(url="")
+
+    def test_max_response_kb_bounds_match_the_server_ceiling(self) -> None:
+        schema = _tool_schema("browser_fetch")
+        bounded = next(
+            option
+            for option in schema["properties"]["max_response_kb"]["anyOf"]
+            if option.get("type") == "integer"
+        )
+
+        assert bounded["minimum"] == 1
+        assert bounded["maximum"] == HARD_BROWSER_MAX_RESPONSE_KB
+        assert (
+            BrowserFetchRequest(
+                url="https://example.com/", max_response_kb=HARD_BROWSER_MAX_RESPONSE_KB
+            ).max_response_kb
+            == HARD_BROWSER_MAX_RESPONSE_KB
+        )
+        for bad in (0, HARD_BROWSER_MAX_RESPONSE_KB + 1):
+            with pytest.raises(ValidationError):
+                BrowserFetchRequest(url="https://example.com/", max_response_kb=bad)
+
+    def test_the_description_states_that_the_server_clamps(self) -> None:
+        description = _tool_schema("browser_fetch")["properties"]["max_response_kb"][
+            "description"
+        ]
+
+        assert "clamped" in description

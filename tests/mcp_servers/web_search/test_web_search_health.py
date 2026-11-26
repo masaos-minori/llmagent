@@ -220,6 +220,69 @@ _LOOPBACK = ("127.0.0.1", 50000)
 _REMOTE = ("203.0.113.9", 50000)
 
 
+class TestRejectionsLeaveHealthUnchanged:
+    """A rejected call never reaches the service, so neither health state moves."""
+
+    @staticmethod
+    def _snapshot() -> tuple[dict[str, object], dict[str, object]]:
+        return health.health_details(), health.browser_health_details()
+
+    def _post(self, client: TestClient, body: dict[str, object]) -> int:
+        return client.post("/v1/call_tool", json=body).status_code
+
+    def test_a_disabled_tool_changes_no_health_count(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(web_search_server._cfg, "browser_allowed_domains", [])
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
+        before = self._snapshot()
+
+        status = self._post(
+            client,
+            {"name": "browser_fetch", "args": {"url": "https://example.com/"}},
+        )
+
+        assert status == 200
+        assert self._snapshot() == before
+        assert health.is_degraded() is False
+        assert health.is_browser_degraded() is False
+
+    def test_a_malformed_envelope_changes_no_health_count(self) -> None:
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
+        before = self._snapshot()
+
+        status = self._post(client, {"args": {"query": "q"}})
+
+        assert status == 422
+        assert self._snapshot() == before
+
+    def test_a_validation_error_changes_no_health_count(self) -> None:
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
+        before = self._snapshot()
+
+        status = self._post(client, {"name": "search_web", "args": {"query": ""}})
+
+        assert status == 200
+        assert self._snapshot() == before
+
+    def test_an_authorization_error_changes_no_health_count(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            web_search_server._cfg, "browser_allowed_domains", ["example.com"]
+        )
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
+        before = self._snapshot()
+
+        status = self._post(
+            client,
+            {"name": "browser_fetch", "args": {"url": "https://not-allowed.example/"}},
+        )
+
+        assert status == 403
+        assert self._snapshot() == before
+
+
 def _guarded_app() -> FastAPI:
     """Minimal app behind the real middleware: a health route and a protected route."""
     app = FastAPI()

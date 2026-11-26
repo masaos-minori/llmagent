@@ -21,7 +21,6 @@ from mcp_servers.web_search.web_search_models import (
     WebSearchConfig,
 )
 from mcp_servers.web_search.web_search_security_checks import (
-    _is_hostname_shape,
     validate_web_search_security,
 )
 
@@ -170,23 +169,36 @@ class TestBrowserAllowlist:
 
         assert statuses["server.browser_allowlist"] == ("ok", "ok")
 
+    @pytest.mark.parametrize("entry", ["Example.com", "EXAMPLE.org.", "例え.jp"])
+    def test_a_normalizable_entry_is_ok(self, entry: str) -> None:
+        statuses = _statuses(_cfg(browser_allowed_domains=[entry]))
+
+        assert statuses["server.browser_allowlist"] == ("ok", "ok")
+
     @pytest.mark.parametrize(
         "entry",
         [
-            "Example.com",
             "https://example.com",
             "example.com/path",
             "example.com:443",
+            "user@example.com",
             " ",
         ],
     )
-    def test_a_malformed_entry_is_a_warning_not_a_failure(self, entry: str) -> None:
+    def test_a_malformed_entry_is_a_failure(self, entry: str) -> None:
         statuses = _statuses(_cfg(browser_allowed_domains=[entry]))
 
-        assert statuses["server.browser_allowlist"] == ("warning", "allowlist_invalid")
+        assert statuses["server.browser_allowlist"] == ("failed", "allowlist_invalid")
 
-    def test_message_reports_a_count_not_the_entry(self) -> None:
-        entry = "Docs.Python.org"
+    def test_a_duplicate_after_normalization_is_a_failure(self) -> None:
+        statuses = _statuses(
+            _cfg(browser_allowed_domains=["Example.com", "example.COM."])
+        )
+
+        assert statuses["server.browser_allowlist"] == ("failed", "allowlist_invalid")
+
+    def test_message_reports_the_reason_not_the_entry(self) -> None:
+        entry = "https://Docs.Python.org/secret-path"
         checks = validate_web_search_security(_cfg(browser_allowed_domains=[entry]))
         message = next(
             check.message
@@ -195,7 +207,10 @@ class TestBrowserAllowlist:
         )
 
         assert entry not in message
-        assert "1 of 1" in message
+        assert "Docs.Python.org" not in message
+        assert "secret-path" not in message
+        assert "browser_allowed_domains[0]" in message
+        assert "scheme" in message
 
 
 class TestNonSecretView:
@@ -293,25 +308,6 @@ class TestTimeoutAndSizeCeilings:
         assert statuses["server.browser_response_limit"] == ("ok", "ok")
 
 
-class TestHostnameShape:
-    """_is_hostname_shape() is the posture-time mirror of _check_domain()'s comparison."""
-
-    @pytest.mark.parametrize("value", ["", " ", "\t"])
-    def test_blank_entries_are_not_hostname_shaped(self, value: str) -> None:
-        assert _is_hostname_shape(value) is False
-
-    @pytest.mark.parametrize(
-        "entry",
-        ["Example.com", "https://example.com", "example.com/path", "example.com:443"],
-    )
-    def test_scheme_path_port_and_case_are_rejected(self, entry: str) -> None:
-        assert _is_hostname_shape(entry) is False
-
-    @pytest.mark.parametrize("entry", ["example.com", "docs.python.org", "localhost"])
-    def test_plain_lowercase_hostnames_are_accepted(self, entry: str) -> None:
-        assert _is_hostname_shape(entry) is True
-
-
 class TestCheckMessages:
     """Every message names the setting and its state; allowlist entries stay by count."""
 
@@ -360,7 +356,7 @@ class TestCheckMessages:
         assert _message(
             _cfg(browser_allowed_domains=["example.com", "docs.python.org"]),
             "server.browser_allowlist",
-        ) == ("browser_allowed_domains holds 2 hostname-shaped entries")
+        ) == ("browser_allowed_domains holds 2 valid hostname entries")
         assert _message(
             _cfg(
                 browser_allowed_domains=[
@@ -371,7 +367,8 @@ class TestCheckMessages:
             ),
             "server.browser_allowlist",
         ) == (
-            "browser_allowed_domains contains 2 of 3 entries that cannot match a hostname"
+            "browser_allowed_domains is invalid (3 entries): "
+            "browser_allowed_domains[2] is invalid: scheme"
         )
 
     def test_no_message_carries_a_configured_value(self) -> None:

@@ -56,8 +56,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the audit document | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the audit document | Completed | 20261126-141323 | 20261126-141323 | Changed: docs/22_mcp/mcp_02_03_audit-logging-and-errors.md |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261126-141323 | 20261126-141323 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_docs_consistency --domain mcp, check_docs_japanese passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

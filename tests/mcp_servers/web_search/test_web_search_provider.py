@@ -192,6 +192,44 @@ class TestCheckDomain:
         with pytest.raises(BrowserValidationError):
             _check_domain("http:///path", {"example.com"})
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://EXAMPLE.com/",
+            "https://Example.COM/page",
+            "https://example.com./",
+            "https://example.com:8443/",
+        ],
+    )
+    def test_url_host_is_matched_on_its_normalized_form(self, url: str) -> None:
+        assert _check_domain(url, {"example.com"}) == "example.com"
+
+    @pytest.mark.parametrize("entry", ["Example.COM", "example.com.", "EXAMPLE.com."])
+    def test_a_raw_allowlist_member_is_matched_on_its_normalized_form(
+        self, entry: str
+    ) -> None:
+        assert _check_domain("https://example.com/", {entry}) == "example.com"
+
+    def test_idna_u_label_and_a_label_match_each_other(self) -> None:
+        assert _check_domain("https://例え.jp/", {"xn--r8jz45g.jp"}) == "xn--r8jz45g.jp"
+        assert _check_domain("https://xn--r8jz45g.jp/", {"例え.jp"}) == "xn--r8jz45g.jp"
+
+    def test_a_different_host_never_matches_after_normalization(self) -> None:
+        with pytest.raises(BrowserAuthorizationError):
+            _check_domain("https://example.com.evil.example/", {"example.com"})
+
+    def test_an_invalid_url_host_is_a_validation_error(self) -> None:
+        with pytest.raises(BrowserValidationError):
+            _check_domain("https://exa_mple.com/", {"example.com"})
+
+    def test_an_invalid_allowlist_member_never_matches(self) -> None:
+        with pytest.raises(BrowserAuthorizationError):
+            _check_domain("https://example.com/", {"https://example.com", "bad host"})
+
+    def test_ipv6_loopback_literal_is_still_an_authorization_error(self) -> None:
+        with pytest.raises(BrowserAuthorizationError):
+            _check_domain("http://[::1]/", {"example.com"})
+
 
 # ── _truncate (ported from browser-mcp's BrowserService._truncate) ────────────
 

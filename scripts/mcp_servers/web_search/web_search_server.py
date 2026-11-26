@@ -9,18 +9,20 @@ Search provider: DuckDuckGo (no API key required).
 
 from __future__ import annotations
 
-import hashlib
 import time
 from typing import Any, cast
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
 
-from mcp_servers.audit import _audit_log
+from mcp_servers.audit import AuditEmission, hash_query_value, redact_url
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response
 from mcp_servers.execution_context import ExecutionContext, ExecutionContextError
 from mcp_servers.health_response import dedup_health_details, make_health_response
@@ -36,6 +38,10 @@ from mcp_servers.server import (
 )
 from mcp_servers.web_search import health, metrics
 from mcp_servers.web_search.formatters import dispatch_web_tool
+from mcp_servers.web_search.host_normalization import (
+    HostNormalizationError,
+    normalize_host,
+)
 from mcp_servers.web_search.web_search_models import (
     WEB_SEARCH_OWN_CONFIG_FILE,
     BrowserAuthorizationError,
@@ -213,28 +219,37 @@ def _classify_upstream_error(exc: WebSearchUpstreamError) -> str:
     return "provider_error"
 
 
+def _audit_host(url: str) -> str:
+    """Return the normalized host of `url` for the audit detail, or `-`."""
+    try:
+        raw = urlsplit(url).hostname or ""
+        return normalize_host(raw)
+    except (ValueError, HostNormalizationError):
+        return "-"
+
+
 def _build_audit_target_and_detail(
     name: str, args: dict[str, Any], latency_ms: float
 ) -> tuple[str, str]:
     """Build the audit-log `target` and `detail` string for one tool call.
 
-    `search_web` reports the query text as the target, plus a preview and a
-    hash (for low-cardinality grepping without leaking the full query) in
-    the detail string. `browser_fetch` reports the URL as the target with a
-    matching preview in the detail string.
+    No raw query or URL is ever recorded. `search_web` reports a normalized query
+    hash as the target and the query length in the detail; `browser_fetch` reports a
+    redacted URL (scheme, host, redacted path) as the target and the normalized host
+    in the detail; any other tool name reports `-` and the latency only.
     """
     if name == "search_web":
         query = str(args.get("query", ""))
         detail = (
             f"max_results={args.get('max_results', '')} "
             f"latency_ms={latency_ms:.0f} "
-            f"query_preview={query[:80]!r} "
-            f"query_hash={hashlib.sha256(query.strip().lower().encode()).hexdigest()[:16]}"
+            f"query_len={len(query)}"
         )
-        return query, detail
-    url = str(args.get("url", ""))
-    detail = f"latency_ms={latency_ms:.0f} url_preview={url[:80]!r}"
-    return url, detail
+        return f"sha256:{hash_query_value(query)}", detail
+    if name == "browser_fetch":
+        url = str(args.get("url", ""))
+        return redact_url(url), f"latency_ms={latency_ms:.0f} host={_audit_host(url)}"
+    return "-", f"latency_ms={latency_ms:.0f}"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -261,6 +276,28 @@ async def list_tools(
 # ──────────────────────────────────────────────────────────────────────────────
 # Unified tool call endpoint
 # ──────────────────────────────────────────────────────────────────────────────
+@app.exception_handler(RequestValidationError)
+async def _on_request_validation_error(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Audit a malformed /v1/call_tool envelope once, then answer as the framework does.
+
+    The body never reached `call_tool`, so no tool name or argument is available; the
+    record carries `-` as target. Authentication runs first, so only authenticated
+    callers reach this handler. Other routes keep the default response unaudited.
+    """
+    if request.url.path == "/v1/call_tool":
+        session_id, request_id = extract_request_context(request)[:2]
+        AuditEmission(
+            logger,
+            session_id=session_id,
+            request_id=request_id,
+            action="-",
+            server_key=WEB_SEARCH_SERVER_KEY,
+        ).emit(target="-", outcome="rejected", error_type="validation_error")
+    return await request_validation_exception_handler(request, exc)
+
+
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Execute a web-search-mcp tool (search_web or browser_fetch) by name and
@@ -271,20 +308,30 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     `service.search_web()`/`service.fetch_browser()` (called via
     `dispatch_web_tool` -> `fdisp_search_web`/`fdisp_browser_fetch`), so this
     function must not call `health.record_*`/`metrics.record_*` itself (that
-    would double-count every query).
+    would double-count every query). Every outcome, including a disabled tool,
+    is audited exactly once through one `AuditEmission` emitted from `finally`.
     """
-    # Disabled-tool gate — must come BEFORE the try block so a disabled-tool
-    # rejection is not misclassified into the audit log's error-type taxonomy
-    enabled, reason = _web_search_tool_availability(_cfg, req.name)
-    if not enabled:
-        return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
-
     session_id, request_id = extract_request_context(request)[:2]
+    emission = AuditEmission(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action=req.name,
+        server_key=WEB_SEARCH_SERVER_KEY,
+    )
     t0 = time.perf_counter()
     outcome = "ok"
     error_type = ""
     latency_ms = 0.0
     try:
+        enabled, reason = _web_search_tool_availability(_cfg, req.name)
+        if not enabled:
+            # Rejected before the service is reached, so it never touches
+            # health or metrics.
+            outcome = "rejected"
+            error_type = "tool_disabled"
+            latency_ms = (time.perf_counter() - t0) * 1000
+            return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
         exec_ctx = extract_execution_context(request, req.name, req.args)
         r = await _dispatch_web_tool(req.name, req.args, context=exec_ctx)
         outcome = r.outcome
@@ -323,16 +370,8 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         raise
     finally:
         target, detail = _build_audit_target_and_detail(req.name, req.args, latency_ms)
-        _audit_log(
-            logger,
-            session_id=session_id,
-            request_id=request_id,
-            action=req.name,
-            target=target,
-            outcome=outcome,
-            error_type=error_type,
-            server_key="web_search",
-            detail=detail,
+        emission.emit(
+            target=target, outcome=outcome, error_type=error_type, detail=detail
         )
 
 

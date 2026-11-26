@@ -203,7 +203,7 @@ class TestBrowserFetchAuditErrorType:
         async def _raise(*args: object, **kwargs: object) -> None:
             raise exc
 
-        monkeypatch.setattr(web_search_server, "_audit_log", _audit)
+        monkeypatch.setattr("mcp_servers.audit._audit_log", _audit)
         monkeypatch.setattr(service, "_provider_fetch_browser", _raise)
         monkeypatch.setattr(
             web_search_server._cfg, "browser_allowed_domains", ["example.com"]
@@ -218,3 +218,80 @@ class TestBrowserFetchAuditErrorType:
         assert resp.status_code == 502
         assert len(records) == 1
         assert records[0]["error_type"] == expected
+
+
+class TestDisabledAndEnvelopeRejectionsAreAudited:
+    """A disabled-tool call and a malformed envelope each leave exactly one record."""
+
+    @staticmethod
+    def _capture(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
+        records: list[dict[str, object]] = []
+
+        def _audit(server_logger: object, **kwargs: object) -> None:
+            records.append(kwargs)
+
+        monkeypatch.setattr("mcp_servers.audit._audit_log", _audit)
+        return records
+
+    def test_a_disabled_tool_is_rejected_and_audited_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        records = self._capture(monkeypatch)
+        monkeypatch.setattr(web_search_server._cfg, "browser_allowed_domains", [])
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
+
+        resp = client.post(
+            "/v1/call_tool",
+            json={
+                "name": "browser_fetch",
+                "args": {"url": "https://example.com/?token=SECRET"},
+                "session_id": "ignored",
+            },
+            headers={"x-session-id": "sess-9"},
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["is_error"] is True
+        assert "Tool disabled" in resp.json()["result"]
+        assert len(records) == 1
+        assert records[0]["outcome"] == "rejected"
+        assert records[0]["error_type"] == "tool_disabled"
+        assert records[0]["session_id"] == "sess-9"
+        assert records[0]["target"] == "https://example.com"
+        assert "SECRET" not in str(records)
+
+    def test_a_malformed_envelope_is_rejected_and_audited_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        records = self._capture(monkeypatch)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
+
+        resp = client.post("/v1/call_tool", json={"args": {"query": "q"}})
+
+        assert resp.status_code == 422
+        assert len(records) == 1
+        assert records[0]["outcome"] == "rejected"
+        assert records[0]["error_type"] == "validation_error"
+        assert records[0]["target"] == "-"
+
+    def test_an_unauthenticated_malformed_request_is_not_audited(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        records = self._capture(monkeypatch)
+        client = TestClient(web_search_server.app)
+
+        resp = client.post("/v1/call_tool", json={"args": {}})
+
+        assert resp.status_code == 401
+        assert records == []
+
+    def test_another_route_keeps_the_default_validation_response_unaudited(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        records = self._capture(monkeypatch)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
+
+        resp = client.get("/v1/tools", params={"include_disabled": "not-a-bool"})
+
+        assert resp.status_code == 422
+        assert records == []

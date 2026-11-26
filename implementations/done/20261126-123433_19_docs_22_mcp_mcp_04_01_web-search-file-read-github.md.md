@@ -57,8 +57,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the web search section | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Update the web search section | Completed | 20261126-141323 | 20261126-141323 | Changed: docs/22_mcp/mcp_04_01_web-search-file-read-github.md |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261126-141323 | 20261126-141323 | documentation checkers passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

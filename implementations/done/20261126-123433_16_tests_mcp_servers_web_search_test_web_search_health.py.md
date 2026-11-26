@@ -55,8 +55,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the tests described in Implementation > Procedure | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the tests described in Implementation > Procedure | Completed | 20261126-141323 | 20261126-141323 | Changed: tests/mcp_servers/web_search/test_web_search_health.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-141323 | 20261126-141323 | ruff format/check, mypy (CI invocation), lint-imports, bandit, module size, docstring, reference table, validation gates passed; full suite (parallel, coverage): 26 failed and 88 errors in tests/agent/* and tests/docs/test_command_docs_sync.py from a pre-existing NameError in scripts/agent/commands/cmd_mcp.py, unrelated to this change; diff-cover 100% on the changed tracked files; targeted tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

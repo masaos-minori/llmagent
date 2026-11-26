@@ -238,12 +238,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Host normalization and strict configuration | In Progress | — | — |  |
-| 2 | Strict models and generated schemas | In Progress | — | — |  |
-| 3 | Shared audit helpers | In Progress | — | — |  |
-| 4 | Redacted targets | In Progress | — | — |  |
-| 5 | Exactly-once audit for every outcome | In Progress | — | — |  |
-| 6 | Documentation | In Progress | — | — |  |
+| 1 | Host normalization and strict configuration | Completed | — | 20261126-141341 |  |
+| 2 | Strict models and generated schemas | Completed | — | 20261126-141341 |  |
+| 3 | Shared audit helpers | Completed | — | 20261126-141341 |  |
+| 4 | Redacted targets | Completed | — | 20261126-141341 |  |
+| 5 | Exactly-once audit for every outcome | Completed | — | 20261126-141341 |  |
+| 6 | Documentation | Completed | — | 20261126-141341 |  |
 | 7 | Deployment & Verification | Pending | — | — |  |
 
 ### Blocker Log
@@ -254,18 +254,18 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261126-123433_01_scripts_mcp_servers_web_search_host_normalization.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261126-123433_02_scripts_mcp_servers_audit.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-123433_03_scripts_mcp_servers_web_search_web_search_models.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261126-123433_04_scripts_mcp_servers_web_search_web_search_tools.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-123433_05_scripts_mcp_servers_web_search_web_search_security_checks.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261126-123433_06_scripts_mcp_servers_web_search_search_provider.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261126-123433_07_scripts_mcp_servers_web_search_web_search_server.py.md | 4, 5 | Procedure | Pending | — | — |
-| implementations/20261126-123433_08_config_web_search_mcp_server.toml.md | 1 | Procedure | Pending | — | — |
-| implementations/20261126-123433_11_tests_mcp_servers_web_search_test_web_search_models.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261126-123433_16_tests_mcp_servers_web_search_test_web_search_health.py.md | 5 | Procedure | Pending | — | — |
-| implementations/20261126-123433_18_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md | 6 | Procedure | Pending | — | — |
-| implementations/20261126-123433_19_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261126-123433_01_scripts_mcp_servers_web_search_host_normalization.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261126-123433_02_scripts_mcp_servers_audit.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-123433_03_scripts_mcp_servers_web_search_web_search_models.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261126-123433_04_scripts_mcp_servers_web_search_web_search_tools.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-123433_05_scripts_mcp_servers_web_search_web_search_security_checks.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261126-123433_06_scripts_mcp_servers_web_search_search_provider.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261126-123433_07_scripts_mcp_servers_web_search_web_search_server.py.md | 4, 5 | Procedure | Completed | — | — |
+| implementations/20261126-123433_08_config_web_search_mcp_server.toml.md | 1 | Procedure | Completed | — | — |
+| implementations/20261126-123433_11_tests_mcp_servers_web_search_test_web_search_models.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261126-123433_16_tests_mcp_servers_web_search_test_web_search_health.py.md | 5 | Procedure | Completed | — | — |
+| implementations/20261126-123433_18_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md | 6 | Procedure | Completed | — | — |
+| implementations/20261126-123433_19_docs_22_mcp_mcp_04_01_web-search-file-read-github.md.md | 6 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

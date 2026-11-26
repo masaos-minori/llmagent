@@ -355,3 +355,101 @@ class TestSearchResponse:
     def test_empty_results(self) -> None:
         resp = SearchResponse(query="x", results=[], provider="brave")
         assert resp.results == []
+
+
+class TestAllowlistLoadValidation:
+    """Every allowlist entry is validated and normalized when the config loads."""
+
+    @pytest.mark.parametrize(
+        ("entry", "reason"),
+        [
+            ("https://example.com", "scheme"),
+            ("example.com/path", "path"),
+            ("example.com?x=1", "query"),
+            ("example.com#frag", "fragment"),
+            ("user@example.com", "userinfo"),
+            ("example.com:8080", "port"),
+            ("", "blank"),
+            ("   ", "blank"),
+            ("exa mple.com", "malformed"),
+            (123, "not_string"),
+            (None, "not_string"),
+        ],
+    )
+    def test_an_invalid_entry_stops_the_load_naming_index_and_reason(
+        self, entry: object, reason: str
+    ) -> None:
+        with pytest.raises(ValueError) as excinfo:
+            WebSearchConfig.from_dict(
+                {"browser_allowed_domains": ["ok.example", entry]}
+            )
+
+        message = str(excinfo.value)
+        assert "browser_allowed_domains[1]" in message
+        assert reason in message
+        if isinstance(entry, str) and entry.strip():
+            assert entry not in message
+
+    def test_a_duplicate_after_normalization_stops_the_load(self) -> None:
+        with pytest.raises(ValueError, match="duplicates"):
+            WebSearchConfig.from_dict(
+                {"browser_allowed_domains": ["Example.com", "example.com."]}
+            )
+
+    def test_a_non_list_allowlist_is_rejected(self) -> None:
+        with pytest.raises(ValueError):
+            WebSearchConfig.from_dict({"browser_allowed_domains": "example.com"})
+
+    def test_an_empty_allowlist_loads(self) -> None:
+        assert WebSearchConfig.from_dict({}).browser_allowed_domains == []
+        assert (
+            WebSearchConfig.from_dict(
+                {"browser_allowed_domains": []}
+            ).browser_allowed_domains
+            == []
+        )
+
+    def test_valid_entries_are_stored_normalized_in_order(self) -> None:
+        cfg = WebSearchConfig.from_dict(
+            {"browser_allowed_domains": ["Example.COM", "例え.jp", "docs.example.org."]}
+        )
+
+        assert cfg.browser_allowed_domains == [
+            "example.com",
+            "xn--r8jz45g.jp",
+            "docs.example.org",
+        ]
+
+    def test_the_shipped_configuration_loads(self) -> None:
+        assert isinstance(WebSearchConfig.load().browser_allowed_domains, list)
+
+
+class TestStrictRequestModels:
+    @pytest.mark.parametrize(
+        ("model", "payload"),
+        [
+            (SearchRequest, {"query": "q", "unexpected": 1}),
+            (BrowserFetchRequest, {"url": "https://example.com/", "unexpected": 1}),
+        ],
+    )
+    def test_an_unknown_argument_is_rejected(
+        self, model: type, payload: dict[str, object]
+    ) -> None:
+        with pytest.raises(ValidationError):
+            model(**payload)
+
+    def test_an_empty_url_is_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            BrowserFetchRequest(url="")
+
+    @pytest.mark.parametrize("value", [0, -1, HARD_BROWSER_MAX_RESPONSE_KB + 1])
+    def test_max_response_kb_outside_the_ceiling_is_rejected(self, value: int) -> None:
+        with pytest.raises(ValidationError):
+            BrowserFetchRequest(url="https://example.com/", max_response_kb=value)
+
+    def test_max_response_kb_at_the_ceiling_is_accepted(self) -> None:
+        req = BrowserFetchRequest(
+            url="https://example.com/", max_response_kb=HARD_BROWSER_MAX_RESPONSE_KB
+        )
+
+        assert req.max_response_kb == HARD_BROWSER_MAX_RESPONSE_KB

@@ -14,6 +14,9 @@ from pydantic import BaseModel, Field, field_validator
 from shared.config_loader import ConfigLoader
 from shared.config_utils import get_str, get_typed
 
+from mcp_servers.request_contract import StrictRequestModel
+from mcp_servers.web_search.host_normalization import validate_allowlist
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Domain exceptions
 # ──────────────────────────────────────────────────────────────────────────────
@@ -199,7 +202,7 @@ class WebSearchConfig:
         search_timeout_sec = get_typed(
             d, "search_timeout_sec", float, "a float", default=10.0
         )
-        browser_allowed_domains = list(
+        browser_allowed_domains = validate_allowlist(
             get_typed(d, "browser_allowed_domains", list, "a list", default=[])
         )
         browser_max_response_kb = get_typed(
@@ -273,8 +276,8 @@ def get_max_results_limit() -> int:
     return _cfg.max_results_limit
 
 
-class SearchRequest(BaseModel):
-    """Request schema for POST /search"""
+class SearchRequest(StrictRequestModel):
+    """Request schema for POST /search; unknown arguments are rejected."""
 
     query: str = Field(
         ...,
@@ -318,18 +321,22 @@ class SearchResponse(BaseModel):
     provider: str  # Name of the provider actually used
 
 
-class BrowserFetchRequest(BaseModel):
-    """Request body for a read-only browser fetch."""
+class BrowserFetchRequest(StrictRequestModel):
+    """Request body for a read-only browser fetch; unknown arguments are rejected."""
 
     url: str = Field(
         ...,
-        description="Target URL to fetch (must match the configured domain allowlist)",
+        min_length=1,
+        description="Absolute http(s) URL to fetch (host must be allowlisted)",
     )
     max_response_kb: int | None = Field(
         default=None,
         ge=1,
-        le=65536,
-        description="Caller override for response size cap; clamped to the server max in service.py",
+        le=HARD_BROWSER_MAX_RESPONSE_KB,
+        description=(
+            "Output size limit in KB (default: server-configured; a caller value "
+            "is clamped to the configured server maximum)"
+        ),
     )
 
 
