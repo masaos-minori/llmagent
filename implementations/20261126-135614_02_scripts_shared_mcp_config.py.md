@@ -48,7 +48,7 @@
 - N/A: revert the commit.
 
 ## Validation plan
-- `uv run pytest tests/shared/test_mcp_config_validation.py tests/shared/test_mcp_config.py`; `uv run ruff format` and `uv run ruff check`; `uv run mypy`; `wc -c scripts/shared/mcp_config.py` below 24576 (baseline 19605 B); then the sequence in `rules/toolchain.md`.
+- `uv run pytest tests/shared/test_mcp_config_validation.py tests/shared/test_mcp_config.py`; `uv run ruff format` and `uv run ruff check`; `uv run mypy`; `wc -c scripts/shared/mcp_config.py` below 24576 (current size 19605 B); then the sequence in `rules/toolchain.md`.
 
 ## Completion criteria
 - 0 and negatives are rejected on both paths; the resolver returns a positive float; the auth docstring states the single model; all validation commands pass.

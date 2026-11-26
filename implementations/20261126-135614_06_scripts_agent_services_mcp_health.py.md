@@ -51,7 +51,7 @@
 - N/A: revert the commit.
 
 ## Validation plan
-- `uv run pytest tests/agent/test_repl_health.py tests/agent/test_mcp_health_posture.py`; `uv run ruff format` and `uv run ruff check`; `uv run mypy`; `wc -c scripts/agent/services/mcp_health.py` below 24576 (baseline 15157 B); then the sequence in `rules/toolchain.md`.
+- `uv run pytest tests/agent/test_repl_health.py tests/agent/test_mcp_health_posture.py`; `uv run ruff format` and `uv run ruff check`; `uv run mypy`; `wc -c scripts/agent/services/mcp_health.py` below 24576 (current size 15157 B); then the sequence in `rules/toolchain.md`.
 
 ## Completion criteria
 - The probe uses the effective timeout; the gate carries the parsed report; required-capability loss yields FATAL and optional loss yields warning; tests pass.

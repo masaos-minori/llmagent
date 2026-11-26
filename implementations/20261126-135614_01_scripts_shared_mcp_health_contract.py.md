@@ -12,7 +12,7 @@
 - Health schema version is `1` (Plan Design D-5); existing producers emit `status`/`ready`/`liveness` only, so the parser must accept a legacy body without the new fields.
 
 ## Design decisions
-- Module contents: `HealthReport` dataclass (`health_schema_version: int`, `liveness: bool`, `ready: bool`, `degraded_reasons: tuple[str, ...]`, `capabilities: Mapping[str, CapabilityState]`), the closed reason-code vocabulary (aligned with `docs/22_mcp/mcp_06_10_health-reasons-and-error-kinds.md`), the capability states `ok`/`degraded`/`unavailable`, and `parse_health_body()` (new).
+- Module contents: `HealthReport` (new) dataclass (`health_schema_version: int`, `liveness: bool`, `ready: bool`, `degraded_reasons: tuple[str, ...]`, `capabilities: Mapping[str, CapabilityState]`), the closed reason-code vocabulary (aligned with `docs/22_mcp/mcp_06_10_health-reasons-and-error-kinds.md`), the capability states `ok`/`degraded`/`unavailable`, and `parse_health_body()` (new).
 - Legacy rule (D-6): a body without `capabilities` is legacy — every capability of that server reads as `ok` when `ready` is true and as unproven otherwise; the parser itself does not decide required versus optional (the Agent does, from the catalog).
 
 ## Alternatives considered
@@ -29,7 +29,7 @@
 4. Add `parse_health_body(body: dict) -> HealthReport` (new): strict typing per field; a wrong-typed field, a reason code outside the vocabulary, or an unknown capability state raises a `ValueError` naming the field; a body carrying only `liveness`/`ready` parses as a legacy report.
 
 ### Method
-- Strict parse: `bool` fields must be actual JSON booleans, `health_schema_version` an int, `degraded_reasons` a list of vocabulary strings, `capabilities` an object of name-to-state entries; no truthy coercion.
+- Strict parse: `bool` fields must be actual JSON booleans, `health_schema_version` (new) an int, `degraded_reasons` a list of vocabulary strings, `capabilities` an object of name-to-state entries; no truthy coercion.
 - Keep the module a pure data/vocabulary leaf: no I/O, no logging, no imports from `agent` or `mcp_servers`.
 
 ### Details

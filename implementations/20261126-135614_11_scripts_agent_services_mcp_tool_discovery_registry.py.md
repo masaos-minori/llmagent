@@ -23,7 +23,7 @@
 
 ### Procedure
 1. Add `config_dependent=entry["config_dependent"]` to the `build_runtime_tool` call (the fetch layer has already verified the bool, same suppression style as the neighboring fields).
-2. Add a `degraded_capabilities` parameter (per-server map of capability name to state) to `_build_runtime_tools()` and `_dedupe_and_build()`, and pass it to `RuntimeToolRegistry` so dependent tools are excluded with reason `capability` (mechanics in seq 13).
+2. Add a `degraded_capabilities` (new) parameter (per-server map of capability name to state) to `_build_runtime_tools()` and `_dedupe_and_build()`, and pass it to `RuntimeToolRegistry` so dependent tools are excluded with reason `capability` (mechanics in seq 13).
 3. Record each tool's capability dependency (entry `capabilities` if present, else the owning server's catalog capabilities via the map) for the registry's exclusion decision.
 
 ### Method

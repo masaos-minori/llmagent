@@ -46,7 +46,7 @@
 - N/A: revert the commit.
 
 ## Validation plan
-- `uv run pytest tests/agent/commands/test_cmd_mcp.py`; `uv run ruff format` and `uv run ruff check`; `uv run mypy`; `wc -c scripts/agent/commands/cmd_mcp.py` below 24576 (baseline 15960 B); then the sequence in `rules/toolchain.md`.
+- `uv run pytest tests/agent/commands/test_cmd_mcp.py`; `uv run ruff format` and `uv run ruff check`; `uv run mypy`; `wc -c scripts/agent/commands/cmd_mcp.py` below 24576 (current size 15960 B); then the sequence in `rules/toolchain.md`.
 
 ## Completion criteria
 - Rows show the explicit values; the restart notice appears on a capability exclusion; tests pass.

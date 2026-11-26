@@ -41,7 +41,7 @@
 - N/A: revert the commit.
 
 ## Validation plan
-- `uv run pytest tests/agent/test_http_lifecycle_health_check.py tests/agent/test_http_lifecycle_integration.py`; `uv run ruff format` and `uv run ruff check`; `uv run mypy`; `wc -c scripts/agent/http_lifecycle.py` below 24576 (baseline 17851 B); then the sequence in `rules/toolchain.md`.
+- `uv run pytest tests/agent/test_http_lifecycle_health_check.py tests/agent/test_http_lifecycle_integration.py`; `uv run ruff format` and `uv run ruff check`; `uv run mypy`; `wc -c scripts/agent/http_lifecycle.py` below 24576 (current size 17851 B); then the sequence in `rules/toolchain.md`.
 
 ## Completion criteria
 - Both call sites use the server's effective timeout; a test shows a non-default value reaching the poll and the periodic check; all validation commands pass.

@@ -48,7 +48,7 @@
 - N/A: revert the commit (high blast radius file — keep this change independently revertable, Plan Risk).
 
 ## Validation plan
-- `uv run pytest tests/shared/test_runtime_tool_registry.py`; `uv run ruff format` and `uv run ruff check`; `uv run mypy`; `wc -c scripts/shared/runtime_tool_registry.py` below 24576 (baseline 12964 B); then the sequence in `rules/toolchain.md`.
+- `uv run pytest tests/shared/test_runtime_tool_registry.py`; `uv run ruff format` and `uv run ruff check`; `uv run mypy`; `wc -c scripts/shared/runtime_tool_registry.py` below 24576 (current size 12964 B); then the sequence in `rules/toolchain.md`.
 
 ## Completion criteria
 - Capability exclusion works with reason `capability`; diagnostics show the explicit value; the immutability/restart rule is documented; the concurrent-read test passes.

@@ -48,7 +48,7 @@
 - N/A: revert the commit.
 
 ## Validation plan
-- `uv run pytest tests/agent/services/test_mcp_tool_discovery.py tests/agent/services/test_mcp_tool_discovery_posture_gate.py`; `uv run ruff format` and `uv run ruff check`; `uv run mypy`; `wc -c scripts/agent/services/mcp_tool_discovery.py` below 24576 (baseline 14858 B); then the sequence in `rules/toolchain.md`.
+- `uv run pytest tests/agent/services/test_mcp_tool_discovery.py tests/agent/services/test_mcp_tool_discovery_posture_gate.py`; `uv run ruff format` and `uv run ruff check`; `uv run mypy`; `wc -c scripts/agent/services/mcp_tool_discovery.py` below 24576 (current size 14858 B); then the sequence in `rules/toolchain.md`.
 
 ## Completion criteria
 - Catalog loads before registry construction; required capability loss produces FATAL; degraded optional capabilities reach the registry; tests pass.
