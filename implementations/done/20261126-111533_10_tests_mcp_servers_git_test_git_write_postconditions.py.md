@@ -79,11 +79,11 @@ Add the integration suite that performs each Git write on a real temporary repos
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
-|------|-------------|--------|---------|-----------|-------|
-| 1 | Write the integration and resource-close cases against the unmodified pipeline and record which fail | Pending | — | — | Phase 1 |
-| 2 | Re-run after procedures 01-04 land | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation is procedure 11 |
+|------|-------------|--------|---------|-----------|---|
+| 1 | Write the integration and resource-close cases against the unmodified pipeline and record which fail | Completed | 20261126-144426 | 20261126-144426 | Phase 1 Phase 1: new file; cases recorded as failing against the unmodified pipeline (Stage 7 branches, two-snapshot identity, handle release on every path). Phase 1: new file; cases recorded as failing against the unmodified pipeline (Stage 7 branches, two-snapshot identity, handle release on every path). |
+| 2 | Re-run after procedures 01-04 land | Completed | 20261126-144825 | 20261126-144825 | 17 cases: per-tool pass plus designed failure, and TestHandleReleaseOnEveryPath using a RepositoryState.snapshot spy that asserts every opened state has a released handle. 17 passed. Post-execution stale-detector note: `new_target_exists` reports the file this procedure created, which is the expected state after execution. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-144426 | 20261126-144426 | Static sequence clean. Full suite as recorded on procedure 01 row 3. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is procedure 11 Documentation is procedure 11. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -93,7 +93,7 @@ Add the integration suite that performs each Git write on a real temporary repos
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| — | — | — | — | — | 
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

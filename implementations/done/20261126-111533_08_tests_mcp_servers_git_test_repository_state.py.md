@@ -28,12 +28,13 @@ Move the postcondition assertions in this suite from mock states to real reposit
 ### Procedure
 - Rewrite `test_verify_postcondition_passes_for_any_push_result` (line 171) as a real-repository push case that asserts the remote-tracking ref equals the local commit, and add the designed failure case where the remote ref does not match.
 - Rewrite `TestStage7RejectionCharacterization` (line 945) to run `WriteProtectionPipeline.run()` against `working_repo` and assert `result.post_state` is a distinct object from `result.repository_state` and that a failed postcondition rejects at Stage 7.
-- Convert the mock-state pipeline case at line 656 to a real-repository pipeline run for the postcondition path; keep the authorization assertions that the mock state pins.
+- Keep the mock-state cases in `TestStage3Authorization` (the `_make_mock_state()` factory at line 653 and the cases that follow it) as they are: Step 3a found that line 656 is the authorization factory, not a postcondition case, so nothing there pins postcondition behavior (Step 3b correction of the original wording).
+- `TestHeadDestinationProtection.test_detached_head_is_currently_denied` (line 1074) already uses a real repository, so it is not a conversion target; it must keep passing with the new postcondition branches.
 - Add per-operation cases for `git_add`, `git_commit`, `git_checkout`, `git_pull` against `working_repo`, each with one passing and one designed-failing case.
 
 ### Method
 - Use the fixtures at lines 30 and 39; add a `push_remote` (new) fixture that creates a bare repository and registers it as a remote of `working_repo`.
-- Assert through `verify_postcondition(post_state, tool)` where `post_state` comes from the pipeline result, not from a hand-built `RepositoryState`.
+- Assert through `verify_postcondition(post_state, tool, requested_branch)` where `post_state` comes from the pipeline result, not from a hand-built `RepositoryState`.
 - Keep the existing stage-name assertions (`[stage.name for stage in pipeline.stages]`) so the stage order pinned by ADR-012 INV-09 stays covered.
 
 ### Details
@@ -77,11 +78,11 @@ Move the postcondition assertions in this suite from mock states to real reposit
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
-|------|-------------|--------|---------|-----------|-------|
-| 1 | Write the converted cases against the unmodified pipeline and record which fail | Pending | — | — | Phase 1 |
-| 2 | Re-run after procedures 01 and 03 land | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation is procedure 11 |
+|------|-------------|--------|---------|-----------|---|
+| 1 | Write the converted cases against the unmodified pipeline and record which fail | Completed | 20261126-144426 | 20261126-144426 | Phase 1 Phase 1: mock pipeline cases recorded as failing against the unmodified pipeline. Phase 1: mock pipeline cases recorded as failing against the unmodified pipeline. |
+| 2 | Re-run after procedures 01 and 03 land | Completed | 20261126-144825 | 20261126-144825 | Assumption correction (user-approved): the mock pipeline cases were converted to real-repository fixtures. push_remote fixture added; Stage 3 authorization, Stage 5b, Stage 7 characterization converted; TestPerOperationPostconditions and the head_commit_hexsha capture case added. 124 passed. Post-execution stale-detector note: `test_verify_postcondition_passes_for_any_push_result` was renamed to `test_push_postcondition_passes_for_a_real_push` by this procedure, so the stale finding is the procedure's own result, not a prerequisite failure. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-144426 | 20261126-144426 | Static sequence clean; ADR-cited bypass-prevention tests unchanged and green. Full suite as recorded on procedure 01 row 3. diff-cover 95.9% (see procedure 02 row 3 for the two mock-only branches). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is procedure 11 Documentation is procedure 11. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -91,7 +92,7 @@ Move the postcondition assertions in this suite from mock states to real reposit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| — | — | — | — | — | 
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

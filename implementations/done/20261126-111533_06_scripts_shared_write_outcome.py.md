@@ -1,6 +1,6 @@
 ## Goal
 
-Add `confirmed-not-applied` to the write-outcome vocabulary and to the no-auto-retry set, so a write that is confirmed not to have landed is reported separately from a write whose effect is unknown (REQ-004, AC-4).
+Add `confirmed-not-applied` to the write-outcome vocabulary, so a write that is confirmed not to have landed is reported separately from a write whose effect is unknown (REQ-004, AC-4). The no-auto-retry set keeps `outcome_unknown` only and does not gain the new member, per the Plan's Design section: a confirmed non-application is safe to retry.
 
 ## Scope
 **Release unit**: outcome-vocabulary-and-timeout
@@ -14,7 +14,7 @@ Add `confirmed-not-applied` to the write-outcome vocabulary and to the no-auto-r
 
 ## Design decisions
 
-- The no-auto-retry rule is stated once in this module and read by every server that performs writes (module docstring), so the new member is added to the same set rather than to a per-server list.
+- The no-auto-retry rule is stated once in this module and read by every server that performs writes (module docstring). The new member is a vocabulary member only; it is not added to the no-auto-retry set, per the Plan's Design section (a confirmed non-application is safe to retry).
 - `WriteOutcome` stays a `Literal` of the vocabulary members, so a value outside the vocabulary is a type error rather than a runtime string.
 
 ## Alternatives considered
@@ -28,12 +28,11 @@ Add `confirmed-not-applied` to the write-outcome vocabulary and to the no-auto-r
 ### Procedure
 - Add `confirmed-not-applied` to the `WriteOutcome` `Literal` at line 20.
 - Add the module-level constant `CONFIRMED_NOT_APPLIED` (new) with value `"confirmed-not-applied"`, next to `OUTCOME_UNKNOWN` and `APPLIED_AUDIT_FAILED`.
-- Add the new constant to `NO_AUTO_RETRY_OUTCOMES`.
+- Do not add the new constant to `NO_AUTO_RETRY_OUTCOMES` (Step 3b correction: the original text added it, contradicting the Plan's Design section and the Plan's Validation plan, which states only that `outcome_unknown` is still not auto-retried).
 
 ### Method
-- `NO_AUTO_RETRY_OUTCOMES` stays a `frozenset[str]`; the new member is added to the existing set literal.
-- Update the module docstring: the vocabulary now names three outcomes, including the case where the effect is confirmed absent.
-- Update the comment above `NO_AUTO_RETRY_OUTCOMES` to state why a confirmed non-application is not retried automatically: the caller's request was refused by the guard, so replaying it is a new write, not a replay of the same logical call.
+- `NO_AUTO_RETRY_OUTCOMES` stays a `frozenset[str]` with the two current members; the new member is not added to it.
+- Update the module docstring: the vocabulary now names three outcomes, including the case where the effect is confirmed absent, and the no-auto-retry rule applies to `outcome_unknown` and `applied_audit_failed` only.
 
 ### Details
 
@@ -43,12 +42,12 @@ Add `confirmed-not-applied` to the write-outcome vocabulary and to the no-auto-r
 ### Companion test files
 
 - `tests/shared/test_write_outcome.py`
-  - Procedure: extend `test_constants_match_the_vocabulary()` with the new constant, and change `test_no_auto_retry_set_contains_both_outcomes()` to assert the set contains all three members; add a case asserting the new member is in the no-auto-retry set and that the automatic-retry path does not treat it as retryable.
+  - Procedure: extend `test_constants_match_the_vocabulary()` with the new constant, and add a case asserting the new member is a `WriteOutcome` vocabulary member and is NOT in `NO_AUTO_RETRY_OUTCOMES`. `test_no_auto_retry_set_contains_both_outcomes()` keeps its two-member assertion unchanged.
   - Validation: `uv run pytest tests/shared/test_write_outcome.py -v` — `confirmed-not-applied` present, `outcome_unknown` still not auto-retried.
 
 ## Compatibility considerations
 
-- `tests/shared/test_write_outcome.py:24` asserts the set equals exactly the two current members and must change with this procedure.
+- `tests/shared/test_write_outcome.py:24` asserts the set equals exactly the two current members; it stays unchanged, since the new member is not added to the set.
 - `scripts/agent/shutdown_budget.py` and `scripts/agent/services/maintenance_jobs.py` define their own `OUTCOME_UNKNOWN` members; they are unrelated to this vocabulary and are not touched.
 
 ## Security considerations
@@ -63,14 +62,14 @@ Add `confirmed-not-applied` to the write-outcome vocabulary and to the no-auto-r
 
 | Check | Command | Expected |
 |---|---|---|
-| Vocabulary and no-auto-retry set | `uv run pytest tests/shared/test_write_outcome.py -v` | `confirmed-not-applied` present and in the no-auto-retry set |
+| Vocabulary and no-auto-retry set | `uv run pytest tests/shared/test_write_outcome.py -v` | `confirmed-not-applied` present as a vocabulary member and not in the no-auto-retry set; `outcome_unknown` still in it |
 | Static sequence | `uv run ruff check scripts/`, `uv run mypy --no-namespace-packages scripts/ tests/eventbus tools`, `PYTHONPATH=scripts uv run lint-imports`, `uv run bandit -r scripts/ -c pyproject.toml -ll` | No new findings |
 | Changed-line coverage | `uv run diff-cover coverage.xml --compare-branch=master` | >= 90% |
 
 ## Completion criteria
 
-- `confirmed-not-applied` is a member of `WriteOutcome` and of `NO_AUTO_RETRY_OUTCOMES`, and is reported separately from `outcome_unknown` (AC-4).
-- No write outcome in the vocabulary is retried automatically.
+- `confirmed-not-applied` is a member of `WriteOutcome` and is reported separately from `outcome_unknown` (AC-4).
+- `outcome_unknown` and `applied_audit_failed` remain the members that are never retried automatically; `confirmed-not-applied` is not added to that set.
 
 ## Out of Scope
 
@@ -81,11 +80,11 @@ Add `confirmed-not-applied` to the write-outcome vocabulary and to the no-auto-r
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
-|------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion `tests/shared/test_write_outcome.py`) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation is procedure 11 |
+|------|-------------|--------|---------|-----------|---|
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-130143 | 20261126-130143 | Changed: scripts/shared/write_outcome.py. Docstring now states the no-retry rule applies to the first two outcomes only; added CONFIRMED_NOT_APPLIED; not added to NO_AUTO_RETRY_OUTCOMES. |
+| 2 | Add or update tests per Validation plan (companion `tests/shared/test_write_outcome.py`) | Completed | 20261126-130143 | 20261126-130143 | tests/shared/test_write_outcome.py: added get_args(WriteOutcome) membership test and non-membership of the no-auto-retry set; existing assertions unchanged. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-144426 | 20261126-144426 | Per-member 3a-3e passed (ruff format/check, mypy, lint-imports, bandit on the changed file, targeted tests 7 passed). Row stays In Progress until the end-of-unit run for outcome-vocabulary-and-timeout. End-of-unit run passed; diff-cover 100% for this file. End-of-unit run passed; diff-cover 100% for this file. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is procedure 11 Documentation is procedure 11. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -95,7 +94,7 @@ Add `confirmed-not-applied` to the write-outcome vocabulary and to the no-auto-r
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| — | — | — | — | — | 
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

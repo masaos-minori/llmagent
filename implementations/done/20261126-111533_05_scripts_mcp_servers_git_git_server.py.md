@@ -78,11 +78,11 @@ The audit record reports the write outcome from the shared vocabulary instead of
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
-|------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation is procedure 11 |
+|------|-------------|--------|---------|-----------|---|
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-144426 | 20261126-144426 | WriteOutcomeError caught before GitServiceError; _audit_log_safe() moved before the re-raise so the exception path is audited (AC-4); both snapshots wrapped in the context-manager form. |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-144426 | 20261126-144426 | tests/mcp_servers/test_write_dangerous_audit.py unchanged and green (14 passed). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-144426 | 20261126-144426 | Static sequence clean. Full suite as recorded on procedure 01 row 3. diff-cover 100%. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is procedure 11 Documentation is procedure 11. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -92,7 +92,7 @@ The audit record reports the write outcome from the shared vocabulary instead of
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| — | — | — | — | — | 
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

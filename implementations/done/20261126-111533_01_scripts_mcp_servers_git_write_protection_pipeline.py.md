@@ -10,6 +10,8 @@ Stage 7 compares two distinct snapshots: the pipeline captures a fresh post-oper
 - The post-state is captured inside the per-repository lock, so it reflects the state immediately after the mutating call.
 - `PipelineResult.post_state` keeps the object after `close()`; only its `git.Repo` reference is released, so the audit serialization in `scripts/mcp_servers/git/git_server.py` still reads the captured fields.
 - The post-state's `ref_valid` is derived from `requested_branch`, which is the requested ref for `git_pull`/`git_push`/`git_checkout` and empty for `git_add`/`git_commit`.
+- Stage 7 is skipped when `dry_run` is True: a dry-run performs no write, so an operation-specific postcondition would reject every dry-run. This is recorded in the Execution Status Notes as a Step 3b correction (the original text did not cover the dry-run path).
+- The pipeline owns the outcome classification, per the Plan's frozen row for this file ("carry the write outcome in `PipelineResult`"): a `subprocess.TimeoutExpired` raised by Stage 6's op is `outcome_unknown`, and a Stage 7 rejection is `confirmed-not-applied`.
 
 ## Design decisions
 
@@ -26,18 +28,21 @@ Stage 7 compares two distinct snapshots: the pipeline captures a fresh post-oper
 
 ### Procedure
 - In `run()`, after Stage 6 (`output = self._execute(tool_name, op)`), capture a second snapshot as `post_state`.
-- Call `self._state.verify_postcondition(post_state, tool_name)` instead of passing `self._state` as both arguments.
+- Call `self._state.verify_postcondition(post_state, tool_name, requested_branch)` instead of passing `self._state` as both arguments.
 - Pass `post_state` to `PipelineResult.ok_result()` and to the Stage 7 rejection result.
+- Add `outcome: WriteOutcome | None = None` to `PipelineResult` (Plan row 44: "carry the write outcome in `PipelineResult`"), and pass it through `ok_result()` and `reject()`.
+- Catch `subprocess.TimeoutExpired` around Stage 6: capture `post_state` for reconciliation and return a rejection result with `rejected_at_stage = "Stage 6"` and `outcome = OUTCOME_UNKNOWN`, without running Stage 7. The failed stage is not recorded, per the pipeline's rule that `stages` holds only stages that ran.
 
 ### Method
 - Capture with `RepositoryState.snapshot(self._state.path, protected_branches=protected_branches, active_ref=requested_branch or "")` inside the `with _get_repo_lock(self._state.path)` block.
-- Wrap the capture in `with ... as post_state:` so the handle is released on the success path, the Stage 7 rejection path, and an exception raised by Stage 6.
+- Wrap the capture in `with ... as post_state:` so the handle is released on the success path, the Stage 7 rejection path, the Stage 6 timeout path, and an exception raised by Stage 6.
+- Import `subprocess` and the vocabulary constants from `scripts/shared/write_outcome.py` (procedure 06) for the Stage 6 timeout classification.
 - Update the Stage 7 comment: the pipeline now captures two snapshots per write request.
 
 ### Details
 - `run()`'s signature is unchanged; `protected_branches` and `requested_branch` are already parameters.
 - Results rejected before Stage 6 keep `post_state=None`, matching current behavior.
-- `PipelineResult` fields are unchanged; only the value of `post_state` becomes a distinct object.
+- `PipelineResult` gains one field, `outcome` (Step 3b correction: the original text said the fields were unchanged, which contradicted the Plan's frozen row for this file). Existing callers read `ok`, `output`, `repository_state`, and `post_state` unchanged.
 
 ## Compatibility considerations
 
@@ -74,11 +79,11 @@ Stage 7 compares two distinct snapshots: the pipeline captures a fresh post-oper
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
-|------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation is procedure 11 |
+|------|-------------|--------|---------|-----------|---|
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-144426 | 20261126-144426 | Post-state captured inside the per-repository lock; PipelineResult.outcome added and passed through ok_result()/reject(); TimeoutExpired classified at Stage 6 as outcome_unknown with no Stage 7 record; Stage 7 skipped on dry_run; _execute() re-raises TimeoutExpired unchanged. |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-144426 | 20261126-144426 | Cases live in procedure 10 (tests/mcp_servers/git/test_git_write_postconditions.py); targeted run 17 passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-144426 | 20261126-144426 | Static sequence clean (ruff, mypy, lint-imports, bandit with the B404 justification). Full suite: 14771 passed; the 26 failures and 44 errors are pre-existing baseline failures in tests/agent/commands/ and tests/docs/ (RuntimeToolRegistry NameError in scripts/agent/commands/cmd_mcp.py, identical to master), none in the changed files. diff-cover 98%. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is procedure 11 Documentation is procedure 11. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -88,7 +93,7 @@ Stage 7 compares two distinct snapshots: the pipeline captures a fresh post-oper
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| — | — | — | — | — | 
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

@@ -30,12 +30,12 @@
 ### Procedure
 - In `format_pull()` and `format_push()`, replace the GitPython mutating call with a synchronous `subprocess.run()` of the `git` CLI (`git pull <remote>`, `git push <remote> -- <branch>`) using `start_new_session=True` and `timeout=timeout`.
 - On `subprocess.TimeoutExpired`, terminate the process group with `os.killpg()` and return the outcome for the timeout case instead of a success message.
-- Report the outcome through the vocabulary: `confirmed-not-applied` when the call completed and the postcondition confirms the effect, `outcome_unknown` when the call ended without a verifiable effect.
+- On `subprocess.TimeoutExpired`, terminate the process group with `os.killpg()` and propagate `TimeoutExpired` to the caller instead of returning a success message. The pipeline (procedure 01) classifies it as `outcome_unknown`; the formatter does not encode the outcome in its result string, because message text is not a contract (procedure 05's rejected alternative).
 - Release the snapshot refresh in `format_checkout()` (line 152) with the context-manager form.
 
 ### Method
 - Build argv from the request model fields (`GitPullRequest.remote`, `GitPushRequest.branch`) with `--` separators, so no user-supplied value is interpreted as an option.
-- Run with `cwd=state.path`, `capture_output=True`, `text=True`; on a non-zero exit raise `GitServiceError` with the stderr text, matching the current `git_push failed: ...` shape.
+- Run with `cwd=state.path`, `capture_output=True`, `text=True`, `shell=False`; on a non-zero exit raise `GitServiceError` with the stderr text, matching the current `git_push failed: ...` shape. `subprocess.Popen` + `communicate(timeout=timeout)` is used rather than `subprocess.run`, because `subprocess.run` kills only the child on timeout and cannot terminate the process group.
 - After a successful call, re-read the state for the postcondition: pull checks `unmerged_blobs()`, push compares the remote-tracking ref with the local HEAD commit (AC-2).
 - Update the `timeout` docstrings: the deadline is now applied inside the helper, not at the async boundary.
 
@@ -43,7 +43,8 @@
 
 - Dry-run paths keep the current GitPython behavior (`git fetch --dry-run`); dry-run is not a write and does not need the subprocess path.
 - The `timeout` parameter keeps its `float | None` signature; `None` means no deadline.
-- Outcome reporting is returned as the formatter result string; the audit outcome mapping is done in `scripts/mcp_servers/git/git_server.py` (procedure 05).
+- The formatter does not report the outcome as text. The pipeline classifies it (procedure 01) and `scripts/mcp_servers/git/git_server.py` (procedure 05) writes it to the audit record through the outcome-carrying exception raised by `git_service.py` (procedure 03).
+- The push remote-name part of AC-2 can only be checked here, because `req.remote` is not available at Stage 7; Stage 7 compares the remote-tracking ref with the post-state HEAD commit (procedure 02). The two checks are the same comparison seen from the two scopes, not two different postconditions.
 
 ## Compatibility considerations
 
@@ -82,11 +83,11 @@
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
-|------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation is procedure 11 |
+|------|-------------|--------|---------|-----------|---|
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-144426 | 20261126-144426 | _run_git_write() uses Popen + communicate(timeout) with start_new_session=True and os.killpg(); # nosec B404/B603/B607 justified per rules/python-lint-typecheck Step 4; _remote_ref_matches() added; format_pull/format_push rewritten; format_checkout() uses the context-manager form. |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-144426 | 20261126-144426 | tests/mcp_servers/git/test_format_output.py rewritten against the subprocess path; 56 passed, including the added remote-ref and killpg-failure branches. test_git_security_compliance.py's detached-HEAD case patched with a fake process. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-144426 | 20261126-144426 | Static sequence clean. Full suite as recorded on procedure 01 row 3. diff-cover 100%. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is procedure 11 Documentation is procedure 11. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -96,7 +97,7 @@
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| — | — | — | — | — | 
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

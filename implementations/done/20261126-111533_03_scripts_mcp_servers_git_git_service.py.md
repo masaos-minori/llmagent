@@ -32,14 +32,15 @@ Remove the `asyncio.wait_for` deadline for pull and push, because the timeout is
 
 ### Method
 - `dispatch = asyncio.to_thread(pipeline.run, tool_name, lambda: op(state.repo, state), dry_run, self._allow_detached_head, requested_branch=requested_branch, protected_branches=self._protected_branches)`; await it without a timeout.
-- The timeout value continues to come from the git MCP server config through `_require_config()` and `_write_timeout()`.
+- The timeout value continues to come from the git MCP server config through `_require_config()` and `_write_timeout()`. The `op` contract stays `Callable[[git.Repo, RepositoryState], str]`: the `git_pull` and `git_push` handlers pass `self._write_timeout(tool_name)` into `format_pull()` / `format_push()` as their `timeout` argument, so the deadline reaches the subprocess without changing the op signature used by the read handlers.
 
 ### Details
 
 - Update the comment at lines 157-162: the deadline is enforced inside the subprocess call, not at the async boundary.
 - A timeout is reported as `outcome_unknown` through the vocabulary member added by procedure 06; a confirmed non-application is reported as `confirmed-not-applied`.
 - `raise ValueError(pipeline_result.rejection_message)` stays, so `dispatch_tool()` still distinguishes a rejection from a successful result.
-- Define `WriteOutcomeError` (new), a subclass of `GitServiceError`, in this file with an `outcome: str` attribute, and raise it instead of `ValueError` when `pipeline_result` carries an outcome that the audit record must report. `dispatch_tool()` keeps classifying it as a dispatch error; `scripts/mcp_servers/git/git_server.py` (procedure 05) catches it before the generic `GitServiceError` handler and reads `exc.outcome` for the audit record. This is the only channel available: `DispatchResult` carries `result` and `is_error` only (`scripts/mcp_servers/dedup_gate.py:33`).
+- Define `WriteOutcomeError` (new), a subclass of `GitServiceError`, in this file with an `outcome: str` attribute, and raise it instead of `ValueError` when `pipeline_result.outcome` is not None. `dispatch_tool()` keeps classifying it as a dispatch error; `scripts/mcp_servers/git/git_server.py` (procedure 05) catches it before the generic `GitServiceError` handler and reads `exc.outcome` for the audit record. This is the only channel available: `DispatchResult` carries `result` and `is_error` only (`scripts/mcp_servers/dedup_gate.py:33`).
+- `WriteOutcomeError` stays in this file, not in `scripts/mcp_servers/git/errors.py`: `format_output.py` cannot import this module (the dependency direction is `git_service -> format_output`), and `errors.py` is not a row of the Plan's frozen `Implementation Target Files` table. The formatter never raises it; the pipeline classifies the outcome and this file raises it from `PipelineResult.outcome` (procedure 01).
 
 ## Compatibility considerations
 
@@ -78,11 +79,11 @@ Remove the `asyncio.wait_for` deadline for pull and push, because the timeout is
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
-|------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | companion cases are in procedure 09 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation is procedure 11 |
+|------|-------------|--------|---------|-----------|---|
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-144426 | 20261126-144426 | WriteOutcomeError (GitServiceError subclass carrying outcome) defined here; _run_tool() uses the context-manager snapshot; asyncio.wait_for removed; raises WriteOutcomeError when pipeline_result.outcome is not None; git_pull/git_push pass timeout=self._write_timeout(...). |
+| 2 | Add or update tests per Validation plan | Completed | 20261126-144825 | 20261126-144825 | companion cases are in procedure 09 Companion cases in procedure 09; the six mock dispatch cases were converted to the subprocess path on the test side (scope expansion approved). Companion cases in procedure 09; the six mock dispatch cases were converted to the subprocess path on the test side (scope expansion approved). Post-execution stale-detector note: the pinned case `test_slow_pull_raises_timeout` no longer exists because procedure 09 replaced it with the stub-git timeout cases; the procedure's own Validation plan named that case as one that must change. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-144426 | 20261126-144426 | Static sequence clean. Full suite as recorded on procedure 01 row 3. diff-cover 100%. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is procedure 11 Documentation is procedure 11. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -92,7 +93,7 @@ Remove the `asyncio.wait_for` deadline for pull and push, because the timeout is
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| — | — | — | — | — | 
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure

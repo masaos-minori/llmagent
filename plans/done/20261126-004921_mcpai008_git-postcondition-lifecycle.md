@@ -184,13 +184,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Real-repository and bare-remote postcondition tests written first | In Progress | — | — | member of `postcondition-tests-and-implementation` |
-| 2 | Fresh post-operation snapshot captured by the pipeline | In Progress | — | — | — |
-| 3 | Operation-specific postconditions including the push remote-ref comparison | In Progress | — | — | member of `postcondition-tests-and-implementation` |
-| 4 | Cancellable subprocess for pull and push with process-group termination | In Progress | — | — | member of `outcome-vocabulary-and-timeout` |
-| 5 | `confirmed-not-applied` vocabulary member and audit outcome reporting | In Progress | — | — | member of `outcome-vocabulary-and-timeout` |
-| 6 | Handle release on success, rejection, dry-run, exception, and timeout | In Progress | — | — | — |
-| 7 | Documentation, validation, and deploy hand-off | In Progress | — | — | deploy is the user's decision |
+| 1 | Real-repository and bare-remote postcondition tests written first | Completed | — | 20261126-144838 | member of `postcondition-tests-and-implementation` |
+| 2 | Fresh post-operation snapshot captured by the pipeline | Completed | — | 20261126-144838 | — |
+| 3 | Operation-specific postconditions including the push remote-ref comparison | Completed | — | 20261126-144838 | member of `postcondition-tests-and-implementation` |
+| 4 | Cancellable subprocess for pull and push with process-group termination | Completed | — | 20261126-144838 | member of `outcome-vocabulary-and-timeout` |
+| 5 | `confirmed-not-applied` vocabulary member and audit outcome reporting | Completed | — | 20261126-144838 | member of `outcome-vocabulary-and-timeout` |
+| 6 | Handle release on success, rejection, dry-run, exception, and timeout | Completed | — | 20261126-144838 | — |
+| 7 | Documentation, validation, and deploy hand-off | Completed | — | 20261126-144838 | deploy is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -200,16 +200,16 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261126-111533_01_scripts_mcp_servers_git_write_protection_pipeline.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-111533_02_scripts_mcp_servers_git_repository_state.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261126-111533_03_scripts_mcp_servers_git_git_service.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-111533_04_scripts_mcp_servers_git_format_output.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261126-111533_05_scripts_mcp_servers_git_git_server.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261126-111533_06_scripts_shared_write_outcome.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261126-111533_08_tests_mcp_servers_git_test_repository_state.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261126-111533_09_tests_mcp_servers_git_test_git_service_dispatch.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-111533_10_tests_mcp_servers_git_test_git_write_postconditions.py.md` | 1, 6 | Procedure | Pending | — | — |
-| `implementations/20261126-111533_11_docs_22_mcp_mcp_04_05_git.md.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261126-111533_01_scripts_mcp_servers_git_write_protection_pipeline.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-111533_02_scripts_mcp_servers_git_repository_state.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261126-111533_03_scripts_mcp_servers_git_git_service.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-111533_04_scripts_mcp_servers_git_format_output.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261126-111533_05_scripts_mcp_servers_git_git_server.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261126-111533_06_scripts_shared_write_outcome.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261126-111533_08_tests_mcp_servers_git_test_repository_state.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261126-111533_09_tests_mcp_servers_git_test_git_service_dispatch.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-111533_10_tests_mcp_servers_git_test_git_write_postconditions.py.md` | 1, 6 | Procedure | Completed | — | — |
+| `implementations/20261126-111533_11_docs_22_mcp_mcp_04_05_git.md.md` | 7 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

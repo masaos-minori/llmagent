@@ -10,7 +10,7 @@ Prove the timeout behavior of the subprocess write path: a timeout before the wr
 - `asyncio.to_thread` is retained, so the existing offload assertion in this file (the case that asserts the blocking call does not run on the event-loop thread) stays valid and must keep passing.
 - `test_slow_pull_raises_timeout` at line 867 asserts `asyncio.TimeoutError` from `asyncio.wait_for`, which no longer exists after procedure 03; it is replaced, not supplemented, because the mechanism it pins is removed.
 - The subprocess is driven through `scripts/mcp_servers/git/format_output.py` (procedure 04); these cases exercise the service dispatch path, so the subprocess call is the one the pipeline's Stage 6 op runs.
-- Needs confirmation (non-blocking): the timeout cases need a way to make the `git` CLI block. The plan's default is a stub executable on `PATH` or a patched `subprocess.run`; the choice does not change the assertions.
+- Confirmed by the user on 20261126: the timeout cases use a stub `git` executable created under `tmp_path` and prepended to `PATH`, not a patched `subprocess.run`. The stub blocks until released, so `os.killpg()` is exercised against a real process group and the recorded PID can be checked for termination.
 
 ## Design decisions
 
@@ -77,11 +77,11 @@ Prove the timeout behavior of the subprocess write path: a timeout before the wr
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
-|------|-------------|--------|---------|-----------|-------|
-| 1 | Write the timeout cases against the unmodified dispatch path and record which fail | Pending | — | — | Phase 1 |
-| 2 | Re-run after procedures 03 and 04 land | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: documentation is procedure 11 |
+|------|-------------|--------|---------|-----------|---|
+| 1 | Write the timeout cases against the unmodified dispatch path and record which fail | Completed | 20261126-144426 | 20261126-144426 | Phase 1 Phase 1: the six mock dispatch cases recorded as failing on the subprocess path; fixed on the test side by patching subprocess.Popen with a fake process (scope expansion approved). The offload case keeps its thread-identity intent by recording the thread inside communicate(). Phase 1: the six mock dispatch cases recorded as failing on the subprocess path; fixed on the test side by patching subprocess.Popen with a fake process (scope expansion approved). The offload case keeps its thread-identity intent by recording the thread inside communicate(). |
+| 2 | Re-run after procedures 03 and 04 land | Completed | 20261126-144825 | 20261126-144825 | Four timeout cases added with a stub git under PATH that delegates every non pull/push call to the real binary. The stub records its process-group pid and the marker landing; the deadline is 1.0s so the marker lands before the deadline - the earlier 0.1s deadline raced under parallel execution (one full-suite failure). 101 passed. Post-execution stale-detector note: `test_slow_pull_raises_timeout` was replaced by this procedure's stub-git timeout cases, so the stale finding is the procedure's own result, not a prerequisite failure. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-144426 | 20261126-144426 | Static sequence clean. Full suite as recorded on procedure 01 row 3. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is procedure 11 Documentation is procedure 11. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -91,7 +91,7 @@ Prove the timeout behavior of the subprocess write path: a timeout before the wr
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| — | — | — | — | — | 
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
