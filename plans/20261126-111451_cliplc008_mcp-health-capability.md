@@ -360,3 +360,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-009 | Documentation Impact | docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md | Phase 5 | AC-09 | T-09 | Explicit in issue |
 | REQ-009 | Documentation Impact | docs/22_mcp/mcp_06_14_mcp-authentication-setup.md | Phase 5 | AC-09 | T-09 | Explicit in issue |
 | REQ-009 | Documentation Impact | docs/22_mcp/mcp_08_tool_capability_naming_convention.md | Phase 5 | AC-09 | T-09 | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-135614 -->
