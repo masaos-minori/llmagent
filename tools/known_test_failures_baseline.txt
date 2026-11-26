@@ -1,0 +1,7 @@
+# Known failing tests that tools/compare_test_baseline.py reports as unchanged instead of new.
+# Entry: <test id><TAB><reason that names an issue, issues/...md>. The test id is
+# classname::name as JUnit records it; a collection error is the dotted module name alone.
+# Example (not parsed): tests.example.test_module.TestClass::test_case[param]<TAB>issues/20260101-000000_example_x.md
+# Rules: a reason must name an issue path. Remove an entry when its test passes
+# (compare_test_baseline.py --update). Add one only with --add and the owner's approval.
+# This file never hides a failure from the suite: nothing is skipped, xfailed, or deselected.

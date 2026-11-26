@@ -62,8 +62,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-171205 | 20261126-171205 | wfeff002: full suite 15737 passed, 4 failed (3 pre-existing tests/mcp_servers/git; 1 eventbus flake, passes alone and on the clean tree) |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` "When to run which tool" | Completed | 20261126-171205 | 20261126-171205 | wfeff002: full suite 15737 passed, 4 failed (3 pre-existing tests/mcp_servers/git; 1 eventbus flake, passes alone and on the clean tree) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

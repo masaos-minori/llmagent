@@ -324,6 +324,22 @@ ROUTING_GATES: tuple[Gate, ...] = (
         mode=MODE_FAST,
         patterns=(),
     ),
+    # Run-after-failure report: manual, `<junit-xml>` is a runtime placeholder.
+    Gate(
+        name="compare_test_baseline",
+        command=(
+            (
+                "uv",
+                "run",
+                "python",
+                "tools/compare_test_baseline.py",
+                "<junit-xml>",
+            ),
+        ),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=(),
+    ),
     Gate(
         name="manage_workitem_stage_detect_stale",
         command=(

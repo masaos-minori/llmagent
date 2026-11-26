@@ -392,8 +392,7 @@ failure's cause is not immediately obvious, load and apply
 - **Documentation-only case.** When every file this cycle changed (Step 3d's file list
   plus the files Step 5 edits) lies under `docs/`, `issues/`, `plans/`, or
   `implementations/`, and no file under `scripts/`, `tests/`, `tools/`, `config/`, or any
-  other path changed, no test run applies: the 0-collected rule, the targeted run, the
-  once-per-cycle full-suite run, and the coverage gate (recorded `N/A`) are skipped. Run
+  other path changed, no test run applies (the coverage gate is recorded `N/A`). Run
   instead, for each file Step 3d changed, the checkers `rules/tool-gates.md` "When to run
   which tool" requires for that file (Step 6 applies the same list to the files Step 5
   edits, so a checker is not run twice for one file), and record `N/A: documentation-only
@@ -416,22 +415,18 @@ failure's cause is not immediately obvious, load and apply
   Step 3e as satisfied by its earlier pass.
 - Run the repository-defined full test suite exactly once per run unit: the cycle of a single
   procedure, or the end of a plan batch or release unit (Multi-file processing > Batch mode
-  (plan batch), Batch mode (release unit)). Run it after targeted tests pass and confirmed to
-  have collected at least one test, using the parallel command of `rules/toolchain.md`
+  (plan batch), Batch mode (release unit)). Run it after the targeted tests pass (at least one collected), using the parallel command of `rules/toolchain.md`
   section 6 (`-n logical`, with `repo_scan` deselected as that section states); Step 6 MUST NOT
-  run tests again. In a batch a member's Step 4 ends at its targeted tests. Fixing and
-  re-running after a failure is subject to the same Attempt Limit (3 attempts) and Failure Log
-  as targeted tests; reaching the Attempt Limit without a passing full-suite run means applying
+  run tests again. In a batch a member's Step 4 ends at its targeted tests. A fix and
+  re-run after a failure follow the Attempt Limit (3) and Failure Log of targeted tests; reaching the Attempt Limit without a passing full-suite run means applying
   Rollback on Failure (below), not a fourth attempt. A re-run follows only a passing targeted
   run that includes the previously failing tests.
-  Outside a plan batch or release unit (where the earlier file is not yet archived and the
-  end-of-batch run covers it): if Step 3c reported a cross-file conflict with an
+  Outside a plan batch or release unit (inside one, the end-of-batch run covers it): if Step 3c reported a cross-file conflict with an
   already-processed earlier file, that earlier file is already archived and the current
   file's cycle ended `Blocked` without reaching this Step. Before continuing the batch, run the full test suite once against
-  the current working tree (which holds the earlier file's changes) — this is a second,
-  independent run, scoped strictly to the conflict-detected case. If it fails, report `Blocked` for that earlier file in the Final Report; its
+  the current working tree (which holds the earlier file's changes) (a second run, for this case only). If it fails, report `Blocked` for that earlier file in the Final Report; its
   archived procedure is not un-archived.
-  The documentation-only case above runs no full suite at all.
+- A full run whose only failures are baselined (each entry names an issue) counts as no new failure: run it with `--junitxml=<path>`, then `uv run python tools/compare_test_baseline.py <path>` (exit 0). Note the known count and issue in Notes; MUST NOT skip, xfail, or deselect a failure.
 - Run the test commands the procedure's `## Validation plan` lists too (a listed test
   that cannot be run is `Not run: {reason}` in Notes).
 - Make the full-suite run feed the coverage gate, so the suite still runs once, parallel through `pytest --cov` (`coverage run` does not measure worker processes); one cycle's full run is the coverage run or the plain parallel run, not both:

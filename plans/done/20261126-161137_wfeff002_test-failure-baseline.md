@@ -45,6 +45,7 @@ Medium
 
 ## Implementation Target Files
 **Freeze status**: Frozen
+Amended 2026-11-26 (fallout): added tools/_validation_gate_defs.py — run_validation_gates.py drift fails for a rules/tool-gates.md row without a gate mapping, even when the command holds a runtime placeholder (found while executing procedure 05; Plan D-7 assumed no mapping was needed)
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -59,6 +60,7 @@ table — no other file may be treated as a modification target.
 | tools/TOOL_DESCRIPTIONS.md | Modify: add the tool to the Index table and to Test-Related Checkers | `tools/check_tool_descriptions_sync.py` requires every `tools/*.py` to be listed | REQ-005; AC-07 | Index at line 61, Test-Related Checkers at line 240 | `uv run python tools/check_tool_descriptions_sync.py` | Verified |
 | rules/tool-gates.md | Modify: add a "When to run which tool" row, net size not growing | The doc is the source of which tool runs after which event | REQ-005; AC-07, AC-08 | Row format at lines 21-67; size 19476 B against the ceiling 19478 B | `uv run python tools/check_skill_size.py` | Verified |
 | skills/code-implementation/workflow.md | Modify: Step 4 rule and pointer for a failure that is baselined, net size not growing | Step 4 has no branch for a known unrelated failure | REQ-005; AC-08 | Step 4 at lines 386-436; no "pre-existing" wording (checked in Step 2) | `uv run python tools/check_skill_size.py` | Verified |
+| `tools/_validation_gate_defs.py` | Modify: add a placeholder Gate entry for compare_test_baseline.py | run_validation_gates.py drift fails for a rules/tool-gates.md row without a gate mapping, even when the command holds a runtime placeholder (found while executing procedure 05; Plan D-7 assumed no mapping was needed) | REQ-005 / N/A: none cites REQ-005 | tools/_validation_gate_defs.py:310-324 holds the scan_change_consumers placeholder Gate; uv run python tools/run_validation_gates.py drift reports 'no mapping entry: compare_test_baseline:<junit-xml>' | tests/tools/test_run_validation_gates.py | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) for the full validation procedure):
@@ -136,6 +138,7 @@ separate scope-of-record.
 | tools/TOOL_DESCRIPTIONS.md | Modify | Medium (pinned by `check_tool_descriptions_sync.py`) | 79 | 3 or more authors (unverified) | not applicable |
 | rules/tool-gates.md | Modify | Medium (read by `run_validation_gates.py` drift check) | 6 | 3 or more authors (unverified) | not applicable |
 | skills/code-implementation/workflow.md | Modify | High (loaded by every implementation cycle) | 20 | 3 or more authors (unverified) | not applicable |
+| `tools/_validation_gate_defs.py` | Modify | Not assessed (amendment 2026-11-26) | N/A | N/A | Not assessed (amendment 2026-11-26) |
 
 ## Design
 Path B (six files, a new module). Analysis (Step 3 and 5): the tool imports only the standard library and, optionally, `tools/_atomic_write.py`; no importer of the new module exists, so `lint-imports` contracts are not touched (they cover `scripts/`). Churn of the three documents is high (79, 6, and 20 commits in 30 days, from `git log --since=30.days`), so the doc edits are kept to a row and one rule and re-read before commit. `pip-audit` and port checks are not applicable (no dependency and no process). The persisted schema check does not apply (no database).
@@ -161,6 +164,7 @@ Consumer scan: no symbol, persisted schema, public API, or shared constant chang
    - [ ] Add the Index and Test-Related Checkers entries (REQ-005; `tools/TOOL_DESCRIPTIONS.md`)
    - [ ] Add the "When to run which tool" row with the size-neutral edit of D-6 (REQ-005; `rules/tool-gates.md`)
    - [ ] Add the Step 4 rule of D-5 with the size-neutral edit of D-6 (REQ-005; `skills/code-implementation/workflow.md`)
+   - [ ] Modify: add a placeholder Gate entry for compare_test_baseline.py (REQ-005; `tools/_validation_gate_defs.py`) — amendment 2026-11-26
 4. **Phase 4: Verification**
    - [ ] Run the tests, the validators of the Validation plan, the real-run check T-06, and the full suite once; no deployment step (`tools/` is not deployed) (all REQ; `tools/compare_test_baseline.py`, `tests/tools/test_compare_test_baseline.py`)
 
@@ -192,10 +196,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first | In Progress | — | — |  |
-| 2 | The tool and its baseline | In Progress | — | — |  |
-| 3 | Registration | In Progress | — | — |  |
-| 4 | Verification | Pending | — | — |  |
+| 1 | Tests first | Completed | — | 2026-11-26 |  |
+| 2 | The tool and its baseline | Completed | — | 2026-11-26 |  |
+| 3 | Registration | Completed | — | 2026-11-26 |  |
+| 4 | Verification | Completed | — | 2026-11-26 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -205,11 +209,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261126-164413_01_tools_compare_test_baseline.py.md | 1, 2 | Procedure | Pending | — | — |
-| implementations/20261126-164413_02_tools_known_test_failures_baseline.txt.md | 2 | Procedure | Pending | — | — |
-| implementations/20261126-164413_04_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-164413_05_rules_tool-gates.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261126-164413_06_skills_code-implementation_workflow.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261126-164413_01_tools_compare_test_baseline.py.md | 1, 2 | Procedure | Completed | — | — |
+| implementations/20261126-164413_02_tools_known_test_failures_baseline.txt.md | 2 | Procedure | Completed | — | — |
+| implementations/20261126-164413_04_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-164413_05_rules_tool-gates.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-164413_06_skills_code-implementation_workflow.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261126-164413_07_tools__validation_gate_defs.py.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -218,7 +223,7 @@ Table structure, status/type vocabulary, and general guidance: see
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261126-161137
-- **Related target files**: tools/compare_test_baseline.py, tools/known_test_failures_baseline.txt, tests/tools/test_compare_test_baseline.py, tools/TOOL_DESCRIPTIONS.md, rules/tool-gates.md, skills/code-implementation/workflow.md
+- **Related target files**: tools/compare_test_baseline.py, tools/known_test_failures_baseline.txt, tests/tools/test_compare_test_baseline.py, tools/TOOL_DESCRIPTIONS.md, rules/tool-gates.md, skills/code-implementation/workflow.md, tools/_validation_gate_defs.py
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -229,5 +234,6 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Required Changes bullet 4 | tools/compare_test_baseline.py | Phase 2 | AC-06 | T-04 | Explicit in issue |
 | REQ-005 | Required Changes bullet 5; Documentation Impact; size ceilings (Step 3) | tools/TOOL_DESCRIPTIONS.md, rules/tool-gates.md, skills/code-implementation/workflow.md | Phase 3 | AC-07, AC-08 | T-05 | Derived from confirmed evidence |
 | REQ-006 | Constraints bullets 1 and 3; Implementation Intent | tools/compare_test_baseline.py | Phase 2 | AC-05, AC-06 | T-02, T-04 | Derived from confirmed evidence |
+| REQ-005 | Amendment 2026-11-26: run_validation_gates.py drift fails for a rules/tool-gates.md row without a gate mapping, even when the command holds a runtime placeholder (found while executing procedure 05; Plan D-7 assumed no mapping was needed) | tools/_validation_gate_defs.py | Phase 3 | N/A: none cites REQ-005 | tests/tools/test_run_validation_gates.py | Confirmed by repository evidence |
 
 <!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-164413 -->

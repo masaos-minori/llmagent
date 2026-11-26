@@ -11,7 +11,7 @@
 - Procedure 01 creates the tool first (`seq` order), so the sync check can pass here.
 
 ## Design decisions
-- The Index row goes directly after the `check_mock_patch_targets.py` row with Category `Test report`; the detail row goes after the `check_conftest_integrity.py` row. The description states: input (`--junitxml` file), the baseline path, exit codes 0, 1, 2, the four result classes, that a plain run writes nothing, `--update` and `--add ID --reason TEXT` with `--dry-run`, and that it never changes test selection.
+- The Index row goes directly after the `check_mock_patch_targets.py` row with Category `Test`; the detail row goes after the `check_conftest_integrity.py` row. The description states: input (`--junitxml` file), the baseline path, exit codes 0, 1, 2, the four result classes, that a plain run writes nothing, `--update` and `--add ID --reason TEXT` with `--dry-run`, and that it never changes test selection.
 
 ## Alternatives considered
 - N/A: placement follows the existing grouping.
@@ -21,7 +21,7 @@
 `tools/TOOL_DESCRIPTIONS.md`
 
 ### Procedure
-1. Add the Index row: `| `compare_test_baseline.py` | Test report | Read-only: classify the failures of a pytest JUnit XML file against `known_test_failures_baseline.txt` (new, fixed, not run, known count); explicit `--update` and `--add` modes |` (write real backticks, not the escapes shown here).
+1. Add the Index row: `| `compare_test_baseline.py` | Test | Read-only: classify the failures of a pytest JUnit XML file against `known_test_failures_baseline.txt` (new, fixed, not run, known count); explicit `--update` and `--add` modes |` (write real backticks, not the escapes shown here).
 2. Add the detail row in the Test-Related Checkers table: Target column `a JUnit XML file from `pytest --junitxml`` and the description above, in the style of the neighboring rows.
 3. Run the sync check.
 
@@ -54,8 +54,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` "When to run which tool" | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-171205 | 20261126-171205 | wfeff002: full suite 15737 passed, 4 failed (3 pre-existing tests/mcp_servers/git; 1 eventbus flake, passes alone and on the clean tree) |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` "When to run which tool" | Completed | 20261126-171205 | 20261126-171205 | wfeff002: full suite 15737 passed, 4 failed (3 pre-existing tests/mcp_servers/git; 1 eventbus flake, passes alone and on the clean tree) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
