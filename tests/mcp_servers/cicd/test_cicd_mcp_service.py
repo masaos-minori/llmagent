@@ -12,11 +12,19 @@ from unittest.mock import AsyncMock, MagicMock
 
 import orjson
 import pytest
+from mcp_servers.bounded_fetch import TRUNCATED_BY_RAW, BoundedFetchResult
+from mcp_servers.cicd import cicd_service_github_actions as backend_module
+from mcp_servers.cicd import cicd_service_github_actions_job as job_module
 from mcp_servers.cicd.cicd_models import (
     CicdAuthorizationError,
     CicdConfig,
     CicdNotFoundError,
+    CicdUpstreamError,
     CicdValidationError,
+    DispatchOutcome,
+    LogFetchResult,
+    LogJobResult,
+    LogTotals,
 )
 from mcp_servers.cicd.cicd_service import CiCdService, GitHubActionsBackend
 from mcp_servers.cicd.cicd_service_github_actions_job import GitHubActionsJobBackend
@@ -25,6 +33,13 @@ from pydantic import ValidationError
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
+
+
+def _no_runs_found(http: AsyncMock, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the bounded polling fast: the run lookup finds nothing inside the window."""
+    monkeypatch.setattr(backend_module, "POLL_TIMEOUT_S", 0.05)
+    monkeypatch.setattr(backend_module, "POLL_INTERVAL_S", 0.01)
+    http.get.return_value = _make_http_response(200, {"workflow_runs": []})
 
 
 def _make_http_response(
@@ -42,6 +57,21 @@ def _make_http_response(
     resp.text = text
     resp.headers = {}
     return resp
+
+
+def _fetch_result(body: bytes, truncated_by: str | None = None) -> BoundedFetchResult:
+    """Build the bounded-helper result the job backend receives for one job log."""
+    return BoundedFetchResult(
+        final_url="https://api.github.com/repos/owner/repo/actions/jobs/1/logs",
+        status_code=200,
+        content_type="text/plain",
+        charset=None,
+        body=body,
+        download_truncated=truncated_by is not None,
+        truncated_by=truncated_by,
+        declared_length=len(body),
+        elapsed_sec=0.0,
+    )
 
 
 def _make_service(
@@ -237,13 +267,18 @@ class TestHandleTriggerWorkflow:
     @pytest.mark.asyncio
     async def test_calls_backend_when_allowed(self) -> None:
         backend = AsyncMock()
-        backend.trigger_workflow.return_value = "dispatched"
+        # The structured-state contract: the handler JSON-serializes the outcome (AC-2).
+        backend.trigger_workflow.return_value = DispatchOutcome(
+            state="confirmed", run_id=42
+        )
         svc = _make_service(repo_allowlist=["owner/repo"], backend=backend)
 
         result = await svc.handle_trigger_workflow(
             {"repo": "owner/repo", "workflow": "ci.yml", "ref": "main"}
         )
-        assert result == "dispatched"
+        parsed = orjson.loads(result)
+        assert parsed["state"] == "confirmed"
+        assert parsed["run_id"] == 42
         backend.trigger_workflow.assert_awaited_once_with(
             "owner", "repo", "ci.yml", "main", {}
         )
@@ -292,14 +327,121 @@ class TestHandleGetWorkflowLogs:
     @pytest.mark.asyncio
     async def test_calls_backend_when_allowed(self) -> None:
         backend = AsyncMock()
-        backend.get_workflow_logs.return_value = "=== Job: build ==="
+        pinned = LogFetchResult(
+            jobs=(LogJobResult(job_id=1, status="included", included_bytes=19),),
+            output="=== Job: build ===\n",
+            partial_success=False,
+            totals=LogTotals(
+                jobs=1,
+                included_jobs=1,
+                failed_jobs=0,
+                downloaded_bytes=19,
+                visible_bytes=19,
+            ),
+        )
+        backend.get_workflow_logs.return_value = pinned
         svc = _make_service(repo_allowlist=["owner/repo"], backend=backend)
 
         result = await svc.handle_get_workflow_logs(
             {"repo": "owner/repo", "run_id": 456}
         )
-        assert "build" in result
+        # REQ-004: the handler serializes the structured result, not a raw string.
+        parsed = orjson.loads(result)
+        assert parsed["jobs"][0]["status"] == "included"
+        assert parsed["output"] == "=== Job: build ===\n"
         backend.get_workflow_logs.assert_awaited_once_with("owner", "repo", 456)
+
+    @pytest.mark.asyncio
+    async def test_mixed_failure_is_a_successful_result(self) -> None:
+        backend = AsyncMock()
+        backend.get_workflow_logs.return_value = LogFetchResult(
+            jobs=(
+                LogJobResult(job_id=1, status="included", included_bytes=23),
+                LogJobResult(
+                    job_id=2,
+                    status="failed",
+                    included_bytes=0,
+                    error_code="http_status",
+                ),
+            ),
+            output="=== Job: build ===\nlog\n",
+            partial_success=True,
+            totals=LogTotals(
+                jobs=2,
+                included_jobs=1,
+                failed_jobs=1,
+                downloaded_bytes=4,
+                visible_bytes=23,
+            ),
+        )
+        svc = _make_service(repo_allowlist=["owner/repo"], backend=backend)
+
+        result = await svc.handle_get_workflow_logs(
+            {"repo": "owner/repo", "run_id": 456}
+        )
+        parsed = orjson.loads(result)
+        assert parsed["partial_success"] is True
+        assert parsed["totals"]["failed_jobs"] == 1
+
+    @pytest.mark.asyncio
+    async def test_all_failed_raises_a_tool_error(self) -> None:
+        """AC-4: total failure is an error, not a successful result with empty output."""
+        backend = AsyncMock()
+        backend.get_workflow_logs.return_value = LogFetchResult(
+            jobs=(
+                LogJobResult(
+                    job_id=1,
+                    status="failed",
+                    included_bytes=0,
+                    error_code="http_status",
+                ),
+            ),
+            output="",
+            partial_success=False,
+            totals=LogTotals(
+                jobs=1,
+                included_jobs=0,
+                failed_jobs=1,
+                downloaded_bytes=0,
+                visible_bytes=0,
+            ),
+        )
+        svc = _make_service(repo_allowlist=["owner/repo"], backend=backend)
+
+        with pytest.raises(CicdUpstreamError):
+            await svc.handle_get_workflow_logs({"repo": "owner/repo", "run_id": 456})
+
+    @pytest.mark.asyncio
+    async def test_result_carries_no_raw_upstream_text(self) -> None:
+        """REQ-006: the serialized result contains codes, not transport exception text."""
+        output = "=== Job: build ===\nlog\n"
+        backend = AsyncMock()
+        backend.get_workflow_logs.return_value = LogFetchResult(
+            jobs=(
+                LogJobResult(job_id=1, status="included", included_bytes=23),
+                LogJobResult(
+                    job_id=2,
+                    status="failed",
+                    included_bytes=0,
+                    error_code="content_type",
+                ),
+            ),
+            output=output,
+            partial_success=True,
+            totals=LogTotals(
+                jobs=2,
+                included_jobs=1,
+                failed_jobs=1,
+                downloaded_bytes=4,
+                visible_bytes=len(output.encode()),
+            ),
+        )
+        svc = _make_service(repo_allowlist=["owner/repo"], backend=backend)
+
+        result = await svc.handle_get_workflow_logs({"repo": "owner/repo", "run_id": 1})
+        assert "log fetch error" not in result
+        assert "text/html" not in result
+        assert orjson.loads(result)["jobs"][1]["error_code"] == "content_type"
 
 
 class TestHandlerCanonicalization:
@@ -308,7 +450,7 @@ class TestHandlerCanonicalization:
     @pytest.mark.asyncio
     async def test_trigger_receives_canonical_values(self) -> None:
         backend = AsyncMock()
-        backend.trigger_workflow.return_value = "dispatched"
+        backend.trigger_workflow.return_value = DispatchOutcome(state="accepted")
         svc = _make_service(
             repo_allowlist=["Owner/Repo"],
             workflow_allowlist=["ci.yml"],
@@ -325,7 +467,7 @@ class TestHandlerCanonicalization:
     @pytest.mark.asyncio
     async def test_numeric_id_reaches_the_backend_unchanged(self) -> None:
         backend = AsyncMock()
-        backend.trigger_workflow.return_value = "dispatched"
+        backend.trigger_workflow.return_value = DispatchOutcome(state="accepted")
         svc = _make_service(
             repo_allowlist=["owner/repo"],
             workflow_allowlist=["42"],
@@ -477,14 +619,19 @@ class TestCheckResponse:
 
 class TestGitHubActionsBackendTriggerWorkflow:
     @pytest.mark.asyncio
-    async def test_204_returns_dispatch_message(self) -> None:
+    async def test_204_returns_structured_outcome(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         http = AsyncMock()
         http.post.return_value = _make_http_response(204)
+        # No run is found inside the bounded window, so the state stays unconfirmed.
+        _no_runs_found(http, monkeypatch)
         backend = GitHubActionsBackend("token", http)
 
         result = await backend.trigger_workflow("owner", "repo", "ci.yml", "main", {})
-        assert "dispatched" in result.lower()
-        assert "owner/repo" in result
+        assert result.state == "accepted_unconfirmed"
+        assert result.workflow == "ci.yml"
+        assert result.ref == "main"
 
     @pytest.mark.asyncio
     async def test_404_raises_not_found(self) -> None:
@@ -496,9 +643,13 @@ class TestGitHubActionsBackendTriggerWorkflow:
             await backend.trigger_workflow("owner", "repo", "ci.yml", "main", {})
 
     @pytest.mark.asyncio
-    async def test_request_uses_correct_url(self) -> None:
+    async def test_request_uses_correct_url(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         http = AsyncMock()
         http.post.return_value = _make_http_response(204)
+        # The bounded polling path reads the run list; no run is found.
+        _no_runs_found(http, monkeypatch)
         backend = GitHubActionsBackend("token", http)
 
         await backend.trigger_workflow("owner", "repo", "ci.yml", "main", {})
@@ -506,9 +657,10 @@ class TestGitHubActionsBackendTriggerWorkflow:
         assert "owner/repo/actions/workflows/ci.yml/dispatches" in call_url
 
     @pytest.mark.asyncio
-    async def test_auth_header_is_set(self) -> None:
+    async def test_auth_header_is_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
         http = AsyncMock()
         http.post.return_value = _make_http_response(204)
+        _no_runs_found(http, monkeypatch)
         backend = GitHubActionsBackend("my-secret-token", http)
 
         await backend.trigger_workflow("owner", "repo", "ci.yml", "main", {})
@@ -517,9 +669,12 @@ class TestGitHubActionsBackendTriggerWorkflow:
         assert headers.get("Authorization") == "Bearer my-secret-token"
 
     @pytest.mark.asyncio
-    async def test_no_token_omits_auth_header(self) -> None:
+    async def test_no_token_omits_auth_header(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         http = AsyncMock()
         http.post.return_value = _make_http_response(204)
+        _no_runs_found(http, monkeypatch)
         backend = GitHubActionsBackend("", http)
 
         await backend.trigger_workflow("owner", "repo", "ci.yml", "main", {})
@@ -617,7 +772,7 @@ class TestGitHubActionsBackendGetWorkflowStatus:
 
 class TestGitHubActionsJobBackendGetWorkflowLogs:
     @pytest.mark.asyncio
-    async def test_returns_job_header_and_log(self) -> None:
+    async def test_returns_job_header_and_log(self, monkeypatch) -> None:
         jobs_body = {
             "jobs": [
                 {
@@ -636,22 +791,27 @@ class TestGitHubActionsJobBackendGetWorkflowLogs:
                 }
             ]
         }
+        # Only the jobs API call uses the injected client; the log download goes
+        # through the shared bounded helper.
         http = AsyncMock()
-        # First call: jobs list; second call: log content (follow redirect)
-        jobs_resp = _make_http_response(200, body=jobs_body)
-        log_resp = _make_http_response(200, text="2024-01-01T00:00:00.000Z Run tests\n")
-        log_resp.is_success = True
-        log_resp.text = "2024-01-01T00:00:00.000Z Run tests\n"
-        http.get.side_effect = [jobs_resp, log_resp]
+        http.get.return_value = _make_http_response(200, body=jobs_body)
         backend = GitHubActionsJobBackend("token", http)
+        monkeypatch.setattr(
+            job_module,
+            "fetch_bounded",
+            AsyncMock(
+                return_value=_fetch_result(b"2024-01-01T00:00:00.000Z Run tests\n")
+            ),
+        )
 
         result = await backend.get_workflow_logs("owner", "repo", 42)
-        assert "build" in result
-        assert "Set up job" in result
-        assert "Run tests" in result
+        assert "build" in result.output
+        assert "Set up job" in result.output
+        assert "Run tests" in result.output
+        assert result.jobs[0].status == "included"
 
     @pytest.mark.asyncio
-    async def test_truncates_at_max_log_size(self) -> None:
+    async def test_truncates_at_max_log_size(self, monkeypatch) -> None:
         jobs_body = {
             "jobs": [
                 {
@@ -666,19 +826,20 @@ class TestGitHubActionsJobBackendGetWorkflowLogs:
         # 1 KB limit, generate 2 KB of log text
         large_log = "x" * 2048
         http = AsyncMock()
-        jobs_resp = _make_http_response(200, body=jobs_body)
-        log_resp = MagicMock()
-        log_resp.is_success = True
-        log_resp.text = large_log
-        http.get.side_effect = [jobs_resp, log_resp]
+        http.get.return_value = _make_http_response(200, body=jobs_body)
         backend = GitHubActionsJobBackend("token", http, 1)
+        monkeypatch.setattr(
+            job_module,
+            "fetch_bounded",
+            AsyncMock(return_value=_fetch_result(large_log.encode(), TRUNCATED_BY_RAW)),
+        )
 
         result = await backend.get_workflow_logs("owner", "repo", 43)
-        # Output must not exceed 1 KB (1024 bytes) significantly
-        assert (
-            len(result.encode()) <= 1024 + 100
-        )  # allow small overhead for truncation message
-        assert "TRUNCATED" in result
+        # REQ-003: the exact final-output budget, header and marker included.
+        assert len(result.output.encode()) <= 1024
+        assert "TRUNCATED" in result.output
+        assert result.totals.visible_bytes == len(result.output.encode())
+        assert result.jobs[0].truncated is True
 
     @pytest.mark.asyncio
     async def test_no_jobs_returns_empty_message(self) -> None:
@@ -687,7 +848,8 @@ class TestGitHubActionsJobBackendGetWorkflowLogs:
         backend = GitHubActionsJobBackend("token", http)
 
         result = await backend.get_workflow_logs("owner", "repo", 99)
-        assert "No jobs found" in result
+        assert "No jobs found" in result.output
+        assert result.totals.jobs == 0
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -712,7 +874,8 @@ class TestTriggerWorkflowDryRun:
         mock_backend.trigger_workflow.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_dry_run_includes_inputs_in_preview(self) -> None:
+    async def test_dry_run_preview_redacts_input_values(self) -> None:
+        """REQ-006, AC-4: the preview lists input keys and the count, never a value."""
         import orjson
 
         svc = _make_service(
@@ -727,7 +890,29 @@ class TestTriggerWorkflowDryRun:
             }
         )
         payload = orjson.loads(result)
-        assert "prod" in payload["preview"]
+        assert "prod" not in payload["preview"]
+        assert "env" in payload["preview"]
+        assert "[1]" in payload["preview"]
+
+    @pytest.mark.asyncio
+    async def test_dry_run_preview_lists_multiple_keys_and_count(self) -> None:
+        import orjson
+
+        svc = _make_service(
+            repo_allowlist=["owner/repo"], workflow_allowlist=["deploy.yml"]
+        )
+        result = await svc.handle_trigger_workflow(
+            {
+                "repo": "owner/repo",
+                "workflow": "deploy.yml",
+                "dry_run": True,
+                "inputs": {"env": "prod", "tag": "v1"},
+            }
+        )
+        payload = orjson.loads(result)
+        assert "prod" not in payload["preview"]
+        assert "v1" not in payload["preview"]
+        assert "inputs [2]: env, tag" in payload["preview"]
 
     @pytest.mark.asyncio
     async def test_dry_run_denied_by_repo_allowlist(self) -> None:

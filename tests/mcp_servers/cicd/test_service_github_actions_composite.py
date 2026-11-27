@@ -14,6 +14,12 @@ from unittest.mock import AsyncMock
 
 import httpx
 import pytest
+from mcp_servers.cicd.cicd_models import (
+    DispatchOutcome,
+    LogFetchResult,
+    LogJobResult,
+    LogTotals,
+)
 from mcp_servers.cicd.cicd_service_github_actions import GitHubActionsBackend
 from mcp_servers.cicd.cicd_service_github_actions_composite import (
     GitHubActionsCompositeBackend,
@@ -93,14 +99,18 @@ class TestDelegationRouting:
     async def test_trigger_workflow_delegates_to_workflow_backend(self) -> None:
         composite = _make_composite()
         composite._workflow = AsyncMock()
-        composite._workflow.trigger_workflow.return_value = "dispatched"
+        # The structured outcome, not a string: the facade is a pass-through (AC-2).
+        outcome = DispatchOutcome(
+            state="confirmed", run_id=42, workflow="ci.yml", ref="main"
+        )
+        composite._workflow.trigger_workflow.return_value = outcome
         composite._job = AsyncMock()
 
         result = await composite.trigger_workflow(
             "owner", "repo", "ci.yml", "main", {"k": "v"}
         )
 
-        assert result == "dispatched"
+        assert result is outcome
         composite._workflow.trigger_workflow.assert_awaited_once_with(
             "owner", "repo", "ci.yml", "main", {"k": "v"}
         )
@@ -143,10 +153,23 @@ class TestDelegationRouting:
         composite = _make_composite()
         composite._workflow = AsyncMock()
         composite._job = AsyncMock()
-        composite._job.get_workflow_logs.return_value = "=== Job: build ==="
+        pinned = LogFetchResult(
+            jobs=(LogJobResult(job_id=1, status="included", included_bytes=19),),
+            output="=== Job: build ===\n",
+            partial_success=False,
+            totals=LogTotals(
+                jobs=1,
+                included_jobs=1,
+                failed_jobs=0,
+                downloaded_bytes=19,
+                visible_bytes=19,
+            ),
+        )
+        composite._job.get_workflow_logs.return_value = pinned
 
         result = await composite.get_workflow_logs("owner", "repo", 456)
 
-        assert result == "=== Job: build ==="
+        # REQ-004: the delegation carries the structured result, not a string.
+        assert result is pinned
         composite._job.get_workflow_logs.assert_awaited_once_with("owner", "repo", 456)
         composite._workflow.assert_not_called()

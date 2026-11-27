@@ -6,27 +6,45 @@ These pin the strict request contract (mcpci001): the schema shape the client
 sees, the field constraints, the canonical identifier function, and the config
 bounds that fail before bind. The description pins carry the wording that was
 moved from `cicd_tools.py`'s property dicts to the model fields, so the published
-schema and the enforced contract cannot drift.
+schema and the enforced contract cannot drift. The log response model and the
+streaming-bound constants (mcpci003) are pinned here as well, so the values the
+config file and the docs record cannot drift from the module constants.
 """
 
 from __future__ import annotations
 
 import pytest
 from mcp_servers.cicd.cicd_models import (
+    DISPATCH_STATES,
+    LOG_ERROR_CODES,
+    LOG_FETCH_TIMEOUT_S,
+    LOG_JOB_STATUSES,
     MAX_ALLOWLIST_SIZE,
+    MAX_DECOMPRESSED_BYTES,
     MAX_LOG_SIZE_KB,
+    MAX_RAW_DOWNLOAD_BYTES,
+    MAX_REDIRECTS,
+    POLL_INTERVAL_S,
+    POLL_TIMEOUT_S,
+    TRUNCATION_REASONS,
+    TRUSTED_LOG_HOSTS,
     CicdAuthorizationError,
     CicdConfig,
     CicdNotFoundError,
     CicdUpstreamError,
     CicdValidationError,
+    DispatchOutcome,
     GetWorkflowLogsRequest,
     GetWorkflowRunsRequest,
     GetWorkflowStatusRequest,
+    LogFetchResult,
+    LogJobResult,
+    LogTotals,
     TriggerWorkflowRequest,
     canonical_workflow_id,
 )
 from pydantic import ValidationError
+from shared.write_outcome import OUTCOME_UNKNOWN
 
 _REPO_DESC = "Repository slug in 'owner/repo' format"
 _WORKFLOW_DESC = "Workflow file name (e.g. ci.yml) or numeric workflow ID"
@@ -299,3 +317,203 @@ def test_exception_hierarchy() -> None:
     assert issubclass(CicdNotFoundError, ValueError)
     assert issubclass(CicdValidationError, ValueError)
     assert issubclass(CicdUpstreamError, RuntimeError)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Dispatch outcome (mcpci002 response model)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_dispatch_states_are_the_five_states() -> None:
+    assert DISPATCH_STATES == frozenset(
+        {
+            "accepted",
+            "confirmed",
+            "accepted_unconfirmed",
+            OUTCOME_UNKNOWN,
+            "reconciliation_required",
+        }
+    )
+    # outcome_unknown is the shared write-outcome vocabulary value, not a redefinition.
+    assert OUTCOME_UNKNOWN in DISPATCH_STATES
+
+
+def test_polling_constants_are_the_decided_bounds() -> None:
+    assert POLL_TIMEOUT_S == 10
+    assert POLL_INTERVAL_S == 2
+
+
+def test_dispatch_outcome_shape() -> None:
+    outcome = DispatchOutcome(state="accepted")
+    assert outcome.state == "accepted"
+    assert outcome.run_id is None
+    assert outcome.run_url is None
+    assert outcome.run_status is None
+    assert outcome.workflow is None
+    assert outcome.ref is None
+
+
+def test_confirmed_requires_a_matched_run() -> None:
+    with pytest.raises(ValueError):
+        DispatchOutcome(state="confirmed")
+    outcome = DispatchOutcome(
+        state="confirmed",
+        run_id=42,
+        run_url="https://github.com/o/r/actions/runs/42",
+        run_status="completed",
+        workflow="ci.yml",
+        ref="main",
+    )
+    assert outcome.run_id == 42
+    assert outcome.run_url == "https://github.com/o/r/actions/runs/42"
+    assert outcome.run_status == "completed"
+    assert outcome.workflow == "ci.yml"
+    assert outcome.ref == "main"
+
+
+@pytest.mark.parametrize("state", sorted(DISPATCH_STATES - {"confirmed"}))
+def test_states_without_matched_run_are_constructible(state: str) -> None:
+    assert DispatchOutcome(state=state).state == state
+
+
+def test_dispatch_outcome_rejects_unknown_state() -> None:
+    with pytest.raises(ValueError):
+        DispatchOutcome(state="applied")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Log streaming bounds and response model (mcpci003)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_log_limits_are_the_decided_values() -> None:
+    # These are the values recorded in config/cicd_mcp_server.toml and the docs.
+    assert MAX_RAW_DOWNLOAD_BYTES == 1_048_576
+    assert MAX_DECOMPRESSED_BYTES == 1_048_576
+    assert MAX_REDIRECTS == 3
+    assert LOG_FETCH_TIMEOUT_S == 10
+
+
+def test_trusted_log_hosts_are_the_github_controlled_hosts() -> None:
+    assert TRUSTED_LOG_HOSTS == frozenset(
+        {
+            "api.github.com",
+            "results-receiver.actions.githubusercontent.com",
+            "productionresultssa*.blob.core.windows.net",
+        }
+    )
+
+
+def test_log_vocabulary_is_the_stable_contract() -> None:
+    assert LOG_JOB_STATUSES == frozenset({"included", "failed", "skipped"})
+    assert LOG_ERROR_CODES == frozenset(
+        {
+            "http_status",
+            "address_rejected",
+            "redirect",
+            "content_type",
+            "content_encoding",
+            "transport",
+        }
+    )
+    # The first three are bounded_fetch's TRUNCATED_BY_* values passed through unchanged.
+    assert TRUNCATION_REASONS == frozenset(
+        {"raw", "decoded", "parser_input", "output_budget"}
+    )
+
+
+def test_log_job_result_shape() -> None:
+    job = LogJobResult(
+        job_id=7, status="failed", included_bytes=0, error_code="http_status"
+    )
+    assert job.job_id == 7
+    assert job.status == "failed"
+    assert job.included_bytes == 0
+    assert job.error_code == "http_status"
+    assert job.truncated is False
+
+
+def test_log_job_result_rejects_a_code_on_a_non_failed_job() -> None:
+    with pytest.raises(ValueError):
+        LogJobResult(
+            job_id=1, status="included", included_bytes=4, error_code="transport"
+        )
+    with pytest.raises(ValueError):
+        LogJobResult(job_id=1, status="failed", included_bytes=0, error_code="unknown")
+    with pytest.raises(ValueError):
+        LogJobResult(job_id=1, status="unknown", included_bytes=0)
+    with pytest.raises(ValueError):
+        LogJobResult(job_id=1, status="skipped", included_bytes=-1)
+
+
+def test_log_totals_shape() -> None:
+    totals = LogTotals(
+        jobs=2,
+        included_jobs=1,
+        failed_jobs=1,
+        downloaded_bytes=4,
+        visible_bytes=19,
+        truncation_reason="raw",
+    )
+    assert totals.truncation_reason == "raw"
+    with pytest.raises(ValueError):
+        LogTotals(
+            jobs=1,
+            included_jobs=0,
+            failed_jobs=1,
+            downloaded_bytes=0,
+            visible_bytes=0,
+            truncation_reason="memory",
+        )
+
+
+def test_log_fetch_result_shape() -> None:
+    output = "=== Job: build ===\nlog\n"
+    result = LogFetchResult(
+        jobs=(
+            LogJobResult(job_id=1, status="included", included_bytes=23),
+            LogJobResult(
+                job_id=2, status="failed", included_bytes=0, error_code="http_status"
+            ),
+        ),
+        output=output,
+        partial_success=True,
+        totals=LogTotals(
+            jobs=2,
+            included_jobs=1,
+            failed_jobs=1,
+            downloaded_bytes=4,
+            visible_bytes=len(output.encode()),
+        ),
+    )
+    assert result.partial_success is True
+    assert result.totals.visible_bytes == len(result.output.encode())
+    assert result.jobs[1].error_code == "http_status"
+
+
+def test_log_fetch_result_rejects_a_counts_or_partial_mismatch() -> None:
+    job = LogJobResult(
+        job_id=1, status="failed", included_bytes=0, error_code="transport"
+    )
+    totals = LogTotals(
+        jobs=1,
+        included_jobs=0,
+        failed_jobs=1,
+        downloaded_bytes=0,
+        visible_bytes=0,
+    )
+    with pytest.raises(ValueError):
+        LogFetchResult(jobs=(job,), output="x", partial_success=False, totals=totals)
+    with pytest.raises(ValueError):
+        LogFetchResult(
+            jobs=(job,),
+            output="",
+            partial_success=True,
+            totals=LogTotals(
+                jobs=1,
+                included_jobs=1,
+                failed_jobs=0,
+                downloaded_bytes=0,
+                visible_bytes=0,
+            ),
+        )
