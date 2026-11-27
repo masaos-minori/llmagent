@@ -118,8 +118,8 @@ The DAG scheduler reads its metadata from `RuntimeToolRegistry`, the same regist
 The following `ToolSpec` fields (resolved per call from the tool's `/v1/tools` schema-2.0 declaration) drive scheduling:
 
 - `requires_serial`: Controls whether the tool requires serialized execution (forms a solo serial-barrier group)
-- `resource_scopes`: Tuple of kind-prefixed resource-scope strings (e.g. `"filesystem:/a/b.txt"`) the call occupies; conflicting scopes across calls form a serialized conflict-graph group (`shared/resource_scope.py::_scopes_conflict()` — exact match, or ancestor/descendant for `"filesystem:"` scopes)
-- `is_write`: Indicates whether the tool performs write operations (a write tool with no resolved scope is treated as occupying the synthetic `"global:write"` scope, so it still participates in — and can conflict within — the same resource-scope conflict graph as scoped writes; there is no separate `write_first` bucket)
+- `resource_scopes`: Tuple of kind-prefixed resource-scope strings (e.g. `"filesystem:/a/b.txt"`) the call occupies; every scope string is `<kind>:<identity>`, and a composed GitHub kind joins its present key values with `/` (`shared/resource_scope.py::_COMPOSED_KIND_SEPARATORS`). Conflicting scopes across calls form a serialized conflict-graph group (`shared/resource_scope.py::_scopes_conflict()` — exact match; ancestor/descendant for `"filesystem:"` scopes; and a `"github_repo:"` scope conflicts with a `"github_branch:"`, `"github_issue:"`, or `"github_pull_request:"` scope whose identity begins with the same `<owner>/<repo>/`)
+- `is_write`: Indicates whether the tool performs write operations (a write tool with no resolved scope is treated as occupying the synthetic `"global:write"` scope, so it still participates in — and can conflict within — the same resource-scope conflict graph as scoped writes; a write tool whose composed GitHub identity is missing one of its declared keys also falls back to `"global:write"` rather than resolving a partial identity; there is no separate `write_first` bucket)
 
 ### Key distinction
 
@@ -168,7 +168,7 @@ Every MCP tool passes through these layers consistently from invocation to audit
 | Source | Behavior |
 |---|---|
 | `ToolSpec.requires_serial` (individual tools. e.g., MDQ's `index_paths`/`refresh_index`, shell's `shell_run`) | Forms a solo serial phase as an in-place barrier |
-| Overlapping `resource_scopes` (where at least one is `is_write=True`; unscoped writes use synthetic `"global:write"` scope) | Grouped as connected components in the conflict graph and serialized within the group |
+| Overlapping `resource_scopes` (where at least one is `is_write=True`; unscoped writes use synthetic `"global:write"` scope; a `github_repo:` scope overlaps with a finer GitHub scope of the same repository) | Grouped as connected components in the conflict graph and serialized within the group |
 | `ctx.cfg.tool.serial_tool_calls=True` → `force_serial=True` (batch-level input) | Bypasses all the above and forces individual serial phases for each call in order |
 
 Parallel/serial determination relies solely on `PreparedToolCall.spec.is_write`.
