@@ -170,12 +170,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `--headroom` and its tests (`tools/check_skill_size.py`, `tests/tools/test_check_skill_size.py`) | Pending | — | — | |
-| 2 | Document the option (`tools/TOOL_DESCRIPTIONS.md`) | Pending | — | — | |
-| 3 | Add the Skill size item and the trigger (`skills/issue-to-plan/workflow-edge.md`) | Pending | — | — | |
-| 4 | Extend the trigger in the workflow (`skills/issue-to-plan/workflow.md`) | Pending | — | — | |
-| 5 | Add skill size to the template list (`templates/plan.md`) | Pending | — | — | |
-| 6 | Print the headroom of the pipeline workflows; deployment check is N/A (`tools/check_skill_size.py`) | Pending | — | — | |
+| 1 | Add `--headroom` and its tests (`tools/check_skill_size.py`, `tests/tools/test_check_skill_size.py`) | In Progress | — | — |  |
+| 2 | Document the option (`tools/TOOL_DESCRIPTIONS.md`) | In Progress | — | — |  |
+| 3 | Add the Skill size item and the trigger (`skills/issue-to-plan/workflow-edge.md`) | In Progress | — | — |  |
+| 4 | Extend the trigger in the workflow (`skills/issue-to-plan/workflow.md`) | In Progress | — | — |  |
+| 5 | Add skill size to the template list (`templates/plan.md`) | In Progress | — | — |  |
+| 6 | Print the headroom of the pipeline workflows; deployment check is N/A (`tools/check_skill_size.py`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -185,7 +185,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261127-152121_01_tools_check_skill_size.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-152121_03_tools_TOOL_DESCRIPTIONS.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261127-152121_04_skills_issue-to-plan_workflow-edge.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261127-152121_05_skills_issue-to-plan_workflow.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261127-152121_06_templates_plan.md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -213,3 +217,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | `REQ-004` | 24576 B tools size gate | `tools/check_skill_size.py` | Phase 1 | AC-6 | `uv run python -m tools.check_module_size --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt` | Confirmed by repository evidence |
 | `REQ-004` | `templates/plan.md` 12575 B under the 16384 B limit | `templates/plan.md` | Phase 5 | AC-6 | `uv run python tools/check_skill_size.py` | Confirmed by repository evidence |
 | `REQ-005` | Issue Documentation Impact | `tools/TOOL_DESCRIPTIONS.md` | Phase 2 | AC-7 | `uv run python tools/check_tool_descriptions_sync.py` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261127-152121 -->
