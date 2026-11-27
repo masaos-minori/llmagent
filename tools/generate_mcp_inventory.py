@@ -19,7 +19,7 @@ def generate_inventory() -> list[dict]:
             "transport": server.transport.value,
             "startup_mode": server.startup_mode.value,
             "url": server.url if server.transport == TransportType.HTTP else "",
-            "cmd": "; ".join(server.cmd) if server.requires_cmd else "",
+            "cmd": "; ".join(server.cmd) if server.cmd else "",
             "status": "disabled" if server.is_disabled else "enabled",
         }
         inventory.append(entry)
