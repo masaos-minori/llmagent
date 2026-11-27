@@ -53,8 +53,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Measure, then add the Step 3c sub-bullet and the Toolchain line | Pending | — | — | Needs the wfeff006 seq 05 change first |
-| 2 | Run the skill size, reference, and heading-cycle checks | Pending | — | — | |
+| 1 | Measure, then add the Step 3c sub-bullet and the Toolchain line | Completed | 20261127-101744 | 20261127-101803 | Needs the wfeff006 seq 05 change first Changed: skills/plan-to-implementation-procedure/workflow.md 34323 -> 34756 B (ceiling 34876); two insertions only |
+| 2 | Run the skill size, reference, and heading-cycle checks | Completed | 20261127-101803 | 20261127-101803 | check_skill_size, check_skills_references, check_skills_heading_cycles pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -52,6 +52,22 @@ the same pass, breaking the "one shared timestamp per pass" guarantee.
   human must resolve the interrupted-cycle state (confirm whether the
   existing file is stale, partial, or covers the row — a stale file is removed as that single file) and then re-invoke this skill.
 
+### Step 3c: stale mismatch classification
+
+- Apply this to each mismatch `tools/stale_detector.py` reports for a document written in Step 3c. For each mismatch:
+  (1) a name, import, or target file this document creates — add `(new)` after it via `tools/mark_procedure_new_symbols.py`
+  (see `templates/implementation-procedure.md` Notes); (2) a name that only a
+  sibling procedure of this Plan marks `(new)` — the tool resolves a name declared by an
+  earlier-`seq` sibling and prints a `resolved from sibling` line naming the declaring
+  document, so it is not a mismatch and needs no Assumptions note (the note is needed
+  only when the tool was run with `--no-siblings` or the document has no `Source plan`);
+  a name declared only by a later-`seq` sibling stays a mismatch with that sibling named
+  in its detail, and is corrected here (reorder the rows or move the declaration);
+  (3) anything else is a stale reference — correct the
+  document and re-run. The tool checks a companion's `(new)` marks and line citations
+  against the companion, not against the primary target.
+- For a whole Plan, `uv run python tools/finalize_procedures.py {plan_path}` runs the stale, structure, and Plan coverage checks, prints only failures, and classifies each `symbol_missing` name as `created here`, `not a code symbol`, or `ambiguous`; add `--apply` (after `--dry-run`) to apply only the unambiguous actions. An `ambiguous` name is corrected by hand under (3).
+
 ### Step 3c: additional target file discovery
 
 - If investigation reveals that implementing this row requires modifying a file not

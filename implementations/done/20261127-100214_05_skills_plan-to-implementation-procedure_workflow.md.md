@@ -57,8 +57,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Measure, then replace the paragraph and add the Toolchain and Step 4 references | Pending | — | — | |
-| 2 | Run the skill size, reference, and heading-cycle checks and the moved-text comparison | Pending | — | — | |
+| 1 | Measure, then replace the paragraph and add the Toolchain and Step 4 references | Completed | 20261127-101201 | 20261127-101210 | Changed: skills/plan-to-implementation-procedure/workflow.md 34853 -> 34323 B (ceiling 34876); moved text compared whitespace-normalized: identical |
+| 2 | Run the skill size, reference, and heading-cycle checks and the moved-text comparison | Completed | 20261127-101210 | 20261127-101210 | check_skill_size, check_skills_references, check_skills_heading_cycles pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

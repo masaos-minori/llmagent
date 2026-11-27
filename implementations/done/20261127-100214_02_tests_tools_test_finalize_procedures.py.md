@@ -23,7 +23,7 @@
 
 ### Procedure
 1. Helper `_procedure(implementation_body: str, source_plan: str = "plans/p.md") -> str` returning a full document with every template heading.
-2. Classification (parametrized): `` `HIGH_SHARE = 0.70` `` and ``"`name: type`"`` give `created here`; "Add a function `deploy_impact(path, change, deploy_text)`" gives `created here` for `deploy_text` (signature rule) and for `deploy_impact`; "create the field `dedup_key`" gives `created here`; `` `result.is_stale` `` gives `not a code symbol` for `is_stale`; `"value_name"` inside a quoted literal and `key=value_name` give `not a code symbol`; a bare mention of a name with no rule gives `ambiguous`.
+2. Classification (parametrized): `` `HIGH_SHARE = 0.70` `` and ``"`name: type`"`` give `created here`; "Add a function `deploy_impact(path, change, deploy_text)`" gives `created here` for `deploy_text` (signature rule with a creating verb); the same signature on a line without a creating verb gives `ambiguous`; a name defined by an assignment and also mentioned plainly elsewhere is `created here`; "create the field `dedup_key`" gives `created here`; `` `result.is_stale` `` gives `not a code symbol` for `is_stale`; `"value_name"` inside a quoted literal and `key=value_name` give `not a code symbol`; a bare mention of a name with no rule gives `ambiguous`.
 3. `parse_missing_symbols`: a sample stale output with a `symbol_missing` line, a `line_ref` line, and the `new_target_exists` line yields only the symbol names and returns the other lines as unclassified.
 4. `apply_actions`: `created here` gets `(new)` once (idempotent on a second call); `not a code symbol` loses its backticks only on exact backticked occurrences; `ambiguous` text is byte-identical; a name inside a longer backticked span is unchanged.
 5. Orchestration with a stubbed `run_check`: all pass gives exactly one `OK:` line, counts equal the fixtures, and exit 0; a failing structure result gives a row with the document, tool, and exit code and exit 1 while the other checks still ran (assert the stub's call list); no procedures gives exit 1 and the message; `--apply` without `--dry-run` writes, `--dry-run` writes nothing, no flag writes nothing.
@@ -60,9 +60,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/tools/test_finalize_procedures.py` with the helpers and tests of Procedure | Pending | — | — | Needs seq 01 first |
-| 2 | Run the tests and fix failures in the test or report a tool defect | Pending | — | — | |
-| 3 | Run ruff and mypy on the file | Pending | — | — | |
+| 1 | Create `tests/tools/test_finalize_procedures.py` with the helpers and tests of Procedure | Completed | 20261127-101002 | 20261127-101131 | Needs seq 01 first Changed: tests/tools/test_finalize_procedures.py (new, 25 tests pass) |
+| 2 | Run the tests and fix failures in the test or report a tool defect | Completed | 20261127-101131 | 20261127-101131 |  |
+| 3 | Run ruff and mypy on the file | Completed | 20261127-101131 | 20261127-101516 | ruff, mypy pass; End-of-batch full suite: 15940 passed, 3 failed (tests/mcp_servers/git, pre-existing, same 3 fail on a clean HEAD); diff-cover N/A: no scripts/ change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

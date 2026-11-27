@@ -17,7 +17,7 @@
 ## Design decisions
 - One pure function per concern so each classification is unit-testable without subprocesses: `find_procedures(plan, root, include_done)`, `run_check(argv)` returning `CheckResult(tool, exit_code, output)`, `parse_missing_symbols(output)`, `classify_symbol(text, name)` returning `created here`, `not a code symbol`, or `ambiguous`, `apply_actions(text, actions)`.
 - Failure rows are `{document} | {tool} | exit {code} | {first finding line}`; the full output of a failing check is printed below its row (existing exit semantics stay visible).
-- `classify_symbol` (new) works only on backticked occurrences of the name inside the document's `## Implementation` section up to `## Compatibility considerations` and decides by the first rule that matches across all occurrences, in this order: `created here` when an occurrence is an assignment or annotation inside its backticks (`NAME = ...`, `name: type`), is preceded or followed within the same line by `def`, `class`, or a creating verb (`create`, `add`, `define`, `introduce`) together with a noun (`function`, `constant`, `field`, `parameter`, `method`, `dataclass`), or sits inside the parentheses of a backticked `identifier(...)` signature span; `not a code symbol` when every occurrence is attribute access (`something.name`), inside a quoted literal, or the value of `key=name`; otherwise `ambiguous`.
+- `classify_symbol` (new) works only on backticked occurrences of the name inside the document's `## Implementation` section up to `## Compatibility considerations` and decides by the first rule that matches across all occurrences, in this order: `created here` when an occurrence is an assignment or annotation inside its backticks (`NAME = ...`, `name: type`), is preceded or followed within the same line by `def`, `class`, or a creating verb (`create`, `add`, `define`, `introduce`) together with a noun (`function`, `constant`, `field`, `parameter`, `method`, `dataclass`), or sits inside the parentheses of a backticked `identifier(...)` signature span on a line that also has a creating verb (corrected in code-implementation Step 3b: without the verb a signature only cites a function and says nothing about who defines it, so the name stays `ambiguous`, which was the real outcome for `deploy_text` in the archived wfeff005 procedure); an occurrence that no rule matches is neutral and does not change a `created here` or `not a code symbol` vote made by another occurrence; `not a code symbol` when every occurrence is attribute access (`something.name`), inside a quoted literal, or the value of `key=name`; `created here` needs at least one creating occurrence and no not-a-symbol occurrence; `not a code symbol` needs at least one such occurrence and no creating or neutral occurrence; every other case is `ambiguous`.
 
 - Functions this module creates and that the tests import: `parse_missing_symbols` (new) and `apply_actions` (new), plus the three marked above.
 
@@ -73,10 +73,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tools/finalize_procedures.py` per Procedure/Method/Details | Pending | — | — | |
-| 2 | Run `tests/tools/test_finalize_procedures.py` (written by its own procedure) | Pending | — | — | Needs the procedure for seq 02 |
-| 3 | Run ruff, mypy, bandit, and the tools size gate on the file | Pending | — | — | |
-| 4 | Comparison run on an existing Plan against the three tools by hand (Plan `REQ-005`); stop and report on a disagreement | Pending | — | — | |
+| 1 | Create `tools/finalize_procedures.py` per Procedure/Method/Details | Completed | 20261127-100906 | 20261127-101002 | Changed: tools/finalize_procedures.py (new, 11 KB); ruff, mypy, bandit pass |
+| 2 | Run `tests/tools/test_finalize_procedures.py` (written by its own procedure) | Completed | 20261127-101131 | 20261127-101131 | Needs the procedure for seq 02 |
+| 3 | Run ruff, mypy, bandit, and the tools size gate on the file | Completed | 20261127-101131 | 20261127-101516 | ruff, mypy, bandit, tools size gate pass; End-of-batch full suite: 15940 passed, 3 failed (tests/mcp_servers/git, pre-existing, same 3 fail on a clean HEAD); diff-cover N/A: no scripts/ change |
+| 4 | Comparison run on an existing Plan against the three tools by hand (Plan `REQ-005`); stop and report on a disagreement | Completed | 20261127-101131 | 20261127-101131 | REQ-005: on the wfeff005 Plan with --include-done the tool's failing rows (stale exit 1 for procedures 01 and 02) and coverage exit 0 equal the three tools run by hand; on the wfeff007 Plan the one OK line matches all-zero manual exits |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

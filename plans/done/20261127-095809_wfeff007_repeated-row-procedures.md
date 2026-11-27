@@ -163,9 +163,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the tool, its tests, and the `tools/TOOL_DESCRIPTIONS.md` rows (`tools/generate_repeated_procedures.py`, `tests/tools/test_generate_repeated_procedures.py`, `tools/TOOL_DESCRIPTIONS.md`) | In Progress | — | — |  |
-| 2 | Add the Step 3c pointer within the size ceiling (`skills/plan-to-implementation-procedure/workflow.md`) | In Progress | — | — |  |
-| 3 | Deployment check is N/A (`tools/generate_repeated_procedures.py`) | Pending | — | — |  |
+| 1 | Create the tool, its tests, and the `tools/TOOL_DESCRIPTIONS.md` rows (`tools/generate_repeated_procedures.py`, `tests/tools/test_generate_repeated_procedures.py`, `tools/TOOL_DESCRIPTIONS.md`) | Completed | — | 20261127-102301 |  |
+| 2 | Add the Step 3c pointer within the size ceiling (`skills/plan-to-implementation-procedure/workflow.md`) | Completed | — | 20261127-102301 |  |
+| 3 | Deployment check is N/A (`tools/generate_repeated_procedures.py`) | Completed | — | — | Deployment: N/A, no scripts/ or config/ change; tools/ and skills/ are not rsynced |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -175,10 +175,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261127-100500_01_tools_generate_repeated_procedures.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-100500_02_tests_tools_test_generate_repeated_procedures.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-100500_03_tools_TOOL_DESCRIPTIONS.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-100500_04_skills_plan-to-implementation-procedure_workflow.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261127-100500_01_tools_generate_repeated_procedures.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-100500_02_tests_tools_test_generate_repeated_procedures.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-100500_03_tools_TOOL_DESCRIPTIONS.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-100500_04_skills_plan-to-implementation-procedure_workflow.md.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

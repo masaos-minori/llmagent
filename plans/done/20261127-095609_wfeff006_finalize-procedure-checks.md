@@ -172,10 +172,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the tool, its tests, and the `tools/TOOL_DESCRIPTIONS.md` rows (`tools/finalize_procedures.py`, `tests/tools/test_finalize_procedures.py`, `tools/TOOL_DESCRIPTIONS.md`) | In Progress | — | — |  |
-| 2 | Add the edge section (`skills/plan-to-implementation-procedure/workflow-edge.md`) | In Progress | — | — |  |
-| 3 | Point from the workflow within the size ceiling (`skills/plan-to-implementation-procedure/workflow.md`) | In Progress | — | — |  |
-| 4 | Verify on one existing Plan; deployment check is N/A (`tools/finalize_procedures.py`) | Pending | — | — |  |
+| 1 | Create the tool, its tests, and the `tools/TOOL_DESCRIPTIONS.md` rows (`tools/finalize_procedures.py`, `tests/tools/test_finalize_procedures.py`, `tools/TOOL_DESCRIPTIONS.md`) | Completed | — | 20261127-101516 |  |
+| 2 | Add the edge section (`skills/plan-to-implementation-procedure/workflow-edge.md`) | Completed | — | 20261127-101516 |  |
+| 3 | Point from the workflow within the size ceiling (`skills/plan-to-implementation-procedure/workflow.md`) | Completed | — | 20261127-101516 |  |
+| 4 | Verify on one existing Plan; deployment check is N/A (`tools/finalize_procedures.py`) | Completed | — | 20261127-101516 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -185,11 +185,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261127-100214_01_tools_finalize_procedures.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-100214_02_tests_tools_test_finalize_procedures.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-100214_03_tools_TOOL_DESCRIPTIONS.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-100214_04_skills_plan-to-implementation-procedure_workflow-edge.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261127-100214_05_skills_plan-to-implementation-procedure_workflow.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261127-100214_01_tools_finalize_procedures.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-100214_02_tests_tools_test_finalize_procedures.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-100214_03_tools_TOOL_DESCRIPTIONS.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-100214_04_skills_plan-to-implementation-procedure_workflow-edge.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261127-100214_05_skills_plan-to-implementation-procedure_workflow.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

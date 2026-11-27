@@ -29,7 +29,7 @@
 6. Structure check: a template missing a required heading yields exit 1 and the printed check result; `--dry-run` writes nothing and leaves the Plan byte-identical.
 
 ### Method
-- `tmp_path` only; subprocess runs of `check_workitem_structure.py` use the real tool on files under `tmp_path`.
+- `tmp_path` only. The structure check is replaced by a stub (`grp._structure_check`): corrected in code-implementation Step 3b, because the real `tools/check_workitem_structure.py` resolves a file against its own repository root and raises `ValueError` for a file outside it, so it cannot run on documents under `tmp_path`.
 
 ### Details
 - `rules/coding.md`: line length 88, English comments, annotated helpers.
@@ -57,9 +57,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/tools/test_generate_repeated_procedures.py` per Procedure | Pending | — | — | Needs seq 01 first |
-| 2 | Run the tests and fix failures in the test or report a tool defect | Pending | — | — | |
-| 3 | Run ruff and mypy on the file | Pending | — | — | |
+| 1 | Create `tests/tools/test_generate_repeated_procedures.py` per Procedure | Completed | 20261127-101627 | 20261127-101728 | Needs seq 01 first Changed: tests/tools/test_generate_repeated_procedures.py (new, 10 tests pass); structure check stubbed (real checker rejects files outside the repo) |
+| 2 | Run the tests and fix failures in the test or report a tool defect | Completed | 20261127-101728 | 20261127-101728 |  |
+| 3 | Run ruff and mypy on the file | Completed | 20261127-101728 | 20261127-102301 | ruff, mypy pass; End-of-batch full suite: 15950 passed, 3 failed (tests/mcp_servers/git, pre-existing, same 3 fail on a clean HEAD); diff-cover N/A: no scripts/ change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

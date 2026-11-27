@@ -55,8 +55,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the section with the moved text and the tool usage | Pending | — | — | |
-| 2 | Run the skill size, reference, and heading-cycle checks | Pending | — | — | |
+| 1 | Add the section with the moved text and the tool usage | Completed | 20261127-101152 | 20261127-101201 | Changed: skills/plan-to-implementation-procedure/workflow-edge.md (7556 B); moved text verbatim up to indentation |
+| 2 | Run the skill size, reference, and heading-cycle checks | Completed | 20261127-101210 | 20261127-101210 | skill size, references, heading cycles pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

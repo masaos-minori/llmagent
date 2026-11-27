@@ -51,6 +51,8 @@ Repository tools for this workflow (see `tools/TOOL_DESCRIPTIONS.md` for usage):
 - `tools/manage_workitem_stage.py set-step-status` (Step 4, the Plan's `### Execution
   Status` row updates without hand-editing the table).
 - `tools/check_plan_target_overlaps.py` (Step 2, candidate overlaps between Frozen Plans).
+- `tools/finalize_procedures.py` (Step 3c and Step 4, the stale, structure, and coverage checks for a whole Plan).
+- `tools/generate_repeated_procedures.py` (Step 3c, one body template for rows with an identical `Change Responsibility`).
 - `tools/plan_dependency_order.py` (Step 2, ready or gated state of the Plan's dependencies; report-only).
 - `tools/amend_plan.py` (Step 3c, append an additional target file to the Frozen Plan and re-run its checks).
 - `tools/manage_workitem_stage.py close-plan` (Step 4, `git mv`-based archival move).
@@ -308,23 +310,19 @@ condition keeps its own document, and every other file keeps the one-file rule:
     `implementations/{timestamp}_{seq}_{target_file_slug}.md` before proceeding — a `0`
     exit alone is not sufficient evidence per `rules/ai-execution.md` Repository Tool
     Usage #8.
+  - For rows with an identical `Change Responsibility`, `uv run python
+    tools/generate_repeated_procedures.py {plan_path} --rows {paths} --body-template {file}`
+    writes one document per row from one body template and refuses differing rows; run
+    `tools/stale_detector.py` on each document afterwards.
   - Save the document as `implementations/{timestamp}_{seq}_{target_file_slug}.md`
     (naming per Workflow position above), using this pass's shared `timestamp` and
     this row's `seq`.
   - After writing it, run `uv run python tools/stale_detector.py {document_path}` (the
     same check `code-implementation` runs before executing a procedure, so a stale
-    reference surfaces here instead of aborting that later cycle). For each mismatch:
-    (1) a name, import, or target file this document creates — add `(new)` after it via `tools/mark_procedure_new_symbols.py`
-    (see `templates/implementation-procedure.md` Notes); (2) a name that only a
-    sibling procedure of this Plan marks `(new)` — the tool resolves a name declared by an
-    earlier-`seq` sibling and prints a `resolved from sibling` line naming the declaring
-    document, so it is not a mismatch and needs no Assumptions note (the note is needed
-    only when the tool was run with `--no-siblings` or the document has no `Source plan`);
-    a name declared only by a later-`seq` sibling stays a mismatch with that sibling named
-    in its detail, and is corrected here (reorder the rows or move the declaration);
-    (3) anything else is a stale reference — correct the
-    document and re-run. The tool checks a companion's `(new)` marks and line citations
-    against the companion, not against the primary target.
+    reference surfaces here instead of aborting that later cycle). For each mismatch, or
+    for the whole Plan at once with `uv run python tools/finalize_procedures.py {plan_path}`:
+    load `skills/plan-to-implementation-procedure/workflow-edge.md` and follow its "Step 3c:
+    stale mismatch classification" section.
   - If the resulting path already exists (an interrupted cycle is being resumed): load `skills/plan-to-implementation-procedure/workflow-edge.md` and follow its "Step 3c: existing output path" section.
 - Classify each evidence gap encountered while investigating a row as Blocking or
   Non-blocking:
@@ -415,7 +413,8 @@ cycle created. Verify that:
   `Implementation > Target file` names exactly one path, and every other file it changes
   is a companion in `### Companion test files`);
 - run `uv run python tools/check_workitem_traceability.py --plan-coverage {plan_path}`
-  and require exit 0 before the move;
+  and require exit 0 before the move (`tools/finalize_procedures.py` runs it with the
+  per-document checks);
 - no file outside `Implementation Target Files` was added as a modification target
   during this cycle (an additional target file discovery MUST already have been
   reported `Blocked` and resolved per Step 3, not silently included here);

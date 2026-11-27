@@ -14,7 +14,7 @@
 - The tool does not run `tools/stale_detector.py`: names the template introduces still need `(new)` marking, which the Plan for `tools/finalize_procedures.py` (wfeff006) automates.
 
 ## Design decisions
-- Pure functions: `parse_rows(plan_text)` returning `PlanRow(path, responsibility, requirement)` items, `normalize_change(responsibility, path)`, `check_request(rows, listed, template, root, timestamp)` returning a list of refusal messages, `render_document(template, row, seq, timestamp, source_issue, plan_rel)`.
+- Pure functions: `parse_rows(plan_text)` returning `PlanRow(path, responsibility, requirement)` items, `normalize_change(responsibility, path)`, `check_request(rows, listed, template, timestamp)` (corrected in code-implementation Step 3b: the collision check needs only the pass timestamp, which is looked up without writing the marker, `root` is not needed) returning a list of refusal messages, `render_document(template, row, seq, timestamp, source_issue, plan_rel)`.
 - `normalize_change` (new): replace the row's own path and its base name with the literals `{path}` and `{name}` (longest first), collapse whitespace, lowercase nothing; two rows are alike when the results are equal.
 - The template body must not contain a `## Traceability` heading (the tool appends it) and may use only the placeholders `{path}`, `{name}`, `{seq}`, `{timestamp}`; any other lowercase `{identifier}` is refused as unknown.
 
@@ -69,10 +69,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tools/generate_repeated_procedures.py` per Procedure/Method/Details | Pending | — | — | |
-| 2 | Run `tests/tools/test_generate_repeated_procedures.py` (written by its own procedure) | Pending | — | — | Needs the procedure for seq 02 |
-| 3 | Run ruff, mypy, bandit, and the tools size gate on the file | Pending | — | — | |
-| 4 | Compare filenames with the `--all-rows --dry-run` output of `tools/generate_workitem.py` on a scratch Plan | Pending | — | — | |
+| 1 | Create `tools/generate_repeated_procedures.py` per Procedure/Method/Details | Completed | 20261127-101605 | 20261127-101627 | Changed: tools/generate_repeated_procedures.py (new, 9.9 KB); ruff, mypy, bandit pass; check_request signature corrected in the procedure |
+| 2 | Run `tests/tools/test_generate_repeated_procedures.py` (written by its own procedure) | Completed | 20261127-101728 | 20261127-101728 | Needs the procedure for seq 02 |
+| 3 | Run ruff, mypy, bandit, and the tools size gate on the file | Completed | 20261127-101728 | 20261127-102301 | ruff, mypy, bandit, tools size gate pass; End-of-batch full suite: 15950 passed, 3 failed (tests/mcp_servers/git, pre-existing, same 3 fail on a clean HEAD); diff-cover N/A: no scripts/ change |
+| 4 | Compare filenames with the `--all-rows --dry-run` output of `tools/generate_workitem.py` on a scratch Plan | Completed | 20261127-101728 | 20261127-101728 | AC-2 parity covered by test_filenames_equal_those_of_generate_workitem_all_rows: ten files, same names as gw.generate_all_rows |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
