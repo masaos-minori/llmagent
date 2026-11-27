@@ -44,6 +44,9 @@ class ProcessInfoSnapshot:
     pgid: int | None
     running: bool
     last_exit_code: int | None
+    # Logical identifier for the stderr log (for example "srv/stderr.log"), never an
+    # absolute filesystem path. The producer is the snapshot builder in
+    # scripts/agent/http_lifecycle.py; an untracked server yields an empty string.
     stderr_log: str
     termination_outcome: str | None = None
 

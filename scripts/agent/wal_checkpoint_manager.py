@@ -28,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import shutil
 import sqlite3
 import tempfile
@@ -39,6 +40,7 @@ from typing import TYPE_CHECKING, Final
 
 from db.helper import SQLiteHelper
 
+from agent.secrets_masker import _mask_secrets, redact_path
 from agent.shutdown_budget import ShutdownOutcome
 
 if TYPE_CHECKING:
@@ -52,6 +54,20 @@ _MAX_TRUNCATE_ATTEMPTS: Final = 3
 # Per-process uniqueness token in the backup name (REQ-009): the timestamp alone can
 # collide when two processes close in the same second.
 _PROCESS_TOKEN: Final = uuid.uuid4().hex[:8]
+
+# Absolute-path tokens inside an error message, such as the database file SQLite could not open.
+_ABSOLUTE_PATH_RE: Final = re.compile(r"/[^\s\"']+")
+
+
+def format_sqlite_error(exc: BaseException) -> str:
+    """Render a failure as the error type name plus a masked, path-reduced message.
+
+    Absolute paths in the message are replaced by their logical identifier, so a log line
+    never carries the database file path. The type name stays visible because the checkpoint
+    policy distinguishes `sqlite3.OperationalError` from other `sqlite3.Error` subclasses.
+    """
+    message = _ABSOLUTE_PATH_RE.sub(lambda match: redact_path(match.group(0)), str(exc))
+    return f"{type(exc).__name__}: {_mask_secrets(message)}"
 
 
 def _deadline_spent(deadline: float | None) -> bool:
@@ -199,7 +215,7 @@ class WalCheckpointManager:
                         return False, errors
                     logger.warning(
                         "WAL PASSIVE checkpoint failed, falling back to TRUNCATE: %s",
-                        passive_err,
+                        format_sqlite_error(passive_err),
                     )
                 else:
                     if int(counts.log_size) > 0 and int(counts.pages_checkpointed) == 0:
@@ -231,7 +247,7 @@ class WalCheckpointManager:
                         if _stop_seen(stop, truncate_err):
                             errors.append(_interrupted_error(attempt))
                             return False, errors
-                        failure = f"{type(truncate_err).__name__}: {truncate_err}"
+                        failure = format_sqlite_error(truncate_err)
                     if failure is None:
                         logger.info(
                             "WAL checkpoint completed (TRUNCATE) on shutdown after %d retries",
@@ -359,8 +375,10 @@ class WalCheckpointManager:
                     if wal_backup_path is not None:
                         logger.warning("WAL file backed up to %s", wal_backup_path)
         except Exception as backup_err:  # noqa: BLE001 — backup is best-effort during shutdown; failure must be recorded, not propagated
-            logger.error("Failed to backup WAL file: %s", backup_err)
-            errors.append(("wal_backup", f"{type(backup_err).__name__}: {backup_err}"))
+            logger.error(
+                "Failed to backup WAL file: %s", format_sqlite_error(backup_err)
+            )
+            errors.append(("wal_backup", format_sqlite_error(backup_err)))
         return wal_backup_path, errors
 
     def _publish_backup(

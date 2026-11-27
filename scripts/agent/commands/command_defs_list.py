@@ -117,7 +117,11 @@ _COMMANDS: list[CommandDef] = [
             SubcommandSpec(
                 "export",
                 "Export the in-memory history",
-                (ArgSpec("markdown|md|json", default="markdown"), ArgSpec("file")),
+                (
+                    ArgSpec("markdown|md|json", default="markdown"),
+                    ArgSpec("file"),
+                    ArgSpec("--output <file>"),
+                ),
             ),
             SubcommandSpec("stats", "Session DB statistics"),
             SubcommandSpec("health", "Session DB health"),

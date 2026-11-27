@@ -24,6 +24,7 @@ from shared.mcp_health import (
 
 from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
+from agent.secrets_masker import _mask_secrets, redact_path
 from agent.services.config_pending_state import pending_state_for
 from agent.services.enums import McpAvailability
 from agent.services.mcp_status import (
@@ -71,6 +72,18 @@ _UNREACHABLE_AVAILABILITY = {
 }
 
 
+def _display_value(value: object) -> str:
+    """Render one health-interpretation value for display (REQ-005, AC-1).
+
+    A value that is an absolute filesystem path is reduced to its logical identifier;
+    every value is masked before it reaches the display line.
+    """
+    text = str(value)
+    if text.startswith("/") and "/" in text[1:]:
+        text = redact_path(text)
+    return _mask_secrets(text)
+
+
 def _format_health_interpretation(result: McpProbeResult) -> str:
     """Format health interpretation details for a single MCP server."""
     max_detail_len = 200
@@ -79,18 +92,18 @@ def _format_health_interpretation(result: McpProbeResult) -> str:
         interp = interpret_health_body(result.body)
         # Status comparison
         agent_observed = "reachable" if result.reachable else "unreachable"
-        lines.append(f"  Self-reported: {interp.self_reported_status}")
+        lines.append(f"  Self-reported: {_display_value(interp.self_reported_status)}")
         lines.append(f"  Agent observed: {agent_observed}")
         # Ready state
-        lines.append(f"  Ready: {interp.ready}")
+        lines.append(f"  Ready: {_display_value(interp.ready)}")
         # Dependency failures
         if interp.dependency_summary:
             lines.append("  Dependencies:")
             for dep in interp.dependency_summary:
-                lines.append(f"    - {dep}")
-        # Details summary (truncated)
+                lines.append(f"    - {_display_value(dep)}")
+        # Details summary (masked first, then truncated, so the cut cannot open a masked value)
         if interp.details_summary:
-            detail_text = "; ".join(interp.details_summary)
+            detail_text = _display_value("; ".join(interp.details_summary))
             if len(detail_text) > max_detail_len:
                 detail_text = detail_text[:max_detail_len] + "..."
             lines.append(f"  Details: {detail_text}")
@@ -101,9 +114,11 @@ def _format_health_interpretation(result: McpProbeResult) -> str:
             lines.append("  [!] Operator action required")
         # Parse failure
         if interp.parse_failure_reason:
-            lines.append(f"  [!] Parse failure: {interp.parse_failure_reason}")
+            lines.append(
+                f"  [!] Parse failure: {_display_value(interp.parse_failure_reason)}"
+            )
     except Exception as e:  # noqa: BLE001 — status display must not abort on unexpected health-interpretation shape
-        lines.append(f"  [!] Interpretation error: {e}")
+        lines.append(f"  [!] Interpretation error: {_display_value(e)}")
     return "\n".join(lines)
 
 
@@ -410,9 +425,6 @@ class _McpMixin(MixinBase):
         parts = args.strip().split(None, 1)
         sub = parts[0] if parts else ""
         if sub in ("status", ""):
-            if not sub:
-                self._out.write("Usage: /mcp [status|tools]")
-                self._out.write("")
             await self._cmd_mcp_status()
         elif sub == "tools":
             await self._cmd_mcp_tools()

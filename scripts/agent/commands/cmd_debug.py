@@ -10,6 +10,7 @@ Provides _DebugMixin with:
 import logging
 from typing import Any
 
+from agent.commands.exceptions import UnknownSubcommandError
 from agent.commands.mixin_base import MixinBase
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,5 @@ class _DebugMixin(MixinBase):
                 f"Debug mode: {state}  (use /debug verbose | normal for log level control)",
             )
         else:
-            # Unknown subcommand — reject explicitly
-            self._out.write(f"Unknown subcommand: {sub}")
-            self._out.write("Usage: /debug [verbose|normal]")
+            # Unknown subcommand — reject through the shared command error contract (REQ-004).
+            raise UnknownSubcommandError(sub, ("verbose", "normal"))

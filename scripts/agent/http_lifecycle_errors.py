@@ -6,14 +6,22 @@ Exceptions and dataclasses for HTTP subprocess MCP server startup failures.
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
-from agent.secrets_masker import _mask_secrets
+from agent.secrets_masker import _mask_secrets, redact_path
 from agent.shutdown_budget import ShutdownOutcome
 
 logger = logging.getLogger(__name__)
+
+
+class StartupCode(StrEnum):
+    """Stable public error codes for lifecycle startup failures."""
+
+    GENERAL = "general"
+    """Default code for a failure category that has no dedicated code yet."""
 
 
 @dataclass
@@ -23,6 +31,17 @@ class StartupFailure:
     server_key: str
     reason: str
     stderr_full: str
+    code: StartupCode = StartupCode.GENERAL
+
+
+# Absolute-path substrings inside a free-text reason are replaced with the logical
+# identifier from redact_path before rendering (REQ-002 AC-1).
+_ABSOLUTE_PATH = re.compile(r"/[^\s\"']+")
+
+
+def _redact_reason(reason: str) -> str:
+    """Replace each absolute-path substring in *reason* with its logical identifier."""
+    return _ABSOLUTE_PATH.sub(lambda match: redact_path(match.group(0)), reason)
 
 
 class HttpStartupError(RuntimeError):
@@ -35,7 +54,9 @@ class HttpStartupError(RuntimeError):
 
     def __str__(self) -> str:
         """Return a human-readable representation including all failure details."""
-        parts = [f"{self.failure.server_key}: {self.failure.reason}"]
+        parts = [
+            f"{self.failure.server_key}: {self.failure.code}: {_redact_reason(self.failure.reason)}"
+        ]
         if self.failure.stderr_full:
             tail = self.failure.stderr_full[-512:]
             masked = _mask_secrets(tail)

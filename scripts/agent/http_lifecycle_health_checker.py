@@ -35,7 +35,7 @@ from shared.mcp_health_contract import (
 )
 
 from agent.http_lifecycle_errors import TerminationOutcome
-from agent.secrets_masker import _mask_secrets
+from agent.secrets_masker import _mask_secrets, redact_url
 
 if TYPE_CHECKING:
     from agent.http_lifecycle import HttpServerLifecycleManager
@@ -191,7 +191,9 @@ class HealthChecker:
                         "Lifecycle: %r exited early; stderr (%s chars): %s",
                         server_key,
                         len(stderr_full),
-                        _mask_secrets(stderr_full[:500]),
+                        # REQ-003 (AC-2): mask before truncating, so a truncated tail
+                        # cannot cut a masked value open.
+                        _mask_secrets(stderr_full)[:500],
                     )
                     manager._raise_startup_failure(
                         server_key, "exited early", stderr_full
@@ -284,6 +286,9 @@ class HealthChecker:
         target_url = url or getattr(cfg, "health_url", _DEFAULT_HEALTH_URL)
         if target_url is None:
             target_url = _DEFAULT_HEALTH_URL
+        # REQ-003 (AC-2): the request keeps the real endpoint; only the logged form is
+        # redacted, and redaction happens before any truncation of the logged value.
+        logged_url = redact_url(target_url)
         request_timeout = (
             timeout if timeout is not None else get_effective_health_timeout(cfg)
         )
@@ -293,16 +298,16 @@ class HealthChecker:
             ) as client:
                 response = await client.get(target_url)
                 if response.status_code == 200:
-                    logger.debug("Health check passed at %s", target_url)
+                    logger.debug("Health check passed at %s", logged_url)
                     return True
                 logger.debug(
                     "Health check returned status %d at %s",
                     response.status_code,
-                    target_url,
+                    logged_url,
                 )
                 return False
         except httpx.RequestError as exc:
-            logger.debug("Health check failed at %s: %s", target_url, exc)
+            logger.debug("Health check failed at %s: %s", logged_url, exc)
             return False
         except Exception as exc:  # noqa: BLE001 — health check must never propagate an unexpected error to the caller
             logger.warning("Unexpected error during health check: %s", exc)

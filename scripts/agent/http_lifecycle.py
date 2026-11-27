@@ -36,6 +36,7 @@ from shared.mcp_config import McpServerConfig, get_effective_health_timeout
 from shared.tool_catalog import load_tool_catalog, required_capability_for
 
 from agent.lifecycle import LifecycleState
+from agent.secrets_masker import redact_path
 from agent.services.models import ProcessInfoSnapshot
 
 from .http_lifecycle_command_validator import CommandValidator
@@ -69,7 +70,8 @@ class HttpServerLifecycleManager:
     """Manages HTTP subprocess MCP servers: start, health-poll, restart, shutdown.
 
     When stderr log redirect is active (H-1), each subprocess writes stderr to a
-    per-server log file at /opt/llm/logs/mcp_servers/{server_key}.stderr.log instead of a pipe.
+    per-server log file under the system temp directory, at
+    tempfile.gettempdir()/mcp_server_logs/{server_key}/stderr.log, instead of a pipe.
 
     When process group shutdown is active (H-8), subprocesses are started with
     start_new_session=True and terminated via os.killpg() to include child processes.
@@ -209,7 +211,11 @@ class HttpServerLifecycleManager:
         exit_code = record.process.poll()
         running = exit_code is None
         last_exit_code = None if running else exit_code
-        stderr_log = self._stderr_log_manager.get_log_path(server_key) or ""
+        # REQ-007 (AC-4): the snapshot is public display data, so it carries the logical
+        # identifier rather than the internal absolute log path.
+        stderr_log = redact_path(
+            self._stderr_log_manager.get_log_path(server_key) or ""
+        )
         return ProcessInfoSnapshot(
             server_key=server_key,
             managed=True,

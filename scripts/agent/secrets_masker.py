@@ -2,6 +2,9 @@
 """scripts/agent/secrets_masker.py — Mask sensitive values in log output."""
 
 import re
+import tempfile
+from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 # Single key-name alternation shared by the keyed patterns (diagmask001 Decision 3).
 # The composite names are listed explicitly: quoted-JSON keys must match from the key
@@ -55,3 +58,27 @@ def _mask_secrets(text: str) -> str:
 def detects_secrets(text: str) -> bool:
     """Return True when any SECRET_PATTERNS substitution would change the text."""
     return _mask_secrets(text) != text
+
+
+# The only concrete root in the current source is the stderr log root built by
+# StderrLogManager; it is re-derived here instead of importing that module, which
+# imports this one (import cycle).
+_KNOWN_ROOT = Path(tempfile.gettempdir()) / "mcp_server_logs"
+
+
+def redact_url(url: str) -> str:
+    """Strip userinfo, query, and fragment from a URL, keeping scheme, host, and path."""
+    parts = urlsplit(url)
+    if not parts.scheme:
+        # Not a parseable URL: fall back to the existing userinfo pattern.
+        return _mask_secrets(url)
+    netloc = parts.netloc.rsplit("@", 1)[-1]
+    return urlunsplit((parts.scheme, netloc, parts.path, "", ""))
+
+
+def redact_path(path: str) -> str:
+    """Return a logical identifier for a filesystem path, never the absolute path."""
+    p = Path(path)
+    if p.is_absolute() and _KNOWN_ROOT in p.parents:
+        return str(p.relative_to(_KNOWN_ROOT))
+    return p.name

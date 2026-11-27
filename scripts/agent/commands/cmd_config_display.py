@@ -23,6 +23,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from agent.commands.mixin_base import MixinBase
+from agent.secrets_masker import redact_path, redact_url
 from agent.services.config_pending_state import pending_state_for
 
 if TYPE_CHECKING:
@@ -40,7 +41,9 @@ class _ConfigDisplayMixin(MixinBase):
         """Print LLM endpoint and core settings."""
         self._out.write("Settings:")
         pairs = [
-            ("llm_url", str(ctx.cfg.llm.llm_url)),
+            # Display boundary: the config model keeps the real URL; only the printed
+            # form is redacted.
+            ("llm_url", redact_url(str(ctx.cfg.llm.llm_url))),
             ("max_tool_turns", str(ctx.cfg.tool.max_tool_turns)),
             ("http_timeout", f"{ctx.cfg.llm.http_timeout}s"),
             ("context_char_limit", str(ctx.cfg.llm.context_char_limit)),
@@ -86,7 +89,9 @@ class _ConfigDisplayMixin(MixinBase):
         pairs = [
             (
                 "protected_paths",
-                ", ".join(ctx.cfg.approval.approval_protected_paths),
+                ", ".join(
+                    redact_path(p) for p in ctx.cfg.approval.approval_protected_paths
+                ),
             ),
             (
                 "high_risk_branches",
@@ -140,7 +145,10 @@ class _ConfigDisplayMixin(MixinBase):
         pairs = [
             ("use_memory_layer", str(ctx.cfg.memory.use_memory_layer)),
             ("memory_embed_enabled", str(ctx.cfg.memory.memory_embed_enabled)),
-            ("memory_jsonl_dir", ctx.cfg.memory.memory_jsonl_dir or "(not set)"),
+            (
+                "memory_jsonl_dir",
+                redact_path(ctx.cfg.memory.memory_jsonl_dir) or "(not set)",
+            ),
             ("max_inject_semantic", str(ctx.cfg.memory.memory_max_inject_semantic)),
             ("max_inject_episodic", str(ctx.cfg.memory.memory_max_inject_episodic)),
             ("min_importance", str(ctx.cfg.memory.memory_min_importance)),
@@ -206,8 +214,8 @@ class _ConfigDisplayMixin(MixinBase):
             # loads the mapping here and supplies it to the typed builder.
             _db_cfg = _build_db_cfg(ConfigLoader().load("agent.toml"))
             pairs = [
-                ("rag_db_path", _db_cfg.rag_db_path),
-                ("session_db_path", _db_cfg.session_db_path),
+                ("rag_db_path", redact_path(_db_cfg.rag_db_path)),
+                ("session_db_path", redact_path(_db_cfg.session_db_path)),
             ]
             self._out.write_kv(pairs, key_width=20)
         except (ValueError, RuntimeError) as e:

@@ -11,10 +11,9 @@ Mixins (keep in sync with CommandRegistry base class list):
   cmd_session.py    — _SessionMixin:    /session commands
   cmd_mcp.py        — _McpMixin:        /mcp commands
   cmd_config.py     — _ConfigMixin:     /config, /stats, /reload
-   cmd_context.py    — _ContextMixin:    /context, /clear, /undo, /history
+   cmd_context.py    — _ContextMixin:    /context, /clear, /undo, /history, /compact
    cmd_tooling.py    — _ToolingMixin:    /plan
   cmd_debug.py      — _DebugMixin:      /debug
-  cmd_rag_export.py — _RagExportMixin:  /compact
   cmd_memory.py     — _MemoryMixin:     /memory
 
 _COMMANDS ownership:
@@ -35,12 +34,15 @@ from agent.commands.cmd_context import _ContextMixin
 from agent.commands.cmd_debug import _DebugMixin
 from agent.commands.cmd_mcp import _McpMixin
 from agent.commands.cmd_memory import _MemoryMixin
-from agent.commands.cmd_rag_export import _RagExportMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_tooling import _ToolingMixin
 from agent.commands.command_defs import CommandDef
 from agent.commands.command_defs_list import _COMMANDS
-from agent.commands.exceptions import CommandParseError, CommandValidationError
+from agent.commands.exceptions import (
+    CommandDispatchError,
+    CommandParseError,
+    CommandValidationError,
+)
 from agent.commands.output_port import CliOutputPort, OutputPort
 from agent.context import AgentContext
 
@@ -56,7 +58,6 @@ class CommandRegistry(
     _ContextMixin,
     _ToolingMixin,
     _DebugMixin,
-    _RagExportMixin,
     _MemoryMixin,
 ):
     """Slash-command dispatcher for AgentREPL.
@@ -156,11 +157,14 @@ class CommandRegistry(
     def _emit_command_error(self, cmd: CommandDef, exc: Exception) -> None:
         """Render and log a handler exception as a command-scoped error.
 
-        ``CommandValidationError``/``CommandParseError`` (and subclasses) render as
-        ``[usage]``; ``sqlite3.Error`` and any other exception render as ``[error]``
-        with an explicit partial-effect note for the database case.
+        ``CommandValidationError``/``CommandParseError``/``CommandDispatchError`` (and
+        subclasses) render as ``[usage]``; ``sqlite3.Error`` and any other exception render
+        as ``[error]`` with an explicit partial-effect note for the database case.
         """
-        if isinstance(exc, (CommandValidationError, CommandParseError)):
+        if isinstance(
+            exc,
+            (CommandValidationError, CommandParseError, CommandDispatchError),
+        ):
             self._out.write_validation_error(str(exc))
         elif isinstance(exc, sqlite3.Error):
             self._out.write_error(f"{cmd.name}: {exc} — the effect may be partial")

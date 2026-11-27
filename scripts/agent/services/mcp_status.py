@@ -15,6 +15,7 @@ from shared.mcp_config import TransportType, get_effective_health_timeout
 from shared.mcp_health import McpServerHealthState
 
 from agent.lifecycle import LifecycleState
+from agent.secrets_masker import redact_url
 from agent.services.enums import McpAvailability, McpTier
 from agent.services.exceptions import McpProbeError
 from agent.services.mcp_health import _probe_mcp_health_detail
@@ -196,7 +197,10 @@ class McpStatusService:
             role=cfg.role or "",
             availability=availability,
             health=health,
-            endpoint=cfg.url if cfg.transport == TransportType.HTTP else "",
+            # REQ-005 (AC-1): the probe result is display data that reaches terminal
+            # capture, so the endpoint is stored in its redacted form. The configured URL
+            # itself is not mutated.
+            endpoint=redact_url(cfg.url) if cfg.transport == TransportType.HTTP else "",
             sandbox_backend=sandbox_backend,
             managed=snapshot is not None,
             pid=snapshot.get("pid") if snapshot else None,

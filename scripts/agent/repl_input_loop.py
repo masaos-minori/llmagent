@@ -286,8 +286,11 @@ class ReplInputLoop:
             cmds = cast("CommandRegistry", self._cmds)
             matched = await cmds.dispatch(line)
             if not matched:
+                # Echo only the command token (REQ-006): arguments may carry a secret
+                # or a path and must not reach the terminal or the forwarded logs.
+                token = line.split(None, 1)[0]
                 self._view.write_warning(
-                    f"Unknown command: {line}  (type /help for commands)"
+                    f"Unknown command: {token}  (type /help for commands)"
                 )
         else:
             _prev_partial = ctx.stats.stat_partial_completions

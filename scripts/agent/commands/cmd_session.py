@@ -14,6 +14,7 @@ Provides _SessionMixin with:
 
 import asyncio
 import logging
+import shlex
 import shutil
 import threading
 from collections.abc import Awaitable, Callable
@@ -191,22 +192,54 @@ class _SessionMixin(MixinBase):
         """
         return RagMaintenanceService(self._ctx.cfg.db).prune_orphan_vectors(stop=stop)
 
+    def _parse_export_args(self, args: str) -> tuple[str, str | None]:
+        """Parse `/session export` arguments into `(fmt, outfile)` (REQ-002).
+
+        The first positional token must be a known format; a second positional token is the
+        output file, and `--output` is the canonical flag. Quoted filenames keep their spaces
+        because the tokens come from `shlex.split`. An unknown format, a filename without a
+        format, or more than one output file is a usage error.
+        """
+        usage = "/session export [markdown|md|json] [file] [--output <file>]"
+        tokens = shlex.split(args.strip())
+        parsed = parse_command_args(tokens)
+        fmt = "md"
+        if parsed.subcommand is not None:
+            if parsed.subcommand in ("markdown", "md"):
+                fmt = "md"
+            elif parsed.subcommand == "json":
+                fmt = "json"
+            else:
+                raise CommandValidationError(
+                    f"{usage}: unknown format {parsed.subcommand!r}"
+                )
+
+        if tokens.count("--output") > 1:
+            raise CommandValidationError(f"{usage}: more than one output file")
+
+        outfile: str | None = None
+        for token in parsed.positional:
+            if outfile is not None:
+                raise CommandValidationError(f"{usage}: more than one output file")
+            outfile = token
+
+        flag = parsed.flags.get("output")
+        if flag is not None:
+            if flag is True:
+                raise CommandValidationError(f"{usage}: --output requires a filename")
+            if outfile is not None:
+                raise CommandValidationError(f"{usage}: more than one output file")
+            outfile = str(flag)
+
+        return fmt, outfile
+
     def _session_export(self, args: str) -> None:
         """Export the current conversation history to Markdown or JSON.
 
         Usage: /session export [markdown|md|json] [filename]
         """
         ctx = self._ctx
-        parts = args.strip().split()
-        fmt = "md"
-        outfile: str | None = None
-        for part in parts:
-            if part in ("markdown", "md"):
-                fmt = "md"
-            elif part == "json":
-                fmt = "json"
-            else:
-                outfile = part
+        fmt, outfile = self._parse_export_args(args)
         content = render_export(ctx.conv.history, fmt)
         write_export(content, outfile, len(ctx.conv.history))
 

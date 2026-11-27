@@ -6,6 +6,7 @@ Export formatter and I/O service for conversation history.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 import orjson
@@ -19,10 +20,26 @@ from agent.services.exceptions import ExportWriteError
 logger = logging.getLogger(__name__)
 
 
-def render_history_md(history: list[LLMMessage]) -> str:
-    """Render conversation history as a Markdown export string.
+def fence_for(text: str) -> str:
+    """The code fence that can close `text`: longest backtick run plus one, minimum three."""
+    longest = max((len(run) for run in re.findall(r"`+", text)), default=0)
+    return "`" * max(3, longest + 1)
 
-    Skips system messages. Tool results are wrapped in code fences.
+
+def escape_md(value: str) -> str:
+    """Neutralise the Markdown structure a value could introduce in a heading line."""
+    escaped = value.replace("`", "\\`")
+    if escaped.startswith("#"):
+        escaped = f"\\{escaped}"
+    return escaped
+
+
+def render_history_md(history: list[LLMMessage]) -> str:
+    """Render conversation history as a Markdown export string with a closable fence.
+
+    Skips system messages. Tool results are wrapped in a fence longer than the longest
+    backtick run in the content, and the tool call id is escaped so it cannot read as a
+    heading.
     """
     lines: list[str] = ["# Conversation Export\n"]
     for msg in history:
@@ -36,8 +53,9 @@ def render_history_md(history: list[LLMMessage]) -> str:
         elif role == "assistant":
             lines.append(f"## Assistant\n\n{text}\n")
         elif role == "tool":
-            tc_id = msg.get("tool_call_id", "")
-            lines.append(f"## Tool ({tc_id})\n\n```\n{text}\n```\n")
+            tc_id = escape_md(msg.get("tool_call_id", ""))
+            fence = fence_for(text)
+            lines.append(f"## Tool ({tc_id})\n\n{fence}\n{text}\n{fence}\n")
     return "\n".join(lines)
 
 

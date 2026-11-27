@@ -95,21 +95,6 @@ class StartupMode(StrEnum):
     PERSISTENT = "persistent"
     SUBPROCESS = "subprocess"
 
-    @property
-    def is_persistent(self) -> bool:
-        """Whether this mode represents a persistent server."""
-        return self == StartupMode.PERSISTENT
-
-    @property
-    def has_health_check(self) -> bool:
-        """Whether this mode requires health checks."""
-        return self != StartupMode.NONE
-
-    @property
-    def requires_subprocess(self) -> bool:
-        """Whether this mode requires subprocess management."""
-        return self == StartupMode.SUBPROCESS
-
 
 @dataclass
 class McpServerConfig:
@@ -146,11 +131,6 @@ class McpServerConfig:
         """Whether this server is currently disabled (startup_mode=NONE)."""
         return self.startup_mode == StartupMode.NONE
 
-    @property
-    def needs_health_check(self) -> bool:
-        """Whether this server requires health checks."""
-        return self.startup_mode.has_health_check
-
     def auth_headers(self) -> dict[str, str]:
         """Return the Bearer Authorization header for this server, or {} when no token is set.
 
@@ -161,11 +141,6 @@ class McpServerConfig:
         if not self.auth_token:
             return {}
         return {"Authorization": f"Bearer {self.auth_token}"}
-
-    @property
-    def requires_cmd(self) -> bool:
-        """Whether this server has a launch command configured."""
-        return len(self.cmd) > 0
 
     def __post_init__(self) -> None:
         """Validate enum types and cross-field constraints after initialization."""

@@ -43,6 +43,7 @@ from agent.diagnostic_store import DiagnosticStore
 from agent.memory.models import HistoryMessage
 from agent.message_schema import unexpected_message_keys
 from agent.output_tags import OutputTag
+from agent.wal_checkpoint_manager import format_sqlite_error
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +206,7 @@ class SessionPersister:
                     logger.warning(
                         "Failed to close workflow StateStore for session %s: %s",
                         session_id,
-                        exc,
+                        format_sqlite_error(exc),
                     )
         return workflow_count, task_count, retry_count, artifacts, False
 
@@ -330,13 +331,15 @@ class SessionPersister:
                     content=orjson.dumps(summary).decode(),
                 )
             except (RuntimeError, sqlite3.Error) as e:
-                logger.debug("DiagnosticStore.save failed: %s", e)
-                self._view.write_warning(f"Diagnostics could not be saved: {e}")
+                logger.debug("DiagnosticStore.save failed: %s", format_sqlite_error(e))
+                self._view.write_warning(
+                    f"Diagnostics could not be saved: {format_sqlite_error(e)}"
+                )
 
         except Exception as e:  # noqa: BLE001 — whole step is non-fatal, payload defects included
             logger.debug("Failed to persist session diagnostics", exc_info=True)
             self._view.write_warning(
-                f"{OutputTag.NON_FATAL} Session persistence failed: {type(e).__name__}: {e}"
+                f"{OutputTag.NON_FATAL} Session persistence failed: {format_sqlite_error(e)}"
             )
 
     @staticmethod

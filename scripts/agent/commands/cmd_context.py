@@ -8,6 +8,7 @@ Provides _ContextMixin with:
   _cmd_clear     — /clear: reset in-memory conversation history and session stats
   _cmd_undo      — /undo: roll back the last turn
   _cmd_history   — /history: show recent messages
+  _cmd_compact   — /compact: force immediate context compression
 
 Data collection delegates to agent.services.context_view.
 Undo logic delegates to agent.services.undo_service.
@@ -24,6 +25,7 @@ from agent.commands.exceptions import CommandValidationError
 from agent.commands.mixin_base import MixinBase
 from agent.commands.token_display import TokenDisplay
 from agent.commands.utils import parse_command_args, parse_int_arg
+from agent.history import HistoryCompressionError
 from agent.services.context_view import collect_context_state
 from agent.services.conversation_service import clear_conversation
 from agent.services.exceptions import ContextStateBuildError
@@ -186,3 +188,37 @@ class _ContextMixin(MixinBase, TokenDisplay):
             if len(content) > CONTEXT_PREVIEW_LENGTH:
                 preview += "..."
             self._out.write(f"[{msg['role']}] {preview}")
+
+    async def _cmd_compact(self) -> None:
+        """Force immediate compression of conversation history.
+
+        Bypasses the context_char_limit threshold and compresses the oldest
+        context_compress_turns pairs unconditionally.
+        """
+        ctx = self._ctx
+        if ctx.services_required.hist_mgr is None:
+            self._out.write("History manager not available.")
+            return
+        turn_msgs = [m for m in ctx.conv.history if m["role"] != "system"]
+        # compress_turns * 2: each "turn" = 1 user + 1 assistant message
+        n_compress = ctx.services_required.hist_mgr.compress_turns * 2
+        if len(turn_msgs) <= n_compress:
+            self._out.write("Nothing to compact: history too short.")
+            return
+        try:
+            (
+                ctx.conv.history,
+                result,
+            ) = await ctx.services_required.hist_mgr.force_compress(ctx.conv.history)
+            if (
+                result.compressed_count > 0
+                or result.summary_added
+                or result.is_fallback
+            ):
+                ctx.session.replace_messages(ctx.conv.history)
+                # establish the /undo boundary at the end of the new snapshot
+                # (rows 02/04); mirrors the manager path in row 08.
+                ctx.conv.undo_floor = len(ctx.conv.history)
+        except HistoryCompressionError as e:
+            self._out.write_error(f"Compression failed: {e}")
+            return

@@ -20,6 +20,7 @@ from agent.repl_input_controller import (
     PromptKind,
     get_input_controller,
 )
+from agent.secrets_masker import _mask_secrets, redact_path
 from agent.services.maintenance_jobs import (
     JobConflictError,
     JobState,
@@ -35,9 +36,22 @@ if TYPE_CHECKING:
 from agent.commands.cmd_memory import MemoryOpResult, _emit_memory_audit
 
 
+def _display_text(value: str) -> str:
+    """Render stored user data for display.
+
+    A value that is an absolute filesystem path is reduced to its logical identifier;
+    every value is masked before it reaches the display line.
+    """
+    text = redact_path(value) if value.startswith("/") and "/" in value[1:] else value
+    return _mask_secrets(text)
+
+
 def _summary_preview(entry: MemoryEntry, max_chars: int = 60) -> str:
-    """Return a single-line, length-capped preview: entry.summary or a content excerpt."""
-    return (entry.summary or entry.content[:max_chars]).replace("\n", " ")[:max_chars]
+    """Return a single-line, length-capped preview: entry.summary or a content excerpt.
+
+    Masking happens before the cap, so the cut cannot open a masked value.
+    """
+    return _display_text(entry.summary or entry.content).replace("\n", " ")[:max_chars]
 
 
 def _emit_prune_event(memory_id: str) -> None:
@@ -353,8 +367,8 @@ class MemoryDataOps:
         )
         self._out.write(f"  created_at : {entry.created_at}")
         self._out.write(f"  tags       : {entry.tags}")
-        self._out.write(f"  summary    : {entry.summary}")
-        self._out.write(f"  content:\n{entry.content}")
+        self._out.write(f"  summary    : {_display_text(entry.summary)}")
+        self._out.write(f"  content:\n{_display_text(entry.content)}")
 
     def memory_pin(self, mem: MemoryServices, args: list[str], *, pin: bool) -> None:
         """Pin or unpin an entry."""
