@@ -26,11 +26,14 @@ from mcp_servers.request_contract import build_input_schema
 # Shared metadata fields: "status" and "config_dependent" are byte-for-byte
 # identical across all 6 TOOL_LIST entries, so they are split into a head
 # (before "is_write"). "is_write" varies per entry and stays inline. After
-# "is_write", 5 of the 6 entries also share an identical "requires_serial" +
-# "resource_scope_kind" + "resource_scope_keys" tail (github_repo scope);
-# github_search_pull_requests is unscoped, so it gets its own tail with the
-# same "requires_serial" value but an empty scope. Extracted so the shared
-# parts stay in sync (mirrors the analogous
+# "is_write", the "requires_serial" + "resource_scope_kind" +
+# "resource_scope_keys" tail is shared within each scope group, not across all
+# entries: 4 entries (the 2 reads, github_create_pull_request, and
+# github_merge_pull_request) share the github_repo tail,
+# github_search_pull_requests is unscoped, so it gets its own tail with the same
+# "requires_serial" value but an empty scope, and github_update_pull_request
+# uses the github_pull_request tail because its resource identity is one pull
+# request. Extracted so the shared parts stay in sync (mirrors the analogous
 # _GITHUB_ISSUE_TOOL_METADATA_HEAD/_GITHUB_ISSUE_REPO_SCOPE_TAIL/
 # _GITHUB_ISSUE_NO_SCOPE_TAIL split in
 # scripts/mcp_servers/github/tools_issues.py).
@@ -44,6 +47,14 @@ class _GithubPrMetadataHead(TypedDict):
 
 class _GithubPrRepoScopeTail(TypedDict):
     """Shared metadata tail for github_repo-scoped TOOL_LIST entries."""
+
+    requires_serial: bool
+    resource_scope_kind: str
+    resource_scope_keys: Mapping[str, ResourceKeyKind]
+
+
+class _GithubPrScopeTail(TypedDict):
+    """Shared metadata tail for github_pull_request-scoped TOOL_LIST entries."""
 
     requires_serial: bool
     resource_scope_kind: str
@@ -67,6 +78,15 @@ _GITHUB_PR_REPO_SCOPE_TAIL: _GithubPrRepoScopeTail = {
     "requires_serial": False,
     "resource_scope_kind": "github_repo",
     "resource_scope_keys": {"owner": "non_escalating", "repo": "repo"},
+}
+_GITHUB_PR_SCOPE_TAIL: _GithubPrScopeTail = {
+    "requires_serial": False,
+    "resource_scope_kind": "github_pull_request",
+    "resource_scope_keys": {
+        "owner": "non_escalating",
+        "repo": "repo",
+        "pr_number": "pull_request",
+    },
 }
 _GITHUB_PR_NO_SCOPE_TAIL: _GithubPrNoScopeTail = {
     "requires_serial": False,
@@ -154,7 +174,7 @@ TOOL_LIST: list[McpTool] = [
         "reconciliation_policy": "external_state",
         "idempotency_required": True,
         "preview_capability": "dry_run",
-        **_GITHUB_PR_REPO_SCOPE_TAIL,
+        **_GITHUB_PR_SCOPE_TAIL,
     },
     {
         "name": "github_merge_pull_request",

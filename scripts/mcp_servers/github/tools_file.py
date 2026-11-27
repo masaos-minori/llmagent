@@ -21,15 +21,17 @@ from mcp_servers.models import McpTool
 from mcp_servers.request_contract import build_input_schema
 
 
-# Shared metadata fields: "status", "config_dependent", "requires_serial",
-# "resource_scope_kind", and "resource_scope_keys" are byte-for-byte identical
-# across all 4 TOOL_LIST entries. Only "is_write" varies (False for
-# github_get_file_contents; True for the other 3), so it stays per-entry and
-# the shared fields are split into a head (before "is_write") and tail (after
-# "is_write") to preserve original key order. Extracted so they stay in sync
-# (mirrors the analogous _CICD_TOOL_METADATA_TAIL split in
-# scripts/mcp_servers/cicd/cicd_tools.py and the _FILESYSTEM_*_METADATA
-# precedents in scripts/mcp_servers/file/read_tools.py,
+# Shared metadata fields: "status", "config_dependent", and "requires_serial" are
+# byte-for-byte identical across all 4 TOOL_LIST entries. "resource_scope_kind" and
+# "resource_scope_keys" are byte-for-byte identical within each scope group, not
+# across all 4: the read entry keeps the github_repo tail, while the 3 write entries
+# share the github_branch tail so writes to different branches do not serialize
+# against each other. Only "is_write" varies (False for github_get_file_contents;
+# True for the other 3), so it stays per-entry and the shared fields are split into
+# a head (before "is_write") and tail (after "is_write") to preserve original key
+# order. Extracted so they stay in sync (mirrors the analogous
+# _CICD_TOOL_METADATA_TAIL split in scripts/mcp_servers/cicd/cicd_tools.py and the
+# _FILESYSTEM_*_METADATA precedents in scripts/mcp_servers/file/read_tools.py,
 # scripts/mcp_servers/file/write_tools.py, and
 # scripts/mcp_servers/file/delete_tools.py).
 class _GithubFileMetadataHead(TypedDict):
@@ -48,6 +50,14 @@ class _GithubFileMetadataTail(TypedDict):
     resource_scope_keys: Mapping[str, ResourceKeyKind]
 
 
+class _GithubFileBranchScopeTail(TypedDict):
+    """Shared metadata tail for github_branch-scoped TOOL_LIST write entries."""
+
+    requires_serial: bool
+    resource_scope_kind: str
+    resource_scope_keys: Mapping[str, ResourceKeyKind]
+
+
 _GITHUB_FILE_TOOL_METADATA_HEAD: _GithubFileMetadataHead = {
     "status": "production",
     "config_dependent": True,
@@ -57,6 +67,15 @@ _GITHUB_FILE_TOOL_METADATA_TAIL: _GithubFileMetadataTail = {
     "requires_serial": False,
     "resource_scope_kind": "github_repo",
     "resource_scope_keys": {"owner": "non_escalating", "repo": "repo"},
+}
+_GITHUB_FILE_BRANCH_SCOPE_TAIL: _GithubFileBranchScopeTail = {
+    "requires_serial": False,
+    "resource_scope_kind": "github_branch",
+    "resource_scope_keys": {
+        "owner": "non_escalating",
+        "repo": "repo",
+        "branch": "branch",
+    },
 }
 
 TOOL_LIST: list[McpTool] = [
@@ -91,7 +110,7 @@ TOOL_LIST: list[McpTool] = [
         "reconciliation_policy": "external_state",
         "idempotency_required": True,
         "preview_capability": "dry_run",
-        **_GITHUB_FILE_TOOL_METADATA_TAIL,
+        **_GITHUB_FILE_BRANCH_SCOPE_TAIL,
     },
     {
         "name": "github_push_files",
@@ -108,7 +127,7 @@ TOOL_LIST: list[McpTool] = [
         "reconciliation_policy": "external_state",
         "idempotency_required": True,
         "preview_capability": "dry_run",
-        **_GITHUB_FILE_TOOL_METADATA_TAIL,
+        **_GITHUB_FILE_BRANCH_SCOPE_TAIL,
     },
     {
         "name": "github_delete_file",
@@ -124,6 +143,6 @@ TOOL_LIST: list[McpTool] = [
         "reconciliation_policy": "external_state",
         "idempotency_required": True,
         "preview_capability": "dry_run",
-        **_GITHUB_FILE_TOOL_METADATA_TAIL,
+        **_GITHUB_FILE_BRANCH_SCOPE_TAIL,
     },
 ]

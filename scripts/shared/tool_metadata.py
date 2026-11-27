@@ -58,9 +58,11 @@ RECONCILIATION_POLICY_VALUES: frozenset[str] = frozenset(
 
 # ``non_escalating`` covers keys no escalation rule reads (e.g. "owner", "run_id",
 # "workflow"); the three escalation kinds cannot classify them.
-ResourceKeyKind = Literal["path", "branch", "repo", "non_escalating"]
+ResourceKeyKind = Literal[
+    "path", "branch", "repo", "issue", "pull_request", "non_escalating"
+]
 RESOURCE_KEY_KIND_VALUES: frozenset[str] = frozenset(
-    {"path", "branch", "repo", "non_escalating"}
+    {"path", "branch", "repo", "issue", "pull_request", "non_escalating"}
 )
 
 PreviewCapability = Literal["none", "dry_run"]

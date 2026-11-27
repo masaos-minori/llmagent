@@ -25,12 +25,15 @@ from mcp_servers.request_contract import build_input_schema
 # Shared metadata fields: "status" and "config_dependent" are byte-for-byte
 # identical across all 5 TOOL_LIST entries, so they are split into a head
 # (before "is_write"). "is_write" varies per entry and stays inline. After
-# "is_write", 4 of the 5 entries also share an identical "requires_serial" +
-# "resource_scope_kind" + "resource_scope_keys" tail (github_repo scope);
-# github_search_issues is unscoped, so it gets its own tail with the same
-# "requires_serial" value but an empty scope. Extracted so the shared parts
-# stay in sync (mirrors the analogous _GITHUB_FILE_TOOL_METADATA_HEAD/_TAIL
-# split in scripts/mcp_servers/github/tools_file.py).
+# "is_write", the "requires_serial" + "resource_scope_kind" +
+# "resource_scope_keys" tail is shared within each scope group, not across all
+# entries: the 2 read entries and github_create_issue share the github_repo
+# tail, github_search_issues is unscoped so it gets its own tail with the same
+# "requires_serial" value but an empty scope, and github_add_issue_comment uses
+# the github_issue tail because its resource identity is one issue. Extracted so
+# the shared parts stay in sync (mirrors the analogous
+# _GITHUB_FILE_TOOL_METADATA_HEAD/_TAIL split in
+# scripts/mcp_servers/github/tools_file.py).
 class _GithubIssueMetadataHead(TypedDict):
     """Shared metadata fields common to github_issue TOOL_LIST entries."""
 
@@ -55,6 +58,14 @@ class _GithubIssueNoScopeTail(TypedDict):
     resource_scope_keys: Mapping[str, ResourceKeyKind]
 
 
+class _GithubIssueScopeTail(TypedDict):
+    """Shared metadata tail for github_issue-scoped TOOL_LIST entries."""
+
+    requires_serial: bool
+    resource_scope_kind: str
+    resource_scope_keys: Mapping[str, ResourceKeyKind]
+
+
 _GITHUB_ISSUE_TOOL_METADATA_HEAD: _GithubIssueMetadataHead = {
     "status": "production",
     "config_dependent": True,
@@ -69,6 +80,15 @@ _GITHUB_ISSUE_NO_SCOPE_TAIL: _GithubIssueNoScopeTail = {
     "requires_serial": False,
     "resource_scope_kind": "",
     "resource_scope_keys": {},
+}
+_GITHUB_ISSUE_SCOPE_TAIL: _GithubIssueScopeTail = {
+    "requires_serial": False,
+    "resource_scope_kind": "github_issue",
+    "resource_scope_keys": {
+        "owner": "non_escalating",
+        "repo": "repo",
+        "issue_number": "issue",
+    },
 }
 
 TOOL_LIST: list[McpTool] = [
@@ -153,6 +173,6 @@ TOOL_LIST: list[McpTool] = [
         "reconciliation_policy": "external_state",
         "idempotency_required": True,
         "preview_capability": "dry_run",
-        **_GITHUB_ISSUE_REPO_SCOPE_TAIL,
+        **_GITHUB_ISSUE_SCOPE_TAIL,
     },
 ]

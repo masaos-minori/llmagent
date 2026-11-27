@@ -44,6 +44,9 @@ _KNOWN_SCOPE_KINDS = frozenset(
         "filesystem",
         "git_repo",
         "github_repo",
+        "github_branch",
+        "github_issue",
+        "github_pull_request",
         "cicd_workflow",
         "rag_store",
         "mdq_store",
@@ -65,8 +68,15 @@ _FALLBACK_WRITE_SCOPE = "global:write"
 # (rather than one scope string per key), keyed by the join separator.
 _COMPOSED_KIND_SEPARATORS = {
     "github_repo": "/",
+    "github_branch": "/",
+    "github_issue": "/",
+    "github_pull_request": "/",
     "cicd_workflow": ":",
 }
+
+# Descendant GitHub kinds whose identity is scoped by the `github_repo:` ancestor kind
+# (`<owner>/<repo>` ancestor identity, `<owner>/<repo>/<name>` descendant identity).
+_GITHUB_FINE_KINDS = frozenset({"github_branch", "github_issue", "github_pull_request"})
 
 # Declared agent-safety tiers the schema validator accepts (same Literal the builder
 # types against; `shared` reads `runtime_tool`, never `agent`).
@@ -86,7 +96,10 @@ def resolve_resource_scopes(
     Returns `()` for an unscoped tool (`tool.resource_scope_kind == ""`) or a non-write
     tool with no resolvable keys. Returns `(_FALLBACK_WRITE_SCOPE,)` for a write tool whose
     keys did not resolve to any present, non-empty argument value (fail-closed: never an
-    empty tuple and never the bare tool name for a write tool).
+    empty tuple and never the bare tool name for a write tool), and for a write tool whose
+    composed GitHub identity is missing one of its declared keys — a partial identity such as
+    `github_branch:<owner>/<repo>` from an omitted `branch` names no resource, so it fails
+    closed instead of resolving a partial identity.
     """
     if not tool.resource_scope_kind:
         return ()
@@ -94,6 +107,13 @@ def resolve_resource_scopes(
     separator = _COMPOSED_KIND_SEPARATORS.get(tool.resource_scope_kind)
     if separator is not None:
         parts = [str(args[key]) for key in tool.resource_scope_keys if args.get(key)]
+        if (
+            tool.is_write
+            and tool.resource_scope_kind in _GITHUB_FINE_KINDS
+            and len(parts) < len(tool.resource_scope_keys)
+        ):
+            # A GitHub identity names a resource only when every declared key resolves.
+            return (_FALLBACK_WRITE_SCOPE,)
         scopes = (
             [f"{tool.resource_scope_kind}:{separator.join(parts)}"] if parts else []
         )
@@ -119,9 +139,11 @@ def _scopes_conflict(a: str, b: str) -> bool:
 
     Exact-equal scope strings always conflict. `"filesystem:"`-prefixed scopes also
     conflict when one path is an ancestor/descendant of the other (via
-    `PurePosixPath.is_relative_to()`, checked in both directions). Every other case
-    (different kind prefixes, or same kind with different non-filesystem values) never
-    conflicts.
+    `PurePosixPath.is_relative_to()`, checked in both directions). A `"github_repo:"`
+    scope conflicts with a finer GitHub kind (`_GITHUB_FINE_KINDS`) when the descendant
+    identity begins with the ancestor identity followed by `/`, also checked in both
+    directions. Every other case (different kind prefixes, or same kind with different
+    non-filesystem values) never conflicts.
     """
     if a == b:
         return True
@@ -131,6 +153,16 @@ def _scopes_conflict(a: str, b: str) -> bool:
         path_a = PurePosixPath(a[len(filesystem_prefix) :])
         path_b = PurePosixPath(b[len(filesystem_prefix) :])
         return path_a.is_relative_to(path_b) or path_b.is_relative_to(path_a)
+
+    for ancestor, descendant in ((a, b), (b, a)):
+        ancestor_kind, _, ancestor_identity = ancestor.partition(":")
+        descendant_kind, _, descendant_identity = descendant.partition(":")
+        if (
+            ancestor_kind == "github_repo"
+            and descendant_kind in _GITHUB_FINE_KINDS
+            and descendant_identity.startswith(f"{ancestor_identity}/")
+        ):
+            return True
 
     return False
 
