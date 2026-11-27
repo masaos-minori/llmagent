@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import logging
 import pathlib
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from types import ModuleType
+from typing import Any
 
 import pytest
+from fastapi.testclient import TestClient
+
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
 
 # shared.logger.Logger sets propagate = False, which hides these servers' records from
 # caplog; production behavior is unaffected because a server process has no root handler.
@@ -139,3 +144,52 @@ def isolated_dedup(
     yield db_path
     store.close()
     dispatch_mod._duplicate_cache.clear()
+
+
+class HttpBoundary:
+    """One MCP server app at the real HTTP boundary, plus its schema helper.
+
+    `client` is the live FastAPI application with the shared test token headers;
+    `dedup_path` is the tmp store `isolated_dedup` injected through the dispatch
+    seam. `tool_schema` reads the published schema from the same boundary the
+    runtime contract is asserted at, so a contract test does not mix an
+    in-process view with the wire view.
+    """
+
+    def __init__(self, client: TestClient, dedup_path: pathlib.Path) -> None:
+        self.client = client
+        self.dedup_path = dedup_path
+
+    def tool_schema(self, tool_name: str) -> dict[str, Any]:
+        """Return the published `inputSchema` for one tool name at this boundary."""
+        resp = self.client.get("/v1/tools?include_disabled=true")
+        resp.raise_for_status()
+        for tool in resp.json()["tools"]:
+            if tool["name"] == tool_name:
+                return dict(tool["inputSchema"])
+        raise KeyError(f"tool {tool_name!r} is not published at the HTTP boundary")
+
+
+@pytest.fixture
+def http_boundary(
+    isolated_dedup: pathlib.Path,
+) -> Iterator[Callable[[ModuleType], HttpBoundary]]:
+    """Give a security-contract test the real HTTP boundary of one MCP server app.
+
+    The app, the service, the validation, and the dedup gate stay real; only the
+    upstream API client is mocked, and that mock is supplied by the consuming test
+    file, so a refused request is observable as a refusal rather than a stubbed
+    response. Opt in by adding `http_boundary` to a test's parameters and calling
+    the factory with the server module.
+    """
+    opened: list[HttpBoundary] = []
+
+    def boundary(module: ModuleType) -> HttpBoundary:
+        client = TestClient(module.app, headers=MCP_TEST_AUTH_HEADERS)
+        item = HttpBoundary(client, isolated_dedup)
+        opened.append(item)
+        return item
+
+    yield boundary
+    for item in opened:
+        item.client.close()

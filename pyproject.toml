@@ -145,6 +145,7 @@ asyncio_mode = "auto"
 markers = [
     "integration: integration tests that start real subprocesses (deselect with -m 'not integration')",
     "repo_scan: tests that scan the whole repository (local iteration and full runs deselect them with -m 'not repo_scan'; CI runs them)",
+    "security_contract: HTTP-level security-contract tests (real server boundary, mocked upstream client)",
 ]
 
 [tool.coverage.run]
