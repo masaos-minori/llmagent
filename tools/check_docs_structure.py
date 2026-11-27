@@ -168,7 +168,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # SHARED-004 Known Issues, net of the removed AAL-026, AAL-027, and SHARED-002,
     # grew the ledger 36248 -> 36807; the ceiling equals the accepted size.
     # Re-accepted at 39898 (2026-11-24): SHARED-004 split into SHARED-004 to SHARED-007.
-    "governance_03_issue-and-uncertainty-management.md": 39898,
+    # Re-accepted at 40884 (2026-11-27, mcpai012 procedure 20261126-212443_13 fallout): the
+    # SHARED-008 Known Issue entry (the `config/tool_catalog.toml` read outside `ConfigLoader`,
+    # registered so the ADR-002 Known Deviations bullet cites a ledger ID) grew the ledger
+    # 39898 -> 40884; the ceiling equals the accepted size.
+    "governance_03_issue-and-uncertainty-management.md": 40884,
     # Re-accepted at 33078 (2026-11-25): closes a pre-existing gap — the generated
     # subpackage index grew past MAX_SIZE through cliplc003's agent subpackage
     # additions without the ceiling being recorded. The ceiling equals the accepted
