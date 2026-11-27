@@ -18,6 +18,7 @@ A workflow that applies this section references it and adds only its own bullets
 - Read other files only in relevant sections, unless a full read is needed to understand behavior, dependencies, ownership, side effects, error handling, configuration, tests, or document consistency.
 - Do not omit necessary evidence to save context.
 - Reuse a verified fact only while its source file is unchanged. Store the source path and evidence location with each cached fact, and recheck it after the source changes.
+- A rule added or changed during a session is not applied retroactively to actions already taken in that session; it takes effect from the next session.
 - Do not summarize shared rules or template content in chat — reference them by file name instead.
 
 ## Required File Validation

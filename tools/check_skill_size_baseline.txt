@@ -6,17 +6,20 @@
 # skillsize003 Stage B (2026-11-23): plan-to-implementation-procedure workflow.md 39108 -> 34876 B (edge 6089 B), issue-to-plan workflow.md 45620 -> 42540 B (edge 4512 B); the repeated load is 4232 B and 3080 B lower.
 prompts/05_skills.md	18962
 prompts/08_document-sync.md	19015
-rules/ai-execution.md	17031
+# Re-recorded at 17158 (2026-11-27, Context Reading): the retroactive-application bullet is added to
+# rules/ai-execution.md, which was already at its 17031 B ceiling, so any addition exceeds it. Owner
+# decision: re-record the ceiling rather than compress unrelated rule text.
+rules/ai-execution.md	17158
 # Re-recorded at 19763 (2026-11-27, cliplc012 row 5): the gate row for tools/check_test_taxonomy.py is
 # mandatory, because run_validation_gates.py's drift report requires every ROUTING_GATES entry to have a
 # matching rules/tool-gates.md checker row. A new row cannot fit under the 19478 B ceiling, so the ceiling
 # equals the accepted size.
 rules/tool-gates.md	19763
-skills/code-implementation/workflow.md	42118
+skills/code-implementation/workflow.md	42112
 skills/git-commit-and-sync/workflow.md	22947
 skills/issue-creator/workflow.md	22841
-skills/issue-to-plan/workflow.md	42540
-skills/plan-to-implementation-procedure/workflow.md	34876
+skills/issue-to-plan/workflow.md	42533
+skills/plan-to-implementation-procedure/workflow.md	34853
 skills/python-code-review/workflow.md	17024
 skills/python-debug-root-cause/workflow.md	30767
 skills/python-design/workflow.md	22436
