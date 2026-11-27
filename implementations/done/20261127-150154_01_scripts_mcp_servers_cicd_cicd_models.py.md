@@ -17,6 +17,8 @@ Requirements implemented: REQ-001 (structured dispatch outcome with five states)
 ## Design decisions
 - `DispatchOutcome` (new) carries `state` plus the matched-run fields (run id, URL, status, workflow, ref); `outcome_unknown` is imported from `scripts/shared/write_outcome.py` (`OUTCOME_UNKNOWN` at line 25) rather than redefined.
 - Polling bounds are constants `POLL_TIMEOUT_S` (new) and `POLL_INTERVAL_S` (new), decided at implementation (UNK-02).
+  Decided 20261127 in Step 3a: `POLL_TIMEOUT_S = 10`, `POLL_INTERVAL_S = 2`, so the polling loop stays inside
+  the lifespan-owned shared HTTP client timeout of 30.0 s (`scripts/mcp_servers/cicd/cicd_server.py:205`).
 
 ## Alternatives considered
 - Extending the shared `RECONCILE_OUTCOMES` set with accepted and accepted_unconfirmed: rejected per the Plan — that vocabulary is owned by mcpdl004 and read by the control API and the Agent recovery service.
@@ -31,14 +33,18 @@ Requirements implemented: REQ-001 (structured dispatch outcome with five states)
 - Add `POLL_TIMEOUT_S` (new) and `POLL_INTERVAL_S` (new) constants.
 
 ### Method
-- The request models at lines 88-137 have no response counterpart (re-verified 20261127); add the response model after them without changing the request models.
+- The request models at lines 207-247 have no response counterpart (re-verified 20261127 against the
+  current file, 251 lines; the Plan's citation of lines 88-137 predates the mcpci001 pass); add the
+  response model after them without changing the request models.
 
 ### Details
 - A 2xx response never becomes confirmed without a matched run (REQ-001); the state is set by the backend row, not by the model.
 
 ### Companion test files
 - `tests/mcp_servers/cicd/test_cicd_models.py`
-  - Procedure: add the response-model shape tests for the five states and the matched-run fields (the request-schema pins at lines 35-54 stay).
+  - Procedure: add the response-model shape tests for the five states and the matched-run fields (the
+    request-schema pins at lines 36-104 stay; the Plan's citation of 35-54 covers only the first pin,
+    re-verified 20261127).
   - Validation: `uv run pytest tests/mcp_servers/cicd/test_cicd_models.py`.
 
 ## Compatibility considerations
@@ -65,9 +71,9 @@ Requirements implemented: REQ-001 (structured dispatch outcome with five states)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261127-222027 | cicd_models.py: DISPATCH_STATES (5 states), DispatchOutcome (frozen dataclass, confirmed requires run_id), POLL_TIMEOUT_S=10 / POLL_INTERVAL_S=2 (UNK-02 user decision) |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | — | 20261127-222027 | tests/mcp_servers/cicd/test_cicd_models.py: response-model shape tests (frozen, run_id required for confirmed) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261127-222027 | ruff/mypy/lint-imports/bandit/pre-commit pass; cicd suite 317 passed; end-of-unit full suite: 6 known baseline failures (compare_test_baseline exit 0), diff-cover 93% >= 90 |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs row |
 
 ### Blocker Log

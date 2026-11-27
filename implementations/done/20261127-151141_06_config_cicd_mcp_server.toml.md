@@ -22,7 +22,11 @@ independent byte limits are recorded), REQ-007 (documentation of the limits). Ac
   kept; this document adds the streaming-bounds block only (Plan Assumption, compatible overlap).
 
 ## Design decisions
-- N/A: comment-only change.
+- N/A: comment-only change. The values the comment records were decided 20261127 in Step 3a
+  (UNK-02): raw download 1 MiB, decompressed 1 MiB, maximum redirects 3, trusted log hosts
+  `api.github.com`, `results-receiver.actions.githubusercontent.com`,
+  `productionresultssa*.blob.core.windows.net`; the returned-output limit stays `max_log_size_kb`
+  (256 here, hard maximum 1024).
 
 ## Alternatives considered
 - Adding new config keys for the limits: rejected per the Plan's Assumptions — the constants are the
@@ -38,7 +42,9 @@ independent byte limits are recorded), REQ-007 (documentation of the limits). Ac
 - State the four limits as the contract: raw download, decompressed, selected job, returned output.
 
 ### Method
-- Update the comment block above `max_log_size_kb` (line 18) in place; keep the existing value.
+- Update the comment block above `max_log_size_kb` (lines 18-21; the value is at line 22, re-verified
+  20261127) in place; keep the existing value. The block also records `LOG_FETCH_TIMEOUT_S` (new) = 10 as the
+  per-hop fetch timeout the job backend passes to `fetch_bounded`.
 
 ### Details
 - `deploy/deploy.sh:164` already has a `cp` line for this file; no deployment change is needed.
@@ -70,9 +76,9 @@ independent byte limits are recorded), REQ-007 (documentation of the limits). Ac
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | comment block records the four limits, the redirect policy, the trusted hosts, and the per-hop timeout |
 | 2 | Add or update tests per Validation plan | N/A | — | — | config-only change, cross-checked by the docs consistency checker |
-| 3 | Run the validation sequence (`rules/tool-gates.md` docs checker) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/tool-gates.md` docs checker) | Completed | — | — | check_docs_structure and check_docs_consistency --domain mcp clean; shipped-config test 41 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

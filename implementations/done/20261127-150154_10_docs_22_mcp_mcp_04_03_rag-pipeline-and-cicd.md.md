@@ -73,8 +73,8 @@ correlation, polling, and the retry rationale). Acceptance criterion: AC-6.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261127-222044 | docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md line 73 postcondition rewritten: 5 states, correlation + bounded polling, retry rationale |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | — | 20261127-222044 | check_docs_structure.py and check_docs_consistency.py --domain mcp: clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -69,9 +69,9 @@ criterion: AC-2.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261127-222044 | composite delegation annotation -> DispatchOutcome; no behavior change (pass-through) |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | — | 20261127-222044 | tests/mcp_servers/cicd/test_service_github_actions_composite.py: delegation test replaced with structured outcome pass-through |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261127-222044 | ruff/mypy/lint-imports/bandit/pre-commit pass; cicd suite 317 passed; end-of-unit gates as recorded in the release unit |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs row |
 
 ### Blocker Log

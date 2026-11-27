@@ -38,6 +38,10 @@ Acceptance criterion: AC-3.
 ### Procedure
 - Call `register_reconciler("trigger_workflow", <run lookup>)` with the reconciler implemented by the
   backend row, at the point where the control API is attached to this server.
+- Bind the call identity around the dispatch in `call_tool` with a ContextVar (the precedent is
+  `bind_call_identity`, `scripts/mcp_servers/github/github_service_security.py:66-80`), so the
+  backend can record the correlation keyed by `call_key`; the handler contract stays `-> str`
+  (Plan Design decision, amended 20261127).
 
 ### Method
 - No production `register_reconciler` call exists in this module (re-verified 20261127); add the call
@@ -76,15 +80,15 @@ Acceptance criterion: AC-3.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261127-222044 | register_reconciler("trigger_workflow", dispatch_reconciler) and ContextVar call-identity bind in call_tool |
 | 2 | Add or update tests per Validation plan | N/A | — | — | the covering test is a reference file, not a modification target |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261127-222044 | ruff/mypy/lint-imports/bandit/pre-commit pass; covered by tests/mcp_servers/test_mcp_dispatch.py and the cicd suite (317 passed) |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | `reconcile` is sync and the snapshot carries no call arguments; the correlation is recovered from an in-process record keyed by `call_key`, read through a ContextVar call-identity bind added to `call_tool` (Plan Design decision, amended 20261127, user decision) | Yes | 20261127 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -14,13 +14,19 @@ all-failed case is a tool error). Acceptance criterion: AC-4.
 ## Assumptions
 - The handler contract stays `-> str` with the result JSON-serialized, so `dispatch_tool` and the audit
   `outcome` mapping are unchanged (Plan Assumption, `scripts/mcp_servers/dispatch.py` reference).
-- The existing error-to-HTTP mapping must not change (`scripts/mcp_servers/exception_handlers.py`,
-  reference); the all-failed case is reported as a tool error through the existing path.
+- The existing error-to-HTTP mapping must not change
+  (`scripts/mcp_servers/cicd/exception_handlers.py`, reference — the Plan's reference row cites
+  `scripts/mcp_servers/exception_handlers.py`, which does not exist; re-verified 20261127); the
+  all-failed case is reported as a tool error through the existing path.
 - The `trigger_workflow` handler in the same file is the mcpci002 pass's work; this document changes the
   log handler only (Plan Assumption, compatible overlap).
 
 ## Design decisions
 - The all-failed branch is decided from the per-job statuses in the result, not from text inspection.
+- The all-failed tool error is raised as `CicdUpstreamError` (mapped to 502 by
+  `scripts/mcp_servers/cicd/exception_handlers.py`), decided by the user on 20261127: per-job failure
+  is an upstream failure, and `CicdNotFoundError` would not distinguish "run not found" from "every
+  job failed". No new exception type and no mapping change.
 
 ## Alternatives considered
 - Returning a successful result with an empty job list: rejected per REQ-004 — total failure must be a
@@ -31,21 +37,28 @@ all-failed case is a tool error). Acceptance criterion: AC-4.
 `scripts/mcp_servers/cicd/cicd_service_business.py`
 
 ### Procedure
-- Change `handle_get_workflow_logs` (lines 120-132) to return the JSON-serialized structured result.
-- Add the all-failed branch: when every job failed, return the tool error through the existing error
-  path instead of a successful result.
+- Change `handle_get_workflow_logs` (lines 156-168) to return the JSON-serialized structured result.
+- Add the all-failed branch: when every job failed, raise `CicdUpstreamError` so the tool error is
+  returned through the existing error path instead of a successful result.
 
 ### Method
-- Lines 120-132 currently return the backend string unchanged with no all-failed branch
-  (re-verified 20261127); keep `_validate_and_parse_repo()` and the request construction unchanged.
+- Lines 156-168 currently return the backend string unchanged with no all-failed branch
+  (re-verified 20261127 against the current file; the Plan's citation of 120-132 predates the
+  mcpci001 pass); keep `_validate_and_parse_repo()` and the request construction unchanged.
+  Serialization follows the same `_json_dumps` pattern the mcpci002 pass introduced for
+  `handle_trigger_workflow` in this file.
 
 ### Details
 - Raw transport exception text never appears in the result (REQ-004).
 
 ### Companion test files
 - `tests/mcp_servers/cicd/test_cicd_mcp_service.py`
-  - Procedure: replace the overrun-allowing assertion at line 525 (`len(result.encode()) <= 1024 + 100`)
-    with the exact byte budget, and add the UTF-8-boundary, mixed-failure, and all-failed cases.
+  - Procedure: replace the overrun-allowing assertion at line 706 (`len(result.encode()) <= 1024 + 100`;
+    the Plan's citation of line 525 predates the mcpci001 pass, re-verified 20261127) with the exact
+    byte budget; replace the string-return pin at line 309
+    (`backend.get_workflow_logs.return_value = "=== Job: build ==="`, which pins the handler passing
+    the backend string through) with the structured result and its JSON serialization; and add the
+    UTF-8-boundary, mixed-failure, and all-failed cases.
   - Validation: `uv run pytest tests/mcp_servers/cicd/test_cicd_mcp_service.py`.
 
 ## Compatibility considerations
@@ -75,9 +88,9 @@ all-failed case is a tool error). Acceptance criterion: AC-4.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | handler JSON-serializes the result; all-failed raises CicdUpstreamError (502 mapping unchanged) |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | — | — | pins at lines 309 and 706 replaced; mixed, all-failed, and redaction cases added |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy Pass; test_cicd_mcp_service.py passes |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs row |
 
 ### Blocker Log

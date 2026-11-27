@@ -31,12 +31,14 @@ AC-4.
 `scripts/mcp_servers/cicd/cicd_service_defs.py`
 
 ### Procedure
-- Change `async def get_workflow_logs(self, owner: str, repo: str, run_id: int) -> str` at line 63 to
+- Change `async def get_workflow_logs(self, owner: str, repo: str, run_id: int) -> str` at line 65 to
   return the log result model from the models row.
 
 ### Method
-- Line 63 is the Protocol declaration the composite backend and the handler are typed against
-  (re-verified 20261127); no other Protocol member changes.
+- Line 65 is the Protocol declaration the composite backend and the handler are typed against
+  (re-verified 20261127); no other Protocol member changes. The module already imports from
+  `cicd_models` (`DispatchOutcome`, added by the mcpci002 pass), so the log result model is added to
+  that existing import rather than a new import path.
 
 ### Details
 - N/A: no behavior change in this module.
@@ -70,9 +72,9 @@ AC-4.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | CiBackend.get_workflow_logs annotation changed to LogFetchResult |
 | 2 | Add or update tests per Validation plan | N/A | — | — | the covering test is a reference file, not a modification target |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy Pass; lint-imports Pass |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs row |
 
 ### Blocker Log

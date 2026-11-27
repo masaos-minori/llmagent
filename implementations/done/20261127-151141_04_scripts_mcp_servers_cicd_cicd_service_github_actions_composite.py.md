@@ -29,11 +29,11 @@ criterion: AC-4.
 `scripts/mcp_servers/cicd/cicd_service_github_actions_composite.py`
 
 ### Procedure
-- Change `get_workflow_logs` (lines 74-76) to return the structured log result from the job backend
+- Change `get_workflow_logs` (lines 80-82) to return the structured log result from the job backend
   unchanged, with the response-model annotation.
 
 ### Method
-- Lines 74-76 delegate to `self._job.get_workflow_logs(...)` and return its value unchanged
+- Lines 80-82 delegate to `self._job.get_workflow_logs(...)` and return its value unchanged
   (re-verified 20261127); only the annotation and the pinned test expectation change.
 
 ### Details
@@ -41,9 +41,10 @@ criterion: AC-4.
 
 ### Companion test files
 - `tests/mcp_servers/cicd/test_service_github_actions_composite.py`
-  - Procedure: replace the pinned string contract at lines 146-151
-    (`return_value = "=== Job: build ==="` and the returned string) with the structured log result and
-    assert the object passes through unchanged.
+  - Procedure: replace the pinned string contract at lines 151 and 155
+    (`return_value = "=== Job: build ==="` and the returned string; re-verified 20261127, the Plan's
+    citation of 146-151 predates the mcpci002 pass) with the structured log result and assert the
+    object passes through unchanged.
   - Validation: `uv run pytest tests/mcp_servers/cicd/test_service_github_actions_composite.py`.
 
 ## Compatibility considerations
@@ -71,9 +72,9 @@ criterion: AC-4.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | pass-through returns the structured result unchanged |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | — | — | delegation pin replaced by the structured-result pass-through |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy Pass; test_service_github_actions_composite.py passes |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs row |
 
 ### Blocker Log

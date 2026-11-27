@@ -70,8 +70,8 @@ contract). Acceptance criterion: AC-5.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | log limits, redirect policy and trusted hosts, and the complete/partial/error contract recorded; the cross-reference to mcp_05_01 was absent from the file and was added |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | — | — | check_docs_structure, check_docs_quality, check_docs_consistency --domain mcp clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

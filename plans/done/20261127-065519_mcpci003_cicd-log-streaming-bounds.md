@@ -254,13 +254,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Characterization tests first (`tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py`) | In Progress | — | — | — |
-| 2 | Log response model and limits (`scripts/mcp_servers/cicd/cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_models.py`) | In Progress | — | — | — |
-| 3 | Bounded streaming and exact byte budget (`scripts/mcp_servers/cicd/cicd_service_github_actions_job.py`) | In Progress | — | — | — |
-| 4 | Handler and delegation contract (`scripts/mcp_servers/cicd/cicd_service_defs.py`, `scripts/mcp_servers/cicd/cicd_service_github_actions_composite.py`, `scripts/mcp_servers/cicd/cicd_service_business.py`, `tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py`, `tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_service_github_actions_composite.py`) | In Progress | — | — | — |
-| 5 | Configuration record (`config/cicd_mcp_server.toml`) | In Progress | — | — | — |
-| 6 | Documentation (`docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`) | In Progress | — | — | — |
-| 7 | Deployment & Verification | Pending | — | — | — |
+| 1 | Characterization tests first (`tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py`) | Completed | — | — | — pins replaced by contract assertions; 22 tests in test_mcp_cicd_edge_cases.py |
+| 2 | Log response model and limits (`scripts/mcp_servers/cicd/cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_models.py`) | Completed | — | — | — log constants + response models with self-checking invariants; shape tests added |
+| 3 | Bounded streaming and exact byte budget (`scripts/mcp_servers/cicd/cicd_service_github_actions_job.py`) | Completed | — | — | — fetch_bounded under the four limits, trusted-host policy, exact output budget, UTF-8 boundary cut |
+| 4 | Handler and delegation contract (`scripts/mcp_servers/cicd/cicd_service_defs.py`, `scripts/mcp_servers/cicd/cicd_service_github_actions_composite.py`, `scripts/mcp_servers/cicd/cicd_service_business.py`, `tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py`, `tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_service_github_actions_composite.py`) | Completed | — | — | — Protocol annotation, composite pass-through, handler JSON, all-failed tool error |
+| 5 | Configuration record (`config/cicd_mcp_server.toml`) | Completed | — | — | — comment block records the four limits, redirect policy, trusted hosts |
+| 6 | Documentation (`docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`) | Completed | — | — | — docs records the limits, redirect policy, and the result contract |
+| 7 | Deployment & Verification | Completed | — | — | — gates Pass; cicd suite 341 passed; diff-cover 94%; full suite 22 failed: 6 known baseline + 16 pre-existing integration failures unrelated to this change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -270,14 +270,14 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261127-151141_01_scripts_mcp_servers_cicd_cicd_service_github_actions_job.py.md` | 1, 3 | Procedure | Pending | — | — |
-| `implementations/20261127-151141_02_scripts_mcp_servers_cicd_cicd_models.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261127-151141_03_scripts_mcp_servers_cicd_cicd_service_defs.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261127-151141_04_scripts_mcp_servers_cicd_cicd_service_github_actions_composite.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261127-151141_05_scripts_mcp_servers_cicd_cicd_service_business.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261127-151141_06_config_cicd_mcp_server.toml.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261127-151141_09_tests_mcp_servers_cicd_test_cicd_models.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261127-151141_11_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261127-151141_01_scripts_mcp_servers_cicd_cicd_service_github_actions_job.py.md` | 1, 3 | Procedure | Completed | — | — |
+| `implementations/20261127-151141_02_scripts_mcp_servers_cicd_cicd_models.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261127-151141_03_scripts_mcp_servers_cicd_cicd_service_defs.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261127-151141_04_scripts_mcp_servers_cicd_cicd_service_github_actions_composite.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261127-151141_05_scripts_mcp_servers_cicd_cicd_service_business.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261127-151141_06_config_cicd_mcp_server.toml.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261127-151141_09_tests_mcp_servers_cicd_test_cicd_models.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261127-151141_11_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md` | 6 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

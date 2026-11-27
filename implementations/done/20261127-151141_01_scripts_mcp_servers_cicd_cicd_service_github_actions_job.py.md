@@ -24,6 +24,10 @@ budget, no raw upstream text). Acceptance criteria: AC-1, AC-2, AC-3, AC-4.
 - `text/plain` is the only allowed content type for the job log endpoint (Plan Assumption).
 - The trusted GitHub log host list and the redirect maximum are decided from GitHub documentation or
   observed behavior; if the list cannot be determined, stop and report (UNK-01, Phase 1).
+  Resolved 20261127 in Step 3a from GitHub documentation (self-hosted runner network-access hosts for
+  job logs) and observed 302 targets: `api.github.com`,
+  `results-receiver.actions.githubusercontent.com`, `productionresultssa*.blob.core.windows.net`
+  (prefix match), with `MAX_REDIRECTS = 3`. The values are the constants the models row defines.
 
 ## Design decisions
 - `FetchLimits.returned_bytes` is carried by the helper and not enforced there, so the exact
@@ -47,7 +51,9 @@ budget, no raw upstream text). Acceptance criteria: AC-1, AC-2, AC-3, AC-4.
 ### Procedure
 - Replace the `self._http.get(..., follow_redirects=True)` call at lines 82-86 with
   `fetch_bounded` from `scripts/mcp_servers/bounded_fetch.py`, passing `FetchLimits` built from the raw
-  and decompressed constants, the trusted-host policy, and the redirect maximum.
+  and decompressed constants, the trusted-host policy, the redirect maximum, and
+  `LOG_FETCH_TIMEOUT_S` (new) (re-verified 20261127: `fetch_bounded` requires `timeout_sec`, so the models
+  row must define the constant; `allowed_content_types` is `{"text/plain"}` per the Plan Assumption).
 - Apply the host policy through `resolve_public_addresses` from `scripts/mcp_servers/address_policy.py`
   (reference); `AddressRejectedError` becomes a per-job error code, not output text.
 - Enforce the exact final byte budget in `_append_job_output` (lines 169-181): a job is not appended
@@ -105,9 +111,9 @@ budget, no raw upstream text). Acceptance criteria: AC-1, AC-2, AC-3, AC-4.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | characterization tests first (Plan Phase 1) |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | characterization tests first (Plan Phase 1) fetch_bounded under the four limits, trusted_log_host policy, exact output budget, UTF-8 boundary cut, per-job status and totals |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | — | — | test_mcp_cicd_edge_cases.py rewritten: pins replaced by contract assertions, 22 tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy Pass; cicd suite 341 passed; diff-cover 97.8% on this file |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs row |
 
 ### Blocker Log

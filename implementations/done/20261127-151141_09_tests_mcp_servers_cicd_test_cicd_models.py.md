@@ -20,7 +20,8 @@ the constants through the config cross-check). Acceptance criteria: AC-1, AC-4.
   the log response tests only (Plan Assumption, compatible overlap).
 
 ## Design decisions
-- Keep the request-schema pins at lines 35-54 as the characterization baseline; add the response shape
+- Keep the request-schema pins at lines 36-104 as the characterization baseline (re-verified 20261127;
+  the Plan's citation of 35-54 covers only the first pin); add the response shape
   tests rather than replacing them.
 
 ## Alternatives considered
@@ -37,7 +38,8 @@ the constants through the config cross-check). Acceptance criteria: AC-1, AC-4.
   compared with the module constants.
 
 ### Method
-- Lines 35-54 pin the request schema shape only (re-verified 20261127); keep one test per pinned fact
+- Lines 36-104 pin the request schema shape only (re-verified 20261127; the Plan's citation of 35-54
+  covers only the first pin); keep one test per pinned fact
   and add the response-shape tests after them.
 
 ### Details
@@ -67,8 +69,8 @@ the constants through the config cross-check). Acceptance criteria: AC-1, AC-4.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | response-model shape tests and the limit-constant assertions added |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | 65 tests pass; ruff Pass; check_test_taxonomy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

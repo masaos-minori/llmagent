@@ -26,7 +26,14 @@ shared `Reconciler` contract). Acceptance criteria: AC-1, AC-2, AC-3.
 ## Design decisions
 - The correlation is recorded as a non-sensitive digest in `ReconcileEvidence` at dispatch time,
   because the `Reconciler` receives the component-keyed execution snapshot, which carries no call
-  arguments (Plan Design decision, `scripts/shared/execution_snapshot.py` reference).
+  arguments (Plan Design decision, `scripts/shared/execution_snapshot.py` reference). The record is an
+  in-process map keyed by `call_key`, written before the dispatch HTTP POST, and `reconcile` answers
+  from it without I/O (sync contract, `scripts/mcp_servers/control_api.py:132`); the `call_key` is
+  read through the ContextVar call-identity bind the server row adds (Plan Design decision, amended
+  20261127). Outcome mapping: record hit -> `evidence_found`, record miss after a process restart ->
+  `unverifiable`, recorded-but-not-attempted -> `no_evidence`, multiple candidates recorded by the
+  pre-dispatch search -> `ambiguous`. Fallback correlation only; no marker is added to `inputs`
+  (UNK-01, user decision).
 - The pre-dispatch run search is implemented independently of the idempotency key: adding a marker
   to `inputs` changes the args hash, so the same logical call with and without the marker produces
   different dedup keys (Plan Risk).
@@ -43,7 +50,7 @@ shared `Reconciler` contract). Acceptance criteria: AC-1, AC-2, AC-3.
 `scripts/mcp_servers/cicd/cicd_service_github_actions.py`
 
 ### Procedure
-- Change `trigger_workflow` (lines 102-132) to return `DispatchOutcome` from the models row instead
+- Change `trigger_workflow` (lines 103-136) to return `DispatchOutcome` from the models row instead
   of the `f"Workflow dispatched: ..."` string.
 - Add the correlation marker to the dispatch inputs when the workflow contract allows it; otherwise
   build the fallback correlation from workflow identifier, ref, actor, and dispatch time.
@@ -53,11 +60,15 @@ shared `Reconciler` contract). Acceptance criteria: AC-1, AC-2, AC-3.
   `outcome_unknown` on response loss or timeout.
 - Add the pre-dispatch run search for the same logical call before any repeat dispatch.
 - Expose the run lookup as the `Reconciler` implementation the server row registers.
+- Amend the `CiBackend.trigger_workflow` return annotation in `scripts/mcp_servers/cicd/cicd_service_defs.py`
+  from `-> str` to the response model (plan-amended target row, user sign-off 20261127), so the
+  composite implementation stays type-compatible.
 
 ### Method
-- Lines 102-132 currently return the success string on 204 and on any other 2xx with no run id, no
-  marker, and no polling (re-verified 20261127); `get_workflow_runs` at line 134 is the only run
-  read and is reused by the lookup, so no new HTTP path is introduced.
+- Lines 103-136 currently return the success string on 204 and on any other 2xx with no run id, no
+  marker, and no polling (re-verified 20261127 against the current file; the Plan's citation of
+  102-132 predates the mcpci001 pass); `get_workflow_runs` at line 138 is the only run read and is
+  reused by the lookup, so no new HTTP path is introduced.
 - Reuse `_GITHUB_API_BASE` and `build_auth_headers` from `scripts/mcp_servers/cicd/cicd_service_defs.py`
   (reference, not modified).
 
@@ -68,7 +79,7 @@ shared `Reconciler` contract). Acceptance criteria: AC-1, AC-2, AC-3.
 ### Companion test files
 - `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`
   - Procedure: write the response-loss, no-run, delayed-run, and multiple-match tests before any
-    code change (Phase 1), then replace the pinned immediate-success assertion at lines 57-73
+    code change (Phase 1), then replace the pinned immediate-success assertion at lines 60-75
     (`assert "dispatched" in result.lower()`) with the structured-state contract. Mocked HTTP, no
     live GitHub call.
   - Validation: `uv run pytest tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`.
@@ -101,15 +112,16 @@ shared `Reconciler` contract). Acceptance criteria: AC-1, AC-2, AC-3.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | characterization tests first (Plan Phase 1) |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-211619 | 20261127-222044 | characterization tests first (Plan Phase 1) Phase 1 contract tests first; plan amended 20261127: defs protocol row + ContextVar call-identity seam (user decision) CorrelationRecord + module-level _CORRELATION, ContextVar _CALL_IDENTITY + bind_call_identity, DispatchReconciler class (mypy protocol conformance), outcome mapping (ambiguous/no_evidence/evidence_found/unverifiable), bounded polling, trigger_workflow returns DispatchOutcome and writes the record before POST |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | — | 20261127-222044 | tests/mcp_servers/cicd/test_service_github_actions_error_edges.py: characterization tests first (Phase 1), then structured outcome cases; pytest.mark.characterization added |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261127-222044 | ruff/mypy/lint-imports/bandit/pre-commit pass; check_test_taxonomy clean; cicd suite 317 passed; end-of-unit full suite 6 known baseline failures, diff-cover 93% |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | Phase 1 red state (allowed, release unit structured-state contract): the contract tests fail before any code change — `ImportError: cannot import name 'DispatchOutcome'` (and `bind_call_identity` / `reconcile` not yet defined); resolved by the models row and this row's implementation | Yes | 20261127 |
+| 3 | Release-unit red state (allowed, validated together with the composite and handler rows): mypy reports the composite override and the business assignment against the new protocol annotation, and `tests/mcp_servers/cicd/test_cicd_mcp_service.py` keeps 4 pinned immediate-success assertions (`assert "dispatched" in result.lower()`) that the structured return breaks; resolved by rows 03 and 04 in the same release unit | Yes | 20261127 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

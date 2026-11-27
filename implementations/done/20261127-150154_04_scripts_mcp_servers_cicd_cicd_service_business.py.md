@@ -34,11 +34,12 @@ redacted from previews). Acceptance criteria: AC-2, AC-4.
 
 ### Procedure
 - Change `handle_trigger_workflow` to return the JSON-serialized structured outcome from the backend.
-- Replace the preview string at lines 70-75 so it lists input keys and the count instead of
+- Replace the preview string at lines 98-100 so it lists input keys and the count instead of
   `with inputs={req.inputs}`.
 
 ### Method
-- Lines 70-75 currently embed raw input values in the preview (re-verified 20261127); keep the dry-run
+- Lines 98-100 currently embed raw input values in the preview (re-verified 20261127 against the
+  current file; the Plan's citation of 70-75 predates the mcpci001 pass); keep the dry-run
   flag and the preview shape, change only the inputs part.
 
 ### Details
@@ -47,9 +48,10 @@ redacted from previews). Acceptance criteria: AC-2, AC-4.
 
 ### Companion test files
 - `tests/mcp_servers/cicd/test_cicd_mcp_service.py`
-  - Procedure: replace the immediate-success tests at lines 201-208
+  - Procedure: replace the immediate-success tests at lines 240-246
     (`assert result == "dispatched"`) with the structured-state contract, and add the preview-redaction
-    tests asserting input values are absent and keys and counts are present.
+    tests asserting input values are absent and keys and counts are present. (The Plan's citation of
+    201-208 predates the mcpci001 pass; re-verified 20261127.)
   - Validation: `uv run pytest tests/mcp_servers/cicd/test_cicd_mcp_service.py`.
 
 ## Compatibility considerations
@@ -77,9 +79,9 @@ redacted from previews). Acceptance criteria: AC-2, AC-4.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | canonicalization is the mcpci001 procedure for this file |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261127-222044 | canonicalization is the mcpci001 procedure for this file handler JSON output + await; preview redacted to input keys and count only (inputs [N]: keys) |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | — | 20261127-222044 | tests/mcp_servers/cicd/test_cicd_mcp_service.py: immediate-success pins replaced, redaction tests added, _no_runs_found helper with shortened polling window |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261127-222044 | ruff/mypy/lint-imports/bandit/pre-commit pass; cicd suite 317 passed; end-of-unit gates as recorded in the release unit |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs row |
 
 ### Blocker Log
