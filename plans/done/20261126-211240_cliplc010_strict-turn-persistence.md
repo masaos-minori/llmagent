@@ -114,7 +114,7 @@ Yes. Compensation statuses and the degraded-session behavior. Target docs via `d
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | How the degraded state is cleared: which command or health check, and its criteria; no session-level state health check exists in `scripts/agent/` today | Re-verified at `a6822e424e43651994f169c3a678ecaeb2f8c2dc`: `/session health` exists (`scripts/agent/commands/command_defs_list.py` line 123, `scripts/agent/commands/cmd_session.py` lines 375-378) but is a session-DB maintenance job that does not touch session state; `rg` over `scripts/agent/` shows only memory, MCP capability, and config-reload "degraded", unrelated to turn persistence | User decision on the clearing command and criteria; this Plan implements marking and refusal only, and leaves the clearing hook as a defined seam | True |
+| UNK-01 | How the degraded state is cleared: which command or health check, and its criteria; no session-level state health check exists in `scripts/agent/` today | Re-verified at `a6822e424e43651994f169c3a678ecaeb2f8c2dc`: `/session health` exists (`scripts/agent/commands/command_defs_list.py` line 123, `scripts/agent/commands/cmd_session.py` lines 375-378) but is a session-DB maintenance job that does not touch session state; `rg` over `scripts/agent/` shows only memory, MCP capability, and config-reload "degraded", unrelated to turn persistence | User decision (2026-11-27): the Plan implements marking and refusal only and the clearing hook stays a defined seam; clearing criteria are deferred to a follow-up work item | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -211,10 +211,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Repository write contract | Pending | — | — | |
-| 2 | Phase 2: Boundary validation and compensation status | Pending | — | — | |
-| 3 | Phase 3: Degraded session state | Pending | — | — | |
-| 4 | Phase 4: Documentation, regeneration, and full validation | Pending | — | — | Deploy is the user's decision |
+| 1 | Phase 1: Repository write contract | In Progress | — | — |  |
+| 2 | Phase 2: Boundary validation and compensation status | In Progress | — | — |  |
+| 3 | Phase 3: Degraded session state | In Progress | — | — |  |
+| 4 | Phase 4: Documentation, regeneration, and full validation | In Progress | — | — | Deploy is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -224,7 +224,16 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261127-103439_01_scripts_agent_turn_persistence.py.md` | 2, 3 | Procedure | Pending | — | — |
+| `implementations/20261127-103439_02_scripts_agent_session_message_repo.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261127-103439_03_scripts_agent_turn_result.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-103439_04_scripts_agent_session.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261127-103439_05_scripts_agent_orchestrator.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-103439_06_scripts_agent_repl_input_loop.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261127-103439_11_tests_agent_test_repl_error_handling.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261127-103439_12_docs_23_agent_agent_04_01_state-and-persistence-state-model.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-103439_13_docs_23_agent_agent_09_01_data-layer-session-db.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-103439_14_docs_23_agent_agent_13_reference-api-generated.md.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -241,10 +250,10 @@ See `templates/requirement-traceability.md` for the canonical column format.
 
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
 |---|---|---|---|---|---|---|
-| REQ-001 | Required Changes; `scripts/agent/session_message_repo.py` lines 85-96, 118-151, 178 | `scripts/agent/session_message_repo.py` | Phase 1 | AC-1 | `tests/agent/test_session_message_repo.py` | Confirmed by repository evidence |
+| REQ-001 | Required Changes; `scripts/agent/session_message_repo.py` lines 85-98, 122-154, 178 | `scripts/agent/session_message_repo.py` | Phase 1 | AC-1 | `tests/agent/test_session_message_repo.py` | Confirmed by repository evidence |
 | REQ-001 | Required Changes; boundary pre-write validation | `scripts/agent/turn_persistence.py` | Phase 2 | AC-1 | `tests/agent/test_turn_persistence.py` | Derived from confirmed evidence |
 | REQ-002 | Required Changes; `scripts/agent/session_message_repo.py` lines 80, 114, 381 | `scripts/agent/session_message_repo.py` | Phase 1 | AC-1 | `tests/agent/test_session_message_repo.py` | Confirmed by repository evidence |
-| REQ-002 | Required Changes; `scripts/agent/turn_persistence.py` lines 110, 125, 143 | `scripts/agent/turn_persistence.py` | Phase 2 | AC-1 | `tests/agent/test_turn_persistence.py` | Confirmed by repository evidence |
+| REQ-002 | Required Changes; `scripts/agent/turn_persistence.py` lines 110, 125, 143, 163 | `scripts/agent/turn_persistence.py` | Phase 2 | AC-1 | `tests/agent/test_turn_persistence.py` | Confirmed by repository evidence |
 | REQ-003 | Required Changes; `scripts/agent/turn_persistence.py` lines 213-232 | `scripts/agent/turn_persistence.py` | Phase 2 | AC-2 | `tests/agent/test_turn_persistence.py` | Confirmed by repository evidence |
 | REQ-003 | Required Changes; `scripts/agent/turn_result.py` lines 19-30 | `scripts/agent/turn_result.py` | Phase 2 | AC-2 | `tests/agent/test_llm_turn_executor.py` | Confirmed by repository evidence |
 | REQ-003 | Required Changes; `scripts/agent/orchestrator.py` lines 202-209 | `scripts/agent/orchestrator.py` | Phase 2 | AC-2 | `tests/agent/test_orchestrator.py` | Confirmed by repository evidence |
