@@ -56,6 +56,8 @@ RAG search is not provided as a slash command — it is automatically called by 
 
 ## Known Limitations
 
+Not applicable.
+
 ## Keywords
 
 - debug category

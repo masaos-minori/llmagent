@@ -44,9 +44,9 @@ A group of commands for session management and history operations.
 | Command | Form | Effect |
 |---|---|---|
 | `/history` | `/history [n]` | Shows the last `n` user and assistant messages of the in-memory history (default 5), one line each with a truncated preview; tool messages are not shown |
-| `/session export` | `/session export [markdown\|md\|json] [file]` | Exports the current in-memory conversation history |
+| `/session export` | `/session export [markdown\|md\|json] [file] [--output <file>]` | Exports the current in-memory conversation history |
 
-`/history` accepts `n` in `1..200`; a non-integer, `0`, a negative, or a value above `200` is a usage error that prints nothing, and an empty history is reported as no data; omitting `n` keeps the default of 5. For `/session export`, the format defaults to Markdown (`md` is the permanent short form of `markdown`); `json` writes the message list as indented JSON. The arguments may appear in either order, and any argument that is not a format is taken as the output file. Without a file the export is written to the terminal; with a file it is written there as UTF-8 and the message count is reported, and a write failure is reported as an export error. The export covers only the history currently held in memory, not a stored session that has not been loaded, and it neither modifies nor deletes any session or memory data.
+`/history` accepts `n` in `1..200`; a non-integer, `0`, a negative, or a value above `200` is a usage error that prints nothing, and an empty history is reported as no data; omitting `n` keeps the default of 5. For `/session export`, the format defaults to Markdown (`md` is the permanent short form of `markdown`); `json` writes the message list as indented JSON. The first argument must be one of the accepted formats; the output file is the next positional argument or `--output <file>`, and a quoted filename keeps its spaces. An unknown format, a filename without a format, or more than one output file is a usage error. Without a file the export is written to the terminal; with a file it is written there as UTF-8 and the message count is reported, and a write failure is reported as an export error. The export covers only the history currently held in memory, not a stored session that has not been loaded, and it neither modifies nor deletes any session or memory data.
 
 #### Session DB operation subcommands
 
@@ -103,7 +103,7 @@ A group of commands for displaying and monitoring configuration files.
 | Command | Form | Effect |
 |---|---|---|
 | `/config` | `/config` | Shows the current configuration and the configuration file paths; changes nothing |
-| `/stats` | `/stats` | Shows session statistics (turns, tool calls, RAG hits, error counts) and the current debug mode; changes nothing. It also reports Repository Context and Episodic Memory aggregate state, never individual Episodic contents, IDs, secrets, or personal information (not yet implemented, SHARED-003) |
+| `/stats` | `/stats` | Shows session statistics (turns, tool calls, error counts) and the current debug mode; changes nothing. It also reports Repository Context and Episodic Memory aggregate state, never individual Episodic contents, IDs, secrets, or personal information (not yet implemented, SHARED-003) |
 | `/reload` | `/reload` | Reloads all configuration files, applies the runtime-configurable parameters, and updates `ctx.cfg` to synchronize with services; it also reloads Repository Context as an atomic snapshot (see [agent_07_06](agent_07_06_cli-and-commands-hot-reload.md)) |
 
 None of these commands takes a subcommand or argument.

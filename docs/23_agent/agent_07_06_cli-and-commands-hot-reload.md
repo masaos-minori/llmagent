@@ -70,7 +70,7 @@ tool policy, history, LLM hot-config — and each step carries the undo token ca
 
 Startup-only fields and MCP server definitions stay pending until the process restarts:
 
-- `/reload` and `/config show` list pending startup-only fields under `Pending restart (not applied to
+- `/reload` and `/config` list pending startup-only fields under `Pending restart (not applied to
   the running process)`. The list is the container's pending state, so a field an earlier `/reload`
   recorded is still listed.
 - `/mcp status` lists pending MCP definitions under their own heading and never shows a pending

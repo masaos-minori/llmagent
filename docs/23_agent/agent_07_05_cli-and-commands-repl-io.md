@@ -54,7 +54,7 @@ Documents the design intent and operational decisions for the REPL input/output 
 ## Key Constraints
 
 - The prompt is a fixed string `"> "` and does not display session ID or status; the `... ` continuation prompt is specific to multi-line input.
-- Ctrl-C never ends the REPL by itself: it discards the prompt line, cancels the current turn, requests job cancellation, or requests an interrupt on the shutdown step in progress; only SIGTERM, console close, Ctrl-D, and `/exit` shut down (`TestInterruptByState`).
+- Ctrl-C does not end the REPL by itself except through the configured force-exit opt-in: it discards the prompt line, cancels the current turn, requests job cancellation, or requests an interrupt on the shutdown step in progress, and it forces process exit only when `shutdown_force_exit_on_second_sigint` is true and shutdown is already in progress; otherwise only SIGTERM, console close, Ctrl-D, and `/exit` shut down (`TestInterruptByState`, `test_configured_force_exit_is_read_once_at_construction`).
 
 ## Keywords
 

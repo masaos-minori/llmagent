@@ -106,7 +106,17 @@ Address high/medium severity findings before proceeding.
 uv run pytest tests/<package>/test_<affected_module>.py -v    # targeted (tests mirror scripts/; see skills/python-test-and-fix/workflow.md Test structure)
 uv run pytest -n logical -m "not repo_scan" -v       # full suite (parallel); see the repo_scan note below
 uv run pytest tests/mcp_servers/mdq/test_mdq_rag_boundary.py -v     # boundary enforcement (MDQ/RAG cross-DB and agent-layer direct access)
+uv run pytest -m characterization tests/ -q          # characterization suite only (see the taxonomy note below)
+uv run pytest -m contract tests/ -q                  # contract suite only (see the taxonomy note below)
+uv run python tools/check_test_taxonomy.py           # test-taxonomy gate: marker, citation, baseline
 ```
+
+The test-taxonomy gate is read-only: it reads `pytestmark` and test decorators from the AST of every test
+module, never by importing one, so a module that raises at import time cannot make the gate fail. The two
+`-m` selections are for local iteration on one kind; CI keeps a single pytest run and prints the two suite
+sections from that run's JUnit XML through the checker's report mode, so coverage measurement is not
+fragmented. A characterization failure is report-only in CI; a contract failure blocks (governance approval,
+2026-11-27).
 
 Full-suite runs use `-n logical` (`pytest-xdist`; each worker has its own isolation root). `-n auto` counts physical cores only, so on a hyper-threaded host it starts half as many workers; this suite spends much of its time waiting on timeouts, subprocesses, and I/O, so the extra threads pay off. Measured on a 2-core, 4-thread host: `-n logical` took about 20% less wall time than `-n auto`, and 8 workers was slower than 4. Serial execution (no `-n`, or `-n 0`) stays the mode for flaky-test investigation and mutation runs. Coverage runs are parallel too, through `pytest --cov` (section 7), which measures worker processes; plain `coverage run` does not.
 

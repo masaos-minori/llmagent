@@ -70,7 +70,7 @@ For behavior regarding tool definition startup validation, see `mcp_06` Startup 
 AgentREPL.run()
   → MCP server startup
        → startup_mode="subprocess" (http): start_http_subprocess() + health poll
-            stderr → <log_dir>/scripts/mcp_servers/{server_key}.stderr.log (append mode)
+            stderr → <tempdir>/mcp_server_logs/{server_key}/stderr.log (append mode, mode 0o600)
        → startup_mode="persistent" (http): no lifecycle action needed
        → startup_mode="none": no subprocess spawn, no health check — server is disabled
     → [REPL loop]
@@ -87,6 +87,10 @@ AgentREPL.run()
 ```
 
 `_ServerLifecycleRouter._shutting_down` protects `ensure_ready()`, `start_http_subprocess()`, `restart()`, and `shutdown_idle()`: once `shutdown_all()` is called, `ensure_ready()` and `restart()` log a line and raise a typed suppression error (`EnsureSuppressedError`, `RestartSuppressedError`), `start_http_subprocess()` raises `StartSuppressedError` so a suppressed start is never mistaken for success, and `shutdown_idle()` returns immediately; none of them delegates to `HttpServerLifecycleManager`. A refusal raised over a live-but-unconfirmed process (`RestartBlockedError`, see the shutdown note below) is a different class: it is not a shutdown suppression and the router maps it to the `EXIT_UNCONFIRMED` transport state with the usual failed-start cooldown.
+
+### Implementation Note (Stderr Log Files)
+
+The stderr log root is `tempfile.gettempdir()/mcp_server_logs/{server_key}` (`agent/http_lifecycle_stderr_log_manager.py`); the file is created with mode `0o600`, so the log is readable only by the owning process. Rotation is copy-and-truncate: the content is copied to a numbered generation next to the active file and the active file is truncated in place, which keeps the writer fd and `read_tail()` pointing at the same path — a rename would leave the writer fd on the moved inode while the reader looked at the new empty path. A rotation runs when the active file exceeds `max_stderr_log_size_mb` (default 100.0 MB); the configured `max_stderr_log_files` (default 3) is the retention count, and generations older than that count are purged oldest first after each rotation.
 
 ### Implementation Note (Double SIGINT Guard)
 

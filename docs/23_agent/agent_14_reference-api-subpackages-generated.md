@@ -167,7 +167,9 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/` subpackage 
 |  | `SessionNotFoundError` | `class SessionNotFoundError` | Raised when a requested session does not exist or has no messages. |
 |  | `SessionNoMessagesError` | `class SessionNoMessagesError` | Raised when a requested session exists but has no messages. |
 |  | `NothingToUndoError` | `class NothingToUndoError` | Raised when undo is requested but no user message is in history. |
-| `scripts/agent/services/export_formatter.py` | `render_history_md` | `def render_history_md(history) -> str` | Render conversation history as a Markdown export string. |
+| `scripts/agent/services/export_formatter.py` | `fence_for` | `def fence_for(text) -> str` | The code fence that can close `text`: longest backtick run plus one, minimum three. |
+|  | `escape_md` | `def escape_md(value) -> str` | Neutralise the Markdown structure a value could introduce in a heading line. |
+|  | `render_history_md` | `def render_history_md(history) -> str` | Render conversation history as a Markdown export string with a closable fence. |
 |  | `render_export` | `def render_export(history, fmt) -> str` | Render conversation history to a string in the requested format. |
 |  | `write_export` | `def write_export(content, outfile, n_messages, out) -> None` | Write export content to stdout or a file. |
 | `scripts/agent/services/io_ports.py` | `ExportOutputPort` | `class ExportOutputPort` | Output abstraction for conversation export operations. |

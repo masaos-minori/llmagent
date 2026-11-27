@@ -45,13 +45,13 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 |---|---|
 | `/help` | Show the command help |
 | `/config` | Show the current configuration and config file paths |
-| `/stats` | Show session statistics, including Repository Context and Episodic Memory aggregate state (not yet implemented, SHARED-003) |
+| `/stats` | Show session statistics as aggregate counts, including Repository Context and Episodic Memory aggregate state |
 | `/context` | Show history amount, budget, mode and pending-approval state, and the token usage of Repository Context and Episodic Memory |
 | `/plan` | Toggle plan mode |
 | `/undo` | Roll back the last user+assistant turn added after the last history compression |
 | `/reload` | Reload config files, apply runtime-configurable parameters, and reload Repository Context as an atomic snapshot |
-| `/compact` | Force immediate compression of conversation history |
-| `/mcp` | Show MCP server status, tool list and connectivity |
+| `/compact` | Force immediate compression of conversation history; owned by `_ContextMixin` in `scripts/agent/commands/cmd_context.py` |
+| `/mcp` | Show MCP server status, tool list and connectivity; bare `/mcp` is the status alias (`/mcp status`) |
 | `/session` | Manage sessions and session database maintenance |
 | `/clear` | Reset conversation history, optionally starting a new session |
 | `/history` | Show the content of recent user/assistant messages |

@@ -47,7 +47,7 @@ The full set of `LLMTransportError.kind` categories is defined by `LLMErrorKind`
 
 ### Runtime Parameter Reload Boundary
 
-Temperature and max tokens are reloadable through `/set` or `/reload`; heartbeat timeout and reconnect max through `/reload` (the full reloadable set is the `apply_config` list above). Compression uses `llm_compress_temperature` and `llm_compress_max_tokens` of `LLMConfig`, which are passed in at `factory.py` and are not hot-reloadable.
+Temperature and max tokens are reloadable through `/reload`; heartbeat timeout and reconnect max through `/reload` (the full reloadable set is the `apply_config` list above). Compression uses `llm_compress_temperature` and `llm_compress_max_tokens` of `LLMConfig`, which are passed in at `factory.py` and are not hot-reloadable.
 
 ## Responsibility Boundary
 

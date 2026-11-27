@@ -80,7 +80,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `HistorySelectionPolicy` | `class HistorySelectionPolicy` | Determines which messages to compress based on importance scoring. |
 | `scripts/agent/http_lifecycle.py` | `HttpServerLifecycleManager` | `class HttpServerLifecycleManager` | Manages HTTP subprocess MCP servers: start, health-poll, restart, shutdown. |
 | `scripts/agent/http_lifecycle_command_validator.py` | `CommandValidator` | `class CommandValidator` | Validates commands for HTTP subprocess MCP servers. |
-| `scripts/agent/http_lifecycle_errors.py` | `StartupFailure` | `class StartupFailure` | Records the full stderr output and reason when an HTTP subprocess fails to start. |
+| `scripts/agent/http_lifecycle_errors.py` | `StartupCode` | `class StartupCode` | Stable public error codes for lifecycle startup failures. |
+|  | `StartupFailure` | `class StartupFailure` | Records the full stderr output and reason when an HTTP subprocess fails to start. |
 |  | `HttpStartupError` | `class HttpStartupError` | Raised when an HTTP subprocess MCP server fails to start. |
 |  | `TerminationOutcome` | `class TerminationOutcome` | What one MCP server termination attempt proved about the process. |
 |  | `ShutdownSuppressedError` | `class ShutdownSuppressedError` | Base for non-retryable lifecycle refusals issued while shutting down. |
@@ -140,6 +141,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/repository_gateway.py` | `RepositoryGateway` | `class RepositoryGateway` | Agent-side enforcement boundary for all repository mutation operations. |
 | `scripts/agent/resource_shutdown_coordinator.py` | `ResourceShutdownCoordinator` | `class ResourceShutdownCoordinator` | Coordinates resource shutdown as one bounded, reported step sequence. |
 | `scripts/agent/secrets_masker.py` | `detects_secrets` | `def detects_secrets(text) -> bool` | Return True when any SECRET_PATTERNS substitution would change the text. |
+|  | `redact_url` | `def redact_url(url) -> str` | Strip userinfo, query, and fragment from a URL, keeping scheme, host, and path. |
+|  | `redact_path` | `def redact_path(path) -> str` | Return a logical identifier for a filesystem path, never the absolute path. |
 | `scripts/agent/session.py` | `SchemaMissingError` | `class SchemaMissingError` | Raised when required SQLite schema tables are missing. |
 |  | `SessionTarget` | `class SessionTarget` | Immutable identity of a session at one point in time. |
 |  | `AgentSession` | `class AgentSession` | Manages REPL session and message persistence in SQLite. |
@@ -236,7 +239,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 | `scripts/agent/turn_persistence.py` | `ConversationPersistenceError` | `class ConversationPersistenceError` | Raised when a turn's session-DB persistence fails and is compensated. |
 |  | `TurnPersistence` | `class TurnPersistence` | Owns all session-DB writes of one agent turn (all-or-nothing). |
 | `scripts/agent/turn_result.py` | `TurnResult` | `class TurnResult` | Typed result of one LLM turn. |
-| `scripts/agent/wal_checkpoint_manager.py` | `wal_step_outcome` | `def wal_step_outcome(errors) -> ShutdownOutcome` | Map the error labels these steps record onto the shutdown outcome vocabulary. |
+| `scripts/agent/wal_checkpoint_manager.py` | `format_sqlite_error` | `def format_sqlite_error(exc) -> str` | Render a failure as the error type name plus a masked, path-reduced message. |
+|  | `wal_step_outcome` | `def wal_step_outcome(errors) -> ShutdownOutcome` | Map the error labels these steps record onto the shutdown outcome vocabulary. |
 |  | `WalCheckpointManager` | `class WalCheckpointManager` | WAL checkpoint and backup manager. |
 | `scripts/agent/workflow_engine_adapter.py` | `WorkflowEngineWiringError` | `class WorkflowEngineWiringError` | Constructor wiring bug: the adapter was built without a WorkflowEngine. |
 |  | `TurnBoundaryMissingError` | `class TurnBoundaryMissingError` | Turn-protocol violation: a persist-as-assistant turn has no persistence boundary. |

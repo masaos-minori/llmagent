@@ -123,6 +123,7 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 | MDQ vs RAG boundary | `22_mcp/mcp_05_04_mdq-rag-boundary.md` |
 | DB layer spec (schema, ops, known issues) | `41_db/db_01_architecture_and_schema-overview-and-config.md` + `41_db/db_04_api_and_operations-module-boundaries-and-helper.md` |
 | Shared infra spec (config, logging, types, constants) | `40_shared/shared_00_document-guide.md` + `40_shared/shared_01_overview.md` |
+| Test taxonomy (contract versus characterization) | `00_governance/governance_01_documentation-policy.md` |
 
 ### Implementation reference
 

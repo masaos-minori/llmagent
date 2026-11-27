@@ -137,6 +137,17 @@ A claim whose truth has not yet been verified through evidence.
 
 Any rule for deciding whether documentation content is mechanically removable (verifiable from code, config, or schema alone) belongs in `governance_02_documentation-metadata.md`'s "Guidelines for Recording Information Verifiable via Implementation Reference" section — do not add a second, independently-worded rule here.
 
+### Test Taxonomy (contract versus characterization)
+
+The `verification-contract` row's canonical source kind, `tests/` plus the requirement source, carries a
+classification obligation on the test module. A test module is `contract` when its assertions are traceable to
+a requirement source — an Accepted ADR, a Canonical Source Registry entry, or the recorded requirement of a
+backlog issue in the Issue inventory — and the module carries that citation; otherwise it is
+`characterization`, asserting observed behavior with no requirement source. A characterization module MUST NOT
+present its assertions as normative: that is the operational form of "Tests cannot silently redefine
+requirements". The classification unit is the test module, and only a module that mixes both kinds marks
+individual tests. `tools/check_test_taxonomy.py` enforces the rule.
+
 ### Authority vs. Evidence
 
 The "Canonical source kind" column identifies **authority** — the artifact whose word settles the question. The "Auxiliary evidence" column identifies **evidence** — supporting material that can confirm or challenge the authority's position. These are never interchangeable: evidence alone does not establish authority, and authority without evidence is incomplete.

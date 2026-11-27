@@ -26,6 +26,12 @@
 `tests/` mirrors the `scripts/` package layout: each `scripts/<package>/<module>.py` has its
 test at `tests/<package>/test_<module>.py`.
 
+Every test module carries exactly one taxonomy marker through `pytestmark`: `contract` when its assertions are
+traceable to a requirement source and the module carries that citation, `characterization` otherwise. Only a
+module that mixes both kinds marks individual tests. A characterization module must not present its assertions
+as normative. The rule is defined in
+`docs/00_governance/governance_01_documentation-policy.md`; `tools/check_test_taxonomy.py` enforces it.
+
 ```
 tests/
   conftest.py                       # sys.path setup; shared fixtures
