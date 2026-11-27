@@ -14,6 +14,10 @@ tests/mcp_servers/cicd/test_cicd_mcp_service.py:
 These are pre-existing behaviors of the file being refactored under
 prompts/04_refactor.md; this file adds coverage only, it does not assert any
 new behavior.
+
+The third branch is the URL path-segment encoding added by REQ-005 (AC-4): the
+workflow value is quoted as one segment, so a separator or a percent-encoded
+segment cannot alter the dispatch path.
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from mcp_servers.cicd.cicd_models import CicdAuthorizationError, CicdValidationError
+from mcp_servers.cicd.cicd_service_defs import _GITHUB_API_BASE
 from mcp_servers.cicd.cicd_service_github_actions import GitHubActionsBackend
 
 
@@ -70,3 +75,54 @@ class TestTriggerWorkflowNonNoContentSuccess:
         assert "dispatched" in result.lower()
         assert "owner/repo" in result
         assert "ci.yml" in result
+
+
+class TestTriggerWorkflowUrlPathSegment:
+    """The workflow value is quoted as one path segment (REQ-005, AC-4)."""
+
+    def _backend(self) -> AsyncMock:
+        http = AsyncMock()
+        resp = MagicMock()
+        resp.status_code = 204
+        resp.is_success = True
+        resp.headers = {}
+        http.post.return_value = resp
+        return http
+
+    @staticmethod
+    def _segment(http: AsyncMock) -> str:
+        """Return the workflow segment of the URL the backend posted."""
+        url = http.post.call_args.args[0]
+        return url.rsplit("/dispatches", 1)[0].rsplit("/", 1)[1]
+
+    @pytest.mark.asyncio
+    async def test_canonical_name_encodes_unchanged(self) -> None:
+        http = self._backend()
+        backend = GitHubActionsBackend("token", http)
+
+        await backend.trigger_workflow("owner", "repo", "ci.yml", "main", {})
+
+        assert self._segment(http) == "ci.yml"
+
+    @pytest.mark.asyncio
+    async def test_separator_cannot_add_a_path_segment(self) -> None:
+        http = self._backend()
+        backend = GitHubActionsBackend("token", http)
+
+        await backend.trigger_workflow("owner", "repo", "../ci.yml", "main", {})
+
+        assert self._segment(http) == "..%2Fci.yml"
+        # The path keeps the seven segments the canonical value produces.
+        url = http.post.call_args.args[0]
+        assert url == (
+            f"{_GITHUB_API_BASE}/repos/owner/repo/actions/workflows/..%2Fci.yml/dispatches"
+        )
+
+    @pytest.mark.asyncio
+    async def test_percent_encoding_is_not_reinterpreted(self) -> None:
+        http = self._backend()
+        backend = GitHubActionsBackend("token", http)
+
+        await backend.trigger_workflow("owner", "repo", "ci%2Eyml", "main", {})
+
+        assert self._segment(http) == "ci%252Eyml"

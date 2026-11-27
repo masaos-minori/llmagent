@@ -11,7 +11,9 @@ Requirements implemented: REQ-003 (probe result reported as a posture check), RE
 
 ## Assumptions
 - The network probe does not run in the pre-bind stage: `scripts/shared/security/startup_flow.py` runs the server stage through a synchronous callable (verified at line 162), so the pre-bind stage keeps a config-only credential check and the probe runs in the lifespan after bind (Plan D3, UNK-04 resolved by evidence).
-- `REQUIRED_CHECK_IDS["cicd"]` allows extra checks (`scripts/shared/security/posture_contract.py:35,63`), so adding the credential check needs no contract change.
+- `REQUIRED_CHECK_IDS["cicd"]` allows extra checks (`scripts/shared/security/posture_contract.py:35,63`), so adding the credential check needs no contract change (verified: the comment at line 35 states "Extra checks are allowed").
+- Step 3a verification (20261127): `tests/mcp_servers/cicd/test_cicd_security_validation.py:206` compares the produced check ids with the test's own `CICD_SERVER_CHECK_IDS` tuple as an ordered list, so the companion must insert `server.github_credential` at the position `validate_cicd_security()` emits it, not append it.
+- Step 3a verification (20261127): `SecurityCheckResult.__post_init__()` calls `assert_non_secret()` on `message` (`scripts/shared/security/result_dto.py:146,106`), so every new check message must stay within `_MAX_PLAIN_TEXT_LEN` (120, line 94) and must not contain a credential-shaped value, an absolute path, or a config section header.
 - The `CiBackend` protocol stays unchanged; the probe is a separate policy function (Plan assumption).
 
 ## Design decisions
@@ -67,9 +69,9 @@ Requirements implemented: REQ-003 (probe result reported as a posture check), RE
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-163457 | 20261127-163457 | files: scripts/mcp_servers/cicd/cicd_service_guards.py; call site in cicd_server.py updated for the new argument |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | 20261127-163457 | 20261127-163457 | companion 30 tests pass; oversized-entry case is asserted in test_cicd_models.py (config parse), not duplicated here |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-163457 | — | ruff/mypy/bandit/lint-imports clean; 6 failures in test_cicd_health_posture.py and test_cicd_server_endpoints.py are the new fail-closed credential posture surfacing in pins re-pinned by procedure seq 06; full suite deferred to end of batch the 6 pins that went red were re-pinned in this cycle (test_cicd_health_posture.py, test_cicd_server_endpoints.py); tests/mcp_servers/cicd/ 261 passed end-of-batch full suite: 6 failures all matching tools/known_test_failures_baseline.txt; diff-cover 96% |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs rows |
 
 ### Blocker Log

@@ -13,6 +13,9 @@ Requirements implemented: REQ-001 (health reads the same effective credential), 
 - The probe runs in the lifespan after bind because the startup stage is synchronous and `validate_cicd_security()` is documented as a pure function (Plan D3, UNK-04); the pre-bind stage keeps the config-only credential check from the guards row.
 - `make_health_response()` (`scripts/mcp_servers/health_response.py:38`) derives `ready` from `deps` plus `security.validated`; this document does not invent its own ready rule.
 - The module currently builds the service at import time; moving construction into the lifespan changes when `build_service()` runs, which the companion lifecycle tests cover through the sibling row.
+- Step 3a verification (20261127): the rag-pipeline lifespan precedent exists (`scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py:134,148`).
+- Step 3a verification (20261127): the bandit `B105` finding at `cicd_server.py:202` is live (confirmed by a current bandit run), so the claim in Details holds; the new health code must not introduce another credential-named literal assignment.
+- Step 3a verification (20261127): `tests/mcp_servers/cicd/test_cicd_health_posture.py:214` pins `body["dependencies"] == {}` and `tests/mcp_servers/cicd/test_mcp_server_health_status.py:78` pins `"github_token" in data["dependencies"]`; both pins change once health carries the effective credential and the probe outcome.
 
 ## Design decisions
 - Follow the existing FastAPI `lifespan` precedent in `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` (reference only): create the client on startup, close it on shutdown.
@@ -38,6 +41,9 @@ Requirements implemented: REQ-001 (health reads the same effective credential), 
 - The bandit `B105` finding at `cicd_server.py:202` (`deps["github_token"] = "not_set"`) stays; if the literal moves, re-check the finding rather than suppress it (Plan Validation quality baseline).
 
 ### Companion test files
+- `tests/mcp_servers/cicd/test_cicd_lifecycle.py` (new, created by the `cicd_service_init.py` row at seq 05)
+  - Procedure: extend it with the lifespan startup and shutdown cases — the client is created on startup, closed on shutdown, and the probe outcome reaches health. The injection and no-leak cases stay as written by that row.
+  - Validation: `uv run pytest tests/mcp_servers/cicd/test_cicd_lifecycle.py`.
 - `tests/mcp_servers/cicd/test_cicd_health_posture.py`
   - Procedure: assert health uses the effective credential and carries the probe outcome; correct the stale empty-token docstring at line 36 (`require_auth_token()` at `scripts/mcp_servers/server.py:250-260` no longer keeps an accept-all path; `attach_auth_middleware()` is fail-closed on an empty token).
   - Validation: `uv run pytest tests/mcp_servers/cicd/test_cicd_health_posture.py`.
@@ -72,9 +78,9 @@ Requirements implemented: REQ-001 (health reads the same effective credential), 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion test files) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — |  |
+| 2 | Add or update tests per Validation plan (companion test files) | Completed | — | — |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | end-of-batch full suite: 6 failures all matching tools/known_test_failures_baseline.txt; diff-cover 96% |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs rows |
 
 ### Blocker Log

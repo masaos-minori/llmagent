@@ -289,16 +289,16 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Credential contract module and its tests | In Progress | — | — | — |
-| 2 | Strict request models, canonicalization, and configuration bounds | In Progress | — | — | — |
-| 3 | Published schemas generated from the strict models | In Progress | — | — | — |
-| 4 | Guard canonicalization, wildcard and oversized rejection, credential posture check | In Progress | — | — | — |
-| 5 | Canonical identifier at call time and URL path encoding | In Progress | — | — | — |
-| 6 | Lifespan-owned shared HTTP client | In Progress | — | — | — |
-| 7 | Read-permission probe and health parity | In Progress | — | — | — |
-| 8 | Health endpoint characterization update | In Progress | — | — | — |
-| 9 | Configuration record | In Progress | — | — | — |
-| 10 | Documentation updates | In Progress | — | — | — |
+| 1 | Credential contract module and its tests | Completed | — | 20261127-183802 | — batch 20261127-145310 implemented and validated |
+| 2 | Strict request models, canonicalization, and configuration bounds | Completed | — | 20261127-183802 | — batch 20261127-145310 implemented and validated |
+| 3 | Published schemas generated from the strict models | Completed | — | 20261127-183802 | — batch 20261127-145310 implemented and validated |
+| 4 | Guard canonicalization, wildcard and oversized rejection, credential posture check | Completed | — | 20261127-183802 | — batch 20261127-145310 implemented and validated |
+| 5 | Canonical identifier at call time and URL path encoding | Completed | — | 20261127-183802 | — batch 20261127-145310 implemented and validated |
+| 6 | Lifespan-owned shared HTTP client | Completed | — | 20261127-183802 | — batch 20261127-145310 implemented and validated |
+| 7 | Read-permission probe and health parity | Completed | — | 20261127-183802 | — batch 20261127-145310 implemented and validated |
+| 8 | Health endpoint characterization update | Completed | — | 20261127-183802 | — batch 20261127-145310 implemented and validated |
+| 9 | Configuration record | Completed | — | 20261127-183802 | — batch 20261127-145310 implemented and validated |
+| 10 | Documentation updates | Completed | — | 20261127-183802 | — batch 20261127-145310 implemented and validated |
 | 11 | Deployment and verification hand-off | Pending | — | — | — |
 
 ### Blocker Log
@@ -309,18 +309,18 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261127-145310_01_scripts_mcp_servers_cicd_cicd_credential.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261127-145310_02_scripts_mcp_servers_cicd_cicd_models.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261127-145310_03_scripts_mcp_servers_cicd_cicd_tools.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261127-145310_04_scripts_mcp_servers_cicd_cicd_service_guards.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261127-145310_05_scripts_mcp_servers_cicd_cicd_service_init.py.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261127-145310_06_scripts_mcp_servers_cicd_cicd_server.py.md` | 6, 7 | Procedure | Pending | — | — |
-| `implementations/20261127-145310_07_scripts_mcp_servers_cicd_cicd_service_business.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261127-145310_08_scripts_mcp_servers_cicd_cicd_service_github_actions.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261127-145310_09_config_cicd_mcp_server.toml.md` | 9 | Procedure | Pending | — | — |
-| `implementations/20261127-145310_10_tests_mcp_servers_cicd_test_cicd_models.py.md` | 2, 3 | Procedure | Pending | — | — |
-| `implementations/20261127-145310_18_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md` | 10 | Procedure | Pending | — | — |
-| `implementations/20261127-145310_19_docs_22_mcp_mcp_05_01_access-control-and-allowlists.md.md` | 10 | Procedure | Pending | — | — |
+| `implementations/20261127-145310_01_scripts_mcp_servers_cicd_cicd_credential.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261127-145310_02_scripts_mcp_servers_cicd_cicd_models.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261127-145310_03_scripts_mcp_servers_cicd_cicd_tools.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261127-145310_04_scripts_mcp_servers_cicd_cicd_service_guards.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261127-145310_05_scripts_mcp_servers_cicd_cicd_service_init.py.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261127-145310_06_scripts_mcp_servers_cicd_cicd_server.py.md` | 6, 7 | Procedure | Completed | — | — |
+| `implementations/20261127-145310_07_scripts_mcp_servers_cicd_cicd_service_business.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261127-145310_08_scripts_mcp_servers_cicd_cicd_service_github_actions.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261127-145310_09_config_cicd_mcp_server.toml.md` | 9 | Procedure | Completed | — | — |
+| `implementations/20261127-145310_10_tests_mcp_servers_cicd_test_cicd_models.py.md` | 2, 3 | Procedure | Completed | — | — |
+| `implementations/20261127-145310_18_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md` | 10 | Procedure | Completed | — | — |
+| `implementations/20261127-145310_19_docs_22_mcp_mcp_05_01_access-control-and-allowlists.md.md` | 10 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

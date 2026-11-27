@@ -16,6 +16,9 @@ repo_allowlist = ["masaos-minori/llmagent"]
 workflow_allowlist = ["ci.yml"]
 
 # max_log_size_kb: maximum log output size in KB (prevents large data dumps)
+# Hard maximums enforced by validation: max_log_size_kb is 1..1024 and each
+# allowlist holds at most 100 entries. A value outside the range makes the
+# server refuse to start.
 max_log_size_kb = 256
 
 # auth_token: Bearer token for MCP server call authentication, resolved
@@ -24,8 +27,9 @@ max_log_size_kb = 256
 # An empty or missing value makes the server refuse to start.
 auth_token = "${ENV:MCP_CICD_AUTH_TOKEN}"
 
-# github_token: fallback when GITHUB_TOKEN env var is unset (not recommended)
-# Prefer setting GITHUB_TOKEN via environment variable or config file
+# github_token: fallback when GITHUB_TOKEN env var is unset (not recommended).
+# Precedence: the GITHUB_TOKEN environment variable wins over this value. It is the
+# effective credential; this value is used only when the variable is unset.
 github_token = ""
 
 # [dedup]: shared dedup store settings owned by this process (mcpdl003). Values

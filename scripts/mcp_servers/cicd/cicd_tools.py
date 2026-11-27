@@ -2,6 +2,13 @@
 """scripts/mcp_servers/cicd/cicd_tools.py
 
 MCP tool schema definitions for cicd-mcp server (inputSchema format).
+
+Each `inputSchema` is generated from its strict request model through
+`build_input_schema()`, so the contract a client discovers at `/v1/tools` is the
+contract the server enforces at call time. Field descriptions live on the model
+fields (`cicd_models.py`), not here.
+
+Dependency direction: tools → models, request_contract
 """
 
 from __future__ import annotations
@@ -10,25 +17,14 @@ from typing import TypedDict
 
 from shared.tool_metadata import TOOL_FIELD_SET_VERSION
 
-from mcp_servers.models import McpTool, McpToolProperty
-
-# Shared inputSchema properties: "repo" is identical across all 4 TOOL_LIST
-# entries; "workflow" is identical across trigger_workflow/get_workflow_runs;
-# "run_id" is identical across get_workflow_status/get_workflow_logs.
-# Extracted so type/description stay in sync (mirrors the analogous
-# _REPO_PATH_PROPERTY extraction in scripts/mcp_servers/git/git_tools.py).
-_REPO_PROPERTY: McpToolProperty = {
-    "type": "string",
-    "description": "Repository slug in 'owner/repo' format",
-}
-_WORKFLOW_PROPERTY: McpToolProperty = {
-    "type": "string",
-    "description": "Workflow file name (e.g. ci.yml) or numeric workflow ID",
-}
-_RUN_ID_PROPERTY: McpToolProperty = {
-    "type": "integer",
-    "description": "Workflow run ID (from get_workflow_runs output)",
-}
+from mcp_servers.cicd.cicd_models import (
+    GetWorkflowLogsRequest,
+    GetWorkflowRunsRequest,
+    GetWorkflowStatusRequest,
+    TriggerWorkflowRequest,
+)
+from mcp_servers.models import McpTool
+from mcp_servers.request_contract import build_input_schema
 
 
 # Shared metadata fields: "requires_serial" and "resource_scope_kind" are
@@ -63,26 +59,7 @@ TOOL_LIST: list[McpTool] = [
             "Requires the repo to be in repo_allowlist. "
             "When dry_run=true, preview only without triggering dispatch."
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo": _REPO_PROPERTY,
-                "workflow": _WORKFLOW_PROPERTY,
-                "ref": {
-                    "type": "string",
-                    "description": "Branch, tag, or SHA to run the workflow on (default: main)",
-                },
-                "inputs": {
-                    "type": "object",
-                    "description": "Optional workflow input parameters (key-value pairs)",
-                },
-                "dry_run": {
-                    "type": "boolean",
-                    "description": "Preview only; workflow dispatch is not triggered (default: false)",
-                },
-            },
-            "required": ["repo", "workflow"],
-        },
+        "inputSchema": build_input_schema(TriggerWorkflowRequest),
         "status": "production",
         "config_dependent": True,
         "is_write": True,
@@ -104,18 +81,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "List recent workflow runs for a repository. Returns run status, conclusion, timestamps, and URLs."
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo": _REPO_PROPERTY,
-                "workflow": _WORKFLOW_PROPERTY,
-                "limit": {
-                    "type": "integer",
-                    "description": "Maximum number of runs to return (default: 10, max: 50)",
-                },
-            },
-            "required": ["repo", "workflow"],
-        },
+        "inputSchema": build_input_schema(GetWorkflowRunsRequest),
         "status": "production",
         "config_dependent": True,
         "is_write": False,
@@ -133,14 +99,7 @@ TOOL_LIST: list[McpTool] = [
         "description": (
             "Get the current status and details of a specific workflow run by run ID."
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo": _REPO_PROPERTY,
-                "run_id": _RUN_ID_PROPERTY,
-            },
-            "required": ["repo", "run_id"],
-        },
+        "inputSchema": build_input_schema(GetWorkflowStatusRequest),
         "status": "production",
         "config_dependent": True,
         "is_write": False,
@@ -159,14 +118,7 @@ TOOL_LIST: list[McpTool] = [
             "Retrieve job summaries and log text for a workflow run. "
             "Output is capped at max_log_size_kb (default: 256 KB)."
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "repo": _REPO_PROPERTY,
-                "run_id": _RUN_ID_PROPERTY,
-            },
-            "required": ["repo", "run_id"],
-        },
+        "inputSchema": build_input_schema(GetWorkflowLogsRequest),
         "status": "production",
         "config_dependent": True,
         "is_write": False,

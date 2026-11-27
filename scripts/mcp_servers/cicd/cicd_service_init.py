@@ -3,16 +3,20 @@
 
 build_service factory for cicd-mcp.
 
+The HTTP client is injected by the caller (the server's lifespan owns it), so this
+factory never creates one and has no shutdown path of its own. Tests inject their own
+client through the same parameter.
+
 Constants and CiBackend protocol live in service_defs.py to avoid circular imports.
 """
 
 from __future__ import annotations
 
 import logging
-import os
 
 import httpx
 
+from mcp_servers.cicd.cicd_credential import resolve_effective_credential
 from mcp_servers.cicd.cicd_models import CicdConfig
 
 from .cicd_service_business import CiCdService
@@ -21,14 +25,13 @@ from .cicd_service_defs import CiBackend
 logger = logging.getLogger(__name__)
 
 
-def build_service(cfg: CicdConfig) -> CiCdService:
-    """Construct a CiCdService from a typed config object."""
-    github_token = os.environ.get("GITHUB_TOKEN", cfg.github_token)
+def build_service(cfg: CicdConfig, http: httpx.AsyncClient) -> CiCdService:
+    """Construct a CiCdService from a typed config object and the injected client."""
+    github_token = resolve_effective_credential(cfg)
     if not github_token:
         logger.warning(
             "cicd-mcp: GITHUB_TOKEN is not set; API rate limit will be 60 req/hr",
         )
-    http = httpx.AsyncClient(timeout=30.0)
     from .cicd_service_github_actions_composite import (
         GitHubActionsCompositeBackend,
     )

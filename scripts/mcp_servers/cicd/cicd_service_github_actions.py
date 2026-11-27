@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 from http import HTTPStatus
 from typing import Any, cast
+from urllib.parse import quote
 
 import httpx
 import orjson
@@ -108,7 +109,10 @@ class GitHubActionsBackend:
         inputs: dict[str, str],
     ) -> str:
         """Trigger a workflow dispatch event."""
-        url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/actions/workflows/{workflow}/dispatches"
+        # The canonical identifier is encoded as one path segment, so a separator or a
+        # percent-encoded segment cannot alter the dispatch path (AC-4).
+        segment = quote(workflow, safe="")
+        url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/actions/workflows/{segment}/dispatches"
         body = orjson.dumps({"ref": ref, "inputs": inputs})
         resp = await self._http.post(
             url,

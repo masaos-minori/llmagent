@@ -12,6 +12,8 @@ Requirement implemented: REQ-004 (published tool schemas generated from the stri
 ## Assumptions
 - The tool names, export names, and endpoints do not change, so the generated tool-ownership matrix and the schema-export policy docs are not affected (Plan consumer scan).
 - Descriptions currently carried by the module-level property dicts must survive the switch; re-pin them on the model fields in the `cicd_models.py` row before removing the dicts here.
+- Step 3a verification (20261127): the wording that moves is the tool-side text currently in the property dicts — `Repository slug in 'owner/repo' format`, `Workflow file name (e.g. ci.yml) or numeric workflow ID`, `Workflow run ID (from get_workflow_runs output)` — not the shorter wording the models carry today (user decision, 20261127). The `cicd_models.py` row performs the move; this row removes the dicts after it.
+- Step 3a verification (20261127): `McpToolProperty` (`cicd_tools.py:13`) becomes unused once the dicts are removed and must be dropped from the import; `TOOL_FIELD_SET_VERSION` stays because `policy_version` uses it (line 55).
 
 ## Design decisions
 - `build_input_schema()` from `scripts/mcp_servers/request_contract.py` (line 44) is the only schema generator; no local dict assembly remains.
@@ -29,6 +31,7 @@ Requirement implemented: REQ-004 (published tool schemas generated from the stri
 
 ### Method
 - Entries currently build `inputSchema` from the property dicts with `type` and `description` only and do not import `build_input_schema` (verified in Step 3a); the metadata fields (`requires_serial`, `resource_scope_kind`, `policy_version`) stay unchanged.
+- Step 3a verification (20261127): the guardrail test compares tool names, dispatch keys, and write/serial flags; it does not compare schema content. Model-to-schema equality is asserted for the file and github domains only (`tests/mcp_servers/file/test_file_schema_consistency.py`, `tests/mcp_servers/github/test_github_tool_registry.py`), so the cicd description equality is pinned by `tests/mcp_servers/cicd/test_cicd_models.py` (sibling row), not by this reference file.
 
 ### Details
 - Field descriptions move to the model field definitions (`Field(description=...)`) so `build_input_schema()` emits the same description text the pinned tests assert.
@@ -57,9 +60,9 @@ Requirement implemented: REQ-004 (published tool schemas generated from the stri
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-162349 | 20261127-162349 | files: scripts/mcp_servers/cicd/cicd_tools.py |
 | 2 | Add or update tests per Validation plan | N/A | — | — | the guardrail test is a reference file, not a modification target |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-162349 | — | ruff/mypy/bandit/lint-imports clean; tests/mcp_servers/cicd/ + tests/mcp_servers/test_tool_schema.py 256 passed; full suite deferred to end of batch end-of-batch full suite: 6 failures all matching tools/known_test_failures_baseline.txt; diff-cover 96% |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs rows |
 
 ### Blocker Log

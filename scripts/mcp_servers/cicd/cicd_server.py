@@ -11,6 +11,10 @@ Security:
   - max_log_size_kb: log output is capped to prevent large data dumps
   - Bearer-token auth via a non-empty auth_token in cicd_mcp_server.toml (required)
 
+Lifecycle:
+  - The FastAPI lifespan owns the shared httpx.AsyncClient, builds the service from it, runs
+    the side-effect-free read-permission probe, and closes the client on shutdown.
+
 Provided endpoints:
   GET  /v1/tools      MCP tool list
   POST /v1/call_tool  MCP standard tool dispatch
@@ -19,24 +23,39 @@ Provided endpoints:
 
 from __future__ import annotations
 
-import os
 import time
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import Any, cast
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
-from shared.security.result_dto import SecurityCheckStatus
+from shared.security.result_dto import (
+    REASON_AUTH_TOKEN_MISSING,
+    REASON_DEPENDENCY_UNREACHABLE,
+    REASON_NOT_APPLICABLE,
+    REASON_OK,
+    SecurityCheckStatus,
+)
 from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.audit import _audit_log
+from mcp_servers.cicd.cicd_credential import resolve_effective_credential
 from mcp_servers.cicd.cicd_models import (
     CicdConfig,
+    canonical_repo_key,
 )
 from mcp_servers.cicd.cicd_service import CiCdService, build_service
-from mcp_servers.cicd.cicd_service_guards import validate_cicd_security
+from mcp_servers.cicd.cicd_service_defs import _GITHUB_API_BASE, build_auth_headers
+from mcp_servers.cicd.cicd_service_guards import (
+    ProbeOutcome,
+    probe_check,
+    validate_cicd_security,
+)
 from mcp_servers.cicd.cicd_tools import TOOL_LIST
 from mcp_servers.cicd.exception_handlers import setup_exception_handlers
 from mcp_servers.dispatch import (
@@ -61,7 +80,13 @@ from mcp_servers.server import (
 logger = Logger(__name__, "/opt/llm/logs/cicd-mcp.log")
 
 _cfg = CicdConfig.load()
-_service: CiCdService = build_service(_cfg)
+# The lifespan is the single owner of the shared client and of the service built from it,
+# so nothing is constructed at import time (REQ-008). Tests inject their own client through
+# the same `build_service()` parameter.
+_http_client: httpx.AsyncClient | None = None
+_service: CiCdService | None = None
+# The outcome the lifespan probe stores for health (REQ-003).
+_probe_outcome: ProbeOutcome | None = None
 
 CICD_SERVER_KEY = "cicd"
 CICD_OWN_CONFIG_FILE = "cicd_mcp_server.toml"
@@ -88,8 +113,10 @@ def _build_security_posture() -> SecurityPosture:
     The flow never raises, so a policy violation still produces a posture the Agent can
     read. Only the server-security stage is supplied: the flow's built-in common stage
     covers own-config, auth-token, and published-tool checks, and this module does not
-    re-read cicd_mcp_server.toml or rebuild the service. The backend is the one the guard
-    mixin already owns.
+    re-read cicd_mcp_server.toml or rebuild the service. The gate runs before bind, so the
+    service the lifespan builds does not exist yet here; the backend availability check is
+    reported not_applicable for that stage and the reachability dimension is reported by the
+    lifespan probe.
     """
     return run_startup_validation(
         CICD_SERVER_KEY,
@@ -98,7 +125,10 @@ def _build_security_posture() -> SecurityPosture:
         auth_token=_cfg.auth_token,
         declared_tools=tuple(tool["name"] for tool in TOOL_LIST),
         server_checks=lambda: validate_cicd_security(
-            _service._backend, _cfg.repo_allowlist, _cfg.workflow_allowlist
+            _service._backend if _service is not None else None,
+            _cfg.repo_allowlist,
+            _cfg.workflow_allowlist,
+            resolve_effective_credential(_cfg),
         ),
     )
 
@@ -115,10 +145,79 @@ def _cicd_tool_availability(cfg: CicdConfig, tool_name: str) -> tuple[bool, str]
     return True, ""
 
 
+def _probe_rate_limit_reason(response: httpx.Response) -> str:
+    """Map the probe response's rate-limit header to a shared reason code."""
+    remaining = response.headers.get("x-ratelimit-remaining")
+    if remaining is None:
+        return REASON_NOT_APPLICABLE
+    try:
+        return REASON_OK if int(remaining) > 0 else REASON_DEPENDENCY_UNREACHABLE
+    except ValueError:
+        return REASON_NOT_APPLICABLE
+
+
+async def run_read_permission_probe(
+    cfg: CicdConfig, http: httpx.AsyncClient, effective_credential: str
+) -> ProbeOutcome:
+    """Run the side-effect-free read-permission probe against the first allowlist entry.
+
+    Only a read is made: dispatch permission stays `not_applicable` because no
+    side-effect-free endpoint exposes a write permission (REQ-003). The credential is used in
+    the request header only and never recorded or echoed. An empty allowlist has no target,
+    so no probe runs.
+    """
+    if not cfg.repo_allowlist:
+        return ProbeOutcome(
+            REASON_NOT_APPLICABLE, REASON_NOT_APPLICABLE, REASON_NOT_APPLICABLE
+        )
+    if not effective_credential:
+        return ProbeOutcome(
+            REASON_AUTH_TOKEN_MISSING, REASON_NOT_APPLICABLE, REASON_NOT_APPLICABLE
+        )
+    target = canonical_repo_key(cfg.repo_allowlist[0])
+    try:
+        response = await http.get(
+            f"{_GITHUB_API_BASE}/repos/{target}/actions/workflows",
+            headers=build_auth_headers(effective_credential),
+        )
+    except httpx.HTTPError:
+        return ProbeOutcome(
+            REASON_DEPENDENCY_UNREACHABLE,
+            REASON_DEPENDENCY_UNREACHABLE,
+            REASON_NOT_APPLICABLE,
+        )
+    rate_limit = _probe_rate_limit_reason(response)
+    if response.status_code == 200:
+        return ProbeOutcome(REASON_OK, REASON_OK, rate_limit)
+    read = (
+        REASON_AUTH_TOKEN_MISSING
+        if response.status_code in (401, 403)
+        and rate_limit != REASON_DEPENDENCY_UNREACHABLE
+        else REASON_DEPENDENCY_UNREACHABLE
+    )
+    return ProbeOutcome(read, REASON_OK, rate_limit)
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+    """Own the shared client, build the service from it, and run the probe (REQ-008, REQ-003)."""
+    global _http_client, _service, _probe_outcome
+    _http_client = httpx.AsyncClient(timeout=30.0)
+    _service = build_service(_cfg, _http_client)
+    _probe_outcome = await run_read_permission_probe(
+        _cfg, _http_client, resolve_effective_credential(_cfg)
+    )
+    try:
+        yield
+    finally:
+        await _http_client.aclose()
+
+
 app = FastAPI(
     title="cicd-mcp",
     version="1.0.0",
     description="CI/CD (GitHub Actions) MCP server",
+    lifespan=_lifespan,
 )
 
 attach_auth_middleware(
@@ -133,12 +232,19 @@ setup_exception_handlers(app)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+def _require_service() -> CiCdService:
+    """Return the service the lifespan built; construction is not an import-time step (REQ-008)."""
+    if _service is None:
+        raise RuntimeError("cicd-mcp: the service is not built; the lifespan owns it")
+    return _service
+
+
 async def _dispatch_cicd_tool(
     name: str, args: ToolArgs, context: ExecutionContext | None = None
 ) -> DispatchResult:
     """Route CI/CD tool calls through the service's dispatch table."""
     return await dispatch_tool(
-        _service.get_dispatch_table(), name, args, context=context
+        _require_service().get_dispatch_table(), name, args, context=context
     )
 
 
@@ -194,12 +300,22 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
 
 @app.get("/health")
 async def health() -> JSONResponse:
-    """Health check endpoint. Returns degraded when GITHUB_TOKEN is not set."""
+    """Health check: the effective credential and the lifespan probe outcome (REQ-001, REQ-003).
+
+    Only failures become dependency entries, so an OK or not_applicable probe leaves the dict
+    empty and `make_health_response()`'s ready rule is unchanged. The probe status comes from
+    `probe_check()`, the same policy the posture uses, so health and the posture cannot
+    disagree. The token itself is never exposed.
+    """
     deps: dict[str, str] = {}
     try:
-        token = os.environ.get("GITHUB_TOKEN", "")
-        if not token:
+        effective = resolve_effective_credential(_cfg)
+        if not effective:
             deps["github_token"] = "not_set"
+        elif _probe_outcome is not None:
+            probe = probe_check(_probe_outcome)
+            if probe.status is SecurityCheckStatus.FAILED:
+                deps["credential_probe"] = probe.reason_code
     except (RuntimeError, OSError):
         deps["config"] = "check failed"
     details: dict[str, object] = {"service": "cicd-mcp"}

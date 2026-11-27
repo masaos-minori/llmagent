@@ -4,8 +4,9 @@ Characterization tests for scripts/mcp_servers/cicd/cicd_server.py's FastAPI wir
   - GET  /v1/tools
   - POST /v1/call_tool (success and unknown-tool paths, with audit logging,
     including the audit record's session_id/request_id field order)
-  - GET  /health (healthy path; the GITHUB_TOKEN-unset degraded path is already
-    covered by tests/mcp_servers/cicd/test_mcp_server_health_status.py)
+  - GET  /health (healthy path; the effective-credential and failed-probe degraded paths are
+    covered by tests/mcp_servers/cicd/test_mcp_server_health_status.py and
+    tests/mcp_servers/cicd/test_cicd_health_posture.py)
   - CiCdMCPServer.dispatch()
 
 These tests lock the current, observed behavior of the thin FastAPI wiring layer
@@ -20,7 +21,6 @@ solely to close the coverage gap on cicd_server.py's own route/dispatch code.
 from __future__ import annotations
 
 import json
-import os
 import pathlib
 import uuid
 from typing import Any
@@ -31,6 +31,11 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp_servers.cicd import cicd_server
 from mcp_servers.cicd.cicd_models import CicdConfig
+from mcp_servers.cicd.cicd_service_guards import ProbeOutcome
+from shared.security.result_dto import (
+    REASON_DEPENDENCY_UNREACHABLE,
+    REASON_NOT_APPLICABLE,
+)
 
 from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
 
@@ -271,21 +276,45 @@ class TestHealthEndpoint:
         # The no-store case: with no store wired the details dict is what it was before this row.
         monkeypatch.setattr(dispatch, "_dedup_store", None)
         monkeypatch.setattr(dispatch, "_dedup_config", None)
-        original_token = os.environ.get("GITHUB_TOKEN")
-        try:
-            os.environ["GITHUB_TOKEN"] = "ghp_test_token"
-            resp = client.get("/health")
-            assert resp.status_code == 200
-            body = resp.json()
-            assert body["status"] == "ok"
-            assert body["ready"] is True
-            assert body["dependencies"] == {}
-            assert body["details"] == {"service": "cicd-mcp"}
-        finally:
-            if original_token is not None:
-                os.environ["GITHUB_TOKEN"] = original_token
-            else:
-                os.environ.pop("GITHUB_TOKEN", None)
+        monkeypatch.setenv("GITHUB_TOKEN", "ghp_test_token")
+        # The posture is built from the effective credential, so it is rebuilt here with one
+        # present; the module-level posture was built at import with none. The lifespan does not
+        # run for a TestClient that is not entered, so the probe outcome stays unset.
+        monkeypatch.setattr(
+            cicd_server, "_security_posture", cicd_server._build_security_posture()
+        )
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["status"] == "ok"
+        assert body["ready"] is True
+        assert body["dependencies"] == {}
+        assert body["details"] == {"service": "cicd-mcp"}
+
+    def test_health_reports_a_failed_probe_as_a_dependency(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The probe outcome reaches health through the shared ready rule (REQ-003, AC-7)."""
+        monkeypatch.setenv("GITHUB_TOKEN", "ghp_test_token")
+        monkeypatch.setattr(
+            cicd_server, "_security_posture", cicd_server._build_security_posture()
+        )
+        monkeypatch.setattr(
+            cicd_server,
+            "_probe_outcome",
+            ProbeOutcome(
+                REASON_DEPENDENCY_UNREACHABLE,
+                REASON_DEPENDENCY_UNREACHABLE,
+                REASON_NOT_APPLICABLE,
+            ),
+        )
+        resp = client.get("/health")
+        assert resp.status_code == 503
+        body = resp.json()
+        assert body["ready"] is False
+        assert body["dependencies"] == {
+            "credential_probe": REASON_DEPENDENCY_UNREACHABLE
+        }
 
     def test_health_details_publish_the_dedup_block_when_a_store_is_wired(
         self,
@@ -294,6 +323,9 @@ class TestHealthEndpoint:
         isolated_dedup: pathlib.Path,
     ) -> None:
         monkeypatch.setenv("GITHUB_TOKEN", "ghp_test_token")
+        monkeypatch.setattr(
+            cicd_server, "_security_posture", cicd_server._build_security_posture()
+        )
         resp = client.get("/health")
         assert resp.status_code == 200
         body = resp.json()

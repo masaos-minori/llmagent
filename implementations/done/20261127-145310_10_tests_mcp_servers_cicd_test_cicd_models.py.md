@@ -30,6 +30,8 @@ Requirements implemented: REQ-004, REQ-005, REQ-006, REQ-007 (model and schema p
 
 ### Method
 - The current pins assert descriptions, defaults, and parsed values (verified in Step 3a); update the expected values to the model-generated schema, keeping one test per pinned fact.
+- Step 3a verification (20261127): the description pins at lines 37-51 change to the wording moved from `cicd_tools.py`'s property dicts (user decision, 20261127), so this row re-pins them to `Repository slug in 'owner/repo' format`, `Workflow file name (e.g. ci.yml) or numeric workflow ID`, `Workflow run ID (from get_workflow_runs output)` rather than keeping the current model wording.
+- Step 3a verification (20261127): no test asserts generated `title` keys, so `build_input_schema()`'s presentation-field pass does not affect these pins; the schema gains `additionalProperties: false` and the numeric/non-empty constraints, which is the shape to pin.
 
 ### Details
 - N/A: no production behavior is defined here.
@@ -57,8 +59,8 @@ Requirements implemented: REQ-004, REQ-005, REQ-006, REQ-007 (model and schema p
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-162256 | 20261127-162256 | files: tests/mcp_servers/cicd/test_cicd_models.py; executed in procedure seq 02's cycle per user decision |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-162256 | — | 48 tests pass; full suite deferred to end of batch end-of-batch full suite: 6 failures all matching tools/known_test_failures_baseline.txt; diff-cover 96% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

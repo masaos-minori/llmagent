@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
@@ -58,7 +59,12 @@ class TestHealthHTTPStatusCodes:
             assert data["operator_action_required"] is False
 
     def test_cicd_health_returns_503_when_github_token_not_set(self) -> None:
-        """cicd-mcp returns 503 when GITHUB_TOKEN is not set."""
+        """cicd-mcp returns 503 when no effective credential is available.
+
+        The effective credential is the environment variable with the config value as the
+        fallback, and the shipped config's own value is empty, so removing the variable leaves
+        nothing. The same unvalidated posture is what refuses HTTP bind at startup.
+        """
         import os
 
         from mcp_servers.cicd.cicd_server import app as cicd_app
@@ -81,6 +87,35 @@ class TestHealthHTTPStatusCodes:
         finally:
             if original_token is not None:
                 os.environ["GITHUB_TOKEN"] = original_token
+
+    def test_cicd_health_returns_200_when_the_config_fallback_is_the_effective_credential(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Health reads the resolved value, so a config-only credential is not degraded."""
+        from mcp_servers.cicd import cicd_server
+        from mcp_servers.cicd.cicd_models import CicdConfig
+
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+        monkeypatch.setattr(
+            cicd_server,
+            "_cfg",
+            CicdConfig(
+                repo_allowlist=["acme/widgets"],
+                workflow_allowlist=["ci.yml"],
+                github_token="config-token",
+            ),
+        )
+        monkeypatch.setattr(
+            cicd_server, "_security_posture", cicd_server._build_security_posture()
+        )
+        client = TestClient(
+            cicd_server.app,
+            raise_server_exceptions=False,
+            headers=MCP_TEST_AUTH_HEADERS,
+        )
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json()["dependencies"] == {}
 
     def test_health_response_shape_when_healthy(self) -> None:
         """Verify the full response shape for a healthy server."""

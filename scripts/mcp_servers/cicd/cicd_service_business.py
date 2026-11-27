@@ -3,6 +3,11 @@
 
 CiCdService: dispatch handlers with allowlist guards, assembled from domain modules.
 
+Each handler canonicalizes the request identifiers at entry, before the guard and the
+backend call, so the guard comparison and the URL see the same canonical value (REQ-005).
+A form the canonicalizer rejects is denied as the guard denies it, so the observable
+authorization behavior is unchanged.
+
 Dependency direction: service_business → service_guards, service_github_actions
 Import from here:  from mcp_servers.cicd.cicd_service_business import CiCdService, GitHubActionsBackend
 """
@@ -14,13 +19,32 @@ from collections.abc import Awaitable, Callable
 
 from shared.json_utils import dumps as _json_dumps
 
-from mcp_servers.cicd.cicd_models import CicdConfig
+from mcp_servers.cicd.cicd_models import (
+    CicdAuthorizationError,
+    CicdConfig,
+    CicdValidationError,
+    canonical_repo_key,
+    canonical_workflow_id,
+)
 from mcp_servers.cicd.cicd_service_defs import CiBackend
 from mcp_servers.server import ToolArgs
 
 from .cicd_service_guards import CiCdGuards
 
 logger = logging.getLogger(__name__)
+
+
+def _canonical_or_denied(value: str, canonicalizer: Callable[[str], str]) -> str:
+    """Return the canonical form of a request value, denying a form it rejects.
+
+    The guard's denial policy is the observable behavior for a tool call, so a value the
+    canonicalizer rejects stays an authorization error here too. The returned value is the
+    one both the guard and the backend use, so the two cannot diverge (REQ-005).
+    """
+    try:
+        return canonicalizer(value)
+    except CicdValidationError as exc:
+        raise CicdAuthorizationError(str(exc)) from exc
 
 
 class CiCdService(CiCdGuards):
@@ -48,9 +72,10 @@ class CiCdService(CiCdGuards):
             raise CicdValidationError(str(e)) from e
 
     def _validate_and_parse_repo(self, repo: str) -> tuple[str, str]:
-        """Validate repo is allowed and parse into (owner, repo)."""
-        self._assert_allowed_repo(repo)
-        return self._parse_repo(repo)
+        """Canonicalize the slug, validate repo is allowed, and parse into (owner, repo)."""
+        key = _canonical_or_denied(repo, canonical_repo_key)
+        self._assert_allowed_repo(key)
+        return self._parse_repo(key)
 
     # ── Dispatch handlers ──────────────────────────────────────────────────────
 
@@ -65,19 +90,21 @@ class CiCdService(CiCdGuards):
             inputs=args.get("inputs", {}),
             dry_run=args.get("dry_run", False),
         )
-        self._assert_allowed_repo(req.repo)
-        self._assert_allowed_workflow(req.workflow)
+        repo_key = _canonical_or_denied(req.repo, canonical_repo_key)
+        workflow = _canonical_or_denied(req.workflow, canonical_workflow_id)
+        self._assert_allowed_repo(repo_key)
+        self._assert_allowed_workflow(workflow)
         if req.dry_run:
-            preview = f"Would trigger workflow '{req.workflow}' on ref '{req.ref}' in repo '{req.repo}'"
+            preview = f"Would trigger workflow '{workflow}' on ref '{req.ref}' in repo '{repo_key}'"
             if req.inputs:
                 preview += f" with inputs={req.inputs}"
             dry_run_result: str = _json_dumps({"preview": preview, "dry_run": True})
             return dry_run_result
-        owner, repo = self._parse_repo(req.repo)
+        owner, repo = self._parse_repo(repo_key)
         trigger_result: str = await self._backend.trigger_workflow(
             owner,
             repo,
-            req.workflow,
+            workflow,
             req.ref,
             req.inputs,
         )

@@ -12,6 +12,8 @@ Requirements implemented: REQ-001 (effective credential through the resolution f
 ## Assumptions
 - Test injection is preserved because tests already pass their own client to the backends (Plan D4).
 - The client is created by the `cicd_server.py` row's lifespan; this document only receives it.
+- Step 3a verification (20261127): `build_service()` has exactly one call site, `cicd_server.py:64` at module level, which the `cicd_server.py` row moves into the lifespan. Tests inject clients into the backends directly (`tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py:22`), not through `build_service()`, so the signature change reaches only the server row.
+- Step 3a verification (20261127): `tests/mcp_servers/cicd/test_cicd_lifecycle.py` does not exist yet, so this row creates it. Lifespan startup and shutdown assertions cannot be written before the `cicd_server.py` row (seq 06) adds the lifespan; this row writes the injection and repeated-construction (no client leak) cases, and the lifespan cases are added by that row.
 
 ## Design decisions
 - `build_service()` takes the client as an argument instead of creating it, following the rag-pipeline lifespan precedent (`scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`, reference only).
@@ -63,9 +65,9 @@ Requirements implemented: REQ-001 (effective credential through the resolution f
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-164243 | 20261127-164243 | files: scripts/mcp_servers/cicd/cicd_service_init.py; call site in cicd_server.py passes the injected client (temporary module-level client until procedure seq 06 moves construction into the lifespan) |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | 20261127-164243 | 20261127-164243 | companion tests/mcp_servers/cicd/test_cicd_lifecycle.py created, 4 tests pass (injection, no-leak, effective credential, warning); lifespan cases deferred to procedure seq 06 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-164243 | — | ruff/bandit/lint-imports clean; bare-except scan via grep (ast-grep CLI not installed in this environment); mypy primary run reports only the pre-existing tools/generate_mcp_inventory.py:22 error unchanged in this batch; tests/mcp_servers/cicd/ 265 passed; full suite deferred to end of batch end-of-batch full suite: 6 failures all matching tools/known_test_failures_baseline.txt; diff-cover 96% pre-commit suppression gate: the two type: ignore[misc] suppressions in the companion test were unjustified; the test now uses monkeypatch.setattr instead, per the decision not to add suppressions in test files |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs rows |
 
 ### Blocker Log

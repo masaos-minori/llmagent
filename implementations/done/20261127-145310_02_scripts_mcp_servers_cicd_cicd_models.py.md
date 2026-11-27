@@ -12,6 +12,10 @@ Requirements implemented: REQ-004 (schemas generated from strict models), REQ-00
 ## Assumptions
 - The hard maximums (`max_log_size_kb` 1..1024, allowlist size 1..100) are Plan decisions approved by the user on 20261126 (UNK-03); no repository convention exists, so they are recorded as module constants here.
 - `scripts/mcp_servers/request_contract.py` (`StrictRequestModel` at line 34, `build_input_schema()` at line 44) and `scripts/shared/repo_identity.py` (`normalize_repo_key()` at line 21, `is_canonical_repo_key()` at line 34) are read-only references; this document does not modify them.
+- Step 3a verification (20261127): importing `mcp_servers.request_contract` and `shared.repo_identity` from this module is allowed by `.importlinter`; the only contract naming this module is `agent-mcp-config-models` (forbidden direction agent → `mcp_servers.cicd.cicd_models`), which is unaffected.
+- Step 3a verification (20261127): `get_non_negative_number()` (`scripts/shared/config_utils.py:105`) accepts 0 and has no upper bound, so the lower bound 1 and `MAX_LOG_SIZE_KB` must be enforced at the call site in `from_dict()`, not by the shared helper.
+- Step 3a verification (20261127): `MAX_ALLOWLIST_SIZE` is a list-length bound (entry count), confirmed with the user on 20261127; it is not a per-entry string-length bound.
+- User decision (20261127): the client-visible field descriptions are the wording currently carried by the `cicd_tools.py` property dicts, so this row moves those strings into `Field(description=...)` and removes `_REPO_DESC` / `_WORKFLOW_DESC` / `_RUN_ID_DESC` (lines 83-85). The existing model wording (`"Repository slug (owner/repo)"` and the two other constants) is replaced, and the sibling test row re-pins the shape tests to the moved wording. This row runs before the `cicd_tools.py` row, so the move must happen here.
 
 ## Design decisions
 - Request models inherit `StrictRequestModel` instead of carrying their own `model_config`, so the published schema and the runtime contract come from one source.
@@ -28,14 +32,15 @@ Requirements implemented: REQ-004 (schemas generated from strict models), REQ-00
 
 ### Procedure
 - Make every request model inherit `StrictRequestModel` from `scripts/mcp_servers/request_contract.py` (`extra="forbid"`).
+- Move the tool-facing field descriptions from `cicd_tools.py`'s property dicts into `Field(description=...)` here (user decision, see Assumptions), so `build_input_schema()` emits the same text clients see today.
 - Keep `run_id >= 1` and `limit` 1..50; add non-empty constraints for `repo`, `workflow`, `ref`.
 - Add the constants `MAX_LOG_SIZE_KB` (new) = 1024 and `MAX_ALLOWLIST_SIZE` (new) = 100.
 - Add `canonical_workflow_id(value: str) -> str` (new): accept a validated file name or a positive numeric id and return the canonical form; reject separators, percent-encoding, blank, and wildcard values.
 - In `CicdConfig.from_dict()`, validate allowlist entries through `normalize_repo_key()` / `is_canonical_repo_key()` from `scripts/shared/repo_identity.py`, reject wildcard and oversized entries, and parse `max_log_size_kb` through `get_non_negative_number()` from `scripts/shared/config_utils.py` with the lower bound 1 and the hard maximum.
 
 ### Method
-- The request models at lines 88-137 currently have no `model_config` and no shared strict base; change the base class only, keep field names and descriptions so the pinned schema-shape tests can be re-pinned by the sibling test row.
-- `from_dict()` already uses `get_typed()` for lists (which raises `ValueError` for a non-integer, verified at `scripts/shared/config_utils.py:56`); switch the `max_log_size_kb` branch to `get_non_negative_number()` and add the upper bound.
+- The request models at lines 88-137 currently have no `model_config` and no shared strict base; change the base class only, keep field names, and move the description text to the model fields (see Assumptions) so the pinned schema-shape tests can be re-pinned by the sibling test row.
+- `from_dict()` already uses `get_typed()` for lists (which raises `ValueError` for a non-integer, verified at `scripts/shared/config_utils.py:56`); switch the `max_log_size_kb` branch to `get_non_negative_number()` and add the lower bound 1 and the upper bound at the call site.
 
 ### Details
 - Newly rejected inputs (recorded in the Plan's change record): extra request fields, blank `repo`/`workflow`/`ref`, `limit` outside 1..50, `run_id` below 1, wildcard allowlist entries, allowlist entries above the hard maximum, `max_log_size_kb` below 1 or above 1024.
@@ -66,9 +71,9 @@ Requirements implemented: REQ-004 (schemas generated from strict models), REQ-00
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-162256 | 20261127-162256 | files: scripts/mcp_servers/cicd/cicd_models.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261127-162256 | 20261127-162256 | pins re-pinned by procedure seq 10 run in the same cycle (user decision 20261127); 48 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-162256 | — | ruff/mypy/bandit/lint-imports clean; tests/mcp_servers/cicd/ 248 passed plus 16 impact-radius tests; full suite deferred to end of batch end-of-batch full suite: 6 failures all matching tools/known_test_failures_baseline.txt; diff-cover 96% |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs rows |
 
 ### Blocker Log

@@ -1,5 +1,8 @@
 """tests/test_cicd_mcp_service.py
 Unit tests for mcp/cicd/service.py: CiCdService guards and GitHubActionsBackend.
+
+The guard tests compare canonical values, and the handler tests pin that each handler
+canonicalizes at entry so the guard and the backend receive the same value (REQ-005, AC-4).
 """
 
 from __future__ import annotations
@@ -17,6 +20,7 @@ from mcp_servers.cicd.cicd_models import (
 )
 from mcp_servers.cicd.cicd_service import CiCdService, GitHubActionsBackend
 from mcp_servers.cicd.cicd_service_github_actions_job import GitHubActionsJobBackend
+from pydantic import ValidationError
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -118,6 +122,16 @@ class TestAssertAllowedRepo:
         with pytest.raises(CicdAuthorizationError):
             svc._assert_allowed_repo("owner/repo")
 
+    def test_case_only_difference_matches_canonical_entry(self) -> None:
+        """The request value and the entry are compared as canonical keys (AC-4)."""
+        svc = _make_service(repo_allowlist=["Owner/Repo"])
+        svc._assert_allowed_repo("owner/repo")  # must not raise
+
+    def test_non_canonical_slug_is_denied(self) -> None:
+        svc = _make_service(repo_allowlist=["owner/repo"])
+        with pytest.raises(CicdAuthorizationError):
+            svc._assert_allowed_repo("nodash")
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CiCdService — workflow_allowlist guard
@@ -149,6 +163,31 @@ class TestAssertAllowedWorkflow:
         svc = _make_service(repo_allowlist=["o/r"], workflow_allowlist=["ci.yml"])
         with pytest.raises(CicdAuthorizationError):
             svc._assert_allowed_workflow("..\\ci.yml")
+
+    def test_percent_encoding_is_rejected(self) -> None:
+        svc = _make_service(repo_allowlist=["o/r"], workflow_allowlist=["ci.yml"])
+        with pytest.raises(CicdAuthorizationError):
+            svc._assert_allowed_workflow("ci%2Eyml")
+
+    def test_blank_workflow_is_denied(self) -> None:
+        svc = _make_service(repo_allowlist=["o/r"], workflow_allowlist=["ci.yml"])
+        with pytest.raises(CicdAuthorizationError):
+            svc._assert_allowed_workflow("   ")
+
+    def test_numeric_id_matches_the_same_canonical_form(self) -> None:
+        """A numeric id and a file name go through the same canonicalizer (AC-4)."""
+        svc = _make_service(repo_allowlist=["o/r"], workflow_allowlist=["42"])
+        svc._assert_allowed_workflow("42")  # must not raise
+
+    def test_case_only_difference_matches_canonical_entry(self) -> None:
+        svc = _make_service(repo_allowlist=["o/r"], workflow_allowlist=["CI.YML"])
+        svc._assert_allowed_workflow("ci.yml")  # must not raise
+
+    def test_duplicate_entries_match_once(self) -> None:
+        svc = _make_service(
+            repo_allowlist=["o/r"], workflow_allowlist=["ci.yml", "ci.yml"]
+        )
+        svc._assert_allowed_workflow("ci.yml")  # must not raise
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -261,6 +300,121 @@ class TestHandleGetWorkflowLogs:
         )
         assert "build" in result
         backend.get_workflow_logs.assert_awaited_once_with("owner", "repo", 456)
+
+
+class TestHandlerCanonicalization:
+    """The handler canonicalizes at entry, so the guard and the backend see one value (AC-4)."""
+
+    @pytest.mark.asyncio
+    async def test_trigger_receives_canonical_values(self) -> None:
+        backend = AsyncMock()
+        backend.trigger_workflow.return_value = "dispatched"
+        svc = _make_service(
+            repo_allowlist=["Owner/Repo"],
+            workflow_allowlist=["ci.yml"],
+            backend=backend,
+        )
+
+        await svc.handle_trigger_workflow(
+            {"repo": "Owner/Repo", "workflow": "CI.YML", "ref": "main"}
+        )
+        backend.trigger_workflow.assert_awaited_once_with(
+            "owner", "repo", "ci.yml", "main", {}
+        )
+
+    @pytest.mark.asyncio
+    async def test_numeric_id_reaches_the_backend_unchanged(self) -> None:
+        backend = AsyncMock()
+        backend.trigger_workflow.return_value = "dispatched"
+        svc = _make_service(
+            repo_allowlist=["owner/repo"],
+            workflow_allowlist=["42"],
+            backend=backend,
+        )
+
+        await svc.handle_trigger_workflow({"repo": "owner/repo", "workflow": "42"})
+        backend.trigger_workflow.assert_awaited_once_with(
+            "owner", "repo", "42", "main", {}
+        )
+
+    @pytest.mark.asyncio
+    async def test_read_handler_receives_canonical_repo_parts(self) -> None:
+        backend = AsyncMock()
+        backend.get_workflow_runs.return_value = '{"runs": []}'
+        svc = _make_service(
+            repo_allowlist=["Owner/Repo"],
+            workflow_allowlist=["ci.yml"],
+            backend=backend,
+        )
+
+        await svc.handle_get_workflow_runs(
+            {"repo": "Owner/Repo", "workflow": "ci.yml", "limit": 5}
+        )
+        backend.get_workflow_runs.assert_awaited_once_with("owner", "repo", "ci.yml", 5)
+
+    @pytest.mark.asyncio
+    async def test_dry_run_preview_shows_canonical_values(self) -> None:
+        import orjson
+
+        backend = AsyncMock()
+        svc = _make_service(
+            repo_allowlist=["Owner/Repo"],
+            workflow_allowlist=["ci.yml"],
+            backend=backend,
+        )
+        result = await svc.handle_trigger_workflow(
+            {"repo": "Owner/Repo", "workflow": "CI.YML", "dry_run": True}
+        )
+        payload = orjson.loads(result)
+        assert payload["preview"] == (
+            "Would trigger workflow 'ci.yml' on ref 'main' in repo 'owner/repo'"
+        )
+        backend.trigger_workflow.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rejected_form_is_denied_before_the_backend_call(self) -> None:
+        """A value the canonicalizer rejects stays an authorization denial, as the guard denies it."""
+        backend = AsyncMock()
+        svc = _make_service(
+            repo_allowlist=["owner/repo"],
+            workflow_allowlist=["ci.yml"],
+            backend=backend,
+        )
+
+        for workflow in ("../ci.yml", "..\\ci.yml", "ci%2Eyml", "*"):
+            with pytest.raises(CicdAuthorizationError):
+                await svc.handle_trigger_workflow(
+                    {"repo": "owner/repo", "workflow": workflow}
+                )
+        backend.trigger_workflow.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_invalid_repo_form_is_denied_before_the_backend_call(self) -> None:
+        backend = AsyncMock()
+        svc = _make_service(
+            repo_allowlist=["owner/repo"],
+            workflow_allowlist=["ci.yml"],
+            backend=backend,
+        )
+
+        for repo in ("nodash", "owner//repo", "owner/repo/extra"):
+            with pytest.raises(CicdAuthorizationError):
+                await svc.handle_trigger_workflow({"repo": repo, "workflow": "ci.yml"})
+        backend.trigger_workflow.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_blank_workflow_is_rejected_at_the_model(self) -> None:
+        """The strict model's non-empty constraint rejects it before the guard runs."""
+        backend = AsyncMock()
+        svc = _make_service(
+            repo_allowlist=["owner/repo"],
+            workflow_allowlist=["ci.yml"],
+            backend=backend,
+        )
+
+        with pytest.raises(ValidationError):
+            await svc.handle_trigger_workflow({"repo": "owner/repo", "workflow": ""})
+        backend.trigger_workflow.assert_not_called()
 
 
 # ──────────────────────────────────────────────────────────────────────────────

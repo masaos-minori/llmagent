@@ -36,7 +36,7 @@ To document a common security model across servers. It covers access control, al
 | file-delete-mcp | `allowed_dirs` | Path jail restricted to configured directories |
 | github-mcp | `allowed_repos` | Fail-closed (empty = all repository access denied, reads and writes) |
 | shell-mcp | `command_allowlist` + `shell_cwd_allowed_dirs` | Deny-all (both are empty by default) |
-| cicd-mcp | `repo_allowlist` + `workflow_allowlist` | Both: fail-closed |
+| cicd-mcp | `repo_allowlist` + `workflow_allowlist` | Both: fail-closed; entries are compared as canonical values |
 | git-mcp | `allowed_repo_paths` + `read_only` | Fail-closed (empty paths = all denied); `read_only=true` |
 | mdq-mcp | `allowed_dirs` | Fail-closed (default `[]` = all denied); raises `MdqAuthorizationError` |
 
@@ -88,6 +88,8 @@ To document a common security model across servers. It covers access control, al
 ### `repo_allowlist` (cicd-mcp)
 
 - Empty denies all (fail-closed).
+- Entries are normalized with the shared `owner/repo` policy above: the guard compares the request value and the stored entries as canonical keys, so an entry that differs from the request only by case matches. An entry the canonicalizer rejects is reported at the guard instead of silently matching nothing.
+- An allowlist larger than the hard maximum is rejected at config load, so the server never starts with an unbounded entry set.
 
 ---
 
@@ -134,12 +136,12 @@ both empty               → use req.env as is
 
 **Policy: fail-closed.** If `workflow_allowlist` is empty, all workflow trigger requests are rejected with a `CicdAuthorizationError`. This is consistent with `repo_allowlist`.
 
-`trigger_workflow` compares the request's `workflow` value with the entries by exact match, so entries must use the form callers pass: a workflow file name such as `ci.yml` (not a repository path). The checked-in configuration uses this file-name form.
+`trigger_workflow` compares the request's `workflow` value with the entries as canonical identifiers produced by `canonical_workflow_id()`, so both identifier forms reach the same entry: a workflow file name such as `ci.yml` (not a repository path) and a numeric workflow id. The checked-in configuration uses the file-name form. A value the canonicalizer rejects — a path separator, percent-encoding, or a wildcard — is denied, and an entry with a rejected form is reported at startup by `server.workflow_pattern_valid` as unreachable configuration rather than rewritten. An allowlist larger than the hard maximum is rejected at config load, so the server never starts with an unbounded entry set.
 
 An empty `workflow_allowlist` is reported by the cicd-mcp server process in two ways:
 
 - **Server log:** `CiCdGuards.__init__` (`scripts/mcp_servers/cicd/cicd_service_guards.py`) logs a warning that all workflow triggers will be denied.
-- **Security Posture:** `validate_cicd_security()` reports `server.workflow_allowlist` as `failed` with reason `allowlist_empty`, so cicd-mcp refuses to bind its HTTP port and Agent startup aborts. Each server validates its own settings; the Agent does not audit server configuration (see [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md)).
+- **Security Posture:** `validate_cicd_security()` reports `server.workflow_allowlist` as `failed` with reason `allowlist_empty`, so cicd-mcp refuses to bind its HTTP port and Agent startup aborts. Each server validates its own settings; the Agent does not audit server configuration (see [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md)). The same function reports `server.github_credential` as `failed` with reason `auth_token_missing` when no effective credential is available for the write-capable start; the effective value is supplied by the credential module, so the posture function never reads the environment itself. `server.github_credential` is an added check id, and the posture contract allows extra checks beyond the required ones.
 
 ## Keywords
 

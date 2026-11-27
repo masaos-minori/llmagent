@@ -1,19 +1,20 @@
 """tests/mcp_servers/cicd/test_cicd_models.py
 
-Characterization tests for scripts/mcp_servers/cicd/cicd_models.py.
+Contract tests for scripts/mcp_servers/cicd/cicd_models.py.
 
-These lock the current public behavior (JSON schema shape, field
-constraints/defaults, config parsing, exception hierarchy) before a
-refactor that extracts duplicated ``Field(...)`` description literals
-into module-level constants. No behavior change is intended; these
-tests exist to prove that before/after schema and validation behavior
-are identical.
+These pin the strict request contract (mcpci001): the schema shape the client
+sees, the field constraints, the canonical identifier function, and the config
+bounds that fail before bind. The description pins carry the wording that was
+moved from `cicd_tools.py`'s property dicts to the model fields, so the published
+schema and the enforced contract cannot drift.
 """
 
 from __future__ import annotations
 
 import pytest
 from mcp_servers.cicd.cicd_models import (
+    MAX_ALLOWLIST_SIZE,
+    MAX_LOG_SIZE_KB,
     CicdAuthorizationError,
     CicdConfig,
     CicdNotFoundError,
@@ -23,8 +24,13 @@ from mcp_servers.cicd.cicd_models import (
     GetWorkflowRunsRequest,
     GetWorkflowStatusRequest,
     TriggerWorkflowRequest,
+    canonical_workflow_id,
 )
 from pydantic import ValidationError
+
+_REPO_DESC = "Repository slug in 'owner/repo' format"
+_WORKFLOW_DESC = "Workflow file name (e.g. ci.yml) or numeric workflow ID"
+_RUN_ID_DESC = "Workflow run ID (from get_workflow_runs output)"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # JSON schema shape (public API surface seen by MCP clients)
@@ -33,13 +39,14 @@ from pydantic import ValidationError
 
 def test_trigger_workflow_request_schema() -> None:
     schema = TriggerWorkflowRequest.model_json_schema()
+    assert schema["additionalProperties"] is False
     assert schema["required"] == ["repo", "workflow"]
-    assert schema["properties"]["repo"]["description"] == "Repository slug (owner/repo)"
-    assert (
-        schema["properties"]["workflow"]["description"]
-        == "Workflow file name (e.g. ci.yml) or workflow ID"
-    )
+    assert schema["properties"]["repo"]["description"] == _REPO_DESC
+    assert schema["properties"]["repo"]["minLength"] == 1
+    assert schema["properties"]["workflow"]["description"] == _WORKFLOW_DESC
+    assert schema["properties"]["workflow"]["minLength"] == 1
     assert schema["properties"]["ref"]["default"] == "main"
+    assert schema["properties"]["ref"]["minLength"] == 1
     assert (
         schema["properties"]["ref"]["description"]
         == "Branch name, tag, or SHA to run the workflow on"
@@ -58,12 +65,10 @@ def test_trigger_workflow_request_schema() -> None:
 
 def test_get_workflow_runs_request_schema() -> None:
     schema = GetWorkflowRunsRequest.model_json_schema()
+    assert schema["additionalProperties"] is False
     assert schema["required"] == ["repo", "workflow"]
-    assert schema["properties"]["repo"]["description"] == "Repository slug (owner/repo)"
-    assert (
-        schema["properties"]["workflow"]["description"]
-        == "Workflow file name (e.g. ci.yml) or workflow ID"
-    )
+    assert schema["properties"]["repo"]["description"] == _REPO_DESC
+    assert schema["properties"]["workflow"]["description"] == _WORKFLOW_DESC
     assert schema["properties"]["limit"]["default"] == 10
     assert schema["properties"]["limit"]["minimum"] == 1
     assert schema["properties"]["limit"]["maximum"] == 50
@@ -75,18 +80,20 @@ def test_get_workflow_runs_request_schema() -> None:
 
 def test_get_workflow_status_request_schema() -> None:
     schema = GetWorkflowStatusRequest.model_json_schema()
+    assert schema["additionalProperties"] is False
     assert schema["required"] == ["repo", "run_id"]
-    assert schema["properties"]["repo"]["description"] == "Repository slug (owner/repo)"
+    assert schema["properties"]["repo"]["description"] == _REPO_DESC
     assert schema["properties"]["run_id"]["exclusiveMinimum"] == 0
-    assert schema["properties"]["run_id"]["description"] == "Workflow run ID"
+    assert schema["properties"]["run_id"]["description"] == _RUN_ID_DESC
 
 
 def test_get_workflow_logs_request_schema() -> None:
     schema = GetWorkflowLogsRequest.model_json_schema()
+    assert schema["additionalProperties"] is False
     assert schema["required"] == ["repo", "run_id"]
-    assert schema["properties"]["repo"]["description"] == "Repository slug (owner/repo)"
+    assert schema["properties"]["repo"]["description"] == _REPO_DESC
     assert schema["properties"]["run_id"]["exclusiveMinimum"] == 0
-    assert schema["properties"]["run_id"]["description"] == "Workflow run ID"
+    assert schema["properties"]["run_id"]["description"] == _RUN_ID_DESC
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -104,6 +111,19 @@ def test_trigger_workflow_request_applies_defaults() -> None:
     assert req.ref == "main"
     assert req.inputs == {}
     assert req.dry_run is False
+
+
+def test_trigger_workflow_request_rejects_extra_field() -> None:
+    with pytest.raises(ValidationError):
+        TriggerWorkflowRequest(repo="o/r", workflow="ci.yml", unexpected="x")
+
+
+@pytest.mark.parametrize("field", ["repo", "workflow", "ref"])
+def test_request_models_reject_blank_string(field: str) -> None:
+    with pytest.raises(ValidationError):
+        TriggerWorkflowRequest.model_validate(
+            {"repo": "o/r", "workflow": "ci.yml", field: ""}
+        )
 
 
 @pytest.mark.parametrize("limit", [0, 51])
@@ -137,6 +157,42 @@ def test_get_workflow_logs_request_rejects_non_positive_run_id() -> None:
 def test_get_workflow_status_request_accepts_positive_run_id() -> None:
     req = GetWorkflowStatusRequest(repo="o/r", run_id=123)
     assert req.run_id == 123
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Canonical workflow identifier
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("ci.yml", "ci.yml"),
+        ("CI.yml", "ci.yml"),
+        ("  ci.yml  ", "ci.yml"),
+        ("123", "123"),
+    ],
+)
+def test_canonical_workflow_id_accepts_both_forms(value: str, expected: str) -> None:
+    assert canonical_workflow_id(value) == expected
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        "   ",
+        "workflows/build.yml",
+        "build\\release",
+        "%63i.yml",
+        "*",
+        "ci.*.yml",
+        "0",
+    ],
+)
+def test_canonical_workflow_id_rejects_unusable_forms(value: str) -> None:
+    with pytest.raises(CicdValidationError):
+        canonical_workflow_id(value)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -180,9 +236,57 @@ def test_cicd_config_from_dict_rejects_bool_max_log_size_kb() -> None:
         CicdConfig.from_dict({"max_log_size_kb": True})
 
 
+@pytest.mark.parametrize("max_log_size_kb", [0, -1, MAX_LOG_SIZE_KB + 1])
+def test_cicd_config_from_dict_rejects_max_log_size_kb_outside_bounds(
+    max_log_size_kb: int,
+) -> None:
+    with pytest.raises(ValueError):
+        CicdConfig.from_dict({"max_log_size_kb": max_log_size_kb})
+
+
+@pytest.mark.parametrize("max_log_size_kb", [1, MAX_LOG_SIZE_KB])
+def test_cicd_config_from_dict_accepts_boundary_max_log_size_kb(
+    max_log_size_kb: int,
+) -> None:
+    config = CicdConfig.from_dict({"max_log_size_kb": max_log_size_kb})
+    assert config.max_log_size_kb == max_log_size_kb
+
+
 def test_cicd_config_from_dict_rejects_non_list_repo_allowlist() -> None:
     with pytest.raises(ValueError):
         CicdConfig.from_dict({"repo_allowlist": "o/r"})
+
+
+def test_cicd_config_from_dict_rejects_wildcard_allowlist_entry() -> None:
+    with pytest.raises(ValueError):
+        CicdConfig.from_dict({"repo_allowlist": ["*"]})
+
+
+def test_cicd_config_from_dict_rejects_wildcard_workflow_entry() -> None:
+    with pytest.raises(ValueError):
+        CicdConfig.from_dict({"workflow_allowlist": ["*.yml"]})
+
+
+def test_cicd_config_from_dict_rejects_oversized_allowlist() -> None:
+    entries = [f"o/r{i}" for i in range(MAX_ALLOWLIST_SIZE + 1)]
+    with pytest.raises(ValueError):
+        CicdConfig.from_dict({"repo_allowlist": entries})
+
+
+def test_cicd_config_from_dict_accepts_boundary_allowlist_size() -> None:
+    entries = [f"o/r{i}" for i in range(MAX_ALLOWLIST_SIZE)]
+    config = CicdConfig.from_dict({"repo_allowlist": entries})
+    assert len(config.repo_allowlist) == MAX_ALLOWLIST_SIZE
+
+
+def test_cicd_config_from_dict_rejects_non_canonical_repo_entry() -> None:
+    with pytest.raises(ValueError):
+        CicdConfig.from_dict({"repo_allowlist": ["Owner/Repo"]})
+
+
+def test_cicd_config_from_dict_rejects_workflow_entry_with_separator() -> None:
+    with pytest.raises(ValueError):
+        CicdConfig.from_dict({"workflow_allowlist": ["workflows/build.yml"]})
 
 
 # ──────────────────────────────────────────────────────────────────────────────

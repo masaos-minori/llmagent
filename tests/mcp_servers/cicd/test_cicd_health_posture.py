@@ -3,10 +3,11 @@
 Security Posture publication and the HTTP bind gate for
 scripts/mcp_servers/cicd/cicd_server.py (REQ-002, REQ-003, REQ-008).
 
-The posture is built once at module import from the already loaded config and the backend
-the guard mixin already owns. `GITHUB_TOKEN` stays a `dependencies` signal, so tests that
-assert a healthy payload set it the way tests/mcp_servers/cicd/test_mcp_server_health_status.py
-does.
+The posture is built once at module import from the already loaded config; the service is
+built by the lifespan, so the pre-bind stage reports the backend availability as
+not_applicable. `GITHUB_TOKEN` stays a `dependencies` signal, read through the effective
+credential, so tests that assert a healthy payload set it the way
+tests/mcp_servers/cicd/test_mcp_server_health_status.py does.
 """
 
 from __future__ import annotations
@@ -18,7 +19,10 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from mcp_servers.cicd import cicd_server
+from mcp_servers.cicd.cicd_models import CicdConfig
+from mcp_servers.cicd.cicd_service_guards import ProbeOutcome
 from shared.security.posture_contract import SECURITY_CONTRACT_VERSION, SecurityPosture
+from shared.security.result_dto import REASON_AUTH_TOKEN_MISSING, REASON_OK
 
 from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
 
@@ -27,13 +31,20 @@ _CICD_CHECK_IDS = {
     "server.workflow_allowlist",
     "server.workflow_pattern_valid",
     "server.backend_available",
+    # Added by procedure seq 04: the effective-credential posture check.
+    "server.github_credential",
 }
+_TEST_CREDENTIAL = "ghp_test_token"
 _FINGERPRINT_RE = re.compile(r"\A[0-9a-f]{64}\Z")
 
 
 @pytest.fixture
 def client() -> TestClient:
-    """TestClient for the real cicd app; cicd-mcp keeps the empty-token accept-all path."""
+    """TestClient for the real cicd app, whose shipped config carries a non-empty auth token.
+
+    `require_auth_token()` is fail-closed on an empty token, so the app cannot be constructed
+    without one; the lifespan does not run here, which keeps the probe outcome unset.
+    """
     return TestClient(cicd_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
 
@@ -70,6 +81,18 @@ def _posture_with(
     return posture
 
 
+def _posture_with_credential(
+    monkeypatch: pytest.MonkeyPatch, **overrides: object
+) -> SecurityPosture:
+    """Rebuild the posture with an effective credential present, then restore it.
+
+    The credential check added by procedure seq 04 reads the effective value, so a posture
+    that is expected to validate needs a credential; the shipped config's own value is empty.
+    """
+    monkeypatch.setenv("GITHUB_TOKEN", _TEST_CREDENTIAL)
+    return _posture_with(monkeypatch, **overrides)
+
+
 def _failed_check_ids(posture: SecurityPosture) -> set[str]:
     """Return the check ids the posture reports as failed."""
     return {
@@ -80,7 +103,12 @@ def _failed_check_ids(posture: SecurityPosture) -> set[str]:
 class TestPosturePublication:
     """AC-002: cicd-mcp publishes the posture on /health with no Secret in it."""
 
-    def test_health_body_carries_the_security_block(self, client: TestClient) -> None:
+    def test_health_body_carries_the_security_block(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The credential check is part of validation, so the posture is rebuilt with an
+        # effective credential before the health body is read.
+        _posture_with_credential(monkeypatch)
         block = _security_block(client)
 
         assert block["server_key"] == "cicd"
@@ -97,9 +125,21 @@ class TestPosturePublication:
     ) -> None:
         assert _published_checks(client)["server.backend_available"] == "not_applicable"
 
-    def test_shipped_config_produces_a_validated_posture(self) -> None:
-        posture = cicd_server._security_posture
+    def test_shipped_config_validates_only_with_an_effective_credential(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The shipped config's own github_token is empty, so the credential check decides validation.
 
+        Re-pinned by procedure seq 04: without an effective credential the posture is not
+        validated, which is what keeps the bind gate closed for a tokenless start (REQ-002).
+        """
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+        posture = _posture_with(monkeypatch)
+        assert posture.validated is False
+        assert "server.github_credential" in _failed_check_ids(posture)
+
+        monkeypatch.setenv("GITHUB_TOKEN", _TEST_CREDENTIAL)
+        posture = _posture_with(monkeypatch)
         assert posture.validated is True
         assert posture.ready is True
 
@@ -116,6 +156,74 @@ class TestPosturePublication:
         ]
 
         assert all(value not in text for value in forbidden if value)
+
+
+class TestHealthDependencyValues:
+    """Health reports the effective credential and a failed probe, never the token (REQ-001, REQ-003)."""
+
+    def _cfg_with(self, monkeypatch: pytest.MonkeyPatch, github_token: str) -> None:
+        """Point the module at a config whose only credential source is the fallback."""
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+        monkeypatch.setattr(
+            cicd_server,
+            "_cfg",
+            CicdConfig(
+                repo_allowlist=["acme/widgets"],
+                workflow_allowlist=["ci.yml"],
+                github_token=github_token,
+            ),
+        )
+        monkeypatch.setattr(
+            cicd_server, "_security_posture", cicd_server._build_security_posture()
+        )
+
+    def test_config_fallback_is_the_effective_credential_when_env_is_unset(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A config-only token is still the effective credential, so health is not degraded."""
+        self._cfg_with(monkeypatch, "config-token")
+        response = client.get("/health")
+
+        assert response.status_code == 200
+        assert response.json()["dependencies"] == {}
+
+    def test_no_effective_credential_is_a_dependency_failure(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._cfg_with(monkeypatch, "")
+        response = client.get("/health")
+
+        assert response.status_code == 503
+        assert response.json()["dependencies"] == {"github_token": "not_set"}
+
+    def test_failed_probe_adds_the_probe_dependency(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Only a failed probe becomes a dependency entry, so the ready rule is unchanged (AC-7)."""
+        _posture_with_credential(monkeypatch)
+        monkeypatch.setattr(
+            cicd_server,
+            "_probe_outcome",
+            ProbeOutcome(REASON_AUTH_TOKEN_MISSING, REASON_OK, REASON_OK),
+        )
+        response = client.get("/health")
+
+        assert response.status_code == 503
+        assert response.json()["dependencies"] == {
+            "credential_probe": REASON_AUTH_TOKEN_MISSING
+        }
+
+    def test_ok_probe_leaves_dependencies_empty(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _posture_with_credential(monkeypatch)
+        monkeypatch.setattr(
+            cicd_server, "_probe_outcome", ProbeOutcome(REASON_OK, REASON_OK, REASON_OK)
+        )
+        response = client.get("/health")
+
+        assert response.status_code == 200
+        assert response.json()["dependencies"] == {}
 
 
 class TestFingerprintView:
@@ -143,15 +251,19 @@ class TestFingerprintView:
 class TestBindGate:
     """AC-003: cicd-mcp does not bind HTTP when validation fails."""
 
-    def test_validated_posture_does_not_block_bind(self) -> None:
+    def test_validated_posture_does_not_block_bind(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _posture_with_credential(monkeypatch)
         cicd_server._enforce_posture_gate()
 
     def test_empty_auth_token_is_a_warning_and_stays_validated(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # Documented design: the server keeps the empty-token accept-all path and only
-        # reports common.auth_token as a warning; Agent startup is what rejects it.
-        posture = _posture_with(monkeypatch, auth_token="")
+        # Documented design: the posture reports common.auth_token as a warning, while the
+        # server process itself refuses to start on an empty token through require_auth_token().
+        # The credential check still needs an effective credential for the posture to validate.
+        posture = _posture_with_credential(monkeypatch, auth_token="")
 
         assert posture.validated is True
         statuses = {check.check_id: check.status.value for check in posture.checks}
