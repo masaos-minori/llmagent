@@ -1,31 +1,22 @@
-# Size ceilings of the pipeline instruction files over the default limit (16384 B), skillsize001 Stage 2.
+# Size ceilings of the pipeline instruction files over the default limit (20480 B), skillsize001 Stage 2.
 # Measured 2026-11-23 after the runtime split: 72 covered files, 828780 B in total.
 # Per-invocation load (bytes, Step 0 file lists): plan-to-implementation-procedure 166871 -> 152099,
 # issue-to-plan 145745 -> 130991 (each 14.7 KB lower). A ceiling, not a license: lower it with --update-baseline.
 # skillsize002 Stage A (2026-11-23): code-implementation workflow.md 52593 -> 42118 B (workflow-edge.md 12258 B is loaded only when its trigger holds); the repeated load (workflow, SKILL.md, prompt) is 10475 B lower.
 # skillsize003 Stage B (2026-11-23): plan-to-implementation-procedure workflow.md 39108 -> 34876 B (edge 6089 B), issue-to-plan workflow.md 45620 -> 42540 B (edge 4512 B); the repeated load is 4232 B and 3080 B lower.
-prompts/05_skills.md	18962
-prompts/08_document-sync.md	19015
-# Re-recorded at 17158 (2026-11-27, Context Reading): the retroactive-application bullet is added to
-# rules/ai-execution.md, which was already at its 17031 B ceiling, so any addition exceeds it. Owner
-# decision: re-record the ceiling rather than compress unrelated rule text.
-rules/ai-execution.md	17158
-# Re-recorded at 19763 (2026-11-27, cliplc012 row 5): the gate row for tools/check_test_taxonomy.py is
-# mandatory, because run_validation_gates.py's drift report requires every ROUTING_GATES entry to have a
-# matching rules/tool-gates.md checker row. A new row cannot fit under the 19478 B ceiling, so the ceiling
-# equals the accepted size.
-rules/tool-gates.md	19763
+# Default limit raised from 16384 B to 20480 B (2026-11-27, owner instruction). The entries whose ceiling was at or
+# below 20480 B (prompts/05_skills.md, prompts/08_document-sync.md, rules/ai-execution.md, rules/tool-gates.md,
+# skills/python-code-review/workflow.md, skills/python-lint-typecheck/workflow.md) were removed with their notes: they
+# would be stale (check_skill_size.py reports an entry at or under the limit). The other ceilings are unchanged.
 skills/code-implementation/workflow.md	42112
 skills/git-commit-and-sync/workflow.md	22947
 skills/issue-creator/workflow.md	22841
 skills/issue-to-plan/workflow.md	42533
 skills/plan-to-implementation-procedure/workflow.md	34853
-skills/python-code-review/workflow.md	17024
 skills/python-debug-root-cause/workflow.md	30767
 skills/python-design/workflow.md	22436
 skills/python-documentation/workflow.md	25188
 skills/python-implementation/workflow.md	24947
-skills/python-lint-typecheck/workflow.md	17851
 skills/python-refactoring/workflow.md	20895
 # Re-recorded at 27812 (2026-11-27, cliplc012 row 11): the Test structure section gains the taxonomy
 # classification obligation (REQ-002, REQ-003), which is three lines of rule text. The file was already at its

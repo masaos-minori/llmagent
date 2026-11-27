@@ -5,7 +5,7 @@ Size budget for the instruction files that every pipeline cycle loads (skillsize
 
 Every covered file (`skills/**/*.md`, `rules/*.md`, `prompts/*.md`, `templates/*.md`,
 `routing.md`, `AGENTS.md`, `CLAUDE.md`) is measured in bytes. A file larger than the limit
-(default 16384 B) is a violation unless it is recorded in the baseline. The model is
+(default 20480 B) is a violation unless it is recorded in the baseline. The model is
 `tools/check_module_size.py`, with the same baseline semantics: the baseline is a ceiling,
 not a license.
 
@@ -45,7 +45,7 @@ if __package__ in (None, ""):
 
 from tools.check_module_size import load_baseline, write_baseline
 
-DEFAULT_LIMIT = 16384
+DEFAULT_LIMIT = 20480
 
 DEFAULT_BASELINE = Path(__file__).resolve().parent / "check_skill_size_baseline.txt"
 

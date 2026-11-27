@@ -34,7 +34,7 @@ Measure first, then move only sections shown to be rarely needed, verbatim.
 
 ## Constraints
 - No rule text is dropped or reworded; moves are verbatim and compared.
-- Edge files stay under 16384 B.
+- Edge files stay under 20480 B.
 
 ## Acceptance Criteria
 - [ ] The measurement and its result are recorded in the change description.

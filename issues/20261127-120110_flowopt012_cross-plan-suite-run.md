@@ -27,7 +27,7 @@ Obtain a decision with explicit conditions, then write it down.
 
 ## Constraints
 - A failed shared run must be attributable per Plan; the text must say how.
-- `skills/code-implementation/workflow-edge.md` stays under 16384 B (15160 B on 2026-11-27).
+- `skills/code-implementation/workflow-edge.md` stays under 20480 B (15160 B on 2026-11-27).
 
 ## Acceptance Criteria
 - [ ] The decision and its conditions are written in the workflow text.
