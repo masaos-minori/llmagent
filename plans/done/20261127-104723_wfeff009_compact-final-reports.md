@@ -177,11 +177,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Compact form for `code-implementation` (`skills/code-implementation/workflow-edge.md`, `skills/code-implementation/workflow.md`) | In Progress | — | — |  |
-| 2 | Compact form for `plan-to-implementation-procedure` (`skills/plan-to-implementation-procedure/workflow-edge.md`, `skills/plan-to-implementation-procedure/workflow.md`) | In Progress | — | — |  |
-| 3 | Compact form for `issue-to-plan` (`skills/issue-to-plan/workflow-edge.md`, `skills/issue-to-plan/workflow.md`) | In Progress | — | — |  |
-| 4 | Compact form for `git-commit-and-sync` (`skills/git-commit-and-sync/workflow-edge.md`, `skills/git-commit-and-sync/workflow.md`) | In Progress | — | — |  |
-| 5 | Review past reports; deployment check is N/A (`skills/code-implementation/workflow.md`) | Pending | — | — |  |
+| 1 | Compact form for `code-implementation` (`skills/code-implementation/workflow-edge.md`, `skills/code-implementation/workflow.md`) | Completed | — | 20261127-112331 |  |
+| 2 | Compact form for `plan-to-implementation-procedure` (`skills/plan-to-implementation-procedure/workflow-edge.md`, `skills/plan-to-implementation-procedure/workflow.md`) | Completed | — | 20261127-112331 |  |
+| 3 | Compact form for `issue-to-plan` (`skills/issue-to-plan/workflow-edge.md`, `skills/issue-to-plan/workflow.md`) | Completed | — | 20261127-112331 |  |
+| 4 | Compact form for `git-commit-and-sync` (`skills/git-commit-and-sync/workflow-edge.md`, `skills/git-commit-and-sync/workflow.md`) | Completed | — | 20261127-112331 |  |
+| 5 | Review past reports; deployment check is N/A (`skills/code-implementation/workflow.md`) | Completed | — | — | Past reports reviewed against the compact forms: a cycle with a correction or question uses the full form, a clean cycle loses no fact; no tool or skill parses the report text (rg over tools, tests, skills, rules, prompts); deployment N/A (no scripts/ or config/ change) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -191,14 +191,14 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261127-110148_01_skills_code-implementation_workflow-edge.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-110148_02_skills_code-implementation_workflow.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-110148_03_skills_plan-to-implementation-procedure_workflow-edge.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261127-110148_04_skills_plan-to-implementation-procedure_workflow.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261127-110148_05_skills_issue-to-plan_workflow-edge.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261127-110148_06_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261127-110148_07_skills_git-commit-and-sync_workflow-edge.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261127-110148_08_skills_git-commit-and-sync_workflow.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261127-110148_01_skills_code-implementation_workflow-edge.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-110148_02_skills_code-implementation_workflow.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-110148_03_skills_plan-to-implementation-procedure_workflow-edge.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261127-110148_04_skills_plan-to-implementation-procedure_workflow.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261127-110148_05_skills_issue-to-plan_workflow-edge.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261127-110148_06_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261127-110148_07_skills_git-commit-and-sync_workflow-edge.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261127-110148_08_skills_git-commit-and-sync_workflow.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

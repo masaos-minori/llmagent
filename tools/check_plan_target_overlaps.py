@@ -30,6 +30,7 @@ Usage:
     python tools/check_plan_target_overlaps.py
     python tools/check_plan_target_overlaps.py --format json
     python tools/check_plan_target_overlaps.py --format csv
+    python tools/check_plan_target_overlaps.py --plan plans/<plan>.md [--plan ...]
 
 Exit code: always 0 (report-only heuristic; see the candidate-not-verdict
 note above).
@@ -163,6 +164,31 @@ def find_cross_plan_target_overlaps(
     return findings
 
 
+def normalize_plan_path(value: str) -> str:
+    """Repository-relative POSIX form of a Plan path, as `PlanDocument.rel_path`."""
+    path = Path(value)
+    try:
+        return path.resolve().relative_to(ROOT_DIR).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _finding_plans(detail: str) -> list[str]:
+    """The Plan paths a finding's detail lists, between `: ` and ` -- `."""
+    listed = detail.split(": ", 1)[-1].split(" -- ", 1)[0]
+    return [item.strip() for item in listed.split(", ")]
+
+
+def filter_findings_by_plans(
+    findings: list[dict[str, str]], plans: list[str]
+) -> list[dict[str, str]]:
+    """Keep findings that name any of *plans* (exact path match); no plans keeps all."""
+    if not plans:
+        return findings
+    wanted = {normalize_plan_path(plan) for plan in plans}
+    return [f for f in findings if wanted & set(_finding_plans(f["detail"]))]
+
+
 def render_text(findings: list[dict[str, str]]) -> str:
     if not findings:
         return "No findings.\n"
@@ -201,6 +227,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help="Machine-readable output format (default: human-readable text)",
     )
+    parser.add_argument(
+        "--plan",
+        action="append",
+        default=None,
+        metavar="PATH",
+        help="Keep only findings that name this Plan (repeatable)",
+    )
     return parser
 
 
@@ -208,8 +241,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
 
+    for plan in args.plan or []:
+        if not Path(plan).is_file():
+            print(f"error: not a file: {plan}", file=sys.stderr)
+            return 2
+
     documents = discover_plan_documents()
-    findings = find_cross_plan_target_overlaps(documents)
+    findings = filter_findings_by_plans(
+        find_cross_plan_target_overlaps(documents), args.plan or []
+    )
 
     if args.format == "json":
         print(render_json(findings))

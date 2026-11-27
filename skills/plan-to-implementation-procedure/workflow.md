@@ -494,19 +494,17 @@ regardless of which path (tool call or manual fallback) performed the move.
 
 ### Final report
 
-Emit once per Plan, whether the cycle ended moved or `Blocked`. The one-line progress
-format above stays for step-by-step updates; the final report adds:
+Emit once per Plan, whether the cycle ended moved or `Blocked`.
 
-- the Plan path and its outcome (`moved to plans/done/` or `Blocked` with the cause);
-- the generated documents in `seq` (execution) order, as paths;
-- rows skipped as `Already implemented` (with the matched document) and rows
-  `Partially implemented` (with the existing document the new one references);
-- each non-blocking `Needs confirmation` caveat, each `Plan Gap`, and each uncovered row
-  with its next action for the user;
-- every edit made to the Plan in Step 3a (which sections, and why), the Plan steps treated
-  as unmapped in Step 4, and any Plan-level overlap found in Step 2;
-- each gated procedure with its blocking item (empty when the Plan is not gated);
-- the next step: run `code-implementation` over the documents in `seq` order.
+Use the compact form when the cycle had none of these deviations: a row `Already
+implemented` or `Partially implemented`, a non-blocking `Needs confirmation` caveat, a
+`Plan Gap`, an uncovered row, a Step 3a edit to the Plan, an unmapped Plan step, a
+Plan-level overlap, a gated procedure, or `Blocked`. Report three lines: the Plan path and
+outcome (`moved to plans/done/`); the generated documents in `seq` order as paths; and
+`Validation:` the coverage, structure, and stale results, with the next step (run
+`code-implementation` over the documents in `seq` order). Any deviation requires the full
+form: load `skills/plan-to-implementation-procedure/workflow-edge.md` and follow its
+"Final report: full form" section.
 
 ---
 

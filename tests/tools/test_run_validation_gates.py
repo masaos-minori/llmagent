@@ -1162,3 +1162,134 @@ def test_run_summary_header_prints_the_cli_base(
 def test_verbose_option_parses() -> None:
     assert build_parser().parse_args([]).verbose is False
     assert build_parser().parse_args(["--verbose"]).verbose is True
+
+
+def _status_results():
+    from tools.run_validation_gates import GateResult
+
+    return [
+        GateResult("p-pass", "Pass", "uv run python tools/ok.py", ""),
+        GateResult("p-fail", "Fail", "uv run python tools/fail.py", "exit code 1"),
+        GateResult("p-partial", "Partial", "uv run python tools/part.py", "some"),
+        GateResult("p-blocked", "Blocked", "uv run python tools/blk.py", "needs input"),
+        GateResult(
+            "p-missing",
+            "Not available",
+            "ast-grep scan",
+            "command not found: ast-grep",
+            "missing-tool",
+        ),
+        GateResult(
+            "p-hidden",
+            "Not available",
+            "uv run python tools/x.py --file <path>",
+            "needs a runtime argument (placeholder in command)",
+            "runtime-argument",
+        ),
+    ]
+
+
+def test_failures_only_prints_non_pass_rows_count_and_result(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import tools._validation_gate_report as report
+
+    report.render_summary(
+        _status_results(), ["a.py", "b.py"], "fast", "master", False, True
+    )
+    out = capsys.readouterr().out
+    assert "changed files: 2" in out
+    assert "a.py, b.py" not in out
+    assert "p-pass" not in out and "p-hidden" not in out
+    for name in ("p-fail", "p-partial", "p-blocked", "p-missing"):
+        assert name in out
+    hidden_lines = [line for line in out.splitlines() if "--verbose" in line]
+    assert len(hidden_lines) == 1 and "1 gate(s) hidden" in hidden_lines[0]
+    assert out.rstrip().endswith("Result: Fail (1 failing gate(s))")
+
+
+def test_failures_only_with_verbose_prints_the_runtime_argument_row(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import tools._validation_gate_report as report
+
+    report.render_summary(_status_results(), ["a.py"], "fast", "master", True, True)
+    out = capsys.readouterr().out
+    assert "p-hidden" in out and "--verbose" not in out
+    assert "p-pass" not in out
+
+
+def test_failures_only_all_pass_and_empty(capsys: pytest.CaptureFixture[str]) -> None:
+    import tools._validation_gate_report as report
+    from tools.run_validation_gates import GateResult
+
+    passing = [GateResult("only", "Pass", "uv run python tools/ok.py", "")]
+    report.render_summary(passing, ["a.py"], "fast", "master", False, True)
+    out = capsys.readouterr().out
+    assert "only" not in out and out.rstrip().endswith("Result: Pass")
+    report.render_summary([], [], "fast", "master", False, True)
+    out = capsys.readouterr().out
+    assert "No gates selected" in out and out.rstrip().endswith("Result: Pass")
+
+
+def test_default_summary_text_is_pinned(capsys: pytest.CaptureFixture[str]) -> None:
+    """The default output equals the text printed before the failures-only option."""
+    import tools._validation_gate_report as report
+
+    report.render_summary(_mixed_results(), ["scripts/a.py"], "fast", "master")
+    expected = (
+        "Validation gates — mode: fast, base: master, changed files: 1\n"
+        "scripts/a.py\n\n"
+        "  visible-fail     Fail           uv run python tools/fail.py\n"
+        "          (exit code 1)\n"
+        "  visible-missing  Not available  ast-grep scan\n"
+        "          (command not found: ast-grep)\n"
+        "  (1 gate(s) hidden: their commands need a runtime argument; "
+        "pass --verbose to show them)\n"
+    )
+    assert capsys.readouterr().out == expected
+    report.render_summary(
+        _mixed_results(), ["scripts/a.py"], "fast", "master", False, False
+    )
+    assert capsys.readouterr().out == expected
+
+
+@pytest.mark.parametrize(
+    ("statuses", "expected_code"),
+    [
+        (["Pass", "Pass"], 0),
+        (["Pass", "Fail"], 1),
+        (["Blocked", "Not available", "Partial"], 0),
+    ],
+)
+def test_failures_only_exit_code_equals_the_full_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    statuses: list[str],
+    expected_code: int,
+) -> None:
+    import tools.run_validation_gates as rvg
+    from tools.run_validation_gates import GateResult
+
+    results = [
+        GateResult(f"g{i}", status, f"uv run python tools/g{i}.py", "")
+        for i, status in enumerate(statuses)
+    ]
+    monkeypatch.setattr(rvg, "_changed_files", lambda base: ["plans/p.md"])
+    monkeypatch.setattr(rvg, "run_gates", lambda gates, **kwargs: results)
+    full = rvg.main(["--base", "master"])
+    capsys.readouterr()
+    filtered = rvg.main(["--base", "master", "--failures-only"])
+    out = capsys.readouterr().out
+    assert full == filtered == expected_code
+    assert "Result:" in out
+
+
+def test_failures_only_option_parses() -> None:
+    assert build_parser().parse_args([]).failures_only is False
+    assert build_parser().parse_args(["--failures-only"]).failures_only is True
+
+
+def test_run_validation_gates_stays_under_the_tools_size_gate() -> None:
+    root = Path(__file__).resolve().parent.parent.parent
+    assert (root / "tools" / "run_validation_gates.py").stat().st_size <= 24576

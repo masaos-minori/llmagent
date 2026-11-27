@@ -69,3 +69,24 @@ If Step 8 (or an earlier Step's revalidation) requires correcting the Plan docum
 Edit, see `rules/workflow-lifecycle.md` Plan-Document Correction Handling for whether
 `AGENTS.md` Rollback Directive applies (it does not) and how a repeated-correction risk is
 bounded instead.
+
+### Step 9: full report
+
+Use this report when the cycle had any deviation, was the no-Plan case, or was the existing-Plan case.
+
+When no Plan was generated this cycle, report only: the Issue path; the case (`already
+resolved / no longer applies` with the supporting evidence, or `existing Plan` with that
+Plan's path and its `Frozen` read-back); and the Issue pending move. The Plan-specific
+fields below do not apply.
+
+Otherwise report: generated Plan path; generated Unknown/Risk files (or `None`); number of
+Requirements; number of `Implementation Target Files` rows; Path A/B classification
+(one word; rationale is in the Plan's Design section, MUST NOT restate);
+information-completeness result; traceability result; `Implementation Target Files`
+freeze status (`Frozen` / not `Frozen` with reason); overlaps with other Frozen Plans and
+their Step 8b judgements (or `None`); unresolved items count; the Issue pending move; and
+next steps. Next steps: the Plan, any Unknown/Risk files, and the moved Issue are
+uncommitted (the rename is staged), so `git-commit-and-sync` commits them together; then
+`plan-to-implementation-procedure` takes the Plan. For a `Blocked` cycle, list what the
+user must decide. MUST NOT restate the Requirement Traceability evidence-classification
+breakdown (already in the Plan's table).

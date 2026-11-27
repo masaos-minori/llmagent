@@ -171,3 +171,61 @@ document in this session (see `AGENTS.md` Loop Prevention > Rollback Directive).
 this file's cycle here and wait for the user to provide new information, approve a
 different scope, or explicitly direct a retry — MUST NOT resume automatically once
 reverted.
+
+## Final Report: full form
+
+Use this form when the cycle had any deviation named in `workflow.md` Final Report.
+
+Include the following in the final report:
+
+### One-line traceability summary
+`Source: {impl_proc_file} | Issue: {source_issue} | Plan: {source_plan} | Target: {related_target_files} | Changed: {files} | Completed: {timestamp from date +%Y%m%d-%H%M%S}`
+
+`{source_issue}`, `{source_plan}`, and `{related_target_files}` are the values
+extracted from the implementation procedure's own Traceability section in Step 2 —
+carried forward, not re-derived. `{files}` is the changed-file list recorded in Step
+3d's Execution Status Notes — read back from there, not recomputed from `git diff` at
+report time.
+
+This phase edits existing code and `docs/*.md` files rather than producing a
+standalone generated document, so MUST NOT insert a `## Traceability` section into
+those files — the one-line summary above is this cycle's traceability record.
+
+### Execution Status
+
+Table structure, status/type vocabulary, and general guidance: see
+`templates/execution-status.md`. Columns `Step | Description | Status | Started | Completed | Notes`, one row per Step 1-7, all starting `Pending` (update Status as each step starts and finishes). Leave Notes empty for a step
+that completed as expected — fill it only for a deviation (skipped step, no-mapping outcome, blocker reference). Descriptions:
+
+1. Identify the target implementation procedure file(s)
+2. Read the current implementation procedure file
+3. Implement the feature and pass code validation
+4. Test the feature and pass required tests/coverage (or the documentation-only replacement checkers)
+5. Update documentation per `docs/00_index.md` task-scope mapping
+6. Validate documentation updates
+7. Move the implementation procedure file to `implementations/done/`
+
+### Questions asked
+
+Report the number of questions asked of the user in this cycle and, for each, the state
+check that was run and why it did not decide the question, or `Questions asked: None`.
+
+### Next steps
+
+State that the cycle's code, test, and doc changes are uncommitted and the archival rename
+is staged, and that `git-commit-and-sync` commits them (include the staged rename). When
+`scripts/` files were added, removed, or renamed, mention `deploy`, which runs only on the
+user's request after the change is pushed. In a stopped batch, list the procedures not
+run and why.
+
+### Blocker Log
+
+If no blocker was encountered, report `Blockers: None` as a single line — MUST NOT
+render an empty table. Otherwise, use the Blocker Log table structure from
+`templates/execution-status.md`.
+
+### Work Items Created
+
+If no artifact beyond the planned code/test/doc changes was produced, report `Work
+items created: None` as a single line — MUST NOT render an empty table. Otherwise, use
+the Work Items Created table structure from `templates/execution-status.md`.

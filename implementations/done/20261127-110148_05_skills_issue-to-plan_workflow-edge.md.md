@@ -1,13 +1,13 @@
 ## Goal
-- Add `### Final report: full form` to `skills/plan-to-implementation-procedure/workflow-edge.md`, holding the current final-report text verbatim (`REQ-002`, `REQ-006`).
+- Add `### Step 9: full report` to `skills/issue-to-plan/workflow-edge.md`, holding the current Step 9 report text verbatim (`REQ-003`, `REQ-006`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- Runs before seq 04.
+- Runs before seq 06.
 
 ## Assumptions
-- Verified in Step 3a: the file is 7556 B (no baseline entry); the region to move is in `skills/plan-to-implementation-procedure/workflow.md` `### Final report`: from `The one-line progress` (second sentence of the first paragraph) through the last bullet (`the next step: run \`code-implementation\` over the documents in \`seq\` order.`), about 800 B.
+- Verified in Step 3a: the file is 4512 B (no baseline entry); the region to move is in `skills/issue-to-plan/workflow.md` `## Step 9: Final Validation`: the paragraph starting `When no Plan was generated this cycle, report only:` and the paragraph starting `Otherwise report:` (through `(already in the Plan's table).`), about 1.5 KB; the `Per rules/ai-execution.md Progress Reporting (Base)` paragraph and the gate paragraphs stay in `workflow.md`.
 
 ## Design decisions
 - Append at the end of the file as a level-3 heading, like the existing sections.
@@ -17,11 +17,11 @@ N/A: the Plan fixes the design (compact default in the workflow, full form verba
 
 ## Implementation
 ### Target file
-`skills/plan-to-implementation-procedure/workflow-edge.md`
+`skills/issue-to-plan/workflow-edge.md`
 
 ### Procedure
-1. Append `### Final report: full form` and an introductory sentence: "Use this form when the cycle had any deviation named in `workflow.md` Final report."
-2. Copy the region verbatim under it.
+1. Append `### Step 9: full report` and an introductory sentence: "Use this report when the cycle had any deviation, was the no-Plan case, or was the existing-Plan case named in `workflow.md` Step 9."
+2. Copy the two paragraphs verbatim under it.
 
 ### Method
 - Copy moved text exactly (whitespace included); edit with exact-string replacements and check each anchor occurs once with `rg -c` first.
@@ -53,8 +53,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append the heading and the verbatim region | Pending | — | — | |
-| 2 | Run the skill checks and the text comparison | Pending | — | — | |
+| 1 | Append the heading and the verbatim paragraphs | Completed | 20261127-111817 | 20261127-111826 | Changed: skills/issue-to-plan/workflow-edge.md (section '### Step 9: full report', paragraphs copied verbatim) Intro sentence reworded: it named workflow.md Step 9, which made a heading cycle (check_skills_heading_cycles) |
+| 2 | Run the skill checks and the text comparison | Completed | 20261127-111826 | 20261127-111826 | skill checks pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -68,10 +68,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-002`, `REQ-006` (full form kept verbatim)
+- **Requirement ID**: `REQ-003`, `REQ-006` (full report kept verbatim)
 - **Source issue**: issues/20261126-151444_wfeff009_compact-final-reports.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261127-104723_wfeff009_compact-final-reports.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261127-110148
-- **Related target files**: `skills/plan-to-implementation-procedure/workflow-edge.md`
+- **Related target files**: `skills/issue-to-plan/workflow-edge.md`

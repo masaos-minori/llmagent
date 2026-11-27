@@ -165,9 +165,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `--plan` and its tests (`tools/check_plan_target_overlaps.py`, `tests/tools/test_check_plan_target_overlaps.py`) | In Progress | — | — |  |
-| 2 | Add `--failures-only`, its renderer branch, and tests (`tools/_validation_gate_report.py`, `tools/run_validation_gates.py`, `tests/tools/test_run_validation_gates.py`) | In Progress | — | — |  |
-| 3 | Update the tool rows; deployment check is N/A (`tools/TOOL_DESCRIPTIONS.md`) | In Progress | — | — |  |
+| 1 | Add `--plan` and its tests (`tools/check_plan_target_overlaps.py`, `tests/tools/test_check_plan_target_overlaps.py`) | Completed | — | 20261127-111704 |  |
+| 2 | Add `--failures-only`, its renderer branch, and tests (`tools/_validation_gate_report.py`, `tools/run_validation_gates.py`, `tests/tools/test_run_validation_gates.py`) | Completed | — | 20261127-111704 |  |
+| 3 | Update the tool rows; deployment check is N/A (`tools/TOOL_DESCRIPTIONS.md`) | Completed | — | 20261127-111704 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -177,11 +177,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261127-105933_01_tools_check_plan_target_overlaps.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-105933_03_tools__validation_gate_report.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261127-105933_04_tools_run_validation_gates.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261127-105933_05_tests_tools_test_run_validation_gates.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261127-105933_06_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261127-105933_01_tools_check_plan_target_overlaps.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-105933_03_tools__validation_gate_report.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261127-105933_04_tools_run_validation_gates.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261127-105933_05_tests_tools_test_run_validation_gates.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261127-105933_06_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

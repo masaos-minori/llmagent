@@ -54,8 +54,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Measure and replace the report paragraphs | Pending | — | — | |
-| 2 | Run the skill checks | Pending | — | — | |
+| 1 | Measure and replace the report paragraphs | Completed | 20261127-111826 | 20261127-111844 | Changed: skills/issue-to-plan/workflow.md 42539 -> 42111 B (ceiling 42540); Step 9 gate paragraphs unchanged; verbatim comparison identical. Edge intro reworded to avoid a heading cycle |
+| 2 | Run the skill checks | Completed | 20261127-111844 | 20261127-111844 | skill size, references, heading cycles pass after rewording the edge intro |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

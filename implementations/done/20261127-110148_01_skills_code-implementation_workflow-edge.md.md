@@ -1,28 +1,27 @@
 ## Goal
-- Replace the Phase 9 report list of `skills/git-commit-and-sync/workflow.md` with the compact form, its deviation conditions, and a pointer (`REQ-004`, `REQ-005`, `REQ-006`).
+- Add `## Final Report: full form` to `skills/code-implementation/workflow-edge.md`, holding the current full Final Report text verbatim (`REQ-001`, `REQ-006`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- Runs after seq 07. Ceiling 22947 B equals the file size, so the replacement must be shorter than the moved text.
+- Runs before seq 02, so the full form exists here before the workflow text is replaced.
 
 ## Assumptions
-- Verified in Step 3a: the working tree usually holds other sessions' unrelated untracked or unstaged paths, so "remaining uncommitted changes" is a deviation only for a change this run touched or a file that went missing; unrelated leftovers appear as a count on the status line. `skills/git-commit-and-sync/SKILL.md` row 9 of the Phase overview stays accurate for the full form.
+- Verified in Step 3a: the file is 12258 B (limit 16384 B, no baseline entry); the region to move is in `skills/code-implementation/workflow.md` from the line `Include the following in the final report:` up to (not including) `## Output format` (the one-line traceability summary, Execution Status, Questions asked, Next steps, Blocker Log, and Work Items Created subsections, about 3 KB).
 
 ## Design decisions
-- A deviation is an unrelated gate failure, another commit published, a change of this run left uncommitted, a stop condition, a warning, or a push that did not proceed.
+- Append at the end of the file as a level-2 heading, the level of the existing `## Rollback on Failure`; the loading form in `workflow.md` names the heading exactly.
 
 ## Alternatives considered
 N/A: the Plan fixes the design (compact default in the workflow, full form verbatim in the edge file).
 
 ## Implementation
 ### Target file
-`skills/git-commit-and-sync/workflow.md`
+`skills/code-implementation/workflow-edge.md`
 
 ### Procedure
-1. Measure `wc -c` (expect 22947).
-2. In `## Phase 9: Report` keep the heading and the final `Prohibited behavior` line, delete the moved list, and insert: "Use the compact form when the run had no deviation: no unrelated gate failure, no other commit published, no change of this run left uncommitted, no stop condition, no warning, and the push proceeded. Report: a status line (branch, commit SHA, message subject, sync result, pre-push recheck result, push result, and the count of unrelated uncommitted paths left in the tree); and a validation line (the Phase 4 gates and, after a sync, the post-sync check). Any deviation requires the full report: load `skills/git-commit-and-sync/workflow-edge.md` and follow its "Phase 9: full report" section."
-3. Measure again: at most 22947 B.
+1. Append `## Final Report: full form` and an introductory sentence: "Use this form when the cycle had any deviation named in `workflow.md` Final Report."
+2. Under it copy the region described under Assumptions verbatim, keeping its `###` subheadings.
 
 ### Method
 - Copy moved text exactly (whitespace included); edit with exact-string replacements and check each anchor occurs once with `rg -c` first.
@@ -41,10 +40,10 @@ N/A: revert the commit.
 
 ## Validation plan
 - `uv run python tools/check_skill_size.py`, `uv run python tools/check_skills_references.py`, and `uv run python tools/check_skills_heading_cycles.py` exit 0.
-- The file is at most 22947 B.
+- The copied text equals the original region (whitespace-normalized comparison against `git show HEAD:skills/code-implementation/workflow.md`).
 
 ## Completion criteria
-- The compact form and its conditions are stated; the full report is reachable; the file is within its ceiling.
+- The section exists with the full text unchanged; the file is under 16384 B; the skill checks pass.
 
 ## Out of Scope
 - Any other section of this file, the persisted records the report summarizes, and the other three workflows.
@@ -54,8 +53,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Measure and replace the report list | Pending | — | — | |
-| 2 | Run the skill checks | Pending | — | — | |
+| 1 | Append the heading and the verbatim region | Completed | 20261127-111734 | 20261127-111741 | Changed: skills/code-implementation/workflow-edge.md (section '## Final Report: full form', region copied verbatim) |
+| 2 | Run the skill size, reference, and heading-cycle checks and the text comparison | Completed | 20261127-111741 | 20261127-111741 | skill size, references, heading cycles pass; verbatim comparison done at seq 02 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -69,10 +68,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-004`, `REQ-005`, `REQ-006` (compact default, size ceiling)
+- **Requirement ID**: `REQ-001`, `REQ-006` (full form kept verbatim)
 - **Source issue**: issues/20261126-151444_wfeff009_compact-final-reports.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261127-104723_wfeff009_compact-final-reports.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261127-110148
-- **Related target files**: `skills/git-commit-and-sync/workflow.md`
+- **Related target files**: `skills/code-implementation/workflow-edge.md`

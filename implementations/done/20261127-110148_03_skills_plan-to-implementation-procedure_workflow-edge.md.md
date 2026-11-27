@@ -1,27 +1,27 @@
 ## Goal
-- Create `skills/git-commit-and-sync/workflow-edge.md` with `### Phase 9: full report` holding the current Phase 9 report list verbatim (`REQ-004`, `REQ-006`).
+- Add `### Final report: full form` to `skills/plan-to-implementation-procedure/workflow-edge.md`, holding the current final-report text verbatim (`REQ-002`, `REQ-006`).
 
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- Runs before seq 08. The skill had no edge file; this follows the pattern of the other three skills.
+- Runs before seq 04.
 
 ## Assumptions
-- Verified in Step 3a: `skills/git-commit-and-sync/` holds `SKILL.md` and `workflow.md` only; the region to move is in `skills/git-commit-and-sync/workflow.md` `## Phase 9: Report`: the `Report:` line and its nine bullets (about 800 B); the final line `Prohibited behavior: see \`SKILL.md\` Core rules.` stays in `workflow.md`.
+- Verified in Step 3a: the file is 7556 B (no baseline entry); the region to move is in `skills/plan-to-implementation-procedure/workflow.md` `### Final report`: from `The one-line progress` (second sentence of the first paragraph) through the last bullet (`the next step: run \`code-implementation\` over the documents in \`seq\` order.`), about 800 B.
 
 ## Design decisions
-- The new file starts with a one-line title and a sentence that it is loaded only when `workflow.md` Phase 9 requires the full report.
+- Append at the end of the file as a level-3 heading, like the existing sections.
 
 ## Alternatives considered
 N/A: the Plan fixes the design (compact default in the workflow, full form verbatim in the edge file).
 
 ## Implementation
 ### Target file
-`skills/git-commit-and-sync/workflow-edge.md` (new)
+`skills/plan-to-implementation-procedure/workflow-edge.md`
 
 ### Procedure
-1. Create the file with the title `# Git Commit and Sync - Edge Cases` and the sentence above.
-2. Add `### Phase 9: full report` and copy the region verbatim under it.
+1. Append `### Final report: full form` and an introductory sentence: "Use this form when the cycle had any deviation named in `workflow.md` Final report."
+2. Copy the region verbatim under it.
 
 ### Method
 - Copy moved text exactly (whitespace included); edit with exact-string replacements and check each anchor occurs once with `rg -c` first.
@@ -43,7 +43,7 @@ N/A: revert the commit.
 - The copied text equals the original region (whitespace-normalized comparison).
 
 ## Completion criteria
-- The file exists with the full text unchanged; the skill checks pass.
+- The section exists with the full text unchanged; the skill checks pass.
 
 ## Out of Scope
 - Any other section of this file, the persisted records the report summarizes, and the other three workflows.
@@ -53,8 +53,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the file with the heading and the verbatim region | Pending | — | — | |
-| 2 | Run the skill checks and the text comparison | Pending | — | — | |
+| 1 | Append the heading and the verbatim region | Completed | 20261127-111759 | 20261127-111808 | Changed: skills/plan-to-implementation-procedure/workflow-edge.md (section '### Final report: full form', region copied verbatim) |
+| 2 | Run the skill checks and the text comparison | Completed | 20261127-111808 | 20261127-111808 | skill size, references, heading cycles pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -68,10 +68,10 @@ N/A: revert the commit.
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-004`, `REQ-006` (full report kept verbatim)
+- **Requirement ID**: `REQ-002`, `REQ-006` (full form kept verbatim)
 - **Source issue**: issues/20261126-151444_wfeff009_compact-final-reports.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261127-104723_wfeff009_compact-final-reports.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261127-110148
-- **Related target files**: `skills/git-commit-and-sync/workflow-edge.md`
+- **Related target files**: `skills/plan-to-implementation-procedure/workflow-edge.md`

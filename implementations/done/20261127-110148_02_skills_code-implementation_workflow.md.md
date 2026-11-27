@@ -55,8 +55,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Measure, replace the body, and adjust the Progress recording sentence | Pending | — | — | |
-| 2 | Run the skill size, reference, and heading-cycle checks | Pending | — | — | |
+| 1 | Measure, replace the body, and adjust the Progress recording sentence | Completed | 20261127-111741 | 20261127-111759 | Changed: skills/code-implementation/workflow.md 42112 -> 40181 B (ceiling 42118); verbatim comparison with git show HEAD: identical |
+| 2 | Run the skill size, reference, and heading-cycle checks | Completed | 20261127-111759 | 20261127-111759 | check_skill_size, references, heading cycles pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

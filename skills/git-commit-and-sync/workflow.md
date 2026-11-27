@@ -497,15 +497,12 @@ MUST NOT proceed to `git push` at all if:
 
 ## Phase 9: Report
 
-Report:
-- branch and commit SHA; staged files; commit message
-- pre-push recheck result (proceeded, already on upstream, or remote advanced, with the SHAs)
-- sync result (already up to date, fast-forwarded, rebased, aborted due to a rebase conflict with the conflicted paths, or skipped because no upstream exists); pre-rebase SHA only when a rebase ran
-- validation result (Phase 4 gates, and status/diff review or tests after a successful sync)
-- unrelated gate failures ignored under Phase 4's rule (gate, command, exit code), if any
-- push result (or reason push was skipped)
-- other commits published (in the pre-push `@{u}..HEAD` list, not created by this run), if any
-- remaining uncommitted changes (and whether Phase 6's check found any unstaged file temporarily missing)
-- stop conditions triggered, with explanation; warnings
+Use the compact form when the run had no deviation: no unrelated gate failure, no other
+commit published, no change of this run left uncommitted, no stop condition, no warning, and
+the push proceeded. Report: a status line (branch, commit SHA, message subject, sync
+result, pre-push recheck result, push result, and the count of unrelated uncommitted paths
+left in the tree); and a validation line (the Phase 4 gates and, after a sync, the
+post-sync check). Any deviation requires the full report: load
+`skills/git-commit-and-sync/workflow-edge.md` and follow its "Phase 9: full report" section.
 
 Prohibited behavior: see `SKILL.md` Core rules.

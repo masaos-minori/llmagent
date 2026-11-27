@@ -65,9 +65,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `--plan`, the filter, and the parser change per Procedure | Pending | — | — | |
-| 2 | Add the tests listed under Companion test files | Pending | — | — | |
-| 3 | Run ruff, mypy, bandit and the default-output parity comparison | Pending | — | — | |
+| 1 | Add `--plan`, the filter, and the parser change per Procedure | Completed | 20261127-110934 | 20261127-111040 | Changed: tools/check_plan_target_overlaps.py (--plan, filter_findings_by_plans, normalize_plan_path); defaults byte-identical in text, JSON, CSV |
+| 2 | Add the tests listed under Companion test files | Completed | 20261127-111040 | 20261127-111055 | Changed: tests/tools/test_check_plan_target_overlaps.py (companion; 7 tests added, 11 pass) |
+| 3 | Run ruff, mypy, bandit and the default-output parity comparison | Completed | 20261127-111055 | 20261127-111704 | ruff, mypy, bandit pass; text, JSON, CSV default output byte-identical to the saved pre-change output End-of-batch full suite: 15994 passed, 4 failed: 3 pre-existing in tests/mcp_servers/git (same on a clean HEAD) and tests/eventbus/test_eventbus_dlq_outbox.py::test_restart_with_pending_rows, a timing flake under parallel load (passes alone 3/3; unrelated to tools/); diff-cover N/A: no scripts/ change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

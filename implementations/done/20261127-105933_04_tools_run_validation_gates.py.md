@@ -58,8 +58,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the option, the pass-through, and the `main` call per Procedure | Pending | — | — | Needs seq 03 first |
-| 2 | Run ruff, mypy, bandit, the tools size gate (growth at most 500 B) and the existing tests | Pending | — | — | |
+| 1 | Add the option, the pass-through, and the `main` call per Procedure | Completed | 20261127-111130 | 20261127-111223 | Needs seq 03 first Changed: tools/run_validation_gates.py (--failures-only, pass-through); 23946 -> 24285 B (+339, cap 500) |
+| 2 | Run ruff, mypy, bandit, the tools size gate (growth at most 500 B) and the existing tests | Completed | 20261127-111223 | 20261127-111223 | ruff, mypy pass; bandit same 3 Low findings as before; tools size gate pass; existing tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

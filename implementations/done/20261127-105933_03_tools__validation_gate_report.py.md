@@ -58,8 +58,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the helpers and the `failures_only` (new) parameter per Procedure | Pending | — | — | |
-| 2 | Run ruff, mypy, bandit and the existing render_summary tests | Pending | — | — | New tests come with seq 05 |
+| 1 | Add the helpers and the `failures_only` (new) parameter per Procedure | Completed | 20261127-111119 | 20261127-111130 | Changed: tools/_validation_gate_report.py (_print_count_header, _render_failures_only, failures_only parameter) |
+| 2 | Run ruff, mypy, bandit and the existing render_summary tests | Completed | 20261127-111130 | 20261127-111130 | New tests come with seq 05 ruff, mypy, bandit pass; existing render_summary tests pass (102 in the file); new tests come with seq 05 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

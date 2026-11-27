@@ -109,3 +109,21 @@ the same pass, breaking the "one shared timestamp per pass" guarantee.
   the document, or with `set-step-status implementation-procedure {path} --step {N}
   Pending --notes "Gated: ..."` only while that row's Notes is empty (the call appends).
   The owner decides the order and clears the marker, not this workflow.
+
+### Final report: full form
+
+Use this form when the cycle had any deviation named in `workflow.md` Final report.
+
+The one-line progress
+format above stays for step-by-step updates; the final report adds:
+
+- the Plan path and its outcome (`moved to plans/done/` or `Blocked` with the cause);
+- the generated documents in `seq` (execution) order, as paths;
+- rows skipped as `Already implemented` (with the matched document) and rows
+  `Partially implemented` (with the existing document the new one references);
+- each non-blocking `Needs confirmation` caveat, each `Plan Gap`, and each uncovered row
+  with its next action for the user;
+- every edit made to the Plan in Step 3a (which sections, and why), the Plan steps treated
+  as unmapped in Step 4, and any Plan-level overlap found in Step 2;
+- each gated procedure with its blocking item (empty when the Plan is not gated);
+- the next step: run `code-implementation` over the documents in `seq` order.

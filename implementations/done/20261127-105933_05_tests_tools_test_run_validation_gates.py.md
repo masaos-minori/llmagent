@@ -58,9 +58,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append the tests of Procedure | Pending | — | — | Needs seq 03 and seq 04 first |
-| 2 | Run the tests and fix failures in the tests or report a tool defect | Pending | — | — | |
-| 3 | Run ruff and mypy on the file | Pending | — | — | |
+| 1 | Append the tests of Procedure | Completed | 20261127-111223 | 20261127-111303 | Needs seq 03 and seq 04 first Changed: tests/tools/test_run_validation_gates.py (9 tests added, 111 pass); defaults pinned against the pre-change text |
+| 2 | Run the tests and fix failures in the tests or report a tool defect | Completed | 20261127-111303 | 20261127-111303 |  |
+| 3 | Run ruff and mypy on the file | Completed | 20261127-111303 | 20261127-111303 | ruff, mypy pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

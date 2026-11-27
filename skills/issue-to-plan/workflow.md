@@ -599,22 +599,15 @@ has a full table; risks are stated with mitigations.
 
 ## Step 9: Final Validation
 
-When no Plan was generated this cycle, report only: the Issue path; the case (`already
-resolved / no longer applies` with the supporting evidence, or `existing Plan` with that
-Plan's path and its `Frozen` read-back); and the Issue pending move. The Plan-specific
-fields below do not apply.
-
-Otherwise report: generated Plan path; generated Unknown/Risk files (or `None`); number of
-Requirements; number of `Implementation Target Files` rows; Path A/B classification
-(one word; rationale is in the Plan's Design section, MUST NOT restate);
-information-completeness result; traceability result; `Implementation Target Files`
-freeze status (`Frozen` / not `Frozen` with reason); overlaps with other Frozen Plans and
-their Step 8b judgements (or `None`); unresolved items count; the Issue pending move; and
-next steps. Next steps: the Plan, any Unknown/Risk files, and the moved Issue are
-uncommitted (the rename is staged), so `git-commit-and-sync` commits them together; then
-`plan-to-implementation-procedure` takes the Plan. For a `Blocked` cycle, list what the
-user must decide. MUST NOT restate the Requirement Traceability evidence-classification
-breakdown (already in the Plan's table).
+Use the compact form when the cycle had no deviation: no unresolved item, no generated
+Unknown or Risk file, no overlap with another Frozen Plan, not the no-Plan or existing-Plan
+case, and not `Blocked`. Report: a status line (generated Plan path, number of
+Requirements, number of `Implementation Target Files` rows, Path A or B, `Frozen`, the
+Issue pending move); a validation line (information completeness and traceability
+results, unresolved items `None`); and the next steps (`git-commit-and-sync` commits the
+Plan and the staged Issue rename, then `plan-to-implementation-procedure` takes the Plan).
+Any deviation or either of those cases requires the full report: load
+`skills/issue-to-plan/workflow-edge.md` and follow its "Step 9: full report" section.
 
 Per `rules/ai-execution.md` Progress Reporting (Base), read every value above back from
 where it was recorded (e.g. Path A/B from Step 3's record, freeze status from Step 8's

@@ -139,7 +139,7 @@ cycle.
 | 3 | Run the validation sequence | Step 3e starts | Step 3e passes and Step 4's full-suite run passes, or, in the documentation-only case, the replacement checkers pass |
 | 4 | Update documentation | Step 5 starts | Step 6 passes, or `N/A` in Notes when no row matched |
 
-Steps 1, 2, and 7 have no procedure row; the Final Report's seven-row table records them.
+Steps 1, 2, and 7 have no procedure row; the full-form Final Report's seven-row table records them.
 If a document's rows differ from the template, match by Description text and mention the mismatch in the Final Report.
 
 ## Question policy
@@ -579,59 +579,16 @@ per-file `Blocked` state per Step 2/3c/3e/4/6/7's own stop conditions (or Rollba
 Failure) — in either case, emit this Final Report once, then (per Multi-file
 processing) begin Step 1 for the next target file, or end the batch if none remain.
 
-Include the following in the final report:
-
-### One-line traceability summary
-`Source: {impl_proc_file} | Issue: {source_issue} | Plan: {source_plan} | Target: {related_target_files} | Changed: {files} | Completed: {timestamp from date +%Y%m%d-%H%M%S}`
-
-`{source_issue}`, `{source_plan}`, and `{related_target_files}` are the values
-extracted from the implementation procedure's own Traceability section in Step 2 —
-carried forward, not re-derived. `{files}` is the changed-file list recorded in Step
-3d's Execution Status Notes — read back from there, not recomputed from `git diff` at
-report time.
-
-This phase edits existing code and `docs/*.md` files rather than producing a
-standalone generated document, so MUST NOT insert a `## Traceability` section into
-those files — the one-line summary above is this cycle's traceability record.
-
-### Execution Status
-
-Table structure, status/type vocabulary, and general guidance: see
-`templates/execution-status.md`. Columns `Step | Description | Status | Started | Completed | Notes`, one row per Step 1-7, all starting `Pending` (update Status as each step starts and finishes). Leave Notes empty for a step
-that completed as expected — fill it only for a deviation (skipped step, no-mapping outcome, blocker reference). Descriptions:
-
-1. Identify the target implementation procedure file(s)
-2. Read the current implementation procedure file
-3. Implement the feature and pass code validation
-4. Test the feature and pass required tests/coverage (or the documentation-only replacement checkers)
-5. Update documentation per `docs/00_index.md` task-scope mapping
-6. Validate documentation updates
-7. Move the implementation procedure file to `implementations/done/`
-
-### Questions asked
-
-Report the number of questions asked of the user in this cycle and, for each, the state
-check that was run and why it did not decide the question, or `Questions asked: None`.
-
-### Next steps
-
-State that the cycle's code, test, and doc changes are uncommitted and the archival rename
-is staged, and that `git-commit-and-sync` commits them (include the staged rename). When
-`scripts/` files were added, removed, or renamed, mention `deploy`, which runs only on the
-user's request after the change is pushed. In a stopped batch, list the procedures not
-run and why.
-
-### Blocker Log
-
-If no blocker was encountered, report `Blockers: None` as a single line — MUST NOT
-render an empty table. Otherwise, use the Blocker Log table structure from
-`templates/execution-status.md`.
-
-### Work Items Created
-
-If no artifact beyond the planned code/test/doc changes was produced, report `Work
-items created: None` as a single line — MUST NOT render an empty table. Otherwise, use
-the Work Items Created table structure from `templates/execution-status.md`.
+Use the compact form when the cycle had no deviation: none of `Blocked`, an Attempt Limit
+retry, a Rollback, a non-blocking `Needs confirmation`, a question asked of the user, an
+unrelated failure reported, or a failed Plan Execution Status update. Report three lines:
+the one-line traceability summary (`Source: ... | Completed: ...`, always required, values
+as in the full form); `Validation:` the stale check, the validators, the targeted tests and
+the full-suite or documentation-only result, and the documentation outcome; and `Next
+steps:` the commit through `git-commit-and-sync` (mention `deploy` when `scripts/` files
+were added, removed, or renamed). Every other fact stays in its persisted place. Any
+deviation requires the full form: load `skills/code-implementation/workflow-edge.md` and
+follow its "Final Report: full form" section.
 
 ## Output format
 

@@ -553,12 +553,16 @@ def drift_report(
 
 
 def _run_gates(
-    base: str, mode: str, jobs: int | None = None, verbose: bool = False
+    base: str,
+    mode: str,
+    jobs: int | None = None,
+    verbose: bool = False,
+    failures_only: bool = False,
 ) -> int:
     changed = _changed_files(base)
     gates = select_gates(changed, mode)
     results = run_gates(gates, jobs=jobs, changed_files=changed)
-    render_summary(results, changed, mode, base, verbose)
+    render_summary(results, changed, mode, base, verbose, failures_only)
     return 1 if any(res.status == "Fail" for res in results) else 0
 
 
@@ -620,6 +624,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print every gate row, including gates whose command needs a runtime "
         "argument (the default summary hides them and prints one count line).",
     )
+    parser.add_argument(
+        "--failures-only",
+        action="store_true",
+        help="Print only the changed-file count, the non-passing rows, and a final "
+        "Result line (the exit code is unchanged).",
+    )
     subparsers = parser.add_subparsers(dest="action")
     subparsers.add_parser(
         "drift",
@@ -636,7 +646,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.action == "drift":
         return _run_drift()
     return _run_gates(
-        args.base, "full" if args.full else MODE_FAST, args.jobs, args.verbose
+        args.base,
+        "full" if args.full else MODE_FAST,
+        args.jobs,
+        args.verbose,
+        args.failures_only,
     )
 
 
