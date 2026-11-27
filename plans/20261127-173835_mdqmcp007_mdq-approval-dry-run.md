@@ -235,7 +235,7 @@ Design decisions (narrow `python-design` application):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261127-173835
-- **Evidence revision**: 41b423e73a5c2d98ae017a67a6059fcb3c75fd81 — the 40-hex HEAD at which the evidence was verified; print it with tools/check_evidence_freshness.py record
+- **Evidence revision**: 41b423e73a5c2d98ae017a67a6059fcb3c75fd81
 - **Related target files**: `scripts/mcp_servers/mdq/mdq_tools.py`, `scripts/mcp_servers/mdq/mdq_models.py`, `scripts/mcp_servers/mdq/indexer.py`, `scripts/mcp_servers/mdq/mdq_service.py`, `scripts/mcp_servers/mdq/mdq_server.py`, `scripts/agent/tool_result_formatter.py`, `tests/mcp_servers/mdq/test_mdq_routing.py`, `tests/mcp_servers/mdq/test_mdq_tool_schema.py`, `tests/mcp_servers/mdq/test_mdq_tool_layer_consistency.py`, `tests/mcp_servers/mdq/test_mdq_dry_run.py`, `tests/agent/test_tool_policy.py`, `tests/agent/test_tool_approval_risk.py`, `tests/agent/test_tool_result_formatter.py`, `docs/22_mcp/mcp_01_tool_ownership_matrix.md`, `docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`, `docs/22_mcp/mcp_04_04_mdq.md`, `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md`
 
 ### Requirement Traceability

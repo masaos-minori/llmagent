@@ -216,7 +216,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261127-171503
-- **Evidence revision**: 41b423e73a5c2d98ae017a67a6059fcb3c75fd81 — the 40-hex HEAD at which the evidence was verified; print it with tools/check_evidence_freshness.py record
+- **Evidence revision**: 41b423e73a5c2d98ae017a67a6059fcb3c75fd81
 - **Related target files**: `scripts/mcp_servers/mdq/index_write.py`, `scripts/mcp_servers/mdq/index_delete.py`, `scripts/mcp_servers/mdq/indexer.py`, `scripts/mcp_servers/mdq/mdq_tools.py`, `scripts/shared/tool_constants.py`, `tests/mcp_servers/mdq/test_index_delete.py`, `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py`, `tests/mcp_servers/mdq/test_mdq_index_serialization.py`, `tests/mcp_servers/mdq/test_mdq_transaction_atomicity.py`, `tests/mcp_servers/mdq/test_mdq_index_state_consistency.py`, `tests/shared/test_tool_constants.py`, `tests/mcp_servers/test_mcp_dispatch.py`, `docs/22_mcp/mcp_04_04_mdq.md`
 
 ### Requirement Traceability

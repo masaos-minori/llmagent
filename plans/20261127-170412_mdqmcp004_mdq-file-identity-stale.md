@@ -226,7 +226,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261127-170412
-- **Evidence revision**: 41b423e73a5c2d98ae017a67a6059fcb3c75fd81 — the 40-hex HEAD at which the evidence was verified; print it with tools/check_evidence_freshness.py record
+- **Evidence revision**: 41b423e73a5c2d98ae017a67a6059fcb3c75fd81
 - **Related target files**: `scripts/mcp_servers/mdq/db_schema.py`, `scripts/mcp_servers/mdq/index_write.py`, `scripts/mcp_servers/mdq/mdq_models.py`, `scripts/mcp_servers/mdq/mdq_service.py`, `scripts/mcp_servers/mdq/health_check.py`, `scripts/mcp_servers/mdq/indexer.py`, `tests/mcp_servers/mdq/test_db_schema.py`, `tests/mcp_servers/mdq/test_mdq_stale_detection.py`, `tests/mcp_servers/mdq/test_mdq_health_stale.py`, `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py`, `tests/mcp_servers/mdq/test_mdq_schema_migration.py`, `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py`, `tests/mcp_servers/mdq/test_mdq_health_endpoint.py`, `tests/mcp_servers/mdq/test_mdq_health.py`, `tests/mcp_servers/mdq/test_index_delete.py`, `tests/mcp_servers/mdq/test_mdq_foreign_keys.py`, `tests/mcp_servers/mdq/test_mdq_content_hash_semantics.py`, `docs/22_mcp/mcp_04_04_mdq.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`, `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`
 
 ### Requirement Traceability

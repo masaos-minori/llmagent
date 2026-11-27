@@ -236,7 +236,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261127-172305
-- **Evidence revision**: 41b423e73a5c2d98ae017a67a6059fcb3c75fd81 — the 40-hex HEAD at which the evidence was verified; print it with tools/check_evidence_freshness.py record
+- **Evidence revision**: 41b423e73a5c2d98ae017a67a6059fcb3c75fd81
 - **Related target files**: `scripts/mcp_servers/mdq/db_schema.py`, `scripts/shared/schema_fingerprint.py`, `scripts/shared/execution_snapshot.py`, `scripts/mcp_servers/mdq/health_check.py`, `scripts/mcp_servers/mdq/mdq_security_validation.py`, `tests/mcp_servers/mdq/test_mdq_fts_schema.py`, `tests/mcp_servers/mdq/test_mdq_fts_trigger_sync.py`, `tests/mcp_servers/mdq/test_mdq_schema_identity.py`, `tests/shared/test_schema_fingerprint.py`, `tests/shared/test_execution_snapshot.py`, `tests/mcp_servers/mdq/test_mdq_health.py`, `tests/mcp_servers/mdq/test_mdq_health_endpoint.py`, `tests/mcp_servers/mdq/test_mdq_health_posture.py`, `tests/mcp_servers/mdq/test_db_schema.py`, `docs/22_mcp/mcp_04_04_mdq.md`, `docs/22_mcp/mcp_06_10_health-reasons-and-error-kinds.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`, `docs/41_db/db_09_mcp_dedup_and_execution_snapshot.md`
 
 ### Requirement Traceability
