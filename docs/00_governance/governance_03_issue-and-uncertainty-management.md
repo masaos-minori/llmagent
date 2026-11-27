@@ -331,6 +331,26 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action:** Maintainer decides the failure contract and the specifications are updated; then this entry is removed.
 - **Resolution Target:** the failure contract is approved, documented, and tested
 
+#### SHARED-008
+
+- **ID:** SHARED-008
+- **Title:** The Agent reads `config/tool_catalog.toml` outside `ConfigLoader`, predating Decision 1
+- **Status**: open
+- **Severity:** Low
+- **Area:** Shared/DB
+- **Type:** document-code-mismatch
+- **Source:** `docs/10_adr/adr_02_01_002_platform-config-isolation.md` `## Known Deviations` bullet
+- **Owner:** Repository owner
+- **First Found:** mcpai012 documentation sweep
+- **Target:** `docs/10_adr/adr_02_01_002_platform-config-isolation.md`
+- **Related:** None
+- **Summary:** Decision 1 and Decision 10 state that the Agent reads only `config/agent.toml`, but the Agent process also reads `config/tool_catalog.toml` at runtime through `scripts/shared/tool_catalog.py`, outside `ConfigLoader`.
+- **Current Description:** The ADR records the catalog as a static ownership/capability registry read as data rather than a process configuration file, and registers the difference in Known Deviations.
+- **Observed Implementation:** `scripts/shared/tool_catalog.py` reads the file with `tomllib` directly, so no `ConfigPermissionError` check runs for it. Call sites: `scripts/agent/startup_mcp_starter.py:248`, `scripts/agent/http_lifecycle.py:355`, `scripts/agent/services/mcp_health.py:259`, `scripts/agent/services/mcp_tool_discovery.py:169`.
+- **Impact:** The per-process file-ownership contract has one unapproved exception, and no test pins the single-reader contract.
+- **Recommended Action:** Maintainer decides whether Decision 1 and Decision 10 are amended to name the catalog exception or the reader is brought under `ConfigLoader`; then this entry is removed.
+- **Resolution Target:** the exception is approved and documented, and the single-reader contract is either tested or this entry is closed
+
 ## Part 2: Needs Confirmation Inventory
 
 ### Purpose

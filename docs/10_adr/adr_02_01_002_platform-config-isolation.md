@@ -59,7 +59,7 @@ When multiple processes (Agent, MCP servers, crawler, ingester, chunk_splitter, 
 
 ### Decision Details
 
-1. The Agent reads only `config/agent.toml`.
+1. The Agent reads only `config/agent.toml`. The static ownership/capability registry `config/tool_catalog.toml` is read as data through `scripts/shared/tool_catalog.py` and is not a process configuration file; see Known Deviations.
 2. Each MCP server reads only `config/<key>_mcp_server.toml`.
 3. The crawler reads only `config/crawler.toml`.
 4. chunk_splitter reads only `config/chunk_splitter.toml`.
@@ -82,8 +82,8 @@ File isolation and key validation are separate. File isolation: every process ex
 
 | Process | Required Config File | Required Keys | Empty-Allowed Keys |
 |---|---|---|---|
-| Agent | `config/agent.toml` (absence aborts startup) | `tool_safety_tiers` (must cover every known tool), `allowed_root` (an empty or absent value is rejected because the path jail would be disabled), and the `[mcp_servers.<key>]` entries validated by `_build_mcp_servers()`; every other key has a built-in default | `llm_url`, `tokenize_url`, `embed_url`, `otel_endpoint`, and `encryption_key` (in the `[diagnostics]` table) |
-| MCP Server (each) | `config/<name>_mcp_server.toml`, named by the server class attribute `own_config_file` (an empty value aborts startup) | Server-specific; defined by each server's own configuration file. `http_host`, `http_port`, and `app_module` are server class attributes, not configuration keys | — |
+| Agent | `config/agent.toml` (absence aborts startup) | `allowed_root` (an empty or absent value is rejected because the path jail would be disabled), and the `[mcp_servers.<key>]` entries validated by `_build_mcp_servers()` (`scripts/shared/mcp_config.py`); every other key has a built-in default. `tool_safety_tiers` is a removed key: a deployed config that still carries it is rejected as an unknown key with the replacement named, and the per-tool `agent_safety_tier` declaration is the single risk source (`tests/agent/test_tool_approval_risk.py::test_removed_maps_are_unknown_keys_for_the_validator`) | `llm_url`, `tokenize_url`, `embed_url`, `otel_endpoint`, and `encryption_key` (in the `[diagnostics]` table) |
+| MCP Server (each) | `config/<name>_mcp_server.toml`, named by the server class attribute `own_config_file` (an empty value aborts startup) | Server-specific; defined by each server's own configuration file. The `[dedup]` table is read from that file through `ConfigLoader.restrict_to()` and validated by `scripts/shared/mcp_dedup_config.py` at the server's own startup (`tests/mcp_servers/test_config_isolation_fail_closed.py::test_invalid_own_table_aborts_startup_before_serving`); the store is opened only through the injected `DedupStoreConfig`, never through a config-discovery import (`tests/mcp_servers/test_config_isolation_import.py::test_mcp_servers_never_reference_the_removed_dedup_loader`). `http_host`, `http_port`, and `app_module` are server class attributes, not configuration keys | — |
 | Crawler | `config/crawler.toml` | `rag_src_dir`, `crawl_delay`, `max_depth`, `min_chunk`, `fetch_retry`, `target_urls` | — |
 | Chunk Splitter | `config/chunk_splitter.toml` | `rag_src_dir`, `min_chunk`, `max_chunk`, `en_stopwords`, `ja_stop_pos` | — |
 | Ingester | `config/ingester.toml` | `rag_src_dir`, `embed_url`, `embed_retry` | — |
@@ -260,7 +260,16 @@ Not applicable (this ADR defines no retry policy of its own)
 
 ## Known Deviations
 
-Not applicable
+- **Known Issue:** SHARED-008 — `config/tool_catalog.toml` is read at runtime by the Agent process in addition to
+  `config/agent.toml`, through `scripts/shared/tool_catalog.py` (call sites:
+  `scripts/agent/startup_mcp_starter.py:248`, `scripts/agent/http_lifecycle.py:355`,
+  `scripts/agent/services/mcp_health.py:259`, `scripts/agent/services/mcp_tool_discovery.py:169`). Decision 1
+  and Decision 10 predate it. The catalog is a static ownership/capability registry read as data
+  — it carries no runtime behavior values, crosses no import boundary, and is read outside
+  `ConfigLoader`, so no `ConfigPermissionError` check runs for it; the per-process ownership
+  contract is unchanged for every other file. No test pins the single-reader contract; the tests
+  that exercise the catalog read patch the shared reader symbol at each call site
+  (`tests/agent/test_mcp_health_posture.py`, `tests/agent/services/test_mcp_tool_discovery.py`).
 
 ## Review Triggers
 
@@ -341,7 +350,7 @@ Acceptance conditions and their current state.
 - [ ] Automatable verification does not rely only on Manual Review (INV-04 is not verified)
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
-- [x] Discrepancies with the current implementation are registered as Known Issues (no open discrepancy remains)
+- [x] Discrepancies with the current implementation are registered as Known Issues (the `config/tool_catalog.toml` read is registered as SHARED-008 in Known Deviations; no other open discrepancy remains)
 - [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
 - [x] The ADR is registered in the ADR index and the Document Guides of related areas

@@ -65,7 +65,11 @@ is the public facade):
   `schema_mismatch` (fingerprint or `user_version` drift), and `identity_mismatch` (the
   injected config's validated fingerprint drifts from the installed store's identity). Refusals raise
   `DedupStoreError` with the shared archive-and-recreate guidance; nothing is migrated,
-  stamped, or repaired automatically. For `identity_mismatch` the recovery is to correct the
+  stamped, or repaired automatically. Proven by `tests/shared/test_mcp_dedup_identity.py`
+  (`test_creation_writes_identity_stamp_and_marker_atomically`, `test_reopen_of_healthy_store_classifies_healthy`,
+  `test_db_only_deletion_classifies_lost`, `test_replaced_foreign_store_uuid_classifies_replaced`,
+  `test_legacy_db_without_identity_classifies_legacy_or_unverified`, `test_drifted_ledger_shape_raises_typed_store_error`).
+  For `identity_mismatch` the recovery is to correct the
   server's `[dedup]` values (never the store file); `resolve_store` remains the operator-runbook
   path for archive-and-recreate.
 - Concurrency: WAL journal mode (set only after a successful classification, so refused opens
@@ -77,7 +81,9 @@ is the public facade):
   (`lease_expires_epoch = now + lease_seconds`). The owner can heartbeat with `renew_lease`.
   Finalization (`record_completed`, `record_failed`, `mark_interrupted`) is owner-conditional:
   a non-owner write, a write to a terminal row, or a heartbeat on an expired or terminal row
-  raises `DedupLeaseConflict` and never mutates the row.
+  raises `DedupLeaseConflict` and never mutates the row. Proven by `tests/shared/test_mcp_dedup.py`
+  (`test_acquire_creates_owned_pending_row`, `test_second_caller_gets_in_progress`,
+  `test_non_owner_finalization_raises`, `test_non_owner_renew_raises`, `test_expired_owner_renew_raises`).
 - Acquisition vocabulary (the decision `try_acquire_execution` returns, and the dispatcher maps):
   `acquired` (first attempt or a permitted recovery attempt), `replay_completed` (terminal
   completed row with matching snapshot and intact payload), `in_progress` (live lease held by
@@ -90,7 +96,11 @@ is the public facade):
   `replay_unavailable` in every retry class. Recovery of an expired `pending` lease requires
   `reconcile_execution` first (audited `pending -> interrupted` transition plus a history entry);
   only then may one reacquisition proceed (`attempt_number + 1`), gated by `dedup.max_attempts`.
-  Reacquisition never rewrites the stored snapshot.
+  Reacquisition never rewrites the stored snapshot. Proven by `tests/shared/test_mcp_dedup.py`
+  (`test_terminal_rows_are_immutable`, `test_completed_snapshot_mismatch_is_replay_unavailable`,
+  `test_truncated_completed_is_replay_unavailable`, `test_failed_terminal_is_replay_unavailable`,
+  `test_expired_pending_yields_reconciliation_required`, `test_reconcile_then_reacquire_advances_attempt`,
+  `test_max_attempts_gate_reaches_outcome_unknown`).
 - Attempt history: `call_attempt_history` records every decision (attempt, completed, failed,
   reconciled) per key with its attempt number. History entries are deleted by their own
   `recorded_epoch` past the retention cutoff, independently of the parent row's state (see
@@ -216,7 +226,9 @@ Side notes:
   the audited `reconcile_execution` step first.
 - A finalization that loses ownership (0-row owner-conditional UPDATE) raises
   `DedupLeaseConflict` and is reported as `dedup_state=lease_conflict`; the dispatcher logs it
-  and never re-dispatches the call.
+  and never re-dispatches the call. Proven by `tests/mcp_servers/test_mcp_dispatch_concurrency.py`
+  (`test_lost_lease_surfaces_without_redispatch`); exactly-once handler execution under concurrent
+  callers is proven by `test_100_concurrent_callers_execute_handler_exactly_once` in the same file.
 - Interrupted rows are never silently re-executed for `non_retryable` tools: the refusal is
   the guarantee, and the operator decides the next step.
 
@@ -285,8 +297,10 @@ created under version 1 is refused as `schema_mismatch` and resolved by the oper
 Recovery for this file is recreating it: the store
 is a disposable cache, and a fresh empty store only means the next call of each key runs for
 real. Identity refusals (`lost`, `replaced`, `legacy_or_unverified`, `schema_mismatch`) follow
-the same operator resolution: archive the file, remove or rename it, and let the next open
-stamp a fresh identity (`resolve_store` is the scripted path).
+the same operator resolution: `resolve_store` archives the file as `<path>.corrupt-<ts>`, rolls the
+generation, and refreshes the marker; a healthy store refuses resolution
+(`tests/shared/test_mcp_dedup_identity.py`: `test_resolution_rolls_generation_and_logs_decision`,
+`test_resolution_archives_the_old_file`, `test_resolution_refused_for_healthy_store`).
 
 ## Keywords
 

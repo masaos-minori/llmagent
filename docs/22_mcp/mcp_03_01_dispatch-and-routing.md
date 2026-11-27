@@ -60,12 +60,14 @@ The `X-Idempotency-Key` request header gives a logical call a stable identity on
 
 In addition to this transport key, the Agent also records a separate audit-side key in the `tool_exec` event's `idempotency_key` field — the workflow-scoped logical-call identity (`workflow_id:task_id:turn_id:call_id`) — which identifies the logical call for the audit log and is **not** used for server-side de-duplication.
 
+Replay is Agent-managed: a reissued call's identity comes from a `ReplayDirective` built at turn entry from a persisted `interrupted` replayable `tool_call_state` row (`scripts/agent/tool_preparation.py`) and held on `TurnState.replay_directives`, so the LLM never sees the id it carries. The definitions of the ids named here are the single id table in [mcp_06_06_end-to-end-tool-call-tracing.md](mcp_06_06_end-to-end-tool-call-tracing.md).
+
 - **Key ownership:** the caller/Agent generates one idempotency key per logical call. `HttpTransport.call()` emits it as the `X-Idempotency-Key` header and reuses the same value on every retry of that call, so a re-sent write keeps a single identity.
 - **Audit key (separate):** the Agent's `tool_exec` audit event records its own workflow-scoped logical-call identity (workflow, task, turn, and call id joined by colons) in its `idempotency_key` field. This value is never sent to a server, is not the `X-Idempotency-Key`, and no de-duplication keys on it; to follow one call across the Agent and a server, join on the request id (see [mcp_02_03](mcp_02_03_audit-logging-and-errors.md)).
-- **Key requirement:** every side-effecting dispatch, HTTP or programmatic, needs a key. A keyless side-effecting call is refused before the handler runs with `error_type=idempotency_key_required`; a read-only call executes without a key and is never stored.
-- **Cache keying:** a successful result is stored keyed by the idempotency key plus the resolved tool name plus a normalized hash of the arguments. Reusing a key with different tool or argument content is rejected as an error rather than served.
-- **TTL and eviction:** cached results carry a fixed time-to-live; the cache is bounded to a maximum entry count and evicts oldest-first past that bound, dropping expired entries first.
-- **Errors are never cached**, so a failed call always re-executes. A preview performs no dedup acquisition at all: it runs the handler and writes neither a durable ledger row nor an overlay entry, so the same key can still execute for real afterwards.
+- **Key requirement:** every side-effecting dispatch, HTTP or programmatic, needs a key. A keyless side-effecting call is refused before the handler runs with `error_type=idempotency_key_required`; a read-only call executes without a key and is never stored. Proven by `tests/mcp_servers/test_mcp_dispatch.py::test_keyless_side_effecting_call_is_rejected`.
+- **Cache keying:** a successful result is stored keyed by the idempotency key plus the resolved tool name plus a normalized hash of the arguments. Reusing a key with different tool or argument content is rejected as an error rather than served. Proven by `tests/mcp_servers/test_mcp_dispatch.py::test_same_key_served_from_cache` and `test_durable_args_hash_mismatch_rejected`.
+- **TTL and eviction:** cached results carry a fixed time-to-live; the cache is bounded to a maximum entry count and evicts oldest-first past that bound, dropping expired entries first. Proven by `tests/mcp_servers/test_mcp_dispatch.py::test_ttl_expiry_reexecutes` and `test_eviction_reexecutes_oldest`.
+- **Errors are never cached**, so a failed call always re-executes. A preview performs no dedup acquisition at all: it runs the handler and writes neither a durable ledger row nor an overlay entry, so the same key can still execute for real afterwards. Proven by `tests/mcp_servers/test_mcp_dispatch.py::test_error_result_not_cached`, `test_preview_result_is_not_cached`, and `test_preview_leaves_no_row`.
 - **Write-tool retry:** side-effecting tools (the transport's `_WRITE_TOOLS`, mirroring the
   dispatch layer's write set) are retried only on pre-send connection failures
   (`httpx.ConnectError`, `httpx.ProxyError`) and on `429`; post-send ambiguous request errors
@@ -75,6 +77,8 @@ In addition to this transport key, the Agent also records a separate audit-side 
   per-call key, so retried writes keep a stable identity.
 
 Enforcement points: `dispatch_tool()` in `scripts/mcp_servers/dispatch.py` (server-side dedup) and `HttpTransport.call()` (key generation and retry).
+
+The store behind the dispatch-side claim is `scripts/shared/mcp_dedup.py`: each acquisition is held under a renewable owner lease and terminal rows are immutable evidence. A store acquisition failure is audited as `store_error` and the call proceeds for a retryable tool, while a non-retryable tool fails closed with `error_type=dedup_store_error` (`tests/mcp_servers/test_mcp_dispatch.py::test_store_error_retryable_proceeds_non_retryable_fails_closed`); terminal-row immutability is proven by `tests/shared/test_mcp_dedup.py::test_terminal_rows_are_immutable`. Lease behavior is proven by `tests/mcp_servers/test_mcp_dispatch_concurrency.py::test_lease_renewed_while_the_handler_runs` (renewal while the handler is in flight) and `test_lost_lease_surfaces_without_redispatch` (a refused renewal reports `lease_conflict` once and leaves the row for reconciliation without re-running the handler).
 
 ### Execution modes
 

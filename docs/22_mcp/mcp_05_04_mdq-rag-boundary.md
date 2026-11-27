@@ -66,7 +66,7 @@ Served via `rag-pipeline-mcp`. There is no standalone search-only tool: search i
 | MDQ | `mdq.sqlite` | mdq-mcp server (MCP layer) |
 | RAG | `rag.sqlite` | rag-pipeline-mcp server (MCP layer) |
 
-Neither system has direct access to the other's database. Each maintains its own schema, indexes, and search logic.
+Neither system has direct access to the other's database. Each maintains its own schema, indexes, and search logic: the MCP server that owns the database is the final enforcement point for that database, and the Agent layer reaches it only through tool calls. Proven by `tests/mcp_servers/mdq/test_mdq_rag_boundary.py` (`test_mdq_layer_has_no_rag_sqlite_references`, `test_rag_pipeline_layer_has_no_mdq_sqlite_references`).
 
 ---
 
@@ -74,9 +74,9 @@ Neither system has direct access to the other's database. Each maintains its own
 
 The agent layer accesses both systems exclusively through **MCP tool calls**.
 
-1. **Primary Path (Recommended):** The agent calls tools via MCP routing (`ToolRouteResolver`). All tool calls pass through the MCP server abstraction layer.
-2. **Admin Bypass:** The `/session rag-consistency`, `/session rag-rebuild-fts`, and `/session rag-prune-vec` commands in the Agent REPL access `rag.sqlite` directly through `RagMaintenanceService` for maintenance tasks. They are not part of normal operation.
-3. **Direct DB Access (Not Recommended):** Application code must NOT directly import `sqlite3` for `mdq.sqlite` or `rag.sqlite`. Always use MCP tools.
+1. **Primary Path (Recommended):** The agent calls tools via MCP routing (`ToolRouteResolver`, `scripts/shared/route_resolver.py`). All tool calls pass through the MCP server abstraction layer.
+2. **Admin Bypass:** The `/session rag-consistency`, `/session rag-rebuild-fts`, and `/session rag-prune-vec` commands in the Agent REPL access `rag.sqlite` directly through `RagMaintenanceService` (`scripts/agent/services/rag_maintenance_service.py`) for maintenance tasks. They are not part of normal operation, and `SQLiteHelper("rag")` in `scripts/agent/` appears only in that service (`tests/mcp_servers/mdq/test_mdq_rag_boundary.py::test_agent_layer_rag_sqlite_access_only_in_maintenance_service`).
+3. **Direct DB Access (Not Recommended):** Application code must NOT directly import `sqlite3` for `mdq.sqlite` or `rag.sqlite`. Always use MCP tools. Proven by `tests/mcp_servers/mdq/test_mdq_rag_boundary.py` (`test_agent_layer_has_no_direct_mdq_sqlite_access`, `test_shared_layer_has_no_direct_mdq_rag_sqlite_access`); the scan is static, so it is a source-level guard rather than a runtime guarantee.
 
 ### RAG and Agent Responsibility Boundary
 
@@ -101,9 +101,11 @@ The classifier injects a single-line system prompt hint (~20-40 tokens) before e
 
 | Condition | Behavior |
 |---|---|
-| MDQ selected, but `mdq-mcp` unavailable | Log WARNING; fallback to RAG hint |
-| RAG selected, but `rag-pipeline-mcp` unavailable | Return error; no fallback |
-| Override mode (`config_mode` = `mdq` or `rag`) | System prompt routing hint (`mdq_rag_classifier.py::resolve_mode()`, `mode_classification.py::classify_and_inject_mode()`); tool call failure returns error via `tool_transport_invoker.py` |
+| MDQ selected, but `mdq-mcp` unavailable | Log WARNING; fallback to RAG hint. Availability is the live registry membership of `search_docs`, not a health call (`scripts/agent/mode_classification.py::classify_and_inject_mode()`) |
+| RAG selected, but `rag-pipeline-mcp` unavailable | Return error; no fallback. The classifier performs no RAG availability check, so the failure surfaces from the tool call itself through `scripts/shared/tool_transport_invoker.py` |
+| Override mode (`config_mode` = `mdq` or `rag`) | System prompt routing hint (`mdq_rag_classifier.py::resolve_mode()`, `mode_classification.py::classify_and_inject_mode()`); an unknown `config_mode` value falls through to the classifier; tool call failure returns error via `scripts/shared/tool_transport_invoker.py` |
+
+A heuristic validation pass (`_validate_classification()` in `scripts/agent/mode_classification.py`) additionally falls back to the RAG hint when a classified mode has no matching keyword in the query. Proven by `tests/agent/test_mode_classification.py` and `tests/mcp_servers/mdq/test_mdq_rag_boundary.py` (`test_mdq_layer_has_no_rag_sqlite_references`, `test_agent_layer_has_no_direct_mdq_sqlite_access`).
 
 RAG is always the preferred fallback in production environments.
 

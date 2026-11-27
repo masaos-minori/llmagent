@@ -145,6 +145,31 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 
 *Note: This section only lists major files defined in the routing table and files explicitly referenced in the text.*
 
+## Document Map
+
+A server issue updates the file that owns the contract it changes. Each file below owns one
+responsibility; a claim written into a file names the enforcement point, the failure behavior, and
+the proving test (see [Documentation Policy](../00_governance/governance_01_documentation-policy.md)).
+
+| File | Update responsibility |
+|---|---|
+| `mcp_00_document-guide.md` | The file index and this map; a new MCP document is registered here |
+| [mcp_03_01_dispatch-and-routing.md](mcp_03_01_dispatch-and-routing.md) | Dispatch and routing contracts: the id definitions, replay ownership, and the dedup ownership boundary |
+| [mcp_02_03_audit-logging-and-errors.md](mcp_02_03_audit-logging-and-errors.md) | Audit log types, authoritative locations, and error formats |
+| [mcp_04_01_web-search-file-read-github.md](mcp_04_01_web-search-file-read-github.md) | web-search, file-read, and GitHub server sections: read authorization, search scope, file-read controls, timeout and retry policy |
+| [mcp_04_02_file-write-file-delete-shell.md](mcp_04_02_file-write-file-delete-shell.md) | file-write, file-delete, and shell server sections: per-operation postconditions, root protection, dry-run parity, audit order |
+| [mcp_04_03_rag-pipeline-and-cicd.md](mcp_04_03_rag-pipeline-and-cicd.md) | rag-pipeline and cicd server sections |
+| [mcp_04_04_mdq.md](mcp_04_04_mdq.md) | mdq server section and its per-server implementation notes |
+| [mcp_04_05_git.md](mcp_04_05_git.md) | git server section: per-operation postconditions and write protection |
+| [mcp_05_03_fail-open-fail-closed-and-risk-tiers.md](mcp_05_03_fail-open-fail-closed-and-risk-tiers.md) | Fail-open/fail-closed policy, dry-run, and risk tiers |
+| [mcp_05_04_mdq-rag-boundary.md](mcp_05_04_mdq-rag-boundary.md) | MDQ/RAG boundary |
+| [mcp_05_05_mdq-enforcement-and-lockdown.md](mcp_05_05_mdq-enforcement-and-lockdown.md) | MDQ/RAG boundary enforcement and mdq-mcp path authorization |
+| [mcp_06_06_end-to-end-tool-call-tracing.md](mcp_06_06_end-to-end-tool-call-tracing.md) | The single id-definition table and the end-to-end trace shape |
+| [adr_02_01_002_platform-config-isolation.md](../10_adr/adr_02_01_002_platform-config-isolation.md) | Config-isolation ownership contract |
+| [adr_02_01_004_platform-environment-failure-handling-policy.md](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md) | Environment failure-handling policy and the failure-contract ownership |
+| [adr_02_05_008_db-six-sqlite-store-separation.md](../10_adr/adr_02_05_008_db-six-sqlite-store-separation.md) | Store separation and the dedup ownership contract |
+| [db_03_07_mcp-dedup-and-execution-snapshot.md](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md) | Dedup store state and recovery invariants, each linked to its automated test, and the operator runbook |
+
 ## Governance
 
 Cross-cutting documentation rules and policies:

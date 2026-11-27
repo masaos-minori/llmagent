@@ -19,7 +19,15 @@ related:
 
 ## Audit Log Format
 
-Each `POST /v1/call_tool` invocation on a server that writes the shared audit log outputs one JSON-lines audit record. Those servers are web-search-mcp, github-mcp, shell-mcp, cicd-mcp, mdq-mcp, git-mcp, file-write-mcp, file-delete-mcp, and rag-pipeline-mcp. file-read-mcp writes no audit log (see the Note below and `mcp_06_05_reading-audit-logs.md`).
+Three audit layers exist and each is named once here; the per-server documents point to this section instead of restating the field list.
+
+| Layer | Authoritative location | Written by |
+|---|---|---|
+| Agent-side `tool_exec` event | `scripts/agent/tool_audit.py::audit_tool_exec` | the Agent, not a server; carries `session_id`, `task_id`, `mcp_request_id` |
+| Shared server-side `mcp_tool_exec` record | `scripts/mcp_servers/audit.py::_audit_log` | every server listed below |
+| Per-server dedicated audit log | each server's own writer: `scripts/mcp_servers/github/github_service_security.py::_write_github_audit_log`, `scripts/mcp_servers/shell/shell_service.py::_write_audit_log`, `scripts/mcp_servers/file/write_service.py::_write_audit_log`, `scripts/mcp_servers/file/delete_service.py::_write_audit_log` | github-mcp, shell-mcp, file-write-mcp, file-delete-mcp |
+
+Each `POST /v1/call_tool` invocation on a server that writes the shared audit log outputs one JSON-lines audit record. Those servers are web-search-mcp, github-mcp, shell-mcp, cicd-mcp, mdq-mcp, git-mcp, file-write-mcp, file-delete-mcp, and rag-pipeline-mcp. file-read-mcp writes no audit log (see the Note below and `mcp_06_05_reading-audit-logs.md`). Proven by `tests/mcp_servers/file/test_file_server_audit_records.py` (`test_accepted_call_emits_one_ok_record`, `test_disabled_allowed_dirs_emits_rejected_record`).
 
 ```json
 {"event":"mcp_tool_exec","source":"mcp_server","ts":1719500000.0,"session_id":"sess-abc","request_id":"req-uuid","tool":"search_web","target":"example query","outcome":"ok","server_key":"web_search","error_type":""}
@@ -31,7 +39,7 @@ Each `POST /v1/call_tool` invocation on a server that writes the shared audit lo
 | `request_id` | `X-Request-Id` (UUID injected by middleware) | Yes | `"-"` |
 | `tool` | `req.name` (tool name) | Yes | — |
 | `target` | Server-specific: repository slug / truncated command / a query hash (`sha256:<16 hex>`) for web-search-mcp `search_web` and a redacted URL (scheme, host, redacted path) for `browser_fetch`, never the raw query or URL / requested file path (truncation length defined per server, e.g. `scripts/mcp_servers/shell/shell_server.py`, `scripts/mcp_servers/mdq/audit_target.py`). file-write-mcp and file-delete-mcp record the caller-supplied path truncated to 80 characters rather than a resolved canonical path. | Yes | — |
-| `outcome` | `"ok"`, `"error"`, or `"rejected"` (the call was rejected by a policy guard before or instead of execution; emitted by git-mcp, file-write-mcp, and file-delete-mcp) | Yes | — |
+| `outcome` | `"ok"`, `"error"`, or `"rejected"` (the call was rejected by a policy guard before or instead of execution; the value is present in every shared record, and `"rejected"` is produced by web-search-mcp, git-mcp, file-write-mcp, and file-delete-mcp) | Yes | — |
 | `detail` | Optional supplementary info | No | Omitted |
 | `server_key` | Server identifier (e.g., `"web_search"`, `"cicd"`, `"mdq"`, `"shell"`, `"github"`) | Yes | `""` |
 | `error_type` | Error classification for transport failures | Yes | `""` |
@@ -41,7 +49,7 @@ Each `POST /v1/call_tool` invocation on a server that writes the shared audit lo
 | `post_condition` | Serialized repository state after the operation; emitted by git-mcp only | No | Omitted |
 
 
-**Note:** github-mcp, shell-mcp, and file-delete-mcp write to both the shared and a dedicated audit log; file-write-mcp and rag-pipeline-mcp write only the shared audit log. file-read-mcp does not write audit logs. Dedicated audit logs for github-mcp, shell-mcp, and file-delete-mcp use ISO8601 timestamps + op=<operation> + path/repo/command. These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
+**Note:** github-mcp, shell-mcp, file-write-mcp, and file-delete-mcp write to both the shared and a dedicated audit log; rag-pipeline-mcp writes only the shared audit log. file-read-mcp does not write audit logs. Dedicated audit logs use ISO8601 timestamps + `op=<operation>` plus the operation identity (path/repo/command); file-write-mcp and file-delete-mcp also carry `before=`/`after=` states. file-write-mcp writes its dedicated record after the write and the post-condition size check (`scripts/mcp_servers/file/write_service.py::write_file`), while file-delete-mcp's intent-phase record precedes the destructive call so a delete never runs with no record of the intent (`scripts/mcp_servers/file/delete_service.py::_write_audit_log`). These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
 
 ### Redaction and exactly-once rule
 

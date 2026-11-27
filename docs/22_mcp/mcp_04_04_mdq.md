@@ -36,7 +36,7 @@ Tool membership and risk tiers: [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ow
 - `max_snippet_chars` truncates search snippets.
 - `search_timeout_sec`: `search_docs()` raises `MdqConsistencyError` on timeout; the background thread is not forcibly interrupted.
 
-**Stored data:** `chunks.tags_json` holds the YAML frontmatter `tags:` values (list or comma-separated) and is the data `search_docs` `tag_filter` matches against. `token_count` is an approximation (`len(content) // 4`), not an accurate tokenizer.
+**Stored data:** `chunks.tags_json` holds the YAML frontmatter `tags:` values (list or comma-separated) and is the data `search_docs` `tag_filter` matches against. `token_count` is an approximation (`max(1, len(content) // 4)`, so an empty or very short section still reports at least 1), not an accurate tokenizer.
 
 **Operations:**
 
@@ -63,7 +63,7 @@ All tools receiving paths enforce fail-closed authorization via `allowed_dirs`. 
 
 - **Agent approval:** not applicable server-side; mdq enforces only its own technical constraints (Bearer token, `allowed_dirs`).
 - **Common guard:** the Path Control table is the common guard and the traversal- and symlink-containment reference implementation the cross-cutting policy measures the other high-risk servers against.
-- **Command-specific guard:** per-tool `authorize_path()` on every path-bearing tool. Read tools re-check the stored `source_path` of each chunk at read time, so a chunk that left `allowed_dirs` is excluded or rejected at read time rather than at index time. The stale-document check (`is_stale()`, `mtime_ns > indexed_at`) is a reporting guard only: `outline` returns a `stale_warning` and `/health` reports `stale_document_count`; neither rejects the call.
+- **Command-specific guard:** per-tool `authorize_path()` on every path-bearing tool. Read tools re-check the stored `source_path` of each chunk at read time, so a chunk that left `allowed_dirs` is excluded or rejected at read time rather than at index time. The stale-document check (`is_stale()`, `mtime_ns > int(indexed_at * 1e9)` in `scripts/mcp_servers/mdq/mdq_models.py`) is a reporting guard only: `outline` returns a `stale_warning` and `/health` reports `stale_document_count`; neither rejects the call. Proven by `tests/mcp_servers/mdq/test_mdq_stale_detection.py` (`test_stale_one_nanosecond_past_boundary`, `test_sql_condition_agrees_with_python_predicate`).
 - **Postcondition verification:** not applicable per operation, and no resulting-state verification exists. Two reporting mechanisms exist: `refresh_paths()` records per-path failures, continues the batch, and returns indexed, skipped, deleted, and failed counts; the Security Posture check `server.index_available` warns when documents exist while the FTS index holds no rows. Neither compares a resulting state with an expected state or gates the refresh.
 - **Audit:** `call_tool` writes one shared `mcp_tool_exec` record per call (a tool-level exception records `outcome="error"` with `error_type`; a dispatched call records the dispatch outcome), with `target` from `extract_audit_target()` truncated to 80 characters and `server_key="mdq"`. No dedicated audit log; before/after state snapshots are not applicable.
 

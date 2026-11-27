@@ -28,7 +28,7 @@ related:
 | `repo_allowlist` (cicd-mcp) | Fail-closed | All repositories denied |
 | `workflow_allowlist` (cicd-mcp) | **Fail-closed** | All workflows denied |
 | `command_allowlist` (shell-mcp) | Fail-closed | All commands denied |
-| `path_denylist` (github-mcp) | Fail-open (registered ADR-004 exception; rationale pending) | All paths allowed |
+| `path_denylist` (github-mcp) | Fail-open (registered ADR-004 exception; rationale pending — open item NC-001 in `docs/00_governance/governance_03_issue-and-uncertainty-management.md`) | All paths allowed |
 | `protected_branches` (github-mcp, git-mcp) | Fail-closed at load (empty is a config load error; the server does not start) | Branch protection always configured |
 
 ### Startup Security Validation
@@ -62,6 +62,8 @@ Runtime denial is enforced independently by each server, so a running server kee
 
 Retry classification follows the same fail-closed rule. Every GitHub write declares `retry_policy = never`, so a dedup-store failure refuses the call instead of dispatching it, and a write is never retried. A timeout or an ambiguous transport failure on a write never implies that the write did not apply, so the `outcome_unknown` result is not retried either.
 
+The retryable side is the registered exception: a store acquisition failure for a retryable tool does not fail closed — the call proceeds overlay-only with the audited `dedup_state="store_error"` marker, while the non-retryable counterpart fails closed with `error_type="dedup_store_error"` (`tests/mcp_servers/test_mcp_dispatch.py::test_store_error_retryable_proceeds_non_retryable_fails_closed`). The overlay path itself is described in [mcp_03_03_transport-and-health.md](mcp_03_03_transport-and-health.md). Both relaxations are ADR-004 exceptions whose maintainer approval is still open (MCP-001 for the overlay-only path, MCP-002 for the post-open warning-only write failure); they are referenced here as open, not resolved.
+
 ---
 
 ## Dry-Run Support
@@ -70,31 +72,26 @@ Retry classification follows the same fail-closed rule. Every GitHub write decla
 
 **Note on cicd-mcp:** Repository and workflow allowlist checks are executed before the `dry_run` bypass inside `handle_trigger_workflow`. Requests subject to denial are always rejected even with `dry_run=True`.
 
-At the agent level: `config/agent.toml`'s `approval_dry_run_tools` lists tools where the approval flow automatically executes them with `dry_run=True` before showing a confirmation prompt to the user.
+At the agent level: the approval flow runs the tool with `dry_run=True` before showing a confirmation prompt when the registered tool declares `preview_capability = "dry_run"` (`_declared_dry_run_capable()` in `scripts/agent/tool_approval.py`). The `approval_dry_run_tools` config map no longer exists; it is a removed key rejected as an unknown key at config validation (`scripts/agent/production_config_validator.py`).
 
 ---
 
 ## Risk Tier Classification
 
-Safety tiers (from `config/agent.toml::tool_safety_tiers`) supply a default approval risk (`none`/`medium`/`high`); an explicit `config/agent.toml::approval_risk_rules` entry takes precedence (`classify_risk` in `agent/tool_policy.py`). The approval method follows the effective risk, not the tier name alone:
+Safety tiers are declared per tool as `agent_safety_tier` by the tool's producer (the tool definitions under `scripts/mcp_servers/`), and the declared tier is the single risk source: `classify_risk()` in `scripts/agent/tool_policy.py` maps it through `_TIER_TO_RISK`, then applies argument-dependent escalation. The removed `config/agent.toml` maps `tool_safety_tiers` and `approval_risk_rules` no longer exist and are rejected as unknown keys at config validation. The approval method follows the effective risk, not the tier name alone:
 
 | Tier | Default risk | Approval Method | Plan-mode blocking | Examples |
 |---|---|---|---|---|
 | `READ_ONLY` | `none` | Automatic approval | Allowed (the only tier plan mode permits) | `read_text_file`, `git_status`, `search_web`, `rag_run_pipeline` |
-| `WRITE_SAFE` | `none` | Automatic approval unless an `approval_risk_rules` entry sets `medium` (then `y/N`) | Blocked | No rule (automatic): `git_add`, `git_commit`, `index_paths`. `medium` rule (`y/N`): `write_file`, `edit_file`, `create_directory`, `github_create_issue` |
-| `WRITE_DANGEROUS` | `medium` | `y/N` prompt by default; full `yes` when an `approval_risk_rules` entry sets `high` | Blocked | `medium`: `trigger_workflow`, `rag_delete_document`. `high`: `delete_file`, `github_push_files`, `git_checkout`, `git_pull`, `git_push` |
+| `WRITE_SAFE` | `none` | Automatic approval | Blocked | `git_add`, `git_commit`, `index_paths`, `write_file`, `edit_file`, `create_directory`, `github_create_issue` |
+| `WRITE_DANGEROUS` | `medium` | `y/N` prompt; escalates to `high` (full `yes`) when a path argument is under `approval_protected_paths`, when `delete_directory` is called with `recursive=true` or a `force`/`overwrite`/`clobber` argument is true, or when a declared branch-kind argument is in `high_risk_branches` | Blocked | `delete_file`, `github_push_files`, `git_checkout`, `git_pull`, `git_push`, `trigger_workflow`, `rag_delete_document` |
 | `ADMIN` | `high` | Requires `yes` (full word) input | Blocked | `shell_run` |
 
-Reachability under the shipped config (19 `approval_risk_rules` entries, 64 `tool_safety_tiers` entries; every ruled tool also carries a tier entry): a base of `none` returns from `classify_risk()` before special-case and protected-path escalation, so the 43 tier-`none` tools with no rule never reach escalation — all 39 `READ_ONLY` tools plus the unruled `WRITE_SAFE` tools `git_add`, `git_commit`, `index_paths`, `refresh_index`. Only tier values that map to a base above `none`, or an explicit rule, take a call to the prompt. The evaluation order itself is canonical in [agent_06_02](../23_agent/agent_06_02_tool-execution-and-approval-approval.md).
+Reachability under the shipped declarations (64 declared tiers: 39 `READ_ONLY`, 11 `WRITE_SAFE`, 13 `WRITE_DANGEROUS`, 1 `ADMIN`): a base of `none` returns from `classify_risk()` before special-case and protected-path escalation, so the 50 tier-`none` tools — all 39 `READ_ONLY` tools plus all 11 `WRITE_SAFE` tools — never reach escalation. Only the 13 `WRITE_DANGEROUS` tools and `shell_run` can take a call to the prompt. The evaluation order itself is canonical in [agent_06_02](../23_agent/agent_06_02_tool-execution-and-approval-approval.md). Proven by `tests/agent/test_tool_approval_risk.py` (`test_declared_tier_is_the_only_risk_source`, `test_read_only_tier_tool_returns_none`, `test_write_to_protected_path_escalates_to_high`).
 
-A tool missing from `tool_safety_tiers` is not given a default tier: startup validation rejects it (see below), and a tool absent from the registry entirely is classified `high` at call time.
+Plan mode blocks a call unless the tool's declared tier is `READ_ONLY`; a tool absent from the registry, and a call without a registry, is blocked (fail closed). `cfg.tool.plan_blocked_tools` is an explicit operational extension that names tools blocked regardless of their tier.
 
-Entries in `tool_safety_tiers` must match registered tool names exactly (not server keys). Bidirectional validation is performed at startup.
-
-- **Missing Tiers:** If a registered tool is not in `tool_safety_tiers`, it is a validation error and config build fails (fatal `ConfigReloadValidationError`, `config_builders._run_production_validation`) regardless of environment.
-- **Unknown Keys:** If a key in `tool_safety_tiers` does not match a registered tool name, it is a validation error with the same fatal outcome.
-
-Both checks are performed via `ProductionConfigValidator.validate()`, which integrates all validations for safety-tier and allowed-tools in a single pass.
+A tool with no declared tier cannot enter the registry: the strict builder rejects an undeclared tier (`scripts/shared/runtime_tool.py`), and a tool absent from the registry is classified `high` at call time (`tests/agent/test_tool_approval_risk.py::test_truly_unknown_tool_returns_high_risk_fail_safe`). `check_tool_safety_tiers()` and `check_unknown_tool_safety_tiers()` in `scripts/shared/tool_routing_validation.py` compare the reference seed registry with the live registry and return drift findings only — no caller may use them to classify a tool (`tests/shared/test_tool_safety_tiers.py`). The removed `tool_safety_tiers` and `approval_risk_rules` keys are rejected as unknown keys with the replacement named by `ProductionConfigValidator.validate()`.
 
 ---
 
@@ -104,7 +101,7 @@ Both checks are performed via `ProductionConfigValidator.validate()`, which inte
 
 2. **mdq-mcp is production-ready.** FTS5 indexing and searching is implemented. For production RAG workloads, use `rag-pipeline-mcp`. See [mcp_05 MDQ vs RAG Boundary](./mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) for guidelines.
 
-3. **Preview with `dry_run=True` before destructive operations.** The agent's approval flow automatically injects `dry_run=True` for registered tools before displaying a user prompt.
+3. **Preview with `dry_run=True` before destructive operations.** The agent's approval flow automatically injects `dry_run=True` for a registered tool that declares `preview_capability = "dry_run"` before displaying a user prompt; a tool that declares no dry-run capability is not previewed.
 
 ## Keywords
 
