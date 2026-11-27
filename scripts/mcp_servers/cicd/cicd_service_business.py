@@ -16,13 +16,16 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import asdict
 
 from shared.json_utils import dumps as _json_dumps
 
 from mcp_servers.cicd.cicd_models import (
     CicdAuthorizationError,
     CicdConfig,
+    CicdUpstreamError,
     CicdValidationError,
+    LogFetchResult,
     canonical_repo_key,
     canonical_workflow_id,
 )
@@ -97,18 +100,27 @@ class CiCdService(CiCdGuards):
         if req.dry_run:
             preview = f"Would trigger workflow '{workflow}' on ref '{req.ref}' in repo '{repo_key}'"
             if req.inputs:
-                preview += f" with inputs={req.inputs}"
+                # REQ-006: keys and count only; input values never enter the preview.
+                keys = ", ".join(sorted(req.inputs))
+                preview += f" with inputs [{len(req.inputs)}]: {keys}"
             dry_run_result: str = _json_dumps({"preview": preview, "dry_run": True})
             return dry_run_result
         owner, repo = self._parse_repo(repo_key)
-        trigger_result: str = await self._backend.trigger_workflow(
-            owner,
-            repo,
-            workflow,
-            req.ref,
-            req.inputs,
+        outcome = await self._backend.trigger_workflow(
+            owner, repo, workflow, req.ref, req.inputs
         )
-        return trigger_result
+        # The handler contract stays `-> str`: the structured outcome is JSON-serialized
+        # here, so dispatch_tool and the audit outcome mapping are unchanged.
+        return _json_dumps(
+            {
+                "state": outcome.state,
+                "run_id": outcome.run_id,
+                "run_url": outcome.run_url,
+                "run_status": outcome.run_status,
+                "workflow": outcome.workflow,
+                "ref": outcome.ref,
+            }
+        )
 
     async def handle_get_workflow_runs(self, args: ToolArgs) -> str:
         """Retrieve the list of workflow runs for a given workflow."""
@@ -153,10 +165,18 @@ class CiCdService(CiCdGuards):
             run_id=args["run_id"],
         )
         owner, repo = self._validate_and_parse_repo(req.repo)
-        logs_result: str = await self._backend.get_workflow_logs(
+        logs_result: LogFetchResult = await self._backend.get_workflow_logs(
             owner, repo, req.run_id
         )
-        return logs_result
+        # REQ-004: total failure is a tool error, not a successful result with an
+        # empty output. The decision is from the per-job statuses, never from text.
+        if logs_result.jobs and all(job.status == "failed" for job in logs_result.jobs):
+            raise CicdUpstreamError(
+                f"get_workflow_logs: every job failed for {owner}/{repo} run={req.run_id}"
+            )
+        # The handler contract stays `-> str`: the structured result is JSON-serialized
+        # here, so dispatch_tool and the audit outcome mapping are unchanged.
+        return _json_dumps(asdict(logs_result))
 
     def get_dispatch_table(
         self,

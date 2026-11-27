@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import httpx
 
+from mcp_servers.cicd.cicd_models import DispatchOutcome, LogFetchResult
+
 from .cicd_service_defs import CiBackend
 
 
@@ -53,8 +55,12 @@ class GitHubActionsCompositeBackend(CiBackend):
         workflow: str,
         ref: str,
         inputs: dict[str, str],
-    ) -> str:
-        """Trigger a workflow run on the specified repository and branch."""
+    ) -> DispatchOutcome:
+        """Trigger a workflow run on the specified repository and branch.
+
+        Pass-through only: the structured outcome from the workflow backend is returned
+        unchanged; serialization stays at the handler boundary.
+        """
         return await self._workflow.trigger_workflow(owner, repo, workflow, ref, inputs)
 
     async def get_workflow_runs(
@@ -71,6 +77,15 @@ class GitHubActionsCompositeBackend(CiBackend):
         """Get the status of a specific workflow run by ID."""
         return await self._workflow.get_workflow_status(owner, repo, run_id)
 
-    async def get_workflow_logs(self, owner: str, repo: str, run_id: int) -> str:
-        """Retrieve the logs for a specific workflow run."""
+    async def get_workflow_logs(
+        self,
+        owner: str,
+        repo: str,
+        run_id: int,
+    ) -> LogFetchResult:
+        """Retrieve the logs for a specific workflow run.
+
+        Pass-through only: the structured result from the job backend is returned
+        unchanged; serialization stays at the handler boundary.
+        """
         return await self._job.get_workflow_logs(owner, repo, run_id)

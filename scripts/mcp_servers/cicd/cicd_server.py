@@ -51,6 +51,10 @@ from mcp_servers.cicd.cicd_models import (
 )
 from mcp_servers.cicd.cicd_service import CiCdService, build_service
 from mcp_servers.cicd.cicd_service_defs import _GITHUB_API_BASE, build_auth_headers
+from mcp_servers.cicd.cicd_service_github_actions import (
+    bind_call_identity,
+    dispatch_reconciler,
+)
 from mcp_servers.cicd.cicd_service_guards import (
     ProbeOutcome,
     probe_check,
@@ -58,6 +62,7 @@ from mcp_servers.cicd.cicd_service_guards import (
 )
 from mcp_servers.cicd.cicd_tools import TOOL_LIST
 from mcp_servers.cicd.exception_handlers import setup_exception_handlers
+from mcp_servers.control_api import register_reconciler
 from mcp_servers.dispatch import (
     DispatchResult,
     ToolArgs,
@@ -226,6 +231,12 @@ attach_auth_middleware(
 )
 setup_exception_handlers(app)
 
+# Reconciler registration at the control-API seam (mcpdl004 REQ-004, mcpci002 REQ-007):
+# the run lookup answers from the recorded correlation digest without re-executing the
+# dispatch. `trigger_workflow` is the entry CICD_WRITE_TOOLS pins
+# (scripts/shared/tool_constants.py:76) and stays non-retryable.
+register_reconciler("trigger_workflow", dispatch_reconciler)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Tool dispatch
@@ -283,7 +294,11 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     except ExecutionContextError as exc:
         return CallToolResponse(result=f"Validation error: {exc}", is_error=True)
     session_id, request_id = extract_request_context(request)[:2]
-    r = await _dispatch_cicd_tool(req.name, req.args, context=exec_ctx)
+    # The call identity is bound around the dispatch so the backend can record the
+    # correlation keyed by the call key, the same key the control API looks up
+    # (github precedent: github_service_security.bind_call_identity).
+    with bind_call_identity(session_id, request_id, exec_ctx.idempotency_key):
+        r = await _dispatch_cicd_tool(req.name, req.args, context=exec_ctx)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
     _audit_log(

@@ -19,6 +19,19 @@ workflow_allowlist = ["ci.yml"]
 # Hard maximums enforced by validation: max_log_size_kb is 1..1024 and each
 # allowlist holds at most 100 entries. A value outside the range makes the
 # server refuse to start.
+
+# The four streaming limits are module constants in
+# scripts/mcp_servers/cicd/cicd_models.py, not configuration keys: raw download
+# 1 MiB, decompressed 1 MiB, selected job the remaining output budget, returned
+# output max_log_size_kb (256 here, headers and marker included).
+
+# Redirect policy: at most 3 hops (MAX_REDIRECTS), and every hop must be one of
+# the trusted GitHub log hosts: api.github.com,
+# results-receiver.actions.githubusercontent.com, and
+# productionresultssa*.blob.core.windows.net (prefix match).
+
+# Per-hop fetch timeout is 10 s (LOG_FETCH_TIMEOUT_S), so the overall deadline
+# for one job log is 40 s.
 max_log_size_kb = 256
 
 # auth_token: Bearer token for MCP server call authentication, resolved

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from mcp_servers.cicd.cicd_models import DispatchOutcome, LogFetchResult
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Constants
 # ──────────────────────────────────────────────────────────────────────────────
@@ -42,7 +44,7 @@ class CiBackend(Protocol):
         workflow: str,
         ref: str,
         inputs: dict[str, str],
-    ) -> str:
+    ) -> DispatchOutcome:
         """Trigger a workflow run on the specified repository and branch."""
         ...
 
@@ -60,7 +62,9 @@ class CiBackend(Protocol):
         """Get the status of a specific workflow run by ID."""
         ...
 
-    async def get_workflow_logs(self, owner: str, repo: str, run_id: int) -> str:
+    async def get_workflow_logs(
+        self, owner: str, repo: str, run_id: int
+    ) -> LogFetchResult:
         """Retrieve the logs for a specific workflow run."""
         ...
 

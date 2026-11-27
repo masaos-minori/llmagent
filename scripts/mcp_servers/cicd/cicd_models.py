@@ -21,6 +21,7 @@ from pydantic import Field
 from shared.config_loader import ConfigLoader
 from shared.config_utils import get_non_negative_number, get_str, get_typed
 from shared.repo_identity import is_canonical_repo_key, normalize_repo_key
+from shared.write_outcome import OUTCOME_UNKNOWN
 
 from mcp_servers.request_contract import StrictRequestModel
 
@@ -249,3 +250,187 @@ class GetWorkflowLogsRequest(StrictRequestModel):
 
     repo: str = Field(..., min_length=1, description=_REPO_DESC)
     run_id: int = Field(..., gt=0, description=_RUN_ID_DESC)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Dispatch outcome (response side of the trigger_workflow contract, mcpci002)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Bounded polling window (REQ-003); constants, not configuration (Plan Assumption,
+# UNK-02 decided 20261127): the window stays inside the lifespan-owned shared HTTP
+# client timeout of 30.0 s.
+POLL_TIMEOUT_S = 10
+POLL_INTERVAL_S = 2
+
+# The five dispatch states (REQ-001). `outcome_unknown` is reused from the shared
+# write-outcome vocabulary rather than redefined; the shared RECONCILE_OUTCOMES set
+# is not extended (Plan Design decision, mcpdl004 ownership).
+DISPATCH_STATES = frozenset(
+    {
+        "accepted",
+        "confirmed",
+        "accepted_unconfirmed",
+        OUTCOME_UNKNOWN,
+        "reconciliation_required",
+    }
+)
+
+
+@dataclasses.dataclass(frozen=True)
+class DispatchOutcome:
+    """Structured dispatch outcome for trigger_workflow (REQ-001, REQ-003).
+
+    The state is set by the backend row, not by the model; a 2xx response never
+    becomes confirmed without a matched run (REQ-001).
+    """
+
+    state: str
+    run_id: int | None = None
+    run_url: str | None = None
+    run_status: str | None = None
+    workflow: str | None = None
+    ref: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.state not in DISPATCH_STATES:
+            raise ValueError(f"DispatchOutcome: unknown state {self.state!r}")
+        if self.state == "confirmed" and self.run_id is None:
+            raise ValueError("DispatchOutcome: confirmed requires a matched run")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Log streaming bounds and response contract (mcpci003)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Independent byte limits decided 20261127 (UNK-02); constants, not configuration, so
+# `config/cicd_mcp_server.toml` and the docs can state them. `returned_bytes` is the
+# caller's own output budget and is enforced by the job backend, not by the helper.
+MAX_RAW_DOWNLOAD_BYTES = 1_048_576
+MAX_DECOMPRESSED_BYTES = 1_048_576
+MAX_REDIRECTS = 3
+LOG_FETCH_TIMEOUT_S = 10
+
+# Trusted GitHub-controlled log hosts (UNK-01, resolved 20261127 from GitHub
+# documentation and observed 302 targets). The blob entry is a prefix match, not an
+# allowlist wildcard, so the config wildcard-rejection rule does not apply here.
+TRUSTED_LOG_HOSTS = frozenset(
+    {
+        "api.github.com",
+        "results-receiver.actions.githubusercontent.com",
+        "productionresultssa*.blob.core.windows.net",
+    }
+)
+
+# Per-job statuses and error codes (REQ-004): stable values, never raw exception text.
+LOG_JOB_STATUSES = frozenset({"included", "failed", "skipped"})
+LOG_ERROR_CODES = frozenset(
+    {
+        "http_status",
+        "address_rejected",
+        "redirect",
+        "content_type",
+        "content_encoding",
+        "transport",
+    }
+)
+
+# Truncation reasons. The first three match `bounded_fetch`'s `TRUNCATED_BY_*` values,
+# which the job backend passes through unchanged; `output_budget` is the job backend's
+# own final-output limit (REQ-003).
+TRUNCATION_REASONS = frozenset({"raw", "decoded", "parser_input", "output_budget"})
+
+
+@dataclasses.dataclass(frozen=True)
+class LogJobResult:
+    """Per-job log outcome (REQ-004): failure is a code, not output text.
+
+    `included_bytes` is what this job contributed to the final output — its header,
+    its log text, and the truncation marker when one was added. A skipped job
+    contributed nothing, so it is 0.
+    """
+
+    job_id: int
+    status: str
+    included_bytes: int
+    error_code: str | None = None
+    truncated: bool = False
+
+    def __post_init__(self) -> None:
+        if self.status not in LOG_JOB_STATUSES:
+            raise ValueError(f"LogJobResult: unknown status {self.status!r}")
+        if self.status == "failed":
+            if self.error_code not in LOG_ERROR_CODES:
+                raise ValueError(
+                    f"LogJobResult: unknown error code {self.error_code!r}"
+                )
+        elif self.error_code is not None:
+            raise ValueError("LogJobResult: error_code is set only for a failed job")
+        if isinstance(self.included_bytes, bool) or self.included_bytes < 0:
+            raise ValueError(
+                f"LogJobResult: included_bytes must be non-negative: {self.included_bytes!r}"
+            )
+        if not isinstance(self.truncated, bool):
+            raise ValueError("LogJobResult: truncated must be bool")
+
+
+@dataclasses.dataclass(frozen=True)
+class LogTotals:
+    """Totals of one log retrieval (REQ-005)."""
+
+    jobs: int
+    included_jobs: int
+    failed_jobs: int
+    downloaded_bytes: int
+    visible_bytes: int
+    truncation_reason: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.truncation_reason not in TRUNCATION_REASONS | {None}:
+            raise ValueError(
+                f"LogTotals: unknown truncation reason {self.truncation_reason!r}"
+            )
+        for name in (
+            "jobs",
+            "included_jobs",
+            "failed_jobs",
+            "downloaded_bytes",
+            "visible_bytes",
+        ):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"LogTotals: {name} must be a non-negative integer")
+
+
+@dataclasses.dataclass(frozen=True)
+class LogFetchResult:
+    """The structured log result: jobs, the assembled output, `partial_success`, and the totals.
+
+    `output` is the final assembled text (job headers, log text, and the truncation marker)
+    that the job backend kept inside the byte budget; `totals.visible_bytes` is its byte
+    count (user decision 20261127: the text carrier is the result, not a per-job field).
+    """
+
+    jobs: tuple[LogJobResult, ...]
+    output: str
+    partial_success: bool
+    totals: LogTotals
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.output, str):
+            raise ValueError("LogFetchResult: output must be str")
+        if not isinstance(self.partial_success, bool):
+            raise ValueError("LogFetchResult: partial_success must be bool")
+        if len(self.output.encode()) != self.totals.visible_bytes:
+            raise ValueError(
+                "LogFetchResult: visible_bytes must match the output length"
+            )
+        included = sum(1 for job in self.jobs if job.status == "included")
+        failed = sum(1 for job in self.jobs if job.status == "failed")
+        if self.partial_success != (included > 0 and failed > 0):
+            raise ValueError(
+                "LogFetchResult: partial_success must match the per-job statuses"
+            )
+        if self.totals.jobs != len(self.jobs):
+            raise ValueError("LogFetchResult: totals.jobs must match the job list")
+        if self.totals.included_jobs != included or self.totals.failed_jobs != failed:
+            raise ValueError("LogFetchResult: totals counts must match the job list")
