@@ -8,7 +8,7 @@ tags:
 related:
   - mcp_06_01_configuration-file-inventory.md
   - mcp_03_03_transport-and-health.md
-  - db_03_07_mcp-dedup-and-execution-snapshot.md
+  - db_09_mcp_dedup_and_execution_snapshot.md
 ---
 # End-to-End Tool Call Tracing
 
@@ -86,7 +86,7 @@ snapshot equals the snapshot built at the new call's start, compared per compone
 `mismatching_components` names each differing component, so ops can tell a config-only change
 from a code-revision change. Tolerant readers record `"unknown"` (missing revision file) or
 `"absent"` (missing DB) instead of failing. Storage and replay semantics:
-[db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md); transport-side key derivation:
+[db_09](../41_db/db_09_mcp_dedup_and_execution_snapshot.md); transport-side key derivation:
 [mcp_03_03](mcp_03_03_transport-and-health.md).
 
 Example line (synthetic values) — a replayed completed-hit served from the durable store:

@@ -168,7 +168,7 @@ the proving test (see [Documentation Policy](../00_governance/governance_01_docu
 | [adr_02_01_002_platform-config-isolation.md](../10_adr/adr_02_01_002_platform-config-isolation.md) | Config-isolation ownership contract |
 | [adr_02_01_004_platform-environment-failure-handling-policy.md](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md) | Environment failure-handling policy and the failure-contract ownership |
 | [adr_02_05_008_db-six-sqlite-store-separation.md](../10_adr/adr_02_05_008_db-six-sqlite-store-separation.md) | Store separation and the dedup ownership contract |
-| [db_03_07_mcp-dedup-and-execution-snapshot.md](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md) | Dedup store state and recovery invariants, each linked to its automated test, and the operator runbook |
+| [db_09_mcp_dedup_and_execution_snapshot.md](../41_db/db_09_mcp_dedup_and_execution_snapshot.md) | Dedup store state and recovery invariants, each linked to its automated test, and the operator runbook |
 
 ## Governance
 

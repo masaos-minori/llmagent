@@ -15,7 +15,7 @@ related:
   - agent_03_01_turn-processing-flow-overview.md
   - agent_09_01_data-layer-session-db.md
   - db_02_architecture_and_schema-schema-reference.md
-  - db_03_07_mcp-dedup-and-execution-snapshot.md
+  - db_09_mcp_dedup_and_execution_snapshot.md
 ---
 
 # Agent State and Persistence - Platform Databases
@@ -80,7 +80,7 @@ Boundaries:
 The former `execution_snapshots` table is retired: no code path ever wrote it, fresh databases no longer create it or the `tool_call_state.snapshot_id` foreign key, and a legacy database that still carries the empty table fails startup under exact fingerprint matching and is archived and recreated by the operator.
 
 Full column contract, migration path (`workflow.sqlite` ledger `1 -> 2`), and the replay
-decision table: [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md). Producer
+decision table: [db_09](../41_db/db_09_mcp_dedup_and_execution_snapshot.md). Producer
 wiring on the agent executor path is tracked by follow-up issue
 `issues/20261031-175803_toolstate001_tool-call-state-producer.md`.
 

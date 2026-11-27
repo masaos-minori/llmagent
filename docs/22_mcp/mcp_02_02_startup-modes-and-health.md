@@ -163,7 +163,7 @@ Every server reports unmet prerequisites through `dependencies` (a non-empty val
 | file-read/write/delete-mcp | `dependencies.filesystem` when the workspace root is not a directory |
 | rag-pipeline-mcp | `dependencies.embed_url` is `"not configured"` (embedding URL unset), `"unreachable"` (embedding URL configured but the reachability probe fails), or `dependencies.config` is `"check failed"` (failed config check) |
 | git-mcp | `dependencies.git` when `git` is not found |
-| the 10 servers with a `[dedup]` table | `details.dedup` is the metrics block defined in Standard `/health` Response Semantics above, read-only; per-server content (for example mdq's row counts or web-search's `metrics`) is unchanged. Retention eligibility matrix: [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md); `[dedup]` key inventory: [mcp_06_01](mcp_06_01_configuration-file-inventory.md) |
+| the 10 servers with a `[dedup]` table | `details.dedup` is the metrics block defined in Standard `/health` Response Semantics above, read-only; per-server content (for example mdq's row counts or web-search's `metrics`) is unchanged. Retention eligibility matrix: [db_09](../41_db/db_09_mcp_dedup_and_execution_snapshot.md); `[dedup]` key inventory: [mcp_06_01](mcp_06_01_configuration-file-inventory.md) |
 
 ---
 

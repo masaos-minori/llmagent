@@ -89,8 +89,8 @@ The `[dedup]` table in `config/<key>_mcp_server.toml` is read once per process a
 
 | Key | Scope |
 |---|---|
-| `db_path` | Existing key. Dedup store path, pinned to the dedup database directory contract in [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md) |
-| `retention_days` | Existing key (default 14). Retention sweep window; sweep eligibility matrix in [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md) |
+| `db_path` | Existing key. Dedup store path, pinned to the dedup database directory contract in [db_09](../41_db/db_09_mcp_dedup_and_execution_snapshot.md) |
+| `retention_days` | Existing key (default 14). Retention sweep window; sweep eligibility matrix in [db_09](../41_db/db_09_mcp_dedup_and_execution_snapshot.md) |
 | `lease_seconds` | Existing key (30, accepted range 1..3600). Acquisition lease |
 | `max_attempts` | Existing key (3, accepted range 1..10). Attempt cap |
 | `max_dedup_rows` | Optional integer, accepted range 1..10000000. Per-metric row-count status only |
@@ -104,7 +104,7 @@ closed at startup (`ConfigParseError`), like the existing four keys. The new key
 the 10 committed `config/*_mcp_server.toml` files carry none of them and stay valid unchanged, so
 no config file changes. The new keys are excluded from the store identity fingerprint
 (`_config_fingerprint`), so store identity is unchanged. The reported status never gates store or
-dispatcher behaviour. Sweep and hold semantics: [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md);
+dispatcher behaviour. Sweep and hold semantics: [db_09](../41_db/db_09_mcp_dedup_and_execution_snapshot.md);
 the health `details.dedup` exposure: [mcp_02_02](mcp_02_02_startup-modes-and-health.md).
 
 ## API key env files (`conf.d/`)

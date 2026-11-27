@@ -11,7 +11,7 @@ related:
   - mcp_03_02_tool-registry.md
   - mcp_03_04_tool-call-tracing-and-lifecycle.md
   - mcp_03_05_lifecycle-and-new-server.md
-  - db_03_07_mcp-dedup-and-execution-snapshot.md
+  - db_09_mcp_dedup_and_execution_snapshot.md
 ---
 
 # HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys
@@ -55,7 +55,7 @@ dedup layers. For side-effecting tools the key feeds two layers:
   `reconciliation_required`, `outcome_unknown`, `replay_unavailable`), store start states
   (`first_initialization`, `healthy`, `lost`, `replaced`, `legacy_or_unverified`,
   `schema_mismatch`), replay decision table, retry classification, retention, and concurrency
-  contract are documented in [db_03_07](../41_db/db_03_07_mcp-dedup-and-execution-snapshot.md).
+  contract are documented in [db_09](../41_db/db_09_mcp_dedup_and_execution_snapshot.md).
 
 Failure semantics at the dispatcher boundary: a key reused with different content (different
 tool or arguments) is rejected as `error_type="idempotency_key_reused"` before dispatch, on both

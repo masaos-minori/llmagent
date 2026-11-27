@@ -82,7 +82,7 @@ Each database is owned by a single component (see the **Owner** line of each sec
   class, digest, size and any external reference; a failed call records `replay_unavailable` with
   `result_code` set to the error class. `result_class` is one of `complete`,
   `secure_reference`, `redacted_preview`, `replay_unavailable`. `call_attempt_history` records each
-  attempt/finalization/reconciliation decision. See [db_03_07](db_03_07_mcp-dedup-and-execution-snapshot.md).
+  attempt/finalization/reconciliation decision. See [db_09](db_09_mcp_dedup_and_execution_snapshot.md).
 - **Rebuild**: disposable dedup-log cache; backup and rotation helpers do not cover it. Unlike
   derived stores such as mdq, its evidence is archive-only: it is never auto-rebuilt from any
   source. Recovery is the operator runbook below. See [ADR-008](../10_adr/adr_02_05_008_db-six-sqlite-store-separation.md) (Derived Stores Outside the Four Domains)
