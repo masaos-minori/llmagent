@@ -48,6 +48,10 @@ def _make_loop(
     ctx.conv.memory_warning_shown = False
     ctx.stats = MagicMock()
     ctx.stats.stat_partial_completions = 0
+    # The turn-entry check reads the session's degraded state (cliplc010 AC-3);
+    # AgentContext is a plain class, so the spec mock needs the instance attribute.
+    ctx.session = MagicMock()
+    ctx.session.is_degraded = False
 
     view = MagicMock(spec=CLIView)
     loop = ReplInputLoop(ctx, view, shutdown_event, budget=budget)

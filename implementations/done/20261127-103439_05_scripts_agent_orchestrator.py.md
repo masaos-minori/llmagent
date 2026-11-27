@@ -30,6 +30,7 @@ Requirement implemented: REQ-003 (compensation status recorded on the turn resul
 
 ### Details
 - The branch re-raises at line 211; the recorded status must be captured before the re-raise so the display path can read it.
+- Step 3b correction (20261127): the branch does not construct a `TurnResult`; the record it produces is the audit `turn_end` event, and putting the status there would require changing `scripts/agent/audit_event_emitter.py` (outside the plan's frozen target-file table). User decision (20261127): no source change for this row — the branch is a pass-through and the status stays on the re-raised error, which `scripts/agent/repl_input_loop.py` (procedure 06) surfaces. Coverage is the added test in `tests/agent/test_orchestrator.py`.
 
 ### Companion test files
 - `tests/agent/test_orchestrator.py`
@@ -61,9 +62,9 @@ Requirement implemented: REQ-003 (compensation status recorded on the turn resul
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | N/A | — | — | no source change: user decision 20261127, the branch is a pass-through; recording target is outside the plan target table |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261127-114643 | pass-through test added; 150 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-114643 | 20261127-151312 | ruff passed; full-suite run deferred to end of batch; docs row covered by procedure 13 end-of-batch full suite: 16009 passed, 5 skipped; diff-cover 93% >= 90% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

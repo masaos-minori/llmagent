@@ -26,7 +26,7 @@ from agent.orchestrator import BG_FAILURE_THRESHOLD, Orchestrator
 from agent.session import AgentSession, SessionTarget
 from agent.session_message_repo import SessionMessageRepository
 from agent.tool_loop_guard import ToolLoopGuard
-from agent.turn_persistence import ConversationPersistenceError
+from agent.turn_persistence import CompensationStatus, ConversationPersistenceError
 from agent.turn_result import TurnResult
 from agent.workflow import (
     WorkflowHaltError,
@@ -3935,6 +3935,36 @@ class TestTurnPersistenceBoundaryWiring:
         call_args = emit_end.call_args[0]
         assert call_args[3] == "persistence"  # error_kind
         assert call_args[4] is False  # is_partial
+
+    @pytest.mark.asyncio
+    async def test_persistence_branch_keeps_compensation_status_readable(
+        self,
+    ) -> None:
+        """cliplc010 REQ-003 (AC-2): the branch records ``error_kind`` and passes the
+        error's compensation status through to the display path.
+
+        The branch has no recording target inside the plan's target-file table, so it
+        is a pass-through: the status stays on the re-raised error for
+        ``repl_input_loop`` to surface (procedure 05 note).
+        """
+        ctx = _make_ctx()
+        ctx.session.turn_boundary = AsyncMock(return_value=object())
+        orch = _make_orchestrator(ctx)
+        err = ConversationPersistenceError(
+            "history rolled back",
+            cause=sqlite3.Error("boom"),
+            compensation=CompensationStatus.FAILED,
+        )
+        orch._workflow_adapter.execute_turn = AsyncMock(side_effect=err)
+        emit_end = AsyncMock()
+        orch._audit_emitter.emit_turn_end = emit_end
+
+        with pytest.raises(ConversationPersistenceError) as exc_info:
+            await orch._execute_turn("hello")
+
+        emit_end.assert_awaited_once()
+        assert emit_end.call_args[0][3] == "persistence"  # error_kind
+        assert exc_info.value.compensation is CompensationStatus.FAILED
 
     @pytest.mark.asyncio
     async def test_real_boundary_compensates_and_restores_through_orchestrator(

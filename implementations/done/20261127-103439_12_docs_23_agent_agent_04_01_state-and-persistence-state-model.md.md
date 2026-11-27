@@ -56,8 +56,8 @@ Requirement implemented: REQ-006 (documentation of the turn-persistence contract
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261127-115210 | compensation statuses + masked public error string + degraded-session refusal added |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` | Completed | — | 20261127-115210 | check_docs_quality/structure/content_policy/japanese passed; consistency --domain agent: 1 pre-existing warning in agent_14 (file not touched by this procedure) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

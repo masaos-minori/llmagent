@@ -156,6 +156,19 @@ class ReplInputLoop:
             "new commands and turns are refused."
         )
 
+    def _report_degraded_refusal(self, ctx: "AgentContext") -> "_TurnFlow":
+        """Refuse one turn while the session is degraded (REQ-004, AC-3).
+
+        The state is read from the session object, not a local flag, so the refusal
+        holds across turns until the UNK-01 clearing seam is implemented. The loop
+        stays responsive: the refusal writes a warning and returns NEXT without
+        dispatching a turn.
+        """
+        self._view.write_warning(
+            "Session is degraded (compensation failed); turn refused."
+        )
+        return _TurnFlow.NEXT
+
     def _report_interrupted_loop(self) -> None:
         """State that an interrupt after shutdown began ends the input loop."""
         self._view.write_warning("Interrupted during shutdown; ending the input loop.")
@@ -391,10 +404,10 @@ class ReplInputLoop:
             if not self._accepts_work():
                 self._report_interrupted_loop()
                 return _TurnFlow.BREAK
-        except (
-            ConversationPersistenceError
-        ):  # seq 10: compensated turn; surface distinctly before the generic handler
+        except ConversationPersistenceError as exc:  # seq 10: compensated turn; surface distinctly before the generic handler
             self._view.write_turn_not_persisted()
+            # AC-3: the surfaced message reports which compensation outcome happened.
+            self._view.write_warning(f"compensation: {exc.compensation}")
         except Exception as exc:  # noqa: BLE001 — contain unexpected per-turn errors so the interactive session stays usable after a failing turn
             self._surface_turn_error(exc)
         finally:
@@ -432,7 +445,10 @@ class ReplInputLoop:
                 self._view.write_warning(
                     f"{OutputTag.NON_FATAL} Memory is disabled for this session."
                 )
-            flow = await self._guarded_turn(line, ctx)
+            if ctx.session.is_degraded:
+                flow = self._report_degraded_refusal(ctx)
+            else:
+                flow = await self._guarded_turn(line, ctx)
             if flow is _TurnFlow.BREAK:
                 break
             if flow is _TurnFlow.CONTINUE:

@@ -59,9 +59,9 @@ Requirement implemented: REQ-003 (compensation status on the turn result). Accep
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-113439 | 20261127-113513 | stale check clean; CompensationStatus resolved from sibling procedure 01 (landed) files changed: scripts/agent/turn_result.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261127-113521 | default + recorded-status + equality tests added; 6 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-113521 | 20261127-151312 | gates passed (ruff, mypy, lint-imports, bandit); full-suite run deferred to end of batch; docs row covered by procedure 13 end-of-batch full suite: 16009 passed, 5 skipped; diff-cover 93% >= 90% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -236,7 +236,8 @@ Generated from `registry/manifests/agent_api.yaml` (`scripts/agent/*.py` top-lev
 |  | `ScheduledBatch` | `class ScheduledBatch` | One or more ScheduledGroups that run concurrently with each other. |
 |  | `ExecutionPlan` | `class ExecutionPlan` | The full scheduling result for one batch of tool calls. |
 |  | `build_execution_groups` | `def build_execution_groups(tool_calls, call_specs, *, force_serial) -> ExecutionPlan` | Build the single-engine DAG execution plan for *tool_calls*. |
-| `scripts/agent/turn_persistence.py` | `ConversationPersistenceError` | `class ConversationPersistenceError` | Raised when a turn's session-DB persistence fails and is compensated. |
+| `scripts/agent/turn_persistence.py` | `CompensationStatus` | `class CompensationStatus` | Outcome of a turn's compensation, reported on the error and the result. |
+|  | `ConversationPersistenceError` | `class ConversationPersistenceError` | Raised when a turn's session-DB persistence fails and is compensated. |
 |  | `TurnPersistence` | `class TurnPersistence` | Owns all session-DB writes of one agent turn (all-or-nothing). |
 | `scripts/agent/turn_result.py` | `TurnResult` | `class TurnResult` | Typed result of one LLM turn. |
 | `scripts/agent/wal_checkpoint_manager.py` | `format_sqlite_error` | `def format_sqlite_error(exc) -> str` | Render a failure as the error type name plus a masked, path-reduced message. |

@@ -31,6 +31,9 @@ Requirement implemented: REQ-004 (degraded session cannot silently continue). Ac
 
 ### Details
 - The degraded state is read from the session object, so the mock session must expose the flag the implementation defines in `scripts/agent/session.py`.
+- Step 3b correction (20261127): the full-suite run hung on `tests/agent/test_repl.py::TestInterruptByState::test_ctrl_c_during_a_turn_cancels_only_the_turn`. The `_make_bare_repl` fixture uses a bare `MagicMock()` ctx, so `ctx.session.is_degraded` was truthy and the new turn-entry refusal skipped the turn dispatch, leaving the test's `started` event unset and its `_ctrl_c` task waiting forever. Fix: pin `ctx.session.is_degraded = False` in the fixture.
+- Step 3b correction (20261127): `AgentContext` is a plain class, so `MagicMock(spec=AgentContext)` does not expose `session` (an instance attribute set in `__init__`); the existing tests' fixture must assign `ctx.session` and pin `is_degraded = False` for the turn-entry check to read. Added to both existing loop tests.
+- Step 3b correction (20261127): the same fixture fix is required in `tests/agent/test_repl_shutdown_machine.py` `_make_loop` (8 full-suite failures from the truthy mock before the fix; 14 passed after).
 
 ## Compatibility considerations
 - N/A: test-only change.
@@ -56,9 +59,9 @@ Requirement implemented: REQ-004 (degraded session cannot silently continue). Ac
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261127-114932 | files changed: tests/agent/test_repl_error_handling.py (refusal test + status assertion + fixture session) |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261127-114932 | pinned test extended; 4 passed fixture fix also applied to tests/agent/test_repl.py _make_bare_repl (pin is_degraded False); test_repl.py 98 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-114932 | 20261127-151312 | ruff passed; full-suite run deferred to end of batch end-of-batch full suite: 16009 passed, 5 skipped; diff-cover 93% >= 90% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

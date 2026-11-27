@@ -55,8 +55,8 @@ Requirement implemented: REQ-006 (documentation of the turn-persistence contract
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261127-115210 | count contract + strict-mode scope added; agent_13 regenerated via generate_reference_table.py --manifests (manifest was stale) |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` | Completed | — | 20261127-115210 | check_docs_quality/structure/content_policy/japanese passed; generate_reference_table.py --check: no drift after regeneration |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -63,6 +63,9 @@ def _make_bare_repl(budget_seconds: float = 45.0) -> AgentREPL:
     ctx = MagicMock()
     ctx.conv.shutdown_requested = False
     ctx.session.session_id = 1
+    # The turn-entry check reads the session's degraded state (cliplc010 AC-3);
+    # pin it False so the fixture dispatches turns.
+    ctx.session.is_degraded = False
     ctx.cfg.approval.allowed_root = "/opt/llm"
     ctx.cfg.rag.db_path = "/tmp/opt/llm/db/session.db"
     ctx.stats.stat_partial_completions = 0

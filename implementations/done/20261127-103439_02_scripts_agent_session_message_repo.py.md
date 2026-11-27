@@ -68,9 +68,9 @@ Requirements implemented: REQ-001 (strict-mode rejection in `replace_messages`),
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-111657 | 20261127-111957 | stale check clean; evidence freshness: plan changed only by archival move + citation re-verification, procedure citations verified against source files changed: scripts/agent/session_message_repo.py, tests/agent/test_session_message_repo.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261127-111957 | count-return + strict-rejection tests added; 79 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-112007 | 20261127-151312 | gates passed (ruff, mypy, lint-imports, bandit, module-size, mock-patch); full-suite run deferred to end of batch; docs row covered by procedure 13 end-of-batch full suite: 16009 passed, 5 skipped; diff-cover 93% >= 90% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

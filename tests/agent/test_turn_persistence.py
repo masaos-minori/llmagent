@@ -33,7 +33,11 @@ import pytest
 from agent.context import ConversationState
 from agent.session import AgentSession
 from agent.session_message_repo import SessionMessageRepository
-from agent.turn_persistence import ConversationPersistenceError, TurnPersistence
+from agent.turn_persistence import (
+    CompensationStatus,
+    ConversationPersistenceError,
+    TurnPersistence,
+)
 from db.helper import SQLiteHelper
 
 from tests.agent._config_test_defaults import MIN_DB_CONFIG
@@ -558,9 +562,9 @@ class TestOffloadedWrites:
         real = SessionMessageRepository.save_phase_grouped
         seen: list[int] = []
 
-        def _spy(self: SessionMessageRepository, messages: list) -> None:
+        def _spy(self: SessionMessageRepository, messages: list) -> int:
             seen.append(threading.get_ident())
-            real(self, messages)
+            return real(self, messages)
 
         session = AgentSession(db_config=MIN_DB_CONFIG)
         session.session_id = 1
@@ -648,3 +652,206 @@ class TestOffloadedWrites:
         finally:
             conn.close()
         assert ("assistant", "waiting") in rows
+
+
+# ── Pre-write phase-group validation (REQ-001, AC-1) ──────────────────────────
+
+
+class TestPreWriteValidation:
+    """The boundary validates the whole phase group before dispatching the write."""
+
+    async def test_invalid_role_mixed_with_valid_rejects_whole_group(
+        self, wired
+    ) -> None:
+        conn, _state = wired
+        session = AgentSession(db_config=MIN_DB_CONFIG)
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        with pytest.raises(ConversationPersistenceError, match="invalid role"):
+            await boundary.save_phase_grouped(
+                [("assistant", "a", None, None), ("bogus", "b", None, None)]
+            )
+
+        # AC-1: rejected before any write, so nothing needed compensating.
+        assert _message_rows(conn) == []
+
+    async def test_rejection_reports_not_needed_status(self, wired) -> None:
+        _conn, _state = wired
+        session = AgentSession(db_config=MIN_DB_CONFIG)
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        with pytest.raises(ConversationPersistenceError) as exc_info:
+            await boundary.save("bogus", "x")
+        assert exc_info.value.compensation is CompensationStatus.NOT_NEEDED
+
+    async def test_missing_session_id_rejects_the_group(self, wired) -> None:
+        conn, _state = wired
+        session = AgentSession(db_config=MIN_DB_CONFIG)
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        with pytest.raises(ConversationPersistenceError, match="no session_id"):
+            await boundary.save_phase_grouped([("assistant", "a", None, None)])
+        assert _message_rows(conn) == []
+
+    async def test_replace_messages_rejects_missing_session_id(self, wired) -> None:
+        conn, _state = wired
+        session = AgentSession(db_config=MIN_DB_CONFIG)
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        with pytest.raises(ConversationPersistenceError, match="no session_id"):
+            await boundary.replace_messages([{"role": "system", "content": "sys"}])
+        assert _message_rows(conn) == []
+
+
+# ── Inserted-count comparison (REQ-002, AC-1) ────────────────────────────────
+
+
+class TestInsertedCountComparison:
+    """A write is marked committed only when the inserted count matches the
+    expected count (decision D3)."""
+
+    async def test_count_mismatch_fails_and_is_not_committed(self, wired) -> None:
+        conn, _state = wired
+        session = AgentSession(db_config=MIN_DB_CONFIG)
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        with patch.object(session._message_repo, "save_many", return_value=1):
+            with pytest.raises(ConversationPersistenceError) as exc_info:
+                await boundary.save_many(
+                    [
+                        ("assistant", "a", None, None),
+                        ("tool", "t", None, "x"),
+                    ]
+                )
+
+        # The public string is masked (AC-4); the count failure is on the cause.
+        assert isinstance(exc_info.value.cause, RuntimeError)
+        assert "inserted count" in str(exc_info.value.cause)
+        # A mismatch is not a committed write: rollback_partial_turn stays False.
+        assert await boundary.rollback_partial_turn() is False
+        assert _message_rows(conn) == []
+
+    async def test_zero_row_write_from_non_empty_group_is_not_committed(
+        self, wired
+    ) -> None:
+        conn, _state = wired
+        session = AgentSession(db_config=MIN_DB_CONFIG)
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        with patch.object(session._message_repo, "save_phase_grouped", return_value=0):
+            with pytest.raises(ConversationPersistenceError) as exc_info:
+                await boundary.save_phase_grouped([("assistant", "a", None, None)])
+
+        assert isinstance(exc_info.value.cause, RuntimeError)
+        assert "inserted count" in str(exc_info.value.cause)
+        assert await boundary.rollback_partial_turn() is False
+        assert _message_rows(conn) == []
+
+    async def test_matching_count_marks_the_write_committed(self, wired) -> None:
+        conn, _state = wired
+        session = AgentSession(db_config=MIN_DB_CONFIG)
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        await boundary.save_phase_grouped([("assistant", "a", None, None)])
+        assert [role for _, role, _ in _message_rows(conn)] == ["assistant"]
+        # A committed write is what makes a later rollback run (REQ-004).
+        assert await boundary.rollback_partial_turn() is True
+        assert _message_rows(conn) == []  # compensation removed the turn's row
+
+
+# ── Compensation status (REQ-003, AC-2) ──────────────────────────────────────
+
+
+class TestCompensationStatus:
+    async def test_clean_rollback_reports_completed(self, wired) -> None:
+        conn, state = wired
+        session = AgentSession(db_config=MIN_DB_CONFIG)
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        await boundary.save("user", "committed")
+        state["fail_next"] = 1
+        with pytest.raises(ConversationPersistenceError) as exc_info:
+            await boundary.save_phase_grouped([("assistant", "a", None, None)])
+
+        assert exc_info.value.compensation is CompensationStatus.COMPLETED
+        assert session.is_degraded is False
+        assert _message_rows(conn) == []
+
+    async def test_no_committed_write_reports_not_needed(self, wired) -> None:
+        _conn, state = wired
+        session = AgentSession(db_config=MIN_DB_CONFIG)
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        state["fail_next"] = 1
+        with pytest.raises(ConversationPersistenceError) as exc_info:
+            await boundary.save("user", "x")
+        assert exc_info.value.compensation is CompensationStatus.NOT_NEEDED
+
+    async def test_failed_compensation_reports_failed_and_marks_degraded(
+        self, wired
+    ) -> None:
+        _conn, state = wired
+        session = AgentSession(db_config=MIN_DB_CONFIG)
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        await boundary.save("user", "committed")
+        # The write fails, then the compensation delete fails too.
+        state["fail_next"] = 2
+        with pytest.raises(ConversationPersistenceError) as exc_info:
+            await boundary.save_phase_grouped([("assistant", "a", None, None)])
+
+        # AC-3: the failure is distinguishable from a clean rollback and the
+        # session is marked degraded through the session object.
+        assert exc_info.value.compensation is CompensationStatus.FAILED
+        assert session.is_degraded is True
+
+
+# ── Safe public error string (REQ-005, AC-4) ─────────────────────────────────
+
+
+class TestSafePublicErrorString:
+    async def test_public_string_carries_no_raw_sqlite_detail(self, wired) -> None:
+        _conn, state = wired
+        session = AgentSession(db_config=MIN_DB_CONFIG)
+        session.session_id = 1
+        conv = ConversationState()
+        boundary = await _boundary(session, conv, marker=0)
+
+        state["fail_next"] = 1
+        with pytest.raises(ConversationPersistenceError) as exc_info:
+            await boundary.save("user", "x")
+
+        text = str(exc_info.value)
+        assert "injected turn-persistence failure" not in text
+        assert "DatabaseError" in text
+        # The raw cause stays available for internal logs only.
+        assert isinstance(exc_info.value.cause, sqlite3.Error)
+
+    def test_public_string_carries_only_the_masked_type_name(self) -> None:
+        cause = sqlite3.OperationalError('database is locked api_key="sk-secret-value"')
+        err = ConversationPersistenceError("turn not persisted", cause=cause)
+
+        # AC-4: the public string is the message plus the masked exception type
+        # name; the cause detail, including any secret, stays internal.
+        assert str(err) == "turn not persisted: OperationalError"
+        assert "sk-secret-value" not in str(err)
+        assert err.cause is cause
+        assert err.compensation is CompensationStatus.NOT_NEEDED

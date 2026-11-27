@@ -11,6 +11,8 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Literal
 
+from agent.turn_persistence import CompensationStatus
+
 if TYPE_CHECKING:
     from shared.llm_exceptions import LLMTransportError
 
@@ -27,3 +29,7 @@ class TurnResult:
     # When False, the answer should NOT be persisted as a normal assistant message.
     # Used for LLM transport errors to avoid polluting conversation history.
     persist_as_assistant: bool = True
+    # Compensation outcome of the turn (REQ-003, AC-2): read from the error by the
+    # orchestrator's persistence branch. Defaulted, so existing construction sites
+    # are unchanged.
+    compensation: CompensationStatus = CompensationStatus.NOT_NEEDED

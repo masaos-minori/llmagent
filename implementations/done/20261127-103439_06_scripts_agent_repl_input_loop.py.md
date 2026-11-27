@@ -63,9 +63,9 @@ Requirement implemented: REQ-004 (degraded session cannot silently continue). Ac
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261127-114932 | files changed: scripts/agent/repl_input_loop.py (refusal helper + status in persistence branch) |
+| 2 | Add or update tests per Validation plan | N/A | — | — | no companion test file for this row; coverage is procedure 11 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-114932 | 20261127-151312 | gates passed (ruff, mypy, bandit, module-size, mock-patch); full-suite run deferred to end of batch end-of-batch full suite: 16009 passed, 5 skipped; diff-cover 93% >= 90% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

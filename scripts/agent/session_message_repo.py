@@ -77,17 +77,19 @@ class SessionMessageRepository:
         content: str | None,
         tool_calls: list[dict] | None = None,
         tool_call_id: str | None = None,
-    ) -> None:
+    ) -> int:
         """Persist a single message to DB under the current session.
 
         Normalizes ``content`` before insert: ``None`` is stored as ``""``.
+        Returns the number of rows actually inserted (0 when a guard path
+        skipped the write, so a skipped row is visible to the caller).
         """
         if self.session_id is None:
             self.stat_skipped_no_session += 1
             logger.warning("Persistence skipped: no session_id (role=%r)", role)
             if self.strict_mode:
                 raise RuntimeError("Cannot save message: no session_id (strict mode)")
-            return
+            return 0
         if role not in self._valid_roles:
             self.stat_skipped_invalid_role += 1
             logger.warning("Invalid role %r; message not saved", role)
@@ -95,7 +97,7 @@ class SessionMessageRepository:
                 raise RuntimeError(
                     f"Cannot save message with invalid role {role!r} (strict mode)"
                 )
-            return
+            return 0
         norm_content = content if content is not None else ""
         tc_json = _tool_calls_json(tool_calls)
         with SQLiteHelper("session", db_config=self._db_config).open(
@@ -107,17 +109,20 @@ class SessionMessageRepository:
             )
             db.commit()
         # sqlite3.Error propagates to caller
+        return 1
 
     def save_many(
         self,
         messages: list[tuple[str, str | None, list[dict] | None, str | None]],
-    ) -> None:
+    ) -> int:
         """Persist multiple messages in a single DB transaction.
 
         Each tuple: (role, content, tool_calls, tool_call_id).
         Rows with invalid roles are skipped with a warning and counted.
         Opens exactly one DB connection regardless of the number of messages.
         Normalizes ``content`` before insert: ``None`` is stored as ``""``.
+        Returns the number of rows actually inserted, so skipped rows are
+        visible to the caller.
         """
         if self.session_id is None or not messages:
             if self.session_id is None and messages:
@@ -130,7 +135,7 @@ class SessionMessageRepository:
                     raise RuntimeError(
                         "Cannot save messages: no session_id (strict mode)"
                     )
-            return
+            return 0
         invalid_count = sum(
             1 for role, _, _, _ in messages if role not in self._valid_roles
         )
@@ -151,13 +156,14 @@ class SessionMessageRepository:
                 "Persistence skipped: %d messages had invalid roles", invalid_count
             )
         if not rows:
-            return
+            return 0
         with SQLiteHelper("session", db_config=self._db_config).open(
             write_mode=True
         ) as db:
             db.executemany(_INSERT_MESSAGE_SQL, rows)
             db.commit()
         # sqlite3.Error propagates to caller
+        return len(rows)
 
     def replace_messages(
         self, session_id: int, messages: list[LLMMessage]
@@ -167,7 +173,8 @@ class SessionMessageRepository:
         Used after history compression to persist the compressed snapshot.
         Runs in a single transaction: DELETE + executemany INSERT + UPDATE the
         /undo boundary. Returns the persisted boundary (MAX message_id), or None
-        when nothing was persisted.
+        when nothing was persisted. Under strict mode an invalid role raises
+        instead of being skipped; the non-strict skip-and-warn contract stays.
         """
         if not messages:
             return None
@@ -175,6 +182,11 @@ class SessionMessageRepository:
         for msg in messages:
             role = msg.get("role", "user")
             if role not in self._valid_roles:
+                if self.strict_mode:
+                    raise RuntimeError(
+                        f"Cannot replace messages with invalid role {role!r} "
+                        "(strict mode)"
+                    )
                 logger.warning("replace_messages: skipping invalid role %r", role)
                 continue
             if msg.get("_memory_injected") or "_ephemeral" in msg:
@@ -378,7 +390,7 @@ class SessionMessageRepository:
     def save_phase_grouped(
         self,
         messages: list[tuple[str, str | None, list[dict] | None, str | None]],
-    ) -> None:
+    ) -> int:
         """Persist a phase-group of messages in one BEGIN IMMEDIATE transaction.
 
         Unlike :meth:`save_many` (implicit autocommit per call), this runs the
@@ -388,9 +400,11 @@ class SessionMessageRepository:
         ``begin_immediate`` block rolls back on failure and re-raises
         ``sqlite3.Error``; the boundary wraps it into
         ``ConversationPersistenceError`` and compensates.
+        Returns the number of rows written in the transaction, so a zero-row
+        write from a non-empty group is distinguishable from a committed write.
         """
         if self.session_id is None or not messages:
-            return
+            return 0
         rows = [
             (
                 self.session_id,
@@ -403,13 +417,14 @@ class SessionMessageRepository:
             if role in self._valid_roles
         ]
         if not rows:
-            return
+            return 0
         with SQLiteHelper("session", db_config=self._db_config).open(
             write_mode=True
         ) as db:
             with db.begin_immediate():
                 db.executemany(_INSERT_MESSAGE_SQL, rows)
         # sqlite3.Error propagates to the boundary, which wraps and compensates
+        return len(rows)
 
     def get_valid_roles(self) -> frozenset[str]:
         """Return the currently active valid roles set."""

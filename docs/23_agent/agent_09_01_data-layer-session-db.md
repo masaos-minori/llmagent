@@ -35,7 +35,7 @@ Documents the responsibility scope of the Session DB, data ownership boundaries,
 
 ### Session Message Persistence
 
-Session messages are persisted only through `SessionMessageRepository` over `SQLiteHelper`; it owns role validation, `strict_mode`, content normalization and `tool_calls` JSON encoding.
+Session messages are persisted only through `SessionMessageRepository` over `SQLiteHelper`; it owns role validation, `strict_mode`, content normalization and `tool_calls` JSON encoding. Its write methods report the number of rows actually inserted, so a row skipped by a guard is visible to the caller and a zero-row write from a non-empty group is distinguishable from a committed write. `replace_messages()` rejects an invalid role in strict mode; the non-strict skip-and-warn contract stays for callers outside the turn path.
 
 The message repository is (re)bound lazily to the `AgentSession` facade's current `session_id`. A `session_id` change — for example after `/session load` — invalidates the cached repository, so persistence never attributes writes to a superseded session. `session_persister.py` and `DiagnosticStore` read the session id on every call and need no rebind. Skipped-save counters always reflect the live repository instance.
 

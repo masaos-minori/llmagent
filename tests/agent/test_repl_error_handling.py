@@ -10,7 +10,7 @@ from agent.diagnostic_store import DiagnosticStore
 from agent.orchestrator import Orchestrator
 from agent.repl_input_loop import ReplInputLoop
 from agent.session_persister import SessionPersister
-from agent.turn_persistence import ConversationPersistenceError
+from agent.turn_persistence import CompensationStatus, ConversationPersistenceError
 
 
 @pytest.mark.asyncio
@@ -93,6 +93,9 @@ async def test_repl_contains_non_runtime_error_turn_exception(monkeypatch):
     ctx.conv.memory_warning_shown = False
     ctx.stats = MagicMock()
     ctx.stats.stat_partial_completions = 0
+    # The turn-entry check reads the session's degraded state (AC-3).
+    ctx.session = MagicMock()
+    ctx.session.is_degraded = False
 
     view = MagicMock(spec=CLIView)
     loop = ReplInputLoop(ctx, view, shutdown_event=None)
@@ -132,6 +135,8 @@ async def test_repl_surfaces_persistence_error_distinctly(monkeypatch):
     ctx.conv.memory_warning_shown = False
     ctx.stats = MagicMock()
     ctx.stats.stat_partial_completions = 0
+    ctx.session = MagicMock()
+    ctx.session.is_degraded = False
 
     view = MagicMock(spec=CLIView)
     loop = ReplInputLoop(ctx, view, shutdown_event=None)
@@ -139,7 +144,9 @@ async def test_repl_surfaces_persistence_error_distinctly(monkeypatch):
     loop._orchestrator = MagicMock(spec=Orchestrator)
     loop._orchestrator.handle_turn = AsyncMock(
         side_effect=ConversationPersistenceError(
-            "persist failed", cause=sqlite3.OperationalError("disk down")
+            "persist failed",
+            cause=sqlite3.OperationalError("disk down"),
+            compensation=CompensationStatus.FAILED,
         )
     )
 
@@ -157,7 +164,54 @@ async def test_repl_surfaces_persistence_error_distinctly(monkeypatch):
 
     # SEQ-10: the compensated persistence failure is surfaced distinctly ...
     view.write_turn_not_persisted.assert_called_once()
+    # ... and the surfaced message reports the compensation status (AC-3).
+    view.write_warning.assert_called_once_with(
+        f"compensation: {CompensationStatus.FAILED}"
+    )
     # ... and does not fall through to the generic fatal handler.
     view.write_fatal.assert_not_called()
     # ... and the loop consumed exactly one line then exited cleanly on EOF.
+    assert calls["n"] == 2
+
+
+@pytest.mark.asyncio
+async def test_degraded_session_refuses_next_turn(monkeypatch):
+    """AC-3: a degraded session refuses the turn entry — the orchestrator is not
+    called and the loop stays responsive."""
+    ctx = MagicMock(spec=AgentContext)
+    ctx.conv = MagicMock()
+    ctx.conv.shutdown_requested = False
+    ctx.conv.is_processing = False
+    ctx.conv.memory_disabled = False
+    ctx.conv.memory_warning_shown = False
+    ctx.stats = MagicMock()
+    ctx.stats.stat_partial_completions = 0
+    # The degraded state is held on the session object, not a local flag.
+    ctx.session = MagicMock()
+    ctx.session.is_degraded = True
+
+    view = MagicMock(spec=CLIView)
+    loop = ReplInputLoop(ctx, view, shutdown_event=None)
+    loop._cmds = MagicMock(spec=CommandRegistry)
+    loop._orchestrator = MagicMock(spec=Orchestrator)
+    loop._orchestrator.handle_turn = AsyncMock()
+
+    calls = {"n": 0}
+
+    def fake_input(prompt=""):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return "hello"
+        raise EOFError
+
+    monkeypatch.setattr(builtins, "input", fake_input)
+
+    await loop._repl_loop()
+
+    # The refusal is a warning, not a fatal error, and no turn is dispatched.
+    view.write_warning.assert_called_once()
+    assert "degraded" in view.write_warning.call_args[0][0]
+    view.write_fatal.assert_not_called()
+    loop._orchestrator.handle_turn.assert_not_awaited()
+    # The loop consumed the line and stayed responsive until EOF.
     assert calls["n"] == 2

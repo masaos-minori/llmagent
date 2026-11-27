@@ -53,8 +53,8 @@ Requirements implemented: REQ-002 (inserted-row count returns), REQ-003 (compens
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers named in `rules/tool-gates.md` | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261127-115238 | regenerated via generate_reference_table.py --manifests; CompensationStatus row added for turn_persistence.py. SessionMessageRepository/TurnResult rows unchanged: the generator renders class-level docstring summaries and those docstrings were not changed by this plan, so no row drift is expected for them. |
+| 2 | Run the documentation checkers named in `rules/tool-gates.md` | Completed | — | 20261127-115238 | check_docs_quality/structure/content_policy/japanese passed; --check reports no drift |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

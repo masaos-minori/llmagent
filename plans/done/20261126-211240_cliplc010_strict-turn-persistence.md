@@ -224,16 +224,16 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261127-103439_01_scripts_agent_turn_persistence.py.md` | 2, 3 | Procedure | Pending | — | — |
-| `implementations/20261127-103439_02_scripts_agent_session_message_repo.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261127-103439_03_scripts_agent_turn_result.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261127-103439_04_scripts_agent_session.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261127-103439_05_scripts_agent_orchestrator.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261127-103439_06_scripts_agent_repl_input_loop.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261127-103439_11_tests_agent_test_repl_error_handling.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261127-103439_12_docs_23_agent_agent_04_01_state-and-persistence-state-model.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261127-103439_13_docs_23_agent_agent_09_01_data-layer-session-db.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261127-103439_14_docs_23_agent_agent_13_reference-api-generated.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-103439_01_scripts_agent_turn_persistence.py.md` | 2, 3 | Procedure | Completed | — | — |
+| `implementations/20261127-103439_02_scripts_agent_session_message_repo.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261127-103439_03_scripts_agent_turn_result.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261127-103439_04_scripts_agent_session.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261127-103439_05_scripts_agent_orchestrator.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261127-103439_06_scripts_agent_repl_input_loop.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261127-103439_11_tests_agent_test_repl_error_handling.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261127-103439_12_docs_23_agent_agent_04_01_state-and-persistence-state-model.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261127-103439_13_docs_23_agent_agent_09_01_data-layer-session-db.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261127-103439_14_docs_23_agent_agent_13_reference-api-generated.md.md` | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -58,6 +58,7 @@ class AgentSession:
     _repo: SessionMessageRepository | None = None
     _session_id: int | None = None  # current session DB row ID
     _generation: int = 0
+    _degraded: bool = False
 
     @property
     def _message_repo(self) -> SessionMessageRepository:
@@ -102,6 +103,30 @@ class AgentSession:
             target.session_id == self._session_id
             and target.generation == self._generation
         )
+
+    @property
+    def is_degraded(self) -> bool:
+        """True while the session is degraded (REQ-004, AC-3).
+
+        Process-lifetime session state, not DB state: set by the turn boundary
+        when a compensation fails and read at the turn entry. Clearing criteria
+        are undefined (UNK-01 seam); a session transition starts a fresh,
+        non-degraded session because ``switch_session`` advances the generation.
+        """
+        return self._degraded
+
+    def mark_degraded(self) -> None:
+        """Mark the session degraded (called by the turn boundary on a
+        compensation failure)."""
+        self._degraded = True
+
+    def clear_degraded(self) -> None:
+        """Clearing seam defined by UNK-01's resolution: resets the flag only.
+
+        The clearing criteria (command or health check) are deferred to the
+        follow-up work item; no caller exists yet.
+        """
+        self._degraded = False
 
     def memory_finalized_count(self, session_id: int) -> int:
         """Return how many history messages were already memory-finalized.
@@ -237,7 +262,13 @@ class AgentSession:
         ``0`` when the session has no rows yet) and takes a memory snapshot via
         :meth:`ConversationState.snapshot_messages`, then returns the
         :class:`TurnPersistence` boundary that owns every write of the turn.
+
+        Refuses the turn entry while the session is degraded (AC-3): raises
+        before constructing the boundary so a degraded session cannot start a
+        write.
         """
+        if self._degraded:
+            raise RuntimeError("Cannot start a turn: session is degraded")
         marker = self._message_repo.turn_start_marker(self.session_id)
         snapshot = await conv.snapshot_messages()
         return TurnPersistence(self, conv, marker, snapshot)

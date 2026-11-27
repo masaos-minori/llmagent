@@ -20,6 +20,14 @@ The boundary itself never touches SQLite: it offloads every repository write
 (and the compensation delete) to a worker thread with :func:`asyncio.to_thread`. Each repository call opens its own short-lived connection, so the
 connection is used exclusively inside one worker thread; the loop-thread SQLite
 usage (``session_message_repo.read*``, snapshot queries) is unaffected.
+
+Before each write the boundary validates the phase group as a whole (invalid
+role or missing session id rejects the group, decision D2) and marks the turn
+committed only when the repository's inserted-row count equals the expected
+count. Compensation outcomes are reported as :class:`CompensationStatus`
+(REQ-003); a failed compensation marks the session degraded (REQ-004). The
+public error string carries the message plus the masked exception type name
+only (REQ-005).
 """
 
 from __future__ import annotations
@@ -27,7 +35,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import sqlite3
+from enum import StrEnum
 from typing import TYPE_CHECKING, NoReturn
+
+from agent.secrets_masker import _mask_secrets
 
 if TYPE_CHECKING:
     from shared.types import LLMMessage
@@ -38,17 +49,44 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class CompensationStatus(StrEnum):
+    """Outcome of a turn's compensation, reported on the error and the result.
+
+    ``NOT_NEEDED`` is the default: no write had committed, so there was nothing
+    to compensate. ``COMPLETED`` is a clean rollback, ``FAILED`` a compensation
+    that itself raised (the session is then degraded).
+    """
+
+    COMPLETED = "completed"
+    FAILED = "failed"
+    NOT_NEEDED = "not_needed"
+
+
 class ConversationPersistenceError(Exception):
     """Raised when a turn's session-DB persistence fails and is compensated.
 
     Wraps the underlying ``sqlite3.Error``; the original is preserved on both
     ``__cause__`` (via ``raise... from``) and the public ``cause`` attribute. Subclasses the plain ``Exception`` base, matching the
     subsystem-local error placement of ``shared.llm_exceptions.LLMTransportError``.
+
+    The public string carries the message plus the masked exception type name
+    only (REQ-005): raw SQLite detail stays on ``cause`` for internal logs.
+    ``compensation`` records the compensation outcome (REQ-003).
     """
 
-    def __init__(self, message: str, *, cause: sqlite3.Error) -> None:
-        super().__init__(f"{message}: {cause}")
+    def __init__(
+        self,
+        message: str,
+        *,
+        cause: BaseException | None = None,
+        compensation: CompensationStatus = CompensationStatus.NOT_NEEDED,
+    ) -> None:
+        if cause is None:
+            super().__init__(message)
+        else:
+            super().__init__(f"{message}: {_mask_secrets(type(cause).__name__)}")
         self.cause = cause
+        self.compensation = compensation
 
 
 class TurnPersistence:
@@ -89,6 +127,40 @@ class TurnPersistence:
         self._pre_rewrite_image: tuple | None = None
         self._write_committed = False
 
+    def _validate_phase_group(self, roles: list[str]) -> None:
+        """Reject the whole phase group before any write (REQ-001, AC-1).
+
+        The repository keeps its per-row skip-and-warn contract for non-turn
+        callers (decision D2); this is the turn-path whole-group rejection.
+        Nothing has been written here, so the status is ``NOT_NEEDED``.
+        """
+        if self.session_id is None:
+            raise ConversationPersistenceError(
+                "phase group rejected: no session_id",
+                compensation=CompensationStatus.NOT_NEEDED,
+            )
+        valid = self.session._message_repo.get_valid_roles()
+        invalid = [role for role in roles if role not in valid]
+        if invalid:
+            raise ConversationPersistenceError(
+                f"phase group rejected: invalid role(s) {invalid!r}",
+                compensation=CompensationStatus.NOT_NEEDED,
+            )
+
+    async def _commit_write(self, expected: int, written: int) -> None:
+        """Mark the turn committed only when every expected row was inserted (AC-1).
+
+        A zero-row write from a non-empty group is never marked committed; it
+        fails through the normal failure path (decision D3).
+        """
+        if written != expected:
+            await self._fail_from_error(
+                RuntimeError(
+                    f"inserted count {written} does not match expected {expected}"
+                )
+            )
+        self._write_committed = True
+
     async def save(
         self,
         role: str,
@@ -101,13 +173,14 @@ class TurnPersistence:
         The repository call runs on a worker thread; its
         ``sqlite3.Error`` propagates back to the caller unchanged.
         """
+        self._validate_phase_group([role])
         try:
-            await asyncio.to_thread(
+            written = await asyncio.to_thread(
                 self.session._message_repo.save, role, content, tool_calls, tool_call_id
             )
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
-        self._write_committed = True
+        await self._commit_write(1, written)
 
     async def save_many(
         self,
@@ -118,11 +191,14 @@ class TurnPersistence:
         The repository call runs on a worker thread; its
         ``sqlite3.Error`` propagates back to the caller unchanged.
         """
+        self._validate_phase_group([role for role, _, _, _ in messages])
         try:
-            await asyncio.to_thread(self.session._message_repo.save_many, messages)
+            written = await asyncio.to_thread(
+                self.session._message_repo.save_many, messages
+            )
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
-        self._write_committed = True
+        await self._commit_write(len(messages), written)
 
     async def save_phase_grouped(
         self,
@@ -134,13 +210,14 @@ class TurnPersistence:
         so a single injected failure leaves either all or none of the round's
         rows (AC-005). The repository call runs on a worker thread; its ``sqlite3.Error`` propagates back to the caller unchanged.
         """
+        self._validate_phase_group([role for role, _, _, _ in messages])
         try:
-            await asyncio.to_thread(
+            written = await asyncio.to_thread(
                 self.session._message_repo.save_phase_grouped, messages
             )
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
-        self._write_committed = True
+        await self._commit_write(len(messages), written)
 
     async def replace_messages(self, messages: list[LLMMessage]) -> int | None:
         """Persist a compressed snapshot back to DB.
@@ -151,8 +228,9 @@ class TurnPersistence:
         The repository call runs on a worker thread; its
         ``sqlite3.Error`` propagates back to the caller unchanged.
         """
-        if self.session_id is None:
+        if not messages:
             return None
+        self._validate_phase_group([msg.get("role", "user") for msg in messages])
         try:
             result = await asyncio.to_thread(
                 self._rewrite_with_pre_image_capture, messages
@@ -160,6 +238,12 @@ class TurnPersistence:
         except sqlite3.Error as exc:
             await self._fail_from_error(exc)
             return None  # unreachable: _fail_from_error always raises
+        # replace_messages reports the persisted boundary, not a count: None
+        # from a non-empty group means nothing was persisted (decision D3).
+        if result is None:
+            await self._fail_from_error(
+                RuntimeError("inserted count 0 does not match expected 1")
+            )
         self._write_committed = True
         return result
 
@@ -210,17 +294,28 @@ class TurnPersistence:
             self.turn_start_message_id,
         )
 
-    async def _fail_from_error(self, exc: sqlite3.Error) -> NoReturn:
+    async def _fail_from_error(self, exc: BaseException) -> NoReturn:
         """Compensate, restore memory, and raise the persistence error.
 
         Deletes the turn's partial rows, restores ``conv.history`` to the
         turn-start snapshot element-wise, then raises
         :class:`ConversationPersistenceError` chaining ``exc``. A compensation-delete failure is logged and does not mask the
-        original error.
+        original error; it also marks the session degraded (REQ-004, AC-3).
+
+        The recorded status is ``NOT_NEEDED`` when no write had committed,
+        ``COMPLETED`` on a clean rollback, and ``FAILED`` when the compensation
+        itself raised (REQ-003).
         """
+        status = (
+            CompensationStatus.NOT_NEEDED
+            if not self._write_committed
+            else CompensationStatus.COMPLETED
+        )
         try:
             await self._compensate()
         except sqlite3.Error as comp_exc:
+            status = CompensationStatus.FAILED
+            self.session.mark_degraded()
             logger.error(
                 "Turn compensation failed after persistence error: %s", comp_exc
             )
@@ -228,7 +323,7 @@ class TurnPersistence:
             await self.conv.restore_messages(self._snapshot)
             self.conv.undo_floor = self._undo_floor_at_turn_start
         raise ConversationPersistenceError(
-            "turn not persisted; history rolled back", cause=exc
+            "turn not persisted; history rolled back", cause=exc, compensation=status
         ) from exc
 
     async def rollback_partial_turn(self) -> bool:

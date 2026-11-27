@@ -41,7 +41,11 @@ Requirements implemented: REQ-001 (pre-write phase-group validation on the turn 
 ### Details
 - `_write_committed` sites are lines 110, 125, 143, 163; all four move behind the count comparison.
 - The compensation failure branch is lines 223-226; the status is recorded there before the error is raised at lines 230-232.
-- `not_needed` (new) applies when no write had committed (`_compensate` returns False, line 242).
+- `not_needed` (new) applies when no write had committed (`rollback_partial_turn` returns False at lines 242-243; verified at implementation time).
+- Step 3b correction (20261127): the procedure did not name the rejection exception type. Pre-write validation raises `ConversationPersistenceError` with `compensation=NOT_NEEDED`, because the consumers catch that type (`scripts/agent/orchestrator.py` line 202, `scripts/agent/repl_input_loop.py` line 391); a `ValueError` would bypass the display path.
+- Step 3b correction (20261127): a count mismatch fails through `_fail_from_error`, whose cause is a `RuntimeError` (decision D3), so `cause` is broadened from `sqlite3.Error` to `BaseException | None`. The public string is masked, so the count detail is readable only through `cause`.
+- Step 3b correction (20261127): `replace_messages` returns the persisted boundary, not a count, so its comparison is "nothing persisted" (`None` from a non-empty group) rather than an inserted count; the empty-input `None` contract stays.
+- Step 3b correction (20261127): the existing `TestOffloadedWrites` spy returns the repository count now, since the repository contract changed to `-> int`.
 
 ### Companion test files
 - `tests/agent/test_turn_persistence.py`
@@ -78,9 +82,9 @@ Requirements implemented: REQ-001 (pre-write phase-group validation on the turn 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-113059 | 20261127-113425 | stale check clean; citations verified; procedure 02 landed first so the count contract is available files changed: scripts/agent/turn_persistence.py, tests/agent/test_turn_persistence.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261127-113425 | fault-injection + validation + status + masked-string tests added; 27 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-113425 | 20261127-151312 | gates passed (ruff, mypy, lint-imports, bandit, module-size, mock-patch); full-suite run deferred to end of batch; docs row covered by procedure 13 end-of-batch full suite: 16009 passed, 5 skipped; diff-cover 93% >= 90% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

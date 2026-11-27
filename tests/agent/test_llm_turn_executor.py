@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.llm_turn_executor import LlmTurnExecutor
+from agent.turn_persistence import CompensationStatus
 from agent.turn_result import TurnResult
 
 
@@ -68,3 +69,27 @@ class TestGuardDeferralWiring:
 
         guard_cls.assert_called_once()
         assert guard_cls.call_args.kwargs.get("defer_hints") is True
+
+
+class TestTurnResultCompensationField:
+    """cliplc010 REQ-003 (AC-2): the additive compensation field on TurnResult."""
+
+    def test_default_is_not_needed(self) -> None:
+        assert (
+            TurnResult(action="continue", answer="ok").compensation
+            is CompensationStatus.NOT_NEEDED
+        )
+
+    def test_recorded_status_survives_the_turn(self) -> None:
+        result = TurnResult(
+            action="fail",
+            error_kind="persistence",
+            compensation=CompensationStatus.FAILED,
+        )
+        assert result.compensation is CompensationStatus.FAILED
+
+    def test_defaulted_field_keeps_construction_equality(self) -> None:
+        # Existing construction sites use defaults, so pinned equality stays valid.
+        assert TurnResult(action="continue", answer="ok") == TurnResult(
+            action="continue", answer="ok"
+        )

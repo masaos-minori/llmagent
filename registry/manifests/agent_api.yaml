@@ -2158,6 +2158,11 @@ entries:
   summary: Build the single-engine DAG execution plan for *tool_calls*.
 - file: scripts/agent/turn_persistence.py
   kind: class
+  name: CompensationStatus
+  signature: class CompensationStatus
+  summary: Outcome of a turn's compensation, reported on the error and the result.
+- file: scripts/agent/turn_persistence.py
+  kind: class
   name: ConversationPersistenceError
   signature: class ConversationPersistenceError
   summary: Raised when a turn's session-DB persistence fails and is compensated.

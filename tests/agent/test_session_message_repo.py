@@ -1037,3 +1037,80 @@ class TestSavePhaseGrouped:
         state["fail_next"] = 1
         with pytest.raises(sqlite3.Error):
             repo.save_phase_grouped([("assistant", "a", None, None)])
+
+
+class TestInsertedRowCounts:
+    """REQ-002: the write methods report the number of rows actually inserted
+    (decision D3), so a skipped or zero-row write is visible to the caller."""
+
+    def test_save_returns_one_for_inserted_row(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        assert repo.save("user", "x") == 1
+
+    def test_save_returns_zero_for_skipped_invalid_role(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        assert repo.save("bad_role", "x") == 0
+
+    def test_save_returns_zero_for_skipped_no_session(self) -> None:
+        r = SessionMessageRepository(session_id=None, db_config=MIN_DB_CONFIG)
+        assert r.save("user", "hello") == 0
+
+    def test_save_many_returns_inserted_count_with_skipped_rows(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        count = repo.save_many(
+            [
+                ("assistant", "a", None, None),
+                ("bogus", "b", None, None),
+                ("tool", "t", None, "x"),
+            ]
+        )
+        # 2 of 3 input rows inserted; the skipped row is visible to the caller.
+        assert count == 2
+
+    def test_save_many_empty_input_returns_zero(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        assert repo.save_many([]) == 0
+
+    def test_save_many_all_invalid_returns_zero(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        assert repo.save_many([("bogus", "b", None, None)]) == 0
+
+    def test_save_phase_grouped_returns_written_count(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        assert (
+            repo.save_phase_grouped(
+                [("assistant", "a", None, None), ("tool", "t", None, "x")]
+            )
+            == 2
+        )
+
+    def test_save_phase_grouped_zero_row_write_from_non_empty_group(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        # Non-empty group, zero rows written (all invalid): distinguishable
+        # from a committed write (AC-1).
+        assert repo.save_phase_grouped([("bogus", "b", None, None)]) == 0
+
+
+class TestStrictModeReplaceMessages:
+    """REQ-001: replace_messages rejects invalid roles under strict mode
+    (decision D2); the non-strict skip-and-warn contract stays."""
+
+    def test_strict_mode_rejects_invalid_role(
+        self, strict_repo: SessionMessageRepository
+    ) -> None:
+        with pytest.raises(RuntimeError, match="invalid role"):
+            strict_repo.replace_messages(1, [{"role": "bogus", "content": "x"}])
+
+    def test_non_strict_skip_and_warn_stays(
+        self, repo: SessionMessageRepository
+    ) -> None:
+        # Pinned contract (line 655 test): non-empty input with only skipped
+        # rows still reports None; strict mode is not flipped globally.
+        assert repo.replace_messages(1, [{"role": "bogus", "content": "x"}]) is None

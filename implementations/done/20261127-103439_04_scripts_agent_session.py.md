@@ -31,7 +31,7 @@ Requirement implemented: REQ-004 (degraded-session state and turn-entry refusal)
 
 ### Method
 - `mark_degraded()` (new) sets the flag; `is_degraded` (new) is a read-only property; `clear_degraded()` (new) is the seam body left empty of criteria.
-- `turn_boundary` (line 233) refuses by raising before constructing the boundary when the flag is set, so a degraded session cannot start a turn.
+- `turn_boundary` (line 233) refuses by raising before constructing the boundary when the flag is set, so a degraded session cannot start a turn. Exception type: `RuntimeError` (Step 3b correction, 20261127: the procedure did not name a type; `RuntimeError` matches the repository style, e.g. `SchemaMissingError` and the strict-mode guards).
 - No change to `capture_target` / `is_current_target` (lines 95-104): the degraded flag is not part of `SessionTarget`, which stays an immutable identity pair.
 
 ### Details
@@ -68,9 +68,9 @@ Requirement implemented: REQ-004 (degraded-session state and turn-entry refusal)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261127-112238 | files changed: scripts/agent/session.py |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261127-112238 | N/A: no test change needed; coverage via procedure 11; existing tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-112238 | 20261127-151312 | gates passed; full-suite run deferred to end of batch end-of-batch full suite: 16009 passed, 5 skipped; diff-cover 93% >= 90% |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
