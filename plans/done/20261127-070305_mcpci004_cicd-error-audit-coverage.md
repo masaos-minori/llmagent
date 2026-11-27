@@ -22,7 +22,7 @@ Evidence (`Explicit in code`, verified in Step 2): `scripts/mcp_servers/cicd/cic
 
 `scripts/mcp_servers/cicd/cicd_server.py::call_tool` calls `_audit_log` at line 183, after the dispatch call, so the disabled-tool return (line 173) and the `ExecutionContextError` return (line 178) produce no record, and an exception raised by the handler produces none. The Issue's line citation (177) is off by the current file; the call site is line 183.
 
-The shared audit-emission contract named by the Issue exists: `scripts/mcp_servers/audit.py::AuditEmission` (lines 238-310), used by `scripts/mcp_servers/web_search/web_search_server.py`. The duplicate `requested_target` assignment is confirmed at `scripts/mcp_servers/audit.py` lines 124-125 and 128-129.
+The shared audit-emission contract named by the Issue exists: `scripts/mcp_servers/audit.py::AuditEmission` (lines 236-296, the end of the file; re-verified 20261127), used by `scripts/mcp_servers/web_search/web_search_server.py`. The duplicate `requested_target` assignment is confirmed at `scripts/mcp_servers/audit.py` lines 124-125 and 128-129.
 
 ## Problem
 A GitHub outage is reported as Not Found, which hides the outage and misleads the recovery decision; the agent's transport layer treats tool-level statuses `400/403/404/409/422` as tool results and only `429` and `5xx` as transport faults, so the wrong classification changes both the reported error and the health-registry outcome. Audit coverage is incomplete: a call that is refused before dispatch, or that raises, leaves no record, so incident review cannot tell whether the call happened.
@@ -63,13 +63,13 @@ table — no other file may be treated as the modification target.
 | `scripts/mcp_servers/cicd/cicd_server.py` | Modify | `call_tool()` emits exactly one record through `AuditEmission` from a `finally` block covering success, disabled tool, unknown tool, validation, authorization, upstream, dedup, and unexpected outcomes; classify the outcome (`ok`, `error`, `rejected`), the normalized target, and the stable error code; on audit-write failure log the failure and increment `audit_failure_count` instead of propagating (REQ-007) | REQ-005, REQ-006, REQ-007, AC-4, AC-5 | `call_tool` lines 169-192: the disabled path returns at line 173 and the `ExecutionContextError` path at line 178, both before `_audit_log` at line 183; `target` is the raw requested `repo` at line 188; `outcome` comes from `DispatchResult.outcome`, which yields only `ok` or `error` (`scripts/mcp_servers/dedup_gate.py` lines 71-74); no exception handling around the dispatch call (checked in Step 2) | `tests/mcp_servers/cicd/test_cicd_server_endpoints.py`, `tests/mcp_servers/cicd/test_cicd_audit.py` | Verified |
 | `scripts/mcp_servers/audit.py` | Modify | Remove the duplicate `requested_target` assignment; record the CI/CD error-code vocabulary in the module docstring's Error Type Vocabulary section | REQ-006, REQ-008, AC-6 | Lines 124-125 and 128-129 assign `record["requested_target"]` twice with the same value; the docstring's vocabulary section (lines 8-20) lists only the `mdq` and `web_search` vocabularies (checked in Step 2) | `tests/mcp_servers/test_audit_redaction.py` | Verified |
 | `tests/mcp_servers/cicd/test_cicd_mcp_service.py` | Modify | Reverse the pinned HTTP 500 to Not Found expectation; add the 401, 403, 404, 409, 422, 429, 500, and 503 cases | REQ-001, AC-1 | `test_500_raises_not_found_error` at line 306 pins the catch-all mapping; the surrounding tests at lines 276-316 pin 404, 422, 401/403, and the 2xx no-raise case (checked in Step 2) | this file | Verified |
-| `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py` | Modify | Add the DNS, TLS, connection, and timeout cases and the bounded and redacted error-text cases | REQ-002, REQ-003, AC-2 | Lines 45 and 52 pin the parse-failure fallback and the 2xx pass-through; no transport case exists in the file (checked in Step 2) | this file | Verified |
-| `tests/mcp_servers/cicd/test_cicd_exception_handlers.py` | Modify | Add the 409 and 429 handler tests and update the exact-body assertions to the machine-readable shape | REQ-004, AC-3 | Lines 54-78 pin four status codes and exact `{"detail": ...}` bodies; no conflict or rate-limit handler test exists (checked in Step 2) | this file | Verified |
+| `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py` | Modify | Add the DNS, TLS, connection, and timeout cases and the bounded and redacted error-text cases | REQ-002, REQ-003, AC-2 | Lines 45 and 52 pin the parse-failure fallback; line 60 pins the 2xx pass-through; no transport case exists in the file (re-verified 20261127) | this file | Verified |
+| `tests/mcp_servers/cicd/test_cicd_exception_handlers.py` | Modify | Add the 409 and 429 handler tests and update the exact-body assertions to the machine-readable shape | REQ-004, AC-3 | Lines 54-73 pin four status codes and exact `{"detail": ...}` bodies, the last test in the file (re-verified 20261127, file is 73 lines); no conflict or rate-limit handler test exists | this file | Verified |
 | `tests/mcp_servers/cicd/test_cicd_models.py` | Modify | Add the new exception classes to the pinned hierarchy and the error-code vocabulary tests | REQ-001, REQ-006, AC-1, AC-5 | `test_exception_hierarchy` at lines 193-197 pins four classes only (checked in Step 2) | this file | Verified |
 | `tests/mcp_servers/cicd/test_cicd_server_endpoints.py` | Modify | Write the exactly-one-record tests for every result category first; update the health-details key pin only if UNK-02 adds the audit-failure counter to `/health` | REQ-005, REQ-007, AC-4 | `test_audit_record_keeps_session_and_request_context_in_order` (line 200) pins `len(records) == 1` at line 245 for the success path only; line 303 pins `set(body["details"]) == {"service", "dedup"}`; the disabled and validation paths carry no audit assertion (checked in Step 2) | this file | Verified |
 | `tests/mcp_servers/cicd/test_cicd_audit.py` | Create | Exactly-once emission per category, redaction, absence of tokens and workflow input values, and audit-serialization failure behavior | REQ-005, REQ-006, REQ-007, AC-4, AC-5 | The file does not exist; `tests/mcp_servers/cicd/` has no audit test module, and the exactly-once behavior is pinned only for the helper itself in `tests/mcp_servers/test_audit_redaction.py` lines 40-85 (checked in Step 2) | this file | Verified |
 | `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md` | Modify | Add the CI/CD error mapping table and correct the audit statement | REQ-009, AC-7 | Line 74 states that a disabled-tool rejection returns before the audit call and writes no record, which this Plan makes false; line 66 records only that records are written via `_audit_log()` with `server_key="cicd"`; the document has no error mapping section (checked in Step 2) | `uv run python tools/check_docs_structure.py` | Verified |
-| `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md` | Modify | State the exactly-one-event rule for the CI/CD server, the redaction rules, and the audit-failure policy decided by the owner (never propagate, log and count) | REQ-007, REQ-009, AC-4, AC-7 | Line 22 states the one-record rule for every server that writes the shared log, which the CI/CD server currently violates on the disabled and validation paths; line 50 states the exactly-once rule for web-search-mcp only; the Common Error Formats table at line 60 lists "Server error | 500" with no per-server mapping (checked in Step 2, at the recorded evidence revision) | `uv run python tools/check_docs_structure.py` | Verified |
+| `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md` | Modify | State the exactly-one-event rule for the CI/CD server, the redaction rules, and the audit-failure policy decided by the owner (never propagate, log and count) | REQ-007, REQ-009, AC-4, AC-7 | Line 30 states the one-record rule for every server that writes the shared log, which the CI/CD server currently violates on the disabled and validation paths; line 58 states the exactly-once rule for web-search-mcp only; the Common Error Formats table (section at line 68) lists "Server error | 500" at line 75 with no per-server mapping (re-verified 20261127) | `uv run python tools/check_docs_structure.py` | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) for the full validation procedure): one row per file; test and documentation
@@ -94,7 +94,7 @@ glob pattern, components, file groups, or vague phrases.
 | `scripts/shared/write_outcome.py` | The write-outcome vocabulary that names `applied_audit_failed`, the case an audit write failure after an applied dispatch produces | REQ-007 |
 | `scripts/shared/mcp_call_state_contract.py` | `CONTROL_ERROR_CODES` and `RECONCILE_OUTCOMES`, which this Plan does not extend | REQ-006 |
 | `scripts/mcp_servers/health_response.py` | `make_health_response` and the details shape, only if UNK-02 exposes the audit-failure counter | REQ-007 |
-| `tests/mcp_servers/conftest.py` | The `http_boundary` fixture the transport-failure tests use; at the recorded evidence revision the committed file has 141 lines and no such fixture, so the fixture is uncommitted working-tree work from mcpai010's implementation (UNK-06) | REQ-002 |
+| `tests/mcp_servers/conftest.py` | The `http_boundary` fixture the transport-failure tests use; the committed file at the evidence revision has 195 lines and defines `http_boundary` (re-verified 20261127), so the fixture is available (UNK-06 resolved) | REQ-002 |
 | `tests/mcp_servers/test_audit_redaction.py` | The helper's pinned exactly-once and redaction behavior, which the new CI/CD test must not re-implement | REQ-005, REQ-006 |
 
 ## Acceptance Criteria
@@ -107,7 +107,7 @@ glob pattern, components, file groups, or vague phrases.
 - `AC-7` (REQ-009): the CI/CD document carries the error mapping table and the corrected audit statement, and the audit document carries the exactly-one-event rule and the redaction rules.
 
 ## Tests
-- `REQ-001`/`REQ-002`/`REQ-003`: reverse the existing HTTP 500 to Not Found expectation first, then add 401, 403, 404, 409, 422, 429, 500, 503, DNS, TLS, and timeout cases in `tests/mcp_servers/cicd/test_cicd_mcp_service.py` and `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`; the transport cases use the shared `http_boundary` fixture, or a local fake transport while that fixture is uncommitted (UNK-06).
+- `REQ-001`/`REQ-002`/`REQ-003`: reverse the existing HTTP 500 to Not Found expectation first, then add 401, 403, 404, 409, 422, 429, 500, 503, DNS, TLS, and timeout cases in `tests/mcp_servers/cicd/test_cicd_mcp_service.py` and `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`; the transport cases use the shared `http_boundary` fixture, which is committed at the current evidence revision (UNK-06 resolved).
 - `REQ-004`: 409 and 429 handler tests and the machine-readable body shape in `tests/mcp_servers/cicd/test_cicd_exception_handlers.py`.
 - `REQ-005`/`REQ-006`/`REQ-007`: exactly one record for every result category — success, disabled, unknown tool, validation, authorization, upstream, dedup, unexpected — plus audit-serialization failure, in `tests/mcp_servers/cicd/test_cicd_audit.py` and `tests/mcp_servers/cicd/test_cicd_server_endpoints.py`.
 - `REQ-001`/`REQ-006`: exception hierarchy and error-code vocabulary tests in `tests/mcp_servers/cicd/test_cicd_models.py`.
@@ -126,7 +126,7 @@ separate layers named in that document; this Plan does not merge the terms.
 ## Assumptions
 - The CI/CD error-code vocabulary is a CI/CD-scoped frozenset in `scripts/mcp_servers/cicd/cicd_models.py`, following the lowercase-snake style the shared helper recommends for new servers. `scripts/shared/mcp_call_state_contract.py`'s `CONTROL_ERROR_CODES` is not extended, consistent with the decision recorded for mcpci002.
 - `AuditEmission` already accepts `target`, `outcome`, `error_type`, and `detail`, so the shared class needs no change; the only shared-helper change is the duplicate assignment removal, which assigns the same value twice and changes no observable output for the other eight servers, so the Issue's stop-and-report condition is not triggered.
-- The audit outcome vocabulary already includes `rejected` (`scripts/mcp_servers/audit.py` line 95); `DispatchResult.outcome` yields only `ok` or `error`, so `call_tool()` classifies the rejected categories itself.
+- The audit outcome vocabulary already includes `rejected` (`scripts/mcp_servers/audit.py` line 89, also line 156); `DispatchResult.outcome` yields only `ok` or `error`, so `call_tool()` classifies the rejected categories itself.
 - The response body shape change (adding the error code and the preserved metadata) is a response-contract change, so the exact-body assertions in `tests/mcp_servers/cicd/test_cicd_exception_handlers.py` are updated in the same release unit.
 - The audit-write-failure policy for the CI/CD server is the never-propagate pattern (log the failure and increment `audit_failure_count`), decided by the owner on 20261127, matching `scripts/mcp_servers/git/git_server.py`; the raise-on-failure pattern of `scripts/mcp_servers/github/github_service_security.py` is the rejected alternative.
 - The health-details key pin in `tests/mcp_servers/cicd/test_cicd_server_endpoints.py` line 303 changes only if UNK-02 decides that the CI/CD server exposes the audit-failure counter in `/health`.
@@ -142,7 +142,7 @@ separate layers named in that document; this Plan does not merge the terms.
 | UNK-03 | Whether the jobs-fetch path's non-2xx mapping should converge with the main backend's status mapping | `scripts/mcp_servers/cicd/cicd_service_github_actions_job.py` raises `CicdUpstreamError` for every non-2xx, including 404, pinned by `tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py` line 14; the main backend answers 404 with `CicdNotFoundError` | Decide whether one mapping is required; if yes, the job backend becomes a target row | False |
 | UNK-04 | The maximum length of the bounded upstream error text | No bound exists in `scripts/mcp_servers/cicd/` and no documented ceiling in the audit or MCP error documents | Decide at implementation as a module constant in `scripts/mcp_servers/cicd/cicd_models.py`; the test asserts the bound rather than a specific value | False |
 | UNK-05 | mcpci001 is open: its plan has no `Completed` row | `plans/20261126-152931_mcpci001_cicd-credential-config-contract.md` is `Frozen` with all steps `Pending` | Complete mcpci001 before this Plan is implemented; the normalized target in the audit record depends on its normalization function | True |
-| UNK-06 | The `http_boundary` fixture is not committed at the evidence revision | `tests/mcp_servers/conftest.py` at HEAD has 141 lines and no `http_boundary`; the fixture exists only in the uncommitted working tree, added by mcpai010's implementation | Commit that change before this Plan is implemented, or build the transport cases on a local fake transport instead of the shared fixture | False |
+| UNK-06 | The `http_boundary` fixture was not committed at the original evidence revision | `tests/mcp_servers/conftest.py` at 30c08e72260a had 141 lines and no `http_boundary`; the fixture is present at the current evidence revision (re-verified 20261127, 195 lines) | Resolved by re-verification on 20261127: the fixture is committed, so the transport cases use it | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -300,13 +300,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Error-mapping tests first (`tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`, `tests/mcp_servers/cicd/test_cicd_exception_handlers.py`) | Pending | — | — | — |
-| 2 | Audit-coverage tests first (`tests/mcp_servers/cicd/test_cicd_audit.py`, `tests/mcp_servers/cicd/test_cicd_server_endpoints.py`) | Pending | — | — | — |
-| 3 | Error vocabulary and exception types (`scripts/mcp_servers/cicd/cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_models.py`) | Pending | — | — | — |
-| 4 | Status and transport mapping in the backend (`scripts/mcp_servers/cicd/cicd_service_github_actions.py`) | Pending | — | — | — |
-| 5 | Handler mapping (`scripts/mcp_servers/cicd/exception_handlers.py`) | Pending | — | — | — |
-| 6 | Exactly-once audit emission and the shared helper fix (`scripts/mcp_servers/cicd/cicd_server.py`, `scripts/mcp_servers/audit.py`) | Pending | — | — | — |
-| 7 | Documentation (`docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`, `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md`) | Pending | — | — | — |
+| 1 | Error-mapping tests first (`tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`, `tests/mcp_servers/cicd/test_cicd_exception_handlers.py`) | In Progress | — | — | — |
+| 2 | Audit-coverage tests first (`tests/mcp_servers/cicd/test_cicd_audit.py`, `tests/mcp_servers/cicd/test_cicd_server_endpoints.py`) | In Progress | — | — | — |
+| 3 | Error vocabulary and exception types (`scripts/mcp_servers/cicd/cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_models.py`) | In Progress | — | — | — |
+| 4 | Status and transport mapping in the backend (`scripts/mcp_servers/cicd/cicd_service_github_actions.py`) | In Progress | — | — | — |
+| 5 | Handler mapping (`scripts/mcp_servers/cicd/exception_handlers.py`) | In Progress | — | — | — |
+| 6 | Exactly-once audit emission and the shared helper fix (`scripts/mcp_servers/cicd/cicd_server.py`, `scripts/mcp_servers/audit.py`) | In Progress | — | — | — |
+| 7 | Documentation (`docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`, `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md`) | In Progress | — | — | — |
 | 8 | Deployment & Verification | Pending | — | — | — |
 
 ### Blocker Log
@@ -317,7 +317,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261127-152110_01_scripts_mcp_servers_cicd_cicd_service_github_actions.py.md` | 1, 4 | Procedure | Pending | — | — |
+| `implementations/20261127-152110_02_scripts_mcp_servers_cicd_cicd_models.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261127-152110_03_scripts_mcp_servers_cicd_exception_handlers.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261127-152110_04_scripts_mcp_servers_cicd_cicd_server.py.md` | 2, 6 | Procedure | Pending | — | — |
+| `implementations/20261127-152110_05_scripts_mcp_servers_audit.py.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261127-152110_12_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261127-152110_13_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md` | 7 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -326,7 +332,14 @@ Table structure, status/type vocabulary, and general guidance: see
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261127-070305
-- **Evidence revision**: 30c08e72260ab00936fc442cd1646cb12aebb896
+- **Evidence revision**: 431d80ee328ed91f26c43f27638d21a5b6375d3c
+  (re-verified 20261127 at this revision; the 8 files changed since 30c08e72260a were reviewed and
+  the row claims were corrected to the current line numbers — `tests/mcp_servers/conftest.py` now has
+  195 lines and defines `http_boundary` (UNK-06 resolved), and the audit-document line citations were
+  updated. The source issue is archived at `issues/done/`, `TOOL_DESCRIPTIONS.md` has no cicd entry
+  change, and the `docs/00_index.md` task mapping still names both documentation rows. The 121 related
+  tests pass at HEAD. `check_evidence_freshness.py record` could not write this revision because the
+  mcpci001 plan dependency is uncommitted.)
 - **Related target files**: `scripts/mcp_servers/cicd/cicd_service_github_actions.py`, `scripts/mcp_servers/cicd/cicd_models.py`, `scripts/mcp_servers/cicd/exception_handlers.py`, `scripts/mcp_servers/cicd/cicd_server.py`, `scripts/mcp_servers/audit.py`, `tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`, `tests/mcp_servers/cicd/test_cicd_exception_handlers.py`, `tests/mcp_servers/cicd/test_cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_server_endpoints.py`, `tests/mcp_servers/cicd/test_cicd_audit.py`, `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`, `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md`
 
 ### Requirement Traceability

@@ -57,7 +57,7 @@ table — no other file may be treated as a modification target.
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/mcp_servers/cicd/cicd_credential.py` | Create | New policy-only module owning the effective-credential resolution with documented precedence; no I/O, no logging, no config access | REQ-001, AC-1 | Does not exist; `scripts/mcp_servers/cicd/` holds 15 files and none owns credential policy (checked in Step 3) | `tests/mcp_servers/cicd/test_cicd_credential.py` | Verified |
-| `scripts/mcp_servers/cicd/cicd_models.py` | Modify | Adopt `StrictRequestModel`, add the CI/CD constraints, the canonical workflow-identifier function, the hard maximum constants, and shared `owner/repo` normalization for allowlist entries | REQ-004, REQ-005, REQ-006, REQ-007, AC-3, AC-5 | Request models at lines 88-140 have no `model_config` and no shared strict base; `limit` already `ge=1, le=50`, `run_id` `gt=0`; `from_dict()` uses `get_typed` for lists and `max_log_size_kb` with no positivity or size bound (checked in Step 2) | `tests/mcp_servers/cicd/test_cicd_models.py` | Verified |
+| `scripts/mcp_servers/cicd/cicd_models.py` | Modify | Adopt `StrictRequestModel`, add the CI/CD constraints, the canonical workflow-identifier function, the hard maximum constants, and shared `owner/repo` normalization for allowlist entries | REQ-004, REQ-005, REQ-006, REQ-007, AC-3, AC-5 | Request models at lines 88-137 have no `model_config` and no shared strict base (re-verified 20261127, file is 137 lines); `limit` already `ge=1, le=50`, `run_id` `gt=0`; `from_dict()` uses `get_typed` for lists and `max_log_size_kb` with no positivity or size bound (checked in Step 2) | `tests/mcp_servers/cicd/test_cicd_models.py` | Verified |
 | `scripts/mcp_servers/cicd/cicd_tools.py` | Modify | Publish `inputSchema` built from the strict request models instead of hand-written property dicts | REQ-004, AC-3 | `TOOL_LIST` entries build `inputSchema` from module-level property dicts with `type` and `description` only; no `build_input_schema` import (checked in Step 2) | `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py` | Verified |
 | `scripts/mcp_servers/cicd/cicd_service_guards.py` | Modify | Compare canonical identifier values, reject wildcard and oversized allowlist entries, add the credential posture check, and expose the read-permission probe result as a posture check | REQ-003, REQ-005, REQ-006, AC-2, AC-4, AC-5 | `_assert_allowed_repo()` compares raw strings against the allowlist; `_assert_allowed_workflow()` rejects separators but performs no canonicalization; `validate_cicd_security()` reports four check ids and treats an awaitable probe as `not_applicable` (checked in Step 2) | `tests/mcp_servers/cicd/test_cicd_security_validation.py` | Verified |
 | `scripts/mcp_servers/cicd/cicd_service_init.py` | Modify | Use the resolved effective credential and stop constructing `httpx.AsyncClient` at service-init time; accept an injected client | REQ-001, REQ-008, AC-1, AC-6 | Lines 24-41 resolve the token inline, warn only, and create `httpx.AsyncClient(timeout=30.0)` inside `build_service()` (checked in Step 2) | `tests/mcp_servers/cicd/test_cicd_lifecycle.py` | Verified |
@@ -289,16 +289,16 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Credential contract module and its tests | Pending | — | — | — |
-| 2 | Strict request models, canonicalization, and configuration bounds | Pending | — | — | — |
-| 3 | Published schemas generated from the strict models | Pending | — | — | — |
-| 4 | Guard canonicalization, wildcard and oversized rejection, credential posture check | Pending | — | — | — |
-| 5 | Canonical identifier at call time and URL path encoding | Pending | — | — | — |
-| 6 | Lifespan-owned shared HTTP client | Pending | — | — | — |
-| 7 | Read-permission probe and health parity | Pending | — | — | — |
-| 8 | Health endpoint characterization update | Pending | — | — | — |
-| 9 | Configuration record | Pending | — | — | — |
-| 10 | Documentation updates | Pending | — | — | — |
+| 1 | Credential contract module and its tests | In Progress | — | — | — |
+| 2 | Strict request models, canonicalization, and configuration bounds | In Progress | — | — | — |
+| 3 | Published schemas generated from the strict models | In Progress | — | — | — |
+| 4 | Guard canonicalization, wildcard and oversized rejection, credential posture check | In Progress | — | — | — |
+| 5 | Canonical identifier at call time and URL path encoding | In Progress | — | — | — |
+| 6 | Lifespan-owned shared HTTP client | In Progress | — | — | — |
+| 7 | Read-permission probe and health parity | In Progress | — | — | — |
+| 8 | Health endpoint characterization update | In Progress | — | — | — |
+| 9 | Configuration record | In Progress | — | — | — |
+| 10 | Documentation updates | In Progress | — | — | — |
 | 11 | Deployment and verification hand-off | Pending | — | — | — |
 
 ### Blocker Log
@@ -309,7 +309,18 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261127-145310_01_scripts_mcp_servers_cicd_cicd_credential.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261127-145310_02_scripts_mcp_servers_cicd_cicd_models.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-145310_03_scripts_mcp_servers_cicd_cicd_tools.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261127-145310_04_scripts_mcp_servers_cicd_cicd_service_guards.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-145310_05_scripts_mcp_servers_cicd_cicd_service_init.py.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261127-145310_06_scripts_mcp_servers_cicd_cicd_server.py.md` | 6, 7 | Procedure | Pending | — | — |
+| `implementations/20261127-145310_07_scripts_mcp_servers_cicd_cicd_service_business.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261127-145310_08_scripts_mcp_servers_cicd_cicd_service_github_actions.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261127-145310_09_config_cicd_mcp_server.toml.md` | 9 | Procedure | Pending | — | — |
+| `implementations/20261127-145310_10_tests_mcp_servers_cicd_test_cicd_models.py.md` | 2, 3 | Procedure | Pending | — | — |
+| `implementations/20261127-145310_18_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md` | 10 | Procedure | Pending | — | — |
+| `implementations/20261127-145310_19_docs_22_mcp_mcp_05_01_access-control-and-allowlists.md.md` | 10 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -318,6 +329,7 @@ Table structure, status/type vocabulary, and general guidance: see
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261126-152931
+- **Evidence revision**: 431d80ee328ed91f26c43f27638d21a5b6375d3c
 - **Related target files**: `scripts/mcp_servers/cicd/cicd_credential.py`, `scripts/mcp_servers/cicd/cicd_models.py`, `scripts/mcp_servers/cicd/cicd_tools.py`, `scripts/mcp_servers/cicd/cicd_service_guards.py`, `scripts/mcp_servers/cicd/cicd_service_init.py`, `scripts/mcp_servers/cicd/cicd_server.py`, `scripts/mcp_servers/cicd/cicd_service_business.py`, `scripts/mcp_servers/cicd/cicd_service_github_actions.py`, `config/cicd_mcp_server.toml`, `tests/mcp_servers/cicd/test_cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_security_validation.py`, `tests/mcp_servers/cicd/test_cicd_health_posture.py`, `tests/mcp_servers/cicd/test_mcp_server_health_status.py`, `tests/mcp_servers/cicd/test_cicd_server_endpoints.py`, `tests/mcp_servers/cicd/test_cicd_credential.py`, `tests/mcp_servers/cicd/test_cicd_lifecycle.py`, `tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`, `docs/22_mcp/mcp_05_01_access-control-and-allowlists.md`
 
 ### Requirement Traceability

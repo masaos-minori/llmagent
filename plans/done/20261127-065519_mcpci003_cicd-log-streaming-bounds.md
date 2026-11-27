@@ -52,7 +52,7 @@ table — no other file may be treated as the modification target.
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/mcp_servers/cicd/cicd_service_github_actions_job.py` | Modify | Fetch each job log through `fetch_bounded` with the raw and decompressed limits, the trusted-host policy, and the maximum redirect count; enforce the exact final byte budget including headers and markers; truncate at UTF-8 character boundaries; record per-job status, included bytes, error code, and truncation state instead of embedded failure text | REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, AC-1, AC-2, AC-3, AC-4 | Lines 82-104 use `follow_redirects=True` and read `log_resp.text` in full, and append `(log fetch failed: HTTP {status})` and `(log fetch error: {e})` as output text; lines 117-127 truncate with `errors="replace"`; lines 169-181 append the header before checking the budget (checked in Step 2) | `tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py` | Verified |
-| `scripts/mcp_servers/cicd/cicd_models.py` | Modify | Add the log response model: per-job status, included bytes, error code, truncation state, `partial_success`, and the totals; add the raw and decompressed limit constants | REQ-002, REQ-003, REQ-004, REQ-005, AC-4 | Lines 133-140 define only `GetWorkflowLogsRequest`; the module has no response model and no byte-limit constants beyond `max_log_size_kb` in `CicdConfig` (checked in Step 2) | `tests/mcp_servers/cicd/test_cicd_models.py` | Verified |
+| `scripts/mcp_servers/cicd/cicd_models.py` | Modify | Add the log response model: per-job status, included bytes, error code, truncation state, `partial_success`, and the totals; add the raw and decompressed limit constants | REQ-002, REQ-003, REQ-004, REQ-005, AC-4 | Lines 133-137 define only `GetWorkflowLogsRequest`, the last class in the file (re-verified 20261127, file is 137 lines); the module has no response model and no byte-limit constants beyond `max_log_size_kb` in `CicdConfig` | `tests/mcp_servers/cicd/test_cicd_models.py` | Verified |
 | `scripts/mcp_servers/cicd/cicd_service_defs.py` | Modify | The `CiBackend` Protocol declares `get_workflow_logs` returning the structured result instead of `str` | REQ-004, AC-4 | Line 63 declares `async def get_workflow_logs(...) -> str` in the Protocol that the composite backend and the handler are typed against (checked in Step 3) | `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py` (reference) | Verified |
 | `scripts/mcp_servers/cicd/cicd_service_github_actions_composite.py` | Modify | The delegation carries the structured result instead of a string | REQ-004, AC-4 | Lines 74-76 delegate to the job backend and return its value unchanged (checked in Step 3) | `tests/mcp_servers/cicd/test_service_github_actions_composite.py` | Verified |
 | `scripts/mcp_servers/cicd/cicd_service_business.py` | Modify | `handle_get_workflow_logs` returns the serialized structured result and returns a tool error when every job failed | REQ-004, AC-4 | Lines 120-132 return the backend string unchanged; there is no all-failed branch (checked in Step 3) | `tests/mcp_servers/cicd/test_cicd_mcp_service.py` | Verified |
@@ -254,12 +254,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Characterization tests first (`tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py`) | Pending | — | — | — |
-| 2 | Log response model and limits (`scripts/mcp_servers/cicd/cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_models.py`) | Pending | — | — | — |
-| 3 | Bounded streaming and exact byte budget (`scripts/mcp_servers/cicd/cicd_service_github_actions_job.py`) | Pending | — | — | — |
-| 4 | Handler and delegation contract (`scripts/mcp_servers/cicd/cicd_service_defs.py`, `scripts/mcp_servers/cicd/cicd_service_github_actions_composite.py`, `scripts/mcp_servers/cicd/cicd_service_business.py`, `tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py`, `tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_service_github_actions_composite.py`) | Pending | — | — | — |
-| 5 | Configuration record (`config/cicd_mcp_server.toml`) | Pending | — | — | — |
-| 6 | Documentation (`docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`) | Pending | — | — | — |
+| 1 | Characterization tests first (`tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py`) | In Progress | — | — | — |
+| 2 | Log response model and limits (`scripts/mcp_servers/cicd/cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_models.py`) | In Progress | — | — | — |
+| 3 | Bounded streaming and exact byte budget (`scripts/mcp_servers/cicd/cicd_service_github_actions_job.py`) | In Progress | — | — | — |
+| 4 | Handler and delegation contract (`scripts/mcp_servers/cicd/cicd_service_defs.py`, `scripts/mcp_servers/cicd/cicd_service_github_actions_composite.py`, `scripts/mcp_servers/cicd/cicd_service_business.py`, `tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py`, `tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_service_github_actions_composite.py`) | In Progress | — | — | — |
+| 5 | Configuration record (`config/cicd_mcp_server.toml`) | In Progress | — | — | — |
+| 6 | Documentation (`docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`) | In Progress | — | — | — |
 | 7 | Deployment & Verification | Pending | — | — | — |
 
 ### Blocker Log
@@ -270,7 +270,14 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261127-151141_01_scripts_mcp_servers_cicd_cicd_service_github_actions_job.py.md` | 1, 3 | Procedure | Pending | — | — |
+| `implementations/20261127-151141_02_scripts_mcp_servers_cicd_cicd_models.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-151141_03_scripts_mcp_servers_cicd_cicd_service_defs.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-151141_04_scripts_mcp_servers_cicd_cicd_service_github_actions_composite.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-151141_05_scripts_mcp_servers_cicd_cicd_service_business.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-151141_06_config_cicd_mcp_server.toml.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261127-151141_09_tests_mcp_servers_cicd_test_cicd_models.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-151141_11_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md` | 6 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -279,7 +286,12 @@ Table structure, status/type vocabulary, and general guidance: see
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261127-065519
-- **Evidence revision**: 30c08e72260ab00936fc442cd1646cb12aebb896
+- **Evidence revision**: 431d80ee328ed91f26c43f27638d21a5b6375d3c
+  (re-verified 20261127 at this revision; the 5 files changed since 30c08e72260a were reviewed and
+  none invalidates a row claim — the source issue is archived at `issues/done/`, `TOOL_DESCRIPTIONS.md`
+  has no cicd entry change, and the `docs/00_index.md` task mapping still names this document. The 237
+  related tests pass at HEAD. `check_evidence_freshness.py record` could not write this revision
+  because the mcpci001 plan dependency is uncommitted.)
 - **Related target files**: `scripts/mcp_servers/cicd/cicd_service_github_actions_job.py`, `scripts/mcp_servers/cicd/cicd_models.py`, `scripts/mcp_servers/cicd/cicd_service_defs.py`, `scripts/mcp_servers/cicd/cicd_service_github_actions_composite.py`, `scripts/mcp_servers/cicd/cicd_service_business.py`, `config/cicd_mcp_server.toml`, `tests/mcp_servers/cicd/test_mcp_cicd_edge_cases.py`, `tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_cicd_models.py`, `tests/mcp_servers/cicd/test_service_github_actions_composite.py`, `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`
 
 ### Requirement Traceability

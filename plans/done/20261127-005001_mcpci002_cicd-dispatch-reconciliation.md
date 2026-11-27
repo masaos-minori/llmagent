@@ -46,7 +46,7 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/mcp_servers/cicd/cicd_models.py` | Modify | Add the structured dispatch-outcome model for the five states and the matched-run fields (run id, URL, status, workflow, ref); reuse `outcome_unknown` from the shared write-outcome vocabulary | REQ-001, REQ-003, AC-1, AC-2, AC-5 | Request models at lines 88-140 have no response counterpart; the module defines only `CicdConfig` and the domain exceptions, so no dispatch-outcome model exists (checked in Step 2) | `tests/mcp_servers/cicd/test_cicd_models.py` | Verified |
+| `scripts/mcp_servers/cicd/cicd_models.py` | Modify | Add the structured dispatch-outcome model for the five states and the matched-run fields (run id, URL, status, workflow, ref); reuse `outcome_unknown` from the shared write-outcome vocabulary | REQ-001, REQ-003, AC-1, AC-2, AC-5 | Request models at lines 88-137 have no response counterpart; the module defines only `CicdConfig`, the domain exceptions, and the request models, so no dispatch-outcome model exists (re-verified 20261127, file is 137 lines) | `tests/mcp_servers/cicd/test_cicd_models.py` | Verified |
 | `scripts/mcp_servers/cicd/cicd_service_github_actions.py` | Modify | `trigger_workflow` returns the structured outcome; add the correlation marker to the dispatch inputs, the bounded polling for the matching run, and the run lookup used by the reconciler | REQ-001, REQ-002, REQ-003, REQ-007, AC-1, AC-2, AC-3 | Lines 102-132 return `f"Workflow dispatched: ..."` on 204 and on any other 2xx, with no run id, no correlation marker, and no polling; `get_workflow_runs` at line 134 is the only run read (checked in Step 2) | `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py` | Verified |
 | `scripts/mcp_servers/cicd/cicd_service_github_actions_composite.py` | Modify | The delegation carries the structured outcome instead of a string | REQ-001, AC-2 | `trigger_workflow` at line 49 delegates directly to the workflow backend and returns its value unchanged (checked in Step 3) | `tests/mcp_servers/cicd/test_service_github_actions_composite.py` | Verified |
 | `scripts/mcp_servers/cicd/cicd_service_business.py` | Modify | `handle_trigger_workflow` returns the structured outcome; the dry-run preview emits input keys and counts only | REQ-001, REQ-006, AC-4 | Lines 70-75 build the preview string with `with inputs={req.inputs}`, embedding raw input values (checked in Step 3) | `tests/mcp_servers/cicd/test_cicd_mcp_service.py` | Verified |
@@ -249,12 +249,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Characterization tests first (`tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`) | Pending | — | — | — |
-| 2 | Structured outcome model (`scripts/mcp_servers/cicd/cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_models.py`) | Pending | — | — | — |
-| 3 | Correlation marker and bounded run lookup (`scripts/mcp_servers/cicd/cicd_service_github_actions.py`) | Pending | — | — | — |
-| 4 | Handler and delegation contract (`scripts/mcp_servers/cicd/cicd_service_business.py`, `scripts/mcp_servers/cicd/cicd_service_github_actions_composite.py`, `tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_service_github_actions_composite.py`) | Pending | — | — | — |
-| 5 | Reconciler registration (`scripts/mcp_servers/cicd/cicd_server.py`) | Pending | — | — | — |
-| 6 | Documentation (`docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`) | Pending | — | — | — |
+| 1 | Characterization tests first (`tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`) | In Progress | — | — | — |
+| 2 | Structured outcome model (`scripts/mcp_servers/cicd/cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_models.py`) | In Progress | — | — | — |
+| 3 | Correlation marker and bounded run lookup (`scripts/mcp_servers/cicd/cicd_service_github_actions.py`) | In Progress | — | — | — |
+| 4 | Handler and delegation contract (`scripts/mcp_servers/cicd/cicd_service_business.py`, `scripts/mcp_servers/cicd/cicd_service_github_actions_composite.py`, `tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_service_github_actions_composite.py`) | In Progress | — | — | — |
+| 5 | Reconciler registration (`scripts/mcp_servers/cicd/cicd_server.py`) | In Progress | — | — | — |
+| 6 | Documentation (`docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`) | In Progress | — | — | — |
 | 7 | Deployment & Verification | Pending | — | — | — |
 
 ### Blocker Log
@@ -265,7 +265,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261127-150154_01_scripts_mcp_servers_cicd_cicd_models.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-150154_02_scripts_mcp_servers_cicd_cicd_service_github_actions.py.md` | 1, 3 | Procedure | Pending | — | — |
+| `implementations/20261127-150154_03_scripts_mcp_servers_cicd_cicd_service_github_actions_composite.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-150154_04_scripts_mcp_servers_cicd_cicd_service_business.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-150154_05_scripts_mcp_servers_cicd_cicd_server.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261127-150154_10_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md` | 6 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -274,7 +279,12 @@ Table structure, status/type vocabulary, and general guidance: see
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261127-005001
-- **Evidence revision**: 30c08e72260ab00936fc442cd1646cb12aebb896
+- **Evidence revision**: 431d80ee328ed91f26c43f27638d21a5b6375d3c
+  (re-verified 20261127 at this revision; the 6 files changed since 30c08e72260a were
+  reviewed and none invalidates a row claim — `tool_metadata.py` gained resource key kinds
+  only, the source issue is archived at `issues/done/`, and `TOOL_DESCRIPTIONS.md` has no cicd
+  entry change. The 115 related tests pass at HEAD. `check_evidence_freshness.py record` could
+  not write this revision because the mcpci001 plan dependency is uncommitted.)
 - **Related target files**: `scripts/mcp_servers/cicd/cicd_models.py`, `scripts/mcp_servers/cicd/cicd_service_github_actions.py`, `scripts/mcp_servers/cicd/cicd_service_github_actions_composite.py`, `scripts/mcp_servers/cicd/cicd_service_business.py`, `scripts/mcp_servers/cicd/cicd_server.py`, `tests/mcp_servers/cicd/test_cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_service_github_actions_composite.py`, `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`, `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`
 
 ### Requirement Traceability
