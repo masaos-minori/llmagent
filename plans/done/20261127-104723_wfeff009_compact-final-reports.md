@@ -39,14 +39,14 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `skills/code-implementation/workflow.md` | Replace the Final Report body with the compact form and its condition plus a pointer to the full-form section | The Issue's Target Files name it; ceiling 42118 B against 42112 B | `REQ-001`, `REQ-005`, `REQ-006`; AC-1, AC-5, AC-6 | `skills/code-implementation/workflow.md` `## Final Report` (3220 B) and its subsections; `tools/check_skill_size_baseline.txt` records 42118 (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
 | `skills/code-implementation/workflow-edge.md` | Add a `### Final Report: full form` section holding the moved text verbatim | Receives the moved text; 12258 B plus about 3 KB stays below the 16384 B limit; no baseline entry | `REQ-001`, `REQ-006`; AC-1, AC-6 | `skills/code-implementation/workflow-edge.md` is 12258 B; `workflow.md` already loads its sections by heading (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
-| `skills/plan-to-implementation-procedure/workflow.md` | Replace the Final report body with the compact form and its condition plus a pointer | The Issue's Target Files name it; ceiling 34876 B against 34756 B | `REQ-002`, `REQ-005`, `REQ-006`; AC-2, AC-5, AC-6 | `skills/plan-to-implementation-procedure/workflow.md` `### Final report` (926 B) (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
+| `skills/code-implementation/workflow.md` | Replace the Final Report body with the compact form and its condition plus a pointer to the full-form section | The Issue's Target Files name it; ceiling 42118 B against 42112 B | `REQ-001`, `REQ-005`, `REQ-006`; AC-1, AC-5, AC-6 | `skills/code-implementation/workflow.md` `## Final Report` (3220 B) and its subsections; `tools/check_skill_size_baseline.txt` records 42118 (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
 | `skills/plan-to-implementation-procedure/workflow-edge.md` | Add a `### Final report: full form` section holding the moved text verbatim | Receives the moved text; 7556 B plus under 1 KB | `REQ-002`, `REQ-006`; AC-2, AC-6 | `skills/plan-to-implementation-procedure/workflow-edge.md` is 7556 B (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
-| `skills/issue-to-plan/workflow.md` | Replace the Step 9 report text with the compact form and its condition plus a pointer, leaving the Step 9 gate text intact | The Issue's Target Files name it; ceiling 42540 B against 42539 B | `REQ-003`, `REQ-005`, `REQ-006`; AC-3, AC-5, AC-6 | `skills/issue-to-plan/workflow.md` `## Step 9: Final Validation` (2030 B) holds both the report fields and the move gate; `tools/check_skill_size_baseline.txt` records 42540 (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
+| `skills/plan-to-implementation-procedure/workflow.md` | Replace the Final report body with the compact form and its condition plus a pointer | The Issue's Target Files name it; ceiling 34876 B against 34756 B | `REQ-002`, `REQ-005`, `REQ-006`; AC-2, AC-5, AC-6 | `skills/plan-to-implementation-procedure/workflow.md` `### Final report` (926 B) (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
 | `skills/issue-to-plan/workflow-edge.md` | Add a `### Step 9: full report` section holding the moved report text verbatim | Receives the moved text; 4512 B plus under 2 KB | `REQ-003`, `REQ-006`; AC-3, AC-6 | `skills/issue-to-plan/workflow-edge.md` is 4512 B (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
-| `skills/git-commit-and-sync/workflow.md` | Replace the Phase 9 report list with the compact form and its condition plus a pointer | The Issue's Target Files name it; ceiling 22947 B equals the current size | `REQ-004`, `REQ-005`, `REQ-006`; AC-4, AC-5, AC-6 | `skills/git-commit-and-sync/workflow.md` `## Phase 9: Report` (858 B); `tools/check_skill_size_baseline.txt` records 22947 (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
+| `skills/issue-to-plan/workflow.md` | Replace the Step 9 report text with the compact form and its condition plus a pointer, leaving the Step 9 gate text intact | The Issue's Target Files name it; ceiling 42540 B against 42539 B | `REQ-003`, `REQ-005`, `REQ-006`; AC-3, AC-5, AC-6 | `skills/issue-to-plan/workflow.md` `## Step 9: Final Validation` (2030 B) holds both the report fields and the move gate; `tools/check_skill_size_baseline.txt` records 42540 (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
 | `skills/git-commit-and-sync/workflow-edge.md` | Create the edge file with a `### Phase 9: full report` section holding the moved list verbatim | New file; the skill has no edge file, and 0 B of headroom needs the full form moved out; the directory `skills/git-commit-and-sync/` exists | `REQ-004`, `REQ-006`; AC-4, AC-6 | `skills/git-commit-and-sync/` holds `SKILL.md` and `workflow.md` only (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
+| `skills/git-commit-and-sync/workflow.md` | Replace the Phase 9 report list with the compact form and its condition plus a pointer | The Issue's Target Files name it; ceiling 22947 B equals the current size | `REQ-004`, `REQ-005`, `REQ-006`; AC-4, AC-5, AC-6 | `skills/git-commit-and-sync/workflow.md` `## Phase 9: Report` (858 B); `tools/check_skill_size_baseline.txt` records 22947 (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) for the full validation procedure):
@@ -94,6 +94,7 @@ N/A: no `docs/*.md` change. The four workflow files and their edge files are tar
 ## Assumptions
 - No tool or skill reads the chat report text (resolves the Issue's open question): a search of `tools/`, `skills/`, `rules/`, `prompts/`, and `tests/` for the traceability line format (`Source: ... | Issue:`), `Pending move`, `Unresolved items`, and the report field names found only the workflow and rule texts that define them, no parser (checked in Step 3).
 - "Follow ... in full" in `prompts/01_issue-to-plan.md` and `prompts/03_implementation.md` means executing the whole section, including its compact-or-full rule, so the prompts need no change; the procedure phase rechecks the wording and raises a fallout amendment adding a prompt row if it reads as forcing the full form.
+- Row order is implementation order (`seq` follows the table position): each edge file row precedes its workflow row, so the full form exists in the edge file before the workflow text is replaced (reordered in plan-to-implementation-procedure Step 3a).
 - `rules/workflow-lifecycle.md` Validation Reporting is satisfied by the compact status line (Status, Output, Pending move) and validation line (Validation, Unresolved items), because all five fields stay present.
 - The compact form of `code-implementation` keeps the one-line traceability summary in every case because that workflow names it the cycle's traceability record; the Execution Status table and Blocker Log are persisted in the procedure's own Execution Status.
 
@@ -176,11 +177,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Compact form for `code-implementation` (`skills/code-implementation/workflow-edge.md`, `skills/code-implementation/workflow.md`) | Pending | — | — | |
-| 2 | Compact form for `plan-to-implementation-procedure` (`skills/plan-to-implementation-procedure/workflow-edge.md`, `skills/plan-to-implementation-procedure/workflow.md`) | Pending | — | — | |
-| 3 | Compact form for `issue-to-plan` (`skills/issue-to-plan/workflow-edge.md`, `skills/issue-to-plan/workflow.md`) | Pending | — | — | |
-| 4 | Compact form for `git-commit-and-sync` (`skills/git-commit-and-sync/workflow-edge.md`, `skills/git-commit-and-sync/workflow.md`) | Pending | — | — | |
-| 5 | Review past reports; deployment check is N/A (`skills/code-implementation/workflow.md`) | Pending | — | — | |
+| 1 | Compact form for `code-implementation` (`skills/code-implementation/workflow-edge.md`, `skills/code-implementation/workflow.md`) | In Progress | — | — |  |
+| 2 | Compact form for `plan-to-implementation-procedure` (`skills/plan-to-implementation-procedure/workflow-edge.md`, `skills/plan-to-implementation-procedure/workflow.md`) | In Progress | — | — |  |
+| 3 | Compact form for `issue-to-plan` (`skills/issue-to-plan/workflow-edge.md`, `skills/issue-to-plan/workflow.md`) | In Progress | — | — |  |
+| 4 | Compact form for `git-commit-and-sync` (`skills/git-commit-and-sync/workflow-edge.md`, `skills/git-commit-and-sync/workflow.md`) | In Progress | — | — |  |
+| 5 | Review past reports; deployment check is N/A (`skills/code-implementation/workflow.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -190,7 +191,14 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261127-110148_01_skills_code-implementation_workflow-edge.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-110148_02_skills_code-implementation_workflow.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-110148_03_skills_plan-to-implementation-procedure_workflow-edge.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261127-110148_04_skills_plan-to-implementation-procedure_workflow.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261127-110148_05_skills_issue-to-plan_workflow-edge.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261127-110148_06_skills_issue-to-plan_workflow.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261127-110148_07_skills_git-commit-and-sync_workflow-edge.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261127-110148_08_skills_git-commit-and-sync_workflow.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -222,3 +230,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | `REQ-006` | Issue Constraints, ceilings measured in Step 3 | `skills/plan-to-implementation-procedure/workflow.md` | Phase 2 | AC-6 | `uv run python tools/check_skills_references.py` | Explicit in issue |
 | `REQ-006` | Issue Constraints, ceilings measured in Step 3 | `skills/issue-to-plan/workflow.md` | Phase 3 | AC-6 | `uv run python tools/check_skills_references.py` | Explicit in issue |
 | `REQ-006` | Issue Constraints, ceilings measured in Step 3 | `skills/git-commit-and-sync/workflow.md` | Phase 4 | AC-6 | `uv run python tools/check_skills_references.py` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261127-110148 -->

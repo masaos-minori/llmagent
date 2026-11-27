@@ -39,9 +39,9 @@ table — no other file may be treated as a modification target.
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `tools/check_plan_target_overlaps.py` | Add the repeatable `--plan` option and a post-filter of the findings in `main` | The Issue's Target Files name it; detection stays untouched | `REQ-001`, `REQ-003`; AC-1, AC-2, AC-5 | `tools/check_plan_target_overlaps.py:190-226` `build_arg_parser` and `main`; the finding's `detail` lists Plan paths comma-separated after `targeted by N Frozen Plans at once: ` (lines 139-163) (checked in Step 3) | `tests/tools/test_check_plan_target_overlaps.py` | Verified |
-| `tools/run_validation_gates.py` | Add the `--failures-only` option and pass it through `main` and `_run_gates` to the renderer | The Issue's Target Files name it; the file has 630 B of headroom under the 24576 B gate | `REQ-002`, `REQ-003`, `REQ-004`; AC-3, AC-4, AC-6 | `tools/run_validation_gates.py:555-562` `_run_gates`, `:592-632` `build_parser`, `:634-641` `main`; 23946 B (checked in Step 3) | `tests/tools/test_run_validation_gates.py` | Verified |
-| `tools/_validation_gate_report.py` | Add the failures-only branch and the final `Result:` line to `render_summary` | The renderer lives here, not in `tools/run_validation_gates.py` (a discovery that adds this row) | `REQ-002`, `REQ-003`, `REQ-004`; AC-3, AC-4, AC-6 | `tools/_validation_gate_report.py:46-76` `render_summary`, `_print_header`, `_print_rows`; 2675 B; `HIDE_REASON = "runtime-argument"` (checked in Step 3) | `tests/tools/test_run_validation_gates.py` | Verified |
 | `tests/tools/test_check_plan_target_overlaps.py` | Add tests for `--plan` in text, JSON, and CSV output, the repeat, the unknown path, and the unchanged default | Unit tests for the new option are required by the Issue | `REQ-001`, `REQ-003`; AC-1, AC-2, AC-5 | `tests/tools/test_check_plan_target_overlaps.py:1-30` has the `_write` and `_plan_text` helpers and imports `tools.check_plan_target_overlaps` (checked in Step 3) | `tests/tools/test_check_plan_target_overlaps.py` | Verified |
+| `tools/_validation_gate_report.py` | Add the failures-only branch and the final `Result:` line to `render_summary` | The renderer lives here, not in `tools/run_validation_gates.py` (a discovery that adds this row) | `REQ-002`, `REQ-003`, `REQ-004`; AC-3, AC-4, AC-6 | `tools/_validation_gate_report.py:46-76` `render_summary`, `_print_header`, `_print_rows`; 2675 B; `HIDE_REASON = "runtime-argument"` (checked in Step 3) | `tests/tools/test_run_validation_gates.py` | Verified |
+| `tools/run_validation_gates.py` | Add the `--failures-only` option and pass it through `main` and `_run_gates` to the renderer | The Issue's Target Files name it; the file has 630 B of headroom under the 24576 B gate | `REQ-002`, `REQ-003`, `REQ-004`; AC-3, AC-4, AC-6 | `tools/run_validation_gates.py:555-562` `_run_gates`, `:592-632` `build_parser`, `:634-641` `main`; 23946 B (checked in Step 3) | `tests/tools/test_run_validation_gates.py` | Verified |
 | `tests/tools/test_run_validation_gates.py` | Add tests for `--failures-only` rendering, the `Result:` line, the exit code parity, and the unchanged default | Unit tests for the new option are required by the Issue; the file already tests `render_summary` (line 1075) | `REQ-002`, `REQ-003`, `REQ-004`; AC-3, AC-4, AC-6 | `tests/tools/test_run_validation_gates.py:1075` `report.render_summary(_mixed_results(), ...)` with a `_mixed_results` helper (checked in Step 3) | `tests/tools/test_run_validation_gates.py` | Verified |
 | `tools/TOOL_DESCRIPTIONS.md` | Update the Index and Work Items or runner rows of both tools with the new options | The Issue's Documentation Impact; `tools/check_tool_descriptions_sync.py` guards the inventory | `REQ-005`; AC-7 | `tools/TOOL_DESCRIPTIONS.md` rows for `check_plan_target_overlaps.py` (lines 116, 293) and `run_validation_gates.py` (lines 172, 306) (checked in Step 3) | `tools/check_tool_descriptions_sync.py` run | Verified |
 
@@ -89,6 +89,7 @@ N/A: no `docs/*.md` change. The rows of `tools/TOOL_DESCRIPTIONS.md` are a targe
 ## Assumptions
 - The failures-only mode keeps the existing hide rule for `Not available` rows whose reason is `runtime-argument` (shown as the count line, as in the default output) instead of printing them as rows, because `rules/ai-execution.md` item 12 is already met by that count line and printing three to six always-unavailable rows would defeat the filter; `--verbose` together with `--failures-only` prints them.
 - `Partial` counts as non-passing and is printed; only `Pass` rows are omitted.
+- Row order is implementation order (`seq` follows the table position): the renderer row precedes the runner row because the runner passes a new keyword to `render_summary`, which would fail at run time before the renderer accepts it (reordered in plan-to-implementation-procedure Step 3a).
 - The `Result:` line is new and appears only in `--failures-only` output (the default output has no final status line today), so the default stays byte-identical.
 - `skills/git-commit-and-sync/workflow.md` Phase 4 tells the reader to compare the summary's file list with the staged set; that text keeps working because the default output still prints the list, and the failures-only output omits it by design (stated in the tool row).
 
@@ -164,9 +165,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `--plan` and its tests (`tools/check_plan_target_overlaps.py`, `tests/tools/test_check_plan_target_overlaps.py`) | Pending | — | — | |
-| 2 | Add `--failures-only`, its renderer branch, and tests (`tools/_validation_gate_report.py`, `tools/run_validation_gates.py`, `tests/tools/test_run_validation_gates.py`) | Pending | — | — | |
-| 3 | Update the tool rows; deployment check is N/A (`tools/TOOL_DESCRIPTIONS.md`) | Pending | — | — | |
+| 1 | Add `--plan` and its tests (`tools/check_plan_target_overlaps.py`, `tests/tools/test_check_plan_target_overlaps.py`) | In Progress | — | — |  |
+| 2 | Add `--failures-only`, its renderer branch, and tests (`tools/_validation_gate_report.py`, `tools/run_validation_gates.py`, `tests/tools/test_run_validation_gates.py`) | In Progress | — | — |  |
+| 3 | Update the tool rows; deployment check is N/A (`tools/TOOL_DESCRIPTIONS.md`) | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -176,7 +177,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261127-105933_01_tools_check_plan_target_overlaps.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-105933_03_tools__validation_gate_report.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261127-105933_04_tools_run_validation_gates.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261127-105933_05_tests_tools_test_run_validation_gates.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261127-105933_06_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -206,3 +211,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | `REQ-004` | Renderer placement | `tools/_validation_gate_report.py` | Phase 2 | AC-6 | `uv run python -m tools.check_module_size --scripts-dir tools --baseline tools/check_module_size_tools_baseline.txt` | Derived from confirmed evidence |
 | `REQ-004` | Size cap check by test | `tests/tools/test_run_validation_gates.py` | Phase 2 | AC-6 | `uv run pytest tests/tools/test_run_validation_gates.py` | Derived from confirmed evidence |
 | `REQ-005` | Issue Documentation Impact | `tools/TOOL_DESCRIPTIONS.md` | Phase 3 | AC-7 | `uv run python tools/check_tool_descriptions_sync.py` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261127-105933 -->
