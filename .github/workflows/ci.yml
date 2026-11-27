@@ -51,6 +51,8 @@ jobs:
         run: uv run python tools/check_config_comment_length.py
       - name: Skill size check
         run: uv run python tools/check_skill_size.py
+      - name: Test taxonomy check
+        run: uv run python tools/check_test_taxonomy.py
       - name: Pre-commit
         run: uv run pre-commit run --all-files
       - name: Run cited ADR invariant tests
@@ -84,7 +86,11 @@ jobs:
       - name: Run tests
         # pytest-cov measures and combines xdist worker processes; plain
         # `coverage run -m pytest -n ...` would not. All tests run, none deselected.
-        run: uv run pytest -v -n logical --cov=scripts --cov-report= tests/
+        # continue-on-error keeps the job alive so the report step below can decide the exit
+        # code: a characterization failure is report-only (REQ-006), so the pytest step's own
+        # exit code must not fail the job before the report is printed.
+        continue-on-error: true
+        run: uv run pytest -v -n logical --cov=scripts --cov-report= --junitxml=report.xml tests/
       - name: Coverage report
         # A push to master is checked out at the pushed commit, so `origin/master` equals
         # HEAD and diff-cover would see an empty diff and pass. Compare a push against the
@@ -106,3 +112,10 @@ jobs:
           fi
           echo "diff-cover base: $BASE"
           uv run diff-cover coverage.xml --compare-branch="$BASE" --fail-under=90
+      - name: Test taxonomy report
+        # Reads the JUnit XML of the single run above; pytest is not run twice. Prints the
+        # characterization section and the contract section grouped by module, then exits
+        # non-zero only for a contract failure or a failure in a module that is in neither
+        # suite (REQ-006). It is the last step so the coverage and diff-cover steps still run
+        # when a contract test fails.
+        run: uv run python tools/check_test_taxonomy.py --junit-xml report.xml

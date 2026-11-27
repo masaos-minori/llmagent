@@ -431,6 +431,11 @@ entries:
   summary: Validates commands for HTTP subprocess MCP servers.
 - file: scripts/agent/http_lifecycle_errors.py
   kind: class
+  name: StartupCode
+  signature: class StartupCode
+  summary: Stable public error codes for lifecycle startup failures.
+- file: scripts/agent/http_lifecycle_errors.py
+  kind: class
   name: StartupFailure
   signature: class StartupFailure
   summary: Records the full stderr output and reason when an HTTP subprocess fails
@@ -736,6 +741,17 @@ entries:
   name: detects_secrets
   signature: def detects_secrets(text) -> bool
   summary: Return True when any SECRET_PATTERNS substitution would change the text.
+- file: scripts/agent/secrets_masker.py
+  kind: function
+  name: redact_url
+  signature: def redact_url(url) -> str
+  summary: Strip userinfo, query, and fragment from a URL, keeping scheme, host, and
+    path.
+- file: scripts/agent/secrets_masker.py
+  kind: function
+  name: redact_path
+  signature: def redact_path(path) -> str
+  summary: Return a logical identifier for a filesystem path, never the absolute path.
 - file: scripts/agent/services/config_field_registry.py
   kind: class
   name: ConfigFieldRegistry
@@ -1206,9 +1222,22 @@ entries:
   summary: Raised when undo is requested but no user message is in history.
 - file: scripts/agent/services/export_formatter.py
   kind: function
+  name: fence_for
+  signature: def fence_for(text) -> str
+  summary: 'The code fence that can close `text`: longest backtick run plus one, minimum
+    three.'
+- file: scripts/agent/services/export_formatter.py
+  kind: function
+  name: escape_md
+  signature: def escape_md(value) -> str
+  summary: Neutralise the Markdown structure a value could introduce in a heading
+    line.
+- file: scripts/agent/services/export_formatter.py
+  kind: function
   name: render_history_md
   signature: def render_history_md(history) -> str
-  summary: Render conversation history as a Markdown export string.
+  summary: Render conversation history as a Markdown export string with a closable
+    fence.
 - file: scripts/agent/services/export_formatter.py
   kind: function
   name: render_export
@@ -2142,6 +2171,11 @@ entries:
   name: TurnResult
   signature: class TurnResult
   summary: Typed result of one LLM turn.
+- file: scripts/agent/wal_checkpoint_manager.py
+  kind: function
+  name: format_sqlite_error
+  signature: def format_sqlite_error(exc) -> str
+  summary: Render a failure as the error type name plus a masked, path-reduced message.
 - file: scripts/agent/wal_checkpoint_manager.py
   kind: function
   name: wal_step_outcome
