@@ -92,6 +92,51 @@ class TestResolveResourceScopes:
         result = resolve_resource_scopes(tool, {"owner": "org", "repo": "name"})
         assert "github_repo:org/name" in result
 
+    def test_github_branch_scope_composes_owner_repo_branch(self) -> None:
+        tool = _tool(
+            resource_scope_kind="github_branch",
+            resource_scope_keys={
+                "owner": "non_escalating",
+                "repo": "repo",
+                "branch": "branch",
+            },
+            is_write=True,
+        )
+        result = resolve_resource_scopes(
+            tool, {"owner": "org", "repo": "name", "branch": "main"}
+        )
+        assert result == ("github_branch:org/name/main",)
+
+    def test_github_issue_scope_composes_owner_repo_issue(self) -> None:
+        tool = _tool(
+            resource_scope_kind="github_issue",
+            resource_scope_keys={
+                "owner": "non_escalating",
+                "repo": "repo",
+                "issue_number": "issue",
+            },
+            is_write=True,
+        )
+        result = resolve_resource_scopes(
+            tool, {"owner": "org", "repo": "name", "issue_number": 42}
+        )
+        assert result == ("github_issue:org/name/42",)
+
+    def test_github_pull_request_scope_composes_owner_repo_pr(self) -> None:
+        tool = _tool(
+            resource_scope_kind="github_pull_request",
+            resource_scope_keys={
+                "owner": "non_escalating",
+                "repo": "repo",
+                "pr_number": "pull_request",
+            },
+            is_write=True,
+        )
+        result = resolve_resource_scopes(
+            tool, {"owner": "org", "repo": "name", "pr_number": 7}
+        )
+        assert result == ("github_pull_request:org/name/7",)
+
     def test_cicd_workflow_scope_composes_repo_workflow_ref(self) -> None:
         tool = _tool(
             resource_scope_kind="cicd_workflow",
@@ -152,6 +197,25 @@ class TestResolveResourceScopes:
         assert result == ("global:write",)
         assert all("delete_file" not in scope for scope in result)
 
+    def test_github_write_tool_with_unresolved_branch_falls_back_to_global_write(
+        self,
+    ) -> None:
+        # A composed GitHub identity is a resource only when every declared key
+        # resolves; an omitted `branch` must not yield a partial identity.
+        tool = _tool(
+            name="create_or_update_file",
+            resource_scope_kind="github_branch",
+            resource_scope_keys={
+                "owner": "non_escalating",
+                "repo": "repo",
+                "branch": "branch",
+            },
+            is_write=True,
+        )
+        result = resolve_resource_scopes(tool, {"owner": "org", "repo": "name"})
+        assert result == ("global:write",)
+        assert all("create_or_update_file" not in scope for scope in result)
+
 
 class TestScopesConflict:
     def test_identical_scope_strings_conflict(self) -> None:
@@ -169,6 +233,50 @@ class TestScopesConflict:
 
     def test_non_filesystem_equal_kind_different_value_does_not_conflict(self) -> None:
         assert _scopes_conflict("git_repo:/x", "git_repo:/y") is False
+
+    def test_github_repo_scope_conflicts_with_finer_github_scopes(self) -> None:
+        finer = (
+            "github_branch:org/name/main",
+            "github_issue:org/name/42",
+            "github_pull_request:org/name/7",
+        )
+        for scope in finer:
+            assert _scopes_conflict("github_repo:org/name", scope) is True
+            assert _scopes_conflict(scope, "github_repo:org/name") is True
+
+    def test_github_finer_scopes_of_different_repositories_do_not_conflict(
+        self,
+    ) -> None:
+        assert (
+            _scopes_conflict("github_repo:org/name", "github_issue:other/name/42")
+            is False
+        )
+        assert (
+            _scopes_conflict("github_repo:org/name", "github_branch:org/other/main")
+            is False
+        )
+
+    def test_github_finer_scopes_of_different_resources_do_not_conflict(self) -> None:
+        assert (
+            _scopes_conflict(
+                "github_branch:org/name/main", "github_branch:org/name/dev"
+            )
+            is False
+        )
+        assert (
+            _scopes_conflict("github_issue:org/name/42", "github_issue:org/name/43")
+            is False
+        )
+        assert (
+            _scopes_conflict(
+                "github_pull_request:org/name/7", "github_pull_request:org/name/8"
+            )
+            is False
+        )
+
+    def test_github_repo_scope_does_not_conflict_with_a_different_kind(self) -> None:
+        assert _scopes_conflict("github_repo:org/name", "git_repo:org/name") is False
+        assert _scopes_conflict("github_repo:org/name", "filesystem:org/name") is False
 
 
 _VALID_POLICY_FIELDS: dict[str, Any] = {

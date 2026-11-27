@@ -222,19 +222,25 @@ class TestClassifyRisk:
             == "none"
         )
 
-    def test_github_tools_have_no_declared_branch_keys(self) -> None:
-        """REQ-008: no shipped github tool declares a branch-kind key, so
-        approval_high_risk_branches cannot escalate them — the target branch
-        changes no risk."""
+    def test_declared_branch_keys_are_the_escalation_source(self) -> None:
+        """REQ-008: the checked keys are the declared branch-kind keys. Plan
+        20261126-073010 (REQ-001) declares `branch` on the three github file write
+        tools, so approval_high_risk_branches escalates them to HIGH; a tool that
+        declares no branch key is not branch-escalated."""
         cfg = _make_cfg()
         reg = make_producer_registry()
-        for tool in reg.all_tools():
-            if tool.name.startswith("github_"):
-                assert not [
-                    kind
-                    for kind in tool.resource_scope_keys.values()
-                    if kind == "branch"
-                ], tool.name
+        declaring = sorted(
+            tool.name
+            for tool in reg.all_tools()
+            if tool.name.startswith("github_")
+            and any(kind == "branch" for kind in tool.resource_scope_keys.values())
+        )
+        assert declaring == [
+            "github_create_or_update_file",
+            "github_delete_file",
+            "github_push_files",
+        ], declaring
+        # github_create_pull_request declares no branch key: the target branch changes no risk.
         for base in ("main", "feature/x"):
             assert (
                 _classify_risk(
@@ -245,15 +251,25 @@ class TestClassifyRisk:
                 )
                 == "medium"
             )
-            assert (
-                _classify_risk(
-                    cfg,
-                    "github_push_files",
-                    {"owner": "foo", "repo": "bar", "branch": base},
-                    reg,
-                )
-                == "medium"
+        # A declared branch key escalates only when its value is a high-risk branch.
+        assert (
+            _classify_risk(
+                cfg,
+                "github_push_files",
+                {"owner": "foo", "repo": "bar", "branch": "main"},
+                reg,
             )
+            == "high"
+        )
+        assert (
+            _classify_risk(
+                cfg,
+                "github_push_files",
+                {"owner": "foo", "repo": "bar", "branch": "feature/x"},
+                reg,
+            )
+            == "medium"
+        )
 
     def test_delete_file_on_etc_still_high(self) -> None:
         # delete_file is tier-MEDIUM; the protected /etc/ path escalates it to HIGH.

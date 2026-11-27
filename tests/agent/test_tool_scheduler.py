@@ -236,6 +236,161 @@ class TestResourceScopeGrouping:
         assert group.sequential is False
         assert _ids(group) == {tc_write["id"], tc_read["id"]}
 
+    def test_same_branch_writes_are_grouped_and_sequential(self) -> None:
+        tc1 = _tc("github_create_or_update_file", "call_branch_1")
+        tc2 = _tc("github_push_files", "call_branch_2")
+        specs = {
+            tc1["id"]: _spec(
+                tc1, resource_scopes=("github_branch:org/name/main",), is_write=True
+            ),
+            tc2["id"]: _spec(
+                tc2, resource_scopes=("github_branch:org/name/main",), is_write=True
+            ),
+        }
+        plan = build_execution_groups([tc1, tc2], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
+        assert group.reason == "resource_write_write_conflict"
+        assert _ids(group) == {tc1["id"], tc2["id"]}
+
+    def test_writes_to_different_branches_of_one_repository_are_concurrent(
+        self,
+    ) -> None:
+        tc_main = _tc("github_push_files", "call_branch_main")
+        tc_dev = _tc("github_push_files", "call_branch_dev")
+        specs = {
+            tc_main["id"]: _spec(
+                tc_main, resource_scopes=("github_branch:org/name/main",), is_write=True
+            ),
+            tc_dev["id"]: _spec(
+                tc_dev, resource_scopes=("github_branch:org/name/dev",), is_write=True
+            ),
+        }
+        plan = build_execution_groups([tc_main, tc_dev], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is False
+        assert _ids(group) == {tc_main["id"], tc_dev["id"]}
+
+    def test_two_comments_on_the_same_issue_are_grouped_and_sequential(self) -> None:
+        # There is no issue-update tool in the GitHub tool list, so the second
+        # write on the same issue is another comment call.
+        tc_comment = _tc("github_add_issue_comment", "call_issue_comment")
+        tc_second = _tc("github_add_issue_comment", "call_issue_comment_2")
+        specs = {
+            tc_comment["id"]: _spec(
+                tc_comment, resource_scopes=("github_issue:org/name/42",), is_write=True
+            ),
+            tc_second["id"]: _spec(
+                tc_second, resource_scopes=("github_issue:org/name/42",), is_write=True
+            ),
+        }
+        plan = build_execution_groups([tc_comment, tc_second], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
+        assert group.reason == "resource_write_write_conflict"
+        assert _ids(group) == {tc_comment["id"], tc_second["id"]}
+
+    def test_writes_to_different_issues_of_one_repository_are_concurrent(self) -> None:
+        tc1 = _tc("github_add_issue_comment", "call_issue_42")
+        tc2 = _tc("github_add_issue_comment", "call_issue_43")
+        specs = {
+            tc1["id"]: _spec(
+                tc1, resource_scopes=("github_issue:org/name/42",), is_write=True
+            ),
+            tc2["id"]: _spec(
+                tc2, resource_scopes=("github_issue:org/name/43",), is_write=True
+            ),
+        }
+        plan = build_execution_groups([tc1, tc2], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is False
+        assert _ids(group) == {tc1["id"], tc2["id"]}
+
+    def test_pr_update_and_merge_of_the_same_pr_are_grouped_and_sequential(
+        self,
+    ) -> None:
+        """Merge stays at repository scope, so it conflicts with the finer PR
+        scope of the same repository through the ancestor rule (AC-1, AC-3)."""
+        tc_update = _tc("github_update_pull_request", "call_pr_update")
+        tc_merge = _tc("github_merge_pull_request", "call_pr_merge")
+        specs = {
+            tc_update["id"]: _spec(
+                tc_update,
+                resource_scopes=("github_pull_request:org/name/7",),
+                is_write=True,
+            ),
+            tc_merge["id"]: _spec(
+                tc_merge, resource_scopes=("github_repo:org/name",), is_write=True
+            ),
+        }
+        plan = build_execution_groups([tc_update, tc_merge], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
+        assert group.reason == "resource_write_write_conflict"
+        assert _ids(group) == {tc_update["id"], tc_merge["id"]}
+
+    def test_repository_wide_write_conflicts_with_a_finer_scope(self) -> None:
+        tc_repo = _tc("github_create_issue", "call_repo_write")
+        tc_branch = _tc("github_push_files", "call_branch_write")
+        specs = {
+            tc_repo["id"]: _spec(
+                tc_repo, resource_scopes=("github_repo:org/name",), is_write=True
+            ),
+            tc_branch["id"]: _spec(
+                tc_branch,
+                resource_scopes=("github_branch:org/name/main",),
+                is_write=True,
+            ),
+        }
+        plan = build_execution_groups([tc_repo, tc_branch], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
+        assert group.reason == "resource_write_write_conflict"
+        assert _ids(group) == {tc_repo["id"], tc_branch["id"]}
+
+    def test_finer_scopes_of_different_repositories_are_concurrent(self) -> None:
+        tc1 = _tc("github_add_issue_comment", "call_issue_a")
+        tc2 = _tc("github_push_files", "call_branch_b")
+        specs = {
+            tc1["id"]: _spec(
+                tc1, resource_scopes=("github_issue:org/name/42",), is_write=True
+            ),
+            tc2["id"]: _spec(
+                tc2, resource_scopes=("github_branch:other/name/main",), is_write=True
+            ),
+        }
+        plan = build_execution_groups([tc1, tc2], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is False
+        assert _ids(group) == {tc1["id"], tc2["id"]}
+
+    def test_read_tool_on_a_finer_scope_conflicts_with_a_write_on_the_repository_scope(
+        self,
+    ) -> None:
+        tc_read = _tc("github_get_issue", "call_issue_read")
+        tc_write = _tc("github_create_issue", "call_repo_write")
+        specs = {
+            tc_read["id"]: _spec(
+                tc_read, resource_scopes=("github_issue:org/name/42",)
+            ),
+            tc_write["id"]: _spec(
+                tc_write, resource_scopes=("github_repo:org/name",), is_write=True
+            ),
+        }
+        plan = build_execution_groups([tc_read, tc_write], specs)
+        assert len(plan.batches) == 1
+        group = plan.batches[0].groups[0]
+        assert group.sequential is True
+        assert group.reason == "resource_read_write_conflict"
+        assert _ids(group) == {tc_read["id"], tc_write["id"]}
+
 
 # ── multi-scope conflict cases (ancestor/descendant, dual-scope) ─────────────
 

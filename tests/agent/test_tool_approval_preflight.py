@@ -723,10 +723,13 @@ class TestCheckApprovalDryRun:
                 "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
             ),
         ):
+            # A non-high-risk branch keeps the tier base at medium, so the "y" answer
+            # is accepted; `main` would escalate to HIGH and require the full word "yes"
+            # (plan 20261126-073010, REQ-001 branch-key declaration).
             result = await check_approval(
                 ctx,
                 "github_push_files",
-                {"owner": "octocat", "repo": "hello-world", "branch": "main"},
+                {"owner": "octocat", "repo": "hello-world", "branch": "feature/x"},
             )
 
         assert result is True

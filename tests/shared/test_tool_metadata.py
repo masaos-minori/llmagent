@@ -49,7 +49,8 @@ def test_closed_value_sets_match_their_literal_aliases(
 
 
 def test_resource_key_kind_includes_non_escalating() -> None:
-    assert {"path", "branch", "repo", "non_escalating"} == RESOURCE_KEY_KIND_VALUES
+    expected = {"path", "branch", "repo", "issue", "pull_request", "non_escalating"}
+    assert expected == RESOURCE_KEY_KIND_VALUES
 
 
 def test_field_set_version_is_the_only_version_constant() -> None:
