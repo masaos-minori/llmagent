@@ -79,8 +79,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving tests | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | Added proving-test references to the four state/recovery invariants (lease state machine, terminal immutability, identity start states, operator resolution runbook) and the lease_conflict side note. Runbook confirmed against resolve_store(); stale claim corrected: the runbook has no rollback content and resolve_store itself archives the file as <path>.corrupt-<ts> rather than the operator removing it. legal_hold_states claim has no proving test (reported, not asserted). mcp_dedup.toml sweep: only the historical removal note remains (deploy.sh does not exist in the repo). |
+| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving tests | Completed | 20261126-234310 | 20261126-234310 | docs checkers pass; 118 passed (test_mcp_dedup.py + test_mcp_dedup_identity.py + test_mcp_dispatch_concurrency.py) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

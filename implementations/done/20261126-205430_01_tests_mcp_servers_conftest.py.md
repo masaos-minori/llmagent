@@ -38,17 +38,23 @@ drive the real FastAPI boundary with only the upstream API client mocked.
 ### Procedure
 - Add the imports the fixture needs: `from fastapi.testclient import TestClient` and
   `from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS`.
-- Add one non-autouse fixture, `http_boundary` (new), that depends on `isolated_dedup` and
-  `monkeypatch` and yields a factory callable.
-- Add the schema-assertion helper `tool_schema` (new) as a method of the factory, so a contract
-  test can read the published `inputSchema` for one tool name.
+- Add one non-autouse fixture, `http_boundary` (new), that depends on `isolated_dedup` and yields
+  a factory callable.
+- Add the schema-assertion helper `tool_schema` (new) as a method of the object the factory returns,
+  so a contract test can read the published `inputSchema` for one tool name.
+
+Step 3b correction (20261126): `monkeypatch` is dropped as a fixture dependency — the fixture
+creates no patch; `isolated_dedup` already owns the injection and its cleanup, and each consuming
+file supplies its own mock. The factory cannot return a bare `TestClient` with an added method and
+attribute (a third-party class, not type-safe to extend), so it returns the new `HttpBoundary`
+helper object holding `client`, `dedup_path`, and `tool_schema()`.
 
 ### Method
 - `http_boundary` (new) yields a factory that takes a server module (for example
-  `mcp_servers.github.github_server`) and returns `TestClient(module.app, headers=MCP_TEST_AUTH_HEADERS)`.
-  The factory exposes the composed dedup path as an attribute so a test can assert the store the
-  fixture injected, matching the pattern already used at
-  `tests/mcp_servers/github/test_github_server_endpoints.py:505`.
+  `mcp_servers.github.github_server`) and returns an `HttpBoundary` (new) wrapping
+  `TestClient(module.app, headers=MCP_TEST_AUTH_HEADERS)`. The helper exposes the composed dedup
+  path as an attribute so a test can assert the store the fixture injected, matching the pattern
+  already used at `tests/mcp_servers/github/test_github_server_endpoints.py:505`.
 - `tool_schema` (new) calls `GET /v1/tools` through the same client and returns the `inputSchema`
   dict for a tool name, so schema publication and runtime enforcement are asserted from the same
   boundary.
@@ -103,9 +109,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | — |
-| 2 | Add or update tests per Validation plan | Pending | — | — | — |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | — |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-000000 | 20261126-000000 | — tests/mcp_servers/conftest.py; Step 3b correction: factory returns the HttpBoundary helper object, monkeypatch dependency dropped |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261126-222434 | — targeted tests pass (testmon selection, 6716 passed); the fixture itself is proven by rows 3 and 4 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-222434 | 20261126-224731 | — ruff/mypy/conftest-integrity pass; awaiting the end-of-batch full-suite run end-of-batch full suite 15910 passed; diff-cover reports no measurable changed lines (coverage source is scripts/) |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | no docs target in this Plan |
 
 ### Blocker Log

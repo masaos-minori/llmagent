@@ -78,8 +78,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving tests | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | claims confirmed against source, no stale claim found; proving tests cited (mcpai010 compliance test now exists, so the assumption's fallback was not needed) |
+| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving tests | Completed | 20261126-234310 | 20261126-234310 | docs checkers pass; test_read_service.py 115 passed; compliance test 10 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

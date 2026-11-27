@@ -16,6 +16,10 @@ reference the open exceptions without resolving them (REQ-002, REQ-004, AC-1, AC
 - The store_error overlay path is documented in `docs/22_mcp/mcp_03_03_transport-and-health.md`;
   this row cites it rather than restating it (`skills/DESIGN.md`, no implementation-reference
   duplication).
+- Step 3b correction (20261126): MCP-001 and MCP-002 are the open items for the ADR-004 dedup-store
+  fail-open exceptions, not for `path_denylist`. The `path_denylist` fail-open row's open item is
+  NC-001. The references are therefore placed as: NC-001 on the `path_denylist` row, MCP-001 and
+  MCP-002 on the dedup failure-behavior paragraph.
 
 ## Design decisions
 - Risk-tier statements use the ownership vocabulary: Agent owns intent, approval, workflow
@@ -74,8 +78,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving test | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | control rows confirmed against guard code; NC-001 added to the path_denylist row, MCP-001/MCP-002 to the dedup paragraph (the procedure's assumption mapped them to path_denylist; governance shows MCP-001/002 are the ADR-004 dedup exceptions and NC-001 is the path_denylist item). Risk-tier section corrected: tool_safety_tiers/approval_risk_rules/approval_dry_run_tools are removed keys, tiers are declared per tool (64: 39 READ_ONLY, 11 WRITE_SAFE, 13 WRITE_DANGEROUS, 1 ADMIN). |
+| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving test | Completed | 20261126-234310 | 20261126-234310 | docs checkers pass; 171 passed (test_mcp_dispatch), 41 passed (tool_approval_risk + tool_safety_tiers) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -74,8 +74,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving tests | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | Step 3b finding applied: the file-write section stated Layer3 Dedicated none while write_service.py:134 writes write_audit.log. Added write-side dry-run parity and the audit order (postcondition check precedes the dedicated record). |
+| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving tests | Completed | 20261126-234310 | 20261126-234310 | docs checkers pass; 115 passed (delete_service, audit_records, write_mcp_service) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

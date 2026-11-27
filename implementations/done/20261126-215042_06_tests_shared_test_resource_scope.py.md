@@ -97,10 +97,10 @@ directly through fixture tools.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is covered by procedure 08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-092247 | 20261127-092247 | Verified against current source: TestResolveResourceScopes at 30, github_repo composition test at 86-93, filesystem ancestry test at 163-166 (the procedure cited 40-50 for ancestry coverage - that is the filesystem path test at 40, confirmed), TestScopesConflict at 156, fallback test at 142, helper _tool at 22-27 and build_fixture_runtime_tool import at 19 - all confirmed. File was 12846 B at cycle start, clean, and stayed under the 24576 B gate after the additions. Added the 3 resolution tests, the GitHub fallback test, and the 4 conflict tests in the existing classes. Changed file: tests/shared/test_resource_scope.py. |
+| 2 | Add or update tests per Validation plan | Completed | 20261127-092247 | 20261127-092247 | The procedure's test-first ordering could not be observed in this batch: procedure 01 (the implementation) is earlier in seq order and already landed, so the new tests passed on first run. Their value was confirmed by the assertions themselves - the ancestor-conflict assertions are only satisfied by the new predicate branch, and the GitHub fallback test is only satisfied by the procedure 01 amendment (user decision 20261127) that fails closed on a missing discriminating key. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-092247 | 20261127-092247 | ruff format and ruff check on the test file: pass. mypy: tests/shared is outside the mypy scope (scripts/, tests/eventbus, tools) - no new findings. Targeted tests: 55 passed in tests/shared/test_resource_scope.py (47 existing + 8 new). Full suite and diff-cover deferred to the end of batch 3 per Batch mode (plan batch). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261127-092247 | 20261127-092247 | N/A: documentation is covered by procedure 08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

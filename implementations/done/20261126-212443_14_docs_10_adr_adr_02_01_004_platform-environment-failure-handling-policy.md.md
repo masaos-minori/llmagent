@@ -76,8 +76,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the ADR and docs checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | Size-neutral rewrites of the two dedup exception rows to the Plan ownership vocabulary (MCP layer: final pre-handler enforcement, owner lease, terminal evidence; Agent: retry orchestration). Stale citation corrected: scripts/shared/mcp_dedup.py has no _write(); the warning-only write path is dispatch.py _store_op(). NC-002 added to the Group 2 item 7 PENDING marker (was ID-less). MCP-001/MCP-002/NC-001/AAL-003/AAL-019 already referenced as open; AAL-002 confirmed approved (issue claim stale). File size unchanged at 36992 B. |
+| 3 | Run the ADR and docs checkers (`rules/tool-gates.md`) | Completed | 20261126-234310 | 20261126-234310 | check_adr_structure + docs checkers pass; size 36992 B (at ceiling, unchanged) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

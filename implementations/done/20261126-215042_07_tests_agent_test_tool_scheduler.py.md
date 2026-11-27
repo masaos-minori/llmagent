@@ -9,8 +9,9 @@ independent resources run concurrently (REQ-003, REQ-005, AC-1, AC-2, AC-3).
 ## Assumptions
 - `TestResourceScopeGrouping` is at `tests/agent/test_tool_scheduler.py:157` and groups by exact
   scope overlap only today (re-verified 20261126, Step 3a).
-- The file is 22949 B, below the 24576 B module-size gate; the added tests are expected to stay
-  inside the gate (roughly 1.5 KB).
+- The file is 22949 B. Correction from execution (20261127): the 24576 B module-size gate applies to
+  `scripts/` only (`rules/tool-gates.md`, and the pre-commit hook is scoped to `scripts/`), so the test
+  file is outside the gate; the added tests took it to 29558 B without a violation. No split was needed.
 - Tests use the existing helpers `_tc`, `_spec`, `_ids` (17-40) and construct `ToolSpec` directly, so
   they exercise the predicate through the scheduler without importing the GitHub tool declarations.
 - `group.reason` values are `resource_write_write_conflict` and `resource_read_write_conflict`
@@ -37,8 +38,11 @@ independent resources run concurrently (REQ-003, REQ-005, AC-1, AC-2, AC-3).
 1. Add `test_same_branch_writes_are_grouped_and_sequential` (new): two writes with
    `github_branch:org/name/main` → one sequential group, reason `resource_write_write_conflict`.
 2. Add `test_writes_to_different_branches_of_one_repository_are_concurrent` (new).
-3. Add `test_same_issue_comment_and_update_are_grouped_and_sequential` (new): two writes with
-   `github_issue:org/name/42`.
+3. Add `test_two_comments_on_the_same_issue_are_grouped_and_sequential` (new): two writes with
+   `github_issue:org/name/42`. Deviation recorded at execution (20261127): the procedure named this
+   test `test_same_issue_comment_and_update_are_grouped_and_sequential`, but `github_update_issue` does
+   not exist in the GitHub tool list (`scripts/mcp_servers/github/tools_issues.py` has list, get,
+   create, search, add_comment), so the second write on the same issue is another comment call.
 4. Add `test_writes_to_different_issues_of_one_repository_are_concurrent` (new).
 5. Add `test_pr_update_and_merge_of_the_same_pr_are_grouped_and_sequential` (new): update at
    `github_pull_request:org/name/7`, merge at `github_repo:org/name` → one sequential group via the
@@ -90,10 +94,10 @@ the same assertion shape as the existing tests in this class.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is covered by procedure 08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-092247 | 20261127-092247 | Verified against current source: TestResourceScopeGrouping at tests/agent/test_tool_scheduler.py:157, helpers _tc/_spec/_ids at 17-40, reason values resource_write_write_conflict and resource_read_write_conflict in scripts/agent/tool_scheduler.py:125-137 - all confirmed. File clean at cycle start (22949 B). Added the 8 tests inside the existing class. Deviation: the procedure's test 3 named github_update_issue, which does not exist in the tool list, so it is two comment calls on the same issue. Changed file: tests/agent/test_tool_scheduler.py (29705 B; the 24576 B gate covers scripts/ only, so no violation). |
+| 2 | Add or update tests per Validation plan | Completed | 20261127-092247 | 20261127-092247 | This cycle is the test cycle. Test-first ordering could not be observed in the batch because procedure 01 landed earlier in seq order; the ancestor-rule tests are satisfied only by the new predicate branch, so they lock AC-3. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-092247 | 20261127-092247 | ruff format --check and ruff check: pass. mypy: tests/agent is outside the mypy scope (scripts/, tests/eventbus, tools) - no new findings. Targeted tests: 70 passed (test_tool_scheduler.py + test_tool_scheduler_comprehensive.py + test_tool_scheduler_serialization.py); the reference tests were not modified and still pass. Full suite and diff-cover deferred to the end of batch 3. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261127-092247 | 20261127-092247 | N/A: documentation is covered by procedure 08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

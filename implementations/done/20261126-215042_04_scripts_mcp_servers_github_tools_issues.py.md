@@ -91,10 +91,10 @@ the byte-for-byte shared-field structure the comment block describes still holds
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is covered by procedure 08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-092247 | 20261127-092247 | Verified against current source: comment block 25-33, _GithubIssueRepoScopeTail at 42-48 (the procedure cited 43-49, off by one), tail constant 63-67, read entries using it at 90 and 106, github_create_issue at 109 (tail at 122), github_search_issues no-scope tail at 139, github_add_issue_comment at 142 (tail at 156) - all confirmed. File clean at cycle start. Added _GithubIssueScopeTail and _GITHUB_ISSUE_SCOPE_TAIL (requires_serial False, github_issue, owner/repo/issue_number keys), spread into github_add_issue_comment only; create_issue and the two read entries keep the repo tail. Comment block rewritten to describe the grouping per scope group (3 entries on the repo tail, 1 unscoped, 1 issue-scoped). Field order preserved. Changed file: scripts/mcp_servers/github/tools_issues.py. |
+| 2 | Add or update tests per Validation plan | Completed | 20261127-092247 | 20261127-092247 | No tests added in this cycle: the resolved-scope assertions are delivered by procedure 06 (tests/shared/test_resource_scope.py), this procedure's Out of Scope. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-092247 | 20261127-092247 | ruff format --check and ruff check: pass. mypy on the changed file: no issues. bandit on the changed file: no findings. check_module_size.py: OK. lint-imports: 6 kept / 0 broken, shared-is-leaf kept. Targeted tests: 58 passed (tests/shared/test_resource_scope.py + tests/mcp_servers/github/test_github_tool_schema.py + tests/shared/test_tool_metadata.py). Ad-hoc check: github_issue:acme/app/12 resolves as one composed string; issue_number is required in AddIssueCommentRequest (github_models_issues.py:78-88) so the security claim holds - no partial identity is possible for this tool. Full suite and diff-cover deferred to the end of batch 3. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261127-092247 | 20261127-092247 | N/A: documentation is covered by procedure 08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

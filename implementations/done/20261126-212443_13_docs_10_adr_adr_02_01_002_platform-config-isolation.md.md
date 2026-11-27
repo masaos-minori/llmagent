@@ -71,8 +71,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the ADR and docs checkers (`rules/tool-gates.md`) and the cited proving tests | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | Sweep: hot-reload statement matches registry/manifests/config_ownership.yaml; restrict_to call sites confirmed for agent/crawler/chunk_splitter/ingester/eventbus exception; dedup boundary confirmed against scripts/shared/mcp_dedup_config.py (per-server [dedup] table, inject-only). Stale claims corrected: Agent row tool_safety_tiers is a removed key rejected as unknown; config/tool_catalog.toml read by the Agent is registered in Known Deviations (Decision 1/10 predate it, no test pins the single-reader contract). Proving-test references added. |
+| 3 | Run the ADR and docs checkers (`rules/tool-gates.md`) and the cited proving tests | Completed | 20261126-234310 | 20261126-234310 | check_adr_structure + docs checkers pass; 50 passed (config_isolation_import + config_isolation_fail_closed) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

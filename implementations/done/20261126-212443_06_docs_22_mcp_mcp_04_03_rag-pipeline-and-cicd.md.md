@@ -68,8 +68,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving test | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | confirmation-only sweep: config keys, allowlist guards (_assert_allowed_repo/_validate_and_parse_repo/_assert_allowed_workflow in cicd_service_guards.py), job-count and max_log_size_kb limits, dry_run, health, audit layers all match source; no contradicting statement, no file change |
+| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving test | Completed | 20261126-234310 | 20261126-234310 | docs checkers pass; layer-consistency test 62 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

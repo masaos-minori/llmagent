@@ -12,9 +12,32 @@ HTTP boundary with only the GitHub API client mocked.
   expected to pass; a failure is a behavior gap reported against the owning issue (REQ-005), not
   fixed here.
 - Domain exceptions reach the transport handlers (`scripts/mcp_servers/github/exception_handlers.py`),
-  so the observable contract is the HTTP status: 403 authorization, 400 validation, 401 unauthenticated.
+  so the observable contract is the HTTP status: 403 authorization, 401 unauthenticated.
 - The root conftest sets `MCP_GITHUB_AUTH_TOKEN` (`tests/conftest.py:338-345`), so the server module
   imports; the fixture named here is the one row 1 creates.
+
+Step 3b corrections (20261126, verified against current source):
+
+1. Validation failures do not reach the transport handler. `GitHubValidationError` is a `ValueError`
+   subclass (`github_models_config.py:196`) and `dispatch_tool` catches `ValueError` at
+   `scripts/mcp_servers/dispatch.py:486-498`, converting it into an error result. So at the HTTP
+   boundary a validation failure is `200` with `is_error: true`, not 400; only the `RuntimeError`-based
+   domain errors (authorization, `github_models_config.py:188`) propagate to
+   `exception_handlers.py:34` and produce 403. The validation cases below assert the boundary result,
+   not a 400 status.
+2. Line citations: `_resolve_search_query` is at `github_service_security.py:267` (271-273 is its
+   docstring); the read-size enforcement is `_assert_max_read_file_size` at
+   `github_service_security.py:156` — line 456 is the security-posture reporting branch, not the
+   guard. In `github_service_file.py` the size guard call is line 55 and the decode is 57-61.
+3. The disabled-tool gate at `github_server.py:244-247` runs before dispatch and returns
+   `Tool disabled` when `_GITHUB_TOKEN` is empty, which is the test environment's state, so the test
+   patches `_GITHUB_TOKEN` non-empty as `test_github_server_endpoints.py:262` does.
+4. The unauthenticated half cannot be taken from the fixture's client: `httpx` merges per-request
+   headers with the client's, so the fixture's `MCP_TEST_AUTH_HEADERS` cannot be removed. The 401 case
+   uses the same app through a header-less `httpx.Client(transport=httpx.ASGITransport(app=...))`.
+5. The mocked client's return values must be plain objects (not `MagicMock`) wherever a response model
+   validates a field, because a `MagicMock` attribute fails pydantic validation; the mock is configured
+   per case with `SimpleNamespace` values.
 
 ## Design decisions
 - The service, validation, and dedup gate stay real; only the GitHub client is a `MagicMock`, so a
@@ -43,16 +66,18 @@ HTTP boundary with only the GitHub API client mocked.
 ### Method
 - Out-of-allowlist read (AC-1): `POST /v1/call_tool` for a repository outside `allowed_repos`
   returns 403 and the mocked client is never called (`_assert_allowed_repo`,
-  `github_service_security.py:101`, reached through the boundary at line 307).
+  `github_service_security.py:101`, reached through the boundary at line 311).
 - Constrained global search (AC-1): with `allow_global_search=false` the query is scoped to one
-  `repo:` qualifier per allowlisted entry (`github_service_security.py:271-273`), and a caller
+  `repo:` qualifier per allowlisted entry (`github_service_security.py:267`), and a caller
   `repo:` or `org:`/`user:` qualifier outside the allowlist returns 403.
 - Denied, oversized, and binary reads (AC-2): path-denylist match returns 403; a content metadata
-  size above `max_file_read_size_kb` returns 400 before decoding (`github_service_security.py:456`
-  boundary, enforced at `github_service_file.py:57`); non-UTF-8 content returns 400
-  (`github_service_file.py:58-60`).
-- Unknown-argument rejection (AC-2): an extra key against a strict request model returns 400, so
-  the wire enforces the `additionalProperties: false` schema row 3 asserts is published.
+  size above `max_file_read_size_kb` and non-UTF-8 content are reported as boundary error results
+  (`is_error: true`, correction 1) — the size guard at `github_service_security.py:156` runs before
+  the decode at `github_service_file.py:55` and 57-61, so the size error text is what the boundary
+  returns for an oversized file.
+- Unknown-argument rejection (AC-2): an extra key against a strict request model returns an error
+  result at the boundary (correction 1), so the wire enforces the `additionalProperties: false`
+  schema row 3 asserts is published.
 - `dedup_state` (AC-4): a side-effecting write with `x-idempotency-key` reports the state from the
   injected store — `""` for the fresh acquisition (`dedup_gate.py:200`) and `duplicate_hit` or
   `in_progress` for a second call on the same key.
@@ -106,9 +131,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | — |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-224731 | 20261126-224731 | — verified against source; no finding Step 3b corrections recorded: validation errors are boundary error results not 400; line citations for _resolve_search_query/_assert_max_read_file_size; _GITHUB_TOKEN patched; 401 half via header-less ASGI client |
 | 2 | Add or update tests per Validation plan | N/A | — | — | this row is the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261126-224731 | 20261126-224731 | — ruff/mypy pass; end-of-batch full suite 15910 passed, diff-cover no measurable changed lines |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | no docs target in this Plan |
 
 ### Blocker Log

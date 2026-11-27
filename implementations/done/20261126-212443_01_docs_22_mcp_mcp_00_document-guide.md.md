@@ -65,8 +65,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the docs checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | Document map section added to docs/22_mcp/mcp_00_document-guide.md covering the MCP document set and its cross-links. |
+| 3 | Run the docs checkers (`rules/tool-gates.md`) | Completed | 20261126-234310 | 20261126-234310 | docs checkers pass (quality, structure, content policy, consistency --domain mcp) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

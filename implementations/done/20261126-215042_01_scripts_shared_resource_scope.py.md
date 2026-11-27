@@ -60,8 +60,24 @@ Keep the existing `filesystem:` branch unchanged.
   `f"{kind}:{identity}"` per `resolve_resource_scopes()` (76-114).
 - The rule is directional in effect but must be checked in both orders, mirroring the existing
   filesystem ancestor check (130-133).
-- `_scopes_conflict()` is currently radon grade A (3); the added branch keeps it under B per the
-  Plan's Validation quality baseline.
+- `_scopes_conflict()` was radon grade A (5) before the change, not A (3) as the Plan's Validation
+  quality baseline stated (stale claim, corrected 20261126). With the ancestor branch the function
+  scores B (9): the boolean conditions inside the loop add the complexity, so "keeps it under B"
+  does not hold. The repository gate is grade C or worse (`rules/toolchain.md`), so B (9) passes;
+  no helper extraction was added to chase the baseline number because that would be a design change
+  outside this procedure.
+- Amendment (user decision 20261127, from procedure 03's verification): the fail-closed fallback is
+  extended to composed GitHub identities. `resolve_resource_scopes()` composes only the keys present
+  in `args`, so an omitted discriminating key produced a partial identity
+  (`github_branch:<owner>/<repo>`) that conflicts with neither the `github_repo:` ancestor nor the
+  complete identity of the same resource. A write tool whose composed GitHub identity
+  (`_GITHUB_FINE_KINDS`) is missing any declared key now returns `_FALLBACK_WRITE_SCOPE`. The
+  `github_repo:` kind and non-write tools keep their existing behavior; `cicd_workflow` is not
+  affected. This supersedes the earlier statement in Design decisions that the fail-closed fallback
+  stays untouched. Note on the resulting semantics: `global:write` conflicts only by exact equality
+  (`tool_scheduler.py` builds the conflict graph through `_scopes_conflict()`), so a default-branch
+  write now serializes with other unknown-resource writes but still not with a repository-wide
+  `github_repo:` scope — that is the existing fallback semantics, unchanged by this amendment.
 
 ## Compatibility considerations
 - `_scopes_conflict()` is consumed by `scripts/agent/tool_scheduler.py` and pinned by
@@ -106,10 +122,10 @@ Keep the existing `filesystem:` branch unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-092247 | 20261127-092247 | Verified against current source: _KNOWN_SCOPE_KINDS 41-52, _COMPOSED_KIND_SEPARATORS 66-69, _scopes_conflict() 117 all confirmed; _FILESYSTEM_LIKE_KINDS left untouched. Applied the four edits (three kinds added to the vocabulary, three entries with separator / added to the separators map, new _GITHUB_FINE_KINDS next to it, GitHub ancestor branch after the exact-equality check plus docstring). Baseline: file clean at cycle start. Finding: radon baseline claim stale - A (5) before, B (9) after; passes the C-or-worse gate. Changed file: scripts/shared/resource_scope.py. Amendment applied (user decision 20261127, from procedure 03's verification): resolve_resource_scopes() now returns _FALLBACK_WRITE_SCOPE for a write tool whose composed GitHub identity (_GITHUB_FINE_KINDS) is missing any declared key, instead of a partial identity. github_repo and non-write tools unchanged. Docstring updated. Ad-hoc check: github_branch:acme/app/main when branch present, global:write when branch omitted, github_repo partial identity unchanged. |
+| 2 | Add or update tests per Validation plan | Completed | 20261127-092247 | 20261127-092247 | No tests added in this cycle: the Validation plan's unit expectations are delivered by procedure 06 (tests/shared/test_resource_scope.py), this procedure's Out of Scope. Existing 47 tests in that file pass unchanged. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-092247 | 20261127-092247 | ruff format --check and ruff check: pass. mypy: no issues in scripts/shared/resource_scope.py (7 pre-existing errors in scripts/agent/services/mcp_health.py, untouched by this cycle). lint-imports: 6 kept / 0 broken, shared-is-leaf kept. bandit -r scripts/ -ll: no new findings (0 on the changed file; Medium 7 / High 38 pre-existing elsewhere). radon: B (9), under the C gate. check_module_size.py: OK, no new violations. Targeted tests: 47 passed tests/shared/test_resource_scope.py. Full suite and diff-cover deferred to the end of batch 3 per Batch mode (plan batch). Re-run after the amendment: ruff format --check and ruff check pass, mypy on the changed file no issues, bandit on the changed file no findings, lint-imports 6 kept / 0 broken, check_module_size.py OK, targeted tests 55 passed. radon: resolve_resource_scopes C (14) (was C (11)), _scopes_conflict B (9); both under the C-or-worse gate. The fail-closed case needs a test in procedure 06. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261127-092247 | 20261127-092247 | No documentation in scope: Compatibility considerations cite no docs and docs/00_index.md maps resource_scope only to the shared infra spec, which is procedure 08's target scope. No docs change made, so the docs checkers were not run for this cycle. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

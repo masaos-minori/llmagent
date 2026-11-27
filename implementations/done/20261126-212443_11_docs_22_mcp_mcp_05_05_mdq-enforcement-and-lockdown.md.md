@@ -67,8 +67,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving tests | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | confirmation-only sweep: authorize_path (auth.py:19, empty allowlist denies all, Path.resolve normalization), tool coverage (outline/get_chunk/_validate_paths/_resolve_grep_paths/search), silent exclusion vs explicit rejection, stats bypass, Bearer-before-path order, enable_grep gate, bm25-only mode all match source; no contradiction. Added proving-test references to the four path-authorization claims. |
+| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving tests | Completed | 20261126-234310 | 20261126-234310 | docs checkers pass; 15 passed (path_jail + read_authorization) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

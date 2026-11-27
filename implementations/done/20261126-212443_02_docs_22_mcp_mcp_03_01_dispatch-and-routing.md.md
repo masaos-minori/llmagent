@@ -77,8 +77,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving tests | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | verified against source; claims confirmed (ReplayDirective at scripts/agent/tool_preparation.py:43, terminal-row immutability in scripts/shared/mcp_dedup.py); no finding |
+| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving tests | Completed | 20261126-234310 | 20261126-234310 | docs checkers pass; cited proving tests pass (174 passed) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

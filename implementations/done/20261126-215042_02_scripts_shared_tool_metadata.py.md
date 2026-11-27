@@ -83,10 +83,10 @@ code path changes. `validate_tool_schema_v2()` reads the set through
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion `tests/shared/test_tool_metadata.py`) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is covered by procedure 08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-092247 | 20261127-092247 | Verified against current source: ResourceKeyKind at tool_metadata.py:61, RESOURCE_KEY_KIND_VALUES at 62-64, membership {path, branch, repo, non_escalating} confirmed; comment at 59-60 left as is. Both files clean at cycle start. Added 'issue' and 'pull_request' to the Literal and to the frozenset in the same order (after 'repo', before 'non_escalating'). Changed files: scripts/shared/tool_metadata.py, tests/shared/test_tool_metadata.py. |
+| 2 | Add or update tests per Validation plan (companion `tests/shared/test_tool_metadata.py`) | Completed | 20261127-092247 | 20261127-092247 | Companion test updated: test_resource_key_kind_includes_non_escalating now expects the widened set. The single-line assert would exceed the 88-char limit, so the expected set is bound to a local variable and compared on the next line; the parametrized closed-set equality test is unchanged and follows the Literal. Impact radius check: 76 test files reference resource_scope_keys, none pin the key-kind set besides this companion, so no other expectation changes. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-092247 | 20261127-092247 | ruff format --check and ruff check on both files: pass. mypy on scripts/shared/tool_metadata.py: no issues. lint-imports: 6 kept / 0 broken, shared-is-leaf kept. bandit on the changed file: no findings. check_module_size.py: OK. Targeted tests: 55 passed (tests/shared/test_tool_metadata.py + tests/shared/test_resource_scope.py). Ad-hoc contract check: a declaration using key kind 'issue' and 'pull_request' returns [] from validate_tool_schema_v2(). Full suite and diff-cover deferred to the end of batch 3. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261127-092247 | 20261127-092247 | N/A: documentation is covered by procedure 08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

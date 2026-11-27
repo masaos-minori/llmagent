@@ -61,9 +61,9 @@ the byte-for-byte shared-field structure the comment block describes still holds
 
 ## Compatibility considerations
 - The comment block states "5 of the 6 entries also share an identical tail"; after this change the
-  count is 5 entries on the repo tail plus 1 on the PR tail, so the wording must be updated or the
-  schema-consistency test that pins the tails (created by the mcpai010 procedure) will disagree with
-  the file.
+  grouping is 4 entries on the repo tail (2 reads + create + merge), 1 on the PR tail (update), and 1
+  unscoped (search) — not "5 on the repo tail plus 1 on the PR tail" as this section originally read
+  (stale claim, corrected 20261127). The wording was updated to describe the grouping per scope group.
 - `tests/shared/test_resource_scope.py` (target row 6) asserts the resolved scope strings.
 
 ## Security considerations
@@ -96,10 +96,10 @@ the byte-for-byte shared-field structure the comment block describes still holds
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is covered by procedure 08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-092247 | 20261127-092247 | Verified against current source: comment block 26-36, _GithubPrRepoScopeTail 45-51, repo tail constant 66-70, no-scope tail used at 141, entries create at 111 (tail 124), update at 144 (tail 157), merge at 160 (tail 173), read entries at 92 and 108, pr_number required at github_models_pull_requests.py:76 - all confirmed. File clean at cycle start. Added _GithubPrScopeTail and _GITHUB_PR_SCOPE_TAIL (requires_serial False, github_pull_request, owner/repo/pr_number keys), spread into github_update_pull_request only; create, merge, and the 2 read entries keep the repo tail. Comment block rewritten to the actual grouping (4 repo + 1 PR + 1 unscoped). Field order preserved. Changed file: scripts/mcp_servers/github/tools_pull_requests.py. |
+| 2 | Add or update tests per Validation plan | Completed | 20261127-092247 | 20261127-092247 | No tests added in this cycle: the resolved-scope assertions are delivered by procedure 06 (tests/shared/test_resource_scope.py), this procedure's Out of Scope. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-092247 | 20261127-092247 | ruff format --check and ruff check: pass. mypy on the changed file: no issues. bandit on the changed file: no findings. check_module_size.py: OK. lint-imports: 6 kept / 0 broken, shared-is-leaf kept. Targeted tests: 58 passed (tests/shared/test_resource_scope.py + tests/mcp_servers/github/test_github_tool_schema.py + tests/shared/test_tool_metadata.py). Ad-hoc check: github_pull_request:acme/app/7 resolves as one composed string; pr_number is required so no partial identity is possible; ancestor conflict with github_repo:acme/app is True, and a PR scope does not conflict with a branch scope of the same repository (merge stays at repo scope, which is what covers the shared-branch case). Full suite and diff-cover deferred to the end of batch 3. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261127-092247 | 20261127-092247 | N/A: documentation is covered by procedure 08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

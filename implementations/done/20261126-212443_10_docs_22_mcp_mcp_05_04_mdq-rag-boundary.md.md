@@ -68,8 +68,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving test | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | boundary confirmed by tests. Corrections: the RAG-unavailable row has no classifier availability check (only MDQ availability is checked, as live-registry membership of search_docs); tool_transport_invoker.py is under scripts/shared/, not agent/; added proving-test references and the _validate_classification fallback. |
+| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving test | Completed | 20261126-234310 | 20261126-234310 | docs checkers pass; 12 passed (test_mdq_rag_boundary + test_mode_classification) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -17,12 +17,25 @@ longer serialize against each other (REQ-001, AC-2: independent resources run co
 - `branch` is a declared property of all three request models
   (`github_models_file.py:65`, `115`, `149`), so `resource_scope_keys` passes the
   `inputSchema.properties` check (`resource_scope.py:157-161`).
-- `branch` has a default for `CreateOrUpdateFileRequest` and `DeleteRepoFileRequest`; a call that
-  omits it resolves no scope string and falls back to `global:write` (fail-closed), which is
-  stricter than repo scope. No test pins a repo-scope result for these tools.
-- `tests/mcp_servers/github/test_github_tool_schema.py` does not exist yet; it is created by the
-  mcpai010 procedure `implementations/20261126-205430_03_tests_mcp_servers_github_test_github_tool_schema.py.md`.
-  This document does not modify it — it is a verification dependency, not a companion.
+- `branch` has a default for `CreateOrUpdateFileRequest` and `DeleteRepoFileRequest`, and that default
+  is the empty-string sentinel (`github_models_file.py:65-68`, `149-152`), so an omitted `branch`
+  contributes no part to the composed identity. Correction from execution (20261126): such a call does
+  NOT fall back to `global:write` — `resolve_resource_scopes()` returns the partial composed identity
+  `github_branch:<owner>/<repo>` because `owner` and `repo` did resolve (`resource_scope.py:104-109`;
+  the fallback applies only when no key resolves at all). The Plan's line 29 wording ("a file-write
+  call that omits `branch` therefore lands on `global:write`") is stale. Consequence, unresolved:
+  `github_branch:<owner>/<repo>` conflicts with neither `github_repo:<owner>/<repo>` (the ancestor rule
+  requires the descendant identity to begin with the ancestor identity plus `/`) nor
+  `github_branch:<owner>/<repo>/<name>`, so a default-branch write is not serialized against
+  repository-wide scopes or against an explicit write to the same default branch. Decision (user,
+  20261127): fail closed — `resolve_resource_scopes()` returns `_FALLBACK_WRITE_SCOPE` for a write
+  tool whose composed GitHub identity is missing a declared key (implemented in procedure 01's target
+  file, `resource_scope.py:104-116`); this procedure itself declares the kind and keys only and was
+  not changed by the decision. No test pins a scope result for these tools.
+- `tests/mcp_servers/github/test_github_tool_schema.py` was created by the mcpai010 procedure
+  `implementations/20261126-205430_03_tests_mcp_servers_github_test_github_tool_schema.py.md` and now
+  exists (confirmed 20261126). It pins the published `inputSchema` only, not the metadata tails, so it
+  is a verification dependency, not a companion, and is not modified here.
 
 ## Design decisions
 - Add a branch-scoped tail constant next to the existing repo-scoped one, mirroring the
@@ -94,15 +107,15 @@ byte-for-byte shared-field structure the comment block describes still holds wit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | N/A: documentation is covered by procedure 08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261127-092247 | 20261127-092247 | Verified against current source: comment block 24-34, _GithubFileMetadataTail 43-49, repo tail constant 56-60, read entry 63 (tail used at 78), write entries 81/97/114, branch properties at github_models_file.py:65/115/149 - all confirmed. File clean at cycle start. Added _GithubFileBranchScopeTail and _GITHUB_FILE_BRANCH_SCOPE_TAIL (requires_serial False, github_branch, owner/repo/branch keys), spread into the three write entries, read entry left on the repo tail, comment block rewritten to state the grouping per group rather than across all 4. Key order preserved. Changed file: scripts/mcp_servers/github/tools_file.py. Finding: the fail-closed assumption is stale - an omitted branch yields the partial identity github_branch:<owner>/<repo>, not global:write; reported to the user, no code change. |
+| 2 | Add or update tests per Validation plan | Completed | 20261127-092247 | 20261127-092247 | No tests added in this cycle: the resolved-scope assertions are delivered by procedure 06 (tests/shared/test_resource_scope.py), this procedure's Out of Scope. tests/mcp_servers/github/test_github_tool_schema.py is a verification dependency and was not modified. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261127-092247 | 20261127-092247 | ruff format --check and ruff check: pass. mypy on the changed file: no issues. bandit on the changed file: no findings. check_module_size.py: OK, no new violations. lint-imports: 6 kept / 0 broken, shared-is-leaf kept. Targeted tests: 50 passed (tests/shared/test_resource_scope.py + tests/mcp_servers/github/test_github_tool_schema.py). Ad-hoc check: the three write entries now declare github_branch and resolve to github_branch:acme/app/main when branch is supplied. Full suite and diff-cover deferred to the end of batch 3. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261127-092247 | 20261127-092247 | N/A: documentation is covered by procedure 08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | N/A: no blocker recorded at procedure creation | N/A: no blocker recorded | — |
+| 3 | End-of-batch full suite reports 2 new failures caused by declaring a `branch` key kind on the GitHub file write tools: `tests/agent/test_tool_approval_risk.py::TestClassifyRisk::test_github_tools_have_no_declared_branch_keys` (pins REQ-008 as "no shipped github tool declares a branch-kind key") and `tests/agent/test_tool_approval_preflight.py::TestCheckApprovalDryRun::test_github_tool_triggers_dry_run` (HIGH risk now requires the full word "yes" because `main` is in `approval_high_risk_branches`, so the patched "y" answer no longer approves). Both files are outside the Plan's frozen Implementation Target Files table, so they were not modified. Reported to the user for a decision. Resolution (owner decision 20261127, plan amendment class `scope`): both tests updated to the new behavior — the risk test now pins the declared branch-key set plus HIGH escalation on `main` and non-escalation on `feature/x`; the preflight test uses a non-high-risk branch so the tier base stays `medium`. Plan rows added for both files (amendment 2026-11-27). | Resolved | 20261127 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

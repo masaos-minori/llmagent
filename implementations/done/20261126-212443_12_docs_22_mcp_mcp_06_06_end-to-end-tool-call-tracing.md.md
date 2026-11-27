@@ -70,8 +70,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving test | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | Added call_id, workflow_id, session_id, request_id rows and the Agent-managed replay statement. Step 3b finding: the cross-layer correlation claim was stale — github_audit.log carries session/request/call via build_write_audit_fields (scripts/shared/write_outcome.py), so the claim now covers only shell_audit.log and delete_audit.log. |
+| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving test | Completed | 20261126-234310 | 20261126-234310 | docs checkers pass; 81 passed (execution_context, write_outcome, github_write_outcomes, tool_preparation) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -161,9 +161,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Convention and shared fixture | In Progress | — | — | — |
-| 2 | Schema-publication contract tests | In Progress | — | — | — |
-| 3 | Runtime-enforcement contract tests | In Progress | — | — | — |
+| 1 | Convention and shared fixture | Completed | — | 20261126-224807 | — |
+| 2 | Schema-publication contract tests | Completed | — | 20261126-224807 | — |
+| 3 | Runtime-enforcement contract tests | Completed | — | 20261126-224807 | — |
 | 4 | Validation and reporting | Pending | — | — | — |
 
 ### Blocker Log

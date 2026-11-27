@@ -74,8 +74,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the ADR and docs checkers (`rules/tool-gates.md`) and the cited proving test | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | Ownership paragraph rewritten to the Plan vocabulary (dispatcher: store, schema creation, canonical-shape validation, owner lease, terminal evidence; Agent: intent, approval, workflow state, retry orchestration) with the two proving tests. Stale claim corrected: tools/check_db_separation.py covers five stores (mcp_dedup registered for ownership and path), not four; mdq.sqlite still uncovered. AAL-028 confirmed already referenced as pending (no approval text written); AAL-024/025/039 confirmed approved. Warning-only store-write path stays described as open exception MCP-002 in ADR-004, not restated here (size ceiling). |
+| 3 | Run the ADR and docs checkers (`rules/tool-gates.md`) and the cited proving test | Completed | 20261126-234310 | 20261126-234310 | check_adr_structure + docs checkers pass; size 54845 B (within 54865 B ceiling); 100 passed (tests/shared/test_mcp_dedup.py) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

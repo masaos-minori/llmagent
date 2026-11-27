@@ -186,12 +186,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document map | In Progress | — | — | — |
-| 2 | Identity, replay, and dedup ownership | In Progress | — | — | — |
-| 3 | Server-section corrections | In Progress | — | — | — |
-| 4 | ADR alignment | In Progress | — | — | — |
-| 5 | Invariant links, mcp_dedup.toml sweep, terminology | In Progress | — | — | — |
-| 6 | Validation | Pending | — | — | — |
+| 1 | Document map | Completed | 20261126-220000 | 20261126-234230 | — Procedures 01-16 executed; docs checkers pass for every changed doc; cited proving tests pass. |
+| 2 | Identity, replay, and dedup ownership | Completed | 20261126-220000 | 20261126-234230 | — Procedures 01-16 executed; docs checkers pass for every changed doc; cited proving tests pass. |
+| 3 | Server-section corrections | Completed | 20261126-220000 | 20261126-234230 | — Procedures 01-16 executed; docs checkers pass for every changed doc; cited proving tests pass. |
+| 4 | ADR alignment | Completed | 20261126-220000 | 20261126-234230 | — Procedures 01-16 executed; docs checkers pass for every changed doc; cited proving tests pass. |
+| 5 | Invariant links, mcp_dedup.toml sweep, terminology | Completed | 20261126-220000 | 20261126-234230 | — Procedures 01-16 executed; docs checkers pass for every changed doc; cited proving tests pass. |
+| 6 | Validation | Completed | 20261126-220000 | 20261126-234230 | — Procedures 01-16 executed; docs checkers pass for every changed doc; cited proving tests pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

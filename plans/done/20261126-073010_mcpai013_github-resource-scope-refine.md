@@ -43,6 +43,9 @@ Improve concurrency without weakening read/write conflict protection or reposito
 Validation passed for every row on 20261126; see `rules/workflow-lifecycle.md`
 Implementation Target Files Validation (Plan Freeze).
 Amended 2026-11-26 (scope): added tests/shared/test_tool_metadata.py — Update the exact-equality pin of RESOURCE_KEY_KIND_VALUES to include the new key kinds
+Amended 2026-11-27 (scope, owner-approved): added `tests/agent/test_tool_approval_risk.py` and
+`tests/agent/test_tool_approval_preflight.py` — pins invalidated by the REQ-001 branch-kind
+declarations (a declared branch key on a high-risk branch escalates risk to HIGH).
 
 This table is the canonical, frozen source of implementation scope for this Plan. Once
 `Frozen`, `Implementation steps`, `Acceptance criteria`, and every downstream
@@ -59,6 +62,8 @@ This table is the canonical, frozen source of implementation scope for this Plan
 | `tests/agent/test_tool_scheduler.py` | Modify | Add conflict-graph tests: same branch write/write, same issue comment, same PR update/merge serialization; independent branches and issues concurrent; repository-wide operation conflicts with finer scopes | REQ-003, REQ-005, AC-1, AC-2, AC-3 | `TestResourceScopeGrouping` at line 157 groups by exact scope overlap only (checked in Step 2) | itself | Verified |
 | `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Modify | Document cross-scope conflicts (boundaries and constraints) and the confirmed `<kind>:<identity>` convention | REQ-004, AC-4 | Scheduler section at lines 108-167 describes the conflict graph without cross-kind ancestor rules (the predicate bullet is line 116; re-verified 20261126, Step 3a) | `uv run python tools/check_docs_quality.py` | Verified |
 | `tests/shared/test_tool_metadata.py` | Modify | Update the exact-equality pin of RESOURCE_KEY_KIND_VALUES to include the new key kinds | REQ-001 / AC-2 | tests/shared/test_tool_metadata.py:51-52 pins RESOURCE_KEY_KIND_VALUES by exact equality (re-verified 20261126, Step 3a) | itself | Verified |
+| `tests/agent/test_tool_approval_risk.py` | Modify | Update the REQ-008 pin that asserted no shipped github tool declares a branch-kind key: the three file write tools now declare `branch`, so the test pins the declared key set and the high-risk-branch escalation | REQ-001, AC-5 | `test_github_tools_have_no_declared_branch_keys` at line 225 asserted no `branch` kind in `resource_scope_keys`; `_escalate_for_github_branch()` (`scripts/agent/tool_policy.py:346`) reads the declared branch keys; `tests/agent/_config_test_defaults.py:141` defaults `approval_high_risk_branches` to `["main"]` (re-verified 20261127) | itself | Verified |
+| `tests/agent/test_tool_approval_preflight.py` | Modify | Update the `github_push_files` dry-run pin: with a declared `branch` key the default high-risk branch `main` escalates risk to HIGH, which requires the full word "yes", so the test uses a non-high-risk branch | REQ-001, AC-5 | `test_github_tool_triggers_dry_run` at line 705 supplied `branch="main"` with a patched "y" answer; HIGH requires "yes" in `_prompt_user_approval()` (`scripts/agent/tool_approval.py`) (re-verified 20261127) | itself | Verified |
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified. Same
@@ -80,7 +85,8 @@ patterns, components, file groups, or vague phrases.
 - AC-5: Existing repository-level safety is not weakened; every finer scope carries a stated independence argument and a test (REQ-005).
 
 ## Tests
-- Same branch write/write, same issue comment, same pull request update/merge serialization; independent branches or issues concurrent; repository-wide operation conflicts with finer scopes (REQ-003, REQ-005).
+- Same branch write/write, same issue comment, same pull request update/merge serialization; independent branches or issues concurrent; repository-wide operation conflicts with finer scopes (REQ-003, REQ-005, AC-1, AC-2, AC-3).
+- Approval pins for the declared branch key: the shipped github tools that declare a branch-kind key are the three file write tools, and a high-risk branch value escalates them to HIGH while a tool with no branch key is not escalated (REQ-001, AC-5; `tests/agent/test_tool_approval_risk.py`) — amendment 2026-11-27.
 - Run ruff, mypy, and the full test suite per `rules/toolchain.md`; import-linter must keep the `shared-is-leaf` contract (the `shared` module must not import `agent` or `mcp_servers`).
 - Docs gate on the changed file: `uv run python tools/check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py`, `check_docs_consistency.py --domain mcp`.
 
@@ -115,6 +121,8 @@ separate scope-of-record.
 | `tests/agent/test_tool_scheduler.py` | Modify | Low | 1 | Medium (same 4-variant history as the scheduler) | not applicable (tests not deployed) |
 | `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Modify | Medium (shared with mcpai012, judged compatible) | 7 | High (single author) | not applicable (docs not deployed) |
 | `tests/shared/test_tool_metadata.py` | Modify | Not assessed (amendment 2026-11-26) | N/A | N/A | Not assessed (amendment 2026-11-26) |
+| `tests/agent/test_tool_approval_risk.py` | Modify | Not assessed (amendment 2026-11-27) | N/A | N/A | Not assessed (amendment 2026-11-27) |
+| `tests/agent/test_tool_approval_preflight.py` | Modify | Not assessed (amendment 2026-11-27) | N/A | N/A | Not assessed (amendment 2026-11-27) |
 
 ## Design
 - **Predicate, not scheduler**: the change is confined to `_scopes_conflict()` — composed GitHub kinds gain ancestor semantics keyed on `<owner>/<repo>`; the scheduler's grouping, the synthetic `global:write` scope, and the fail-closed fallback are untouched, so existing safety properties hold by construction (REQ-005).
@@ -169,10 +177,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Conflict predicate and vocabulary tests first | In Progress | — | — | — |
-| 2 | Tool metadata declarations | In Progress | — | — | — |
-| 3 | Scheduler conflict-graph tests | In Progress | — | — | — |
-| 4 | Documentation and validation | In Progress | — | — | — |
+| 1 | Conflict predicate and vocabulary tests first | Completed | 20261126-235205 | 20261127-001200 | — Procedures 01, 02, 06 executed (06 after 01 in seq order, so test-first ordering could not be observed). 8 new tests in tests/shared/test_resource_scope.py; RESOURCE_KEY_KIND_VALUES widened and pinned by tests/shared/test_tool_metadata.py. |
+| 2 | Tool metadata declarations | Completed | 20261126-235716 | 20261127-000618 | — Procedures 03, 04, 05 executed: branch tail for the three file write tools, issue tail for github_add_issue_comment, PR tail for github_update_pull_request; create/merge and read entries keep github_repo. |
+| 3 | Scheduler conflict-graph tests | Completed | 20261127-000949 | 20261127-000949 | — Procedure 07 executed: 8 conflict-graph tests in tests/agent/test_tool_scheduler.py; reference scheduler tests unchanged. |
+| 4 | Documentation and validation | Completed | 20261127-001310 | 20261127-091945 | — Procedure 08 executed (docs checkers pass). End-of-batch full suite: 15925 passed / 5 skipped. diff-cover on changed scripts/ lines: 100%. Amendment 2026-11-27 (class scope, owner-approved): two approval pins invalidated by the branch-key declaration were updated - tests/agent/test_tool_approval_risk.py and tests/agent/test_tool_approval_preflight.py (procedures 10, 11). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -190,6 +198,8 @@ Table structure, status/type vocabulary, and general guidance: see
 | `implementations/20261126-215042_06_tests_shared_test_resource_scope.py.md` | 1 | Procedure | Pending | — | — |
 | `implementations/20261126-215042_07_tests_agent_test_tool_scheduler.py.md` | 3 | Procedure | Pending | — | — |
 | `implementations/20261126-215042_08_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-091945_10_tests_agent_test_tool_approval_risk.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261127-091945_11_tests_agent_test_tool_approval_preflight.py.md` | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -198,7 +208,7 @@ Table structure, status/type vocabulary, and general guidance: see
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261126-073010
-- **Related target files**: `scripts/shared/resource_scope.py`, `scripts/shared/tool_metadata.py`, `scripts/mcp_servers/github/tools_file.py`, `scripts/mcp_servers/github/tools_issues.py`, `scripts/mcp_servers/github/tools_pull_requests.py`, `tests/shared/test_resource_scope.py`, `tests/agent/test_tool_scheduler.py`, `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`, `tests/shared/test_tool_metadata.py`
+- **Related target files**: `scripts/shared/resource_scope.py`, `scripts/shared/tool_metadata.py`, `scripts/mcp_servers/github/tools_file.py`, `scripts/mcp_servers/github/tools_issues.py`, `scripts/mcp_servers/github/tools_pull_requests.py`, `tests/shared/test_resource_scope.py`, `tests/agent/test_tool_scheduler.py`, `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`, `tests/shared/test_tool_metadata.py`, `tests/agent/test_tool_approval_risk.py`, `tests/agent/test_tool_approval_preflight.py`
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
@@ -211,5 +221,7 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-004 | Required Changes item 2; `resource_scope.py:81` convention already defined | `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Phase 4 | AC-4 | docs checkers | Confirmed by repository evidence |
 | REQ-005 | Constraints; fail-closed fallback in `resource_scope.py` | `tests/shared/test_resource_scope.py`, `tests/agent/test_tool_scheduler.py` | Phase 1, Phase 3 | AC-5 | itself | Confirmed by repository evidence |
 | REQ-001 | Amendment 2026-11-26: Update the exact-equality pin of RESOURCE_KEY_KIND_VALUES to include the new key kinds | tests/shared/test_tool_metadata.py | Phase 1 | AC-2 | itself | Confirmed by repository evidence |
+| REQ-001 | Amendment 2026-11-27: update the REQ-008 pin that assumed no github tool declares a branch-kind key; the file write tools now declare one | tests/agent/test_tool_approval_risk.py | Phase 2 | AC-5 | itself | Confirmed by repository evidence + owner decision 20261127 |
+| REQ-001 | Amendment 2026-11-27: update the dry-run approval pin invalidated by the HIGH escalation on a high-risk branch | tests/agent/test_tool_approval_preflight.py | Phase 2 | AC-5 | itself | Confirmed by repository evidence + owner decision 20261127 |
 
 <!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261126-215042 -->

@@ -69,8 +69,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving test | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261126-234310 | 20261126-234310 | Step 3b findings applied: the Note claimed file-write-mcp writes only the shared log while scripts/mcp_servers/file/write_service.py:134 writes a dedicated record; the outcome row omitted web-search-mcp which emits rejected (web_search_server.py:297). Added the three-layer table with authoritative locations. |
+| 3 | Run the docs checkers (`rules/tool-gates.md`) and the cited proving test | Completed | 20261126-234310 | 20261126-234310 | docs checkers pass; proving test 7 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
