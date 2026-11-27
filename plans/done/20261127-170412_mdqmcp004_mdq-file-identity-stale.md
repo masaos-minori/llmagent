@@ -24,7 +24,7 @@ Adversarial verification against current source (evidence revision in Traceabili
 - Confirmed: `scripts/mcp_servers/mdq/health_check.py` (line 48) and `scripts/mcp_servers/mdq/mdq_service.py` (line 343) count stale documents through `STALE_SQL_CONDITION` on database columns only; `is_stale()` (`scripts/mcp_servers/mdq/mdq_models.py` line 308) compares stored `mtime_ns` with `indexed_at` and never inspects the filesystem.
 - Confirmed: incremental refresh skips a file when the stored `index_state` mtime equals the current mtime (`scripts/mcp_servers/mdq/indexer.py`, `_refresh_changed_file()`), so a same-mtime content change is never detected.
 - Corrected: the issue's test claims (artificial timestamps, orphans treated as normal) were `Needs confirmation`; verified absent — no same-mtime, rollback, or deletion tests exist, and orphan coverage is limited to the legacy pre-FK guard in `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py`.
-- Corrected: the recreation runbook already exists (`docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` section 8e, `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` section 11); mdq recovery is delete-and-re-index per ADR-008 Decision Detail 22. The gap is mdq-specific alignment: sidecar handling, re-index verification, and failure rollback are not defined for the mdq path, and db_07 section 11 does not cover mdq.
+- Corrected: the recreation runbook already exists (`docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` section 8e, `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` section 11); mdq recovery is delete-and-re-index per ADR-008 Decision Detail 22. The gap is mdq-specific alignment: sidecar handling, re-index verification, and failure rollback are not defined for the mdq path. db_07 section 11 names `mdq.sqlite` only in subsection 11a (read-only schema inspection); its archive-delete-recreate procedure body covers the four domain stores and has no mdq steps.
 - Corrected: ADR-008 already records the maintainer approvals for AAL-024 and AAL-025 (2026-11-24); no ADR decision change is required by this Plan — the alignment lands in the Reference docs named by the task mapping.
 
 ## Problem
@@ -47,12 +47,13 @@ The database records what source content was indexed, what truncated content was
 **Freeze status**: Frozen — `issue-to-plan` Step 8's Implementation Target Files
 Validation passed for every row on 20261127; see `rules/workflow-lifecycle.md`
 Implementation Target Files Validation (Plan Freeze).
+Amended 2026-11-27 (fallout): added tests/mcp_servers/mdq/test_mdq_security_validation.py — Fixture DDL gains the new canonical columns: the minimal documents shape it builds must still satisfy the redesigned stale SQL after the documents column rename
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/mcp_servers/mdq/db_schema.py` | Modify | Canonical DDL: add `source_content_hash` and the renamed path/mtime fingerprint column to `documents`; add the section hash, truncation flag, and original character count to `chunks` | REQ-001, REQ-002, AC-1, AC-2 | `_DOCUMENTS_DDL` (lines 26-35) has `content_hash` and no source-hash or truncation columns; `_CHUNKS_DDL` has `content_hash` and `char_count` but no section hash or truncation flag | `tests/mcp_servers/mdq/test_db_schema.py` | Verified |
 | `scripts/mcp_servers/mdq/index_write.py` | Modify | Production writer: compute the source hash from file bytes, store the path/mtime fingerprint separately, and store the section hash, truncation flag, and original and stored character counts per chunk | REQ-001, REQ-002, AC-4 | `file_content_hash = hashlib.sha256((str(path) + str(now)).encode()).hexdigest()` (line 69); truncation at lines 87-88 before the hash at line 89 | `tests/mcp_servers/mdq/test_mdq_content_hash_semantics.py` | Verified |
-| `scripts/mcp_servers/mdq/mdq_models.py` | Modify | Define the shared stale-state set and the persisted-fingerprint fields on the models; redesign `STALE_SQL_CONDITION` against the new columns | REQ-001, REQ-002, REQ-004, AC-3 | `is_stale()` (line 308) and `STALE_SQL_CONDITION` (line 313) are the only stale definitions; `OutlineResponse.stale_warning` is `str | None` (line 240) | `tests/mcp_servers/mdq/test_mdq_stale_detection.py` | Verified |
+| `scripts/mcp_servers/mdq/mdq_models.py` | Modify | Define the shared stale-state set and the persisted-fingerprint fields on the models; redesign `STALE_SQL_CONDITION` against the new columns | REQ-001, REQ-002, REQ-004, AC-3 | `is_stale()` (line 308) and `STALE_SQL_CONDITION` (line 313) are the only stale definitions; `OutlineResponse.stale_warning` is `str \| None` (line 240) | `tests/mcp_servers/mdq/test_mdq_stale_detection.py` | Verified |
 | `scripts/mcp_servers/mdq/mdq_service.py` | Modify | Outline inspects the filesystem for freshness and reports the shared state; the stale count is computed from the state set | REQ-004, AC-3 | `outline()` uses `is_stale()` on stored columns only (line 249); the stale count query uses `STALE_SQL_CONDITION` (line 343) | `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py` | Verified |
 | `scripts/mcp_servers/mdq/health_check.py` | Modify | Health reports the shared state set (per-state counts); `stale_document_count` stays as the count of documents in the `stale` state | REQ-004, AC-3 | `_check_stale_documents()` counts through `STALE_SQL_CONDITION` (line 48); the response key `stale_document_count` is published at line 110 | `tests/mcp_servers/mdq/test_mdq_health_stale.py` | Verified |
 | `scripts/mcp_servers/mdq/indexer.py` | Modify | Refresh compares current mtime, size, and source hash before deciding skip or re-index | REQ-003, AC-1 | `_refresh_changed_file()` skips when `index_state` holds the current mtime only | `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py` | Verified |
@@ -62,14 +63,15 @@ Implementation Target Files Validation (Plan Freeze).
 | `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py` | Modify | Orphan chunks without a document row become the explicit `inconsistent` state; filesystem-missing becomes `missing` | REQ-004, AC-3 | The file covers only the legacy pre-FK orphan guard (lines 49-51) | itself | Verified |
 | `tests/mcp_servers/mdq/test_mdq_schema_migration.py` | Modify | Schema recreation and production-writer contract tests against the new canonical shape | REQ-001, REQ-002, AC-4 | Fixtures embed the current `documents` and `chunks` DDL (lines 27, 46) | itself | Verified |
 | `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py` | Modify | Refresh skip decision moves from mtime-only to mtime, size, and source hash | REQ-003, AC-1 | Consumer scan hit on `indexer.py`; the file pins the mtime-only skip behavior | itself | Verified |
-| `tests/mcp_servers/mdq/test_mdq_health_endpoint.py` | Modify | Fixture DDLs move onto the new canonical shape; the `stale_document_count` key-presence assertion stays | REQ-004, AC-3 | The file builds the current production schema in fixtures (lines 39-235) and pins the key at line 340 | itself | Verified |
+| `tests/mcp_servers/mdq/test_mdq_health_endpoint.py` | Modify | Fixture DDLs move onto the new canonical shape; the `stale_document_count` key-presence assertion stays | REQ-004, AC-3 | The file builds the current production schema in fixtures (lines 34-235) and in two in-test schemas at lines 427 and 489, and pins the key at line 340 | itself | Verified |
 | `tests/mcp_servers/mdq/test_mdq_health.py` | Modify | Fixture DDLs move onto the new canonical shape | REQ-001, REQ-002, AC-4 | Fixtures embed the current `documents` and `chunks` DDL (lines 30, 52, 66) | itself | Verified |
 | `tests/mcp_servers/mdq/test_index_delete.py` | Modify | Fixture inserts move onto the new canonical shape | REQ-001, REQ-002, AC-4 | Inserts list the current `documents` and `chunks` columns (lines 42, 52, 109) | itself | Verified |
 | `tests/mcp_servers/mdq/test_mdq_foreign_keys.py` | Modify | Fixture inserts move onto the new canonical shape | REQ-001, REQ-002, AC-4 | Insert lists the current `chunks` columns (line 107) | itself | Verified |
 | `tests/mcp_servers/mdq/test_mdq_content_hash_semantics.py` | Create | New file: production-writer tests with real filesystem modifications — same mtime with different content, mtime rollback, deletion, truncation-tail change, and the section-hash-versus-stored-hash distinction | REQ-001, REQ-002, AC-1, AC-2, AC-4 | Does not exist; `tests/mcp_servers/mdq/` holds 35 test files and none covers writer hash semantics (checked in Step 3) | itself | Verified |
 | `docs/22_mcp/mcp_04_04_mdq.md` | Modify | Define every persisted fingerprint and stale state; remove statements implying the path/mtime fingerprint is a content hash | REQ-001, REQ-004, AC-3 | Line 35 states `content_hash` is calculated on truncated content as if it were a content hash; line 66 describes the database-only stale check | `uv run python tools/check_docs_content_policy.py` | Verified |
 | `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` | Modify | Align the mdq runbook rows (sections 8d/8e) with the mdq-specific sidecar handling, re-index verification, and failure rollback | REQ-005, AC-5 | Section 8e says "Delete the file and re-index" with no sidecar, verification, or rollback steps for mdq | `uv run python tools/generate_reference_table.py --check` | Verified |
-| `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` | Modify | Section 11 gains the mdq steps: sidecar quarantine, re-index verification, and failure rollback for the delete-and-recreate path | REQ-005, AC-5 | Section 11 covers archive and recreation for the four domain stores and does not mention mdq | `uv run python tools/generate_reference_table.py --check` | Verified |
+| `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` | Modify | Section 11 gains the mdq steps: sidecar quarantine, re-index verification, and failure rollback for the delete-and-recreate path | REQ-005, AC-5 | Section 11's archive-delete-recreate procedure covers the four domain stores with no mdq steps; mdq appears only in subsection 11a (read-only inspection) | `uv run python tools/generate_reference_table.py --check` | Verified |
+| `tests/mcp_servers/mdq/test_mdq_security_validation.py` | Modify | Fixture DDL gains the new canonical columns: the minimal documents shape it builds must still satisfy the redesigned stale SQL after the documents column rename | REQ-001, AC-4 | _create_db() builds documents with content_hash at lines 66-67 and check_health() is called through it at lines 381, 394, 406 | itself | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) for the full validation procedure):
@@ -138,6 +140,7 @@ Yes. Per `docs/00_index.md` "Document References by Task":
 | `docs/22_mcp/mcp_04_04_mdq.md` | Modify | Documentation only | — | 1 | None |
 | `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` | Modify | Documentation only | — | 1 | None |
 | `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` | Modify | Documentation only | — | 1 | None |
+| `tests/mcp_servers/mdq/test_mdq_security_validation.py` | Modify | Not assessed (amendment 2026-11-27) | N/A | N/A | Not assessed (amendment 2026-11-27) |
 
 ## Design
 Path B classification rationale: a persisted-schema change plus more than three files.
@@ -148,8 +151,8 @@ Design decisions (narrow `python-design` application):
 - Stale states: one shared set defined in `scripts/mcp_servers/mdq/mdq_models.py`; health publishes per-state counts with `stale_document_count` preserved as the `stale`-state count; outline's `stale_warning` carries the state name. Consumer scan for `STALE_SQL_CONDITION` and `is_stale`: consumers are `scripts/mcp_servers/mdq/health_check.py`, `scripts/mcp_servers/mdq/mdq_service.py`, `scripts/mcp_servers/mdq/mdq_models.py`, `tests/mcp_servers/mdq/test_mdq_stale_detection.py` (all target rows); `tools/stale_detector.py` and `tests/tools/test_stale_detector.py` are not affected (their `is_stale` is the tool's own field, unrelated to mdq).
 - Consumer scan for `content_hash`: `tools/generate_reference_table.py` and `docs/10_adr/adr_02_07_015_docs-reference-document-class-disposition.md` are not affected (docs-fingerprint domain, not mdq); the test files embedding the mdq fixture DDL (`tests/mcp_servers/mdq/test_mdq_health.py`, `tests/mcp_servers/mdq/test_mdq_health_endpoint.py`, `tests/mcp_servers/mdq/test_index_delete.py`, `tests/mcp_servers/mdq/test_mdq_foreign_keys.py`) are target rows.
 - Consumer scan for `documents`: `deploy/init_db.sh` is not affected (its expected-table list is the rag domain); `scripts/db/*` and `tests/db/*` candidates are the rag `documents` table, a different store per ADR-008 — not affected.
-- Predictable fallout: module size — all target source files are under the 24576 B gate (largest `scripts/mcp_servers/mdq/mdq_models.py` at 12071 B) and stay under it with the expected growth, so no split row; skill size — not affected (no covered instruction file gains text); pinned counts — no test pins the `documents` column count; `tests/mcp_servers/mdq/test_db_schema.py` pins table names and the mismatch message and is a target row; tool inventory — not affected (no tool added or removed); generated blocks — the doc edits are prose, and `uv run python tools/generate_reference_table.py --check` is run as a validation gate.
-- Import graph: `uv run lint-imports` reports 6 contracts kept; the mdq layer imports only `db` and `shared`; no new cross-layer import is introduced. Radon: all mdq functions are grade A. Vulture (min-confidence 80) and bandit on `scripts/mcp_servers/mdq/`: no findings.
+- Predictable fallout: module size — all target source files are under the 24576 B gate (largest `scripts/mcp_servers/mdq/mdq_service.py` at 15897 B) and stay under it with the expected growth, so no split row; skill size — not affected (no covered instruction file gains text); pinned counts — no test pins the `documents` column count; `tests/mcp_servers/mdq/test_db_schema.py` pins table names and the mismatch message and is a target row; tool inventory — not affected (no tool added or removed); generated blocks — the doc edits are prose, and `uv run python tools/generate_reference_table.py --check` is run as a validation gate.
+- Import graph: `uv run lint-imports` reports 6 contracts kept; the mdq layer imports only `db` and `shared`; no new cross-layer import is introduced. Radon: the six target source files are grade A except two B functions (`mdq_service.py`, `health_check.py`); higher grades exist in the module outside the target set (`parser.py::parse_markdown` is D (24)). Vulture (min-confidence 80) and bandit on `scripts/mcp_servers/mdq/`: no findings.
 - Runbook ownership: `docs/41_db/db_07_api_and_operations-recovery-and-reference.md` section 11 owns the recreation procedure and gains the mdq steps; `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` section 8e keeps the per-store table and cross-references it.
 
 ## Implementation steps
@@ -159,6 +162,7 @@ Design decisions (narrow `python-design` application):
    - [ ] Add `source_content_hash`, the renamed path/mtime fingerprint, and the chunk truncation fields to the canonical DDL (REQ-001, REQ-002; `scripts/mcp_servers/mdq/db_schema.py`)
    - [ ] Compute the source hash from bytes and store the section hash, truncation flag, and character counts (REQ-001, REQ-002; `scripts/mcp_servers/mdq/index_write.py`)
    - [ ] Move the fixture DDLs onto the new canonical shape (REQ-001, REQ-002, AC-4; `tests/mcp_servers/mdq/test_db_schema.py`, `tests/mcp_servers/mdq/test_mdq_schema_migration.py`, `tests/mcp_servers/mdq/test_mdq_health.py`, `tests/mcp_servers/mdq/test_mdq_health_endpoint.py`, `tests/mcp_servers/mdq/test_index_delete.py`, `tests/mcp_servers/mdq/test_mdq_foreign_keys.py`)
+   - [ ] Modify (REQ-001; `tests/mcp_servers/mdq/test_mdq_security_validation.py`) — amendment 2026-11-27
 3. **Phase 3: Shared stale-state set and consumers**
    - [ ] Define the state set and redesign `STALE_SQL_CONDITION` against the new columns (REQ-004; `scripts/mcp_servers/mdq/mdq_models.py`)
    - [ ] Outline inspects the filesystem and reports the shared state (REQ-004; `scripts/mcp_servers/mdq/mdq_service.py`)
@@ -203,10 +207,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization tests first | Pending | — | — | Writer hash semantics, mtime-only skip, and health/outline consumers pinned before behavior change |
-| 2 | Phase 2: canonical DDL and production writer | Pending | — | — | New columns plus fixture DDLs land together |
-| 3 | Phase 3: shared stale-state set and consumers | Pending | — | — | State set, filesystem inspection, health counts, refresh comparison |
-| 4 | Phase 4: runbook and documentation alignment | Pending | — | — | mdq steps in db_07 section 11; mdq rows in db_03; misleading statements removed in the mdq doc |
+| 1 | Phase 1: characterization tests first | In Progress | — | — | Writer hash semantics, mtime-only skip, and health/outline consumers pinned before behavior change |
+| 2 | Phase 2: canonical DDL and production writer | In Progress | — | — | New columns plus fixture DDLs land together |
+| 3 | Phase 3: shared stale-state set and consumers | In Progress | — | — | State set, filesystem inspection, health counts, refresh comparison |
+| 4 | Phase 4: runbook and documentation alignment | In Progress | — | — | mdq steps in db_07 section 11; mdq rows in db_03; misleading statements removed in the mdq doc |
 | 5 | Phase 5: recreation and full validation | Pending | — | — | Scratch-database run, deployment check, full validation sequence |
 
 ### Blocker Log
@@ -217,7 +221,21 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261127-234020_01_scripts_mcp_servers_mdq_db_schema.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_02_scripts_mcp_servers_mdq_index_write.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_03_scripts_mcp_servers_mdq_mdq_models.py.md` | 1, 3 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_04_scripts_mcp_servers_mdq_mdq_service.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_05_scripts_mcp_servers_mdq_health_check.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_06_scripts_mcp_servers_mdq_indexer.py.md` | 1, 3 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_11_tests_mcp_servers_mdq_test_mdq_schema_migration.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_13_tests_mcp_servers_mdq_test_mdq_health_endpoint.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_14_tests_mcp_servers_mdq_test_mdq_health.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_15_tests_mcp_servers_mdq_test_index_delete.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_16_tests_mcp_servers_mdq_test_mdq_foreign_keys.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_18_docs_22_mcp_mcp_04_04_mdq.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_19_docs_41_db_db_03_architecture_and_schema-migration-and-scaling.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_20_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-234020_21_tests_mcp_servers_mdq_test_mdq_security_validation.py.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -227,7 +245,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261127-170412
 - **Evidence revision**: 41b423e73a5c2d98ae017a67a6059fcb3c75fd81
-- **Related target files**: `scripts/mcp_servers/mdq/db_schema.py`, `scripts/mcp_servers/mdq/index_write.py`, `scripts/mcp_servers/mdq/mdq_models.py`, `scripts/mcp_servers/mdq/mdq_service.py`, `scripts/mcp_servers/mdq/health_check.py`, `scripts/mcp_servers/mdq/indexer.py`, `tests/mcp_servers/mdq/test_db_schema.py`, `tests/mcp_servers/mdq/test_mdq_stale_detection.py`, `tests/mcp_servers/mdq/test_mdq_health_stale.py`, `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py`, `tests/mcp_servers/mdq/test_mdq_schema_migration.py`, `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py`, `tests/mcp_servers/mdq/test_mdq_health_endpoint.py`, `tests/mcp_servers/mdq/test_mdq_health.py`, `tests/mcp_servers/mdq/test_index_delete.py`, `tests/mcp_servers/mdq/test_mdq_foreign_keys.py`, `tests/mcp_servers/mdq/test_mdq_content_hash_semantics.py`, `docs/22_mcp/mcp_04_04_mdq.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`, `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`
+- **Related target files**: `scripts/mcp_servers/mdq/db_schema.py`, `scripts/mcp_servers/mdq/index_write.py`, `scripts/mcp_servers/mdq/mdq_models.py`, `scripts/mcp_servers/mdq/mdq_service.py`, `scripts/mcp_servers/mdq/health_check.py`, `scripts/mcp_servers/mdq/indexer.py`, `tests/mcp_servers/mdq/test_db_schema.py`, `tests/mcp_servers/mdq/test_mdq_stale_detection.py`, `tests/mcp_servers/mdq/test_mdq_health_stale.py`, `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py`, `tests/mcp_servers/mdq/test_mdq_schema_migration.py`, `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py`, `tests/mcp_servers/mdq/test_mdq_health_endpoint.py`, `tests/mcp_servers/mdq/test_mdq_health.py`, `tests/mcp_servers/mdq/test_index_delete.py`, `tests/mcp_servers/mdq/test_mdq_foreign_keys.py`, `tests/mcp_servers/mdq/test_mdq_content_hash_semantics.py`, `docs/22_mcp/mcp_04_04_mdq.md`, `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`, `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`, `tests/mcp_servers/mdq/test_mdq_security_validation.py`
 
 ### Requirement Traceability
 See `templates/requirement-traceability.md` for the canonical column format.
@@ -256,3 +274,6 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-002 | Design; fixture inserts list the current columns | `tests/mcp_servers/mdq/test_index_delete.py` | Phase 2 | AC-4 | itself | Confirmed by repository evidence |
 | REQ-001 | Design; fixture inserts list the current columns | `tests/mcp_servers/mdq/test_mdq_foreign_keys.py` | Phase 2 | AC-4 | itself | Confirmed by repository evidence |
 | REQ-002 | Design; fixture inserts list the current columns | `tests/mcp_servers/mdq/test_mdq_foreign_keys.py` | Phase 2 | AC-4 | itself | Confirmed by repository evidence |
+| REQ-001 | Amendment 2026-11-27: Fixture DDL gains the new canonical columns: the minimal documents shape it builds must still satisfy the redesigned stale SQL after the documents column rename | `tests/mcp_servers/mdq/test_mdq_security_validation.py` | Phase 2 | AC-4 | itself | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261127-234020 -->

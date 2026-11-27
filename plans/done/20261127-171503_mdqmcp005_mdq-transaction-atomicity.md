@@ -21,7 +21,7 @@ High
 Source issue: `issues/20261119-142127_mdqmcp005_mdq-transaction-atomicity.md` (consolidated MDQ MCP backlog, Issue 5).
 
 Adversarial verification against current source (evidence revision in Traceability):
-- Confirmed: `scripts/mcp_servers/mdq/index_delete.py` deletes `index_state` with `LIKE 'mtime:<path>%'` (line 31), so a path whose key is a literal prefix of another key sweeps up the longer key; the behavior is pinned by `tests/mcp_servers/mdq/test_index_delete.py` (`TestIndexStateWildcardMatchIsCharacterizedAsIs`, lines 180-206) and the helper commits inside itself (line 34).
+- Confirmed: `scripts/mcp_servers/mdq/index_delete.py` deletes `index_state` with `LIKE 'mtime:<path>%'` (line 31), so a path whose key is a literal prefix of another key sweeps up the longer key; the behavior is pinned by `tests/mcp_servers/mdq/test_index_delete.py` (`TestIndexStateWildcardMatchIsCharacterizedAsIs`, lines 181-206) and the helper commits inside itself (line 34).
 - Corrected: `config/mcp_dedup.toml` does not exist in this repository. The `[retry_class]` dispatcher mirror was removed; the declared `retry_policy` is the sole authority (`docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md` Decision Detail 18). `scripts/shared/tool_constants.py` `RETRYABLE_TOOLS` is reference data only, drift-checked against the declarations by `tests/shared/test_tool_constants.py` (line 142). The classification change therefore lands in `scripts/mcp_servers/mdq/mdq_tools.py` (declared `retry_policy`, lines 172 and 205) plus the reference set, not in a TOML file.
 - Corrected: `scripts/mcp_servers/mdq/index_write.py` already writes documents and chunks in one `BEGIN IMMEDIATE` transaction (lines 71, 123), so per-file write atomicity is not the gap. The gap is that the writer is called through a connection it does not own: `indexer.py::_index_single_file()` opens its own connection per file (line 103) while `index_state` is written and committed on the refresh connection (`indexer.py` lines 321-325), so one file operation spans two connections and two commits.
 - Confirmed: forced refresh never updates `index_state` (`indexer.py::_reindex_forced()`, lines 274-290), so a forced re-index leaves the incremental state at the pre-force value.
@@ -53,19 +53,19 @@ Implementation Target Files Validation (Plan Freeze).
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/mcp_servers/mdq/index_write.py` | Modify | Take the caller-owned connection; remove the internal `BEGIN IMMEDIATE`/`COMMIT` ownership and report failure to the caller instead of swallowing it | REQ-001, REQ-002, REQ-006, AC-1 | `write_document_chunks()` (line 54) runs `conn.execute("BEGIN IMMEDIATE")` (line 71) and `conn.execute("COMMIT")` (line 123) itself | `tests/mcp_servers/mdq/test_mdq_transaction_atomicity.py` | Verified |
+| `scripts/mcp_servers/mdq/index_write.py` | Modify | Take the caller-owned connection; remove the internal `BEGIN IMMEDIATE`/`COMMIT` ownership. The writer already propagates `sqlite3.Error` (no `except` in the file), so the failure-swallowing is the caller's, not this file's | REQ-001, REQ-002, REQ-006, AC-1 | `write_document_chunks()` (line 54) runs `conn.execute("BEGIN IMMEDIATE")` (line 71) and `conn.execute("COMMIT")` (line 123) itself; the swallowing is `indexer.py` lines 106-108 | `tests/mcp_servers/mdq/test_mdq_transaction_atomicity.py` | Verified |
 | `scripts/mcp_servers/mdq/index_delete.py` | Modify | Remove the internal commit; delete `index_state` by the exact canonical key instead of the prefix `LIKE` | REQ-001, REQ-003, AC-2 | `DELETE FROM index_state WHERE key LIKE ?` (line 31); `conn.commit()` (line 34) inside the helper | `tests/mcp_servers/mdq/test_index_delete.py` | Verified |
 | `scripts/mcp_servers/mdq/indexer.py` | Modify | Own the connection and transaction for one file operation; write `index_state` inside that transaction after the postcondition check; update state during forced refresh | REQ-001, REQ-002, REQ-004, REQ-006, AC-1, AC-2 | `_index_single_file()` opens its own connection (line 103); the state insert and commit are separate from the write (lines 321-325); `_reindex_forced()` never touches `index_state` (lines 274-290) | `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py`, `tests/mcp_servers/mdq/test_mdq_transaction_atomicity.py` | Verified |
 | `scripts/mcp_servers/mdq/mdq_tools.py` | Modify | Declare `retry_policy = never` for `index_paths` and `refresh_index` | REQ-005, AC-3 | Both tools declare `"retry_policy": "same_logical_call_only"` (lines 172, 205), which `shared.tool_metadata.RETRY_POLICY_RETRYABLE_VALUES` maps to the retryable class | `tests/shared/test_tool_constants.py` | Verified |
 | `scripts/shared/tool_constants.py` | Modify | Remove `index_paths` and `refresh_index` from `RETRYABLE_TOOLS` so the reference data matches the declarations | REQ-005, AC-3 | `RETRYABLE_TOOLS` lists the mdq tools (lines 202-203); the comment states the declared field is the authority and this set only detects drift | `tests/shared/test_tool_constants.py` | Verified |
-| `tests/mcp_servers/mdq/test_index_delete.py` | Modify | Flip the wildcard characterization to the exact canonical key; move the helper-commit pinning to caller-owned transaction behavior | REQ-001, REQ-003, AC-2 | `TestIndexStateWildcardMatchIsCharacterizedAsIs` (lines 180-206) pins the over-match; `TestCommitsTheTransaction` pins the helper commit | itself | Verified |
-| `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py` | Modify | Postcondition check and state write move into the caller-owned transaction; forced refresh now records state | REQ-002, REQ-004, REQ-006, AC-2 | The file pins the current state insert and commit order (line 486) and `_rollback_quietly` behavior (lines 639-657) | itself | Verified |
+| `tests/mcp_servers/mdq/test_index_delete.py` | Modify | Flip the wildcard characterization to the exact canonical key; move the helper-commit pinning to caller-owned transaction behavior | REQ-001, REQ-003, AC-2 | `TestIndexStateWildcardMatchIsCharacterizedAsIs` (lines 181-206) pins the over-match; `TestCommitsTheTransaction` (line 209) pins the helper commit | itself | Verified |
+| `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py` | Modify | Postcondition check and state write move into the caller-owned transaction; forced refresh now records state | REQ-002, REQ-004, REQ-006, AC-2 | `test_successful_write_brackets_its_row_statements` (lines 667-685) pins the transaction shape and the commit inside the helper; `_rollback_quietly` behavior (lines 639-657); line 486 is fixture setup in `test_index_state_keys_that_are_not_mtime_records_are_ignored`, not an order pin | itself | Verified |
 | `tests/mcp_servers/mdq/test_mdq_index_serialization.py` | Modify | Serialization proof runs against the single caller-owned transaction; a mid-operation failure leaves no partial state | REQ-001, AC-1 | The file proves `_index_lock` serializes `index_paths` and `refresh_index` over the current per-file connection | itself | Verified |
 | `tests/mcp_servers/mdq/test_mdq_transaction_atomicity.py` | Create | New file: fault injection at commit, trigger, and state-update points; a failed file operation leaves no partial state; postconditions checked before success | REQ-001, REQ-002, REQ-006, AC-1, AC-4 | Does not exist; `tests/mcp_servers/mdq/` holds 35 test files and none injects a mid-transaction failure | itself | Verified |
 | `tests/mcp_servers/mdq/test_mdq_index_state_consistency.py` | Create | New file: shared-prefix, `%`, and `_` filenames resolve to one exact key; forced refresh then incremental refresh leaves correct state | REQ-003, REQ-004, AC-2 | Does not exist; the only shared-prefix coverage is the characterization test that pins the current over-match | itself | Verified |
 | `tests/shared/test_tool_constants.py` | Modify | The retry-class drift check reflects the new mdq class; the mdq tools are no longer in the reference set | REQ-005, AC-3 | `TestRetryClassDriftConsistency` compares the declared policies with `RETRYABLE_TOOLS` (line 142) | itself | Verified |
 | `tests/mcp_servers/test_mcp_dispatch.py` | Modify | The injected declared policies for the mdq tools change to `never`, so the overlay path mirrors the new class | REQ-005, AC-3 | The fixture injects `"index_paths"` and `"refresh_index"` as `same_logical_call_only` (lines 161-162) to mirror the real declarations | itself | Verified |
-| `docs/22_mcp/mcp_04_04_mdq.md` | Modify | State the transaction ownership, the postcondition check, and the temporary non-retryable classification with its reason | REQ-001, REQ-006, AC-1, AC-4 | The doc has no transaction, postcondition, or retry statement today (checked by `grep` for `transaction`, `atomic`, `retry`) | `uv run python tools/check_docs_content_policy.py` | Verified |
+| `docs/22_mcp/mcp_04_04_mdq.md` | Modify | State the transaction ownership, the postcondition check, and the temporary non-retryable classification with its reason | REQ-001, REQ-006, AC-1, AC-4 | No transaction or retry statement (checked by `grep` for `transaction`, `atomic`, `retry`); `### Guard and postcondition coverage` (line 62) states postcondition verification is not applicable per operation and no resulting-state verification exists, so that bullet must change | `uv run python tools/check_docs_content_policy.py` | Verified |
 
 Rules (see `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
 Freeze) for the full validation procedure):
@@ -194,10 +194,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization tests first | Pending | — | — | Partial state confirmed on current code before behavior change |
-| 2 | Phase 2: caller-owned transaction | Pending | — | — | Writers and delete helpers stop committing; state written inside the transaction after postconditions |
-| 3 | Phase 3: non-retryable classification | Pending | — | — | Declared policy and reference data move together |
-| 4 | Phase 4: documentation and full validation | Pending | — | — | mdq doc statements; store-failure refusal tests; full validation sequence |
+| 1 | Phase 1: characterization tests first | In Progress | — | — | Partial state confirmed on current code before behavior change |
+| 2 | Phase 2: caller-owned transaction | In Progress | — | — | Writers and delete helpers stop committing; state written inside the transaction after postconditions |
+| 3 | Phase 3: non-retryable classification | In Progress | — | — | Declared policy and reference data move together |
+| 4 | Phase 4: documentation and full validation | In Progress | — | — | mdq doc statements; store-failure refusal tests; full validation sequence |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -207,7 +207,17 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261128-002340_01_scripts_mcp_servers_mdq_index_write.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261128-002340_02_scripts_mcp_servers_mdq_index_delete.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261128-002340_03_scripts_mcp_servers_mdq_indexer.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261128-002340_04_scripts_mcp_servers_mdq_mdq_tools.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261128-002340_05_scripts_shared_tool_constants.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261128-002340_08_tests_mcp_servers_mdq_test_mdq_index_serialization.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261128-002340_09_tests_mcp_servers_mdq_test_mdq_transaction_atomicity.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261128-002340_10_tests_mcp_servers_mdq_test_mdq_index_state_consistency.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261128-002340_11_tests_shared_test_tool_constants.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261128-002340_12_tests_mcp_servers_test_mcp_dispatch.py.md` | 3, 4 | Procedure | Pending | — | — |
+| `implementations/20261128-002340_13_docs_22_mcp_mcp_04_04_mdq.md.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -236,3 +246,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-005 | Background; verified the fail-open branch for retryable tools at `dedup_gate.py` line 273 | `tests/mcp_servers/test_mcp_dispatch.py` | Phase 4 | AC-3 | itself | Confirmed by repository evidence |
 | REQ-006 | Required Changes; check postconditions before success | `scripts/mcp_servers/mdq/indexer.py` | Phase 2 | AC-4 | `tests/mcp_servers/mdq/test_mdq_transaction_atomicity.py` | Confirmed by repository evidence |
 | REQ-006 | Documentation Impact; transaction ownership and postconditions | `docs/22_mcp/mcp_04_04_mdq.md` | Phase 4 | AC-4 | `uv run python tools/check_docs_content_policy.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261128-002340 -->
