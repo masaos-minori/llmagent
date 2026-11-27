@@ -95,7 +95,7 @@ N/A: no `docs/*.md` change. The tool row and the two skill files are target rows
 ## Assumptions
 - The classification lives in the new tool and `tools/mark_procedure_new_symbols.py` stays unchanged (resolves the Issue's open question): the Issue's Target Files list only the new tool, `mark --all` keeps its documented behavior, and the tool reuses `mark_names` as a library.
 - The three checkers named in `skills/plan-to-implementation-procedure/workflow.md` Step 3c and Step 4 are the checks to run; the Issue's "four" has no fourth named checker in that file.
-- The tool reads `Source plan` matches by path with `plans/` and `plans/done/` treated as the same, as Step 3c's `Already implemented` rule does.
+- The tool reads `Source plan` matches by path with `plans/` and `plans/done/` treated as the same, as Step 3c's `Already implemented` rule does. Verified in procedure generation Step 3a: `tools/check_workitem_traceability.py:_procedures_of_plan` matches `Source plan` by base name and its discovery includes `done/`, so the coverage check counts archived procedures; the per-document checks run on active procedures by default and on archived ones only with `--include-done`, because `tools/stale_detector.py` on an archived procedure reports `new_target_exists` once its file has been created (observed on `implementations/done/` procedures of an archived Plan).
 - The Plan for the repeated-row generator (wfeff007) also edits `skills/plan-to-implementation-procedure/workflow.md` and `tools/TOOL_DESCRIPTIONS.md`; this Plan lands first and frees about 1 KB of headroom there by moving the paragraph, which that Plan relies on.
 
 ## Unknowns
@@ -172,10 +172,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the tool, its tests, and the `tools/TOOL_DESCRIPTIONS.md` rows (`tools/finalize_procedures.py`, `tests/tools/test_finalize_procedures.py`, `tools/TOOL_DESCRIPTIONS.md`) | Pending | — | — | |
-| 2 | Add the edge section (`skills/plan-to-implementation-procedure/workflow-edge.md`) | Pending | — | — | |
-| 3 | Point from the workflow within the size ceiling (`skills/plan-to-implementation-procedure/workflow.md`) | Pending | — | — | |
-| 4 | Verify on one existing Plan; deployment check is N/A (`tools/finalize_procedures.py`) | Pending | — | — | |
+| 1 | Create the tool, its tests, and the `tools/TOOL_DESCRIPTIONS.md` rows (`tools/finalize_procedures.py`, `tests/tools/test_finalize_procedures.py`, `tools/TOOL_DESCRIPTIONS.md`) | In Progress | — | — |  |
+| 2 | Add the edge section (`skills/plan-to-implementation-procedure/workflow-edge.md`) | In Progress | — | — |  |
+| 3 | Point from the workflow within the size ceiling (`skills/plan-to-implementation-procedure/workflow.md`) | In Progress | — | — |  |
+| 4 | Verify on one existing Plan; deployment check is N/A (`tools/finalize_procedures.py`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -185,7 +185,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261127-100214_01_tools_finalize_procedures.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-100214_02_tests_tools_test_finalize_procedures.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-100214_03_tools_TOOL_DESCRIPTIONS.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-100214_04_skills_plan-to-implementation-procedure_workflow-edge.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261127-100214_05_skills_plan-to-implementation-procedure_workflow.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -213,3 +217,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | `REQ-006` | Issue Documentation Impact; `tools/check_tool_descriptions_sync.py` | `tools/TOOL_DESCRIPTIONS.md` | Phase 1 | AC-7 | `uv run python tools/check_tool_descriptions_sync.py` | Confirmed by repository evidence |
 | `REQ-006` | Issue Target Files; size ceiling evidence | `skills/plan-to-implementation-procedure/workflow-edge.md` | Phase 2 | AC-7 | `uv run python tools/check_skill_size.py` | Derived from confirmed evidence |
 | `REQ-006` | Issue Target Files; `tools/check_skill_size_baseline.txt` line 15 | `skills/plan-to-implementation-procedure/workflow.md` | Phase 3 | AC-7 | `uv run python tools/check_skill_size.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261127-100214 -->

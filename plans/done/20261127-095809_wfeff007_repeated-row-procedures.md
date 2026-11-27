@@ -163,9 +163,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the tool, its tests, and the `tools/TOOL_DESCRIPTIONS.md` rows (`tools/generate_repeated_procedures.py`, `tests/tools/test_generate_repeated_procedures.py`, `tools/TOOL_DESCRIPTIONS.md`) | Pending | — | — | |
-| 2 | Add the Step 3c pointer within the size ceiling (`skills/plan-to-implementation-procedure/workflow.md`) | Pending | — | — | |
-| 3 | Deployment check is N/A (`tools/generate_repeated_procedures.py`) | Pending | — | — | |
+| 1 | Create the tool, its tests, and the `tools/TOOL_DESCRIPTIONS.md` rows (`tools/generate_repeated_procedures.py`, `tests/tools/test_generate_repeated_procedures.py`, `tools/TOOL_DESCRIPTIONS.md`) | In Progress | — | — |  |
+| 2 | Add the Step 3c pointer within the size ceiling (`skills/plan-to-implementation-procedure/workflow.md`) | In Progress | — | — |  |
+| 3 | Deployment check is N/A (`tools/generate_repeated_procedures.py`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -175,7 +175,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261127-100500_01_tools_generate_repeated_procedures.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-100500_02_tests_tools_test_generate_repeated_procedures.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-100500_03_tools_TOOL_DESCRIPTIONS.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-100500_04_skills_plan-to-implementation-procedure_workflow.md.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -201,3 +204,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | `REQ-004` | Issue Constraints | `tests/tools/test_generate_repeated_procedures.py` | Phase 1 | AC-5 | `uv run pytest tests/tools/test_generate_repeated_procedures.py` | Explicit in issue |
 | `REQ-005` | Issue Documentation Impact; `tools/check_tool_descriptions_sync.py` | `tools/TOOL_DESCRIPTIONS.md` | Phase 1 | AC-7 | `uv run python tools/check_tool_descriptions_sync.py` | Confirmed by repository evidence |
 | `REQ-005` | Issue Target Files; `tools/check_skill_size_baseline.txt` line 15 | `skills/plan-to-implementation-procedure/workflow.md` | Phase 2 | AC-7 | `uv run python tools/check_skill_size.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261127-100500 -->
