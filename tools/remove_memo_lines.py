@@ -1,20 +1,17 @@
 #!/usr/bin/env python3
-"""tools/remove_memo_lines.py — Remove a completed procedure's line from a work list.
+"""tools/remove_memo_lines.py - Removes the completed procedure lines from a memo file list.
 
-A memo file lists the procedure documents to execute. The instruction in that file is to
-remove the line of each document once its work is complete, which is the same operation
-repeated once per procedure across a batch, so it is kept as a tool rather than edited by
-hand.
-
-- A line is removed when it names one of the given paths as a whole path, so a line about
-  a different document with a similar name is not touched.
-- A path no line names is reported and nothing is written: the document may have been
-  removed already, and a silent skip would hide a typo in the path.
-- `--dry-run` prints the diff and writes nothing.
+The memo lists the implementation procedures to process and says that a procedure's filename is
+removed from the list once the procedure is complete. This tool removes the lines whose path
+matches `--prefix`, and it refuses a line whose procedure is not archived: the path must exist
+under `implementations/done/` and no longer exist under `implementations/`. Nothing is removed
+when any matched line is not archived.
 
 Usage:
-    uv run python tools/remove_memo_lines.py memo3.md --path implementations/foo.py.md
-    uv run python tools/remove_memo_lines.py memo3.md --dry-run --path implementations/foo.py.md
+    python tools/remove_memo_lines.py MEMO.md --prefix implementations/PLAN_ID_ [--dry-run]
+
+Exit codes: 0 when every matched line was archived and removed, 1 when a matched procedure is
+not archived or the memo has no matching line, 2 on a usage error.
 """
 
 from __future__ import annotations
@@ -26,64 +23,54 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tools._atomic_write import add_dry_run_argument, atomic_write_text, print_dry_run
+from tools._atomic_write import atomic_write_text, print_dry_run
+
+DONE_DIR = "implementations/done"
 
 
-def _matches(line: str, path: str) -> bool:
-    """True when the line names `path` as a whole path, not as a substring of a longer one."""
-    start = line.find(path)
-    if start < 0:
-        return False
-    end = start + len(path)
-    prev, nxt = line[start - 1 : start], line[end : end + 1]
-    if prev and not prev.isspace():
-        return False
-    return not nxt or nxt.isspace()
+def _archived(path: str) -> bool:
+    """Whether a procedure path is archived and no longer pending."""
+    return Path(DONE_DIR, Path(path).name).exists() and not Path(path).exists()
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("memo", help="path to the work-list .md file")
-    parser.add_argument(
-        "--path",
-        action="append",
-        required=True,
-        help="procedure path whose line is removed (repeatable)",
-    )
-    add_dry_run_argument(parser)
-    args = parser.parse_args(argv)
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("memo")
+    ap.add_argument("--prefix", required=True)
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args()
 
     memo = Path(args.memo)
-    if not memo.is_file():
-        print(f"memo file not found: {memo}", file=sys.stderr)
-        return 2
+    try:
+        text = memo.read_text(encoding="utf-8")
+    except OSError as exc:
+        print(f"{memo}: {exc}", file=sys.stderr)
+        return 1
 
-    text = memo.read_text(encoding="utf-8")
-    lines = text.splitlines(keepends=True)
-    kept: list[str] = []
-    removed: list[tuple[str, str]] = []
-    for line in lines:
-        path = next((p for p in args.path if _matches(line, p)), None)
-        if path is None:
-            kept.append(line)
-        else:
-            removed.append((path, line))
+    matched = [line for line in text.splitlines() if args.prefix in line]
+    if not matched:
+        print(f"{memo}: no line matches {args.prefix}", file=sys.stderr)
+        return 1
 
-    for path in args.path:
-        if not any(p == path for p, _ in removed):
-            print(f"no line names {path}; nothing removed", file=sys.stderr)
-            return 1
+    blocked = [
+        line for line in matched if not _archived(line.removeprefix("- ").strip())
+    ]
+    if blocked:
+        for line in blocked:
+            print(f"not archived: {line}", file=sys.stderr)
+        return 1
 
-    new = "".join(kept)
+    new = (
+        "\n".join(line for line in text.splitlines() if args.prefix not in line) + "\n"
+    )
     if args.dry_run:
         print_dry_run(memo, text, new)
         return 0
 
     atomic_write_text(memo, new)
-    for _, line in removed:
-        print(f"removed: {line.rstrip()}")
+    print(f"Removed {len(matched)} lines from {memo}")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

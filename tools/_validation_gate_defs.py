@@ -654,6 +654,13 @@ ROUTING_GATES: tuple[Gate, ...] = (
         mode=MODE_FAST,
         patterns=("tests/*conftest*", "tests/**/*conftest*"),
     ),
+    Gate(
+        name="check_test_taxonomy",
+        command=(("uv", "run", "python", "tools/check_test_taxonomy.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+        patterns=("tests/**", "pyproject.toml"),
+    ),
     # Full mode only: measured about 6.5 seconds with the hook's --active-only flag (2026-11-02,
     # two runs), against 0.1 to 1.0 seconds for every other gate above (REQ-004). It is
     # report-only (exit 0 with findings), so skipping it in fast mode loses no hard failure.

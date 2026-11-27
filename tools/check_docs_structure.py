@@ -207,7 +207,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # public symbols in scripts/agent/services/mcp_health.py (CapabilityFinding,
     # classify_capabilities), so the regenerated index grew 37198 -> 37507. The ceiling
     # equals the accepted size.
-    "agent_14_reference-api-subpackages-generated.md": 37507,
+    # Re-accepted at 37795 (2026-11-27, cliplc011 row 1): the adaptive-fence helpers add public
+    # symbols in scripts/agent/services/export_formatter.py (fence_for, escape_md), so the
+    # regenerated index grew 37507 -> 37795. The ceiling equals the accepted size.
+    "agent_14_reference-api-subpackages-generated.md": 37795,
 }
 
 

@@ -7,7 +7,11 @@
 prompts/05_skills.md	18962
 prompts/08_document-sync.md	19015
 rules/ai-execution.md	17031
-rules/tool-gates.md	19478
+# Re-recorded at 19763 (2026-11-27, cliplc012 row 5): the gate row for tools/check_test_taxonomy.py is
+# mandatory, because run_validation_gates.py's drift report requires every ROUTING_GATES entry to have a
+# matching rules/tool-gates.md checker row. A new row cannot fit under the 19478 B ceiling, so the ceiling
+# equals the accepted size.
+rules/tool-gates.md	19763
 skills/code-implementation/workflow.md	42118
 skills/git-commit-and-sync/workflow.md	22947
 skills/issue-creator/workflow.md	22841
@@ -20,4 +24,9 @@ skills/python-documentation/workflow.md	25188
 skills/python-implementation/workflow.md	24947
 skills/python-lint-typecheck/workflow.md	17851
 skills/python-refactoring/workflow.md	20895
-skills/python-test-and-fix/workflow.md	27339
+# Re-recorded at 27812 (2026-11-27, cliplc012 row 11): the Test structure section gains the taxonomy
+# classification obligation (REQ-002, REQ-003), which is three lines of rule text. The file was already at its
+# 27339 B ceiling, so any addition exceeds it and the rule cannot be moved to an edge-case file -- the
+# classification obligation applies to every test module, not to a rarely used branch. The ceiling equals the
+# accepted size.
+skills/python-test-and-fix/workflow.md	27812

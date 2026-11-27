@@ -5,3 +5,9 @@
 # Rules: a reason must name an issue path. Remove an entry when its test passes
 # (compare_test_baseline.py --update). Add one only with --add and the owner's approval.
 # This file never hides a failure from the suite: nothing is skipped, xfailed, or deselected.
+tests.mcp_servers.file.test_read_service.TestTraversalStatRace::test_grep_skips_file_that_vanishes_before_stat	issues/20261127-093113_testbase001_pre-existing-failing-tests-baseline.md
+tests.mcp_servers.file.test_read_service.TestTraversalStatRace::test_search_skips_file_that_vanishes_before_stat	issues/20261127-093113_testbase001_pre-existing-failing-tests-baseline.md
+tests.mcp_servers.git.test_git_service_dispatch.TestWriteOffloadAndTimeout::test_pull_timeout_near_success_reports_outcome_unknown	issues/20261127-093113_testbase001_pre-existing-failing-tests-baseline.md
+tests.mcp_servers.git.test_git_service_dispatch.TestWriteOffloadAndTimeout::test_push_timeout_near_success_reports_outcome_unknown	issues/20261127-093113_testbase001_pre-existing-failing-tests-baseline.md
+tests.mcp_servers.git.test_repository_state.TestPerOperationPostconditions::test_commit_postcondition_fails_when_the_author_is_not_the_configured_one	issues/20261127-093113_testbase001_pre-existing-failing-tests-baseline.md
+tests.mcp_servers.git.test_repository_state.TestPerOperationPostconditions::test_pull_postcondition_fails_on_unresolved_conflict	issues/20261127-093113_testbase001_pre-existing-failing-tests-baseline.md

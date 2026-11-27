@@ -9,11 +9,13 @@ check_docs_quality.py	34685
 # capability classification adds public symbols in scripts/agent/services/mcp_health.py, and the
 # acceptance reason comment grew this tool past its recorded size. Owner decision: re-record the
 # baseline rather than split the tool.
-# Re-recorded at 28166 (2026-11-27, mcpai012 procedure 20261126-212443_13 fallout): the
-# governance_03 ceiling was re-accepted 39898 -> 40884 for the SHARED-008 Known Issue entry, and
-# the acceptance reason comment grew this tool past its recorded size. Owner decision: re-record
-# the baseline rather than split the tool.
-check_docs_structure.py	28166
+# Re-recorded at 28436 (2026-11-27, rebase of cliplc011 row 20 onto mcpai012 procedure
+# 20261126-212443_13): both sides grew this tool past its recorded size — 28166 for the SHARED-008
+# Known Issue entry that re-accepted the governance_03 ceiling 39898 -> 40884, and 28097 for the
+# export_formatter reference rows that re-accepted the same ceiling 37507 -> 37795. Both acceptance
+# reason comments are kept, so the merged file exceeds both recorded values. Same owner decision as
+# both sides: re-record the baseline rather than split the tool.
+check_docs_structure.py	28436
 check_workitem_traceability.py	36087
 # Re-recorded at 52945 (2026-11-25, cliplc005 row 4): the ConfigFieldRegistry call shape
 # gained field_type and allow_empty, so _config_ownership_entries parses and validates them
